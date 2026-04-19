@@ -1,0 +1,14 @@
+{
+  "name": "ESCMIN - Gestão Escolar",
+  "description": "Sistema completo de gestão escolar com controle de alunos, turmas, disciplinas, professores e importação inteligente de dados.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "Gestão de Alunos",
+    "Gestão de Turmas",
+    "Gestão de Disciplinas",
+    "Gestão de Professores",
+    "Importação Excel/CSV"
+  ]
+}
