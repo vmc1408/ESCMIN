@@ -9,7 +9,10 @@ import {
   BarChart3 as ReportsIcon, 
   Settings as SettingsIcon, 
   HelpCircle as SupportIcon,
-  CreditCard as PixIcon
+  CreditCard as PixIcon,
+  Activity as StatusIcon,
+  CheckCircle2 as OnlineIcon,
+  AlertCircle as OfflineIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
@@ -32,6 +35,19 @@ export function Sidebar() {
   const [logoUrl, setLogoUrl] = useState('');
   const [instName, setInstName] = useState('ESCMIN');
   const [imageError, setImageError] = useState(false);
+  const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  const checkConnection = async () => {
+    try {
+      // Small query to verify connection
+      const { error } = await supabase.from('institution_settings').select('id').limit(1);
+      if (error) throw error;
+      setDbStatus('online');
+    } catch (e) {
+      console.error('DB Status Check Error:', e);
+      setDbStatus('offline');
+    }
+  };
 
   const fetchInst = async () => {
     try {
@@ -58,11 +74,18 @@ export function Sidebar() {
 
   useEffect(() => {
     fetchInst();
+    checkConnection();
+
+    // Regular status check
+    const interval = setInterval(checkConnection, 30000);
 
     // Listen for updates from Settings page
     const handleUpdate = () => fetchInst();
     window.addEventListener('institution-updated', handleUpdate);
-    return () => window.removeEventListener('institution-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('institution-updated', handleUpdate);
+      clearInterval(interval);
+    };
   }, []);
 
   return (
@@ -125,10 +148,38 @@ export function Sidebar() {
           <PixIcon size={16} />
           Conferência de Pix
         </Link>
-        <Link to="/support" className="flex items-center gap-3 text-slate-400 hover:text-white px-3.5 py-1.5 transition-colors text-xs font-bold uppercase tracking-widest">
+        <Link to="/support" className="flex items-center gap-3 text-slate-400 hover:text-white px-3.5 py-1.5 transition-colors text-xs font-bold uppercase tracking-widest text-center">
           <SupportIcon size={16} />
           <span>Suporte</span>
         </Link>
+
+        {/* Database Connection Indicator */}
+        <div className="mx-3 mt-1 px-3 py-2 bg-black/20 rounded-xl border border-white/5 flex items-center justify-between group">
+          <div className="flex items-center gap-2">
+            {dbStatus === 'online' ? (
+              <div className="relative">
+                <OnlineIcon size={14} className="text-emerald-400" />
+                <span className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-25"></span>
+              </div>
+            ) : dbStatus === 'offline' ? (
+              <OfflineIcon size={14} className="text-red-400" />
+            ) : (
+              <StatusIcon size={14} className="text-slate-500 animate-pulse" />
+            )}
+            <span className={cn(
+              "text-[9px] font-black uppercase tracking-wider",
+              dbStatus === 'online' ? "text-emerald-400/80" : dbStatus === 'offline' ? "text-red-400/80" : "text-slate-500"
+            )}>
+              {dbStatus === 'online' ? 'Sistema Online' : dbStatus === 'offline' ? 'Banco Offline' : 'Verificando...'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className={cn(
+              "w-1 h-1 rounded-full",
+              dbStatus === 'online' ? "bg-emerald-400" : dbStatus === 'offline' ? "bg-red-400" : "bg-slate-500"
+            )}></div>
+          </div>
+        </div>
       </div>
     </aside>
   );

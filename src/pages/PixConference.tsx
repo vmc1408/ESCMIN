@@ -63,11 +63,16 @@ export function PixConference() {
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   
   const toggleSelectAll = () => {
-    if (selectedIds.size === transactions.length) {
-      setSelectedIds(new Set());
+    const visibleIds = filteredTransactions.map(t => String(t.transaction_id));
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+
+    const newSelected = new Set(selectedIds);
+    if (allVisibleSelected) {
+      visibleIds.forEach(id => newSelected.delete(id));
     } else {
-      setSelectedIds(new Set(transactions.map(t => String(t.transaction_id))));
+      visibleIds.forEach(id => newSelected.add(id));
     }
+    setSelectedIds(newSelected);
   };
 
   const toggleSelect = (id: string) => {
@@ -81,12 +86,20 @@ export function PixConference() {
   };
 
   const toggleHistorySelectAll = () => {
-    const allHistoryIds = history.flatMap(month => month.batches.flatMap((batch: any) => batch.transactions.map((t: any) => String(t.id))));
-    if (selectedHistoryIds.size === allHistoryIds.length) {
-      setSelectedHistoryIds(new Set());
+    const visibleHistoryIds = historyByMonth.flatMap(month => 
+      month.batches.flatMap((batch: any) => 
+        batch.transactions.map((t: any) => String(t.id))
+      )
+    );
+    const allVisibleSelected = visibleHistoryIds.length > 0 && visibleHistoryIds.every(id => selectedHistoryIds.has(id));
+
+    const newSelected = new Set(selectedHistoryIds);
+    if (allVisibleSelected) {
+      visibleHistoryIds.forEach(id => newSelected.delete(id));
     } else {
-      setSelectedHistoryIds(new Set(allHistoryIds));
+      visibleHistoryIds.forEach(id => newSelected.add(id));
     }
+    setSelectedHistoryIds(newSelected);
   };
 
   const toggleBatchSelect = (batchTransactions: any[]) => {
@@ -1162,22 +1175,6 @@ export function PixConference() {
           
           {activeTab === 'new' && transactions.length > 0 && (
             <div className="flex items-center gap-3">
-              {selectedIds.size > 0 && (
-                <button 
-                  onClick={() => {
-                    const confirmed = window.confirm(`Deseja remover os ${selectedIds.size} registros selecionados da lista atual?`);
-                    if (confirmed) {
-                      setTransactions(prev => prev.filter(item => !selectedIds.has(String(item.transaction_id))));
-                      setSelectedIds(new Set());
-                      setNotification({ type: 'success', message: 'Registros removidos da lista.' });
-                    }
-                  }}
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold bg-white text-red-500 border border-red-100 hover:bg-red-50 hover:border-red-200 transition-all active:scale-95 shadow-sm"
-                >
-                  <Trash2 size={18} />
-                  Remover Selecionados ({selectedIds.size})
-                </button>
-              )}
               <button 
                 onClick={handleSave} 
                 disabled={isSaving} 
