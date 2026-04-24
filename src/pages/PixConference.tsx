@@ -34,7 +34,9 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { cn, safeFormat, parseSafeDate, formatDate } from '../lib/utils';
-import { supabase, fetchAll } from '../lib/supabase';
+import { db, fetchAll, auth, saveData, deleteData } from '../lib/firebase';
+import { collection, query, where, getDocs, orderBy, limit, doc, setDoc } from 'firebase/firestore';
+import { supabase } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
 
 export function PixConference() {
@@ -55,9 +57,10 @@ export function PixConference() {
   const [expandedBatches, setExpandedBatches] = useState<string[]>([]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [registeredPixIds, setRegisteredPixIds] = useState<Set<string>>(new Set());
-  const [existingReconciledIds, setExistingReconciledIds] = useState<Set<string>>(new Set());
+  const [reconciliationMap, setReconciliationMap] = useState<Map<string, string>>(new Map());
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
@@ -131,9 +134,43 @@ export function PixConference() {
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [institution, setInstitution] = useState<any>(null);
   const [registeringContribution, setRegisteringContribution] = useState<any | null>(null);
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([new Date().getMonth() + 1]);
+  const [selectedPeriods, setSelectedPeriods] = useState<{ month: number, year: number }[]>([
+    { month: new Date().getMonth() + 1, year: new Date().getFullYear() }
+  ]);
   const [contribYear, setContribYear] = useState(new Date().getFullYear().toString());
   const [modalPaymentMethod, setModalPaymentMethod] = useState<'PIX' | 'Cartão' | 'Dinheiro'>('PIX');
+  
+  // Simulation and Mapping States
+  const [isSimulationMode, setIsSimulationMode] = useState(false);
+  const [showMappingConfig, setShowMappingConfig] = useState(false);
+  const [customMapping, setCustomMapping] = useState({
+    date: '',
+    payer: '',
+    amount: '',
+    id: '',
+    bank: ''
+  });
+
+  const MOCK_STUDENTS: Student[] = [
+    { id: 'mock-1', name: 'EDILSON SANTANA SANTOS', registration_number: '2023001', status: 'Ativo' } as any,
+    { id: 'mock-2', name: 'MARIA APARECIDA DA SILVA', registration_number: '2023002', status: 'Ativo' } as any,
+    { id: 'mock-3', name: 'JOSE RICARDO OLIVEIRA', registration_number: '2023003', status: 'Ativo' } as any,
+    { id: 'mock-4', name: 'ANA PAULA FERREIRA', registration_number: '2023004', status: 'Ativo' } as any,
+    { id: 'mock-5', name: 'DIOCESANA MINISTÉRIOS', registration_number: 'INST-01', status: 'Ativo' } as any,
+  ];
+
+  const BANK_PRESETS = {
+    'ITAU': { date: 'Data', payer: 'Descrição', amount: 'Valor', id: 'Número', bank: '' },
+    'SANTANDER': { date: 'Data', payer: 'Nome do Favorecido/Pagador', amount: 'Valor (R$)', id: 'ID Transação', bank: 'Origem' },
+    'BB': { date: 'Data', payer: 'Histórico', amount: 'Valor', id: 'Documento', bank: '' },
+    'BRADESCO': { date: 'Data', payer: 'Histórico', amount: 'Valor', id: 'Nº Doc', bank: '' },
+    'NUBANK': { date: 'Data', payer: 'Descrição', amount: 'Valor', id: 'ID', bank: '' }
+  };
+
+  const handleApplyPreset = (bank: keyof typeof BANK_PRESETS) => {
+    setCustomMapping(BANK_PRESETS[bank]);
+    setNotification({ type: 'success', message: `Mapeamento ${bank} aplicado!` });
+  };
 
   const MONTHS = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -145,12 +182,18 @@ export function PixConference() {
   };
 
   const toggleMonth = (monthNumber: number) => {
-    if (selectedMonths.includes(monthNumber)) {
-      if (selectedMonths.length > 1) {
-        setSelectedMonths(selectedMonths.filter(m => m !== monthNumber));
+    const year = parseInt(contribYear);
+    const existsIndex = selectedPeriods.findIndex(p => p.month === monthNumber && p.year === year);
+    
+    if (existsIndex !== -1) {
+      if (selectedPeriods.length > 1) {
+        setSelectedPeriods(selectedPeriods.filter((_, i) => i !== existsIndex));
       }
     } else {
-      setSelectedMonths([...selectedMonths, monthNumber].sort((a, b) => a - b));
+      setSelectedPeriods([...selectedPeriods, { month: monthNumber, year }].sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+      }));
     }
   };
 
@@ -169,25 +212,34 @@ export function PixConference() {
   const fetchRegisteredPixIds = async () => {
     try {
       // Check contributions (Student Statements)
-      const { data: contribData, error: contribError } = await supabase
+      // Prioritize Supabase for larger datasets or better performance in hybrid mode
+      const { data: contribData, error: sbError } = await supabase
         .from('contributions')
         .select('pix_id')
         .not('pix_id', 'is', null);
-      
-      if (contribError) throw contribError;
-      if (contribData) {
-        setRegisteredPixIds(new Set(contribData.map(c => String(c.pix_id)).filter(Boolean)));
+
+      if (!sbError && contribData) {
+        setRegisteredPixIds(new Set(contribData.map(d => String(d.pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
+      } else {
+        // Fallback to Firebase
+        const qContrib = query(
+          collection(db, 'contributions'),
+          where('pix_id', '!=', null)
+        );
+        const contribSnap = await getDocs(qContrib);
+        setRegisteredPixIds(new Set(contribSnap.docs.map(d => String(d.data().pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
       }
 
       // Check existing reconciliations (Pix History)
-      const { data: reconData, error: reconError } = await supabase
-        .from('pix_reconciliations')
-        .select('transaction_id');
-
-      if (reconError) throw reconError;
-      if (reconData) {
-        setExistingReconciledIds(new Set(reconData.map(r => String(r.transaction_id)).filter(Boolean)));
+      const reconciliations = await fetchAll('pix_reconciliations', 'id, transaction_id');
+      const rMap = new Map<string, string>();
+      
+      if (reconciliations) {
+        reconciliations.forEach((d: any) => {
+          if (d.transaction_id) rMap.set(String(d.transaction_id), d.id);
+        });
       }
+      setReconciliationMap(rMap);
     } catch (e) {
       console.error('Error fetching registered entries:', e);
     }
@@ -195,11 +247,9 @@ export function PixConference() {
 
   const fetchInstitution = async () => {
     try {
-      const { data } = await supabase
-        .from('institution_settings')
-        .select('*')
-        .limit(1);
-      if (data && data.length > 0) setInstitution(data[0]);
+      const q = query(collection(db, 'institution_settings'), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) setInstitution(snap.docs[0].data());
     } catch (e) {
       console.error('Error fetching institution:', e);
     }
@@ -215,37 +265,67 @@ export function PixConference() {
   const fetchHistory = async () => {
     setHistoryLoading(true);
     try {
-      const data = await fetchAll(
-        'pix_reconciliations', 
-        '*, student:students(name, registration_number, class_id)',
-        'created_at',
-        false
+      // First try with ordered query
+      let q = query(
+        collection(db, 'pix_reconciliations'),
+        orderBy('created_at', 'desc')
       );
       
+      let snap;
+      try {
+        snap = await getDocs(q);
+      } catch (err) {
+        console.warn('Ordenação por data falhou, tentando busca simples...', err);
+        // Fallback if index missing or field missing
+        q = query(collection(db, 'pix_reconciliations'));
+        snap = await getDocs(q);
+      }
+
+      const raw = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      
+      // Local sort fallback
+      raw.sort((a, b) => {
+        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return db - da;
+      });
+
       // Group by batch_id
-      const grouped = (data || []).reduce((acc: any, curr: any) => {
+      const grouped = (raw || []).reduce((acc: any, curr: any) => {
         const batchId = curr.batch_id || 'sem-lote';
+        
+        // Link student locally if we have them in state
+        try {
+          if (curr.matched_student_id && students && students.length > 0) {
+            curr.student = students.find(s => s.id === curr.matched_student_id);
+          }
+        } catch (err) {
+          console.warn('Error linking student in history:', err);
+        }
+
         if (!acc[batchId]) {
           acc[batchId] = {
             batch_id: batchId,
             file_name: curr.file_name || 'Arquivo sem nome',
-            created_at: curr.created_at,
-            // For card header summary
-            payer_name: curr.payer_name,
-            amount: curr.amount,
-            status: curr.status,
+            created_at: curr.created_at || new Date().toISOString(),
+            payer_name: curr.payer_name || 'N/A',
+            amount: Number(curr.amount) || 0,
+            status: curr.status || 'unknown',
             transactions: [],
             totalAmount: 0
           };
         }
         acc[batchId].transactions.push(curr);
-        acc[batchId].totalAmount += Number(curr.amount);
+        acc[batchId].totalAmount += Number(curr.amount) || 0;
         return acc;
       }, {});
 
-      setHistory(Object.values(grouped));
+      const processedHistory = Object.values(grouped);
+      console.info(`Histórico processado: ${processedHistory.length} lotes encontrados.`);
+      setHistory(processedHistory);
     } catch (error) {
       console.error('Error fetching history:', error);
+      setHistory([]);
     } finally {
       setHistoryLoading(false);
     }
@@ -254,95 +334,168 @@ export function PixConference() {
   const handleBulkDeleteHistory = async () => {
     if (selectedHistoryIds.size === 0) return;
     
-    const confirmMsg = `Deseja excluir permanentemente os ${selectedHistoryIds.size} registros selecionados e TODOS os seus vínculos financeiros?`;
+    const confirmMsg = `Deseja excluir permanentemente os ${selectedHistoryIds.size} registros selecionados e TODOS os seus vínculos financeiros EM AMBAS AS BASES?`;
     if (!window.confirm(confirmMsg)) return;
 
     setIsDeleting(true);
-    setNotification({ type: 'success', message: 'Excluindo registros selecionados...' });
+    setNotification({ type: 'success', message: 'Excluindo registros selecionados sincronizadamente...' });
 
     try {
-      const idsToDelete = Array.from(selectedHistoryIds);
+      const idsToDelete = Array.from(selectedHistoryIds) as string[];
       
-      // 1. Fetch transaction_ids to clear contributions
-      const { data: items, error: fetchError } = await supabase
-        .from('pix_reconciliations')
-        .select('id, transaction_id')
-        .in('id', idsToDelete);
-      
-      if (fetchError) throw fetchError;
+      for (const id of idsToDelete) {
+        // Find transaction_id to clean up contributions
+        // Reconciliations might be in Supabase or Firebase
+        const res = await supabase.from('pix_reconciliations').select('transaction_id').eq('id', id).single();
+        let transactionId = res.data?.transaction_id;
 
-      if (items && items.length > 0) {
-        const reconciliationIds = items.map(item => item.id);
-        const transactionIds = items.map(item => item.transaction_id);
-        
-        // Delete linked contributions
-        await supabase.from('contributions').delete().in('pix_id', reconciliationIds);
-        await supabase.from('contributions').delete().in('pix_id', transactionIds);
+        if (!transactionId) {
+          // Fallback to Firebase
+          const docSnap = await getDocs(query(collection(db, 'pix_reconciliations'), where('__name__', '==', id)));
+          if (!docSnap.empty) {
+            transactionId = docSnap.docs[0].data().transaction_id;
+          }
+        }
+
+        if (transactionId) {
+          // Delete linked contributions everywhere
+          const { data: sbContribs } = await supabase.from('contributions')
+            .select('id')
+            .or(`pix_id.eq.${id},pix_id.eq.${transactionId}`);
+          
+          if (sbContribs) {
+            for (const c of sbContribs) {
+              await deleteData('contributions', c.id);
+            }
+          }
+          
+          // Double check Firebase for contributions
+          const q1 = query(collection(db, 'contributions'), where('pix_id', '==', id));
+          const q2 = query(collection(db, 'contributions'), where('pix_id', '==', transactionId));
+          const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+          for (const d of [...s1.docs, ...s2.docs]) {
+            await deleteData('contributions', d.id);
+          }
+        }
+
+        await deleteData('pix_reconciliations', id);
       }
 
-      // 2. Delete main reconciliations
-      const { error: deleteError } = await supabase
-        .from('pix_reconciliations')
-        .delete()
-        .in('id', idsToDelete);
-
-      if (deleteError) throw deleteError;
-
-      setNotification({ type: 'success', message: 'Exclusão em massa concluída com sucesso.' });
+      setNotification({ type: 'success', message: 'Exclusão em massa sincronizada com sucesso.' });
       setSelectedHistoryIds(new Set());
-      fetchHistory();
-    } catch (e) {
+      await fetchHistory();
+    } catch (e: any) {
       console.error('Error in bulk delete:', e);
-      setNotification({ type: 'error', message: 'Erro ao realizar a exclusão em massa.' });
+      setNotification({ type: 'error', message: 'Erro ao realizar a exclusão sincronizada: ' + (e.message || '') });
     } finally {
       setIsDeleting(false);
       setTimeout(() => setNotification(null), 3000);
     }
   };
 
+  const handleResetDatabase = async () => {
+    const confirmMsg = "ATENÇÃO: Isso excluirá PERMANENTEMENTE todos os registros de conciliação do histórico EM AMBAS AS BASES (Supabase e Firebase). As contribuições já lançadas no extrato dos alunos NÃO serão afetadas. Deseja continuar?";
+    if (!window.confirm(confirmMsg)) return;
+
+    setIsDeleting(true);
+    setNotification({ type: 'success', message: 'Iniciando limpeza sincronizada da base...' });
+
+    try {
+      // Fetch all IDs to delete using fetchAll which handles hybrid mode
+      const reconciliations = await fetchAll('pix_reconciliations', 'id');
+      
+      if (!reconciliations || reconciliations.length === 0) {
+        setNotification({ type: 'success', message: 'A base já está vazia.' });
+        setHistory([]);
+        setReconciliationMap(new Map());
+        setRegisteredPixIds(new Set());
+        setTransactions([]);
+        setFile(null);
+        setIsDeleting(false);
+        return;
+      }
+
+      console.info(`Limpando ${reconciliations.length} registros sincronizados...`);
+      
+      // Delete doc by doc using deleteData to ensure sync between providers
+      for (let i = 0; i < reconciliations.length; i++) {
+        const item = reconciliations[i];
+        await deleteData('pix_reconciliations', item.id);
+      }
+
+      // Clear all local states
+      setHistory([]);
+      setReconciliationMap(new Map());
+      setRegisteredPixIds(new Set());
+      setTransactions([]);
+      setFile(null);
+      setSelectedIds(new Set());
+      setSelectedHistoryIds(new Set());
+      
+      setNotification({ type: 'success', message: 'Bases sincronizadas e limpas com sucesso!' });
+      
+      // Refresh to ensure everything is in sync
+      await Promise.all([fetchHistory(), fetchRegisteredPixIds()]);
+    } catch (e: any) {
+      console.error('Error resetting database:', e);
+      setNotification({ type: 'error', message: 'Erro ao sincronizar limpeza: ' + e.message });
+    } finally {
+      setIsDeleting(false);
+      setTimeout(() => setNotification(null), 4000);
+    }
+  };
+
   const handleDeleteHistory = async (batchId: string) => {
     setIsDeleting(true);
-    setNotification({ type: 'success', message: 'Iniciando limpeza total do registro e vínculos...' });
+    setNotification({ type: 'success', message: 'Iniciando limpeza sincronizada do registro e vínculos...' });
     
     try {
-      // 1. Localizar o item pelo ID do Lote (que agora é individual)
-      const { data: batchItems, error: fetchError } = await supabase
-        .from('pix_reconciliations')
-        .select('id, transaction_id')
-        .eq('batch_id', batchId);
-      
-      if (fetchError) throw fetchError;
+      // 1. Locate items by Batch ID in hybrid mode
+      let batchItems: any[] = [];
+      const { data: sbItems } = await supabase.from('pix_reconciliations').select('id, transaction_id').eq('batch_id', batchId);
+      if (sbItems) batchItems = sbItems;
 
+      // Fallback/Sync with Firebase
+      const q = query(collection(db, 'pix_reconciliations'), where('batch_id', '==', batchId));
+      const fbSnap = await getDocs(q);
+      fbSnap.docs.forEach(d => {
+        if (!batchItems.find(item => item.id === d.id)) batchItems.push({ id: d.id, ...d.data() });
+      });
+      
       if (batchItems && batchItems.length > 0) {
-        const reconciliationIds = batchItems.map(item => item.id);
-        const validTransactionIds = batchItems
-          .map(item => item.transaction_id)
-          .filter(tid => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tid));
-        
-        // 2. Limpar contribuições vinculadas (Brute mode)
-        if (reconciliationIds.length > 0) {
-          await supabase.from('contributions').delete().in('pix_id', reconciliationIds);
-        }
-        
-        if (validTransactionIds.length > 0) {
-          await supabase.from('contributions').delete().in('pix_id', validTransactionIds);
+        for (const item of batchItems) {
+          const reconciliationId = item.id;
+          const transactionId = item.transaction_id;
+          
+          // 2. Clear linked contributions from both DBs
+          const { data: sbContribs } = await supabase.from('contributions')
+            .select('id')
+            .or(`pix_id.eq.${reconciliationId},pix_id.eq.${transactionId}`);
+          
+          if (sbContribs) {
+            for (const c of sbContribs) await deleteData('contributions', c.id);
+          }
+
+          // Check Firebase contributions too
+          const q1 = query(collection(db, 'contributions'), where('pix_id', '==', reconciliationId));
+          const q2 = transactionId ? query(collection(db, 'contributions'), where('pix_id', '==', transactionId)) : null;
+          
+          const [s1, s2] = await Promise.all([getDocs(q1), q2 ? getDocs(q2) : Promise.resolve({ docs: [] })]);
+          for (const d of [...s1.docs, ...s2.docs]) {
+            await deleteData('contributions', d.id);
+          }
+
+          // 3. Delete main reconciliation
+          await deleteData('pix_reconciliations', item.id);
         }
       }
 
-      // 3. Deletar a conciliação principal
-      const { error: deleteError } = await supabase
-        .from('pix_reconciliations')
-        .delete()
-        .eq('batch_id', batchId);
-      
-      if (deleteError) throw deleteError;
-
       await fetchHistory();
       setDeleteConfirmId(null);
-      setNotification({ type: 'success', message: 'Registro e contribuições removidos com sucesso!' });
+      setNotification({ type: 'success', message: 'Registro e contribuições removidos sincronizadamente!' });
     } catch (error: any) {
-      console.error('Erro na exclusão bruta:', error);
-      setNotification({ type: 'error', message: 'Erro ao excluir: ' + error.message });
+      console.error('Erro na exclusão sincronizada:', error);
+      setNotification({ type: 'error', message: 'Erro ao excluir sincronizadamente: ' + error.message });
     } finally {
       setIsDeleting(false);
     }
@@ -354,31 +507,6 @@ export function PixConference() {
         ? prev.filter(id => id !== batchId) 
         : [...prev, batchId]
     );
-  };
-
-  const handleExportHistory = (batch: any) => {
-    try {
-      const exportData = batch.transactions.map((t: any) => ({
-        'Data': t.date,
-        'Pagador': t.payer_name,
-        'Banco Origem': t.origin_bank,
-        'Valor': t.amount,
-        'ID Transação': t.transaction_id,
-        'Status': t.status === 'matched' ? 'Conciliado' : t.status === 'multiple' ? 'Múltiplos' : 'Não Conciliado',
-        'Aluno': t.student?.name || 'Não identificado',
-        'Matrícula': t.student?.registration_number || ''
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Conciliação");
-      XLSX.writeFile(wb, `Export_${batch.file_name.replace('.xlsx', '')}.xlsx`);
-      
-      setNotification({ type: 'success', message: 'Arquivo exportado com sucesso!' });
-    } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao exportar: ' + error.message });
-    }
   };
 
   const handlePrintHistory = (batch: any) => {
@@ -437,7 +565,7 @@ export function PixConference() {
   };
 
   const processFile = (selectedFile: File) => {
-    if (students.length === 0) {
+    if (!isSimulationMode && students.length === 0) {
       alert("A base de alunos ainda está sendo carregada. Por favor, aguarde um momento e tente novamente.");
       return;
     }
@@ -454,8 +582,11 @@ export function PixConference() {
         
         console.log('Dados brutos do Excel:', jsonData);
 
+        // Use mock data if in simulation mode
+        const targetStudents = isSimulationMode ? MOCK_STUDENTS : students;
+
         // Prepare searchable students with normalized names for better matching
-        const searchableStudents = students.map(s => ({
+        const searchableStudents = targetStudents.map(s => ({
           ...s,
           searchName: normalize(s.name)
         }));
@@ -463,39 +594,37 @@ export function PixConference() {
         const processed = jsonData.map((row: any, index: number) => {
           const keys = Object.keys(row);
           
-          const findValue = (searchTerms: string[]) => {
+          const findValue = (searchTerms: string[], customKey?: string) => {
+            if (customKey && row[customKey] !== undefined) return row[customKey];
             const foundKey = keys.find(k => searchTerms.some(term => k.toLowerCase().includes(term.toLowerCase())));
             return foundKey ? row[foundKey] : '';
           };
 
-          const date = row['Data'] || row['Data do lançamento'] || row['Data Operação'] || row['Data Movimento'] || row['DATA'] || findValue(['data', 'movimento']);
-          const rawName = row['Nome'] || row['Pagador'] || row['Descrição'] || row['Nome do Favorecido/Pagador'] || row['Cliente'] || row['NOME'] || findValue(['nome', 'pagador', 'cliente', 'favorecido']);
+          const date = findValue(['data', 'movimento', 'operacao'], customMapping.date);
+          const rawName = findValue(['nome', 'pagador', 'cliente', 'favorecido', 'descricao', 'historico'], customMapping.payer);
           
           let amount = 0;
-          const rawAmount = row['Valor'] || row['Valor (R$)'] || row['VALOR'] || findValue(['valor', 'quantia', 'montante']);
+          const rawAmount = findValue(['valor', 'quantia', 'montante'], customMapping.amount);
           if (typeof rawAmount === 'number') {
             amount = rawAmount;
           } else if (rawAmount) {
             amount = parseFloat(String(rawAmount).replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.'));
           }
 
-          const id = row['ID Transação'] || row['E2E ID'] || row['Documento'] || row['Autenticação'] || row['ID'] || row['Nº Doc'] || row['Número'] || row['Ref'] || row['NSU'] || row['Identificador'] || row['Controle'] || row['Código'] || row['E2E_ID'] || findValue(['id', 'transacao', 'e2e', 'autenticacao', 'nsu', 'documento']);
+          const id = findValue(['id', 'transacao', 'e2e', 'autenticacao', 'nsu', 'documento', 'numero', 'doc', 'ref', 'nº'], customMapping.id);
           
           // Composite unique ID to ensure total uniqueness in the session.
-          // Including the row index (index) guarantees that identical rows in the same spreadsheet
-          // are preserved as separate records. Stable date ensures consistency across files.
           const stableDate = parseSafeDate(date).toISOString().split('T')[0];
           const cleanId = id ? String(id).trim() : `row${index}`;
           const finalId = `${cleanId}_idx${index}_d${stableDate}_v${amount}`.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 150);
 
           // Robust bank detection
           const getBank = (r: any) => {
+            if (customMapping.bank && r[customMapping.bank] !== undefined) return r[customMapping.bank];
             const keys = Object.keys(r);
-            // Direct matches first
             const directMatch = r['Instituição'] || r['Banco'] || r['Origem'] || r['Banco Origem'] || r['Banco de Origem'] || r['BANCO ORIGEM'] || r['ISPB'] || r['INSTITUICAO'];
             if (directMatch) return directMatch;
             
-            // Case-insensitive search
             const foundKey = keys.find(k => {
               const lowerK = k.toLowerCase();
               return lowerK.includes('banco') || lowerK.includes('instituicao') || (lowerK.includes('origem') && !lowerK.includes('data'));
@@ -640,11 +769,11 @@ export function PixConference() {
     unmatched: transactions.filter(t => t.status === 'unmatched').length,
     multiple: transactions.filter(t => t.status === 'multiple').length,
     duplicates: transactions.filter(t => 
-      existingReconciledIds.has(String(t.transaction_id)) || 
+      reconciliationMap.has(String(t.transaction_id)) || 
       registeredPixIds.has(String(t.transaction_id))
     ).length,
     totalAmount: transactions.reduce((acc, t) => acc + t.amount, 0)
-  }), [transactions, existingReconciledIds, registeredPixIds]);
+  }), [transactions, reconciliationMap, registeredPixIds]);
 
   const handleManualMatch = (studentId: string) => {
     if (matchingTransactionIndex === null) return;
@@ -674,108 +803,91 @@ export function PixConference() {
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveProgress(0);
     try {
-      // Use getSession for a faster check than getUser in some environments
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      
       const transactionsToProcess = selectedIds.size > 0 
         ? transactions.filter(t => selectedIds.has(String(t.transaction_id)))
         : transactions;
 
+      const transactionsWithId = transactionsToProcess.filter(t => t.transaction_id && t.transaction_id.trim() !== '');
+      if (transactionsWithId.length === 0) {
+        throw new Error(selectedIds.size > 0 
+          ? 'Nenhum dos registros selecionados possui ID válido.' 
+          : 'Nenhuma transação com ID válido (E2E ID) foi encontrada para salvar.');
+      }
+
       // Check if some of these entries already exist to alert the user
-      const alreadyExisting = transactionsToProcess.filter(t => 
-        existingReconciledIds.has(String(t.transaction_id)) || 
+      const alreadyExisting = transactionsWithId.filter(t => 
+        reconciliationMap.has(String(t.transaction_id)) || 
         registeredPixIds.has(String(t.transaction_id))
       );
 
       if (alreadyExisting.length > 0) {
-        const confirmMsg = `${alreadyExisting.length} registro(s) já constam no sistema (Histórico ou Extrato). Deseja re-importar e atualizar estes registros?`;
+        const confirmMsg = `${alreadyExisting.length} registro(s) já constam no sistema. Deseja atualizar estes registros?`;
         if (!window.confirm(confirmMsg)) {
           setIsSaving(false);
           return;
         }
       }
 
-      const transactionsWithId = transactionsToProcess.filter(t => t.transaction_id && t.transaction_id.trim() !== '');
-      if (transactionsWithId.length === 0) {
-        throw new Error(selectedIds.size > 0 
-          ? 'Nenhum dos registros selecionados possui ID válido.' 
-          : 'Nenhuma transação com ID válido (E2E ID) foi encontrada para salvar. Verifique o arquivo importado.');
-      }
+      // Process in chunks for progress reporting and to avoid timeouts
+      const sessionBatchId = crypto.randomUUID();
+      const total = transactionsWithId.length;
+      
+      console.info(`Salvando ${total} registros de conciliação...`);
 
-      // Every record is treated as its own "file unit" (batch) for brute-force deletion reliability
-      const toInsert = transactionsWithId.map(t => {
+      for (let i = 0; i < total; i++) {
+        const t = transactionsWithId[i];
         const isMatched = t.status === 'matched';
-        
-        const uniqueRecordBatchId = crypto.randomUUID?.() || `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Clean matched_student_id: must be a valid UUID or NULL
         const isValidUUID = (id: string | undefined): boolean => {
           if (!id) return false;
           return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
         };
         
-        const item: any = {
-          batch_id: uniqueRecordBatchId,
+        const existingId = reconciliationMap.get(String(t.transaction_id));
+        const docId = existingId || crypto.randomUUID();
+        
+        const dataToSave = {
+          batch_id: t.batch_id || sessionBatchId,
           file_name: file?.name || 'Importação Manual',
           transaction_id: t.transaction_id,
           date: parseSafeDate(t.date).toISOString(),
           payer_name: t.payer_name,
           origin_bank: t.origin_bank,
-          amount: t.amount,
+          amount: Number(t.amount) || 0,
           status: t.status,
           matched_student_id: (isMatched && isValidUUID(t.matched_student_id)) ? t.matched_student_id : null,
           created_at: new Date().toISOString()
         };
+
+        // Use saveData which mirrors to both Supabase and Firebase
+        await saveData('pix_reconciliations', docId, dataToSave);
         
-        if (userId) item.user_id = userId;
-        return item;
+        const progress = Math.round(((i + 1) / total) * 100);
+        setSaveProgress(progress);
+      }
+
+      setNotification({ 
+        type: 'success', 
+        message: `${total} registros vinculados com sucesso!` 
       });
 
-      // Ensure unique transaction_id for the upsert
-      const uniqueToInsert = Array.from(
-        new Map(toInsert.map(item => [item.transaction_id, item])).values()
-      ) as any[];
-
-      const matchedCount = uniqueToInsert.filter(t => t.status === 'matched').length;
-      const othersCount = uniqueToInsert.length - matchedCount;
-
-      console.info(`Persistindo conciliação: ${matchedCount} identificados, ${othersCount} pendentes.`);
+      // Clear processed transactions
+      const savedIdsSet = new Set(transactionsWithId.map(t => String(t.transaction_id)));
+      setTransactions(prev => prev.filter(t => !savedIdsSet.has(String(t.transaction_id))));
+      setSelectedIds(new Set()); 
       
-      const { data: savedData, error: upsertError } = await supabase
-        .from('pix_reconciliations')
-        .upsert(uniqueToInsert, { 
-          onConflict: 'transaction_id'
-        })
-        .select('id, transaction_id');
-
-      if (upsertError) {
-        console.error('Erro detalhado na persistência:', upsertError);
-        throw new Error(`Erro ao salvar no banco: ${upsertError.message || 'Falha de comunicação'}`);
-      }
-
-      // Remove saved transactions from the current list (they are now in History)
-      if (savedData && savedData.length > 0) {
-        const savedIdsSet = new Set(savedData.map(s => s.transaction_id));
-        setTransactions(prev => prev.filter(t => !savedIdsSet.has(t.transaction_id)));
-        setSelectedIds(new Set()); 
-        
-        const count = savedData.length;
-        setNotification({ 
-          type: 'success', 
-          message: `${count} registro${count !== 1 ? 's' : ''} salvo${count !== 1 ? 's' : ''} com sucesso! Tudo limpo aqui.` 
-        });
-      }
-      
-      // Auto-refresh and navigate to history for visual confirmation
-      await fetchHistory();
-      setTimeout(() => setActiveTab('history'), 800);
+      // Auto-refresh 
+      await Promise.all([fetchHistory(), fetchRegisteredPixIds()]);
+      setTimeout(() => {
+        setActiveTab('history');
+        setSaveProgress(0);
+      }, 1000);
     } catch (error: any) {
-      console.error('Erro ao processar salvamento:', error);
+      console.error('Erro ao salvar:', error);
       setNotification({ 
         type: 'error', 
-        message: 'Não foi possível salvar: ' + (error.message || 'Erro de conexão ou permissão.')
+        message: 'Falha no salvamento: ' + (error.message || 'Erro desconhecido.')
       });
     } finally {
       setIsSaving(false);
@@ -1012,10 +1124,21 @@ export function PixConference() {
         doc.rect(margin, nextY + 10, pageWidth - (margin * 2), 35);
         doc.setFontSize(10);
         
-        const monthNames = contributions.map(c => MONTHS[c.reference_month - 1].toUpperCase());
-        const displayMonths = monthNames.length > 3 ? `${monthNames.slice(0, 3).join(', ')}...` : monthNames.join(' e ');
+        const periodsByYear: { [key: number]: number[] } = {};
+        contributions.forEach(c => {
+          if (!periodsByYear[c.reference_year]) periodsByYear[c.reference_year] = [];
+          periodsByYear[c.reference_year].push(c.reference_month);
+        });
+
+        const yearSummaries = Object.entries(periodsByYear).map(([year, months]) => {
+          const mNames = months.sort((a,b) => a-b).map(m => MONTHS[m-1].toUpperCase());
+          const displayMonths = mNames.length > 3 ? `${mNames.slice(0, 3).join(', ')}...` : mNames.join(' e ');
+          return `${displayMonths} DE ${year}`;
+        });
+
+        const fullDescription = yearSummaries.join(' | ');
         
-        doc.text(`CONTRIBUIÇÕES de " ${displayMonths} " de ${contributions[0]?.reference_year}`, pageWidth / 2, nextY + 20, { align: 'center' });
+        doc.text(`CONTRIBUIÇÕES: ${fullDescription}`, pageWidth / 2, nextY + 20, { align: 'center', maxWidth: pageWidth - (margin * 2) });
         doc.text(`" P A Z  E  B E M "`, pageWidth / 2, nextY + 30, { align: 'center' });
         doc.setFontSize(8);
         doc.text(institution?.email || 'PIX@ESCOLADEMINISTÉRIOS.TEO.BR', pageWidth / 2, nextY + 40, { align: 'center' });
@@ -1036,35 +1159,46 @@ export function PixConference() {
   };
 
   const handleFinalContributionRegistration = async () => {
-    if (!registeringContribution || selectedMonths.length === 0) return;
+    if (!registeringContribution || selectedPeriods.length === 0) return;
     
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const user = auth.currentUser;
       const totalAmount = registeringContribution.amount;
-      const studentId = registeringContribution.matched_student_id;
-      const amountPerMonth = totalAmount / selectedMonths.length;
+      const studentData = registeringContribution.student || students.find(s => s.id === registeringContribution.matched_student_id);
+      const studentId = studentData?.id || registeringContribution.matched_student_id;
       
+      if (!studentId) {
+        throw new Error("Aluno não identificado para este registro.");
+      }
+
+      const amountPerMonth = totalAmount / selectedPeriods.length;
       const safeDate = parseSafeDate(registeringContribution.date).toISOString();
-      const refYear = parseInt(contribYear);
 
-      // Check for existing contributions to prevent duplicates
-      const { data: existingContribs, error: checkError } = await supabase
-        .from('contributions')
-        .select('reference_month')
-        .eq('student_id', studentId)
-        .eq('reference_year', refYear)
-        .in('reference_month', selectedMonths);
+      // Check for existing contributions to prevent duplicates - more complex now with multiple years
+      const duplicateChecks = await Promise.all(selectedPeriods.map(async (period) => {
+        const q = query(
+          collection(db, 'contributions'),
+          where('student_id', '==', studentId),
+          where('reference_year', '==', period.year),
+          where('reference_month', '==', period.month)
+        );
+        const snap = await getDocs(q);
+        return snap.empty ? null : period;
+      }));
 
-      if (checkError) throw checkError;
+      const activeDuplicates = duplicateChecks.filter(d => d !== null) as { month: number, year: number }[];
 
-      // Use internal UUID (t.id) if available, fallback to transaction_id only if it's a valid UUID format
-      // otherwise null to avoid Postgres type mismatch. We use String() for the Set check but keep the potential UUID for the insert.
+      if (activeDuplicates.length > 0) {
+        const duplicateDescs = activeDuplicates.map(d => `${MONTHS[d.month - 1]}/${d.year}`).join(', ');
+        setNotification({ 
+          type: 'error', 
+          message: `Atenção: Já existe contribuição para ${duplicateDescs}. Verifique a referência.` 
+        });
+        return;
+      }
+
       const rawId = registeringContribution.id || registeringContribution.transaction_id || null;
-      const currentPixId = registeringContribution.id || (
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(registeringContribution.transaction_id)
-          ? registeringContribution.transaction_id
-          : null
-      );
+      const currentPixId = registeringContribution.id || registeringContribution.transaction_id || null;
 
       if (rawId && registeredPixIds.has(String(rawId))) {
         setNotification({ 
@@ -1075,49 +1209,37 @@ export function PixConference() {
         return;
       }
 
-      if (existingContribs && existingContribs.length > 0) {
-        const duplicateMonths = existingContribs.map(c => MONTHS[c.reference_month - 1]).join(', ');
-        setNotification({ 
-          type: 'error', 
-          message: `Atenção: Já existe contribuição para ${duplicateMonths}/${refYear}. Verifique a referência.` 
-        });
-        return;
-      }
-
-      const newContribs = selectedMonths.map(month => ({
+      const newContribs = selectedPeriods.map(period => ({
         student_id: studentId,
         amount: amountPerMonth,
-        reference_month: month,
-        reference_year: refYear,
+        reference_month: period.month,
+        reference_year: period.year,
         payment_date: safeDate,
         payment_method: modalPaymentMethod,
         origin: registeringContribution.origin_bank || null,
         pix_id: currentPixId,
-        user_id: userData?.user?.id
+        user_id: user?.uid || null,
+        created_at: new Date().toISOString()
       }));
 
-      const { data, error } = await supabase
-        .from('contributions')
-        .insert(newContribs)
-        .select();
+      const savedData = await Promise.all(newContribs.map(async (rec) => {
+        const finalId = await saveData('contributions', undefined, rec);
+        return { id: finalId, ...rec };
+      }));
 
-      if (error) throw error;
-
-      // Update registeredPixIds set
       if (currentPixId) {
         setRegisteredPixIds(prev => new Set([...Array.from(prev), String(currentPixId)]));
       }
 
       const student = registeringContribution.student || students.find(s => s.id === studentId);
-      
       setNotification({ type: 'success', message: 'Contribuições registradas com sucesso!' });
       
-      if (confirm(`Deseja emitir o recibo para os ${selectedMonths.length} meses agora?`)) {
-        generateReceiptLocal(data, student);
+      if (confirm(`Deseja emitir o recibo para os ${selectedPeriods.length} períodos agora?`)) {
+        generateReceiptLocal(savedData as any, student);
       }
       
       setRegisteringContribution(null);
-      setSelectedMonths([new Date().getMonth() + 1]);
+      setSelectedPeriods([{ month: new Date().getMonth() + 1, year: new Date().getFullYear() }]);
     } catch (error: any) {
       console.error('Error registering contribution:', error);
       setNotification({ type: 'error', message: 'Erro ao registrar contribuição: ' + error.message });
@@ -1126,6 +1248,39 @@ export function PixConference() {
 
   return (
     <>
+      {/* Save Progress Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-[#00174b]/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full text-center space-y-6">
+            <div className="relative w-24 h-24 mx-auto">
+              <svg className="w-full h-full" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                <circle 
+                  cx="50" cy="50" r="45" fill="none" stroke="#2563eb" strokeWidth="8" 
+                  strokeDasharray="282.7" 
+                  strokeDashoffset={282.7 - (282.7 * saveProgress) / 100}
+                  strokeLinecap="round"
+                  className="transition-all duration-300 ease-out"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-black text-[#00174b] transition-all">{saveProgress}%</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-[#00174b]">Vinculando Registros</h3>
+              <p className="text-slate-500 text-sm mt-2">Por favor, não feche esta página enquanto processamos a conciliação financeira.</p>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div 
+                className="bg-blue-600 h-full transition-all duration-300"
+                style={{ width: `${saveProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notification Toast */}
       {notification && (
         <div className={cn(
@@ -1173,27 +1328,135 @@ export function PixConference() {
             </button>
           </div>
           
-          {activeTab === 'new' && transactions.length > 0 && (
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSimulationMode(!isSimulationMode)}
+              className={cn(
+                "px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border",
+                isSimulationMode 
+                  ? "bg-amber-500 text-white border-amber-600 shadow-lg shadow-amber-100" 
+                  : "bg-white text-slate-400 border-slate-100"
+              )}
+            >
+              {isSimulationMode ? <Check size={16} /> : <Database size={16} />}
+              {isSimulationMode ? 'Modo Simulação ON' : 'Modo Simulação OFF'}
+            </button>
+
+            {activeTab === 'new' && transactions.length > 0 && (
               <button 
                 onClick={handleSave} 
-                disabled={isSaving} 
+                disabled={isSaving || isSimulationMode} 
                 className={cn(
-                  "flex items-center gap-2 px-6 py-3 rounded-2xl font-bold hover:shadow-xl transition-all active:scale-95 disabled:opacity-50",
+                  "flex items-center gap-2 px-6 py-3 rounded-2xl font-bold hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 min-w-[200px] justify-center",
                   selectedIds.size > 0 
                     ? "bg-blue-600 text-white shadow-blue-100" 
                     : "bg-[#00174b] text-white"
                 )}
               >
                 {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                {selectedIds.size > 0 
-                  ? `Salvar Selecionados (${selectedIds.size})` 
-                  : 'Salvar Lote Completo'
-                }
+                {isSaving ? (
+                  <span>Salvando {saveProgress}%</span>
+                ) : (
+                  selectedIds.size > 0 
+                    ? `Salvar Selecionados (${selectedIds.size})` 
+                    : 'Salvar Lote Completo'
+                )}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </header>
+
+        {activeTab === 'new' && (
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden mb-6">
+            <button 
+              onClick={() => setShowMappingConfig(!showMappingConfig)}
+              className="w-full px-8 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet className="text-blue-600" size={20} />
+                <span className="font-black text-[#00174b] uppercase tracking-wider text-sm">Configuração de Mapeamento (Colunas)</span>
+              </div>
+              {showMappingConfig ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
+            
+            {showMappingConfig && (
+              <div className="p-8 bt-1 border-t border-slate-50 bg-slate-50/30 animate-in slide-in-from-top-2 duration-300">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Selecione o seu banco ou informe o nome exato das colunas na sua planilha:</p>
+                
+                <div className="flex flex-wrap gap-2 mb-8">
+                  {(Object.keys(BANK_PRESETS) as Array<keyof typeof BANK_PRESETS>).map(bank => (
+                    <button 
+                      key={bank}
+                      onClick={() => handleApplyPreset(bank)}
+                      className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm"
+                    >
+                      {bank}
+                    </button>
+                  ))}
+                  <button 
+                    onClick={() => setCustomMapping({ date: '', payer: '', amount: '', id: '', bank: '' })}
+                    className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+                  >
+                    Limpar
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Data</label>
+                    <input 
+                      type="text" 
+                      value={customMapping.date} 
+                      onChange={(e) => setCustomMapping({...customMapping, date: e.target.value})}
+                      placeholder="Ex: Data Operação"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Pagador/Nome</label>
+                    <input 
+                      type="text" 
+                      value={customMapping.payer} 
+                      onChange={(e) => setCustomMapping({...customMapping, payer: e.target.value})}
+                      placeholder="Ex: Nome Cliente"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Valor</label>
+                    <input 
+                      type="text" 
+                      value={customMapping.amount} 
+                      onChange={(e) => setCustomMapping({...customMapping, amount: e.target.value})}
+                      placeholder="Ex: Valor (R$)"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: ID Transação</label>
+                    <input 
+                      type="text" 
+                      value={customMapping.id} 
+                      onChange={(e) => setCustomMapping({...customMapping, id: e.target.value})}
+                      placeholder="Ex: E2E ID"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Banco Origem</label>
+                    <input 
+                      type="text" 
+                      value={customMapping.bank} 
+                      onChange={(e) => setCustomMapping({...customMapping, bank: e.target.value})}
+                      placeholder="Ex: Instituição"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {activeTab === 'new' ? (
           <>
@@ -1235,14 +1498,30 @@ export function PixConference() {
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pendentes</p>
                   </div>
                 </div>
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <div className={cn(
+                  "bg-white p-6 rounded-[2rem] border shadow-sm flex items-center gap-4 transition-all",
+                  stats.duplicates > 0 ? "border-amber-200 bg-amber-50/30" : "border-slate-100"
+                )}>
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors",
+                    stats.duplicates > 0 ? "bg-amber-100 text-amber-600" : "bg-amber-50 text-amber-600"
+                  )}>
                     <Database size={24} />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-2xl font-black text-amber-600">{stats.duplicates}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No Sistema</p>
                   </div>
+                  {stats.duplicates > 0 && (
+                    <button 
+                      onClick={handleResetDatabase}
+                      disabled={isDeleting}
+                      title="Limpar todos os registros para re-importar"
+                      className="p-2 bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1253,29 +1532,39 @@ export function PixConference() {
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileUpload(e); }}
                 className={cn(
-                  "bg-white rounded-[3rem] border-2 border-dashed p-20 text-center transition-all duration-300",
-                  isDragging ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-blue-500"
+                  "bg-white rounded-[2.5rem] border-2 border-dashed p-12 text-center transition-all duration-300 shadow-sm",
+                  isDragging ? "border-blue-500 bg-blue-50/50" : "border-slate-200 hover:border-blue-400/50"
                 )}
               >
-                <div className="flex flex-col items-center">
-                  <div className="w-24 h-24 bg-blue-50 rounded-[2rem] flex items-center justify-center mb-8">
-                    <CloudUpload size={48} className="text-blue-600" />
+                <div className="flex flex-col items-center max-w-lg mx-auto">
+                  <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                    <CloudUpload size={32} className="text-blue-600" />
                   </div>
-                  <h3 className="text-3xl font-black text-[#00174b] mb-3">Importar Extrato Pix</h3>
-                  <p className="text-slate-500 mb-10 max-w-md mx-auto">Arraste seu arquivo Excel (.xlsx) para iniciar a conciliação automática com a base de alunos.</p>
-                  <div className="flex gap-4">
-                    <label className="px-10 py-5 bg-[#00174b] text-white rounded-2xl font-bold cursor-pointer hover:scale-105 transition-all shadow-2xl active:scale-95">
+                  <h3 className="text-2xl font-black text-[#00174b] mb-2 tracking-tight">Importar Extrato Pix</h3>
+                  <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">Arraste seu arquivo Excel para processamento automático ou selecione manualmente em seu computador.</p>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+                    <label className="flex-1 max-w-[240px] px-6 py-4 bg-[#00174b] text-white rounded-xl font-bold cursor-pointer hover:bg-blue-900 transition-all shadow-lg active:scale-95 text-sm flex items-center justify-center gap-2">
+                      <Plus size={18} />
                       Selecionar Arquivo
                       <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
                     </label>
-                    <button onClick={fetchStudents} className="px-8 py-5 bg-white text-slate-600 rounded-2xl font-bold border border-slate-200 hover:bg-slate-50 transition-all flex items-center gap-2">
-                      <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
-                      Atualizar Alunos
+                    <button onClick={fetchStudents} className="flex-1 max-w-[240px] px-6 py-4 bg-white text-slate-600 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm">
+                      <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+                      Sincronizar Alunos
                     </button>
                   </div>
-                  <p className="mt-8 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    {students.length} alunos carregados para comparação
-                  </p>
+                  
+                  <div className="mt-8 pt-8 border-t border-slate-50 w-full flex items-center justify-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{students.length} Alunos Online</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <FileSpreadsheet size={14} className="text-slate-300" />
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suporta .XLSX e .XLS</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1413,7 +1702,7 @@ export function PixConference() {
                                         Lançado
                                       </span>
                                     )}
-                                    {existingReconciledIds.has(String(t.transaction_id)) && (
+                                    {reconciliationMap.has(String(t.transaction_id)) && (
                                       <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded tracking-wider ml-2">
                                         Já Importado
                                       </span>
@@ -1446,22 +1735,41 @@ export function PixConference() {
                           <td className="px-8 py-6 text-center">
                             <div className="flex items-center justify-center gap-2">
                               {t.status === 'matched' && (
-                                <button 
-                                  onClick={() => {
-                                    const originalIndex = transactions.findIndex(item => item.transaction_id === t.transaction_id);
-                                    if (originalIndex !== -1) handleUndoMatch(originalIndex);
-                                  }}
-                                  disabled={registeredPixIds.has(String(t.transaction_id))}
-                                  className={cn(
-                                    "p-3 rounded-xl transition-all shadow-sm border",
-                                    registeredPixIds.has(String(t.transaction_id))
-                                      ? "bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed"
-                                      : "bg-white border-red-100 text-red-400 hover:text-red-600 hover:border-red-200"
-                                  )}
-                                  title="Desfazer Conciliação"
-                                >
-                                  <RotateCcw size={20} />
-                                </button>
+                                <>
+                                  <button 
+                                    onClick={() => setRegisteringContribution(t)}
+                                    className={cn(
+                                      "p-3 rounded-xl transition-all shadow-sm border relative group",
+                                      registeredPixIds.has(String(t.transaction_id))
+                                        ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
+                                        : "bg-white border-blue-100 text-blue-500 hover:text-blue-700 hover:border-blue-200"
+                                    )}
+                                    title={registeredPixIds.has(String(t.transaction_id)) ? "Lançamento já efetuado - Clique para editar ou realizar novo lançamento" : "Lançar no Extrato do Aluno"}
+                                  >
+                                    <CreditCard size={20} />
+                                    {registeredPixIds.has(String(t.transaction_id)) && (
+                                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                      </div>
+                                    )}
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      const originalIndex = transactions.findIndex(item => item.transaction_id === t.transaction_id);
+                                      if (originalIndex !== -1) handleUndoMatch(originalIndex);
+                                    }}
+                                    disabled={registeredPixIds.has(String(t.transaction_id))}
+                                    className={cn(
+                                      "p-3 rounded-xl transition-all shadow-sm border",
+                                      registeredPixIds.has(String(t.transaction_id))
+                                        ? "bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed"
+                                        : "bg-white border-red-100 text-red-400 hover:text-red-600 hover:border-red-200"
+                                    )}
+                                    title="Desfazer Conciliação"
+                                  >
+                                    <RotateCcw size={20} />
+                                  </button>
+                                </>
                               )}
                               <button 
                                 onClick={() => {
@@ -1526,15 +1834,23 @@ export function PixConference() {
                     )}
 
                     <button 
+                      onClick={handleResetDatabase}
+                      disabled={isDeleting}
+                      className="px-6 py-3 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all flex items-center gap-2 shadow-lg shadow-amber-100"
+                    >
+                      <RotateCcw size={16} />
+                      Limpar Base Total
+                    </button>
+                    <button 
                       onClick={toggleHistorySelectAll}
                       className={cn(
                         "px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border",
-                        selectedHistoryIds.size > 0 && selectedHistoryIds.size === history.flatMap(m => m.batches.flatMap((b: any) => b.transactions)).length
+                        selectedHistoryIds.size > 0 && selectedHistoryIds.size === historyByMonth.flatMap(m => m.batches.flatMap((b: any) => b.transactions)).length
                           ? "bg-blue-600 text-white border-blue-600"
                           : "bg-white text-slate-500 border-slate-200 hover:border-blue-400 hover:text-blue-600"
                       )}
                     >
-                      {selectedHistoryIds.size > 0 && selectedHistoryIds.size === history.flatMap(m => m.batches.flatMap((b: any) => b.transactions)).length
+                      {selectedHistoryIds.size > 0 && selectedHistoryIds.size === historyByMonth.flatMap(m => m.batches.flatMap((b: any) => b.transactions)).length
                         ? "Desmarcar Todos" 
                         : "Selecionar Todos"
                       }
@@ -1607,21 +1923,38 @@ export function PixConference() {
                                 <h3 className="text-lg font-black text-[#00174b] group-hover/batch:text-blue-600 transition-colors uppercase tracking-tight">
                                   {batch.transactions.length === 1 ? batch.payer_name : batch.file_name}
                                 </h3>
-                                <div className="flex items-center gap-3 mt-1">
-                                  <span className="text-xs font-bold text-slate-500">
-                                    {new Date(batch.created_at).toLocaleDateString('pt-BR')} {new Date(batch.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {new Date(batch.created_at).toLocaleDateString('pt-BR')} • {new Date(batch.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                   <span className="w-1 h-1 rounded-full bg-slate-200" />
-                                  <span className="px-2 py-0.5 bg-blue-50 text-[10px] font-black text-blue-500 uppercase rounded tracking-wider">
-                                    {batch.transactions.length} Lançamento{batch.transactions.length !== 1 ? 's' : ''}
+                                  <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-black text-blue-500 uppercase rounded-lg tracking-wider border border-blue-100">
+                                    {batch.transactions.length} {batch.transactions.length !== 1 ? 'Transações' : 'Transação'}
                                   </span>
-                                  {batch.transactions.length === 1 && (
+                                  {batch.transactions.length > 1 ? (
+                                    <>
+                                      <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                      {(() => {
+                                        const counts = batch.transactions.reduce((acc: any, t: any) => {
+                                          acc[t.status || 'unmatched'] = (acc[t.status || 'unmatched'] || 0) + 1;
+                                          return acc;
+                                        }, {} as any);
+                                        return (
+                                          <div className="flex gap-1.5">
+                                            {counts.matched > 0 && <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded-md border border-green-100 uppercase tracking-tighter">{counts.matched} Concil.</span>}
+                                            {counts.multiple > 0 && <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100 uppercase tracking-tighter">{counts.multiple} Confl.</span>}
+                                            {counts.unmatched > 0 && <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100 uppercase tracking-tighter">{counts.unmatched} Pend.</span>}
+                                          </div>
+                                        );
+                                      })()}
+                                    </>
+                                  ) : (
                                     <>
                                       <span className="w-1 h-1 rounded-full bg-slate-200" />
                                       <span className={cn(
-                                        "px-2 py-0.5 text-[10px] font-black uppercase rounded tracking-wider",
-                                        batch.status === 'matched' ? "bg-green-50 text-green-600" : 
-                                        batch.status === 'multiple' ? "bg-orange-50 text-orange-600" : "bg-slate-50 text-slate-400"
+                                        "px-2 py-0.5 text-[9px] font-black uppercase rounded-lg tracking-wider border",
+                                        batch.status === 'matched' ? "bg-green-50 text-green-600 border-green-100" : 
+                                        batch.status === 'multiple' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-slate-50 text-slate-400 border-slate-100"
                                       )}>
                                         {batch.status === 'matched' ? 'Conciliado' : batch.status === 'multiple' ? 'Conflito' : 'Pendente'}
                                       </span>
@@ -1639,38 +1972,33 @@ export function PixConference() {
                               </div>
                               
                               <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleExportHistory(batch); }}
-                                  className="p-3 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
-                                  title="Exportar Excel"
-                                >
-                                  <Download size={20} />
-                                </button>
-                                
                                 {deleteConfirmId === batch.batch_id ? (
-                                  <div className="flex flex-col items-end gap-2 bg-red-50 p-3 rounded-2xl border border-red-100 animate-in fade-in slide-in-from-right-4">
-                                    <p className="text-[10px] font-black text-red-600 uppercase mb-1">
-                                      ATENÇÃO: Isso removerá o arquivo e TODOS os vínculos de contribuição.
-                                    </p>
+                                  <div className="flex flex-col items-end gap-2 bg-red-50 p-2.5 rounded-2xl border border-red-100 animate-in fade-in slide-in-from-right-4 ring-4 ring-red-50/50">
                                     <div className="flex items-center gap-2">
+                                      <AlertCircle size={14} className="text-red-500" />
+                                      <p className="text-[9px] font-black text-red-600 uppercase">
+                                        Confirmar exclusão?
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
                                       {isDeleting ? (
-                                        <div className="px-4 py-1.5 flex items-center gap-2">
-                                          <Loader2 size={14} className="animate-spin text-red-600" />
-                                          <span className="text-[10px] font-black text-red-600 uppercase">Excluindo...</span>
+                                        <div className="px-3 py-1 flex items-center gap-2">
+                                          <Loader2 size={12} className="animate-spin text-red-600" />
+                                          <span className="text-[8px] font-black text-red-600 uppercase">Limpando...</span>
                                         </div>
                                       ) : (
                                         <>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); handleDeleteHistory(batch.batch_id); }}
-                                            className="px-4 py-2 bg-red-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-100"
+                                            className="px-3 py-1.5 bg-red-600 text-white text-[9px] font-black uppercase rounded-lg hover:bg-red-700 transition-all shadow-md active:scale-95"
                                           >
-                                            Sim, Excluir Tudo
+                                            Sim, Excluir
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                                            className="px-4 py-2 bg-white text-slate-400 text-[10px] font-black uppercase rounded-xl border border-slate-200 hover:bg-slate-50 transition-all"
+                                            className="px-3 py-1.5 bg-white text-slate-400 text-[9px] font-black uppercase rounded-lg border border-slate-200 hover:bg-slate-50 transition-all"
                                           >
-                                            Cancelar
+                                            Não
                                           </button>
                                         </>
                                       )}
@@ -1791,10 +2119,20 @@ export function PixConference() {
                                             {t.student && (
                                               <button 
                                                 onClick={(e) => { e.stopPropagation(); setRegisteringContribution(t); }}
-                                                className="p-2.5 bg-white border border-blue-100 rounded-xl text-blue-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm group/btn"
-                                                title="Registrar como Contribuição"
+                                                className={cn(
+                                                  "p-2.5 rounded-xl transition-all shadow-sm border relative group/btn",
+                                                  registeredPixIds.has(String(t.transaction_id || t.id))
+                                                    ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
+                                                    : "bg-white border-blue-100 text-blue-400 hover:text-blue-600 hover:border-blue-200"
+                                                )}
+                                                title={registeredPixIds.has(String(t.transaction_id || t.id)) ? "Lançamento já efetuado - Clique para editar ou realizar novo lançamento" : "Registrar como Contribuição"}
                                               >
                                                 <CreditCard size={18} className="group-hover/btn:scale-110 transition-transform" />
+                                                {registeredPixIds.has(String(t.transaction_id || t.id)) && (
+                                                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full flex items-center justify-center">
+                                                    <div className="w-1 h-1 bg-white rounded-full" />
+                                                  </div>
+                                                )}
                                               </button>
                                             )}
                                             <button 
@@ -1857,18 +2195,25 @@ export function PixConference() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase px-2">Períodos de Referência (Selecione um ou mais)</label>
-                  <div className="grid grid-cols-4 gap-2">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meses de Referência</label>
+                    {selectedPeriods.length > 0 && (
+                      <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
+                        {selectedPeriods.length} Selecionado(s)
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                     {MONTHS.map((m, i) => (
                       <button
                         key={i}
                         onClick={() => toggleMonth(i + 1)}
                         className={cn(
-                          "py-2 rounded-xl text-[10px] font-black transition-all border",
-                          selectedMonths.includes(i + 1)
-                            ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100 scale-105"
-                            : "bg-white border-slate-200 text-slate-400 hover:border-blue-200 hover:text-blue-400"
+                          "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2",
+                          selectedPeriods.some(p => p.month === i + 1 && p.year === parseInt(contribYear))
+                            ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 scale-[1.02]"
+                            : "bg-white border-white text-slate-400 hover:border-blue-100 hover:text-blue-500"
                         )}
                       >
                         {m.substring(0, 3)}
@@ -1876,6 +2221,27 @@ export function PixConference() {
                     ))}
                   </div>
                 </div>
+
+                {/* List of selected periods - More visual */}
+                {selectedPeriods.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 px-2">
+                    {selectedPeriods.map((p, idx) => (
+                      <div key={idx} className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg text-[9px] font-black border border-blue-100 flex items-center gap-2 animate-in fade-in slide-in-from-left-2 shadow-sm">
+                        {MONTHS[p.month - 1].substring(0, 3)} / {p.year}
+                        <button 
+                          onClick={() => {
+                            if (selectedPeriods.length > 1) {
+                              setSelectedPeriods(prev => prev.filter((_, i) => i !== idx));
+                            }
+                          }}
+                          className="hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1904,12 +2270,12 @@ export function PixConference() {
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
                     <span>Divisão do Valor</span>
-                    <span className="text-blue-600">{selectedMonths.length} meses selecionados</span>
+                    <span className="text-blue-600">{selectedPeriods.length} períodos selecionados</span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-xs font-bold text-slate-600">Valor por mês:</span>
                     <span className="text-sm font-black text-[#00174b]">
-                      {formatCurrencyLocal(registeringContribution.amount / selectedMonths.length)}
+                      {formatCurrencyLocal(registeringContribution.amount / selectedPeriods.length)}
                     </span>
                   </div>
                 </div>

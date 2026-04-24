@@ -1,3 +1,16 @@
+export type UserRole = 'admin' | 'coordenador' | 'secretario';
+export type UserStatus = 'pending' | 'authorized' | 'rejected';
+
+export interface UserProfile {
+  id: string;
+  username: string;
+  full_name: string;
+  role: UserRole;
+  status: UserStatus;
+  avatar_url?: string;
+  created_at: string;
+}
+
 export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Suspenso';
 
 export interface Student {
@@ -7,7 +20,7 @@ export interface Student {
   cpf?: string;
   rg?: string;
   birth_date?: string;
-  start_date?: string; // Month/Year
+  start_date?: string; // DD/MM/YYYY
   status: StudentStatus;
   is_former_student: boolean;
   class_id?: string;
@@ -48,6 +61,7 @@ export interface Class {
   period: 'Manhã' | 'Tarde' | 'Noite';
   days_of_week: string[];
   semester: string;
+  start_date?: string;
   observations?: string;
   user_id: string;
   created_at: string;
@@ -91,6 +105,7 @@ export interface PixTransaction {
   status: 'matched' | 'unmatched' | 'multiple';
   matched_student_id?: string;
   is_manual?: boolean;
+  created_at: string;
 }
 
 export interface Contribution {
@@ -103,6 +118,7 @@ export interface Contribution {
   payment_method?: 'PIX' | 'Cartão' | 'Dinheiro';
   origin?: string;
   pix_id?: string;
+  observations?: string;
   user_id: string;
   created_at: string;
 }

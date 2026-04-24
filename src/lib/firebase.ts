@@ -1,0 +1,320 @@
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  getDocs, 
+  query, 
+  orderBy, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  setDoc, 
+  getDoc,
+  where,
+  limit,
+  serverTimestamp,
+  getCountFromServer,
+  type DocumentData,
+  getDocFromServer
+} from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import firebaseConfig from '../../firebase-applet-config.json';
+
+import { supabase, fetchRecursive } from './supabase';
+
+const app = initializeApp({
+  apiKey: firebaseConfig.apiKey,
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket,
+  messagingSenderId: firebaseConfig.messagingSenderId,
+  appId: firebaseConfig.appId
+});
+
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth = getAuth(app);
+export const storage = getStorage(app);
+
+// Helper to handle Firestore Errors
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write';
+  path: string | null;
+  authInfo: {
+    userId: string | null;
+    email: string | null;
+    emailVerified: boolean;
+    isAnonymous: boolean;
+  }
+}
+
+export function handleFirestoreError(error: any, operation: any, path: string | null = null): never {
+  const info: FirestoreErrorInfo = {
+    error: error.message || 'Unknown error',
+    operationType: operation,
+    path,
+    authInfo: {
+      userId: auth.currentUser?.uid || null,
+      email: auth.currentUser?.email || null,
+      emailVerified: auth.currentUser?.emailVerified || false,
+      isAnonymous: auth.currentUser?.isAnonymous || false
+    }
+  };
+  throw new Error(JSON.stringify(info));
+}
+
+/**
+ * Validates connection to Firestore with a lightweight check
+ */
+let isOnline = false;
+async function testConnection() {
+  if (isOnline) return;
+  try {
+    // Try Supabase first (usually has more generous free tier for simple ping)
+    const { error: sbError } = await supabase.from('institution_settings').select('id').limit(1);
+    if (!sbError) {
+      isOnline = true;
+      console.log('Database Connection (Supabase) Active');
+      return;
+    }
+
+    const colRef = collection(db, 'institution_settings');
+    await getCountFromServer(query(colRef, limit(1)));
+    isOnline = true;
+  } catch (error: any) {
+    if (error.message && error.message.includes('quota')) {
+      console.warn("Firebase Quota Exceeded. System operating in Hybrid/Supabase mode.");
+      // We don't mark as offline because we might have Supabase working
+      isOnline = true; 
+    }
+  }
+}
+testConnection();
+
+/**
+ * Utility to fetch all data from a collection (Prioritizes Supabase)
+ */
+export const fetchAll = async (collectionName: string, select = '*', orderCol = 'created_at', ascending = false) => {
+  try {
+    // 1. Try Supabase first (using fetchRecursive to bypass 1000 limit)
+    const data = await fetchRecursive(collectionName, { select, orderCol, ascending });
+
+    if (data && data.length > 0) {
+      return data;
+    }
+
+    // 2. Fallback to Firebase
+    const colRef = collection(db, collectionName);
+    const q = query(colRef, orderBy(orderCol || 'created_at', ascending ? 'asc' : 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (err: any) {
+    if (err.message && err.message.includes('quota')) {
+      console.warn(`Firestore quota reached for ${collectionName} list. Returning empty array.`);
+      return [];
+    }
+    return handleFirestoreError(err, 'list', collectionName);
+  }
+};
+
+/**
+ * Highly efficient count utility (Prioritizes Supabase to save Firestore quota)
+ */
+export const fetchCount = async (collectionName: string, status?: string) => {
+  try {
+    // 1. Try Supabase first
+    let queryBuilder = supabase
+      .from(collectionName)
+      .select('*', { count: 'exact', head: true });
+
+    if (status) {
+      if (status === 'Ativo') {
+        // Business logic: Active includes explicitly 'Ativo', null OR empty string
+        queryBuilder = queryBuilder.or(`status.eq.Ativo,status.is.null,status.eq.""`);
+      } else {
+        queryBuilder = queryBuilder.eq('status', status);
+      }
+    }
+
+    const { count, error } = await queryBuilder;
+
+    if (!error && count !== null) {
+      return count;
+    }
+
+    // 2. Fallback to Firebase
+    const colRef = collection(db, collectionName);
+    let q = query(colRef);
+    if (status) {
+      q = query(colRef, where('status', '==', status));
+    }
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  } catch (err: any) {
+    if (err.message && err.message.includes('quota')) {
+       console.warn(`Firestore quota reached for ${collectionName}. Returning cached/local 0.`);
+    } else {
+       console.error(`Count error for ${collectionName}:`, err);
+    }
+    return 0;
+  }
+};
+
+/**
+ * Synchronous save to both Supabase and Firebase (handles IDs correctly)
+ * This avoids the "No document to update" error by using setDoc with merge: true.
+ */
+export const saveData = async (collectionName: string, id: string | undefined, data: any) => {
+  const effectiveId = id || data.id;
+  
+  try {
+    let finalId = effectiveId;
+    
+    // Clean data for Supabase (remove id from body to avoid conflict)
+    const { id: _, ...body } = data;
+    
+    // 1. Save to Supabase (Primary Source)
+    let payload = { 
+      ...(effectiveId ? { id: effectiveId } : {}), 
+      ...body
+    };
+
+    let { data: sbData, error: sbError } = await supabase
+      .from(collectionName)
+      .upsert(payload)
+      .select('id')
+      .single();
+
+    // Handle missing columns automatically (Schema Cache errors)
+    let retryCount = 0;
+    while (sbError && sbError.message.includes("Could not find the") && sbError.message.includes("column") && retryCount < 5) {
+      console.warn(`[Supabase] Column missing, filtering and retrying (${retryCount + 1}): ${sbError.message}`);
+      
+      const match = sbError.message.match(/find the '([^']+)' column/);
+      if (match && match[1]) {
+        const missingColumn = match[1];
+        delete (payload as any)[missingColumn];
+        
+        const retry = await supabase
+          .from(collectionName)
+          .upsert(payload)
+          .select('id')
+          .single();
+          
+        sbData = retry.data;
+        sbError = retry.error;
+        retryCount++;
+      } else {
+        break;
+      }
+    }
+
+    if (sbError) {
+      throw new Error(`Erro no banco de dados (Supabase): ${sbError.message}`);
+    }
+
+    if (sbData && sbData.id) {
+      finalId = sbData.id;
+    }
+
+    // 2. Mirror to Firebase (Secondary Source/Cache)
+    if (db && finalId) {
+      try {
+        const firestoreData = JSON.parse(JSON.stringify(body));
+        await setDoc(doc(db, collectionName, finalId), {
+          ...firestoreData
+        }, { merge: true });
+      } catch (fError: any) {
+        if (fError.message && fError.message.includes('quota')) {
+           // Silent warning for quota
+        } else {
+          console.error(`[Firebase] Erro no espelhamento:`, fError);
+        }
+      }
+    }
+
+    return finalId;
+  } catch (err: any) {
+    console.error(`[saveData] Erro fatal em "${collectionName}":`, err.message);
+    throw err;
+  }
+};
+
+/**
+ * Synchronous delete from both Supabase and Firebase
+ */
+export const deleteData = async (collectionName: string, id: string) => {
+  if (!id) throw new Error("ID é obrigatório para exclusão.");
+
+  try {
+    // 1. Delete from Supabase
+    const { error: sbError } = await supabase
+      .from(collectionName)
+      .delete()
+      .eq('id', id);
+
+    if (sbError) {
+      throw new Error(`Erro no banco de dados (Supabase): ${sbError.message}`);
+    }
+
+    // 2. Delete from Firebase
+    if (db) {
+      try {
+        await deleteDoc(doc(db, collectionName, id));
+      } catch (fError: any) {
+        if (fError.message && fError.message.includes('quota')) {
+           // Silent warning
+        } else {
+          console.error(`[Firebase] Erro na exclusão:`, fError);
+        }
+      }
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error(`[deleteData] Erro fatal em "${collectionName}" para ID ${id}:`, err.message);
+    throw err;
+  }
+};
+
+export const uploadImage = async (file: File, bucketName: string, path: string): Promise<string> => {
+  // Promessa de Fallback (Base64)
+  const getBase64Fallback = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = (err) => reject(new Error('Falha ao processar arquivo localmente'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  try {
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
+    const filePath = `${path}/${fileName}`;
+    const storageRef = ref(storage, filePath);
+    
+    // Timeout for Firebase (8 seconds)
+    const uploadPromise = (async () => {
+      const snapshot = await uploadBytes(storageRef, file);
+      return await getDownloadURL(snapshot.ref);
+    })();
+
+    const timeoutPromise = new Promise<string>((_, reject) => 
+      setTimeout(() => reject(new Error('TIMEOUT')), 8000)
+    );
+
+    try {
+      return await Promise.race([uploadPromise, timeoutPromise]);
+    } catch (e: any) {
+      if (e.message === 'TIMEOUT') {
+        return await getBase64Fallback();
+      }
+      throw e;
+    }
+  } catch (error: any) {
+    return await getBase64Fallback();
+  }
+};

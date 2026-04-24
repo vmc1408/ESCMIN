@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Bell, Wallet, User } from 'lucide-react';
+import { db } from '../lib/firebase';
+import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
 import { supabase } from '../lib/supabase';
+import { financialService } from '../services/financialService';
 
 export function Navbar() {
   const [institutionName, setInstitutionName] = useState('Gestão Escolar');
@@ -11,27 +14,42 @@ export function Navbar() {
 
   const fetchInfo = async () => {
     try {
-      // Fetch Institution
-      const { data: instData } = await supabase
-        .from('institution_settings')
-        .select('name')
-        .limit(1);
-      if (instData && instData.length > 0) setInstitutionName(instData[0].name);
+      // 1. Fetch Institution (Prio: Supabase)
+      const instSupabase = await financialService.getInstitutionSettings();
+      if (instSupabase) {
+        setInstitutionName(instSupabase.name);
+      } else {
+        const instRef = collection(db, 'institution_settings');
+        const instSnap = await getDocs(query(instRef, orderBy('created_at', 'desc'), limit(1)));
+        if (!instSnap.empty) setInstitutionName(instSnap.docs[0].data().name);
+      }
 
-      // Fetch Current User (Mocking for now as we don't have full auth flow yet)
-      const { data: userData } = await supabase
+      // 2. Fetch Profile (Prio: Supabase)
+      const { data: profSupabase, error: profError } = await supabase
         .from('profiles')
-        .select('full_name, role, avatar_url')
+        .select('*')
         .limit(1)
-        .single();
-      
-      if (userData) {
-        setUserName(userData.full_name);
-        setUserRole(userData.role === 'admin' ? 'Administrador' : 
-                   userData.role === 'manager' ? 'Gestor' : 
-                   userData.role === 'teacher' ? 'Professor' : 'Secretaria');
-        setAvatarUrl(userData.avatar_url || '');
+        .maybeSingle();
+
+      if (!profError && profSupabase) {
+        setUserName(profSupabase.full_name);
+        setUserRole(profSupabase.role === 'admin' ? 'Administrador' : 
+                   profSupabase.role === 'coordenador' ? 'Coordenador' : 'Secretário');
+        setAvatarUrl(profSupabase.avatar_url || '');
         setAvatarError(false);
+      } else {
+        // Fallback Firebase
+        const profRef = collection(db, 'profiles');
+        const profSnap = await getDocs(query(profRef, limit(1)));
+        
+        if (!profSnap.empty) {
+          const profile = profSnap.docs[0].data();
+          setUserName(profile.full_name);
+          setUserRole(profile.role === 'admin' ? 'Administrador' : 
+                     profile.role === 'coordenador' ? 'Coordenador' : 'Secretário');
+          setAvatarUrl(profile.avatar_url || '');
+          setAvatarError(false);
+        }
       }
     } catch (e) {
       console.error('Error fetching navbar info:', e);

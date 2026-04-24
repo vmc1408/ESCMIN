@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helpers
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128; }
+
+    // Validation Blueprints
+    function isValidStudent(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.status is string &&
+             data.registration_number is string;
+    }
+
+    function isValidClass(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.code is string &&
+             data.status in ['Ativo', 'Inativo'];
+    }
+
+    function isValidTeacher(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.email is string &&
+             data.code is string;
+    }
+
+    function isValidPixTransaction(data) {
+      return data.transaction_id is string &&
+             data.amount is number &&
+             data.status in ['matched', 'unmatched', 'multiple'];
+    }
+
+    // Collections - OPEN ACCESS for user convenience (as requested)
+    
+    match /students/{studentId} {
+      allow read, delete: if true;
+      allow create, update: if (incoming().name is string);
+    }
+
+    match /classes/{classId} {
+      allow read, delete: if true;
+      allow create, update: if (incoming().name is string);
+    }
+
+    match /teachers/{teacherId} {
+      allow read, delete: if true;
+      allow create, update: if (incoming().name is string);
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /profiles/{userId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /pix_reconciliations/{id} {
+      allow read: if true;
+      allow create, update: if isValidPixTransaction(incoming());
+      allow delete: if true;
+    }
+
+    match /contributions/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /institution_settings/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

@@ -1,33 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Search, 
-  CreditCard, 
-  Download, 
-  Plus, 
-  Calendar, 
-  User as UserIcon,
-  Loader2,
-  CheckCircle2,
-  FileText,
-  Printer,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  TrendingUp,
-  AlertCircle,
-  Link2Off,
-  X,
-  FileDown,
-  DollarSign,
-  Trash2
-} from 'lucide-react';
-import { supabase, fetchAll } from '../lib/supabase';
+import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search } from 'lucide-react';
+import { financialService } from '../services/financialService';
+import { db, fetchAll, saveData } from '../lib/firebase';
+import { collection, query, where, getDocs, orderBy, limit, doc, deleteDoc, Timestamp, and, or, startAt, endAt } from 'firebase/firestore';
 import { Student, Contribution, Class } from '../types';
 import { formatCurrency, cn, safeFormat, parseSafeDate } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useLocation } from 'react-router-dom';
 
@@ -47,13 +27,16 @@ export function Contributions() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [viewMode, setViewMode] = useState<'individual' | 'period'>('individual');
-  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-01'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [periodData, setPeriodData] = useState<(Contribution & { student?: Student })[]>([]);
+  const [recentContributions, setRecentContributions] = useState<(Contribution & { student?: Student })[]>([]);
+  const [filterType, setFilterType] = useState<'payment' | 'created'>('payment');
+  const [searchByName, setSearchByName] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
   const [institution, setInstitution] = useState<any>(null);
-  const [selectedForPrint, setSelectedForPrint] = useState<string[]>([]);
+  const [selectedForPrint, setSelectedForPrint] = useState<Contribution[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [deleteConfirmationFor, setDeleteConfirmationFor] = useState<Contribution | null>(null);
@@ -75,24 +58,53 @@ export function Contributions() {
   const [manualDate, setManualDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [manualAmount, setManualAmount] = useState('100,00');
   const [manualMethod, setManualMethod] = useState<'Dinheiro' | 'PIX' | 'Cartão'>('Dinheiro');
+  const [manualObservations, setManualObservations] = useState('');
   const [isSavingManual, setIsSavingManual] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
+    fetchRecentContributions();
     
-    // Detect when print dialog closes to restore the app UI
+    // Default to period view with last 15 days if no internal navigation student
+    if (!initialStudentId) {
+      setViewMode('period');
+      fetchPeriodContributions();
+    }
+  }, []); // Only once on mount
+
+  useEffect(() => {
+    // Focus listener for automatic updates
+    const handleFocus = () => {
+      if (selectedStudent) {
+        fetchContributions(selectedStudent.id, selectedYear);
+      }
+      fetchRecentContributions();
+    };
+    window.addEventListener('focus', handleFocus);
+    
     const handleAfterPrint = () => {
       setIsPrinting(false);
       setReceiptPreviewData(null);
     };
-    
     window.addEventListener('afterprint', handleAfterPrint);
-    return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, []);
+
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [selectedStudent, selectedYear]);
 
   const triggerDirectPrint = (data: Contribution[]) => {
-    // 1. Prepare data
-    setReceiptPreviewData(data);
+    // 1. Sort data chronologically: Year ASC, then Month ASC
+    const sortedData = [...data].sort((a, b) => {
+      if (a.reference_year !== b.reference_year) {
+        return a.reference_year - b.reference_year;
+      }
+      return a.reference_month - b.reference_month;
+    });
+
+    // 2. Prepare data
+    setReceiptPreviewData(sortedData);
     setIsPrinting(true);
     
     // 2. Small delay + focus for maximum hardware reliability
@@ -106,30 +118,58 @@ export function Contributions() {
     }, 300);
   };
 
+  const fetchRecentContributions = async () => {
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    const fifteenDaysAgoStr = fifteenDaysAgo.toISOString().split('T')[0];
+
+    try {
+      const q = query(
+        collection(db, 'contributions'),
+        where('payment_date', '>=', fifteenDaysAgoStr + 'T00:00:00Z'),
+        orderBy('payment_date', 'desc')
+      );
+
+      const snap = await getDocs(q);
+      const data = await Promise.all(snap.docs.map(async (docSnap) => {
+        const c = { id: docSnap.id, ...(docSnap.data() as any) } as any;
+        let student = null;
+        if (c.student_id) {
+          const sSnap = await getDocs(query(collection(db, 'students'), where('__name__', '==', c.student_id)));
+          student = sSnap.empty ? null : sSnap.docs[0].data();
+        }
+        c.student = student;
+        return c;
+      }));
+      setRecentContributions(data);
+      if (!selectedStudent && viewMode === 'individual' && !initialStudentId) {
+        setPeriodData(data);
+        setViewMode('period');
+      }
+    } catch (error) {
+      console.error('Error fetching recent:', error);
+    }
+  };
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const classesData = await fetchAll('classes', '*', 'code', true);
-
-      const { data: instData } = await supabase
-        .from('institution_settings')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1);
+      const [classesData, instData] = await Promise.all([
+        fetchAll('classes', '*', 'code', true),
+        financialService.getInstitutionSettings()
+      ]);
 
       setClasses(classesData || []);
-      setInstitution(instData?.[0] || null);
+      setInstitution(instData || null);
 
       if (initialStudentId) {
-        const { data: studentData } = await supabase
-          .from('students')
-          .select('*')
-          .eq('id', initialStudentId)
-          .single();
+        const studentSnap = await getDocs(query(collection(db, 'students'), where('__name__', '==', initialStudentId)));
+        const studentData = studentSnap.empty ? null : { id: studentSnap.docs[0].id, ...studentSnap.docs[0].data() } as Student;
         
         if (studentData) {
           setSelectedStudent(studentData);
           setStudents([studentData]);
+          setViewMode('individual');
           fetchContributions(studentData.id, selectedYear);
         }
       }
@@ -146,14 +186,17 @@ export function Contributions() {
 
     setIsSearching(true);
     try {
-      const { data, error } = await supabase
-        .from('students')
-        .select('*')
-        .or(`name.ilike.%${val}%,registration_number.ilike.%${val}%`)
-        .limit(20);
-      
-      if (error) throw error;
-      setStudents(data || []);
+      const q = query(
+        collection(db, 'students'),
+        where('name', '>=', val),
+        where('name', '<=', val + '\uf8ff'),
+        limit(20)
+      );
+      // Firebase doesn't support ilike naturally for multiple fields easily without third party.
+      // Search by name is primary.
+      const snap = await getDocs(q);
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Student[];
+      setStudents(data);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -164,36 +207,69 @@ export function Contributions() {
   const fetchPeriodContributions = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('contributions')
-        .select(`
-          *,
-          student:students(*)
-        `)
-        .gte('payment_date', startDate + 'T00:00:00Z')
-        .lte('payment_date', endDate + 'T23:59:59Z')
-        .order('payment_date', { ascending: false });
+      let q;
+      const dateField = filterType === 'payment' ? 'payment_date' : 'created_at';
+      
+      q = query(
+        collection(db, 'contributions'),
+        where(dateField, '>=', startDate + 'T00:00:00Z'),
+        where(dateField, '<=', endDate + 'T23:59:59Z'),
+        orderBy(dateField, 'desc')
+      );
 
-      if (error) throw error;
-      setPeriodData(data || []);
+      const snap = await getDocs(q);
+      const docsData = snap.docs.map(docSnap => ({ id: docSnap.id, ...(docSnap.data() as any) })) as any[];
+      
+      // Batch fetch students for better performance
+      const rawStudentIds = docsData.map(c => c.student_id).filter(Boolean);
+      const uniqueStudentIds = Array.from(new Set(rawStudentIds));
+      const studentMap = new Map();
+      
+      if (uniqueStudentIds.length > 0) {
+        // Query in chunks of 10 (Firebase limitation for 'in' operator)
+        for (let i = 0; i < uniqueStudentIds.length; i += 10) {
+          const chunk = uniqueStudentIds.slice(i, i + 10);
+          const sSnap = await getDocs(query(collection(db, 'students'), where('__name__', 'in', chunk)));
+          sSnap.forEach(sDoc => studentMap.set(sDoc.id, { id: sDoc.id, ...sDoc.data() }));
+        }
+      }
+
+      let data = docsData.map(c => ({
+        ...c,
+        student: studentMap.get(c.student_id) || null
+      }));
+
+      if (searchByName.trim()) {
+        const term = searchByName.toLowerCase();
+        data = data.filter(c => 
+          c.student?.name?.toLowerCase().includes(term) || 
+          c.student?.registration_number?.toLowerCase().includes(term)
+        );
+      }
+
+      setPeriodData(data);
       setViewMode('period');
     } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao buscar período: ' + error.message });
+      setNotification({ type: 'error', message: 'Erro ao buscar dados: ' + error.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchContributions = async (studentId: string, year: number) => {
+  const fetchContributions = async (studentId: string | undefined, year: number) => {
+    if (!studentId) {
+      setContributions([]);
+      return;
+    }
     try {
-      const { data, error } = await supabase
-        .from('contributions')
-        .select('*')
-        .eq('student_id', studentId)
-        .eq('reference_year', year);
-      
-      if (error) throw error;
-      setContributions(data || []);
+      const q = query(
+        collection(db, 'contributions'),
+        where('student_id', '==', studentId),
+        where('reference_year', '==', year)
+      );
+      const snap = await getDocs(q);
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contribution[];
+      setContributions(data);
     } catch (error: any) {
       console.error('Error fetching contributions:', error.message);
       // If table doesn't exist yet, we handle it silently or show a warning
@@ -214,16 +290,19 @@ export function Contributions() {
     setSelectedForPrint([]);
   };
 
-  const togglePrintSelection = (id: string) => {
-    if (selectedForPrint.includes(id)) {
-      setSelectedForPrint(selectedForPrint.filter(i => i !== id));
-    } else {
-      if (selectedForPrint.length >= 12) {
-        alert('Limite de 12 recibos por vez atingido.');
-        return;
+  const togglePrintSelection = (contribution: Contribution) => {
+    setSelectedForPrint(prev => {
+      const isSelected = prev.some(c => c.id === contribution.id);
+      if (isSelected) {
+        return prev.filter(c => c.id !== contribution.id);
+      } else {
+        if (prev.length >= 12) {
+          alert('Limite de 12 recibos por vez atingido.');
+          return prev;
+        }
+        return [...prev, contribution];
       }
-      setSelectedForPrint([...selectedForPrint, id]);
-    }
+    });
   };
 
   const handleUnlinkPix = async () => {
@@ -232,15 +311,10 @@ export function Contributions() {
     setUnlinkConfirmationFor(null);
 
     try {
-      const { error } = await supabase
-        .from('contributions')
-        .update({ 
-          pix_id: null,
-          origin: null
-        })
-        .eq('id', contrib.id);
-
-      if (error) throw error;
+      await saveData('contributions', contrib.id, { 
+        pix_id: null,
+        origin: null
+      });
 
       setContributions(prev => prev.map(c => 
         c.id === contrib.id ? { ...c, pix_id: undefined, origin: undefined } : c
@@ -259,12 +333,8 @@ export function Contributions() {
 
     setIsDeleting(contrib.id);
     try {
-      const { error: deleteError } = await supabase
-        .from('contributions')
-        .delete()
-        .eq('id', contrib.id);
-
-      if (deleteError) throw deleteError;
+      const docRef = doc(db, 'contributions', contrib.id);
+      await deleteDoc(docRef);
 
       setContributions(prev => prev.filter(c => c.id !== contrib.id));
       setNotification({ type: 'success', message: 'Contribuição excluída com sucesso!' });
@@ -332,27 +402,22 @@ export function Contributions() {
 
     setIsSavingManual(true);
     try {
-      let userId = null;
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        userId = userData.user?.id;
-      } catch (e) {}
-      
       const amountPerMonth = totalAmount / manualMonths.length;
       const finalDate = parseSafeDate(manualDate).toISOString();
 
       // Check for existing contributions
-      const { data: existingContribs, error: checkError } = await supabase
-        .from('contributions')
-        .select('reference_month')
-        .eq('student_id', selectedStudent.id)
-        .eq('reference_year', selectedYear)
-        .in('reference_month', manualMonths.map(idx => idx + 1));
+      const q = query(
+        collection(db, 'contributions'),
+        where('student_id', '==', selectedStudent.id),
+        where('reference_year', '==', selectedYear),
+        where('reference_month', 'in', manualMonths.map(idx => idx + 1))
+      );
 
-      if (checkError) throw checkError;
+      const existingSnap = await getDocs(q);
+      const existingContribs = existingSnap.docs.map(d => d.data());
 
       if (existingContribs && existingContribs.length > 0) {
-        const duplicateMonths = existingContribs.map(c => MONTHS[c.reference_month - 1]).join(', ');
+        const duplicateMonths = existingContribs.map((c: any) => MONTHS[c.reference_month - 1]).join(', ');
         setNotification({ 
           type: 'error', 
           message: `Já existe contribuição para ${duplicateMonths}/${selectedYear}. Verifique.` 
@@ -368,20 +433,21 @@ export function Contributions() {
         reference_year: selectedYear,
         payment_date: finalDate,
         payment_method: manualMethod,
-        user_id: userId
+        observations: manualObservations,
+        created_at: new Date().toISOString()
       }));
 
-      const { data, error } = await supabase
-        .from('contributions')
-        .insert(recordsToInsert)
-        .select();
+      const savedDocs = await Promise.all(recordsToInsert.map(async (rec) => {
+        const finalId = await saveData('contributions', undefined, rec);
+        return { id: finalId, ...rec };
+      }));
 
-      if (error) throw error;
-      
-      if (!data) throw new Error('Erro ao salvar no banco.');
-
-      setContributions(prev => [...prev, ...data]);
+      setContributions(prev => [...prev, ...savedDocs as any]);
       setManualMonths([]);
+      setManualObservations('');
+      
+      // Force refresh for recent list and any other lists
+      fetchRecentContributions();
       
       setNotification({ type: 'success', message: `✅ ${manualMonths.length} lançamento(s) registrado(s) com sucesso!` });
     } catch (error: any) {
@@ -393,11 +459,16 @@ export function Contributions() {
   };
 
   const generateSelectedReceipts = (specificBatch?: Contribution[], action: 'save' | 'print' = 'save') => {
-    const currentContribs = specificBatch || contributions.filter(c => selectedForPrint.includes(c.id));
+    const currentContribs = specificBatch || selectedForPrint;
     if (currentContribs.length === 0) return;
     
-    // Sort by month
-    const sortedContribs = [...currentContribs].sort((a, b) => a.reference_month - b.reference_month);
+    // Sort by year then month
+    const sortedContribs = [...currentContribs].sort((a, b) => {
+      if (a.reference_year !== b.reference_year) {
+        return a.reference_year - b.reference_year;
+      }
+      return a.reference_month - b.reference_month;
+    });
     
     if (sortedContribs.length === 1) {
       generateReceipt(sortedContribs[0], action);
@@ -425,7 +496,7 @@ export function Contributions() {
 
       if (institution?.logo_url) {
         try {
-          doc.addImage(institution.logo_url, 'PNG', margin, startY, 18, 18);
+          doc.addImage(institution.logo_url, 'auto', margin, startY, 18, 18);
           textStartX = margin + 22;
           textHeaderAlign = "left";
         } catch (e) {}
@@ -549,21 +620,36 @@ export function Contributions() {
       doc.setFont('helvetica', 'bold');
       doc.text(autoText, pageWidth / 2, currentMsgY, { align: 'center' });
       
-      if (institution?.receipt_message) {
+      const contribObs = currentContribs.map(c => c.observations).filter(Boolean).join('; ');
+      
+      if (contribObs || institution?.receipt_message) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.5);
+        doc.setTextColor(0, 23, 75);
+        doc.text('OBSERVAÇÕES:', margin + 5, currentMsgY + 4);
+        
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        const customLines = doc.splitTextToSize(institution.receipt_message, pageWidth - (margin * 2) - 10);
-        doc.text(customLines, pageWidth / 2, currentMsgY + 5, { align: 'center' });
+        doc.setFontSize(7);
+        doc.setTextColor(80);
+        
+        const finalMsg = [contribObs, institution?.receipt_message].filter(Boolean).join(' • ');
+        const customLines = doc.splitTextToSize(finalMsg, pageWidth - (margin * 2) - 15);
+        doc.text(customLines, margin + 5, currentMsgY + 8);
       } else {
         doc.setFont('helvetica', 'italic');
-        doc.text('" P A Z  E  B E M "', pageWidth / 2, currentMsgY + 5, { align: 'center' });
+        doc.setFontSize(7.5);
+        doc.text('" P A Z  E  B E M "', pageWidth / 2, currentMsgY + 7, { align: 'center' });
       }
 
-      // Emission info
+      // Emission info & Footer
       doc.setFontSize(5.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(180);
       doc.text(`Emissão: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, nextY + 28);
+      
+      if (institution?.footer_text) {
+        doc.text(institution.footer_text.toUpperCase(), pageWidth - margin, nextY + 28, { align: 'right' });
+      }
       doc.setTextColor(0);
     };
 
@@ -606,7 +692,7 @@ export function Contributions() {
 
       if (institution?.logo_url) {
         try {
-          doc.addImage(institution.logo_url, 'PNG', margin, startY, 22, 22);
+          doc.addImage(institution.logo_url, 'auto', margin, startY, 22, 22);
           textStartX = margin + 26;
           textHeaderAlign = "left";
         } catch (e) {}
@@ -726,11 +812,15 @@ export function Contributions() {
         doc.text('" P A Z  E  B E M "', pageWidth / 2, currentMsgY + 6, { align: 'center' });
       }
 
-      // Emission info
+      // Emission info & Footer
       doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(180);
       doc.text(`Emissão: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, nextY + 38);
+      
+      if (institution?.footer_text) {
+        doc.text(institution.footer_text.toUpperCase(), pageWidth - margin, nextY + 38, { align: 'right' });
+      }
       doc.setTextColor(0);
     };
 
@@ -765,41 +855,96 @@ export function Contributions() {
     
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
-    const margin = 20;
+    const margin = 15;
+    const centerX = pageWidth / 2;
+    let y = 15;
 
-    doc.setFontSize(18);
+    // Professional Header
+    let textStartX = centerX;
+    let textHeaderAlign: "center" | "left" = "center";
+
+    if (institution?.logo_url) {
+      try { 
+        doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
+        textStartX = margin + 26;
+        textHeaderAlign = "left";
+      } catch (e) {}
+    }
+
     doc.setTextColor(0, 23, 75);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('EXTRATO ANUAL DE CONTRIBUIÇÕES', pageWidth / 2, 25, { align: 'center' });
+    doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 8, { align: textHeaderAlign });
     
-    doc.setFontSize(10);
+    doc.setFontSize(8);
     doc.setTextColor(100);
-    doc.text(`Aluno: ${selectedStudent.name}`, margin, 35);
-    doc.text(`Ano de Referência: ${selectedYear}`, margin, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.text(institution?.address || '', textStartX, y + 13, { align: textHeaderAlign });
+    
+    const meta = [
+      institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
+      institution?.phone ? `TEL: ${institution.phone}` : '',
+      institution?.email ? `EMAIL: ${institution.email}` : '',
+      institution?.website ? `SITE: ${institution.website}` : ''
+    ].filter(Boolean).join('  |  ');
+    doc.text(meta, textStartX, y + 17, { align: textHeaderAlign });
+
+    doc.setDrawColor(0, 23, 75);
+    doc.setLineWidth(0.8);
+    doc.line(margin, y + 22, pageWidth - margin, y + 22);
+
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EXTRATO ANUAL DE CONTRIBUIÇÕES', centerX, y + 32, { align: 'center' });
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80);
+    doc.text(`ALUNO: ${selectedStudent.name.toUpperCase()}`, margin, y + 42);
+    doc.text(`MATRÍCULA: ${selectedStudent.registration_number}`, margin, y + 47);
+    doc.text(`ANO DE REFERÊNCIA: ${selectedYear}`, pageWidth - margin, y + 42, { align: 'right' });
 
     const statementData = MONTHS.map((month, idx) => {
       const contrib = contributions.find(c => c.reference_month === idx + 1);
       return [
         month,
         contrib ? formatCurrency(contrib.amount) : '---',
-        contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : 'Não Pago'
+        contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : 'Não Pago',
+        contrib?.observations || ''
       ];
     });
 
     autoTable(doc, {
-      startY: 45,
-      head: [['Mês', 'Valor Contribuído', 'Data do Pagamento']],
+      startY: 55,
+      head: [['Mês', 'Valor Contribuído', 'Data do Pagamento', 'Observações']],
       body: statementData,
       theme: 'striped',
-      headStyles: { fillColor: [0, 23, 75] }
+      headStyles: { fillColor: [0, 23, 75] },
+      styles: { fontSize: 8 }
     });
 
     const total = contributions.reduce((acc, c) => acc + c.amount, 0);
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    let finalY = (doc as any).lastAutoTable.finalY + 10;
     
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(0);
     doc.text(`Total Acumulado no Ano: ${formatCurrency(total)}`, pageWidth - margin, finalY, { align: 'right' });
+
+    // Important notes at the bottom
+    if (institution?.receipt_message) {
+      finalY += 15;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 23, 75);
+      doc.text('OBSERVAÇÕES:', margin, finalY);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100);
+      const splitObs = doc.splitTextToSize(institution.receipt_message, pageWidth - margin * 2);
+      doc.text(splitObs, margin, finalY + 5);
+    }
 
     doc.save(`Extrato_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedYear}.pdf`);
   };
@@ -808,8 +953,10 @@ export function Contributions() {
     setSelectedStudent(null);
     setContributions([]);
     setSearchTerm('');
+    setSearchByName('');
     setStudents([]);
-    setViewMode('individual');
+    setViewMode('period');
+    fetchRecentContributions();
   };
 
   const filteredStudents = students;
@@ -820,65 +967,96 @@ export function Contributions() {
         "h-[calc(100vh-8rem)] flex flex-col gap-6 print:hidden",
         isPrinting && "hidden"
       )}>
-      {/* Header Profissional com Filtros */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-4 border-r border-slate-100 pr-6">
-          <div className="w-12 h-12 rounded-2xl bg-[#00174b] flex items-center justify-center text-white shadow-lg">
-            <TrendingUp size={24} />
+      {/* Header Profissional mais compacto */}
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#00174b] flex items-center justify-center text-white shadow-lg shadow-blue-900/10">
+              <TrendingUp size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-[#131b2e] leading-tight">Gestão de Contribuições</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">Tesouraria & Conferência</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-black text-[#131b2e]">Contribuições</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Financeiro & Recebimentos</p>
+          
+          <div className="flex items-center gap-2">
+             <button 
+                onClick={clearSelection}
+                className="px-4 py-2 bg-slate-50 text-slate-500 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all border border-slate-100 font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5"
+              >
+                <X size={14} /> Limpar Filtros
+              </button>
           </div>
         </div>
 
-        {/* Buscas */}
-        <div className="flex-1 flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              {isSearching ? <Loader2 size={16} className="text-blue-500 animate-spin" /> : <Search size={16} className="text-slate-400" />}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-50">
+          {/* Busca por Nome */}
+          <div className="lg:col-span-4 space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Nome / Matrícula</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {isSearching ? <Loader2 size={16} className="text-blue-500 animate-spin" /> : <Search size={16} className="text-slate-400" />}
+              </div>
+              <input 
+                type="text"
+                placeholder="Pesquisar..."
+                value={searchTerm || searchByName}
+                onChange={(e) => {
+                  setSearchByName(e.target.value);
+                  handleSearchStudents(e.target.value);
+                }}
+                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-slate-700"
+              />
             </div>
-            <input 
-              type="text"
-              placeholder="Pesquisar contribuinte (nome ou matrícula)..."
-              value={searchTerm}
-              onChange={(e) => handleSearchStudents(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
-            />
           </div>
 
-          <div className="h-10 w-px bg-slate-100 mx-2" />
+          {/* Filtro de Tipo de Data */}
+          <div className="lg:col-span-2 space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Tipo</label>
+            <select 
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as any)}
+              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 focus:ring-4 focus:ring-blue-500/10 cursor-pointer"
+            >
+              <option value="payment">Pagamento</option>
+              <option value="created">Importação</option>
+            </select>
+          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 px-4">
-              <Calendar size={14} className="text-slate-400" />
-              <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-black uppercase text-[#131b2e] focus:ring-0 w-24"
-              />
-              <span className="text-slate-300 text-[10px] font-black">ATÉ</span>
-              <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-black uppercase text-[#131b2e] focus:ring-0 w-24"
-              />
+          {/* Intervalo de Datas */}
+          <div className="lg:col-span-4 space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Período</label>
+            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 h-[3.25rem]">
+              <div className="flex-1 flex items-center px-3 gap-2">
+                <Calendar size={14} className="text-slate-300" />
+                <input 
+                  type="date" 
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
+                />
+              </div>
+              <div className="w-px h-6 bg-slate-100" />
+              <div className="flex-1 flex items-center px-3 gap-2">
+                <input 
+                  type="date" 
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
+                />
+              </div>
             </div>
+          </div>
+
+          {/* Ação */}
+          <div className="lg:col-span-2 flex items-end">
             <button 
               onClick={fetchPeriodContributions}
-              className="px-6 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/10 flex items-center gap-2"
+              className="w-full h-[3.25rem] bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 active:scale-95"
             >
-              <FileText size={14} />
-              Filtrar Período
-            </button>
-            <button 
-              onClick={clearSelection}
-              className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all border border-slate-100"
-              title="Limpar Filtros"
-            >
-              <X size={20} />
+              <Search size={16} />
+              Filtrar
             </button>
           </div>
         </div>
@@ -954,27 +1132,26 @@ export function Contributions() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200">
+                  <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                     <button 
                       onClick={() => setSelectedYear(selectedYear - 1)}
-                      className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-600"
+                      className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
                     >
-                      <ChevronLeft size={20} />
+                      <ChevronLeft size={16} />
                     </button>
-                    <span className="px-4 text-lg font-black text-[#131b2e]">{selectedYear}</span>
+                    <span className="px-3 text-base font-black text-[#131b2e]">{selectedYear}</span>
                     <button 
                       onClick={() => setSelectedYear(selectedYear + 1)}
-                      className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-600"
+                      className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
                     >
-                      <ChevronRight size={20} />
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                         {selectedForPrint.length > 0 && (
                           <div className="flex gap-2">
                             <button 
                               onClick={() => {
-                                const selected = contributions.filter(c => selectedForPrint.includes(c.id));
-                                setReceiptPreviewData(selected);
+                                triggerDirectPrint(selectedForPrint);
                               }}
                               className="flex items-center gap-2 px-6 py-3 bg-white text-emerald-600 border-2 border-emerald-600 rounded-2xl font-bold hover:bg-emerald-50 transition-all shadow-md active:scale-95 animate-in fade-in slide-in-from-right-4"
                             >
@@ -983,8 +1160,7 @@ export function Contributions() {
                             </button>
                             <button 
                               onClick={() => {
-                                const selected = contributions.filter(c => selectedForPrint.includes(c.id));
-                                generateSelectedReceipts(selected, 'print');
+                                generateSelectedReceipts(selectedForPrint, 'print');
                                 setSelectedForPrint([]);
                               }}
                               className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg active:scale-95 animate-in fade-in slide-in-from-right-4"
@@ -1004,76 +1180,81 @@ export function Contributions() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><TrendingUp size={20} /></div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><TrendingUp size={18} /></div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total no Ano</p>
-                    <p className="text-xl font-black text-[#131b2e]">{formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total no Ano</p>
+                    <p className="text-lg font-black text-[#131b2e]">{formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}</p>
                   </div>
                 </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="p-3 bg-green-50 text-green-600 rounded-xl"><CheckCircle2 size={20} /></div>
+                <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center"><CheckCircle2 size={18} /></div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meses Pagos</p>
-                    <p className="text-xl font-black text-[#131b2e]">{contributions.length} / 12</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Meses Pagos</p>
+                    <p className="text-lg font-black text-[#131b2e]">{contributions.length} / 12</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="flex-1 overflow-y-auto p-5 bg-slate-50/20">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {MONTHS.map((month, idx) => {
                   const contrib = contributions.find(c => c.reference_month === idx + 1);
                   return (
                     <div 
                       key={month}
                       className={cn(
-                        "group p-5 rounded-3xl border transition-all duration-300 flex flex-col gap-4",
+                        "group p-3 rounded-xl border transition-all duration-300 flex flex-col gap-2.5 h-full",
                         contrib 
-                          ? "bg-emerald-50/50 border-emerald-100 ring-1 ring-emerald-50" 
-                          : "bg-white border-slate-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5"
+                          ? "bg-emerald-50/50 border-emerald-100 ring-1 ring-emerald-50/50" 
+                          : "bg-white border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5"
                       )}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5">
                           {contrib && (
                             <input 
                               type="checkbox"
-                              checked={selectedForPrint.includes(contrib.id)}
-                              onChange={() => togglePrintSelection(contrib.id)}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              checked={selectedForPrint.some(c => c.id === contrib.id)}
+                              onChange={() => togglePrintSelection(contrib)}
+                              className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           )}
                           <span className={cn(
-                            "text-xs font-black uppercase tracking-widest",
+                            "text-[10px] font-black uppercase tracking-widest",
                             contrib ? "text-emerald-600" : "text-slate-400"
                           )}>
                             {month}
                           </span>
                         </div>
                         {contrib && (
-                          <div className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                            <CheckCircle2 size={14} />
+                          <div className="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                            <CheckCircle2 size={12} />
                           </div>
                         )}
                       </div>
 
                       {contrib ? (
                         <>
-                          <div className="space-y-1">
-                            <p className="text-2xl font-black text-[#131b2e]">{formatCurrency(contrib.amount)}</p>
+                          <div className="space-y-0.5">
+                            <p className="text-lg font-black text-[#131b2e] leading-none">{formatCurrency(contrib.amount)}</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-[10px] font-bold text-slate-400">Pago em {safeFormat(contrib.payment_date, 'dd/MM/yy')}</p>
+                              <p className="text-[9px] font-bold text-slate-400">Pago: {safeFormat(contrib.payment_date, 'dd/MM/yy')}</p>
                               {contrib.payment_method && (
-                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[8px] font-black uppercase tracking-wider">
+                                <span className="px-1.5 py-px bg-slate-100 text-slate-500 rounded text-[7px] font-black uppercase tracking-wider">
                                   {contrib.payment_method}
                                 </span>
                               )}
                             </div>
+                            {contrib.observations && (
+                              <p className="text-[9px] text-slate-400 italic truncate" title={contrib.observations}>
+                                {contrib.observations}
+                              </p>
+                            )}
                           </div>
-                           <div className="flex gap-2 pt-2 border-t border-emerald-100/50">
+                           <div className="flex gap-2 pt-1.5 border-t border-emerald-100/50">
                              <button 
                                onClick={() => setReceiptPreviewData([contrib])}
                                className="p-1.5 bg-white text-slate-400 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all"
@@ -1110,14 +1291,14 @@ export function Contributions() {
                         </>
                       ) : (
                         <>
-                          <div className="space-y-1 py-2">
-                            <p className="text-sm font-bold text-slate-300">Pendente</p>
+                          <div className="space-y-0.5 py-1">
+                            <p className="text-xs font-bold text-slate-300">Pendente</p>
                           </div>
                           <button 
                             onClick={() => handleAddContribution(idx)}
-                            className="w-full py-3 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white hover:shadow-lg hover:shadow-blue-500/20 transition-all border border-dashed border-slate-200 flex items-center justify-center gap-2"
+                            className="w-full py-2 bg-slate-50 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all border border-dashed border-slate-200 flex items-center justify-center gap-1.5"
                           >
-                            <Plus size={14} />
+                            <Plus size={12} />
                             Registrar
                           </button>
                         </>
@@ -1129,24 +1310,55 @@ export function Contributions() {
             </div>
           </>
           ) : viewMode === 'period' ? (
-            <div className="flex-1 flex flex-col p-8 overflow-hidden">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-2xl font-black text-[#131b2e]">Relatório de Período</h3>
-                  <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    {safeFormat(startDate + 'T12:00:00Z', 'dd/MM/yy', '---')} ATÉ {safeFormat(endDate + 'T12:00:00Z', 'dd/MM/yy', '---')}
-                  </p>
-                </div>
-                <div className="bg-emerald-50 p-4 rounded-3xl border border-emerald-100 flex items-center gap-6">
+            <div className="flex-1 flex flex-col p-4 overflow-hidden">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <FileText size={16} />
+                  </div>
                   <div>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Total Arrecadado</p>
-                    <p className="text-2xl font-black text-[#131b2e]">{formatCurrency(periodData.reduce((acc, c) => acc + c.amount, 0))}</p>
+                    <h3 className="text-base font-black text-[#131b2e] leading-tight">Relatório de Período</h3>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
+                      {safeFormat(startDate + 'T12:00:00Z', 'dd/MM/yy', '---')} ATÉ {safeFormat(endDate + 'T12:00:00Z', 'dd/MM/yy', '---')}
+                    </p>
                   </div>
-                  <div className="w-px h-10 bg-emerald-200" />
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Registros</p>
-                    <p className="text-2xl font-black text-[#131b2e]">{periodData.length}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 flex items-center gap-4">
+                    <div className="flex flex-col items-center">
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-0.5">Total</p>
+                      <p className="text-base font-black text-[#131b2e]">{formatCurrency(periodData.reduce((acc, c) => acc + c.amount, 0))}</p>
+                    </div>
+                    <div className="w-px h-6 bg-emerald-200" />
+                    <div className="flex flex-col items-center text-right">
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-0.5">Registros</p>
+                      <p className="text-base font-black text-[#131b2e]">{periodData.length}</p>
+                    </div>
                   </div>
+
+                  {selectedForPrint.length > 0 && (
+                    <div className="flex items-center gap-2 animate-in slide-in-from-right-2">
+                      <button 
+                        onClick={() => {
+                          triggerDirectPrint(selectedForPrint);
+                        }}
+                        className="px-4 py-3 bg-white text-emerald-600 border border-emerald-600 rounded-2xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-50 transition-all flex items-center gap-2 shadow-sm"
+                      >
+                        <FileDown size={14} />
+                        Ver ({selectedForPrint.length})
+                      </button>
+                      <button 
+                        onClick={() => {
+                          generateSelectedReceipts(selectedForPrint, 'print');
+                          setSelectedForPrint([]);
+                        }}
+                        className="px-4 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                      >
+                        <Printer size={14} />
+                        Imprimir Seleção
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1155,19 +1367,22 @@ export function Contributions() {
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
                       <th className="px-6 py-4 w-10"></th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contribuinte / Matrícula</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Informação do Período</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Método</th>
-                      <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Total</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Contribuinte / Matrícula</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Informação do Período</th>
+                      <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Método</th>
+                      <th className="px-6 py-4 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Valor Total</th>
                       <th className="px-6 py-4"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {periodData.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-20 text-center text-slate-300">
-                          <AlertCircle size={48} className="mx-auto mb-4 opacity-20" />
-                          <p className="font-bold">Nenhum registro encontrado neste período.</p>
+                        <td colSpan={6} className="px-6 py-24 text-center text-slate-300">
+                          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                            <AlertCircle size={32} className="opacity-20" />
+                          </div>
+                          <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Nenhum registro encontrado</p>
+                          <p className="text-sm text-slate-300 mt-2">Tente ajustar os filtros de data ou nome acima.</p>
                         </td>
                       </tr>
                     ) : (
@@ -1193,87 +1408,149 @@ export function Contributions() {
                           return (
                             <React.Fragment key={studentId}>
                               <tr 
-                                onClick={() => toggleStudentExpansion(studentId)}
-                                className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer group"
+                                onClick={(e) => {
+                                  // Don't toggle if clicking a button
+                                  if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input[type="checkbox"]')) return;
+                                  toggleStudentExpansion(studentId);
+                                }}
+                                className={cn(
+                                  "border-b border-slate-50 hover:bg-slate-50 transition-all cursor-pointer group relative",
+                                  isExpanded ? "bg-slate-50/50" : ""
+                                )}
                               >
                                 <td className="px-6 py-4">
-                                  <div className={cn(
-                                    "p-1 rounded-lg transition-all",
-                                    isExpanded ? "bg-blue-50 text-blue-600" : "text-slate-300 group-hover:text-slate-400"
-                                  )}>
-                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                  <div className="flex items-center gap-4">
+                                     <input 
+                                      type="checkbox"
+                                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                      checked={group.contributions.every((c: any) => selectedForPrint.some(s => s.id === c.id))}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        if (e.target.checked) {
+                                          setSelectedForPrint(prev => {
+                                            const next = [...prev];
+                                            group.contributions.forEach((c: any) => {
+                                              if (!next.some(s => s.id === c.id)) next.push(c);
+                                            });
+                                            return next.slice(0, 12);
+                                          });
+                                        } else {
+                                          const groupIds = group.contributions.map((c: any) => c.id);
+                                          setSelectedForPrint(prev => prev.filter(c => !groupIds.includes(c.id)));
+                                        }
+                                      }}
+                                    />
+                                    <div className={cn(
+                                      "p-1.5 rounded-lg transition-all",
+                                      isExpanded ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-slate-100 text-slate-400 group-hover:bg-slate-200"
+                                    )}>
+                                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                    </div>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                  <p className="text-sm font-black text-[#131b2e] leading-snug">{group.student?.name || 'Contribuinte Deletado'}</p>
-                                  <p className="text-[10px] font-bold text-slate-400">{group.student?.registration_number || '---'}</p>
-                                </td>
-                                <td className="px-6 py-4 text-[10px] font-black uppercase text-slate-500">
-                                  {group.contributions.length} {group.contributions.length === 1 ? 'Contribuição' : 'Contribuições'} no Período
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-xs">
+                                      {group.student?.name?.charAt(0) || '?'}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-black text-[#131b2e] leading-snug">{group.student?.name || 'Contribuinte Deletado'}</p>
+                                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{group.student?.registration_number || 'S/ MATRÍCULA'}</p>
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                  {group.contributions.length === 1 ? (
-                                    <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                                      {group.contributions[0].payment_method || 'PIX'}
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                                      Múltiplos
-                                    </span>
-                                  )}
+                                  <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                    {group.contributions.length} {group.contributions.length === 1 ? 'Lançamento' : 'Lançamentos'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex flex-wrap gap-2">
+                                    {Array.from(new Set(group.contributions.map((c: any) => c.payment_method || 'PIX'))).map((method: any) => (
+                                      <span key={method} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                        {method}
+                                      </span>
+                                    ))}
+                                  </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                  <span className="text-sm font-black text-[#131b2e]">{formatCurrency(group.total)}</span>
+                                  <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl">{formatCurrency(group.total)}</span>
                                 </td>
                                 <td className="px-6 py-4">
                                   <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button 
                                       onClick={(e) => { 
                                         e.stopPropagation(); 
-                                        setSelectedStudent(group.student || null); 
+                                        const studentWithId = group.student ? { id: studentId, ...group.student } : null;
+                                        setSelectedStudent(studentWithId as Student); 
                                         setViewMode('individual'); 
                                         fetchContributions(studentId, group.contributions[0].reference_year); 
                                       }} 
-                                      className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-all" 
-                                      title="Ver Ficha Completa"
+                                      className="p-2.5 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm border border-blue-100" 
+                                      title="Extrato do Aluno"
                                     >
-                                      <UserIcon size={16} />
+                                      <FileText size={18} />
+                                    </button>
+                                    <button 
+                                      onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        triggerDirectPrint(group.contributions);
+                                      }} 
+                                      className="p-2.5 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm border border-emerald-100" 
+                                      title="Visualizar Recibos Multiplos"
+                                    >
+                                      <Printer size={18} />
                                     </button>
                                   </div>
                                 </td>
                               </tr>
-                              {isExpanded && group.contributions.map((c) => (
-                                <tr key={c.id} className="bg-slate-50/30 border-b border-slate-50/50 hover:bg-slate-50 transition-colors group/inner">
-                                  <td className="px-6 py-3"></td>
-                                  <td className="px-6 py-3 pl-12 text-[10px] font-bold text-slate-400">
-                                    Pago em {safeFormat(c.payment_date, 'dd/MM/yyyy')}
+                              {isExpanded && group.contributions.map((c: any) => (
+                                <tr key={c.id} className="bg-slate-50/10 border-b border-slate-50/50 hover:bg-slate-50/40 transition-colors group/inner">
+                                  <td className="px-6 py-3 pl-12 flex items-center gap-4">
+                                     <input 
+                                      type="checkbox"
+                                      checked={selectedForPrint.some(s => s.id === c.id)}
+                                      onChange={() => togglePrintSelection(c)}
+                                      className="w-3.5 h-3.5 rounded border-slate-200 text-blue-500 focus:ring-blue-400"
+                                    />
                                   </td>
-                                  <td className="px-6 py-3 text-[10px] font-black uppercase text-slate-500">
+                                  <td className="px-6 py-4 text-xs font-medium text-slate-500">
+                                    {filterType === 'payment' ? 'Pago em' : 'Importado em'} {safeFormat(filterType === 'payment' ? c.payment_date : (c.created_at || c.payment_date), 'dd/MM/yyyy')}
+                                  </td>
+                                  <td className="px-6 py-4 text-xs font-bold uppercase text-[#131b2e] tracking-wider">
                                     {MONTHS[c.reference_month - 1]} / {c.reference_year}
                                   </td>
-                                  <td className="px-6 py-3">
-                                    <span className="px-1.5 py-0.5 bg-white border border-slate-100 text-slate-400 rounded text-[8px] font-black uppercase tracking-wider">
-                                      {c.payment_method || 'PIX'}
-                                    </span>
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center gap-2">
+                                      <span className="px-2.5 py-1 bg-slate-100/50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                                        {c.payment_method || 'PIX'}
+                                      </span>
+                                      {c.pix_id && <Link2Off size={11} className="text-blue-500" title="Registro Conciliado" />}
+                                      {c.observations && (
+                                        <span className="text-[10px] text-slate-400 italic truncate max-w-[150px]" title={c.observations}>
+                                          • {c.observations}
+                                        </span>
+                                      )}
+                                    </div>
                                   </td>
-                                  <td className="px-6 py-3 text-right">
-                                    <span className="text-xs font-bold text-[#131b2e]">{formatCurrency(c.amount)}</span>
+                                  <td className="px-6 py-4 text-right">
+                                    <span className="text-sm font-black text-[#131b2e]">{formatCurrency(c.amount)}</span>
                                   </td>
                                   <td className="px-6 py-3 text-right">
                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover/inner:opacity-100 transition-opacity">
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); setReceiptPreviewData([c]); }} 
-                                        className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg transition-all" 
+                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" 
                                         title="Visualizar Recibo"
                                       >
-                                        <FileText size={14} />
+                                        <FileText size={16} />
                                       </button>
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); generateSelectedReceipts([c], 'print'); }} 
-                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
-                                        title="Impressão Direta"
+                                        className="p-2 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm" 
+                                        title="Imprimir Agora"
                                       >
-                                        <Printer size={14} />
+                                        <Printer size={16} />
                                       </button>
                                     </div>
                                   </td>
@@ -1383,43 +1660,65 @@ export function Contributions() {
             </div>
 
             <div className="p-8 space-y-6 overflow-y-auto">
-              {/* Seleção de Meses */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Meses Referentes (Multi-seleção)</label>
-                <div className="grid grid-cols-4 gap-2">
+              {/* Seleção de Meses - Estilo mais profissional */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Selecione os Meses</label>
+                  {manualMonths.length > 0 && (
+                    <button 
+                      onClick={() => setManualMonths([])}
+                      className="text-[10px] font-black text-red-500 uppercase hover:underline"
+                    >
+                      Limpar Tudo
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                   {MONTHS.map((m, idx) => (
                     <button
                       key={m}
                       onClick={() => toggleManualMonth(idx)}
                       className={cn(
-                        "py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border",
+                        "py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border-2",
                         manualMonths.includes(idx) 
-                          ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100" 
-                          : "bg-white border-slate-100 text-slate-400 hover:border-blue-200"
+                          ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 scale-[1.02]" 
+                          : "bg-white border-white text-slate-500 hover:border-blue-100 hover:text-blue-600"
                       )}
                     >
                       {m.substring(0, 3)}
                     </button>
                   ))}
                 </div>
+                {manualMonths.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 px-2">
+                    {manualMonths.map(mIdx => (
+                      <span key={mIdx} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase border border-blue-100">
+                        {MONTHS[mIdx]}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {manualMonths.length > 1 && (
-                  <p className="text-[10px] text-blue-500 font-bold ml-2">O valor total será dividido entre {manualMonths.length} meses.</p>
+                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-start gap-2">
+                    <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 font-bold leading-tight">Atenção: O valor total de R$ {manualAmount} será dividido proporcionalmente entre os {manualMonths.length} meses selecionados.</p>
+                  </div>
                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Valor */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Valor Total</label>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Valor Total</label>
                   <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">R$</span>
                     <input 
                       type="text"
                       value={manualAmount}
                       onChange={(e) => setManualAmount(e.target.value)}
                       onBlur={formatManualAmount}
                       onKeyDown={(e) => e.key === 'Enter' && formatManualAmount()}
-                      className="w-full bg-slate-50 border-0 rounded-2xl py-4 pl-14 pr-6 text-xl font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300"
+                      className="w-full bg-slate-50 border-0 rounded-2xl py-4 pl-14 pr-6 text-2xl font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300"
                       placeholder="0,00"
                     />
                   </div>
@@ -1427,26 +1726,26 @@ export function Contributions() {
 
                 {/* Data do Pagamento */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Data do Pagamento</label>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Data do Pagamento</label>
                   <input 
                     type="date"
                     value={manualDate}
                     onChange={(e) => setManualDate(e.target.value)}
-                    className="w-full bg-slate-50 border-0 rounded-2xl py-4 px-6 text-lg font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full bg-slate-50 border-0 rounded-2xl py-4 px-6 text-xl font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all"
                   />
                 </div>
               </div>
 
               {/* Método */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Forma de Recebimento</label>
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Forma de Recebimento</label>
                 <div className="grid grid-cols-3 gap-3">
                   {(['Dinheiro', 'PIX', 'Cartão'] as const).map((method) => (
                     <button
                       key={method}
                       onClick={() => setManualMethod(method)}
                       className={cn(
-                        "py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border-2",
+                        "py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border-2",
                         manualMethod === method 
                           ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
                           : "bg-white border-slate-100 text-slate-400 hover:border-blue-200 hover:text-blue-500"
@@ -1456,6 +1755,17 @@ export function Contributions() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Observações */}
+              <div className="space-y-2">
+                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Observações</label>
+                <textarea 
+                  value={manualObservations}
+                  onChange={(e) => setManualObservations(e.target.value)}
+                  placeholder="Informações adicionais sobre este pagamento..."
+                  className="w-full bg-slate-50 border-0 rounded-2xl py-4 px-6 text-sm font-medium text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all resize-none h-24"
+                />
               </div>
               
               <div className="pt-4">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CloudUpload, 
   FileText, 
@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
-import { supabase, fetchAll } from '../lib/supabase';
+import { db, fetchAll, saveData } from '../lib/firebase';
+import { collection, setDoc, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { useImport } from '../contexts/ImportContext';
 
 type ImportType = 'students' | 'teachers' | 'classes' | 'subjects';
 type ImportStep = 'type' | 'upload' | 'mapping' | 'review' | 'processing';
@@ -26,34 +28,39 @@ interface FieldDefinition {
 
 const ENTITY_FIELDS: Record<ImportType, FieldDefinition[]> = {
   students: [
-    { label: 'Nome do Aluno', key: 'name', synonyms: ['nome', 'aluno', 'student', 'full name'] },
-    { label: 'Matrícula', key: 'registration_number', synonyms: ['matricula', 'codalu', 'codigo', 'id', 'registration'] },
-    { label: 'E-mail', key: 'email', synonyms: ['email', 'e-mail', 'mail'] },
-    { label: 'CPF', key: 'cpf', synonyms: ['cpf', 'documento'] },
-    { label: 'RG', key: 'rg', synonyms: ['rg', 'identidade'] },
-    { label: 'Data Nascimento', key: 'birth_date', synonyms: ['nascimento', 'data', 'birth', 'birthday'] },
-    { label: 'Data de Início', key: 'start_date', synonyms: ['inicio', 'entrada', 'start'] },
-    { label: 'Endereço', key: 'address_street', synonyms: ['endereco', 'rua', 'address', 'street'] },
-    { label: 'Cidade', key: 'address_city', synonyms: ['cidade', 'city'] },
-    { label: 'Estado', key: 'address_state', synonyms: ['estado', 'uf', 'state'] },
-    { label: 'CEP', key: 'address_zip', synonyms: ['cep', 'zip', 'postal'] },
-    { label: 'Celular', key: 'phone_mobile', synonyms: ['celular', 'mobile', 'phone', 'tel'] },
+    { label: 'Nome do Aluno', key: 'name', synonyms: ['nome', 'aluno', 'student', 'full name', 'full_name', 'nome_aluno'] },
+    { label: 'Matrícula', key: 'registration_number', synonyms: ['matricula', 'codalu', 'codigo', 'id', 'registration', 'registration_number', 'ra'] },
+    { label: 'E-mail', key: 'email', synonyms: ['email', 'e-mail', 'mail', 'email_aluno'] },
+    { label: 'CPF', key: 'cpf', synonyms: ['cpf', 'documento', 'cpf_aluno'] },
+    { label: 'RG', key: 'rg', synonyms: ['rg', 'identidade', 'rg_aluno'] },
+    { label: 'Data Nascimento', key: 'birth_date', synonyms: ['nascimento', 'data', 'birth', 'birthday', 'birth_date', 'data_nasc'] },
+    { label: 'Data de Início', key: 'start_date', synonyms: ['inicio', 'entrada', 'start', 'start_date', 'data_inicio'] },
+    { label: 'Endereço', key: 'address_street', synonyms: ['endereco', 'rua', 'address', 'street', 'address_street', 'logradouro'] },
+    { label: 'Cidade', key: 'address_city', synonyms: ['cidade', 'city', 'address_city'] },
+    { label: 'Estado', key: 'address_state', synonyms: ['estado', 'uf', 'state', 'address_state'] },
+    { label: 'CEP', key: 'address_zip', synonyms: ['cep', 'zip', 'postal', 'address_zip'] },
+    { label: 'Celular', key: 'phone_mobile', synonyms: ['celular', 'mobile', 'phone_mobile', 'telefone_celular'] },
+    { label: 'Fone Residencial', key: 'phone_residential', synonyms: ['residencial', 'phone_residential', 'telefone_residencial'] },
+    { label: 'Fone Comercial', key: 'phone_commercial', synonyms: ['comercial', 'phone_commercial', 'telefone_comercial'] },
     { label: 'Status (SIT)', key: 'status', synonyms: ['sit', 'status', 'situacao'] },
-    { label: 'Paróquia', key: 'parish', synonyms: ['paroquia', 'church'] },
-    { label: 'Curso', key: 'course', synonyms: ['curso', 'class', 'grade'] }
+    { label: 'Paróquia', key: 'parish', synonyms: ['paroquia', 'church', 'parish'] },
+    { label: 'Curso', key: 'course', synonyms: ['curso', 'grade', 'specialty'] },
+    { label: 'Nome do Pai', key: 'guardian_father', synonyms: ['pai', 'father', 'guardian_father', 'nome_pai'] },
+    { label: 'Nome da Mãe', key: 'guardian_mother', synonyms: ['mae', 'mother', 'guardian_mother', 'nome_mae'] },
+    { label: 'Participa de Pastoral', key: 'pastoral_participates', synonyms: ['pastoral', 'participates', 'pastoral_participates'] }
   ],
   teachers: [
-    { label: 'Nome do Professor', key: 'name', synonyms: ['nome', 'professor', 'teacher', 'docente'] },
-    { label: 'Código', key: 'code', synonyms: ['codigo', 'id', 'code', 'codprof', 'cod_prof'] },
-    { label: 'E-mail', key: 'email', synonyms: ['email', 'mail'] },
-    { label: 'CPF', key: 'cpf', synonyms: ['cpf'] },
-    { label: 'RG', key: 'rg', synonyms: ['rg'] },
-    { label: 'Endereço', key: 'address_street', synonyms: ['endereco', 'rua', 'address'] },
+    { label: 'Nome do Professor', key: 'name', synonyms: ['nome', 'professor', 'teacher', 'docente', 'full_name'] },
+    { label: 'Código', key: 'code', synonyms: ['codigo', 'id', 'code', 'codprof', 'cod_prof', 'teacher_code'] },
+    { label: 'E-mail', key: 'email', synonyms: ['email', 'mail', 'email_professor'] },
+    { label: 'CPF', key: 'cpf', synonyms: ['cpf', 'documento'] },
+    { label: 'RG', key: 'rg', synonyms: ['rg', 'identidade'] },
+    { label: 'Endereço', key: 'address_street', synonyms: ['endereco', 'rua', 'address', 'street', 'logradouro'] },
     { label: 'Cidade', key: 'address_city', synonyms: ['cidade', 'city'] },
     { label: 'Estado', key: 'address_state', synonyms: ['estado', 'uf'] },
     { label: 'CEP', key: 'address_zip', synonyms: ['cep', 'zip'] },
-    { label: 'Celular', key: 'phone_mobile', synonyms: ['celular', 'mobile', 'phone'] },
-    { label: 'Fone Fixo', key: 'phone', synonyms: ['fone', 'telefone', 'fixo'] }
+    { label: 'Celular', key: 'phone_mobile', synonyms: ['celular', 'mobile', 'telefone_celular'] },
+    { label: 'Fone Fixo', key: 'phone', synonyms: ['fone', 'telefone', 'fixo', 'telefone_residencial'] }
   ],
   classes: [
     { label: 'Código da Turma', key: 'code', synonyms: ['turma', 'codigo', 'code', 'codturma', 'cod_turma'] },
@@ -71,14 +78,25 @@ const ENTITY_FIELDS: Record<ImportType, FieldDefinition[]> = {
 
 export function Import() {
   const navigate = useNavigate();
+  const { status, startImport: startGlobalImport, updateProgress, setError: setGlobalError, finishImport, resetImport: resetGlobalImport } = useImport();
   const [importType, setImportType] = useState<ImportType | null>(null);
   const [step, setStep] = useState<ImportStep>('type');
   const [file, setFile] = useState<File | null>(null);
   const [data, setData] = useState<any[]>([]);
-  const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [importStats, setImportStats] = useState({ total: 0, imported: 0, error: '' });
+
+  // Sync internal stats with global status
+  useEffect(() => {
+    if (status.isProcessing || (status.progress === 100 && status.type)) {
+      setImportStats({
+        total: status.total,
+        imported: status.imported,
+        error: status.error
+      });
+    }
+  }, [status.imported, status.total, status.error, status.isProcessing, status.progress, status.type]);
 
   const handleTypeSelect = (type: ImportType) => {
     setImportType(type);
@@ -122,12 +140,9 @@ export function Import() {
   const startImport = async () => {
     if (!importType) return;
     setStep('processing');
-    setProgress(0);
-
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-    
     const total = data.length;
+    startGlobalImport(importType, total);
+
     setImportStats({ total, imported: 0, error: '' });
 
     const uniqueField = importType === 'students' ? 'registration_number' : 'code';
@@ -143,7 +158,16 @@ export function Import() {
     allExisting?.forEach(item => {
       const val = item[uniqueField];
       if (typeof val === 'string') {
-        const num = parseInt(val.split('/')[0].replace(/\D/g, ''));
+        let numPart = '';
+        if (val.includes('/')) {
+          numPart = val.split('/')[0];
+        } else if (val.length === 10) {
+          // Check if it's NNNNNNYYYY
+          numPart = val.substring(0, 6);
+        } else {
+          numPart = val;
+        }
+        const num = parseInt(numPart.replace(/\D/g, ''));
         if (!isNaN(num)) maxNumericCode = Math.max(maxNumericCode, num);
       }
     });
@@ -157,10 +181,6 @@ export function Import() {
         const entity: any = { 
           created_at: new Date().toISOString() 
         };
-
-        if (userId) {
-          entity.user_id = userId;
-        }
 
         // Map fields from sheet to DB
         Object.entries(mappings).forEach(([dbField, sheetColumn]) => {
@@ -188,11 +208,30 @@ export function Import() {
         }
 
         // Ensure unique identifier exists
-        const rawId = entity[uniqueField];
-        if (!rawId || String(rawId).trim() === '') {
+        let rawId = String(entity[uniqueField] || '').trim();
+
+        // Student registration number refinement
+        if (importType === 'students' && rawId !== '') {
+          // Fix inverted format (YYYYNNNNNN -> NNNNNNYYYY)
+          // If it has 10 digits and starts with a year (19xx or 20xx)
+          if (rawId.length === 10 && /^(19|20)\d{2}/.test(rawId)) {
+            const yearPart = rawId.substring(0, 4);
+            const seqPart = rawId.substring(4);
+            rawId = seqPart + yearPart;
+            entity[uniqueField] = rawId;
+          }
+          // Remove slashes if present (NNNNNN/YYYY -> NNNNNNYYYY)
+          if (rawId.includes('/')) {
+            rawId = rawId.replace(/\//g, '');
+            entity[uniqueField] = rawId;
+          }
+        }
+
+        if (rawId === '') {
           const nextNum = maxNumericCode + processed + index + 1;
           if (importType === 'students') {
-            entity[uniqueField] = `${String(nextNum).padStart(6, '0')}/${new Date().getFullYear()}`;
+            const yearStr = new Date().getFullYear().toString();
+            entity[uniqueField] = `${String(nextNum).padStart(6, '0')}${yearStr}`;
           } else {
             entity[uniqueField] = String(nextNum).padStart(4, '0');
           }
@@ -226,22 +265,27 @@ export function Import() {
       });
 
       if (toInsert.length > 0) {
-        const { error } = await supabase.from(importType).upsert(toInsert, { 
-          onConflict: uniqueField 
-        });
-
-        if (error) {
+        try {
+          const collRef = collection(db, importType);
+          for (const entity of toInsert) {
+            // Sanitise docId: Firestore IDs cannot contain '/'
+            const docId = String(entity[uniqueField]).replace(/\//g, '-');
+            
+            // Sync both Supabase and Firebase
+            await saveData(importType, docId, entity);
+          }
+          const currentImported = (processed + batch.length) > total ? total : (processed + batch.length);
+          updateProgress(currentImported, Math.round((currentImported / total) * 100));
+        } catch (error: any) {
           console.error(`Import error in batch starting at ${i}:`, error);
-          setImportStats(prev => ({ ...prev, error: error.message }));
-        } else {
-          setImportStats(prev => ({ ...prev, imported: prev.imported + batch.length }));
+          setGlobalError(error.message);
         }
       }
 
       processed += batch.length;
-      setProgress(Math.round((processed / total) * 100));
     }
 
+    finishImport();
     setStep('review');
   };
 
@@ -358,9 +402,9 @@ export function Import() {
           <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto" />
           <h3 className="text-2xl font-bold text-[#131b2e]">Processando Dados...</h3>
           <div className="max-w-md mx-auto h-3 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${progress}%` }}></div>
+            <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${status.progress}%` }}></div>
           </div>
-          <p className="text-sm font-bold text-slate-400">{progress}% concluído</p>
+          <p className="text-sm font-bold text-slate-400">{status.progress}% concluído</p>
         </div>
       )}
 

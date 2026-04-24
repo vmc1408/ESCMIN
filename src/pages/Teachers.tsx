@@ -18,7 +18,8 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn } from '../lib/utils';
-import { supabase, fetchAll } from '../lib/supabase';
+import { db, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { collection, addDoc, updateDoc, doc, query, limit, getDocs } from 'firebase/firestore';
 
 interface Teacher {
   id: string;
@@ -66,6 +67,52 @@ const maskPhone = (value: string) => {
     .replace(/(-\d{4})\d+?$/, '$1');
 };
 
+// Memoized List Item to prevent lag
+const TeacherItem = React.memo(({ 
+  teacher, 
+  isSelected, 
+  onSelect, 
+  className 
+}: { 
+  teacher: Teacher, 
+  isSelected: boolean, 
+  onSelect: (t: Teacher) => void,
+  className?: string
+}) => {
+  return (
+    <button
+      onClick={() => onSelect(teacher)}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        isSelected 
+          ? "bg-blue-50 border-blue-100" 
+          : "hover:bg-slate-50 border-transparent",
+        className
+      )}
+    >
+      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
+        {teacher.code}
+        <div className={cn(
+          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
+          teacher.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
+        )} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-bold text-[#131b2e] truncate">{teacher.name}</p>
+          <span className={cn(
+            "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
+            teacher.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
+          )}>
+            {teacher.status || 'Ativo'}
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 truncate">{teacher.email || 'Sem e-mail'}</p>
+      </div>
+    </button>
+  );
+});
+
 export function Teachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,12 +121,13 @@ export function Teachers() {
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Teacher>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchTeachers();
   }, []);
 
-  const fetchTeachers = async () => {
+  const fetchTeachers = React.useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchAll('teachers', '*', 'name', true);
@@ -93,13 +141,13 @@ export function Teachers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedTeacher]);
 
-  const handleSelectTeacher = (teacher: Teacher) => {
+  const handleSelectTeacher = React.useCallback((teacher: Teacher) => {
     setSelectedTeacher(teacher);
     setFormData(teacher);
     setIsEditing(false);
-  };
+  }, []);
 
   const handleNew = () => {
     setSelectedTeacher(null);
@@ -113,37 +161,36 @@ export function Teachers() {
 
   const handleSave = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      const { id, created_at, ...saveData } = formData as any;
-      const teacherData: any = { ...saveData };
-      if (userData.user?.id) {
-        teacherData.user_id = userData.user.id;
-      }
-
-      let error;
-      if (selectedTeacher) {
-        const { error: updateError } = await supabase
-          .from('teachers')
-          .update(teacherData)
-          .eq('id', selectedTeacher.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('teachers')
-          .insert([teacherData]);
-        error = insertError;
-      }
-
-      if (error) throw error;
+      await saveData('teachers', selectedTeacher?.id, formData);
       
       setIsEditing(false);
       fetchTeachers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving teacher:', error);
-      alert('Erro ao salvar professor');
+      alert('Erro ao salvar professor: ' + error.message);
     }
   };
+
+  const handleDelete = React.useCallback(async () => {
+    if (!selectedTeacher?.id) return;
+
+    try {
+      setLoading(true);
+      await deleteData('teachers', selectedTeacher.id);
+      
+      setSelectedTeacher(null);
+      setFormData({});
+      setIsEditing(false);
+      setShowDeleteConfirm(false);
+      fetchTeachers();
+    } catch (error: any) {
+      console.error('Error deleting teacher:', error);
+      alert('Erro ao excluir professor: ' + error.message);
+      setShowDeleteConfirm(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTeacher, fetchTeachers]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -163,8 +210,9 @@ export function Teachers() {
       const pageWidth = doc.internal.pageSize.width;
       const margin = 20;
       
-      const { data: instData } = await supabase.from('institution_settings').select('*').limit(1);
-      const inst = instData?.[0];
+      const instRef = collection(db, 'institution_settings');
+      const instSnap = await getDocs(query(instRef, limit(1)));
+      const inst = instSnap.empty ? null : instSnap.docs[0].data();
 
       if (inst?.logo_url) {
         try {
@@ -253,15 +301,17 @@ export function Teachers() {
     }
   };
 
-  const filteredTeachers = teachers.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.code.includes(searchTerm) ||
-      t.cpf?.includes(searchTerm);
-    
-    const matchesStatus = statusFilter === 'Todos' || (t.status || 'Ativo') === statusFilter || (t.status === '' && statusFilter === 'Ativo');
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredTeachers = React.useMemo(() => {
+    return teachers.filter(t => {
+      const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.code.includes(searchTerm) ||
+        t.cpf?.includes(searchTerm);
+      
+      const matchesStatus = statusFilter === 'Todos' || (t.status || 'Ativo') === statusFilter || (t.status === '' && statusFilter === 'Ativo');
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [teachers, searchTerm, statusFilter]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-6">
@@ -317,36 +367,12 @@ export function Teachers() {
               <Loader2 className="animate-spin text-blue-500" />
             </div>
           ) : filteredTeachers.map((teacher) => (
-            <button
+            <TeacherItem
               key={teacher.id}
-              onClick={() => handleSelectTeacher(teacher)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
-                selectedTeacher?.id === teacher.id 
-                  ? "bg-blue-50 border-blue-100" 
-                  : "hover:bg-slate-50 border-transparent"
-              )}
-            >
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
-                {teacher.code}
-                <div className={cn(
-                  "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
-                  teacher.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
-                )} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-[#131b2e] truncate">{teacher.name}</p>
-                  <span className={cn(
-                    "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
-                    teacher.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
-                  )}>
-                    {teacher.status || 'Ativo'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 truncate">{teacher.email || 'Sem e-mail'}</p>
-              </div>
-            </button>
+              teacher={teacher}
+              isSelected={selectedTeacher?.id === teacher.id}
+              onSelect={handleSelectTeacher}
+            />
           ))}
         </div>
       </div>
@@ -375,6 +401,20 @@ export function Teachers() {
                   >
                     <FileText size={16} />
                     Gerar PDF
+                  </button>
+                )}
+                {!isEditing && selectedTeacher && (
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group"
+                    title="Excluir Professor"
+                  >
+                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
                   </button>
                 )}
                 {isEditing ? (
@@ -580,6 +620,39 @@ export function Teachers() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedTeacher && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+              <Trash2 size={32} />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-bold text-[#131b2e]">Excluir Professor?</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                Tem certeza que deseja excluir a ficha do professor <span className="font-bold text-slate-900">{selectedTeacher.name}</span>? 
+                Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+              >
+                {loading ? 'Excluindo...' : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

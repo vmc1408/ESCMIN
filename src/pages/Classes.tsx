@@ -12,10 +12,12 @@ import {
   FileText,
   Loader2,
   Plus,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { supabase, fetchAll } from '../lib/supabase';
+import { db, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 
 interface Class {
   id: string;
@@ -25,6 +27,7 @@ interface Class {
   status: 'Ativo' | 'Inativo';
   days_of_week: string[];
   semester: string;
+  start_date?: string;
   period: 'Manhã' | 'Tarde' | 'Noite';
   observations?: string;
   created_at: string;
@@ -43,6 +46,76 @@ const DAYS = [
 
 const SEMESTERS = ['1º Semestre', '2º Semestre', '3º Semestre', '4º Semestre'];
 
+const formatToISODate = (dateStr: string | undefined): string => {
+  if (!dateStr) return '';
+  if (dateStr.includes('T')) return dateStr.split('T')[0];
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+  }
+  return dateStr;
+};
+
+// Memoized List Item to prevent lag
+const ClassItem = React.memo(({ 
+  cls, 
+  isSelected, 
+  onSelect, 
+  className 
+}: { 
+  cls: Class, 
+  isSelected: boolean, 
+  onSelect: (c: Class) => void,
+  className?: string
+}) => {
+  return (
+    <button
+      onClick={() => onSelect(cls)}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        isSelected 
+          ? "bg-blue-50 border-blue-100" 
+          : "hover:bg-slate-50 border-transparent",
+        className
+      )}
+    >
+      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] relative">
+        {cls.code}
+        <div className={cn(
+          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
+          cls.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
+        )} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-bold text-[#131b2e] truncate">{cls.name}</p>
+          <span className={cn(
+            "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
+            cls.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
+          )}>
+            {cls.status || 'Ativo'}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+          <span className="font-medium">{cls.period}</span>
+          <span className="text-slate-300">•</span>
+          <span className="font-medium">{cls.semester}</span>
+          {cls.start_date && (
+            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 text-[10px] font-black uppercase">
+              <Calendar size={10} />
+              Início: {cls.start_date.includes('T') ? cls.start_date.split('T')[0].split('-').reverse().join('/') : 
+                      cls.start_date.includes('-') ? cls.start_date.split('-').reverse().join('/') : 
+                      cls.start_date}
+            </div>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+});
+
 export function Classes() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,17 +123,28 @@ export function Classes() {
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [formData, setFormData] = useState<Partial<Class>>({
     status: 'Ativo',
     days_of_week: [],
-    period: 'Tarde'
+    period: 'Tarde',
+    semester: '1º Semestre',
+    start_date: ''
   });
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   useEffect(() => {
     fetchClasses();
   }, []);
 
-  const fetchClasses = async () => {
+  const fetchClasses = React.useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchAll('classes', '*', 'name', true);
@@ -74,13 +158,13 @@ export function Classes() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClass]);
 
-  const handleSelectClass = (cls: Class) => {
+  const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
     setFormData(cls);
     setIsEditing(false);
-  };
+  }, []);
 
   const handleNew = () => {
     setSelectedClass(null);
@@ -89,7 +173,9 @@ export function Classes() {
       code: '',
       status: 'Ativo',
       days_of_week: [],
-      period: 'Tarde'
+      period: 'Tarde',
+      start_date: '',
+      semester: '1º Semestre'
     });
     setIsEditing(true);
   };
@@ -106,37 +192,48 @@ export function Classes() {
 
   const handleSave = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      const { id, created_at, ...saveData } = formData as any;
-      const classData: any = { ...saveData };
-      if (userData.user?.id) {
-        classData.user_id = userData.user.id;
-      }
-
-      let error;
-      if (selectedClass) {
-        const { error: updateError } = await supabase
-          .from('classes')
-          .update(classData)
-          .eq('id', selectedClass.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('classes')
-          .insert([classData]);
-        error = insertError;
-      }
-
-      if (error) throw error;
+      const savedId = await saveData('classes', selectedClass?.id, formData);
       
       setIsEditing(false);
-      fetchClasses();
-    } catch (error) {
+      // Wait for refresh
+      await fetchClasses();
+      
+      // Update local state with the saved data to ensure UI sync
+      const updatedData = { ...formData, id: savedId } as Class;
+      setSelectedClass(updatedData);
+      setFormData(updatedData);
+      
+      setNotification({ type: 'success', message: 'Turma salva com sucesso!' });
+    } catch (error: any) {
       console.error('Error saving class:', error);
-      alert('Erro ao salvar turma');
+      alert('Erro ao salvar turma: ' + error.message);
     }
   };
+
+  const handleDelete = React.useCallback(async () => {
+    if (!selectedClass?.id) return;
+
+    try {
+      setLoading(true);
+      await deleteData('classes', selectedClass.id);
+      
+      setSelectedClass(null);
+      setFormData({
+        status: 'Ativo',
+        days_of_week: [],
+        period: 'Tarde'
+      });
+      setIsEditing(false);
+      setShowDeleteConfirm(false);
+      fetchClasses();
+    } catch (error: any) {
+      console.error('Error deleting class:', error);
+      alert('Erro ao excluir turma: ' + error.message);
+      setShowDeleteConfirm(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedClass, fetchClasses]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -150,14 +247,16 @@ export function Classes() {
     }
   };
 
-  const filteredClasses = classes.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.code.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'Todos' || (c.status || 'Ativo') === statusFilter || (c.status === '' && statusFilter === 'Ativo');
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredClasses = React.useMemo(() => {
+    return classes.filter(c => {
+      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.code.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'Todos' || (c.status || 'Ativo') === statusFilter || (c.status === '' && statusFilter === 'Ativo');
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [classes, searchTerm, statusFilter]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-6">
@@ -213,36 +312,12 @@ export function Classes() {
               <Loader2 className="animate-spin text-blue-500" />
             </div>
           ) : filteredClasses.map((cls) => (
-            <button
+            <ClassItem
               key={cls.id}
-              onClick={() => handleSelectClass(cls)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
-                selectedClass?.id === cls.id 
-                  ? "bg-blue-50 border-blue-100" 
-                  : "hover:bg-slate-50 border-transparent"
-              )}
-            >
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] relative">
-                {cls.code}
-                <div className={cn(
-                  "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
-                  cls.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
-                )} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-[#131b2e] truncate">{cls.name}</p>
-                  <span className={cn(
-                    "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
-                    cls.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
-                  )}>
-                    {cls.status || 'Ativo'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 truncate">{cls.period} • {cls.semester}</p>
-              </div>
-            </button>
+              cls={cls}
+              isSelected={selectedClass?.id === cls.id}
+              onSelect={handleSelectClass}
+            />
           ))}
         </div>
       </div>
@@ -251,6 +326,15 @@ export function Classes() {
       <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
         {selectedClass || isEditing ? (
           <>
+            {notification && (
+              <div className={cn(
+                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3",
+                notification.type === 'success' ? "bg-green-600 text-white" : "bg-red-600 text-white"
+              )}>
+                {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+                <p className="text-sm font-bold">{notification.message}</p>
+              </div>
+            )}
             <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
@@ -264,6 +348,20 @@ export function Classes() {
                 </div>
               </div>
               <div className="flex gap-3">
+                {!isEditing && selectedClass && (
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group"
+                    title="Excluir Turma"
+                  >
+                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
                 {isEditing ? (
                   <>
                     <button 
@@ -351,6 +449,18 @@ export function Classes() {
                       </select>
                     </div>
                     <div className="col-span-4 space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Data de Início</label>
+                      <input 
+                        type="date"
+                        disabled={!isEditing}
+                        value={formatToISODate(formData.start_date)}
+                        onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                        onKeyDown={handleKeyDown}
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        tabIndex={5}
+                      />
+                    </div>
+                    <div className="col-span-4 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Semestre</label>
                       <select 
                         disabled={!isEditing}
@@ -358,7 +468,7 @@ export function Classes() {
                         onChange={(e) => setFormData({...formData, semester: e.target.value})}
                         onKeyDown={handleKeyDown}
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                        tabIndex={5}
+                        tabIndex={6}
                       >
                         <option value="">Selecione...</option>
                         {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -441,6 +551,39 @@ export function Classes() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedClass && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+              <Trash2 size={32} />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-bold text-[#131b2e]">Excluir Turma?</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                Tem certeza que deseja excluir a turma <span className="font-bold text-slate-900">{selectedClass.name}</span>? 
+                Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+              >
+                {loading ? 'Excluindo...' : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

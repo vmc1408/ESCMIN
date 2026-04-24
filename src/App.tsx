@@ -10,25 +10,30 @@ import { Reports } from './pages/Reports';
 import { Contributions } from './pages/Contributions';
 import { PixConference } from './pages/PixConference';
 import { Settings } from './pages/Settings';
+import { ImportProvider } from './contexts/ImportContext';
+import { GlobalImportOverlay } from './components/GlobalImportOverlay';
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="students" element={<Students />} />
-          <Route path="teachers" element={<Teachers />} />
-          <Route path="classes" element={<Classes />} />
-          <Route path="subjects" element={<Subjects />} />
-          <Route path="import" element={<Import />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="contributions" element={<Contributions />} />
-          <Route path="pix-conference" element={<PixConference />} />
-          <Route path="settings" element={<Settings />} />
-          {/* Add other routes as needed */}
-        </Route>
-      </Routes>
-    </Router>
+    <ImportProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="students" element={<Students />} />
+            <Route path="teachers" element={<Teachers />} />
+            <Route path="classes" element={<Classes />} />
+            <Route path="subjects" element={<Subjects />} />
+            <Route path="import" element={<Import />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="contributions" element={<Contributions />} />
+            <Route path="pix-conference" element={<PixConference />} />
+            <Route path="settings" element={<Settings />} />
+            {/* Add other routes as needed */}
+          </Route>
+        </Routes>
+        <GlobalImportOverlay />
+      </Router>
+    </ImportProvider>
   );
 }

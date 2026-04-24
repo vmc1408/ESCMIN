@@ -12,7 +12,8 @@ import {
   Code
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { supabase, fetchAll } from '../lib/supabase';
+import { db, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 
 interface Subject {
   id: string;
@@ -24,6 +25,52 @@ interface Subject {
   user_id: string;
 }
 
+// Memoized List Item to prevent lag
+const SubjectItem = React.memo(({ 
+  subject, 
+  isSelected, 
+  onSelect, 
+  className 
+}: { 
+  subject: Subject, 
+  isSelected: boolean, 
+  onSelect: (s: Subject) => void,
+  className?: string
+}) => {
+  return (
+    <button
+      onClick={() => onSelect(subject)}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        isSelected 
+          ? "bg-blue-50 border-blue-100" 
+          : "hover:bg-slate-50 border-transparent",
+        className
+      )}
+    >
+      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
+        {subject.code}
+        <div className={cn(
+          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
+          subject.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
+        )} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-bold text-[#131b2e] truncate">{subject.name}</p>
+          <span className={cn(
+            "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
+            subject.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
+          )}>
+            {subject.status || 'Ativo'}
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 truncate">Disciplina Acadêmica</p>
+      </div>
+    </button>
+  );
+});
+
 export function Subjects() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,12 +79,13 @@ export function Subjects() {
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Subject>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchSubjects();
   }, []);
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = React.useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchAll('subjects', '*', 'name', true);
@@ -51,13 +99,13 @@ export function Subjects() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSubject]);
 
-  const handleSelectSubject = (subject: Subject) => {
+  const handleSelectSubject = React.useCallback((subject: Subject) => {
     setSelectedSubject(subject);
     setFormData(subject);
     setIsEditing(false);
-  };
+  }, []);
 
   const handleNew = () => {
     setSelectedSubject(null);
@@ -71,37 +119,36 @@ export function Subjects() {
 
   const handleSave = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      const { id, created_at, ...saveData } = formData as any;
-      const subjectData: any = { ...saveData };
-      if (userData.user?.id) {
-        subjectData.user_id = userData.user.id;
-      }
-
-      let error;
-      if (selectedSubject) {
-        const { error: updateError } = await supabase
-          .from('subjects')
-          .update(subjectData)
-          .eq('id', selectedSubject.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('subjects')
-          .insert([subjectData]);
-        error = insertError;
-      }
-
-      if (error) throw error;
+      await saveData('subjects', selectedSubject?.id, formData);
       
       setIsEditing(false);
       fetchSubjects();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving subject:', error);
-      alert('Erro ao salvar disciplina');
+      alert('Erro ao salvar disciplina: ' + error.message);
     }
   };
+
+  const handleDelete = React.useCallback(async () => {
+    if (!selectedSubject?.id) return;
+
+    try {
+      setLoading(true);
+      await deleteData('subjects', selectedSubject.id);
+      
+      setSelectedSubject(null);
+      setFormData({});
+      setIsEditing(false);
+      setShowDeleteConfirm(false);
+      fetchSubjects();
+    } catch (error: any) {
+      console.error('Error deleting subject:', error);
+      alert('Erro ao excluir disciplina: ' + error.message);
+      setShowDeleteConfirm(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSubject, fetchSubjects]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -115,14 +162,16 @@ export function Subjects() {
     }
   };
 
-  const filteredSubjects = subjects.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.code.includes(searchTerm);
-    
-    const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter || (s.status === '' && statusFilter === 'Ativo');
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredSubjects = React.useMemo(() => {
+    return subjects.filter(s => {
+      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.code.includes(searchTerm);
+      
+      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter || (s.status === '' && statusFilter === 'Ativo');
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [subjects, searchTerm, statusFilter]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-6">
@@ -178,36 +227,12 @@ export function Subjects() {
               <Loader2 className="animate-spin text-blue-500" />
             </div>
           ) : filteredSubjects.map((subject) => (
-            <button
+            <SubjectItem
               key={subject.id}
-              onClick={() => handleSelectSubject(subject)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
-                selectedSubject?.id === subject.id 
-                  ? "bg-blue-50 border-blue-100" 
-                  : "hover:bg-slate-50 border-transparent"
-              )}
-            >
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
-                {subject.code}
-                <div className={cn(
-                  "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
-                  subject.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
-                )} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-[#131b2e] truncate">{subject.name}</p>
-                  <span className={cn(
-                    "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
-                    subject.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
-                  )}>
-                    {subject.status || 'Ativo'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 truncate">Disciplina Acadêmica</p>
-              </div>
-            </button>
+              subject={subject}
+              isSelected={selectedSubject?.id === subject.id}
+              onSelect={handleSelectSubject}
+            />
           ))}
         </div>
       </div>
@@ -229,6 +254,20 @@ export function Subjects() {
                 </div>
               </div>
               <div className="flex gap-3">
+                {!isEditing && selectedSubject && (
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group"
+                    title="Excluir Disciplina"
+                  >
+                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
                 {isEditing ? (
                   <>
                     <button 
@@ -335,6 +374,39 @@ export function Subjects() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedSubject && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+              <Trash2 size={32} />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-bold text-[#131b2e]">Excluir Disciplina?</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                Tem certeza que deseja excluir a disciplina <span className="font-bold text-slate-900">{selectedSubject.name}</span>? 
+                Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+              >
+                {loading ? 'Excluindo...' : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

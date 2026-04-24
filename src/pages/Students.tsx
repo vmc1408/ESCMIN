@@ -27,9 +27,59 @@ import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn } from '../lib/utils';
-import { supabase, uploadImage, fetchAll } from '../lib/supabase';
+import { db, uploadImage, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { collection, addDoc, updateDoc, doc, query, limit, getDocs } from 'firebase/firestore';
 import { Student, Class } from '../types';
 import { useNavigate } from 'react-router-dom';
+
+// Memoized List Item to prevent lag
+const StudentItem = React.memo(({ 
+  student, 
+  isSelected, 
+  onSelect, 
+  className 
+}: { 
+  student: Student, 
+  isSelected: boolean, 
+  onSelect: (s: Student) => void,
+  className?: string
+}) => {
+  return (
+    <button
+      onClick={() => onSelect(student)}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        isSelected 
+          ? "bg-blue-50 border-blue-100 shadow-sm" 
+          : "hover:bg-slate-50 border-transparent",
+        className
+      )}
+    >
+      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden">
+        {student.photo_url ? (
+          <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        ) : (
+          student.registration_number?.substring(0, 6) || '---'
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-[#131b2e] truncate">{student.name}</p>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase",
+            student.status === 'Inativo' ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+          )}>
+            {student.status || 'Ativo'}
+          </span>
+          <span className="text-[10px] text-slate-400 font-bold">{student.registration_number}</span>
+          {student.start_date && (
+            <span className="text-[9px] text-blue-600 font-black ml-1 uppercase">Entrada: {student.start_date}</span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+});
 
 // Masking helpers
 const maskCPF = (value: string) => {
@@ -57,23 +107,63 @@ const maskPhone = (value: string) => {
     .replace(/(-\d{4})\d+?$/, '$1');
 };
 
+const getYearFromRegistration = (reg: string | undefined): string => {
+  if (!reg) return '';
+  if (reg.includes('/')) return reg.split('/')[1];
+  if (reg.length === 10) return reg.substring(6);
+  return '';
+};
+
 const generateNextRegistrationNumber = (students: Student[]) => {
   const currentYear = new Date().getFullYear();
   const yearStr = String(currentYear);
   
   // Filter students from the current year
-  const yearStudents = students.filter(s => s.registration_number?.endsWith(yearStr));
+  const yearStudents = students.filter(s => {
+    const year = getYearFromRegistration(s.registration_number);
+    return year === yearStr;
+  });
   
   let nextNum = 1;
   if (yearStudents.length > 0) {
     const numbers = yearStudents.map(s => {
-      const numPart = s.registration_number?.split('/')[0] || '0';
+      const reg = s.registration_number || '';
+      let numPart = '0';
+      if (reg.includes('/')) {
+        numPart = reg.split('/')[0];
+      } else if (reg.length === 10) {
+        numPart = reg.substring(0, 6);
+      } else {
+        numPart = reg;
+      }
       return parseInt(numPart.replace(/\D/g, '')) || 0;
     });
     nextNum = Math.max(...numbers) + 1;
   }
   
-  return `${String(nextNum).padStart(6, '0')}/${yearStr}`;
+  return `${String(nextNum).padStart(6, '0')}${yearStr}`;
+};
+
+// Helper to format date from YYYY-MM-DD or ISO to DD/MM/YYYY
+const formatDateForDisplay = (dateStr: string | undefined): string => {
+  if (!dateStr) return '';
+  
+  // Handle ISO string by taking only the date part
+  const pureDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  
+  if (pureDate.includes('/')) {
+    // Check if it's already DD/MM/YYYY
+    const parts = pureDate.split('/');
+    if (parts.length === 3 && parts[0].length <= 2) return pureDate;
+    return pureDate;
+  }
+  
+  const parts = pureDate.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  }
+  return pureDate;
 };
 
 export function Students() {
@@ -86,15 +176,39 @@ export function Students() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Student>>({});
-  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [sortBy, setSortBy] = useState<'name' | 'registration'>('registration');
   const [showWebcam, setShowWebcam] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const webcamRef = useRef<Webcam>(null);
 
   useEffect(() => {
     fetchStudents();
     fetchClasses();
   }, []);
+
+  // Auto-fill student start date based on selected class
+  useEffect(() => {
+    if (isEditing && formData.class_id) {
+      const targetClass = classes.find(c => c.id === formData.class_id);
+      if (targetClass?.start_date) {
+        const formattedDate = formatDateForDisplay(targetClass.start_date);
+        // Only auto-fill if the current start_date is empty or a default placeholder
+        const isPlaceholder = !formData.start_date || 
+                            formData.start_date === 'MM/AAAA' || 
+                            formData.start_date === 'DD/MM/AAAA' ||
+                            formData.start_date.includes('MM') ||
+                            formData.start_date.includes('DD');
+                            
+        if (isPlaceholder) {
+          setFormData(prev => ({ ...prev, start_date: formattedDate }));
+        }
+      }
+    }
+  }, [formData.class_id, classes, isEditing, formData.start_date]);
 
   const fetchClasses = async () => {
     try {
@@ -105,7 +219,7 @@ export function Students() {
     }
   };
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchAll('students', '*', 'registration_number', true);
@@ -115,13 +229,13 @@ export function Students() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSelectStudent = (student: Student) => {
+  const handleSelectStudent = useCallback((student: Student) => {
     setSelectedStudent(student);
     setFormData(student);
     setIsEditing(false);
-  };
+  }, []);
 
   const handleNew = () => {
     setSelectedStudent(null);
@@ -147,68 +261,97 @@ export function Students() {
   };
 
   const handleSave = async () => {
+    if (uploadingPhoto) {
+      setNotification({ type: 'error', message: 'Aguarde o upload da foto terminar' });
+      return;
+    }
+    
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      setLoading(true);
+      const savedId = await saveData('students', selectedStudent?.id, formData);
       
-      const { id, created_at, ...saveData } = formData as any;
-      const studentData: any = { ...saveData };
-      if (userData.user?.id) {
-        studentData.user_id = userData.user.id;
-      }
-
-      let error;
-      if (selectedStudent) {
-        const { error: updateError } = await supabase
-          .from('students')
-          .update(studentData)
-          .eq('id', selectedStudent.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('students')
-          .insert([studentData]);
-        error = insertError;
-      }
-
-      if (error) throw error;
-      
+      setNotification({ type: 'success', message: 'Ficha do aluno salva com sucesso!' });
       setIsEditing(false);
+      setUploadingPhoto(false); // Reset upload state on save success
       fetchStudents();
-    } catch (error) {
+      
+      // Update selected student with fresh data including the ID if it was new
+      if (!selectedStudent?.id && savedId) {
+        handleSelectStudent({ ...formData, id: savedId } as Student);
+      }
+    } catch (error: any) {
       console.error('Error saving student:', error);
-      alert('Erro ao salvar aluno');
+      setNotification({ type: 'error', message: 'Erro ao salvar aluno: ' + error.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
     }
   };
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedStudent?.id) return;
+
+    try {
+      setLoading(true);
+      await deleteData('students', selectedStudent.id);
+      
+      setNotification({ type: 'success', message: 'Aluno removido com sucesso!' });
+      setSelectedStudent(null);
+      setFormData({});
+      setIsEditing(false);
+      setShowDeleteConfirm(false);
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Error deleting student:', error);
+      setNotification({ type: 'error', message: 'Erro ao excluir aluno: ' + error.message });
+      setShowDeleteConfirm(false);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  }, [selectedStudent, fetchStudents]);
 
   const capturePhoto = useCallback(async () => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
       try {
+        setUploadingPhoto(true);
+        setNotification({ type: 'success', message: 'Processando foto...' });
         // Convert base64 to blob
         const res = await fetch(imageSrc);
         const blob = await res.blob();
         const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
 
         const url = await uploadImage(file, 'assets', 'students');
-        setFormData({ ...formData, photo_url: url });
+        setFormData(prev => ({ ...prev, photo_url: url }));
         setShowWebcam(false);
+        setNotification({ type: 'success', message: 'Foto capturada com sucesso!' });
       } catch (error: any) {
         console.error('Error capturing/uploading photo:', error.message);
-        alert('Erro ao capturar foto: ' + error.message);
+        setNotification({ type: 'error', message: 'Erro ao capturar foto: ' + error.message });
+      } finally {
+        setUploadingPhoto(false);
+        setTimeout(() => setNotification(null), 3000);
       }
     }
-  }, [webcamRef, formData]);
+  }, [webcamRef]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
+      setUploadingPhoto(true);
+      setNotification({ type: 'success', message: 'Carregando foto...' });
       const url = await uploadImage(file, 'assets', 'students');
-      setFormData({ ...formData, photo_url: url });
+      setFormData(prev => ({ ...prev, photo_url: url }));
+      setNotification({ type: 'success', message: 'Foto carregada com sucesso!' });
     } catch (error: any) {
       console.error('Error uploading photo:', error.message);
-      alert('Erro ao carregar foto: ' + error.message);
+      setNotification({ type: 'error', message: 'Erro ao carregar foto: ' + error.message });
+    } finally {
+      setUploadingPhoto(false);
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
@@ -219,8 +362,9 @@ export function Students() {
       const margin = 20;
       
       // Fetch institution for logo/name
-      const { data: instData } = await supabase.from('institution_settings').select('*').limit(1);
-      const inst = instData?.[0];
+      const instRef = collection(db, 'institution_settings');
+      const instSnap = await getDocs(query(instRef, limit(1)));
+      const inst = instSnap.empty ? null : instSnap.docs[0].data();
 
       // Header
       if (inst?.logo_url) {
@@ -338,29 +482,46 @@ export function Students() {
     }
   };
 
-  const filteredStudents = students.filter(s => {
-    const matchesSearch = 
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.registration_number?.includes(searchTerm) ||
-      s.cpf?.includes(searchTerm);
-    
-    const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter || (s.status === '' && statusFilter === 'Ativo');
-    
-    if (!selectedYear || selectedYear === '') return false;
-    if (selectedYear === 'all') return matchesSearch && matchesStatus;
-    return matchesSearch && matchesStatus && s.registration_number?.split('/')[1] === selectedYear;
-  }).sort((a, b) => {
-    if (sortBy === 'name') {
-      return a.name.localeCompare(b.name);
-    } else {
-      const yearA = a.registration_number?.split('/')[1] || '0000';
-      const yearB = b.registration_number?.split('/')[1] || '0000';
-      if (yearA !== yearB) return yearB.localeCompare(yearA);
-      return (b.registration_number || '').localeCompare(a.registration_number || '', undefined, { numeric: true });
-    }
-  });
+  const filteredStudents = React.useMemo(() => {
+    return students.filter(s => {
+      const matchesSearch = 
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.registration_number?.includes(searchTerm) ||
+        s.cpf?.includes(searchTerm);
+      
+      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter || (s.status === '' && statusFilter === 'Ativo');
+      
+      // Filter logic
+      let matchesYear = true;
+      if (selectedYear !== '' && selectedYear !== 'all') {
+        const studentYear = getYearFromRegistration(s.registration_number);
+        matchesYear = studentYear === selectedYear;
+      }
 
-  const availableYears = Array.from(new Set(students.map(s => s.registration_number?.split('/')[1]).filter(Boolean))).sort().reverse();
+      let matchesClass = true;
+      if (selectedClassId !== '') {
+        matchesClass = s.class_id === selectedClassId;
+      }
+
+      // If user selected "all" for year, we still check search and status
+      if (selectedYear === 'all') matchesYear = true;
+
+      return matchesSearch && matchesStatus && matchesYear && matchesClass;
+    }).sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else {
+        const yearA = getYearFromRegistration(a.registration_number) || '0000';
+        const yearB = getYearFromRegistration(b.registration_number) || '0000';
+        if (yearA !== yearB) return yearB.localeCompare(yearA);
+        return (b.registration_number || '').localeCompare(a.registration_number || '', undefined, { numeric: true });
+      }
+    });
+  }, [students, searchTerm, statusFilter, selectedYear, selectedClassId, sortBy]);
+
+  const availableYears = React.useMemo(() => {
+    return Array.from(new Set(students.map(s => getYearFromRegistration(s.registration_number)).filter(Boolean))).sort().reverse();
+  }, [students]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-6">
@@ -409,23 +570,35 @@ export function Students() {
                 </button>
               ))}
             </div>
-            <div className="flex gap-2">
+            <div className="space-y-2">
               <select 
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="flex-1 px-3 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                value={selectedClassId}
+                onChange={(e) => setSelectedClassId(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="">Escolha uma opção</option>
-                <option value="all">Todas as Turmas</option>
-                {availableYears.map(y => <option key={y} value={y}>Turma {y}</option>)}
+                <option value="">Todas as Turmas (Nome)</option>
+                {classes.filter(c => c.status === 'Ativo').map(c => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                ))}
               </select>
-              <button
-                onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
-                className="p-2 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
-                title={sortBy === 'name' ? "Ordenar por Matrícula" : "Ordenar por Nome"}
-              >
-                <ArrowUpDown size={16} />
-              </button>
+              <div className="flex gap-2">
+                <select 
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Escolha um ano</option>
+                  <option value="all">Todos os Anos</option>
+                  {availableYears.map(y => <option key={y} value={y}>Matrícula {y}</option>)}
+                </select>
+                <button
+                  onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
+                  className="p-2 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                  title={sortBy === 'name' ? "Ordenar por Matrícula" : "Ordenar por Nome"}
+                >
+                  <ArrowUpDown size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -446,41 +619,12 @@ export function Students() {
               <p className="text-xs font-medium">Nenhum aluno encontrado</p>
             </div>
           ) : filteredStudents.map((student) => (
-            <button
+            <StudentItem
               key={student.id}
-              onClick={() => handleSelectStudent(student)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
-                selectedStudent?.id === student.id 
-                  ? "bg-blue-50 border-blue-100 shadow-sm" 
-                  : "hover:bg-slate-50 border-transparent"
-              )}
-            >
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden">
-                {student.photo_url ? (
-                  <img src={student.photo_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  student.registration_number?.split('/')[0]
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#131b2e] truncate">{student.name}</p>
-                <div className="flex items-center gap-2">
-                  <span className={cn(
-                    "text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase",
-                    student.status === 'Inativo' ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
-                  )}>
-                    {student.status || 'Ativo'}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-bold">{student.registration_number}</span>
-                  {student.class_id && (
-                    <span className="text-[10px] text-blue-500 font-bold">
-                      • {classes.find(c => c.id === student.class_id)?.name || 'Turma'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
+              student={student}
+              isSelected={selectedStudent?.id === student.id}
+              onSelect={handleSelectStudent}
+            />
           ))}
         </div>
       </div>
@@ -489,17 +633,32 @@ export function Students() {
       <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
         {selectedStudent || isEditing ? (
           <>
+            {notification && (
+              <div className={cn(
+                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3",
+                notification.type === 'success' ? "bg-green-600 text-white" : "bg-red-600 text-white"
+              )}>
+                {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+                <p className="text-sm font-bold">{notification.message}</p>
+              </div>
+            )}
             <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-4">
                 <div className="relative group">
-                  <div className="w-24 h-32 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 overflow-hidden border-2 border-white">
+                  <div className="w-24 h-32 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 overflow-hidden border-2 border-white relative">
                     {formData.photo_url ? (
-                      <img src={formData.photo_url} alt="" className="w-full h-full object-cover" />
+                      <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       <GraduationCap size={40} />
                     )}
+                    
+                    {uploadingPhoto && (
+                      <div className="absolute inset-0 bg-blue-900/40 backdrop-blur-[2px] flex items-center justify-center">
+                        <Loader2 className="text-white animate-spin" size={24} />
+                      </div>
+                    )}
                   </div>
-                  {isEditing && (
+                  {isEditing && !uploadingPhoto && (
                     <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button 
                         onClick={() => setShowWebcam(true)}
@@ -549,10 +708,27 @@ export function Students() {
                     Financeiro
                   </button>
                 )}
+                {!isEditing && selectedStudent && (
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group bg-white border border-slate-100"
+                    title="Excluir Aluno"
+                  >
+                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
                 {isEditing ? (
                   <>
                     <button 
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        setIsEditing(false);
+                        setUploadingPhoto(false);
+                      }}
                       className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-bold transition-all"
                       tabIndex={100}
                     >
@@ -560,10 +736,21 @@ export function Students() {
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-6 py-2 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                      disabled={loading || uploadingPhoto}
+                      className="px-6 py-2 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg disabled:opacity-50 disabled:grayscale"
                       tabIndex={101}
                     >
-                      Salvar Aluno
+                      {loading ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          Salvando...
+                        </div>
+                      ) : uploadingPhoto ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          Subindo Foto...
+                        </div>
+                      ) : 'Salvar Aluno'}
                     </button>
                   </>
                 ) : (
@@ -699,32 +886,7 @@ export function Students() {
                           tabIndex={6}
                         />
                       </div>
-                      <div className="col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Data de Início</label>
-                        <input 
-                          type="text"
-                          disabled={!isEditing}
-                          placeholder="MM/AAAA"
-                          value={formData.start_date || ''}
-                          onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={7}
-                        />
-                      </div>
                       <div className="col-span-8 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Curso</label>
-                        <input 
-                          type="text"
-                          disabled={!isEditing}
-                          value={formData.course || ''}
-                          onChange={(e) => setFormData({...formData, course: e.target.value})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={8}
-                        />
-                      </div>
-                      <div className="col-span-12 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Turma</label>
                         <select 
                           disabled={!isEditing}
@@ -732,16 +894,37 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, class_id: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={8.5}
+                          tabIndex={7}
                         >
                           <option value="">Selecione uma turma</option>
-                          {classes.map(c => (
+                          {classes.filter(c => c.status === 'Ativo' || c.id === formData.class_id).map(c => (
                             <option key={c.id} value={c.id}>
                               {c.name} ({c.code}) - {c.period}
                             </option>
                           ))}
                         </select>
                       </div>
+                      <div className="col-span-4 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Data de Início</label>
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          placeholder="DD/MM/AAAA"
+                          value={formData.start_date || ''}
+                          onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          tabIndex={8}
+                        />
+                      </div>
+                      {formData.created_at && (
+                        <div className="col-span-4 space-y-1">
+                          <label className="text-xs font-bold text-slate-700">Data da Inscrição</label>
+                          <div className="w-full px-4 py-2 bg-slate-100/50 text-slate-500 rounded-xl text-sm border-none italic">
+                            {formatDateForDisplay(formData.created_at)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </section>
 
@@ -875,6 +1058,38 @@ export function Students() {
           </div>
         )}
       </div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedStudent && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+              <Trash2 size={32} />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-bold text-[#131b2e]">Excluir Aluno?</h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                Tem certeza que deseja excluir a ficha do aluno <span className="font-bold text-slate-900">{selectedStudent.name}</span>? 
+                Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+              >
+                {loading ? 'Excluindo...' : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

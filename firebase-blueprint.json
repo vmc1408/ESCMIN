@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "full_name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "coordenador", "secretario"] },
+        "status": { "type": "string", "enum": ["pending", "authorized", "rejected"] },
+        "avatar_url": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "username", "full_name", "role", "status"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "registration_number": { "type": "string" },
+        "name": { "type": "string" },
+        "cpf": { "type": "string" },
+        "rg": { "type": "string" },
+        "birth_date": { "type": "string" },
+        "start_date": { "type": "string" },
+        "status": { "type": "string" },
+        "is_former_student": { "type": "boolean" },
+        "class_id": { "type": "string" },
+        "address_street": { "type": "string" },
+        "address_city": { "type": "string" },
+        "address_state": { "type": "string" },
+        "address_zip": { "type": "string" },
+        "parish": { "type": "string" },
+        "course": { "type": "string" },
+        "pastoral_participates": { "type": "string" },
+        "phone_mobile": { "type": "string" },
+        "phone_residential": { "type": "string" },
+        "phone_commercial": { "type": "string" },
+        "email": { "type": "string" },
+        "guardian_father": { "type": "string" },
+        "guardian_mother": { "type": "string" },
+        "guardian_cpf": { "type": "string" },
+        "photo_url": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "user_id": { "type": "string" }
+      },
+      "required": ["id", "registration_number", "name", "status"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "School class information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "room": { "type": "string" },
+        "status": { "type": "string", "enum": ["Ativo", "Inativo"] },
+        "period": { "type": "string", "enum": ["Manhã", "Tarde", "Noite"] },
+        "days_of_week": { "type": "array", "items": { "type": "string" } },
+        "semester": { "type": "string" },
+        "start_date": { "type": "string", "format": "date" },
+        "observations": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "status", "period"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Course subject information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "program_content": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Teacher information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "phone_mobile": { "type": "string" },
+        "cpf": { "type": "string" },
+        "rg": { "type": "string" },
+        "address_street": { "type": "string" },
+        "address_city": { "type": "string" },
+        "address_state": { "type": "string" },
+        "address_zip": { "type": "string" },
+        "birth_date": { "type": "string" },
+        "observations": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "email"]
+    },
+    "PixTransaction": {
+      "title": "PixTransaction",
+      "description": "PIX payment transaction record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "payer_name": { "type": "string" },
+        "origin_bank": { "type": "string" },
+        "amount": { "type": "number" },
+        "transaction_id": { "type": "string" },
+        "batch_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["matched", "unmatched", "multiple"] },
+        "matched_student_id": { "type": "string" },
+        "is_manual": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "payer_name", "amount", "transaction_id", "status"]
+    },
+    "Contribution": {
+      "title": "Contribution",
+      "description": "Student contribution/payment record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "student_id": { "type": "string" },
+        "amount": { "type": "number" },
+        "reference_month": { "type": "number" },
+        "reference_year": { "type": "number" },
+        "payment_date": { "type": "string" },
+        "payment_method": { "type": "string", "enum": ["PIX", "Cartão", "Dinheiro"] },
+        "origin": { "type": "string" },
+        "pix_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "student_id", "amount", "reference_month", "reference_year", "payment_date"]
+    },
+    "InstitutionSettings": {
+      "title": "InstitutionSettings",
+      "description": "General settings for the institution",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "logo_url": { "type": "string" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "profiles": { "schema": "UserProfile", "description": "User profile collection" },
+    "students": { "schema": "Student", "description": "Student records collection" },
+    "classes": { "schema": "Class", "description": "School classes collection" },
+    "subjects": { "schema": "Subject", "description": "Course subjects collection" },
+    "teachers": { "schema": "Teacher", "description": "Teachers collection" },
+    "pix_reconciliations": { "schema": "PixTransaction", "description": "PIX transactions collection" },
+    "contributions": { "schema": "Contribution", "description": "Contributions collection" },
+    "institution_settings": { "schema": "InstitutionSettings", "description": "Institution configuration" }
+  }
+}
