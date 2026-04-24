@@ -27,12 +27,14 @@ export interface Student {
   
   // Address
   address_street?: string;
+  address_neighborhood?: string;
   address_city?: string;
   address_state?: string;
   address_zip?: string;
   
   // Parochial/Course
   parish?: string;
+  forany?: string;
   course?: string;
   pastoral_participates?: string;
   
@@ -120,5 +122,29 @@ export interface Contribution {
   pix_id?: string;
   observations?: string;
   user_id: string;
+  created_at: string;
+}
+
+export interface Foraria {
+  id: string;
+  code: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Parish {
+  id: string;
+  code: string;
+  name: string;
+  forania: string; // Name or ID of the forania
+  priest_name: string;
+  address_street?: string;
+  address_number?: string;
+  address_neighborhood?: string;
+  address_city?: string;
+  address_state?: string;
+  address_zip?: string;
+  email?: string;
+  phone?: string;
   created_at: string;
 }

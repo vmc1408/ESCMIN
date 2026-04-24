@@ -52,6 +52,9 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
       .range(from, from + step - 1);
 
     if (error) {
+      if (error.code === '42P01' || error.message.includes('Could not find the table')) {
+        return []; // Retorna vazio silenciosamente para permitir fallback
+      }
       console.error(`Erro na busca recursiva de ${tableName}:`, error.message);
       throw error;
     }

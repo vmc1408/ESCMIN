@@ -19,7 +19,8 @@ import {
   ChevronDown,
   ChevronRight,
   GraduationCap,
-  Wallet
+  Wallet,
+  Church
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
@@ -34,6 +35,7 @@ const navItems = [
     icon: ClassesIcon,
     children: [
       { icon: ImportIcon, label: 'Importação', path: '/import' },
+      { icon: Church, label: 'Paróquias', path: '/parishes' },
       {
         label: 'Acadêmico',
         icon: GraduationCap,

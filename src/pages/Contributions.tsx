@@ -496,8 +496,8 @@ export function Contributions() {
 
       if (institution?.logo_url) {
         try {
-          doc.addImage(institution.logo_url, 'auto', margin, startY, 18, 18);
-          textStartX = margin + 22;
+          doc.addImage(institution.logo_url, 'auto', margin, startY, 20, 20);
+          textStartX = margin + 24;
           textHeaderAlign = "left";
         } catch (e) {}
       }
@@ -508,57 +508,51 @@ export function Contributions() {
       doc.setTextColor(0, 23, 75);
       doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, startY + 6, { align: textHeaderAlign });
       
-      doc.setFontSize(7.5);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100);
-      doc.text(institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170', textStartX, startY + 10, { align: textHeaderAlign });
+      doc.text(institution?.address || '', textStartX, startY + 10, { align: textHeaderAlign });
       
       const contactInfo = [
         institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
         institution?.phone ? `Tel: ${institution.phone}` : '',
-        institution?.email ? `E-mail: ${institution.email}` : ''
+        institution?.email ? `E-mail: ${institution.email}` : '',
+        institution?.website ? `Site: ${institution.website}` : ''
       ].filter(Boolean).join('  |  ');
       doc.text(contactInfo, textStartX, startY + 14, { align: textHeaderAlign });
 
-      if (institution?.website) {
-        doc.text(institution.website.toUpperCase(), textStartX, startY + 18, { align: textHeaderAlign });
-      }
-
       // Main Horizontal Divider
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.6);
-      doc.line(margin, startY + 21, pageWidth - margin, startY + 21);
+      doc.setDrawColor(0, 23, 75);
+      doc.setLineWidth(0.4);
+      doc.line(margin, startY + 18, pageWidth - margin, startY + 18);
       
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0);
-      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL (MÚLTIPLO)', centerX, startY + 28, { align: 'center' });
+      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL (MÚLTIPLO)', centerX, startY + 24, { align: 'center' });
       
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'italic');
-      doc.text(title, pageWidth - margin, startY + 28, { align: 'right' });
+      doc.setFontSize(8);
+      doc.text(title, pageWidth - margin, startY + 24, { align: 'right' });
 
-      // Student Info Section Header
-      doc.setFillColor(245, 247, 250);
-      doc.rect(margin, startY + 32, pageWidth - (margin * 2), 10, 'F');
+      // Student Info Section
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, startY + 28, pageWidth - (margin * 2), 10, 'F');
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
       doc.setTextColor(120);
-      doc.text('MATRICULA / ALUNO(A)', margin + 3, startY + 36);
+      doc.text('MATRICULA / ALUNO(A)', margin + 3, startY + 32);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(0);
-      doc.text(`${student.registration_number} - ${student.name}`, margin + 3, startY + 40);
+      doc.text(`${student.registration_number || '---'} - ${student.name.toUpperCase()}`, margin + 3, startY + 36);
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(120);
-      doc.text('TURMA', pageWidth - margin - 40, startY + 36);
+      doc.setFontSize(6.5);
+      doc.text('TURMA / CURSO', pageWidth - margin - 50, startY + 32);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.setTextColor(0);
-      doc.text(studentClass?.code || '---', pageWidth - margin - 40, startY + 40);
+      doc.text(`${studentClass?.code || '---'} - ${student.course || '---'}`, pageWidth - margin - 50, startY + 36);
 
       // Grid for multiple payments
       const tableRows: any[][] = [];
@@ -568,10 +562,9 @@ export function Contributions() {
           const c = currentContribs[i + j];
           if (c) {
             const method = c.payment_method || (c.pix_id ? 'PIX' : 'Dinheiro');
-            const origin = c.origin ? ` (${c.origin})` : '';
             row.push(`${MONTHS[c.reference_month - 1]} / ${c.reference_year}`);
             row.push(formatCurrency(c.amount));
-            row.push(`${method}${origin}`);
+            row.push(method);
           } else {
             row.push('', '', '');
           }
@@ -580,94 +573,70 @@ export function Contributions() {
       }
 
       autoTable(doc, {
-        startY: startY + 42,
-        head: [['Mês/Ano', 'Valor', 'Metodo/Origem', 'Mês/Ano', 'Valor', 'Metodo/Origem']],
+        startY: startY + 39,
+        head: [['Mês/Ano', 'Valor', 'Metodo', 'Mês/Ano', 'Valor', 'Metodo']],
         body: tableRows,
         theme: 'grid',
-        styles: { fontSize: 6, cellPadding: 1.5, halign: 'center' },
-        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
+        styles: { fontSize: 6, cellPadding: 1, halign: 'center' },
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+        margin: { left: margin, right: margin }
       });
 
       const nextY = (doc as any).lastAutoTable.finalY + 3;
       
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setFont('helvetica', 'bold');
-      const paymentDate = currentContribs[0]?.payment_date 
-        ? safeFormat(currentContribs[0].payment_date, 'dd/MM/yyyy') 
-        : '____ / ____ / ________';
-      
-      const paymentMethods = [...new Set(currentContribs.map(c => c.payment_method || (c.pix_id ? 'PIX' : 'Dinheiro')))];
-      const paymentMethod = paymentMethods.join(' + ');
-      const origin = currentContribs.length === 1 && currentContribs[0]?.origin ? ` - ${currentContribs[0].origin}` : '';
-      
-      doc.text(`Recebido em: ${paymentDate} (${paymentMethod}${origin})`, margin, nextY + 3);
-      doc.text(`Total dos Pagamentos =>`, pageWidth - 70, nextY + 3);
-      doc.setFontSize(10);
       const totalBatch = currentContribs.reduce((acc, curr) => acc + curr.amount, 0);
-      doc.text(formatCurrency(totalBatch), pageWidth - margin, nextY + 3, { align: 'right' });
+      doc.text(`Recebido em: ${safeFormat(new Date(), 'dd/MM/yyyy')}`, margin, nextY + 3);
+      doc.text(`TOTAL ACUMULADO => ${formatCurrency(totalBatch)}`, pageWidth - margin, nextY + 3, { align: 'right' });
 
-      // Box Message
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.4);
-      doc.rect(margin, nextY + 6, pageWidth - (margin * 2), 22); // Re-adjusted slightly for better fit
-      
-      doc.setFontSize(8);
-      const yearRange = [...new Set(currentContribs.map(c => c.reference_year))].join(', ');
-      const totalAmount = currentContribs.reduce((acc, curr) => acc + curr.amount, 0);
-      const autoText = `CONTRIBUIÇÕES DE ${currentContribs.length} MESES ATÉ ${yearRange} - TOTAL: ${formatCurrency(totalAmount)}`;
-      
-      let currentMsgY = nextY + 11;
-      doc.setFont('helvetica', 'bold');
-      doc.text(autoText, pageWidth / 2, currentMsgY, { align: 'center' });
+      // Box Message / Observations
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.2);
+      doc.rect(margin, nextY + 6, pageWidth - (margin * 2), 18);
       
       const contribObs = currentContribs.map(c => c.observations).filter(Boolean).join('; ');
+      const finalMsg = [contribObs, institution?.receipt_message].filter(Boolean).join(' • ');
       
-      if (contribObs || institution?.receipt_message) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.setTextColor(0, 23, 75);
-        doc.text('OBSERVAÇÕES:', margin + 5, currentMsgY + 4);
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
-        doc.setTextColor(80);
-        
-        const finalMsg = [contribObs, institution?.receipt_message].filter(Boolean).join(' • ');
-        const customLines = doc.splitTextToSize(finalMsg, pageWidth - (margin * 2) - 15);
-        doc.text(customLines, margin + 5, currentMsgY + 8);
+      if (finalMsg) {
+        doc.setFontSize(6);
+        doc.setTextColor(100);
+        const customLines = doc.splitTextToSize(finalMsg, pageWidth - (margin * 2) - 10);
+        doc.text(customLines, margin + 5, nextY + 11);
       } else {
         doc.setFont('helvetica', 'italic');
-        doc.setFontSize(7.5);
-        doc.text('" P A Z  E  B E M "', pageWidth / 2, currentMsgY + 7, { align: 'center' });
+        doc.setFontSize(7);
+        doc.text('" PAZ E BEM "', pageWidth / 2, nextY + 15, { align: 'center' });
       }
 
-      // Emission info & Footer
-      doc.setFontSize(5.5);
+      // Signatures
+      const sigY = nextY + 38;
+      doc.setDrawColor(200);
+      doc.line(margin + 10, sigY, margin + 70, sigY);
+      doc.line(pageWidth - margin - 70, sigY, pageWidth - margin - 10, sigY);
+      doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
+      doc.text('ASSINATURA DO ALUNO', margin + 40, sigY + 3, { align: 'center' });
+      doc.text('CARIMBO E ASSINATURA ESCOLA', pageWidth - margin - 40, sigY + 3, { align: 'center' });
+
+      // Footer
+      doc.setFontSize(5.5);
       doc.setTextColor(180);
-      doc.text(`Emissão: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, nextY + 28);
-      
-      if (institution?.footer_text) {
-        doc.text(institution.footer_text.toUpperCase(), pageWidth - margin, nextY + 28, { align: 'right' });
-      }
-      doc.setTextColor(0);
+      const footerText = (institution?.footer_text || 'Documento emitido via INTELLIGENCE ESCMIN').toUpperCase();
+      doc.text(footerText, pageWidth / 2, sigY + 8, { align: 'center' });
     };
 
     // First copy
     drawSection(10, 'VIA - ESCOLA', selectedContribs);
-
     // Dashed line
-    (doc as any).setLineDash([2, 1]);
+    (doc as any).setLineDash([1, 1]);
     doc.line(0, 148.5, pageWidth, 148.5);
-    doc.setFontSize(6);
-    doc.text('CORTE AQUI', pageWidth - 15, 147, { align: 'right' });
     (doc as any).setLineDash([]);
-
     // Second copy
     drawSection(155, 'VIA - ALUNO', selectedContribs);
 
     if (action === 'save') {
-      doc.save(`Recibos_Multiplos_${student.name.replace(/\s+/g, '_')}.pdf`);
+      doc.save(`Recibo_Multiplo_${student.name.replace(/\s+/g, '_')}.pdf`);
     } else {
       triggerDirectPrint(selectedContribs);
     }
@@ -692,261 +661,252 @@ export function Contributions() {
 
       if (institution?.logo_url) {
         try {
-          doc.addImage(institution.logo_url, 'auto', margin, startY, 22, 22);
-          textStartX = margin + 26;
+          doc.addImage(institution.logo_url, 'auto', margin, startY, 20, 20);
+          textStartX = margin + 24;
           textHeaderAlign = "left";
         } catch (e) {}
       }
       
       // Text Content
-      doc.setFontSize(14);
+      doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 23, 75);
-      doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, startY + 8, { align: textHeaderAlign });
+      doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, startY + 6, { align: textHeaderAlign });
       
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100);
-      doc.text(institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170', textStartX, startY + 13, { align: textHeaderAlign });
+      doc.text(institution?.address || '', textStartX, startY + 10, { align: textHeaderAlign });
       
       const contactInfo = [
         institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
         institution?.phone ? `Tel: ${institution.phone}` : '',
-        institution?.email ? `E-mail: ${institution.email}` : ''
+        institution?.email ? `E-mail: ${institution.email}` : '',
+        institution?.website ? `Site: ${institution.website}` : ''
       ].filter(Boolean).join('  |  ');
-      doc.text(contactInfo, textStartX, startY + 17, { align: textHeaderAlign });
-
-      if (institution?.website) {
-        doc.text(institution.website.toUpperCase(), textStartX, startY + 21, { align: textHeaderAlign });
-      }
+      doc.text(contactInfo, textStartX, startY + 14, { align: textHeaderAlign });
 
       // Main Horizontal Divider
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.8);
-      doc.line(margin, startY + 25, pageWidth - margin, startY + 25);
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0);
-      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL', centerX, startY + 33, { align: 'center' });
+      doc.setDrawColor(0, 23, 75);
+      doc.setLineWidth(0.4);
+      doc.line(margin, startY + 18, pageWidth - margin, startY + 18);
       
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'italic');
-      doc.text(title, pageWidth - margin, startY + 33, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0);
+      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL', centerX, startY + 24, { align: 'center' });
+      
+      doc.setFontSize(8);
+      doc.text(title, pageWidth - margin, startY + 24, { align: 'right' });
 
-      // Student Info Section Header
-      doc.setFillColor(245, 247, 250);
-      doc.rect(margin, startY + 38, pageWidth - (margin * 2), 14, 'F');
+      // Student Info Section
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, startY + 28, pageWidth - (margin * 2), 12, 'F');
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
+      doc.setFontSize(6.5);
       doc.setTextColor(120);
-      doc.text('MATRICULA / ALUNO(A)', margin + 5, startY + 45);
+      doc.text('MATRICULA / ALUNO(A)', margin + 3, startY + 33);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setTextColor(0);
-      doc.text(`${student.registration_number} - ${student.name}`, margin + 5, startY + 49);
+      doc.text(`${student.registration_number || '---'} - ${student.name.toUpperCase()}`, margin + 3, startY + 37);
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.text('TURMA', pageWidth - margin - 50, startY + 45);
+      doc.setFontSize(6.5);
+      doc.text('TURMA / CURSO', pageWidth - margin - 50, startY + 33);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor(0);
-      doc.text(studentClass?.code || '---', pageWidth - margin - 50, startY + 49);
+      doc.setFontSize(8);
+      doc.text(`${studentClass?.code || '---'} - ${student.course || '---'}`, pageWidth - margin - 50, startY + 37);
 
       const method = contribution.payment_method || (contribution.pix_id ? 'PIX' : 'Dinheiro');
       const origin = contribution.origin ? ` (${contribution.origin})` : '';
 
-      // Grid for payments
-      const tableData = [
-        ['Mês/Ano', 'Valor', 'Meio de Pagamento / Origem'],
-        [
+      // Main Table
+      autoTable(doc, {
+        startY: startY + 42,
+        head: [['Mês / Ano Referência', 'Valor da Contribuição', 'Meio de Pagamento / Origem']],
+        body: [[
           `${MONTHS[contribution.reference_month - 1]} / ${contribution.reference_year}`,
           formatCurrency(contribution.amount),
           `${method}${origin}`
-        ]
-      ];
-
-      autoTable(doc, {
-        startY: startY + 58,
-        head: [tableData[0]],
-        body: [tableData[1]],
+        ]],
         theme: 'grid',
-        styles: { fontSize: 8.5, cellPadding: 3, halign: 'center' },
-        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
+        styles: { fontSize: 8, cellPadding: 3, halign: 'center' },
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+        margin: { left: margin, right: margin }
       });
 
       const nextY = (doc as any).lastAutoTable.finalY + 5;
       
-      doc.setFont('helvetica', 'bold');
-      const paymentDate = contribution.payment_date 
-        ? safeFormat(contribution.payment_date, 'dd/MM/yyyy') 
-        : '____ / ____ / ________';
-      
-      doc.text(`Recebido em: ${paymentDate} (${method}${origin})`, margin, nextY + 5);
-      doc.text(`Total dos Pagamentos =>`, pageWidth - 80, nextY + 5);
-      doc.setFontSize(11);
-      doc.text(formatCurrency(contribution.amount), pageWidth - margin, nextY + 5, { align: 'right' });
-
-      // Box Message
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.5);
-      doc.rect(margin, nextY + 10, pageWidth - (margin * 2), 25);
-      
       doc.setFontSize(8.5);
-      const autoText = `CONTRIBUIÇÃO DE ${MONTHS[contribution.reference_month - 1].toUpperCase()} DE ${contribution.reference_year} - TOTAL: ${formatCurrency(contribution.amount)}`;
-      
-      let currentMsgY = nextY + 16;
       doc.setFont('helvetica', 'bold');
-      doc.text(autoText, pageWidth / 2, currentMsgY, { align: 'center' });
+      doc.text(`Recebido em: ${safeFormat(contribution.payment_date, 'dd/MM/yyyy')}`, margin, nextY + 5);
+      doc.text(`VALOR TOTAL => ${formatCurrency(contribution.amount)}`, pageWidth - margin, nextY + 5, { align: 'right' });
 
-      if (institution?.receipt_message) {
+      // Observations Box
+      doc.setDrawColor(220);
+      doc.setLineWidth(0.2);
+      doc.rect(margin, nextY + 10, pageWidth - (margin * 2), 20);
+      
+      const finalMsg = [contribution.observations, institution?.receipt_message].filter(Boolean).join(' • ');
+      if (finalMsg) {
+        doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        const customLines = doc.splitTextToSize(institution.receipt_message, pageWidth - (margin * 2) - 10);
-        doc.text(customLines, pageWidth / 2, currentMsgY + 6, { align: 'center' });
+        doc.setTextColor(80);
+        const customLines = doc.splitTextToSize(finalMsg, pageWidth - (margin * 2) - 10);
+        doc.text(customLines, margin + 5, nextY + 16);
       } else {
         doc.setFont('helvetica', 'italic');
-        doc.text('" P A Z  E  B E M "', pageWidth / 2, currentMsgY + 6, { align: 'center' });
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text('" PAZ E BEM "', pageWidth / 2, nextY + 22, { align: 'center' });
       }
 
-      // Emission info & Footer
+      // Signatures
+      const sigY = nextY + 45;
+      doc.setDrawColor(200);
+      doc.line(margin + 10, sigY, margin + 70, sigY);
+      doc.line(pageWidth - margin - 70, sigY, pageWidth - margin - 10, sigY);
       doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(180);
-      doc.text(`Emissão: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, nextY + 38);
-      
-      if (institution?.footer_text) {
-        doc.text(institution.footer_text.toUpperCase(), pageWidth - margin, nextY + 38, { align: 'right' });
-      }
-      doc.setTextColor(0);
+      doc.text('ASSINATURA DO ALUNO', margin + 40, sigY + 3, { align: 'center' });
+      doc.text('CARIMBO E ASSINATURA ESCOLA', pageWidth - margin - 40, sigY + 3, { align: 'center' });
+
+      // Footer Metadata
+      doc.setFontSize(5);
+      doc.setTextColor(200);
+      doc.text(`SISTEMA INTELLIGENCE ESCMIN - EMISSAO: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, sigY + 8);
     };
 
     // First copy
     drawSection(10, 'VIA - ESCOLA');
-
     // Dashed line
-    (doc as any).setLineDash([2, 1]);
+    (doc as any).setLineDash([1, 1]);
     doc.line(0, 148.5, pageWidth, 148.5);
-    doc.setFontSize(6);
-    doc.text('CORTE AQUI', pageWidth - 15, 147, { align: 'right' });
     (doc as any).setLineDash([]);
-
     // Second copy
     drawSection(155, 'VIA - ALUNO');
 
-    // Footer
-    doc.setFontSize(7);
-    doc.setTextColor(150);
-    doc.text(`${safeFormat(new Date(), 'dd/MM/yyyy')}  SISTEMA`, margin, 285);
-    doc.text(`Página 1`, pageWidth - margin, 285, { align: 'right' });
-
     if (action === 'save') {
-      doc.save(`Recibo_${student.name.replace(/\s+/g, '_')}_${contribution.reference_month}_${contribution.reference_year}.pdf`);
+      doc.save(`Recibo_${student.name.replace(/\s+/g, '_')}_${contribution.reference_month}.pdf`);
     } else {
       triggerDirectPrint([contribution]);
     }
   };
-
-  const generateStatement = () => {
+  const generateStatement = async () => {
     if (!selectedStudent) return;
     
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    const margin = 15;
-    const centerX = pageWidth / 2;
-    let y = 15;
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 15;
+      const centerX = pageWidth / 2;
+      let y = 15;
 
-    // Professional Header
-    let textStartX = centerX;
-    let textHeaderAlign: "center" | "left" = "center";
+      // Professional Header
+      let textStartX = centerX;
+      let textHeaderAlign: "center" | "left" = "center";
 
-    if (institution?.logo_url) {
-      try { 
-        doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
-        textStartX = margin + 26;
-        textHeaderAlign = "left";
-      } catch (e) {}
-    }
+      if (institution?.logo_url) {
+        try { 
+          doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
+          textStartX = margin + 26;
+          textHeaderAlign = "left";
+        } catch (e) {}
+      }
 
-    doc.setTextColor(0, 23, 75);
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 8, { align: textHeaderAlign });
-    
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    doc.setFont('helvetica', 'normal');
-    doc.text(institution?.address || '', textStartX, y + 13, { align: textHeaderAlign });
-    
-    const meta = [
-      institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
-      institution?.phone ? `TEL: ${institution.phone}` : '',
-      institution?.email ? `EMAIL: ${institution.email}` : '',
-      institution?.website ? `SITE: ${institution.website}` : ''
-    ].filter(Boolean).join('  |  ');
-    doc.text(meta, textStartX, y + 17, { align: textHeaderAlign });
-
-    doc.setDrawColor(0, 23, 75);
-    doc.setLineWidth(0.8);
-    doc.line(margin, y + 22, pageWidth - margin, y + 22);
-
-    doc.setFontSize(14);
-    doc.setTextColor(0);
-    doc.setFont('helvetica', 'bold');
-    doc.text('EXTRATO ANUAL DE CONTRIBUIÇÕES', centerX, y + 32, { align: 'center' });
-    
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(80);
-    doc.text(`ALUNO: ${selectedStudent.name.toUpperCase()}`, margin, y + 42);
-    doc.text(`MATRÍCULA: ${selectedStudent.registration_number}`, margin, y + 47);
-    doc.text(`ANO DE REFERÊNCIA: ${selectedYear}`, pageWidth - margin, y + 42, { align: 'right' });
-
-    const statementData = MONTHS.map((month, idx) => {
-      const contrib = contributions.find(c => c.reference_month === idx + 1);
-      return [
-        month,
-        contrib ? formatCurrency(contrib.amount) : '---',
-        contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : 'Não Pago',
-        contrib?.observations || ''
-      ];
-    });
-
-    autoTable(doc, {
-      startY: 55,
-      head: [['Mês', 'Valor Contribuído', 'Data do Pagamento', 'Observações']],
-      body: statementData,
-      theme: 'striped',
-      headStyles: { fillColor: [0, 23, 75] },
-      styles: { fontSize: 8 }
-    });
-
-    const total = contributions.reduce((acc, c) => acc + c.amount, 0);
-    let finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-    doc.text(`Total Acumulado no Ano: ${formatCurrency(total)}`, pageWidth - margin, finalY, { align: 'right' });
-
-    // Important notes at the bottom
-    if (institution?.receipt_message) {
-      finalY += 15;
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 23, 75);
-      doc.text('OBSERVAÇÕES:', margin, finalY);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 8, { align: textHeaderAlign });
       
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
       doc.setTextColor(100);
-      const splitObs = doc.splitTextToSize(institution.receipt_message, pageWidth - margin * 2);
-      doc.text(splitObs, margin, finalY + 5);
-    }
+      doc.setFont('helvetica', 'normal');
+      doc.text(institution?.address || '', textStartX, y + 13, { align: textHeaderAlign });
+      
+      const meta = [
+        institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
+        institution?.phone ? `TEL: ${institution.phone}` : '',
+        institution?.email ? `EMAIL: ${institution.email}` : ''
+      ].filter(Boolean).join('  |  ');
+      doc.text(meta, textStartX, y + 17, { align: textHeaderAlign });
 
-    doc.save(`Extrato_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedYear}.pdf`);
+      doc.setDrawColor(0, 23, 75);
+      doc.setLineWidth(0.6);
+      doc.line(margin, y + 22, pageWidth - margin, y + 22);
+
+      y += 32;
+
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('EXTRATO ANUAL DE CONTRIBUIÇÕES', centerX, y, { align: 'center' });
+      
+      y += 10;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(50);
+      doc.text(`ALUNO: ${selectedStudent.name.toUpperCase()}`, margin, y);
+      doc.text(`MATRÍCULA: ${selectedStudent.registration_number || '---'}`, margin, y + 5);
+      doc.text(`ANO DE REFERÊNCIA: ${selectedYear}`, pageWidth - margin, y, { align: 'right' });
+
+      const statementData = MONTHS.map((month, idx) => {
+        const contrib = contributions.find(c => c.reference_month === idx + 1);
+        return [
+          month.toUpperCase(),
+          contrib ? formatCurrency(contrib.amount) : '---',
+          contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : 'PENDENTE',
+          contrib?.observations || ''
+        ];
+      });
+
+      autoTable(doc, {
+        startY: y + 10,
+        head: [['MÊS DE REFERÊNCIA', 'VALOR PAGO', 'DATA PAGAMENTO', 'OBSERVAÇÕES']],
+        body: statementData,
+        theme: 'grid',
+        headStyles: { fillColor: [0, 23, 75], fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 2 },
+        columnStyles: {
+          1: { halign: 'right' },
+          2: { halign: 'center' }
+        }
+      });
+
+      const total = contributions.reduce((acc, c) => acc + c.amount, 0);
+      let finalY = (doc as any).lastAutoTable.finalY + 10;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0);
+      doc.text(`TOTAL ACUMULADO NO ANO: ${formatCurrency(total)}`, pageWidth - margin, finalY, { align: 'right' });
+
+      // Important notes / Footer
+      if (institution?.receipt_message || institution?.footer_text) {
+        finalY = doc.internal.pageSize.height - 30;
+        doc.setLineWidth(0.2);
+        doc.setDrawColor(200);
+        doc.line(margin, finalY, pageWidth - margin, finalY);
+        
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150);
+        
+        const footerNote = institution?.receipt_message || '';
+        const splitNote = doc.splitTextToSize(footerNote, pageWidth - margin * 2);
+        doc.text(splitNote, centerX, finalY + 5, { align: 'center' });
+        
+        const sysInfo = institution?.footer_text || `Documento oficial gerado via INTELLIGENCE ESCMIN em ${new Date().toLocaleString('pt-BR')}`;
+        doc.text(sysInfo.toUpperCase(), centerX, finalY + 15, { align: 'center' });
+      }
+
+      doc.save(`Extrato_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedYear}.pdf`);
+    } catch (error) {
+      console.error('Error generating statement:', error);
+      alert('Erro ao gerar extrato anual');
+    }
   };
 
   const clearSelection = () => {

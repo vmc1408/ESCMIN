@@ -8,7 +8,9 @@ import {
   Users,
   UserSquare2,
   School,
-  BookOpen
+  BookOpen,
+  Church,
+  Map
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
@@ -17,7 +19,7 @@ import { collection, setDoc, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { useImport } from '../contexts/ImportContext';
 
-type ImportType = 'students' | 'teachers' | 'classes' | 'subjects';
+type ImportType = 'students' | 'teachers' | 'classes' | 'subjects' | 'parishes' | 'foraries';
 type ImportStep = 'type' | 'upload' | 'mapping' | 'review' | 'processing';
 
 interface FieldDefinition {
@@ -73,6 +75,24 @@ const ENTITY_FIELDS: Record<ImportType, FieldDefinition[]> = {
     { label: 'Código', key: 'code', synonyms: ['codigo', 'id', 'code', 'coddisc', 'cod_disc', 'disciplina'] },
     { label: 'Nome da Disciplina', key: 'name', synonyms: ['disciplina', 'nome', 'subject', 'materia'] },
     { label: 'Conteúdo Programático', key: 'program_content', synonyms: ['conteudo', 'ementa', 'program'] }
+  ],
+  parishes: [
+    { label: 'Código', key: 'code', synonyms: ['codigo', 'code', 'id', 'paroquia_id'] },
+    { label: 'Nome da Paróquia', key: 'name', synonyms: ['paroquia', 'nome', 'parish', 'church'] },
+    { label: 'Forania', key: 'forania', synonyms: ['forania', 'vicariato', 'region'] },
+    { label: 'Padre Responsável', key: 'priest_name', synonyms: ['padre', 'responsavel', 'priest', 'pastor'] },
+    { label: 'Logradouro', key: 'address_street', synonyms: ['endereco', 'rua', 'logradouro', 'street'] },
+    { label: 'Número', key: 'address_number', synonyms: ['numero', 'number'] },
+    { label: 'Bairro', key: 'address_neighborhood', synonyms: ['bairro', 'neighborhood'] },
+    { label: 'Cidade', key: 'address_city', synonyms: ['cidade', 'city'] },
+    { label: 'Estado', key: 'address_state', synonyms: ['estado', 'uf'] },
+    { label: 'CEP', key: 'address_zip', synonyms: ['cep', 'zip'] },
+    { label: 'E-mail', key: 'email', synonyms: ['email', 'mail'] },
+    { label: 'Telefone', key: 'phone', synonyms: ['telefone', 'phone', 'contato'] }
+  ],
+  foraries: [
+    { label: 'Código', key: 'code', synonyms: ['codigo', 'id'] },
+    { label: 'Nome da Forania', key: 'name', synonyms: ['forania', 'nome', 'vicariato'] }
   ]
 };
 
@@ -324,12 +344,14 @@ export function Import() {
       </div>
 
       {step === 'type' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
             { id: 'students', label: 'Alunos', icon: Users, color: 'bg-blue-50 text-blue-600' },
             { id: 'teachers', label: 'Professores', icon: UserSquare2, color: 'bg-purple-50 text-purple-600' },
             { id: 'classes', label: 'Turmas', icon: School, color: 'bg-orange-50 text-orange-600' },
-            { id: 'subjects', label: 'Disciplinas', icon: BookOpen, color: 'bg-green-50 text-green-600' }
+            { id: 'subjects', label: 'Disciplinas', icon: BookOpen, color: 'bg-green-50 text-green-600' },
+            { id: 'parishes', label: 'Paróquias', icon: Church, color: 'bg-indigo-50 text-indigo-600' },
+            { id: 'foraries', label: 'Foranias', icon: Map, color: 'bg-rose-50 text-rose-600' }
           ].map((type) => (
             <button
               key={type.id}
@@ -359,7 +381,13 @@ export function Import() {
             <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mb-6">
               <CloudUpload size={40} className="text-blue-600" />
             </div>
-            <h3 className="text-2xl font-bold text-[#131b2e] mb-2">Importar {importType === 'students' ? 'Alunos' : importType === 'teachers' ? 'Professores' : importType === 'classes' ? 'Turmas' : 'Disciplinas'}</h3>
+            <h3 className="text-2xl font-bold text-[#131b2e] mb-2">Importar {
+              importType === 'students' ? 'Alunos' : 
+              importType === 'teachers' ? 'Professores' : 
+              importType === 'classes' ? 'Turmas' : 
+              importType === 'subjects' ? 'Disciplinas' : 
+              importType === 'parishes' ? 'Paróquias' : 'Foranias'
+            }</h3>
             <p className="text-slate-500 mb-8">Arraste seu arquivo Excel ou CSV aqui</p>
             <label className="px-8 py-4 bg-[#00174b] text-white rounded-2xl font-bold cursor-pointer hover:scale-105 transition-all shadow-xl">
               Selecionar Arquivo
@@ -436,7 +464,13 @@ export function Import() {
             onClick={() => navigate(`/${importType}`)}
             className="px-8 py-3 bg-[#00174b] text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all"
           >
-            Ver {importType === 'students' ? 'Alunos' : importType === 'teachers' ? 'Professores' : importType === 'classes' ? 'Turmas' : 'Disciplinas'}
+            Ver {
+              importType === 'students' ? 'Alunos' : 
+              importType === 'teachers' ? 'Professores' : 
+              importType === 'classes' ? 'Turmas' : 
+              importType === 'subjects' ? 'Disciplinas' : 
+              importType === 'parishes' ? 'Paróquias' : 'Foranias'
+            }
           </button>
         </div>
       )}

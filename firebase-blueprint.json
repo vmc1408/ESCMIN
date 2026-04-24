@@ -156,6 +156,39 @@
         "logo_url": { "type": "string" },
         "updated_at": { "type": "string", "format": "date-time" }
       }
+    },
+    "Foraria": {
+      "title": "Foraria",
+      "description": "Diocese Foraria",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name"]
+    },
+    "Parish": {
+      "title": "Parish",
+      "description": "Church Parish information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "forania": { "type": "string" },
+        "priest_name": { "type": "string" },
+        "address_street": { "type": "string" },
+        "address_neighborhood": { "type": "string" },
+        "address_city": { "type": "string" },
+        "address_state": { "type": "string" },
+        "address_zip": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "forania"]
     }
   },
   "firestore": {
@@ -166,6 +199,8 @@
     "teachers": { "schema": "Teacher", "description": "Teachers collection" },
     "pix_reconciliations": { "schema": "PixTransaction", "description": "PIX transactions collection" },
     "contributions": { "schema": "Contribution", "description": "Contributions collection" },
-    "institution_settings": { "schema": "InstitutionSettings", "description": "Institution configuration" }
+    "institution_settings": { "schema": "InstitutionSettings", "description": "Institution configuration" },
+    "foraries": { "schema": "Foraria", "description": "Foraries collection" },
+    "parishes": { "schema": "Parish", "description": "Parishes collection" }
   }
 }

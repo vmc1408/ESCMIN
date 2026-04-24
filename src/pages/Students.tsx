@@ -26,6 +26,7 @@ import {
 import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { format } from 'date-fns';
 import { formatCurrency, cn } from '../lib/utils';
 import { db, uploadImage, fetchAll, saveData, deleteData } from '../lib/firebase';
 import { collection, addDoc, updateDoc, doc, query, limit, getDocs } from 'firebase/firestore';
@@ -175,7 +176,31 @@ export function Students() {
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<Partial<Student>>({});
+  // Initialize with all fields to prevent uncontrolled input warnings
+  const initialStudentState: Partial<Student> = {
+    name: '',
+    registration_number: '',
+    status: 'Ativo',
+    class_id: '',
+    email: '',
+    phone_mobile: '',
+    phone_residential: '',
+    cpf: '',
+    rg: '',
+    birth_date: '',
+    address_street: '',
+    address_neighborhood: '',
+    address_city: 'Guarulhos',
+    address_state: 'SP',
+    address_zip: '',
+    parish: '',
+    course: '',
+    pastoral_participates: '',
+    start_date: '',
+    photo_url: ''
+  };
+
+  const [formData, setFormData] = useState<Partial<Student>>(initialStudentState);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [sortBy, setSortBy] = useState<'name' | 'registration'>('registration');
@@ -233,14 +258,39 @@ export function Students() {
 
   const handleSelectStudent = useCallback((student: Student) => {
     setSelectedStudent(student);
-    setFormData(student);
+    setFormData({
+      ...initialStudentState,
+      ...student,
+      // Ensure specific fields aren't null/undefined from DB
+      name: student.name || '',
+      registration_number: student.registration_number || '',
+      status: student.status || 'Ativo',
+      class_id: student.class_id || '',
+      email: student.email || '',
+      phone_mobile: student.phone_mobile || '',
+      phone_residential: student.phone_residential || '',
+      cpf: student.cpf || '',
+      rg: student.rg || '',
+      birth_date: student.birth_date || '',
+      address_street: student.address_street || '',
+      address_neighborhood: student.address_neighborhood || '',
+      address_city: student.address_city || 'Guarulhos',
+      address_state: student.address_state || 'SP',
+      address_zip: student.address_zip || '',
+      parish: student.parish || '',
+      course: student.course || '',
+      pastoral_participates: student.pastoral_participates || '',
+      start_date: student.start_date || '',
+      photo_url: student.photo_url || ''
+    });
     setIsEditing(false);
-  }, []);
+  }, [initialStudentState]);
 
   const handleNew = () => {
     setSelectedStudent(null);
     const nextReg = generateNextRegistrationNumber(students);
     setFormData({
+      ...initialStudentState,
       name: '',
       status: 'Ativo',
       registration_number: nextReg,
@@ -268,7 +318,15 @@ export function Students() {
     
     try {
       setLoading(true);
-      const savedId = await saveData('students', selectedStudent?.id, formData);
+      
+      const dataToSave = { ...formData };
+      
+      // Set created_at only if it's the first time saving (no id)
+      if (!selectedStudent?.id && !dataToSave.created_at) {
+        dataToSave.created_at = new Date().toISOString();
+      }
+
+      const savedId = await saveData('students', selectedStudent?.id, dataToSave);
       
       setNotification({ type: 'success', message: 'Ficha do aluno salva com sucesso!' });
       setIsEditing(false);
@@ -277,7 +335,10 @@ export function Students() {
       
       // Update selected student with fresh data including the ID if it was new
       if (!selectedStudent?.id && savedId) {
-        handleSelectStudent({ ...formData, id: savedId } as Student);
+        handleSelectStudent({ ...dataToSave, id: savedId } as Student);
+      } else {
+        // Update local state if editing existing
+        setSelectedStudent({ ...dataToSave, id: selectedStudent?.id } as Student);
       }
     } catch (error: any) {
       console.error('Error saving student:', error);
@@ -297,7 +358,7 @@ export function Students() {
       
       setNotification({ type: 'success', message: 'Aluno removido com sucesso!' });
       setSelectedStudent(null);
-      setFormData({});
+      setFormData(initialStudentState);
       setIsEditing(false);
       setShowDeleteConfirm(false);
       fetchStudents();
@@ -359,135 +420,252 @@ export function Students() {
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
-      const margin = 20;
+      const margin = 15;
+      const centerX = pageWidth / 2;
       
-      // Fetch institution for logo/name
+      // Fetch institution settings
       const instRef = collection(db, 'institution_settings');
       const instSnap = await getDocs(query(instRef, limit(1)));
       const inst = instSnap.empty ? null : instSnap.docs[0].data();
 
-      // Header
+      // --- HEADER SECTION ---
+      let y = 15;
       if (inst?.logo_url) {
-        try {
-          doc.addImage(inst.logo_url, 'PNG', margin, 15, 25, 25);
-        } catch (e) {
-          console.error('Error adding logo to PDF', e);
-        }
+        try { 
+          doc.addImage(inst.logo_url, 'auto', margin, y, 25, 25); 
+        } catch (e) {}
       }
+
+      doc.setTextColor(50);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('DIOCESE DE GUARULHOS', centerX + 10, y + 5, { align: 'center' });
       
       doc.setFontSize(22);
-      doc.setTextColor(0, 23, 75);
       doc.setFont('helvetica', 'bold');
-      doc.text('FICHA INDIVIDUAL DO ALUNO', 50, 25);
+      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), centerX + 10, y + 15, { align: 'center' });
       
-      doc.setFontSize(10);
-      doc.setTextColor(100);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
-      doc.text(inst?.name || 'ESCMIN - Gestão Escolar', 50, 32);
-      doc.text(`Matrícula: ${student.registration_number}`, 50, 37);
+      doc.text('Pe. José Fernando de Brito', centerX + 10, y + 21, { align: 'center' });
 
-      // Student Photo Placeholder or Image
-      doc.setDrawColor(200);
-      doc.rect(pageWidth - margin - 35, 15, 35, 45);
-      if (student.photo_url) {
-        try {
-          doc.addImage(student.photo_url, 'JPEG', pageWidth - margin - 35, 15, 35, 45);
-        } catch (e) {
-          doc.setFontSize(8);
-          doc.text('Foto não disponível', pageWidth - margin - 32, 40);
-        }
-      } else {
-        doc.setFontSize(8);
-        doc.text('SEM FOTO', pageWidth - margin - 25, 40);
-      }
+      y += 35;
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Ficha de Inscrição', centerX, y, { align: 'center' });
 
-      // Personal Data Section
-      doc.setFontSize(14);
-      doc.setTextColor(0, 23, 75);
-      doc.text('DADOS PESSOAIS', margin, 75);
-      doc.setDrawColor(0, 23, 75);
-      doc.line(margin, 77, pageWidth - margin, 77);
+      y += 10;
+      
+      // --- TOP BOXES SECTION ---
+      const boxHeight = 40;
+      
+      // Controle da Escola Box
+      doc.setDrawColor(150);
+      doc.setLineWidth(0.3);
+      doc.rect(margin, y, 60, boxHeight);
+      doc.setFontSize(12);
+      doc.text('Controle da Escola', margin + 2, y + 6);
+      doc.line(margin + 2, y + 8, margin + 55, y + 8);
+      
+      doc.setFontSize(11);
+      doc.text('Inscrição:', margin + 4, y + 22);
+      doc.rect(margin + 4, y + 26, 52, 11);
+      doc.setFontSize(9);
+      doc.text(`Nº ${student.registration_number || ''}`, margin + 6, y + 33);
 
+      // Course selection Box (Yellow) - Reduced width to 82 to avoid overlap with photo
+      doc.rect(margin + 62, y, 82, boxHeight);
       doc.setFontSize(10);
       doc.setTextColor(0);
-      const personalData = [
-        ['Nome:', student.name],
-        ['CPF:', student.cpf || '---'],
-        ['RG:', student.rg || '---'],
-        ['Nascimento:', student.birth_date ? new Date(student.birth_date).toLocaleDateString('pt-BR') : '---'],
-        ['Curso:', student.course || '---'],
-        ['Situação:', student.status]
-      ];
-
-      autoTable(doc, {
-        startY: 80,
-        body: personalData,
-        theme: 'plain',
-        styles: { cellPadding: 2, fontSize: 10 },
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 } }
+      doc.setFont('helvetica', 'bold');
+      doc.text('CURSO:', margin + 66, y + 7);
+      
+      const studentClass = classes.find(c => c.id === student.class_id);
+      doc.setFont('helvetica', 'normal');
+      const courses = ['Teologia', 'Doutrina Social da Igreja', 'História dos Santos Negros'];
+      
+      courses.forEach((c, i) => {
+        // Auto-check based on student's course record OR class name match
+        const isChecked = student.course === c || (studentClass?.name && studentClass.name.toLowerCase().includes(c.toLowerCase()));
+        doc.rect(margin + 66, y + 13 + (i * 8), 5, 5);
+        if (isChecked) {
+          doc.line(margin + 66, y + 13 + (i * 8), margin + 71, y + 18 + (i * 8));
+          doc.line(margin + 71, y + 13 + (i * 8), margin + 66, y + 18 + (i * 8));
+        }
+        doc.text(c, margin + 75, y + 17 + (i * 8));
       });
 
-      // Contact Section
-      const nextY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(14);
-      doc.setTextColor(0, 23, 75);
-      doc.text('CONTATO E ENDEREÇO', margin, nextY);
-      doc.line(margin, nextY + 2, pageWidth - margin, nextY + 2);
+      // Special note if it's a specific class
+      if (studentClass?.name) {
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(`Turma: ${studentClass.name}`, margin + 66, y + 38);
+      }
 
-      const contactData = [
-        ['Endereço:', student.address_street || '---'],
-        ['Cidade/UF:', `${student.address_city || '---'} / ${student.address_state || '---'}`],
-        ['CEP:', student.address_zip || '---'],
-        ['E-mail:', student.email || '---'],
-        ['Celular:', student.phone_mobile || '---']
+      // Photo Box (Adjusted to fit perfectly)
+      const photoBoxWidth = 34;
+      const photoBoxHeight = boxHeight;
+      const photoX = pageWidth - margin - photoBoxWidth;
+      doc.setDrawColor(150);
+      doc.rect(photoX, y, photoBoxWidth, photoBoxHeight);
+      
+      if (student.photo_url) {
+        try {
+          doc.addImage(student.photo_url, 'auto', photoX + 1, y + 1, photoBoxWidth - 2, photoBoxHeight - 2);
+        } catch (e) {
+          doc.setFontSize(7);
+          doc.setTextColor(150);
+          doc.text('COLE AQUI', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 - 2, { align: 'center' });
+          doc.text('FOTO 3X4', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 + 2, { align: 'center' });
+        }
+      } else {
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text('COLE AQUI', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 - 2, { align: 'center' });
+        doc.text('FOTO 3X4', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 + 2, { align: 'center' });
+      }
+
+      y += boxHeight + 15;
+      doc.setTextColor(50);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+
+      // --- PERSONAL DATA LINES (Red Adjustment for Margins) ---
+      const fieldEndX = pageWidth - margin;
+      const drawField = (label: string, value: string, x: number, yPos: number, endXPos: number) => {
+        doc.text(label, x, yPos);
+        const labelWidth = doc.getTextWidth(label) + 2;
+        // The line now stops EXACTLY at endXPos
+        doc.line(x + labelWidth, yPos + 1, endXPos, yPos + 1);
+        doc.setFont('helvetica', 'bold');
+        
+        // Ensure text doesn't overflow the segment
+        const availableWidth = endXPos - (x + labelWidth) - 2;
+        const textToDraw = (value || '').toUpperCase();
+        doc.text(textToDraw, x + labelWidth + 1, yPos, { maxWidth: availableWidth });
+        doc.setFont('helvetica', 'normal');
+      };
+
+      drawField('Nome:', student.name, margin, y, fieldEndX);
+      
+      y += 8;
+      drawField('Endereço:', student.address_street || '', margin, y, fieldEndX);
+      
+      y += 8;
+      // Fixed segments for Bairro/Cidade/Uf to hit the right margin perfectly
+      const colBairroEnd = margin + 75; // Reduced slightly to balance
+      const colCidadeEnd = fieldEndX - 28; // Increased space for UF from 15 to 28
+      drawField('Bairro:', student.address_neighborhood || '', margin, y, colBairroEnd);
+      drawField('Cidade:', student.address_city || '', colBairroEnd + 2, y, colCidadeEnd);
+      drawField('Uf:', student.address_state || '', colCidadeEnd + 2, y, fieldEndX);
+      
+      y += 8;
+      const colCepEnd = margin + 80;
+      drawField('Cep:', student.address_zip || '', margin, y, colCepEnd);
+      drawField('Celular:', student.phone_mobile || '', colCepEnd + 2, y, fieldEndX);
+      
+      y += 8;
+      const colNascEnd = margin + 70;
+      const colRGEnd = margin + 125;
+      drawField('Data de Nascimento:', formatDateForDisplay(student.birth_date), margin, y, colNascEnd);
+      drawField('RG:', student.rg || '', colNascEnd + 2, y, colRGEnd);
+      drawField('CPF:', student.cpf || '', colRGEnd + 2, y, fieldEndX);
+      
+      y += 8;
+      drawField('Email:', (student.email || '').toLowerCase(), margin, y, fieldEndX);
+      
+      y += 10;
+      drawField('É participante de qual Paróquia?', student.parish || '', margin, y, fieldEndX);
+      
+      y += 8;
+      drawField('Participa de qual Pastoral?', student.pastoral_participates || '', margin, y, fieldEndX);
+
+      y += 15;
+
+      // --- INFORMATION SECTION ---
+      doc.setFont('helvetica', 'bold');
+      doc.text('Informações básicas para admissão ao curso escolhido', centerX, y, { align: 'center' });
+      doc.setLineWidth(0.1);
+      doc.line(centerX - 65, y + 1, centerX + 65, y + 1);
+      
+      y += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const guidelines = [
+        '1) No ato da matrícula o(a) aluno(a) concorda em priorizar a frequência no curso escolhido.',
+        '2) Como critério de aprovação o(a) aluno(a) deverá ter frequência mínima de 75% das aulas.',
+        '3) A nota mínima exigida para a promoção do(a) aluno(a) é de 5,0 (cinco) por disciplina.',
+        '4) O(a) aluno(a) se compromete a manter em dia a mensalidade estabelecida dentro do prazo de vencimento.'
       ];
-
-      autoTable(doc, {
-        startY: nextY + 5,
-        body: contactData,
-        theme: 'plain',
-        styles: { cellPadding: 2, fontSize: 10 },
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 } }
+      
+      guidelines.forEach(line => {
+        doc.text(line, margin + 5, y);
+        y += 5;
       });
 
-      // Pastoral Section
-      const pastoralY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(14);
-      doc.setTextColor(0, 23, 75);
-      doc.text('INFORMAÇÕES PASTORAIS', margin, pastoralY);
-      doc.line(margin, pastoralY + 2, pageWidth - margin, pastoralY + 2);
+      y += 5;
+      doc.text('Eu ', margin, y);
+      doc.line(margin + 5, y + 1, margin + 135, y + 1);
+      doc.setFont('helvetica', 'bold');
+      doc.text(student.name.toUpperCase(), margin + 10, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(', declaro que', margin + 136, y);
+      
+      y += 5;
+      const declaration = `estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.`;
+      const splitDec = doc.splitTextToSize(declaration, pageWidth - margin * 2);
+      doc.text(splitDec, margin, y);
 
-      const pastoralData = [
-        ['Paróquia:', student.parish || '---'],
-        ['Pastoral:', student.pastoral_participates || '---']
-      ];
-
-      autoTable(doc, {
-        startY: pastoralY + 5,
-        body: pastoralData,
-        theme: 'plain',
-        styles: { cellPadding: 2, fontSize: 10 },
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 30 } }
-      });
-
-      // Footer
+      y += 20;
+      // Auto-fill date
+      const regDate = student.start_date || format(new Date(), 'dd/MM/yyyy');
+      doc.text(`Guarulhos, ${regDate}`, margin, y);
+      
+      doc.line(pageWidth - margin - 80, y, pageWidth - margin - 5, y);
       doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(`Documento gerado em ${new Date().toLocaleString('pt-BR')}`, margin, doc.internal.pageSize.height - 10);
+      doc.text('Aluno(a)', pageWidth - margin - 42.5, y + 4, { align: 'center' });
 
-      doc.save(`Ficha_${student.name.replace(/\s+/g, '_')}.pdf`);
+      // --- FOOTER SECTION ---
+      y = doc.internal.pageSize.height - 35;
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, pageWidth - margin, y);
+      
+      y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('ENDEREÇO:', margin, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(inst?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP', margin, y + 4);
+      doc.text(`Telefone: ${inst?.phone || '(11) 2421-2935'}`, margin, y + 8);
+      doc.text(`Email: ${inst?.email || 'edm@diocesedeguarulhos.org.br'}`, margin, y + 12);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('ATENDIMENTO SECRETARIA:', centerX + 15, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('De Quarta à Sexta-feira das 14h às 18h', centerX + 15, y + 4);
+
+      // Discrete Footer Message
+      doc.setFontSize(9);
+      doc.setTextColor(0, 150, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Ficha exclusiva para controle interno. via única.', centerX, doc.internal.pageSize.height - 5, { align: 'center' });
+
+      doc.save(`Ficha_Inscricao_${student.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
       console.error('Error generating student PDF:', error);
-      alert('Erro ao gerar PDF do aluno');
+      alert('Erro ao gerar ficha de inscrição');
     }
   };
 
   const filteredStudents = React.useMemo(() => {
     return students.filter(s => {
       const matchesSearch = 
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.registration_number?.includes(searchTerm) ||
-        s.cpf?.includes(searchTerm);
+        (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.registration_number || '').includes(searchTerm) ||
+        (s.cpf || '').includes(searchTerm);
       
       const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter || (s.status === '' && statusFilter === 'Ativo');
       
@@ -693,19 +871,28 @@ export function Students() {
                 {!isEditing && selectedStudent && (
                   <button 
                     onClick={() => generateStudentPDF(selectedStudent)}
-                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                    className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
                   >
                     <FileText size={16} />
-                    Gerar PDF
+                    Ficha (PDF)
                   </button>
                 )}
                 {!isEditing && selectedStudent && (
                   <button 
                     onClick={() => navigate('/contributions', { state: { studentId: selectedStudent.id } })}
-                    className="px-4 py-2 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
+                    className="h-10 px-4 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
                   >
                     <CreditCard size={16} />
                     Financeiro
+                  </button>
+                 )}
+                {!isEditing && selectedStudent && (
+                  <button 
+                    onClick={() => setIsEditing(true)}
+                    className="h-10 px-6 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-md flex items-center gap-2"
+                  >
+                    <Edit2 size={16} />
+                    Editar
                   </button>
                 )}
                 {!isEditing && selectedStudent && (
@@ -716,57 +903,18 @@ export function Students() {
                       e.stopPropagation();
                       setShowDeleteConfirm(true);
                     }}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group bg-white border border-slate-100"
+                    className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center bg-white border border-slate-100"
                     title="Excluir Aluno"
                   >
-                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
-                  </button>
-                )}
-                {isEditing ? (
-                  <>
-                    <button 
-                      onClick={() => {
-                        setIsEditing(false);
-                        setUploadingPhoto(false);
-                      }}
-                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-bold transition-all"
-                      tabIndex={100}
-                    >
-                      Cancelar
-                    </button>
-                    <button 
-                      onClick={handleSave}
-                      disabled={loading || uploadingPhoto}
-                      className="px-6 py-2 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg disabled:opacity-50 disabled:grayscale"
-                      tabIndex={101}
-                    >
-                      {loading ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 size={16} className="animate-spin" />
-                          Salvando...
-                        </div>
-                      ) : uploadingPhoto ? (
-                        <div className="flex items-center gap-2">
-                          <Loader2 size={16} className="animate-spin" />
-                          Subindo Foto...
-                        </div>
-                      ) : 'Salvar Aluno'}
-                    </button>
-                  </>
-                ) : (
-                  <button 
-                    onClick={() => setIsEditing(true)}
-                    className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                  >
-                    <Edit2 size={16} />
-                    Editar Ficha
+                    <Trash2 size={20} />
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8">
-              {showWebcam ? (
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-8 pb-32">
+                {showWebcam ? (
                 <div className="max-w-md mx-auto space-y-4">
                   <div className="aspect-video bg-black rounded-3xl overflow-hidden relative">
                     <Webcam
@@ -936,7 +1084,7 @@ export function Students() {
                     </h4>
                     <div className="grid grid-cols-12 gap-4">
                       <div className="col-span-12 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Logradouro</label>
+                        <label className="text-xs font-bold text-slate-700">Logradouro (Rua, Número, Complemento)</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
@@ -945,6 +1093,18 @@ export function Students() {
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={9}
+                        />
+                      </div>
+                      <div className="col-span-4 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Bairro</label>
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          value={formData.address_neighborhood || ''}
+                          onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          tabIndex={10}
                         />
                       </div>
                       <div className="col-span-5 space-y-1">
@@ -956,11 +1116,11 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={10}
+                          tabIndex={11}
                         />
                       </div>
-                      <div className="col-span-2 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">UF</label>
+                      <div className="col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">UF / Estado</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
@@ -968,10 +1128,10 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, address_state: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={11}
+                          tabIndex={12}
                         />
                       </div>
-                      <div className="col-span-5 space-y-1">
+                      <div className="col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">CEP</label>
                         <input 
                           type="text"
@@ -981,10 +1141,10 @@ export function Students() {
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           placeholder="00000-000"
-                          tabIndex={12}
+                          tabIndex={13}
                         />
                       </div>
-                      <div className="col-span-6 space-y-1">
+                      <div className="col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">E-mail</label>
                         <input 
                           type="email"
@@ -993,10 +1153,10 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, email: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={13}
+                          tabIndex={14}
                         />
                       </div>
-                      <div className="col-span-6 space-y-1">
+                      <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Celular</label>
                         <input 
                           type="text"
@@ -1006,7 +1166,7 @@ export function Students() {
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           placeholder="(00) 00000-0000"
-                          tabIndex={14}
+                          tabIndex={15}
                         />
                       </div>
                     </div>
@@ -1018,8 +1178,8 @@ export function Students() {
                       <GraduationCap size={14} />
                       Informações Pastorais
                     </h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Paróquia Origem</label>
                         <input 
                           type="text"
@@ -1028,10 +1188,10 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, parish: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={15}
+                          tabIndex={16}
                         />
                       </div>
-                      <div className="space-y-1">
+                      <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Pastoral que participa</label>
                         <input 
                           type="text"
@@ -1040,13 +1200,69 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, pastoral_participates: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                          tabIndex={16}
+                          tabIndex={17}
                         />
                       </div>
                     </div>
                   </section>
+
+                  {/* Registration Date (Last Field) */}
+                  <section className="space-y-4 pt-4 border-t border-slate-100">
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-6 space-y-1">
+                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-help" title="Data em que o aluno foi cadastrado pela primeira vez">
+                          <AlertCircle size={12} className="text-blue-500" />
+                          Data da Inscrição
+                        </label>
+                        <div className="w-full px-4 py-2 bg-slate-100/50 text-slate-500 rounded-xl text-sm border border-dashed border-slate-200 flex items-center gap-2">
+                          <Calendar size={14} />
+                          {formData.created_at ? (
+                            <span className="font-bold">{formatDateForDisplay(formData.created_at)}</span>
+                          ) : (
+                            <span className="italic">Será preenchido automaticamente ao salvar</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Action Buttons in Footer */}
+                  {isEditing && (
+                    <div className="pt-10 flex items-center gap-4 border-t border-slate-100 mt-12 pb-12">
+                      <button 
+                        onClick={() => {
+                          setIsEditing(false);
+                          setUploadingPhoto(false);
+                        }}
+                        className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                        tabIndex={18}
+                      >
+                        <X size={18} />
+                        Cancelar Alterações
+                      </button>
+                      <button 
+                        onClick={handleSave}
+                        disabled={loading || uploadingPhoto}
+                        className="flex-[2] h-12 bg-[#00174b] text-white rounded-2xl text-sm font-bold hover:scale-[1.01] active:scale-95 transition-all shadow-xl shadow-blue-900/10 disabled:opacity-50 flex items-center justify-center gap-2"
+                        tabIndex={19}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            Processando...
+                          </>
+                        ) : (
+                          <>
+                            <Save size={18} />
+                            Salvar Dados da Ficha
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
+              </div>
             </div>
           </>
         ) : (
