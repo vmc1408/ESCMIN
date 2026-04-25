@@ -22,7 +22,7 @@ export const schemaService = {
       if (entityName === 'Subject') actualTableName = 'subjects';
       if (entityName === 'PixTransaction') actualTableName = 'pix_reconciliations';
       if (entityName === 'Contribution') actualTableName = 'contributions';
-      if (entityName === 'UserProfile') actualTableName = 'profiles';
+      if (entityName === 'UserProfile') actualTableName = 'users';
       if (entityName === 'InstitutionSettings') actualTableName = 'institution_settings';
 
       try {

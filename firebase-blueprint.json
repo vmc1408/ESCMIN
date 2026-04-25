@@ -192,7 +192,7 @@
     }
   },
   "firestore": {
-    "profiles": { "schema": "UserProfile", "description": "User profile collection" },
+    "users": { "schema": "UserProfile", "description": "User profile collection" },
     "students": { "schema": "Student", "description": "Student records collection" },
     "classes": { "schema": "Class", "description": "School classes collection" },
     "subjects": { "schema": "Subject", "description": "Course subjects collection" },

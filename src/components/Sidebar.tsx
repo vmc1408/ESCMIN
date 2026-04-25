@@ -20,13 +20,16 @@ import {
   ChevronRight,
   GraduationCap,
   Wallet,
-  Church
+  Church,
+  XCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
+
+import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { icon: DashboardIcon, label: 'Dashboard', path: '/' },
@@ -57,19 +60,36 @@ const navItems = [
       { icon: ReportsIcon, label: 'Relatórios', path: '/reports' },
     ]
   },
+  { icon: UserManagementIcon, label: 'Usuários', path: '/users' },
   { icon: SettingsIcon, label: 'Configurações', path: '/settings' },
 ];
 
 import { supabase } from '../lib/supabase';
 import { financialService } from '../services/financialService';
 
-export function Sidebar() {
+export function Sidebar({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
+  const { profile, logout, canAccess, isAdmin } = useAuth();
 
   const [logoUrl, setLogoUrl] = useState('');
   const [instName, setInstName] = useState('ESCMIN');
   const [imageError, setImageError] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  // Filter items based on access
+  const filterByAccess = (items: any[]): any[] => {
+    return items.filter(item => {
+      if (item.requiredRole && item.requiredRole === 'admin' && !isAdmin) return false;
+      if (item.path && !canAccess(item.path)) return false;
+      if (item.children) {
+        item.children = filterByAccess(item.children);
+        return item.children.length > 0;
+      }
+      return true;
+    });
+  };
+
+  const filteredNavItems = filterByAccess([...navItems]);
 
   const checkConnection = async () => {
     try {
@@ -239,8 +259,8 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-60 bg-[#00174b] text-white z-40 shadow-xl flex flex-col border-r border-white/5 print:hidden">
-      <div className="p-3 mb-1 bg-white/5 border-b border-white/5">
+    <aside className="h-full w-60 bg-[#00174b] text-white flex flex-col border-r border-white/5 print:hidden overflow-hidden shrink-0">
+      <div className="p-3 mb-1 bg-white/5 border-b border-white/5 relative">
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center overflow-hidden border border-white/20 shadow-2xl">
             {logoUrl && !imageError ? (
@@ -266,11 +286,21 @@ export function Sidebar() {
               <p className="text-[8px] font-black text-blue-400/80 uppercase tracking-widest">Painel Gestor</p>
             </div>
           </div>
+
+          {/* Botão de Fechar Mobile */}
+          {onClose && (
+            <button 
+              onClick={onClose}
+              className="lg:hidden p-1 text-white/40 hover:text-white transition-colors"
+            >
+              <XCircle size={20} />
+            </button>
+          )}
         </div>
       </div>
 
       <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto custom-scrollbar">
-        {renderNavItems(navItems)}
+        {renderNavItems(filteredNavItems)}
       </nav>
 
       <div className="p-2 mt-auto space-y-1 border-t border-white/5 bg-[#00174b]">

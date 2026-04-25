@@ -10,82 +10,63 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isValidId(id) { return id is string && id.size() <= 128; }
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() { return isSignedIn() && getUserRole() == 'admin'; }
+    function isDirector() { return isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'diretor'); }
+    function isStaff() { return isSignedIn() && (getUserRole() in ['admin', 'diretor', 'secretario']); }
 
-    // Validation Blueprints
-    function isValidStudent(data) {
-      return data.name is string && data.name.size() > 0 &&
-             data.status is string &&
-             data.registration_number is string;
+    // Users & Roles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
-    function isValidClass(data) {
-      return data.name is string && data.name.size() > 0 &&
-             data.code is string &&
-             data.status in ['Ativo', 'Inativo'];
-    }
-
-    function isValidTeacher(data) {
-      return data.name is string && data.name.size() > 0 &&
-             data.email is string &&
-             data.code is string;
-    }
-
-    function isValidPixTransaction(data) {
-      return data.transaction_id is string &&
-             data.amount is number &&
-             data.status in ['matched', 'unmatched', 'multiple'];
-    }
-
-    // Collections - OPEN ACCESS for user convenience (as requested)
-    
     match /students/{studentId} {
-      allow read, delete: if true;
-      allow create, update: if (incoming().name is string);
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     match /classes/{classId} {
-      allow read, delete: if true;
-      allow create, update: if (incoming().name is string);
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     match /teachers/{teacherId} {
-      allow read, delete: if true;
-      allow create, update: if (incoming().name is string);
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     match /subjects/{subjectId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    match /profiles/{userId} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     match /pix_reconciliations/{id} {
-      allow read: if true;
-      allow create, update: if isValidPixTransaction(incoming());
-      allow delete: if true;
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     match /contributions/{id} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     match /institution_settings/{id} {
       allow read: if true;
-      allow write: if true;
+      allow write: if isDirector();
     }
 
     match /foraries/{id} {
-      allow read, write: if true;
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
 
     match /parishes/{id} {
-      allow read, write: if true;
+      allow read: if isStaff();
+      allow write: if isStaff();
     }
   }
 }

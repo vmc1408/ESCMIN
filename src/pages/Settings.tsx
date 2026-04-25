@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Building2, 
-  Users, 
   Save, 
   Plus, 
   Trash2, 
@@ -38,125 +37,29 @@ import {
   School,
   CheckCircle,
   Copy,
-  Terminal
+  Terminal,
+  Key
 } from 'lucide-react';
 import { db, fetchCount, uploadImage, saveData, fetchAll } from '../lib/firebase';
-import { collection, query, limit, getDocs, doc, updateDoc, setDoc, deleteDoc, orderBy, addDoc, writeBatch } from 'firebase/firestore';
-import { Student, Class } from '../types';
+import { collection, query, limit, getDocs, doc, updateDoc, setDoc, deleteDoc, orderBy, addDoc, writeBatch, getDoc } from 'firebase/firestore';
+import { 
+  getAuth, 
+  updatePassword,
+  verifyBeforeUpdateEmail,
+  signOut,
+  setPersistence,
+  browserLocalPersistence
+} from 'firebase/auth';
+import { Student, Class, InstitutionSettings, UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { financialService } from '../services/financialService';
 import { supabase } from '../lib/supabase';
 import { schemaService } from '../services/schemaService';
+import { useAuth } from '../contexts/AuthContext';
 
-const USER_ROLES = [
-  { value: 'admin', label: 'Administrador', color: 'bg-indigo-50 text-indigo-700 border-indigo-100', icon: Crown },
-  { value: 'coordenador', label: 'Coordenador', color: 'bg-emerald-50 text-emerald-700 border-emerald-100', icon: ShieldCheck },
-  { value: 'secretario', label: 'Secretário', color: 'bg-amber-50 text-amber-700 border-amber-100', icon: UserCheck },
-];
 
-const USER_STATUS = [
-  { value: 'authorized', label: 'Ativo', color: 'bg-green-50 text-green-600', dot: 'bg-green-500' },
-  { value: 'pending', label: 'Pendente', color: 'bg-amber-50 text-amber-600', dot: 'bg-amber-500' },
-  { value: 'suspended', label: 'Suspenso', color: 'bg-red-50 text-red-600', dot: 'bg-red-500' },
-];
 
-interface InstitutionSettings {
-  id?: string;
-  name: string;
-  cnpj: string;
-  address: string;
-  phone: string;
-  email: string;
-  website: string;
-  logo_url: string;
-  footer_text: string;
-  receipt_message: string;
-}
 
-interface UserProfile {
-  id: string;
-  full_name: string;
-  username: string;
-  email?: string;
-  role: 'admin' | 'coordenador' | 'secretario';
-  avatar_url?: string;
-  status: 'pending' | 'authorized' | 'suspended';
-  created_at: string;
-  updated_at?: string;
-}
-
-// Memoized Professional User Card
-const UserCard = React.memo(({ 
-  user, 
-  onEdit, 
-  onDelete 
-}: { 
-  user: any, 
-  onEdit: (u: any) => void, 
-  onDelete: (id: string) => void 
-}) => {
-  const role = USER_ROLES.find(r => r.value === user.role) || USER_ROLES[2];
-  const RoleIcon = role.icon;
-  const status = USER_STATUS.find(s => s.value === user.status) || USER_STATUS[0];
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden flex flex-col">
-      <div className={`absolute top-0 left-0 w-1.5 h-full ${role.color.split(' ')[0]}`} title={role.label} />
-      
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-14 h-14 rounded-xl bg-slate-50 overflow-hidden border border-slate-100 transition-transform group-hover:scale-105">
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt={user.full_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-300">
-                  <User size={28} />
-                </div>
-              )}
-            </div>
-            <div className={cn("absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white shadow-sm transition-transform group-hover:scale-110", status.dot)} title={status.label} />
-          </div>
-          <div>
-            <h4 className="font-black text-[#00174b] text-sm line-clamp-1">{user.full_name}</h4>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{user.username}</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={() => onEdit(user)} 
-            className="p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition-all"
-            title="Editar Perfil"
-          >
-            <Edit2 size={16} />
-          </button>
-          <button 
-            onClick={() => onDelete(user.id)} 
-            className="p-2 text-slate-300 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-            title="Remover Usuário"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-auto pt-5 flex items-center justify-between gap-2 border-t border-slate-50">
-        <div className={cn("flex items-center gap-2 px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors", role.color)}>
-          <RoleIcon size={12} strokeWidth={3} />
-          {role.label}
-        </div>
-        
-        <div className="flex flex-col items-end">
-          <div className="flex items-center gap-1 text-[9px] font-bold text-slate-300">
-            <Clock size={10} />
-            {user.updated_at ? new Date(user.updated_at).toLocaleDateString('pt-BR') : 'Sem registros'}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
 
 const getYearFromRegistration = (reg: string | undefined): string => {
   if (!reg) return '';
@@ -191,7 +94,7 @@ const extractYearFromText = (text: string | undefined): number | null => {
 };
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<'institution' | 'users' | 'profile' | 'maintenance'>('institution');
+  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance'>('institution');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -209,25 +112,9 @@ export function Settings() {
     receipt_message: ''
   });
 
-  // Users State
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [userFormData, setUserFormData] = useState<Partial<UserProfile>>({
-    role: 'secretario',
-    status: 'pending'
-  });
-
-  // My Profile State
-  const [myProfile, setMyProfile] = useState<Partial<UserProfile>>({
-    full_name: '',
-    email: '',
-    avatar_url: ''
-  });
+  const { user, refreshProfile } = useAuth();
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [uploadingMyAvatar, setUploadingMyAvatar] = useState(false);
 
   // Maintenance State
   const [counts, setCounts] = useState<Record<string, number>>({
@@ -255,8 +142,6 @@ export function Settings() {
 
   useEffect(() => {
     fetchInstitution();
-    fetchUsers();
-    fetchMyProfile();
     if (activeTab === 'maintenance') {
       fetchCounts();
     }
@@ -329,15 +214,30 @@ export function Settings() {
     }
   };
 
-  const fetchMyProfile = async () => {
+
+  const fetchInstitution = async () => {
     try {
-      const q = query(collection(db, 'profiles'), limit(1));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        setMyProfile({ id: snap.docs[0].id, ...snap.docs[0].data() } as UserProfile);
+      setLoading(true);
+      const data = await financialService.getInstitutionSettings();
+      if (data) {
+        setInstitution(data as InstitutionSettings);
+        return;
       }
-    } catch (e) {
-      console.error('Error fetching my profile:', e);
+
+      if (db) {
+        const q = query(collection(db, 'institution_settings'), limit(1));
+        const snap = await getDocs(q);
+
+        if (!snap.empty) {
+          setInstitution({ id: snap.docs[0].id, ...snap.docs[0].data() } as InstitutionSettings);
+        }
+      }
+    } catch (error: any) {
+      if (!error.message?.includes('quota')) {
+        console.error('Error fetching institution:', error.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -357,72 +257,7 @@ export function Settings() {
     }
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    try {
-      setUploadingAvatar(true);
-      const url = await uploadImage(file, 'assets', 'avatars');
-      setUserFormData({ ...userFormData, avatar_url: url });
-      setNotification({ type: 'success', message: 'Avatar carregado com sucesso!' });
-    } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao carregar avatar: ' + error.message });
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
-
-  const fetchInstitution = async () => {
-    try {
-      setLoading(true);
-      // Prio 1: Supabase
-      const data = await financialService.getInstitutionSettings();
-      if (data) {
-        setInstitution(data as InstitutionSettings);
-        return;
-      }
-
-      // Prio 2: Firebase Fallback
-      if (db) {
-        const q = query(collection(db, 'institution_settings'), limit(1));
-        const snap = await getDocs(q);
-
-        if (!snap.empty) {
-          setInstitution({ id: snap.docs[0].id, ...snap.docs[0].data() } as InstitutionSettings);
-        }
-      }
-    } catch (error: any) {
-      if (!error.message?.includes('quota')) {
-        console.error('Error fetching institution:', error.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      // Prio 1: Supabase
-      const { data, error } = await supabase.from('profiles').select('*').order('full_name', { ascending: true });
-      if (!error && data && data.length > 0) {
-        setUsers(data as UserProfile[]);
-        return;
-      }
-
-      // Prio 2: Firebase
-      if (db) {
-        const q = query(collection(db, 'profiles'), orderBy('full_name', 'asc'));
-        const snap = await getDocs(q);
-        const fbData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
-        setUsers(fbData);
-      }
-    } catch (error: any) {
-      if (!error.message?.includes('quota')) {
-        console.error('Error fetching users:', error.message);
-      }
-    }
-  };
 
   const formatCNPJ = (value: string) => {
     const digits = value.replace(/\D/g, '');
@@ -490,87 +325,8 @@ export function Settings() {
     }
   };
 
-  const handleSaveUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-      
-      const id = selectedUser?.id;
-      const now = new Date().toISOString();
-      const userUpdateData = {
-        full_name: userFormData.full_name,
-        username: userFormData.username,
-        email: userFormData.email || null,
-        role: userFormData.role,
-        avatar_url: userFormData.avatar_url || null,
-        status: userFormData.status || 'authorized',
-        created_at: selectedUser?.created_at || now
-      };
 
-      await saveData('profiles', id, userUpdateData);
 
-      setNotification({ type: 'success', message: 'Usuário sincronizado com Supabase!' });
-      setShowUserModal(false);
-      fetchUsers();
-      window.dispatchEvent(new Event('profile-updated'));
-    } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao salvar usuário: ' + error.message });
-    } finally {
-      setSaving(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
-
-  const handleMyAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setUploadingMyAvatar(true);
-      const url = await uploadImage(file, 'assets', 'avatars');
-      setMyProfile({ ...myProfile, avatar_url: url });
-      setNotification({ type: 'success', message: 'Avatar carregado com sucesso!' });
-    } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao carregar avatar: ' + error.message });
-    } finally {
-      setUploadingMyAvatar(false);
-    }
-  };
-
-  const handleSaveMyProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!myProfile.id) return;
-    try {
-      setSaving(true);
-      const docRef = doc(db, 'profiles', myProfile.id);
-      
-      const updateData = {
-        full_name: myProfile.full_name.trim(),
-        avatar_url: myProfile.avatar_url || null
-      };
-
-      await updateDoc(docRef, updateData);
-
-      setNotification({ type: 'success', message: 'Perfil atualizado com sucesso!' });
-      
-      // Update local storage if needed to reflect changes immediately in header/sidebar
-      const userData = localStorage.getItem('user_data');
-      if (userData) {
-        const parsed = JSON.parse(userData);
-        localStorage.setItem('user_data', JSON.stringify({
-          ...parsed,
-          ...updateData
-        }));
-      }
-
-      window.dispatchEvent(new Event('profile-updated'));
-    } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao salvar perfil: ' + error.message });
-    } finally {
-      setSaving(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
 
   const handleInactivateOldStudents = async () => {
     setShowConfirmModal({
@@ -762,7 +518,6 @@ export function Settings() {
           
           setNotification({ type: 'success', message: `${totalDocs} registros de ${label} removidos com sucesso!` });
           fetchCounts();
-          if (module === 'profiles') fetchUsers();
         } catch (error: any) {
           console.error(`Erro ao limpar módulo ${module}:`, error);
           setNotification({ type: 'error', message: 'Erro ao limpar módulo: ' + error.message });
@@ -837,30 +592,7 @@ export function Settings() {
     });
   };
 
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este usuário?')) return;
-    try {
-      const docRef = doc(db, 'profiles', id);
-      await deleteDoc(docRef);
 
-      setNotification({ type: 'success', message: 'Usuário removido com sucesso!' });
-      fetchUsers();
-    } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao remover: ' + error.message });
-    } finally {
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
-
-  const handleEditUser = useCallback((user: any) => {
-    setSelectedUser(user);
-    setUserFormData(user);
-    setShowUserModal(true);
-  }, []);
-
-  const handleDeleteUserClick = useCallback((userId: string) => {
-    handleDeleteUser(userId);
-  }, [handleDeleteUser]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -881,26 +613,7 @@ export function Settings() {
             <Building2 size={18} />
             Instituição
           </button>
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={cn(
-              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'users' ? "bg-[#00174b] text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <Users size={18} />
-            Usuários
-          </button>
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className={cn(
-              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'profile' ? "bg-[#00174b] text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <User size={18} />
-            Meu Perfil
-          </button>
+
           <button 
             onClick={() => setActiveTab('maintenance')}
             className={cn(
@@ -1151,35 +864,8 @@ export function Settings() {
             </div>
           </form>
         </div>
-      ) : activeTab === 'users' ? (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-2xl font-black text-[#00174b]">Gestão de Usuários</h3>
-            <button 
-              onClick={() => {
-                setSelectedUser(null);
-                setUserFormData({ role: 'secretario', status: 'pending' });
-                setShowUserModal(true);
-              }}
-              className="px-6 py-3 bg-[#00174b] text-white rounded-2xl font-bold flex items-center gap-2 hover:shadow-xl transition-all active:scale-95"
-            >
-              <Plus size={20} />
-              Novo Usuário
-            </button>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {users.map((user) => (
-              <UserCard 
-                key={user.id} 
-                user={user} 
-                onEdit={handleEditUser} 
-                onDelete={handleDeleteUserClick} 
-              />
-            ))}
-          </div>
-        </div>
-      ) : activeTab === 'maintenance' ? (
+      ) : (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-red-50 border border-red-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6">
             <div className="w-16 h-16 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
@@ -1437,176 +1123,9 @@ export function Settings() {
             </div>
           )}
         </div>
-      ) : (
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden max-w-2xl mx-auto">
-          <div className="p-8 md:p-10">
-            <h3 className="text-xl font-black text-[#00174b] mb-8 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <User size={20} />
-              </div>
-              Meu Perfil
-            </h3>
-
-            <form onSubmit={handleSaveMyProfile} className="space-y-6">
-              <div className="flex flex-col items-center mb-8">
-                <div className="relative group">
-                  <div className="w-32 h-32 rounded-2xl bg-slate-50 border-4 border-white shadow-xl overflow-hidden flex items-center justify-center">
-                    {myProfile.avatar_url ? (
-                      <img src={myProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <User size={48} className="text-slate-200" />
-                    )}
-                  </div>
-                  <label className="absolute bottom-0 right-0 p-3 bg-[#00174b] text-white rounded-2xl shadow-lg cursor-pointer hover:scale-110 transition-all">
-                    {uploadingMyAvatar ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
-                    <input type="file" className="hidden" accept="image/*" onChange={handleMyAvatarUpload} disabled={uploadingMyAvatar} />
-                  </label>
-                </div>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-4">Foto de Perfil</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                  <input 
-                    type="text"
-                    value={myProfile.full_name}
-                    onChange={(e) => setMyProfile({...myProfile, full_name: e.target.value})}
-                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                    placeholder="Seu nome"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5 opacity-60">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail (Não alterável)</label>
-                  <input 
-                    type="email"
-                    value={myProfile.email}
-                    disabled
-                    className="w-full px-5 py-3 bg-slate-100 border border-transparent rounded-xl font-bold text-slate-500 text-sm cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit"
-                disabled={saving}
-                className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-blue-900 transition-all shadow-xl shadow-blue-900/10 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-[0.98]"
-              >
-                {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-                Atualizar Perfil
-              </button>
-            </form>
-          </div>
-        </div>
       )}
 
-      {/* User Modal */}
-      {showUserModal && (
-        <div className="fixed inset-0 bg-[#00174b]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
-                  <User size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-[#00174b]">{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Controle de acesso ao sistema</p>
-                </div>
-              </div>
-              <button onClick={() => setShowUserModal(false)} className="p-2 text-slate-400 hover:text-red-500 transition-all">
-                <X size={24} />
-              </button>
-            </div>
 
-            <form onSubmit={handleSaveUser} className="p-8 space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                <input 
-                  type="text"
-                  value={userFormData.full_name}
-                  onChange={(e) => setUserFormData({...userFormData, full_name: e.target.value})}
-                  className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                  placeholder="Nome do colaborador"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário de Acesso</label>
-                <input 
-                  type="text"
-                  value={userFormData.username}
-                  onChange={(e) => setUserFormData({...userFormData, username: e.target.value})}
-                  className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                  placeholder="Ex: joao.silva"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Perfil de Acesso</label>
-                  <select 
-                    value={userFormData.role}
-                    onChange={(e) => setUserFormData({...userFormData, role: e.target.value as any})}
-                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                  >
-                    <option value="admin">Administrador</option>
-                    <option value="coordenador">Coordenador</option>
-                    <option value="secretario">Secretário</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">URL do Avatar</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text"
-                      value={userFormData.avatar_url}
-                      onChange={(e) => setUserFormData({...userFormData, avatar_url: e.target.value})}
-                      className="flex-1 px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                      placeholder="https://imagem.jpg"
-                    />
-                    <label className="cursor-pointer px-4 py-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all flex items-center justify-center" title="Upload Avatar">
-                      {uploadingAvatar ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                      <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
-                    </label>
-                    {userFormData.avatar_url && (
-                      <button 
-                        type="button"
-                        onClick={() => setUserFormData({...userFormData, avatar_url: ''})}
-                        className="px-4 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all flex items-center justify-center"
-                        title="Remover Avatar"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-6 flex gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setShowUserModal(false)}
-                  className="flex-1 py-3.5 border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-3.5 bg-[#00174b] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-900 transition-all disabled:opacity-50"
-                >
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  Salvar Usuário
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Confirmation Modal */}
       {showConfirmModal.show && (

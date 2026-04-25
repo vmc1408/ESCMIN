@@ -1,14 +1,18 @@
-export type UserRole = 'admin' | 'coordenador' | 'secretario';
-export type UserStatus = 'pending' | 'authorized' | 'rejected';
+export type UserRole = 'admin' | 'diretor' | 'secretario';
+export type UserStatus = 'active' | 'inactive';
 
 export interface UserProfile {
   id: string;
-  username: string;
-  full_name: string;
+  email: string;
+  name: string;
+  full_name?: string;
+  avatar_url?: string;
   role: UserRole;
   status: UserStatus;
-  avatar_url?: string;
   created_at: string;
+  last_login?: string;
+  updated_at?: string;
+  is_pre_registered?: boolean;
 }
 
 export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Suspenso';
@@ -147,4 +151,17 @@ export interface Parish {
   email?: string;
   phone?: string;
   created_at: string;
+}
+
+export interface InstitutionSettings {
+  id?: string;
+  name: string;
+  cnpj: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  logo_url: string;
+  footer_text: string;
+  receipt_message: string;
 }

@@ -18,7 +18,7 @@ export const syncUserWithSupabase = async (firebaseUser: { uid: string; email: s
   if (!supabaseUrl || !supabaseAnonKey) return;
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .upsert({
       id: firebaseUser.uid,
       email: firebaseUser.email,
