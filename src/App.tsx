@@ -31,11 +31,31 @@ export default function App() {
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
-              <Route path="students" element={<Students />} />
-              <Route path="teachers" element={<Teachers />} />
-              <Route path="classes" element={<Classes />} />
-              <Route path="subjects" element={<Subjects />} />
-              <Route path="parishes" element={<Parishes />} />
+              <Route path="students" element={
+                <ProtectedRoute requiredModule="/students">
+                  <Students />
+                </ProtectedRoute>
+              } />
+              <Route path="teachers" element={
+                <ProtectedRoute requiredModule="/teachers">
+                  <Teachers />
+                </ProtectedRoute>
+              } />
+              <Route path="classes" element={
+                <ProtectedRoute requiredModule="/classes">
+                  <Classes />
+                </ProtectedRoute>
+              } />
+              <Route path="subjects" element={
+                <ProtectedRoute requiredModule="/subjects">
+                  <Subjects />
+                </ProtectedRoute>
+              } />
+              <Route path="parishes" element={
+                <ProtectedRoute requiredModule="/parishes">
+                  <Parishes />
+                </ProtectedRoute>
+              } />
               <Route path="import" element={
                 <ProtectedRoute requiredModule="/import">
                   <Import />
@@ -46,10 +66,26 @@ export default function App() {
                   <Reports />
                 </ProtectedRoute>
               } />
-              <Route path="contributions" element={<Contributions />} />
-              <Route path="pix-conference" element={<PixConference />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="users" element={<Users />} />
+              <Route path="contributions" element={
+                <ProtectedRoute requiredModule="/contributions">
+                  <Contributions />
+                </ProtectedRoute>
+              } />
+              <Route path="pix-conference" element={
+                <ProtectedRoute requiredModule="/pix-conference">
+                  <PixConference />
+                </ProtectedRoute>
+              } />
+              <Route path="settings" element={
+                <ProtectedRoute requiredModule="/settings">
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              <Route path="users" element={
+                <ProtectedRoute requiredModule="/users">
+                  <Users />
+                </ProtectedRoute>
+              } />
             </Route>
           </Routes>
           <GlobalImportOverlay />

@@ -56,8 +56,8 @@ export function Parishes() {
     try {
       setLoading(true);
       const [parishesData, forariesData] = await Promise.all([
-        fetchAll('parishes', 'name'),
-        fetchAll('foraries', 'name')
+        fetchAll('parishes', '*', 'name'),
+        fetchAll('foraries', '*', 'name')
       ]);
       setParishes(parishesData || []);
       setForaries(forariesData || []);

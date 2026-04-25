@@ -50,12 +50,18 @@ export function Dashboard() {
   useEffect(() => {
     fetchStats();
     
-    // Refresh on window focus to ensure fresh data
-    const handleFocus = () => fetchStats();
+    // Refresh only on explicit window re-focus if significantly later
+    const handleFocus = () => {
+      const now = new Date().getTime();
+      const last = lastUpdated.getTime();
+      if (now - last > 30000) { // Only refresh if 30s passed
+        fetchStats();
+      }
+    };
     window.addEventListener('focus', handleFocus);
     
-    // Auto-refresh every 60 seconds
-    const interval = setInterval(fetchStats, 60000);
+    // Auto-refresh every 5 minutes (reduced from 1 min to save quota)
+    const interval = setInterval(fetchStats, 300000);
     
     return () => {
       window.removeEventListener('focus', handleFocus);

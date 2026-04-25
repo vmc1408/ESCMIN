@@ -22,7 +22,7 @@ import {
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-import { supabase, fetchRecursive } from './supabase';
+import { supabase, fetchRecursive, isSupabaseConfigured } from './supabase';
 
 const app = initializeApp({
   apiKey: firebaseConfig.apiKey,
@@ -72,12 +72,14 @@ let isOnline = false;
 async function testConnection() {
   if (isOnline) return;
   try {
-    // Try Supabase first (usually has more generous free tier for simple ping)
-    const { error: sbError } = await supabase.from('institution_settings').select('id').limit(1);
-    if (!sbError) {
-      isOnline = true;
-      console.log('Database Connection (Supabase) Active');
-      return;
+    // Try Supabase first if configured
+    if (isSupabaseConfigured) {
+      const { error: sbError } = await supabase.from('institution_settings').select('id').limit(1);
+      if (!sbError) {
+        isOnline = true;
+        console.log('Database Connection (Supabase) Active');
+        return;
+      }
     }
 
     const colRef = collection(db, 'institution_settings');
@@ -98,15 +100,17 @@ testConnection();
  */
 export const fetchAll = async (collectionName: string, select = '*', orderCol = 'created_at', ascending = false) => {
   try {
-    // 1. Try Supabase first
-    try {
-      const data = await fetchRecursive(collectionName, { select, orderCol, ascending });
-      if (data && data.length > 0) {
-        return data;
-      }
-    } catch (sbErr: any) {
-      if (!sbErr.message?.includes('Could not find the table')) {
-        console.warn(`[Supabase] Erro ao buscar ${collectionName}, tentando Firebase:`, sbErr.message);
+    // 1. Try Supabase first if configured
+    if (isSupabaseConfigured) {
+      try {
+        const data = await fetchRecursive(collectionName, { select, orderCol, ascending });
+        if (data && data.length > 0) {
+          return data;
+        }
+      } catch (sbErr: any) {
+        if (!sbErr.message?.includes('Could not find the table')) {
+          console.warn(`[Supabase] Erro ao buscar ${collectionName}, tentando Firebase:`, sbErr.message);
+        }
       }
     }
 
@@ -125,34 +129,119 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
 };
 
 /**
+ * Utility to fetch a single document by ID (Prioritizes Supabase)
+ */
+export const fetchById = async (collectionName: string, id: string) => {
+  if (!id) return null;
+  
+  try {
+    // 1. Try Supabase first if configured
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from(collectionName)
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (!error && data) {
+          return data;
+        }
+      } catch (sbErr: any) {
+        if (!sbErr.message?.includes('Could not find the table') && sbErr.code !== '42P01') {
+          console.warn(`[Supabase] Erro ao buscar ${collectionName}/${id}:`, sbErr.message);
+        }
+      }
+    }
+
+    // 2. Fallback to Firebase
+    const docRef = doc(db, collectionName, id);
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      return { id: snapshot.id, ...snapshot.data() };
+    }
+    return null;
+  } catch (err: any) {
+    if (err.message && err.message.includes('quota')) {
+      return null;
+    }
+    return handleFirestoreError(err, 'get', `${collectionName}/${id}`);
+  }
+};
+
+/**
+ * Utility to fetch documents with a simple where filter (Prioritizes Supabase)
+ */
+export const fetchQuery = async (collectionName: string, field: string, operator: any, value: any) => {
+  try {
+    // 1. Try Supabase first if configured
+    if (isSupabaseConfigured) {
+      try {
+        let queryBuilder = supabase.from(collectionName).select('*');
+        if (operator === '==' || operator === 'eq') {
+          queryBuilder = queryBuilder.eq(field, value);
+        } else if (operator === 'in') {
+          queryBuilder = queryBuilder.in(field, value);
+        } else {
+          // If operator not supported easily in this helper, skip Supabase
+          throw new Error("Operator not supported in Supabase helper");
+        }
+        
+        const { data, error } = await queryBuilder;
+        if (!error && data && data.length > 0) {
+          return data;
+        }
+      } catch (sbErr: any) {
+        if (!sbErr.message?.includes('Could not find the table') && sbErr.code !== '42P01') {
+          console.warn(`[Supabase] Erro na query ${collectionName}:`, sbErr.message);
+        }
+      }
+    }
+
+    // 2. Fallback to Firebase
+    const colRef = collection(db, collectionName);
+    const q = query(colRef, where(field, operator === 'eq' ? '==' : operator, value));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (err: any) {
+    if (err.message && err.message.includes('quota')) {
+      return [];
+    }
+    return handleFirestoreError(err, 'list', collectionName);
+  }
+};
+
+/**
  * Highly efficient count utility (Prioritizes Supabase to save Firestore quota)
  */
 export const fetchCount = async (collectionName: string, status?: string) => {
   try {
-    // 1. Try Supabase first
-    try {
-      let queryBuilder = supabase
-        .from(collectionName)
-        .select('*', { count: 'exact', head: true });
+    // 1. Try Supabase first if configured
+    if (isSupabaseConfigured) {
+      try {
+        let queryBuilder = supabase
+          .from(collectionName)
+          .select('*', { count: 'exact', head: true });
 
-      if (status) {
-        if (status === 'Ativo') {
-          // Business logic: Active includes explicitly 'Ativo', null OR empty string
-          queryBuilder = queryBuilder.or(`status.eq.Ativo,status.is.null,status.eq.""`);
-        } else {
-          queryBuilder = queryBuilder.eq('status', status);
+        if (status) {
+          if (status === 'Ativo') {
+            // Business logic: Active includes explicitly 'Ativo', null OR empty string
+            queryBuilder = queryBuilder.or(`status.eq.Ativo,status.is.null,status.eq.""`);
+          } else {
+            queryBuilder = queryBuilder.eq('status', status);
+          }
         }
-      }
 
-      const { count, error } = await queryBuilder;
-      if (error) throw error;
+        const { count, error } = await queryBuilder;
+        if (error) throw error;
 
-      if (count !== null) {
-        return count;
-      }
-    } catch (sbErr: any) {
-      if (!sbErr.message?.includes('Could not find the table') && sbErr.code !== '42P01') {
-        console.warn(`[Supabase] Erro ao contar ${collectionName}, tentando Firebase:`, sbErr?.message);
+        if (count !== null) {
+          return count;
+        }
+      } catch (sbErr: any) {
+        if (!sbErr.message?.includes('Could not find the table') && sbErr.code !== '42P01') {
+          console.warn(`[Supabase] Erro ao contar ${collectionName}, tentando Firebase:`, sbErr?.message);
+        }
       }
     }
 
@@ -187,51 +276,53 @@ export const saveData = async (collectionName: string, id: string | undefined, d
     // Clean data for Supabase (remove id from body to avoid conflict)
     const { id: _, ...body } = data;
     
-    // 1. Save to Supabase (Primary Source)
+    // 1. Save to Supabase if configured
     let payload = { 
       ...(effectiveId ? { id: effectiveId } : {}), 
       ...body
     };
 
-    try {
-      let { data: sbData, error: sbError } = await supabase
-        .from(collectionName)
-        .upsert(payload)
-        .select('id')
-        .single();
+    if (isSupabaseConfigured) {
+      try {
+        let { data: sbData, error: sbError } = await supabase
+          .from(collectionName)
+          .upsert(payload)
+          .select('id')
+          .single();
 
-      // Handle missing columns automatically (Schema Cache errors)
-      let retryCount = 0;
-      while (sbError && sbError.message.includes("Could not find the") && sbError.message.includes("column") && retryCount < 5) {
-        console.warn(`[Supabase] Column missing, filtering and retrying (${retryCount + 1}): ${sbError.message}`);
-        
-        const match = sbError.message.match(/find the '([^']+)' column/);
-        if (match && match[1]) {
-          const missingColumn = match[1];
-          delete (payload as any)[missingColumn];
+        // Handle missing columns automatically (Schema Cache errors)
+        let retryCount = 0;
+        while (sbError && sbError.message.includes("Could not find the") && sbError.message.includes("column") && retryCount < 5) {
+          console.warn(`[Supabase] Column missing, filtering and retrying (${retryCount + 1}): ${sbError.message}`);
           
-          const retry = await supabase
-            .from(collectionName)
-            .upsert(payload)
-            .select('id')
-            .single();
+          const match = sbError.message.match(/find the '([^']+)' column/);
+          if (match && match[1]) {
+            const missingColumn = match[1];
+            delete (payload as any)[missingColumn];
             
-          sbData = retry.data;
-          sbError = retry.error;
-          retryCount++;
-        } else {
-          break;
+            const retry = await supabase
+              .from(collectionName)
+              .upsert(payload)
+              .select('id')
+              .single();
+              
+            sbData = retry.data;
+            sbError = retry.error;
+            retryCount++;
+          } else {
+            break;
+          }
         }
-      }
 
-      if (!sbError && sbData && sbData.id) {
-        finalId = sbData.id;
-      } else if (sbError) {
-        throw sbError;
-      }
-    } catch (sbErr: any) {
-      if (!sbErr.message?.includes('Could not find the table') && sbErr.code !== '42P01') {
-        console.warn(`[Supabase] Erro ao salvar em ${collectionName}. Continuando com Firebase.`);
+        if (!sbError && sbData && sbData.id) {
+          finalId = sbData.id;
+        } else if (sbError) {
+          throw sbError;
+        }
+      } catch (sbErr: any) {
+        if (!sbErr.message?.includes('Could not find the table') && sbErr.code !== '42P01') {
+          console.warn(`[Supabase] Erro ao salvar em ${collectionName}. Continuando com Firebase.`);
+        }
       }
     }
 
@@ -266,14 +357,20 @@ export const deleteData = async (collectionName: string, id: string) => {
   if (!id) throw new Error("ID é obrigatório para exclusão.");
 
   try {
-    // 1. Delete from Supabase
-    const { error: sbError } = await supabase
-      .from(collectionName)
-      .delete()
-      .eq('id', id);
+    // 1. Delete from Supabase if configured
+    if (isSupabaseConfigured) {
+      try {
+        const { error: sbError } = await supabase
+          .from(collectionName)
+          .delete()
+          .eq('id', id);
 
-    if (sbError) {
-      throw new Error(`Erro no banco de dados (Supabase): ${sbError.message}`);
+        if (sbError) {
+          console.warn(`[Supabase] Erro ao excluir de ${collectionName}:`, sbError.message);
+        }
+      } catch (sbErr: any) {
+        console.warn(`[Supabase] Erro fatal na exclusão de ${collectionName}:`, sbErr.message);
+      }
     }
 
     // 2. Delete from Firebase
@@ -285,12 +382,16 @@ export const deleteData = async (collectionName: string, id: string) => {
            // Silent warning
         } else {
           console.error(`[Firebase] Erro na exclusão:`, fError);
+          throw fError; // Re-throw to inform UI of Firebase failure
         }
       }
     }
 
     return true;
   } catch (err: any) {
+    if (err.message?.includes('Missing or insufficient permissions')) {
+      return handleFirestoreError(err, 'delete', `${collectionName}/${id}`);
+    }
     console.error(`[deleteData] Erro fatal em "${collectionName}" para ID ${id}:`, err.message);
     throw err;
   }

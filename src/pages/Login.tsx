@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   browserLocalPersistence,
   setPersistence
 } from 'firebase/auth';
@@ -14,7 +15,7 @@ import {
   limit, 
   query 
 } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { auth, db, fetchById } from '../lib/firebase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -24,7 +25,8 @@ import {
   Loader2, 
   AlertCircle,
   CheckCircle2,
-  Database
+  Database,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -39,6 +41,12 @@ export function Login() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [needsBootstrap, setNeedsBootstrap] = useState(false);
   
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -52,20 +60,37 @@ export function Login() {
   }, [user, profile, needsBootstrap, loading, navigate, from]);
 
   useEffect(() => {
-    // Check if system is initialized
+    // If we are logged in but have no profile after loading, show error
+    // Only show if we are NOT currently in a local loading state (login/register process)
+    // AND if we are NOT in the registration tab (where profile is expected to be null momentarily)
+    const shouldIgnoreError = authLoading || loading || isRegistering || isProcessing || initialLoading;
+    
+    if (user && !profile && !shouldIgnoreError && !needsBootstrap) {
+      const timer = setTimeout(() => {
+        // Double check all conditions again before setting error
+        if (user && !profile && !shouldIgnoreError && !needsBootstrap && !error) {
+          setError("Seu perfil não foi encontrado em nossa base de dados. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso' ao lado. Caso contrário, consulte o administrador.");
+        }
+      }, 4000); // Increased to 4s for stability
+      return () => clearTimeout(timer);
+    } else if (profile || !user) {
+      if (error?.includes("perfil não foi encontrado")) {
+        setError(null);
+      }
+    }
+  }, [user, profile, authLoading, needsBootstrap, loading, isRegistering, isProcessing, initialLoading, error]);
+
+  useEffect(() => {
+    // Check if system is initialized (only once on true mount)
     const checkInitialization = async () => {
       try {
         const settingsRef = doc(db, 'institution_settings', 'main');
         const snapshot = await getDoc(settingsRef);
-        if (!snapshot.exists()) {
-          setNeedsBootstrap(true);
-        } else {
-          setNeedsBootstrap(false);
-        }
+        setNeedsBootstrap(!snapshot.exists());
       } catch (err) {
-        // If permission denied, it likely means rules are already active and system is initialized
-        console.log("Initialization check: system likely already initialized or rules active.");
         setNeedsBootstrap(false);
+      } finally {
+        setInitialLoading(false);
       }
     };
     checkInitialization();
@@ -76,18 +101,37 @@ export function Login() {
     if (!email || !password) return;
 
     setLoading(true);
+    setIsProcessing(true);
     setError(null);
 
     try {
       await setPersistence(auth, browserLocalPersistence);
-      await signInWithEmailAndPassword(auth, email, password);
-      // AuthContext will handle the redirect if effective
+      await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
+      setError(null);
     } catch (err: any) {
       console.error("Login failed:", err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError("E-mail ou senha incorretos.");
+      setIsProcessing(false); // Only reset processing on error
+      
+      // New Firebase Auth error code for unified invalid credentials
+      const invalidCreds = ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'];
+      
+      if (invalidCreds.includes(err.code)) {
+        // Check if user is pre-registered but not in Auth
+        try {
+          const emailId = email.toLowerCase().trim();
+          const preRegData = await fetchById('users', emailId);
+          if (preRegData) {
+            setError("Credenciais inválidas. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso' ao lado.");
+          } else {
+            setError("E-mail ou senha incorretos. Verifique suas credenciais.");
+          }
+        } catch (checkErr) {
+          setError("E-mail ou senha incorretos. Verifique suas credenciais.");
+        }
+      } else if (err.code === 'auth/too-many-requests') {
+        setError("Muitas tentativas malsucedidas. Tente novamente em alguns minutos.");
       } else {
-        setError("Ocorreu um erro ao tentar entrar. Tente novamente.");
+        setError("Ocorreu um erro ao tentar entrar. " + (err.message || "Tente novamente."));
       }
     } finally {
       setLoading(false);
@@ -109,17 +153,26 @@ export function Login() {
     }
 
     setLoading(true);
+    setIsProcessing(true);
     setError(null);
 
     try {
       // 1. Check if user is pre-registered
-      const emailDocRef = doc(db, 'users', email.toLowerCase().trim());
-      const emailDoc = await getDoc(emailDocRef);
+      const emailId = email.toLowerCase().trim();
+      const preRegData = await fetchById('users', emailId);
       
-      if (!emailDoc.exists()) {
-        setError("Este e-mail não está autorizado. Entre em contato com o administrador para ser pré-cadastrado.");
+      if (!preRegData) {
+        setError("Este e-mail não está autorizado para primeiro acesso. Por favor, solicite seu pré-cadastro ao administrador.");
         setLoading(false);
+        setIsProcessing(false);
         return;
+      }
+      
+      if (preRegData?.status === 'inactive') {
+         setError("Seu acesso foi desativado pelo administrador. Entre em contato para reativar.");
+         setLoading(false);
+         setIsProcessing(false);
+         return;
       }
 
       // 2. Create Auth user
@@ -127,10 +180,23 @@ export function Login() {
       // AuthContext will handle linking when onAuthStateChanged triggers
     } catch (err: any) {
       console.error("Registration failed:", err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError("Este e-mail já está em uso. Tente fazer login.");
+      setIsProcessing(false);
+      
+      const errorCode = err.code || "";
+      const errorMessage = err.message || "";
+      const emailInUse = errorCode === 'auth/email-already-in-use' || 
+                         errorMessage.includes('auth/email-already-in-use') ||
+                         errorMessage.includes('email-already-in-use');
+      
+      if (emailInUse) {
+        setError("Este e-mail já possui uma conta ativa no sistema. Por favor, tente fazer login. Se esqueceu sua senha, use a opção de recuperação abaixo.");
+        setIsRegistering(false); // Switch to login tab
+      } else if (errorCode === 'auth/weak-password') {
+        setError("A senha é muito fraca. Use pelo menos 6 caracteres.");
+      } else if (errorCode === 'auth/invalid-email') {
+        setError("O formato do e-mail é inválido.");
       } else {
-        setError("Falha ao criar conta: " + (err.message || "Erro desconhecido"));
+        setError("Falha no primeiro acesso: " + (errorMessage || "Tente novamente mais tarde."));
       }
     } finally {
       setLoading(false);
@@ -196,6 +262,28 @@ export function Login() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetSent(true);
+    } catch (err: any) {
+      console.error("Reset failed:", err);
+      if (err.code === 'auth/user-not-found') {
+        setError("E-mail não encontrado na base de dados.");
+      } else {
+        setError("Erro ao enviar e-mail de recuperação: " + (err.message || "Tente novamente."));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#00174b] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Decor */}
@@ -250,6 +338,82 @@ export function Login() {
               {loading ? 'Inicializando...' : 'Criar Administrador Root'}
             </button>
           </div>
+        ) : isForgotPassword ? (
+          <form onSubmit={handleResetPassword} className="space-y-6">
+            <div className="text-center mb-4">
+              <h4 className="font-bold text-[#131b2e]">Recuperar Senha</h4>
+              <p className="text-xs text-slate-500 mt-1">Enviaremos um link para o seu e-mail cadastrado.</p>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="p-5 bg-red-50 rounded-3xl border-2 border-red-100 flex items-start gap-4 text-red-700 relative group animate-in fade-in slide-in-from-top-2 duration-300"
+                >
+                  <div className="p-2 bg-red-100 rounded-xl text-red-600">
+                    <AlertCircle size={22} />
+                  </div>
+                  <div className="flex-1 pr-6">
+                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Atenção / Erro</h5>
+                    <p className="text-sm font-bold leading-tight">{error}</p>
+                  </div>
+                  <button 
+                    onClick={() => setError(null)}
+                    className="absolute top-4 right-4 p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </motion.div>
+              )}
+              {resetSent && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3 text-emerald-600 text-sm font-medium"
+                >
+                  <CheckCircle2 size={18} />
+                  E-mail enviado! Verifique sua caixa de entrada.
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <input 
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-lg font-medium focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="seu@email.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                type="submit"
+                disabled={loading || resetSent}
+                className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-bold shadow-xl shadow-blue-900/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <Mail size={20} />}
+                {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIsForgotPassword(false); setResetSent(false); setError(null); }}
+                className="w-full text-center text-sm font-bold text-blue-600 hover:text-blue-700"
+              >
+                Voltar para o Login
+              </button>
+            </div>
+          </form>
         ) : (
           <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-6">
             <div className="flex bg-slate-100 p-1 rounded-2xl mb-2">
@@ -278,13 +442,24 @@ export function Login() {
             <AnimatePresence mode="wait">
               {error && (
                 <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="p-4 bg-red-50 rounded-2xl border border-red-100 flex items-center gap-3 text-red-600 text-sm font-medium"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="p-5 bg-red-50 rounded-3xl border-2 border-red-100 flex items-start gap-4 text-red-700 relative group animate-in fade-in slide-in-from-top-2 duration-300"
                 >
-                  <AlertCircle size={18} />
-                  {error}
+                  <div className="p-2 bg-red-100 rounded-xl text-red-600">
+                    <AlertCircle size={22} />
+                  </div>
+                  <div className="flex-1 pr-6">
+                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Atenção / Erro</h5>
+                    <p className="text-sm font-bold leading-tight">{error}</p>
+                  </div>
+                  <button 
+                    onClick={() => setError(null)}
+                    className="absolute top-4 right-4 p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -354,7 +529,12 @@ export function Login() {
         )}
 
         <div className="mt-8 text-center">
-            <p className="text-sm text-slate-400 font-medium">Esqueceu sua senha? Entre em contato com o suporte.</p>
+            <button 
+              onClick={() => { setIsForgotPassword(true); setIsRegistering(false); setError(null); }}
+              className="text-sm text-slate-400 font-bold hover:text-blue-600 transition-colors"
+            >
+              Esqueceu sua senha? Clique aqui
+            </button>
         </div>
       </motion.div>
     </div>

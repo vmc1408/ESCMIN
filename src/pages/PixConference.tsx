@@ -36,7 +36,7 @@ import { format } from 'date-fns';
 import { cn, safeFormat, parseSafeDate, formatDate } from '../lib/utils';
 import { db, fetchAll, auth, saveData, deleteData } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, limit, doc, setDoc } from 'firebase/firestore';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
 
 export function PixConference() {
@@ -211,17 +211,27 @@ export function PixConference() {
 
   const fetchRegisteredPixIds = async () => {
     try {
-      // Check contributions (Student Statements)
-      // Prioritize Supabase for larger datasets or better performance in hybrid mode
-      const { data: contribData, error: sbError } = await supabase
-        .from('contributions')
-        .select('pix_id')
-        .not('pix_id', 'is', null);
+      if (isSupabaseConfigured) {
+        // Check contributions (Student Statements)
+        // Prioritize Supabase for larger datasets or better performance in hybrid mode
+        const { data: contribData, error: sbError } = await supabase
+          .from('contributions')
+          .select('pix_id')
+          .not('pix_id', 'is', null);
 
-      if (!sbError && contribData) {
-        setRegisteredPixIds(new Set(contribData.map(d => String(d.pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
+        if (!sbError && contribData) {
+          setRegisteredPixIds(new Set(contribData.map(d => String(d.pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
+        } else {
+          // Fallback to Firebase
+          const qContrib = query(
+            collection(db, 'contributions'),
+            where('pix_id', '!=', null)
+          );
+          const contribSnap = await getDocs(qContrib);
+          setRegisteredPixIds(new Set(contribSnap.docs.map(d => String(d.data().pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
+        }
       } else {
-        // Fallback to Firebase
+        // Direct Firebase
         const qContrib = query(
           collection(db, 'contributions'),
           where('pix_id', '!=', null)
@@ -346,8 +356,12 @@ export function PixConference() {
       for (const id of idsToDelete) {
         // Find transaction_id to clean up contributions
         // Reconciliations might be in Supabase or Firebase
-        const res = await supabase.from('pix_reconciliations').select('transaction_id').eq('id', id).single();
-        let transactionId = res.data?.transaction_id;
+        let transactionId = null;
+        
+        if (isSupabaseConfigured) {
+          const res = await supabase.from('pix_reconciliations').select('transaction_id').eq('id', id).maybeSingle();
+          transactionId = res?.data?.transaction_id;
+        }
 
         if (!transactionId) {
           // Fallback to Firebase
@@ -359,13 +373,15 @@ export function PixConference() {
 
         if (transactionId) {
           // Delete linked contributions everywhere
-          const { data: sbContribs } = await supabase.from('contributions')
-            .select('id')
-            .or(`pix_id.eq.${id},pix_id.eq.${transactionId}`);
-          
-          if (sbContribs) {
-            for (const c of sbContribs) {
-              await deleteData('contributions', c.id);
+          if (isSupabaseConfigured) {
+            const { data: sbContribs } = await supabase.from('contributions')
+              .select('id')
+              .or(`pix_id.eq.${id},pix_id.eq.${transactionId}`);
+            
+            if (sbContribs) {
+              for (const c of sbContribs) {
+                await deleteData('contributions', c.id);
+              }
             }
           }
           
@@ -452,8 +468,10 @@ export function PixConference() {
     try {
       // 1. Locate items by Batch ID in hybrid mode
       let batchItems: any[] = [];
-      const { data: sbItems } = await supabase.from('pix_reconciliations').select('id, transaction_id').eq('batch_id', batchId);
-      if (sbItems) batchItems = sbItems;
+      if (isSupabaseConfigured) {
+        const { data: sbItems } = await supabase.from('pix_reconciliations').select('id, transaction_id').eq('batch_id', batchId);
+        if (sbItems) batchItems = sbItems;
+      }
 
       // Fallback/Sync with Firebase
       const q = query(collection(db, 'pix_reconciliations'), where('batch_id', '==', batchId));
@@ -468,12 +486,14 @@ export function PixConference() {
           const transactionId = item.transaction_id;
           
           // 2. Clear linked contributions from both DBs
-          const { data: sbContribs } = await supabase.from('contributions')
-            .select('id')
-            .or(`pix_id.eq.${reconciliationId},pix_id.eq.${transactionId}`);
-          
-          if (sbContribs) {
-            for (const c of sbContribs) await deleteData('contributions', c.id);
+          if (isSupabaseConfigured) {
+            const { data: sbContribs } = await supabase.from('contributions')
+              .select('id')
+              .or(`pix_id.eq.${reconciliationId},pix_id.eq.${transactionId}`);
+            
+            if (sbContribs) {
+              for (const c of sbContribs) await deleteData('contributions', c.id);
+            }
           }
 
           // Check Firebase contributions too

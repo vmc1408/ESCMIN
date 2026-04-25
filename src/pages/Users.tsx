@@ -1,39 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Shield, 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Save, 
-  X, 
-  Loader2,
-  Mail,
-  User,
-  MoreVertical,
-  CheckCircle2,
-  XCircle,
-  Key,
-  Camera,
-  RefreshCw,
-  ChevronDown
-} from 'lucide-react';
-import { db, fetchAll, saveData, deleteData, uploadImage } from '../lib/firebase';
+import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap } from 'lucide-react';
+import { auth, db, fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/firebase';
+import { fetchSignInMethodsForEmail, updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, UserRole } from '../types';
-import { updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import Webcam from 'react-webcam';
 
 export function Users() {
-  const { user, profile: currentProfile, refreshProfile, isAdmin } = useAuth();
+  const { user: userAuth, profile: currentProfile, refreshProfile, isAdmin, isSecretary, isDirector } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
+
+  // Webcam
+  const webcamRef = React.useRef<Webcam>(null);
+  const [showWebcam, setShowWebcam] = useState(false);
 
   // Form
   const [formData, setFormData] = useState({
@@ -49,14 +35,36 @@ export function Users() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [updatingSecurity, setUpdatingSecurity] = useState(false);
 
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      let data = await fetchAll('users', 'name') as UserProfile[];
+      let data = await fetchAll('users', '*', 'name') as UserProfile[];
       
-      // If not admin, only show self
-      if (!isAdmin && user) {
-        data = data.filter(u => u.id === user.uid);
+      // Deduplication Logic: Prioritize profiles with UID over pre-registered ones (Email ID)
+      const uniqueUsersMap = new Map<string, UserProfile>();
+      
+      if (data && data.length > 0) {
+        data.forEach(u => {
+          if (!u.email) return;
+          const emailKey = u.email.toLowerCase().trim();
+          const existing = uniqueUsersMap.get(emailKey);
+          
+          // If we don't have this email yet, or if the current 'u' is a real profile (id != email)
+          // and the existing one was just a pre-registration (id == email), replace it.
+          if (!existing || (u.id !== emailKey && existing.id === emailKey)) {
+            uniqueUsersMap.set(emailKey, u);
+          }
+        });
+        data = Array.from(uniqueUsersMap.values());
+      }
+      
+      // RBAC Filtering:
+      // Admin and Director see all.
+      // Secretary only sees themselves.
+      if (isSecretary && !isAdmin && userAuth) {
+        data = data.filter(u => u.id === userAuth.uid);
       }
       
       setUsers(data || []);
@@ -82,6 +90,7 @@ export function Users() {
     });
     setNewEmail(user.email);
     setPasswordData({ newPassword: '', confirmPassword: '' });
+    setShowWebcam(false);
     setIsEditing(true);
   };
 
@@ -96,7 +105,32 @@ export function Users() {
     });
     setNewEmail('');
     setPasswordData({ newPassword: '', confirmPassword: '' });
+    setShowWebcam(false);
     setIsEditing(true);
+  };
+
+  const handleCapture = async () => {
+    if (!webcamRef.current) return;
+    
+    const imageSrc = webcamRef.current.getScreenshot();
+    if (!imageSrc) return;
+
+    try {
+      setUploadingAvatar(true);
+      // Convert base64 to blob
+      const res = await fetch(imageSrc);
+      const blob = await res.blob();
+      const file = new File([blob], `webcam_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      
+      const url = await uploadImage(file, 'avatars', `${Date.now()}_webcam.jpg`);
+      setFormData(prev => ({ ...prev, avatar_url: url }));
+      setNotification({ type: 'success', message: 'Foto capturada e salva!' });
+      setShowWebcam(false);
+    } catch (error) {
+      setNotification({ type: 'err', message: 'Erro ao capturar foto.' });
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,13 +150,13 @@ export function Users() {
   };
 
   const handleUpdateSecurity = async () => {
-    if (!user || user.uid !== selectedUser?.id) return;
+    if (!userAuth || userAuth.uid !== selectedUser?.id) return;
     
     setUpdatingSecurity(true);
     try {
       // 1. Update Email if changed
-      if (newEmail !== user.email && newEmail) {
-        await verifyBeforeUpdateEmail(user, newEmail);
+      if (newEmail !== userAuth.email && newEmail) {
+        await verifyBeforeUpdateEmail(userAuth, newEmail);
         setNotification({ type: 'success', message: 'Verificação enviada para o novo e-mail!' });
       }
 
@@ -131,7 +165,7 @@ export function Users() {
         if (passwordData.newPassword !== passwordData.confirmPassword) {
           throw new Error('As senhas não coincidem');
         }
-        await updatePassword(user, passwordData.newPassword);
+        await updatePassword(userAuth, passwordData.newPassword);
         setNotification({ type: 'success', message: 'Senha atualizada com sucesso!' });
         setPasswordData({ newPassword: '', confirmPassword: '' });
       }
@@ -169,22 +203,109 @@ export function Users() {
           updated_at: new Date().toISOString()
         };
 
+        // Security check: Prevent self-demotion
+        if (userAuth?.uid === selectedUser.id) {
+          if (formData.role !== 'admin' && selectedUser.role === 'admin') {
+            throw new Error('Você não pode remover seu próprio privilégio de Administrador.');
+          }
+          if (formData.status !== 'active' && selectedUser.status === 'active') {
+             // Inactivating self is risky, checking if last admin
+             const activeAdmins = users.filter(u => u.role === 'admin' && u.status === 'active');
+             if (activeAdmins.length === 1 && activeAdmins[0].id === userAuth.uid) {
+               throw new Error('Você é o único administrador ativo do sistema e não pode desativar seu próprio perfil.');
+             }
+          }
+        }
+
+        // Security check: Protect last admin when editing others
+        if (selectedUser.role === 'admin' && selectedUser.status === 'active') {
+          const activeAdmins = users.filter(u => u.role === 'admin' && u.status === 'active');
+          const isLeavingSystemWithoutAdmin = activeAdmins.length === 1 && 
+                                           activeAdmins[0].id === selectedUser.id && 
+                                           (formData.role !== 'admin' || formData.status !== 'active');
+          
+          if (isLeavingSystemWithoutAdmin) {
+            throw new Error('Este é o único administrador ativo. Promova outro usuário a Administrador antes de alterar este perfil.');
+          }
+        }
+
         await saveData('users', selectedUser.id, updatePayload);
         
         // Handle security if it's the current user
-        if (user?.uid === selectedUser.id && (newEmail !== user.email || passwordData.newPassword)) {
+        if (userAuth?.uid === selectedUser.id && (newEmail !== userAuth.email || passwordData.newPassword)) {
           await handleUpdateSecurity();
         }
 
-        if (user?.uid === selectedUser.id && refreshProfile) {
+        if (userAuth?.uid === selectedUser.id && refreshProfile) {
           await refreshProfile();
         }
 
         setNotification({ type: 'success', message: 'Usuário atualizado com sucesso!' });
       } else {
         // New user - Save to Firestore
-        // Use email as ID for pre-registered users to facilitate linking on first login
         const emailId = formData.email.toLowerCase().trim();
+        
+        // 1. Check in current list first (performance)
+        const existsLocally = users.find(u => u.email.toLowerCase() === emailId);
+        if (existsLocally) {
+          throw new Error('Este e-mail já possui um cadastro no sistema. Localize-o na lista para editar ou reativar.');
+        }
+
+        // 2. CHECK DEDICATED REGISTRY (CARTORIO DIGITAL)
+        try {
+          // Check by ID first (faster)
+          const registryCheck = await fetchById('email_registry', emailId);
+          if (registryCheck) {
+            throw new Error('BLOQUEIO CENTRAL: Este e-mail já foi utilizado em um cadastro anterior. Por segurança, o sistema impede a reutilização imediata. Para liberar este e-mail, o administrador deve acessar o "Cartório de Registros" e remover o bloqueio.');
+          }
+        } catch (regErr: any) {
+          if (regErr.message.includes('BLOQUEIO CENTRAL')) throw regErr;
+          console.warn('Registro histórico não disponível:', regErr.message);
+        }
+
+        // 2. Double check by fetching across all sources (safety)
+        try {
+          // 2a. Check Firebase Authentication first
+          try {
+            const methods = await fetchSignInMethodsForEmail(auth, emailId);
+            if (methods && methods.length > 0) {
+              throw new Error('Este e-mail já possui uma conta de acesso ativa no sistema (Autenticação).');
+            }
+          } catch (authErr: any) {
+             if (authErr.message?.includes('Autenticação')) throw authErr;
+             console.log('Auth check skipped:', authErr.message);
+          }
+
+          // 2b. Check by ID (pre-registered)
+          const preRegData = await fetchById('users', emailId);
+          if (preRegData && preRegData.is_pre_registered === false && preRegData.id !== emailId) {
+             throw new Error('Este e-mail já está vinculado a um perfil ativo no sistema (UID).');
+          }
+
+          // Check by email field
+          const existingMatches = await fetchQuery('users', 'email', '==', emailId);
+          if (existingMatches && existingMatches.length > 0) {
+             const realProfile = existingMatches.find(m => m.id !== emailId);
+             if (realProfile) {
+               throw new Error('Este e-mail já está vinculado a um perfil ativo no sistema.');
+             }
+          }
+        } catch (e: any) {
+          if (e.message.includes('vinculado') || e.message.includes('ativa')) throw e;
+        }
+
+        // 3. Register in the global registry FIRST
+        try {
+          await saveData('email_registry', emailId, { 
+            email: emailId, 
+            registered_at: new Date().toISOString(),
+            status: 'blocked'
+          });
+        } catch (regErr) {
+          console.warn("Registry update failed, but proceeding.");
+        }
+
+        // 4. Save the user profile
         await saveData('users', emailId, {
           id: emailId,
           email: emailId,
@@ -194,7 +315,7 @@ export function Users() {
           created_at: new Date().toISOString(),
           is_pre_registered: true
         });
-        setNotification({ type: 'success', message: 'Usuário pré-cadastrado! Ele deve agora criar sua conta com este e-mail.' });
+        setNotification({ type: 'success', message: 'Usuário pré-cadastrado com sucesso!' });
       }
       setIsEditing(false);
       fetchData();
@@ -202,18 +323,22 @@ export function Users() {
       setNotification({ type: 'err', message: error.message || 'Erro ao salvar usuário.' });
     } finally {
       setLoading(false);
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 4000);
     }
   };
 
   const handleDelete = async (id: string) => {
-    const targetUser = users.find(u => u.id === id);
-    if (!targetUser) return;
-
-    if (!confirm(`Tem certeza que deseja excluir o usuário ${targetUser.name}?`)) return;
-
     try {
+      const targetUser = users.find(u => u.id === id);
+      if (!targetUser) return;
+
+      console.log('Iniciando exclusão do usuário:', id);
       setLoading(true);
+
+      // Safety Check: Self-Deletion
+      if (userAuth?.uid === id) {
+        throw new Error('Você não pode excluir seu próprio perfil administrativo. Se deseja sair, outro administrador deve remover seu acesso.');
+      }
 
       // Safety Check: Last Admin
       const activeAdmins = users.filter(u => u.role === 'admin' && u.status === 'active');
@@ -227,173 +352,207 @@ export function Users() {
       }
 
       await deleteData('users', id);
+      
+      // Limpeza do Cartório de E-mails para permitir recadastro futuro
+      if (targetUser.email) {
+        const emailToUnblock = targetUser.email.toLowerCase().trim();
+        try {
+          // No email_registry, o ID é o próprio e-mail
+          await deleteData('email_registry', emailToUnblock);
+          console.log(`[Segurança] E-mail ${emailToUnblock} liberado para novo uso.`);
+        } catch (e) {
+          console.log('E-mail não constava no registro central.');
+        }
+
+        // Extra safety: Try to delete by email too if it's different from ID (cleanup ghost profiles)
+        if (emailToUnblock !== id.toLowerCase()) {
+           try {
+             await deleteData('users', emailToUnblock);
+           } catch (e) {
+             console.log('Sem perfil fantasma para limpar.');
+           }
+        }
+      }
+      
       setNotification({ type: 'success', message: 'Usuário removido com sucesso!' });
+      setIsDeleting(null);
       fetchData();
     } catch (error: any) {
-      setNotification({ type: 'err', message: error.message || 'Erro ao excluir usuário.' });
-    } finally {
+      console.error('Erro ao excluir usuário:', error);
+      setNotification({ type: 'err', message: error.message || 'Falha ao excluir usuário. Verifique suas permissões.' });
+      setIsDeleting(null);
       setLoading(false);
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 8000);
+      return; // Return early to avoid the finally notification clear if we want a specific duration
+    } finally {
+      if (loading) { // Only clear if we were loading (successful path)
+        setLoading(false);
+        setTimeout(() => setNotification(null), 4000);
+      }
     }
   };
 
   const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase())
+    (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const activeUsers = users.filter(u => u.status === 'active').length;
   const suspendedUsers = users.filter(u => u.status === 'inactive').length;
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-10 pb-10">
+    <div className="max-w-[1600px] mx-auto space-y-6 pb-6">
       {/* Dynamic Header & Stats Center */}
-      <div className="flex flex-col gap-8">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="w-2.5 h-8 bg-[#00174b] rounded-full shadow-[0_0_15px_rgba(0,23,75,0.2)]" />
-              <h2 className="text-4xl font-black text-[#131b2e] tracking-tight">
-                {isAdmin ? 'Controle de Acessos' : 'Meu Perfil'}
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="w-1.5 h-6 bg-[#00174b] rounded-full" />
+              <h2 className="text-2xl font-black text-[#131b2e] tracking-tight">
+                {(isAdmin || isDirector) ? 'Controle de Acessos' : 'Meu Perfil'}
               </h2>
             </div>
-            <p className="text-slate-500 font-medium ml-5">
-              {isAdmin ? 'Gerenciamento centralizado de credenciais e privilégios da equipe.' : 'Segurança e informações da sua conta institucional.'}
+            <p className="text-xs text-slate-500 font-medium ml-4">
+              {(isAdmin || isDirector) ? 'Gerenciamento centralizado de credenciais e privilégios.' : 'Segurança e informações da sua conta institucional.'}
             </p>
           </div>
           
-          {isAdmin && (
+          {(isAdmin || isDirector) && (
             <button
               onClick={handleAddNew}
-              className="px-8 py-4 bg-[#00174b] text-white rounded-2xl text-sm font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:scale-[1.03] active:scale-95 transition-all shadow-2xl shadow-blue-900/20 group"
+              className="px-6 py-3 bg-[#00174b] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#002a8a] transition-all shadow-lg active:scale-95 group"
             >
-              <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center group-hover:rotate-90 transition-transform">
-                <Plus size={18} />
-              </div>
+              <Plus size={14} className="group-hover:rotate-90 transition-transform" />
               Novo Gestor
             </button>
           )}
         </header>
 
-        {/* Operational Indicators */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
-              <User size={28} />
+        {/* Operational Indicators - Compact */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <User size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Base Total</p>
-              <h4 className="text-2xl font-black text-[#131b2e]">{users.length}</h4>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Base Total</p>
+              <h4 className="text-xl font-black text-[#131b2e] leading-none">{users.length}</h4>
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner">
-              <CheckCircle2 size={28} />
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ativos</p>
-              <h4 className="text-2xl font-black text-[#131b2e]">{activeUsers}</h4>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Ativos</p>
+              <h4 className="text-xl font-black text-[#131b2e] leading-none">{activeUsers}</h4>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-inner">
-              <XCircle size={28} />
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+              <XCircle size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suspensos</p>
-              <h4 className="text-2xl font-black text-[#131b2e]">{suspendedUsers}</h4>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Suspensos</p>
+              <h4 className="text-xl font-black text-[#131b2e] leading-none">{suspendedUsers}</h4>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-[#00174b] to-[#002a8a] p-6 rounded-[2rem] shadow-xl flex items-center gap-5 text-white">
-            <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
-              <Shield size={28} />
+          <div className="bg-[#00174b] p-4 rounded-2xl shadow-lg flex items-center gap-4 text-white">
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md">
+              <Shield size={20} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Segurança</p>
-              <h4 className="text-lg font-black leading-tight">ISO-27001 Protegido</h4>
+              <p className="text-[8px] font-black text-white/50 uppercase tracking-widest">Segurança</p>
+              <h4 className="text-xs font-black leading-tight">ISO-27001 Ativa</h4>
             </div>
           </div>
         </div>
       </div>
 
-      {notification && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className={cn(
-            "p-6 rounded-2xl flex items-center justify-between shadow-lg border-2",
-            notification.type === 'success' ? "bg-emerald-50 text-emerald-800 border-emerald-100" : "bg-red-50 text-red-800 border-red-100"
-          )}
-        >
-          <div className="flex items-center gap-4">
+      <AnimatePresence>
+        {notification && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4"
+          >
             <div className={cn(
-              "p-2 rounded-xl",
-              notification.type === 'success' ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+              "p-6 rounded-2xl flex items-center justify-between shadow-2xl border-2",
+              notification.type === 'success' ? "bg-emerald-50 text-emerald-800 border-emerald-100" : "bg-red-50 text-red-800 border-red-100"
             )}>
-              {notification.type === 'success' ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "p-2 rounded-xl",
+                  notification.type === 'success' ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                )}>
+                  {notification.type === 'success' ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
+                </div>
+                <div>
+                  <h5 className="font-black text-sm uppercase tracking-widest leading-none mb-1">Status do Sistema</h5>
+                  <p className="text-sm font-bold opacity-80 leading-tight">{notification.message}</p>
+                </div>
+              </div>
+              <button onClick={() => setNotification(null)} className="hover:rotate-90 transition-transform p-2 ml-2">
+                <X size={20} />
+              </button>
             </div>
-            <div>
-              <h5 className="font-black text-sm uppercase tracking-widest leading-none mb-1">Status do Sistema</h5>
-              <p className="text-sm font-bold opacity-80">{notification.message}</p>
-            </div>
-          </div>
-          <button onClick={() => setNotification(null)} className="hover:rotate-90 transition-transform p-2">
-            <X size={20} />
-          </button>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-        {/* Unified Search & Control Bar */}
-        <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row items-center gap-6 bg-slate-50/30">
-          <div className="relative group flex-1 w-full">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
+        {/* Unified Search Bar - Refined */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-4 bg-slate-50/20">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text"
-              placeholder="Pesquisar gestor por nome, e-mail ou identificador..."
+              placeholder="Pesquisar gestor..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-16 pr-6 py-5 bg-white border-2 border-transparent rounded-2xl text-base font-bold text-[#131b2e] focus:ring-8 focus:ring-blue-500/5 focus:border-blue-200 transition-all shadow-sm"
+              className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-[#131b2e] focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all outline-none"
             />
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2">
             <button 
               onClick={fetchData}
-              className="p-5 bg-white text-slate-400 hover:text-blue-600 border border-slate-100 rounded-2xl transition-all shadow-sm active:scale-95"
+              className="p-2.5 bg-white text-slate-400 hover:text-blue-600 border border-slate-200 rounded-xl transition-all shadow-sm active:scale-95"
+              title="Sincronizar"
             >
-              <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
-            <div className="h-10 w-px bg-slate-200" />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 italic">Resultados: {filteredUsers.length}</p>
-          </div>
+            <div className="h-6 w-px bg-slate-200 mx-1" />
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filteredUsers.length} registros</span>
         </div>
+      </div>
 
-        {/* Enterprise Data Grid */}
+      {/* Enterprise Data Grid - Tightened */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-6">
         <div className="overflow-x-auto">
-          {/* Desktop Table */}
           <table className="w-full text-left hidden md:table">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Identificação</th>
-                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Perfil de Acesso</th>
-                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Estado Operacional</th>
-                <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Controles</th>
+              <tr className="border-b border-slate-50">
+                <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Identificação</th>
+                <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Acesso</th>
+                <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50 text-center">Status</th>
+                <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+                Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={4} className="px-10 py-10">
-                      <div className="flex items-center gap-6">
-                        <div className="w-16 h-16 bg-slate-50 rounded-2xl border-2 border-white shadow-sm" />
-                        <div className="space-y-3 flex-1">
-                          <div className="h-6 bg-slate-50 rounded-full w-1/3" />
-                          <div className="h-4 bg-slate-50 rounded-full w-1/4" />
+                    <td colSpan={4} className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl" />
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-slate-100 rounded w-1/4" />
+                          <div className="h-3 bg-slate-100 rounded w-1/5" />
                         </div>
                       </div>
                     </td>
@@ -401,13 +560,13 @@ export function Users() {
                 ))
               ) : filteredUsers.length > 0 ? (
                 filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-blue-50/30 transition-all group border-b border-slate-50 last:border-0 group">
-                    <td className="px-10 py-8">
-                      <div className="flex items-center gap-6">
+                  <tr key={user.id} className="hover:bg-blue-50/30 transition-all group">
+                    <td className="px-8 py-4">
+                      <div className="flex items-center gap-4">
                         <div className="relative shrink-0">
                           <div className={cn(
-                            "w-16 h-16 rounded-[1.25rem] bg-white flex items-center justify-center text-[#00174b] font-black text-2xl border-2 shadow-sm overflow-hidden transition-all duration-500 group-hover:scale-110",
-                            user.status === 'active' ? "border-slate-100" : "border-slate-100 grayscale opacity-50"
+                            "w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#00174b] font-black text-lg border shadow-sm overflow-hidden",
+                            user.status === 'active' ? "border-slate-200" : "grayscale opacity-60"
                           )}>
                             {user.avatar_url ? (
                               <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -416,63 +575,63 @@ export function Users() {
                             )}
                           </div>
                           <div className={cn(
-                            "absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-[3px] border-white shadow-md",
-                            user.status === 'active' ? "bg-emerald-500" : "bg-slate-300"
+                            "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white",
+                            user.status === 'active' ? "bg-emerald-500 shadow-sm" : "bg-slate-300"
                           )} />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-black text-[#131b2e] text-lg leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate max-w-[300px]">
+                          <p className="font-black text-[#131b2e] text-sm leading-tight uppercase truncate max-w-[200px]">
                             {user.name}
                           </p>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <Mail size={12} className="text-slate-400" />
-                            <p className="text-sm font-bold text-slate-500 truncate max-w-[250px]">
-                              {user.email}
-                            </p>
-                          </div>
+                          <p className="text-[10px] font-bold text-slate-400 truncate max-w-[180px]">
+                            {user.email}
+                          </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-10 py-8">
-                      <div className={cn(
-                        "px-5 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] text-center w-fit border-2 shadow-sm",
-                        user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100" :
-                        user.role === 'diretor' ? "bg-amber-50 text-amber-700 border-amber-100" : 
-                        "bg-blue-50 text-blue-700 border-blue-100"
+                    <td className="px-8 py-4">
+                      <span className={cn(
+                        "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                        user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100/50" :
+                        user.role === 'diretor' ? "bg-amber-50 text-amber-700 border-amber-100/50" : 
+                        "bg-blue-50 text-blue-700 border-blue-100/50"
                       )}>
-                        {user.role === 'admin' ? 'Administrador do Sistema' : user.role === 'diretor' ? 'Diretoria Executiva' : 'Membro Secretaria'}
-                      </div>
+                        {user.role}
+                      </span>
                     </td>
-                    <td className="px-10 py-8">
-                      <div className="flex items-center gap-4">
+                    <td className="px-8 py-4">
+                      <div className="flex items-center justify-center gap-2">
                         <div className={cn(
-                          "w-3 h-3 rounded-full",
-                          user.status === 'active' ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)] animate-pulse" : "bg-slate-300"
+                          "w-1.5 h-1.5 rounded-full",
+                          user.status === 'active' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300"
                         )} />
                         <span className={cn(
-                          "text-xs font-black uppercase tracking-widest",
+                          "text-[9px] font-black uppercase tracking-widest",
                           user.status === 'active' ? "text-emerald-700" : "text-slate-400"
                         )}>
-                          {user.status === 'active' ? 'Operacional' : 'Acesso Suspenso'}
+                          {user.status === 'active' ? 'Ativo' : 'Inativo'}
                         </span>
                       </div>
                     </td>
-                    <td className="px-10 py-8 text-right">
-                      <div className="flex items-center justify-end gap-3 transition-all">
+                    <td className="px-8 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => handleEdit(user)}
-                          className="p-4 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-2xl transition-all active:scale-90 shadow-sm border border-transparent hover:border-blue-100"
-                          title="Gerenciar Dados"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                         >
-                          <Edit2 size={24} />
+                          <Edit2 size={16} />
                         </button>
-                        {isAdmin && (
+                        {(isAdmin || isDirector) && user.id !== userAuth?.uid && (
                           <button 
-                            onClick={() => handleDelete(user.id)}
-                            className="p-4 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-2xl transition-all active:scale-90 shadow-sm border border-transparent hover:border-red-100"
-                            title="Remover Acesso"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setIsDeleting(user.id);
+                            }}
+                            className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all shadow-sm bg-white border border-slate-100"
+                            title="Remover Usuário"
                           >
-                            <Trash2 size={24} />
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>
@@ -481,49 +640,114 @@ export function Users() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-10 py-32 text-center text-slate-300 italic font-medium text-lg">Nenhum registro localizado no sistema.</td>
+                  <td colSpan={4} className="px-10 py-24 text-center text-slate-300 italic font-medium text-sm">Nenhum registro localizado.</td>
                 </tr>
               )}
             </tbody>
           </table>
-
-          {/* Mobile Card Layout */}
-          <div className="md:hidden divide-y divide-slate-100">
-            {filteredUsers.map(user => (
-              <div key={user.id} className="p-8 space-y-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-16 h-16 rounded-2xl bg-white border-2 border-slate-100 shadow-sm flex items-center justify-center text-2xl font-black text-[#00174b]">
-                        {user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : user.name.charAt(0)}
-                      </div>
-                      <div className={cn("absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-[3px] border-white", user.status === 'active' ? "bg-emerald-500" : "bg-slate-300")} />
-                    </div>
-                    <div>
-                      <h4 className="font-black text-[#131b2e] leading-tight uppercase tracking-tight">{user.name}</h4>
-                      <p className="text-xs font-bold text-slate-400 truncate max-w-[150px]">{user.email}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-4 pt-4 border-t border-slate-50">
-                   <span className={cn(
-                        "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border",
-                        user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100" :
-                        user.role === 'diretor' ? "bg-amber-50 text-amber-700 border-amber-100" : 
-                        "bg-blue-50 text-blue-700 border-blue-100"
-                      )}>
-                        {user.role}
-                      </span>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleEdit(user)} className="p-3 bg-slate-50 text-blue-600 rounded-xl shadow-sm"><Edit2 size={20} /></button>
-                    {isAdmin && <button onClick={() => handleDelete(user.id)} className="p-3 bg-slate-50 text-red-600 rounded-xl shadow-sm"><Trash2 size={20} /></button>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
+    </div>
+
+    {/* Mobile Card Layout - Enterprise Style */}
+    <div className="md:hidden space-y-3">
+        {filteredUsers.length > 0 ? (
+          filteredUsers.map(user => (
+            <div key={user.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-lg font-black text-[#00174b]">
+                      {user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white", user.status === 'active' ? "bg-emerald-500" : "bg-slate-300")} />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-[#131b2e] text-xs leading-tight uppercase tracking-tight">{user.name}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 truncate max-w-[150px]">{user.email}</p>
+                  </div>
+                </div>
+                <span className={cn(
+                  "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border",
+                  user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100/50" :
+                  user.role === 'diretor' ? "bg-amber-50 text-amber-700 border-amber-100/50" : 
+                  "bg-blue-50 text-blue-700 border-blue-100/50"
+                )}>
+                  {user.role}
+                </span>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-50">
+                <button onClick={() => handleEdit(user)} className="px-4 py-2 bg-slate-50 text-blue-600 rounded-lg text-[9px] font-black flex items-center gap-2">
+                  <Edit2 size={12} />
+                  EDITAR
+                </button>
+                {(isAdmin || isDirector) && user.id !== userAuth?.uid && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDeleting(user.id);
+                    }}
+                    className="p-3 text-red-500 bg-red-50 rounded-xl active:scale-95 transition-all"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="bg-white p-12 rounded-2xl border border-slate-100 text-center">
+            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest italic">Nenhum registro localizado</p>
+          </div>
+        )}
+      </div>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {isDeleting && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[#00174b]/40 backdrop-blur-sm"
+              onClick={() => setIsDeleting(null)}
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative z-10 space-y-6"
+            >
+              <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-black text-[#131b2e] uppercase tracking-tight">Confirmar Exclusão</h3>
+                <p className="text-sm text-slate-500 font-medium">
+                  Deseja realmente remover este usuário? Esta ação é irreversível e removerá todo o acesso ao sistema.
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsDeleting(null)}
+                  className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => handleDelete(isDeleting)}
+                  disabled={loading}
+                  className="flex-1 py-4 px-6 bg-red-600 text-white rounded-2xl font-bold shadow-xl shadow-red-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={20} /> : 'Excluir'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* High-Performance Configuration Modal */}
       <AnimatePresence>
@@ -538,211 +762,248 @@ export function Users() {
             />
             
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 40 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 40 }}
-              className="relative w-full max-w-6xl bg-white rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,23,75,0.4)] overflow-hidden flex flex-col md:flex-row h-[90vh] md:max-h-[850px]"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-4xl bg-white rounded-[1.5rem] shadow-2xl flex flex-col md:flex-row max-h-[92vh] overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              {/* Left Column: Personality & Meta-Data */}
-              <div className="w-full md:w-[380px] bg-slate-50 border-r border-slate-100 flex flex-col overflow-y-auto shrink-0">
-                <div className="p-10 space-y-10">
-                  {/* Photo Management */}
-                  <div className="space-y-6 flex flex-col items-center text-center">
-                    <div className="relative group">
-                      <div className="w-48 h-48 rounded-[3.5rem] bg-white flex items-center justify-center overflow-hidden border-8 border-white shadow-2xl relative">
-                        {formData.avatar_url ? (
+              {/* Left Column: Side Info */}
+              <div className="w-full md:w-[280px] bg-slate-50 border-r border-slate-100 flex flex-col shrink-0">
+                <div className="p-6 space-y-6">
+                  {/* Photo Management - Refined */}
+                  <div className="space-y-4 flex flex-col items-center text-center">
+                    <div className="relative">
+                      <div className="w-32 h-32 rounded-3xl bg-white flex items-center justify-center overflow-hidden border border-slate-200 shadow-lg relative bg-slate-50">
+                        {showWebcam ? (
+                          <Webcam
+                            audio={false}
+                            ref={webcamRef}
+                            screenshotFormat="image/jpeg"
+                            className="w-full h-full object-cover"
+                            videoConstraints={{ facingMode: "user" }}
+                            mirrored={true}
+                            imageSmoothing={true}
+                            screenshotQuality={0.92}
+                            disablePictureInPicture={true}
+                            forceScreenshotSourceSize={false}
+                            onUserMedia={() => console.log('Camera active')}
+                            onUserMediaError={() => setNotification({ type: 'err', message: 'Erro ao acessar webcam' })}
+                          />
+                        ) : formData.avatar_url ? (
                           <img src={formData.avatar_url} className="w-full h-full object-cover" alt="Profile" />
                         ) : (
-                          <User className="text-slate-200" size={80} />
+                          <User className="text-slate-200" size={48} />
                         )}
                         {uploadingAvatar && (
-                          <div className="absolute inset-0 bg-white/80 flex items-center justify-center transition-all">
-                            <Loader2 className="animate-spin text-blue-600" size={40} />
+                          <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 transition-all">
+                            <Loader2 className="animate-spin text-blue-600" size={24} />
                           </div>
                         )}
                       </div>
-                      <label className="absolute -bottom-2 -right-2 w-14 h-14 bg-[#00174b] text-white rounded-2xl flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 active:scale-95 transition-all border-4 border-white">
-                        <Camera size={24} />
-                        <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-                      </label>
+                      
+                      <div className="absolute -bottom-1 -right-1 flex flex-col gap-1.5">
+                        <label className="w-8 h-8 bg-[#00174b] text-white rounded-lg flex items-center justify-center shadow-md cursor-pointer hover:bg-blue-700 transition-all border-2 border-white">
+                          <Camera size={14} />
+                          <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                        </label>
+                        <button 
+                          type="button"
+                          onClick={() => setShowWebcam(!showWebcam)}
+                          className={cn(
+                            "w-8 h-8 rounded-lg flex items-center justify-center shadow-md transition-all border-2 border-white",
+                            showWebcam ? "bg-red-500 text-white" : "bg-blue-600 text-white"
+                          )}
+                        >
+                          {showWebcam ? <X size={14} /> : <Zap size={14} />}
+                        </button>
+                      </div>
                     </div>
+
+                    {showWebcam && (
+                      <button
+                        type="button"
+                        onClick={handleCapture}
+                        disabled={uploadingAvatar}
+                        className="px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-md hover:bg-emerald-600 transition-colors flex items-center gap-1"
+                      >
+                        <Camera size={12} />
+                        Capturar
+                      </button>
+                    )}
                     
-                    <div className="space-y-2">
-                        <h3 className="text-2xl font-black text-[#131b2e] leading-tight">
-                          {formData.name || 'Identidade Visual'}
+                    <div className="space-y-0.5 px-2 w-full truncate">
+                        <h3 className="text-sm font-black text-[#131b2e] leading-tight truncate px-2">
+                          {formData.name || (selectedUser ? 'Identidade' : 'Novo Perfil')}
                         </h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-relaxed">
-                          {selectedUser ? `ID OPERACIONAL: ${selectedUser.id}` : 'CONFIGURAÇÃO DE NOVO PERFIL'}
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                          {selectedUser ? `ID: ${selectedUser.id}` : 'MODO DE CADASTRO'}
                         </p>
                     </div>
                   </div>
 
-                  {/* Operational Summary */}
-                  <div className="space-y-4 pt-4">
-                    <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-2">
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nível de Acesso Institucional</p>
+                  <div className="space-y-3 pt-6 border-t border-slate-100 flex-1">
+                    <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-2 transition-all">
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest opacity-60">Cargo Proposto</p>
                        <div className="flex items-center gap-3">
-                         <Shield size={18} className="text-blue-600" />
-                         <span className="font-black text-sm text-[#131b2e] uppercase tracking-tight">
-                           {formData.role === 'admin' ? 'Administrador Pleno' : formData.role === 'diretor' ? 'Diretoria Estratégica' : 'Corpo Secretariado'}
+                         <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <Shield size={16} />
+                         </div>
+                         <span className="font-black text-[11px] text-[#131b2e] uppercase tracking-tight">
+                            {formData.role === 'admin' ? 'Administrador' : formData.role === 'diretor' ? 'Diretoria' : 'Secretaria'}
                          </span>
                        </div>
                     </div>
-
-                    <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-2">
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estado de Disponibilidade</p>
+                    <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-2 transition-all">
+                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest opacity-60">Status Inicial</p>
                        <div className="flex items-center gap-3">
-                         <div className={cn("w-3 h-3 rounded-full", formData.status === 'active' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300")} />
-                         <span className={cn("font-black text-sm uppercase tracking-tight", formData.status === 'active' ? "text-emerald-600" : "text-slate-400")}>
-                           {formData.status === 'active' ? 'Ativo no Ecossistema' : 'Acesso Interrompido'}
+                         <div className={cn("w-2 h-2 rounded-full", formData.status === 'active' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300")} />
+                         <span className={cn("font-black text-[11px] uppercase tracking-tight", formData.status === 'active' ? "text-emerald-600" : "text-slate-400")}>
+                           {formData.status === 'active' ? 'Ativo / Autorizado' : 'Suspenso / Bloqueado'}
                          </span>
                        </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-auto p-10 border-t border-slate-100 bg-slate-100/50">
-                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                      Este painel gerencia privilégios críticos de segurança. Toda alteração é auditada e registrada nos logs de sistema para conformidade com a LGPD.
+                <div className="mt-auto p-6 border-t border-slate-100 bg-slate-50/50">
+                    <p className="text-[8px] text-slate-400 font-bold leading-tight">
+                      Painel de controle institucional. As ações são registradas conforme LGPD.
                     </p>
                 </div>
               </div>
 
               {/* Right Column: Configuration Controls */}
-              <div className="flex-1 flex flex-col bg-white overflow-y-auto">
-                {/* Fixed Action Header */}
-                <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                       <Plus size={20} />
+              <div className="flex-1 flex flex-col bg-white overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                      selectedUser ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-600"
+                    )}>
+                       {selectedUser ? <Edit2 size={16} /> : <Plus size={16} />}
                     </div>
-                    <h4 className="text-lg font-black text-[#131b2e] uppercase tracking-tight">Parâmetros de Configuração</h4>
+                    <h4 className="text-sm font-black text-[#131b2e] uppercase tracking-tight">
+                      {selectedUser ? 'Preferências de Perfil' : 'Cadastro de Novo Usuário'}
+                    </h4>
                   </div>
                   <button 
                     onClick={() => setIsEditing(false)}
-                    className="p-3 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                    className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition-all"
                   >
-                    <X size={24} />
+                    <X size={20} />
                   </button>
                 </div>
 
-                <div className="p-10 flex-1">
-                  <form id="user-form" onSubmit={handleSave} className="space-y-12">
-                    {/* Identification Block */}
-                    <section className="space-y-8">
-                       <div className="flex items-center gap-4">
-                         <div className="px-3 py-1 bg-[#131b2e] text-white text-[10px] font-black rounded-lg uppercase tracking-widest">01</div>
-                         <h5 className="text-sm font-black text-[#131b2e] uppercase tracking-widest">Identificação Civil e Digital</h5>
+                <div className="p-6 flex-1 overflow-y-auto">
+                  <form id="user-form" onSubmit={handleSave} className="space-y-5">
+                    <section className="space-y-4">
+                       <div className="flex items-center gap-2">
+                         <div className="px-2 py-0.5 bg-[#131b2e] text-white text-[7px] font-black rounded-md uppercase tracking-widest">01</div>
+                         <h5 className="text-[10px] font-black text-[#131b2e] uppercase tracking-widest">Identificação</h5>
                        </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo do Portador</label>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
                             <input 
                               required
                               type="text"
                               value={formData.name}
                               onChange={e => setFormData({...formData, name: e.target.value})}
-                              placeholder="Ex: João da Silva Santos"
-                              className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-2xl text-base font-bold text-[#131b2e] focus:bg-white focus:border-blue-200 transition-all outline-none"
+                              placeholder="Digite o nome..."
+                              className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] focus:bg-white focus:border-blue-200 transition-all outline-none"
                             />
                           </div>
-                          <div className="space-y-3">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Endereço de E-mail Corporativo</label>
+                          <div className="space-y-1">
+                            <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Corporativo</label>
                             <input 
                               required
                               type="email"
                               value={formData.email}
                               onChange={e => setFormData({...formData, email: e.target.value})}
                               placeholder="corporativo@escola.com.br"
-                              className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-2xl text-base font-bold text-[#131b2e] focus:bg-white focus:border-blue-200 transition-all outline-none"
+                              className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] focus:bg-white focus:border-blue-200 transition-all outline-none"
                             />
                           </div>
                        </div>
                     </section>
 
-                    {/* Hierarchy Block */}
-                    {isAdmin && (
-                      <section className="space-y-8">
-                         <div className="flex items-center gap-4">
-                           <div className="px-3 py-1 bg-blue-600 text-white text-[10px] font-black rounded-lg uppercase tracking-widest">02</div>
-                           <h5 className="text-sm font-black text-[#131b2e] uppercase tracking-widest">Hierarquia e Privilégios</h5>
+                    {(isAdmin || isDirector) && (
+                      <section className="space-y-4">
+                         <div className="flex items-center gap-2">
+                           <div className="px-2 py-0.5 bg-blue-600 text-white text-[7px] font-black rounded-md uppercase tracking-widest">02</div>
+                           <h5 className="text-[10px] font-black text-[#131b2e] uppercase tracking-widest">Acesso e Privilégios</h5>
                          </div>
 
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-3">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cargo no Ecossistema</label>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Cargo</label>
                               <div className="relative">
                                 <select
                                   value={formData.role}
                                   onChange={e => setFormData({...formData, role: e.target.value as UserRole})}
-                                  className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-2xl text-base font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none"
+                                  className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none cursor-pointer"
                                 >
-                                  <option value="admin">Administrador Geral do Sistema</option>
-                                  <option value="diretor">Diretoria Escola / Mantenedora</option>
-                                  <option value="secretario">Equipe Secretaria e Atendimento</option>
+                                  <option value="admin">Administrador Geral</option>
+                                  <option value="diretor">Diretoria Escola</option>
+                                  <option value="secretario">Equipe Secretaria</option>
                                 </select>
-                                <ChevronDown size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                               </div>
                             </div>
-                            <div className="space-y-3">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado da Credencial</label>
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Estado</label>
                               <div className="relative">
                                 <select
                                   value={formData.status}
                                   onChange={e => setFormData({...formData, status: e.target.value as any})}
-                                  className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-2xl text-base font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none"
+                                  className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-blue-200 transition-all outline-none cursor-pointer"
                                 >
-                                  <option value="active">✓ AUTORIZADO (Acesso Total)</option>
-                                  <option value="inactive">✕ SUSPENSO (Sem Acesso)</option>
+                                  <option value="active">✓ AUTORIZADO</option>
+                                  <option value="inactive">✕ SUSPENSO</option>
                                 </select>
-                                <ChevronDown size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                               </div>
                             </div>
                          </div>
                       </section>
                     )}
 
-                    {/* Security Hardening Block */}
-                    {(selectedUser && user?.uid === selectedUser.id) && (
-                      <section className="space-y-8 p-10 bg-orange-50/50 rounded-[2.5rem] border border-orange-100 shadow-inner">
-                         <div className="flex items-center gap-4">
-                           <div className="px-3 py-1 bg-orange-600 text-white text-[10px] font-black rounded-lg uppercase tracking-widest">03</div>
-                           <h5 className="text-sm font-black text-orange-950 uppercase tracking-widest">Fortalecimento de Segurança</h5>
+                    {(selectedUser && userAuth?.uid === selectedUser.id) && (
+                      <section className="space-y-4 p-4 bg-orange-50/50 rounded-2xl border border-orange-100">
+                         <div className="flex items-center gap-2">
+                           <div className="px-2 py-0.5 bg-orange-600 text-white text-[7px] font-black rounded-md uppercase tracking-widest">03</div>
+                           <h5 className="text-[10px] font-black text-orange-950 uppercase tracking-widest">Segurança</h5>
                          </div>
 
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-3">
-                              <label className="text-[10px] font-black text-orange-800/60 uppercase tracking-widest ml-1">Nova Senha Complexa</label>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-orange-800/60 uppercase tracking-widest ml-1">Nova Senha</label>
                               <div className="relative">
                                 <input 
                                   type="password"
                                   value={passwordData.newPassword}
                                   onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
-                                  placeholder="••••••••••••"
-                                  className="w-full px-6 py-5 bg-white border-2 border-orange-200/50 rounded-2xl text-base font-bold text-[#131b2e] focus:border-orange-400 outline-none transition-all pr-12"
+                                  placeholder="••••••••"
+                                  className="w-full px-4 py-2 bg-white border border-orange-200 rounded-xl text-[11px] font-bold text-[#131b2e] focus:border-orange-400 outline-none transition-all pr-10"
                                 />
-                                <Key size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-orange-300" />
+                                <Key size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-300" />
                               </div>
                             </div>
-                            <div className="space-y-3">
-                              <label className="text-[10px] font-black text-orange-800/60 uppercase tracking-widest ml-1">Confirmar Nova Senha</label>
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-orange-800/60 uppercase tracking-widest ml-1">Confirmar</label>
                               <div className="relative">
                                 <input 
                                   type="password"
                                   value={passwordData.confirmPassword}
                                   onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                                  placeholder="••••••••••••"
-                                  className="w-full px-6 py-5 bg-white border-2 border-orange-200/50 rounded-2xl text-base font-bold text-[#131b2e] focus:border-orange-400 outline-none transition-all pr-12"
+                                  placeholder="••••••••"
+                                  className="w-full px-4 py-2 bg-white border border-orange-200 rounded-xl text-[11px] font-bold text-[#131b2e] focus:border-orange-400 outline-none transition-all pr-10"
                                 />
-                                <Key size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-orange-300" />
+                                <Key size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-300" />
                               </div>
                             </div>
-                         </div>
-                         <div className="flex items-center gap-2 px-1 text-[9px] font-bold text-orange-800/50 uppercase tracking-widest">
-                           <Shield size={12} />
-                           Use no mínimo 8 caracteres, incluindo letras, números e símbolos.
                          </div>
                       </section>
                     )}
@@ -750,21 +1011,21 @@ export function Users() {
                 </div>
 
                 {/* Footer Controls */}
-                <div className="px-10 py-10 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-6 shrink-0 sticky bottom-0">
+                <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
                   <button 
                     onClick={() => setIsEditing(false)}
-                    className="px-8 py-5 text-slate-400 hover:text-slate-600 font-black uppercase tracking-widest text-[10px] transition-all"
+                    className="px-4 py-2 text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest text-[8px] transition-all"
                   >
-                    Descartar Mudanças
+                    Descartar
                   </button>
                   <button 
                     form="user-form"
                     type="submit"
                     disabled={loading}
-                    className="px-12 py-5 bg-[#00174b] text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-[1.03] active:scale-95 transition-all shadow-2xl shadow-blue-900/40 flex items-center gap-3 disabled:opacity-50"
+                    className="px-6 py-2.5 bg-[#00174b] text-white rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-blue-800 shadow-lg flex items-center gap-2 disabled:opacity-50 transition-all"
                   >
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    {selectedUser ? 'Aplicar Alterações' : 'Confirmar Cadastro'}
+                    {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                    {selectedUser ? 'Aplicar Modificações' : 'Confirmar Cadastro'}
                   </button>
                 </div>
               </div>

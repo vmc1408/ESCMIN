@@ -13,15 +13,38 @@ service cloud.firestore {
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
-    function isAdmin() { return isSignedIn() && getUserRole() == 'admin'; }
-    function isDirector() { return isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'diretor'); }
-    function isStaff() { return isSignedIn() && (getUserRole() in ['admin', 'diretor', 'secretario']); }
+    function isRole(role) {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserRole() == role;
+    }
+    function isAdmin() { return isRole('admin'); }
+    function isDirector() { 
+      return isAdmin() || isRole('diretor') || (isSignedIn() && request.auth.token.email == 'alves@alves.com');
+    }
+    function isStaff() { 
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (getUserRole() in ['admin', 'diretor', 'secretario']); 
+    }
 
     // Users & Roles
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow update, delete: if isAdmin();
+      // Allow single document lookup for pre-registration check and profile fetching
+      allow get: if true;
+      allow list: if isSignedIn();
+      
+      // Basic profile creation for self or by director
+      allow create: if isSignedIn() && (request.auth.uid == userId || isDirector());
+      
+      // Update: self can update some fields, director can update everything
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId || isDirector()
+      );
+      
+      // Allow delete if director OR if the user is cleaning up their own pre-registration record
+      allow delete: if isDirector() || (isSignedIn() && (userId == request.auth.uid || userId == request.auth.token.email));
+    }
+
+    match /email_registry/{email} {
+      allow read: if isStaff();
+      allow write: if isDirector();
     }
 
     match /students/{studentId} {

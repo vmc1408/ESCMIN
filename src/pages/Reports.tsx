@@ -59,7 +59,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { financialService } from '../services/financialService';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, isSameMonth, startOfYear } from 'date-fns';
@@ -128,21 +128,22 @@ export function Reports() {
       let pixData: PixTransaction[] = [];
 
       try {
-        // Tentativa via Supabase (Performance & No Quota)
-        const [sRes, tRes, cRes, subRes, pRes] = await Promise.all([
-          supabase.from('students').select('*'),
-          supabase.from('teachers').select('*'),
-          supabase.from('classes').select('*'),
-          supabase.from('subjects').select('*'),
-          financialService.getPixReconciliation()
-        ]);
+        if (isSupabaseConfigured) {
+          // Tentativa via Supabase (Performance & No Quota)
+          const [sRes, tRes, cRes, subRes, pRes] = await Promise.all([
+            supabase.from('students').select('*'),
+            supabase.from('teachers').select('*'),
+            supabase.from('classes').select('*'),
+            supabase.from('subjects').select('*'),
+            financialService.getPixReconciliation()
+          ]);
 
-        if (sRes.data && sRes.data.length > 0) studentsData = sRes.data as any;
-        if (tRes.data && tRes.data.length > 0) teachersData = tRes.data as any;
-        if (cRes.data && cRes.data.length > 0) classesData = cRes.data as any;
-        if (subRes.data && subRes.data.length > 0) subjectsData = subRes.data as any;
-        if (pRes && pRes.length > 0) pixData = pRes as any;
-
+          if (sRes && sRes.data && sRes.data.length > 0) studentsData = sRes.data as any;
+          if (tRes && tRes.data && tRes.data.length > 0) teachersData = tRes.data as any;
+          if (cRes && cRes.data && cRes.data.length > 0) classesData = cRes.data as any;
+          if (subRes && subRes.data && subRes.data.length > 0) subjectsData = subRes.data as any;
+          if (pRes && pRes.length > 0) pixData = pRes as any;
+        }
       } catch (supabaseError) {
         console.warn('Supabase fetch failed, falling back to Firebase...', supabaseError);
       }

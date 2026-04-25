@@ -53,7 +53,7 @@ import {
 import { Student, Class, InstitutionSettings, UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { financialService } from '../services/financialService';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { schemaService } from '../services/schemaService';
 import { useAuth } from '../contexts/AuthContext';
 

@@ -33,7 +33,11 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
 
   // Handle case where user is logged in but profile hasn't loaded or doesn't exist
   if (!profile) {
-    // Check if we just created the user
+    // If loading is finished and we still have no profile, the user might be orphaned or deleted
+    if (!loading) {
+      return <Navigate to="/login" replace />;
+    }
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="text-center space-y-4">

@@ -64,7 +64,7 @@ const navItems = [
   { icon: SettingsIcon, label: 'Configurações', path: '/settings' },
 ];
 
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { financialService } from '../services/financialService';
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -93,12 +93,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const checkConnection = async () => {
     try {
-      // Prioritize Supabase for status check (to avoid Firestore quota)
-      const { data, error } = await supabase.from('institution_settings').select('id').limit(1);
-      
-      if (!error) {
-        setDbStatus('online');
-        return;
+      // Prioritize Supabase for status check if configured
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.from('institution_settings').select('id').limit(1);
+        
+        if (!error) {
+          setDbStatus('online');
+          return;
+        }
       }
 
       // Fallback only if Supabase fails

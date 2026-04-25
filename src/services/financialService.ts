@@ -1,4 +1,4 @@
-import { supabase, fetchRecursive } from '../lib/supabase';
+import { supabase, fetchRecursive, isSupabaseConfigured } from '../lib/supabase';
 
 export interface PixReconciliationSQL {
   id: string;
@@ -23,23 +23,29 @@ export const financialService = {
    */
   async getPixReconciliation() {
     try {
-      return await fetchRecursive('pix_reconciliations', {
-        select: '*, student:students(name)',
-        orderCol: 'created_at',
-        ascending: false
-      });
+      if (isSupabaseConfigured) {
+        return await fetchRecursive('pix_reconciliations', {
+          select: '*, student:students(name)',
+          orderCol: 'created_at',
+          ascending: false
+        });
+      }
+      return [];
     } catch (e) {
-      // Fallback fallback simple select
-      const { data, error } = await supabase
-        .from('pix_reconciliations')
-        .select(`
-          *,
-          student:students(name)
-        `)
-        .order('created_at', { ascending: false });
+      if (isSupabaseConfigured) {
+        // Fallback fallback simple select
+        const { data, error } = await supabase
+          .from('pix_reconciliations')
+          .select(`
+            *,
+            student:students(name)
+          `)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      }
+      return [];
     }
   },
 
@@ -48,22 +54,28 @@ export const financialService = {
    */
   async getContributions() {
     try {
-      return await fetchRecursive('contributions', {
-        select: '*, student:students(name, registration_number)',
-        orderCol: 'payment_date',
-        ascending: false
-      });
+      if (isSupabaseConfigured) {
+        return await fetchRecursive('contributions', {
+          select: '*, student:students(name, registration_number)',
+          orderCol: 'payment_date',
+          ascending: false
+        });
+      }
+      return [];
     } catch (e) {
-      const { data, error } = await supabase
-        .from('contributions')
-        .select(`
-          *,
-          student:students(name, registration_number)
-        `)
-        .order('payment_date', { ascending: false });
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from('contributions')
+          .select(`
+            *,
+            student:students(name, registration_number)
+          `)
+          .order('payment_date', { ascending: false });
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      }
+      return [];
     }
   },
 
@@ -71,6 +83,8 @@ export const financialService = {
    * Busca as configurações da instituição do Supabase.
    */
   async getInstitutionSettings() {
+    if (!isSupabaseConfigured) return null;
+    
     const { data, error } = await supabase
       .from('institution_settings')
       .select('*')
@@ -86,20 +100,26 @@ export const financialService = {
    */
   async getMonthlyRevenue() {
     try {
-      const data = await fetchRecursive('contributions', {
-        select: 'amount',
-        orderCol: 'payment_date',
-        ascending: false
-      });
-      return data ? data.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0) : 0;
+      if (isSupabaseConfigured) {
+        const data = await fetchRecursive('contributions', {
+          select: 'amount',
+          orderCol: 'payment_date',
+          ascending: false
+        });
+        return data ? data.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0) : 0;
+      }
+      return 0;
     } catch (e) {
-      const { data, error } = await supabase
-        .from('contributions')
-        .select('amount')
-        .order('payment_date', { ascending: false });
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase
+          .from('contributions')
+          .select('amount')
+          .order('payment_date', { ascending: false });
 
-      if (error) throw error;
-      return data ? data.reduce((acc, curr) => acc + Number(curr.amount), 0) : 0;
+        if (error) throw error;
+        return data ? data.reduce((acc, curr) => acc + Number(curr.amount), 0) : 0;
+      }
+      return 0;
     }
   }
 };
