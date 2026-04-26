@@ -15,6 +15,8 @@ export function Users() {
   const [search, setSearch] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name');
+  const [groupBy, setGroupBy] = useState<'none' | 'role' | 'status'>('none');
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
   // Webcam
@@ -40,34 +42,63 @@ export function Users() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      let data = await fetchAll('users', '*', 'name') as UserProfile[];
+      // Fetch both managers and the general registry
+      const [usersData, registryData] = await Promise.all([
+        fetchAll('users', '*', 'name'),
+        fetchAll('email_registry', '*', 'email')
+      ]);
       
-      // Deduplication Logic: Prioritize profiles with UID over pre-registered ones (Email ID)
+      const managers = usersData as UserProfile[];
+      const registered = registryData as any[];
+
+      // deduplication Logic: Prioritize profiles with UID over pre-registered ones (Email ID)
       const uniqueUsersMap = new Map<string, UserProfile>();
       
-      if (data && data.length > 0) {
-        data.forEach(u => {
-          if (!u.email) return;
-          const emailKey = u.email.toLowerCase().trim();
-          const existing = uniqueUsersMap.get(emailKey);
+      // 1. Process Managers first
+      if (managers && managers.length > 0) {
+        managers.forEach(u => {
+          // Use ID as primary key, fallback to email if ID is missing (unlikely for users col)
+          const key = u.id || u.email?.toLowerCase().trim() || Math.random().toString();
+          const existing = uniqueUsersMap.get(key);
           
-          // If we don't have this email yet, or if the current 'u' is a real profile (id != email)
-          // and the existing one was just a pre-registration (id == email), replace it.
-          if (!existing || (u.id !== emailKey && existing.id === emailKey)) {
-            uniqueUsersMap.set(emailKey, u);
+          const isPreReg = u.is_pre_registered === true;
+          
+          if (!existing) {
+            uniqueUsersMap.set(key, u);
+          } else {
+            const existingIsPreReg = existing.is_pre_registered === true;
+            if (existingIsPreReg && !isPreReg) {
+               uniqueUsersMap.set(key, u);
+            }
           }
         });
-        data = Array.from(uniqueUsersMap.values());
+      }
+
+      // 2. Add those from email_registry who are not in uniqueUsersMap yet
+      if (registered && registered.length > 0) {
+        registered.forEach(reg => {
+          if (!reg.email) return;
+          const emailKey = reg.email.toLowerCase().trim();
+          
+          // Check if this email is already represented in uniqueUsersMap
+          const alreadyRepresented = Array.from(uniqueUsersMap.values()).some(u => u.email?.toLowerCase() === emailKey);
+          
+          if (!alreadyRepresented) {
+            // Create a virtual profile for the UI
+            uniqueUsersMap.set(emailKey, {
+              id: reg.id || emailKey,
+              email: reg.email,
+              name: reg.name || reg.email.split('@')[0],
+              role: (reg.role as any) || 'secretario',
+              status: 'inactive', // Default to inactive if profile not created
+              is_pre_registered: true,
+              created_at: reg.registered_at || reg.created_at || new Date().toISOString()
+            } as UserProfile);
+          }
+        });
       }
       
-      // RBAC Filtering:
-      // Admin and Director see all.
-      // Secretary only sees themselves.
-      if (isSecretary && !isAdmin && userAuth) {
-        data = data.filter(u => u.id === userAuth.uid);
-      }
-      
-      setUsers(data || []);
+      setUsers(Array.from(uniqueUsersMap.values()));
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -392,10 +423,35 @@ export function Users() {
     }
   };
 
-  const filteredUsers = users.filter(u => 
+  const sortedUsers = [...users].sort((a, b) => {
+    if (sortBy === 'name') {
+      return (a.name || '').localeCompare(b.name || '');
+    } else {
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    }
+  });
+
+  const filteredUsers = sortedUsers.filter(u => 
     (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (u.email || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const groupedUsers = React.useMemo(() => {
+    if (groupBy === 'none') {
+      return { 'Todos os Usuários': filteredUsers };
+    }
+    
+    return filteredUsers.reduce((acc, user) => {
+      const key = groupBy === 'role' ? user.role : user.status;
+      const groupName = groupBy === 'role' 
+        ? (key === 'admin' ? 'Administradores' : key === 'diretor' ? 'Diretoria' : 'Secretários')
+        : (key === 'active' ? 'Ativos' : 'Inativos');
+        
+      if (!acc[groupName]) acc[groupName] = [];
+      acc[groupName].push(user);
+      return acc;
+    }, {} as Record<string, UserProfile[]>);
+  }, [filteredUsers, groupBy]);
 
   const activeUsers = users.filter(u => u.status === 'active').length;
   const suspendedUsers = users.filter(u => u.status === 'inactive').length;
@@ -418,13 +474,15 @@ export function Users() {
           </div>
           
           {(isAdmin || isDirector) && (
-            <button
-              onClick={handleAddNew}
-              className="px-6 py-3 bg-[#00174b] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#002a8a] transition-all shadow-lg active:scale-95 group"
-            >
-              <Plus size={14} className="group-hover:rotate-90 transition-transform" />
-              Novo Gestor
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleAddNew}
+                className="px-6 py-3 bg-[#00174b] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#002a8a] transition-all shadow-lg active:scale-95 group"
+              >
+                <Plus size={14} className="group-hover:rotate-90 transition-transform" />
+                Novo Gestor
+              </button>
+            </div>
           )}
         </header>
 
@@ -519,6 +577,59 @@ export function Users() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2 py-1">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 ml-1">Ordem:</span>
+              <button 
+                onClick={() => setSortBy('name')}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
+                  sortBy === 'name' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
+                )}
+              >
+                NOME
+              </button>
+              <button 
+                onClick={() => setSortBy('created_at')}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
+                  sortBy === 'created_at' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
+                )}
+              >
+                DATA
+              </button>
+            </div>
+
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2 py-1">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 ml-1">Agrupar:</span>
+              <button 
+                onClick={() => setGroupBy('none')}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
+                  groupBy === 'none' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
+                )}
+              >
+                OFF
+              </button>
+              <button 
+                onClick={() => setGroupBy('role')}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
+                  groupBy === 'role' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
+                )}
+              >
+                CARGO
+              </button>
+              <button 
+                onClick={() => setGroupBy('status')}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
+                  groupBy === 'status' ? "bg-[#00174b] text-white" : "text-slate-400 hover:bg-slate-50"
+                )}
+              >
+                STATUS
+              </button>
+            </div>
+
             <button 
               onClick={fetchData}
               className="p-2.5 bg-white text-slate-400 hover:text-blue-600 border border-slate-200 rounded-xl transition-all shadow-sm active:scale-95"
@@ -538,16 +649,17 @@ export function Users() {
             <thead>
               <tr className="border-b border-slate-50">
                 <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Identificação</th>
+                <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Criação</th>
                 <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">Acesso</th>
                 <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50 text-center">Status</th>
                 <th className="px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-50 text-[11px]">
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={4} className="px-8 py-6">
+                    <td colSpan={5} className="px-8 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-slate-100 rounded-xl" />
                         <div className="space-y-2 flex-1">
@@ -558,89 +670,110 @@ export function Users() {
                     </td>
                   </tr>
                 ))
-              ) : filteredUsers.length > 0 ? (
-                filteredUsers.map(user => (
-                  <tr key={user.id} className="hover:bg-blue-50/30 transition-all group">
-                    <td className="px-8 py-4">
-                      <div className="flex items-center gap-4">
-                        <div className="relative shrink-0">
-                          <div className={cn(
-                            "w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#00174b] font-black text-lg border shadow-sm overflow-hidden",
-                            user.status === 'active' ? "border-slate-200" : "grayscale opacity-60"
+              ) : Object.keys(groupedUsers).length > 0 ? (
+                (Object.entries(groupedUsers) as [string, UserProfile[]][]).map(([group, groupItems]) => (
+                  <React.Fragment key={group}>
+                    {groupBy !== 'none' && (
+                      <tr className="bg-slate-50/50">
+                        <td colSpan={5} className="px-8 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest border-y border-slate-100">
+                          {group} ({groupItems.length})
+                        </td>
+                      </tr>
+                    )}
+                    {groupItems.map(user => (
+                      <tr key={user.id} className="hover:bg-blue-50/30 transition-all group">
+                        <td className="px-8 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="relative shrink-0">
+                              <div className={cn(
+                                "w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#00174b] font-black text-lg border shadow-sm overflow-hidden",
+                                user.status === 'active' ? "border-slate-200" : "grayscale opacity-60"
+                              )}>
+                                {user.avatar_url ? (
+                                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  user.name.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              <div className={cn(
+                                "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white",
+                                user.status === 'active' ? "bg-emerald-500 shadow-sm" : "bg-slate-300"
+                              )} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-black text-[#131b2e] text-sm leading-tight uppercase truncate max-w-[200px]">
+                                {user.name}
+                              </p>
+                              <p className="text-[10px] font-bold text-slate-400 truncate max-w-[180px]">
+                                {user.email}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-slate-600">
+                              {user.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : 'N/D'}
+                            </span>
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                              {user.created_at ? new Date(user.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-4">
+                          <span className={cn(
+                            "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                            user.role === 'admin' ? "bg-indigo-50 text-indigo-700 border-indigo-100/50" :
+                            user.role === 'diretor' ? "bg-blue-50 text-blue-700 border-blue-100/50" : 
+                            "bg-slate-50 text-slate-700 border-slate-100/50"
                           )}>
-                            {user.avatar_url ? (
-                              <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              user.name.charAt(0).toUpperCase()
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-8 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              user.status === 'active' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300"
+                            )} />
+                            <span className={cn(
+                              "text-[9px] font-black uppercase tracking-widest",
+                              user.status === 'active' ? "text-emerald-700" : "text-slate-400"
+                            )}>
+                              {user.status === 'active' ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => handleEdit(user)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            {(isAdmin || isDirector) && user.id !== userAuth?.uid && (
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setIsDeleting(user.id);
+                                }}
+                                className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all shadow-sm bg-white border border-slate-100"
+                                title="Remover Usuário"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             )}
                           </div>
-                          <div className={cn(
-                            "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white",
-                            user.status === 'active' ? "bg-emerald-500 shadow-sm" : "bg-slate-300"
-                          )} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-black text-[#131b2e] text-sm leading-tight uppercase truncate max-w-[200px]">
-                            {user.name}
-                          </p>
-                          <p className="text-[10px] font-bold text-slate-400 truncate max-w-[180px]">
-                            {user.email}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                        user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100/50" :
-                        user.role === 'diretor' ? "bg-amber-50 text-amber-700 border-amber-100/50" : 
-                        "bg-blue-50 text-blue-700 border-blue-100/50"
-                      )}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-8 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          user.status === 'active' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300"
-                        )} />
-                        <span className={cn(
-                          "text-[9px] font-black uppercase tracking-widest",
-                          user.status === 'active' ? "text-emerald-700" : "text-slate-400"
-                        )}>
-                          {user.status === 'active' ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleEdit(user)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        {(isAdmin || isDirector) && user.id !== userAuth?.uid && (
-                          <button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setIsDeleting(user.id);
-                            }}
-                            className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all shadow-sm bg-white border border-slate-100"
-                            title="Remover Usuário"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-10 py-24 text-center text-slate-300 italic font-medium text-sm">Nenhum registro localizado.</td>
+                  <td colSpan={5} className="px-10 py-24 text-center text-slate-300 italic font-medium text-sm">Nenhum registro localizado.</td>
                 </tr>
               )}
             </tbody>
@@ -669,9 +802,9 @@ export function Users() {
                 </div>
                 <span className={cn(
                   "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border",
-                  user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100/50" :
-                  user.role === 'diretor' ? "bg-amber-50 text-amber-700 border-amber-100/50" : 
-                  "bg-blue-50 text-blue-700 border-blue-100/50"
+                  user.role === 'admin' ? "bg-indigo-50 text-indigo-700 border-indigo-100/50" :
+                  user.role === 'diretor' ? "bg-blue-50 text-blue-700 border-blue-100/50" : 
+                  "bg-slate-50 text-slate-700 border-slate-100/50"
                 )}>
                   {user.role}
                 </span>

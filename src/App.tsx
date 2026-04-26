@@ -5,7 +5,7 @@ import { Students } from './pages/Students';
 import { Teachers } from './pages/Teachers';
 import { Classes } from './pages/Classes';
 import { Subjects } from './pages/Subjects';
-import { Parishes } from './pages/Parishes';
+import { Diocese } from './pages/Diocese';
 import { Import } from './pages/Import';
 import { Reports } from './pages/Reports';
 import { Contributions } from './pages/Contributions';
@@ -53,7 +53,7 @@ export default function App() {
               } />
               <Route path="parishes" element={
                 <ProtectedRoute requiredModule="/parishes">
-                  <Parishes />
+                  <Diocese />
                 </ProtectedRoute>
               } />
               <Route path="import" element={

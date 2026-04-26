@@ -6,14 +6,15 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
         "full_name": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "coordenador", "secretario"] },
-        "status": { "type": "string", "enum": ["pending", "authorized", "rejected"] },
         "avatar_url": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "diretor", "secretario"] },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
         "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "username", "full_name", "role", "status"]
+      "required": ["id", "email", "name", "role", "status"]
     },
     "Student": {
       "title": "Student",
@@ -165,9 +166,48 @@
         "id": { "type": "string" },
         "code": { "type": "string" },
         "name": { "type": "string" },
+        "priest_name": { "type": "string" },
+        "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "code", "name"]
+    },
+    "ClergyLeity": {
+      "title": "ClergyLeity",
+      "description": "Diocese Clergy and Leity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "address_neighborhood": { "type": "string" },
+        "address_city": { "type": "string" },
+        "address_state": { "type": "string" },
+        "phone_mobile": { "type": "string" },
+        "phone_whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "parish_id": { "type": "string" },
+        "role": { "type": "string", "enum": ["pároco", "vigário", "diácono", "seminarista", "leigo formado"] },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "role", "user_id"]
+    },
+    "EmailRegistry": {
+      "title": "EmailRegistry",
+      "description": "Pre-registered emails for authentication",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" },
+        "registered_at": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email"]
     },
     "Parish": {
       "title": "Parish",
@@ -177,18 +217,21 @@
         "id": { "type": "string" },
         "code": { "type": "string" },
         "name": { "type": "string" },
-        "forania": { "type": "string" },
+        "forania_id": { "type": "string" },
+        "priest_id": { "type": "string" },
         "priest_name": { "type": "string" },
         "address_street": { "type": "string" },
+        "address_number": { "type": "string" },
         "address_neighborhood": { "type": "string" },
         "address_city": { "type": "string" },
         "address_state": { "type": "string" },
         "address_zip": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
+        "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "code", "name", "forania"]
+      "required": ["id", "code", "name"]
     }
   },
   "firestore": {
@@ -200,7 +243,9 @@
     "pix_reconciliations": { "schema": "PixTransaction", "description": "PIX transactions collection" },
     "contributions": { "schema": "Contribution", "description": "Contributions collection" },
     "institution_settings": { "schema": "InstitutionSettings", "description": "Institution configuration" },
+    "email_registry": { "schema": "EmailRegistry", "description": "Email registry for pre-auth" },
     "foraries": { "schema": "Foraria", "description": "Foraries collection" },
-    "parishes": { "schema": "Parish", "description": "Parishes collection" }
+    "parishes": { "schema": "Parish", "description": "Parishes collection" },
+    "clergy_leity": { "schema": "ClergyLeity", "description": "Clergy and Leity collection" }
   }
 }

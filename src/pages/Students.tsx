@@ -171,6 +171,8 @@ export function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [parishesList, setParishesList] = useState<any[]>([]);
+  const [forariesList, setForariesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
@@ -213,6 +215,8 @@ export function Students() {
   useEffect(() => {
     fetchStudents();
     fetchClasses();
+    fetchParishes();
+    fetchForaries();
   }, []);
 
   // Auto-fill student start date based on selected class
@@ -241,6 +245,24 @@ export function Students() {
       setClasses(data || []);
     } catch (error) {
       console.error('Error fetching classes:', error);
+    }
+  };
+
+  const fetchParishes = async () => {
+    try {
+      const data = await fetchAll('parishes', '*', 'name');
+      setParishesList(data || []);
+    } catch (error) {
+      console.error('Error fetching parishes:', error);
+    }
+  };
+
+  const fetchForaries = async () => {
+    try {
+      const data = await fetchAll('foraries', '*', 'name');
+      setForariesList(data || []);
+    } catch (error) {
+      console.error('Error fetching foraries:', error);
     }
   };
 
@@ -575,7 +597,9 @@ export function Students() {
       drawField('Email:', (student.email || '').toLowerCase(), margin, y, fieldEndX);
       
       y += 10;
-      drawField('É participante de qual Paróquia?', student.parish || '', margin, y, fieldEndX);
+      const colParishEnd = margin + 110;
+      drawField('É participante de qual Paróquia?', student.parish || '', margin, y, colParishEnd);
+      drawField('Forania:', student.forany || '', colParishEnd + 2, y, fieldEndX);
       
       y += 8;
       drawField('Participa de qual Pastoral?', student.pastoral_participates || '', margin, y, fieldEndX);
@@ -1179,20 +1203,51 @@ export function Students() {
                       Informações Pastorais
                     </h4>
                     <div className="grid grid-cols-12 gap-4">
-                      <div className="col-span-8 space-y-1">
+                      <div className="col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Paróquia Origem</label>
-                        <input 
-                          type="text"
+                        <select 
                           disabled={!isEditing}
                           value={formData.parish || ''}
-                          onChange={(e) => setFormData({...formData, parish: e.target.value})}
+                          onChange={(e) => {
+                            const pName = e.target.value;
+                            const parishData = parishesList.find(p => p.name === pName);
+                            const updates: any = { parish: pName };
+                            
+                            if (parishData?.forania_id) {
+                              const foraria = forariesList.find(f => f.id === parishData.forania_id);
+                              if (foraria) updates.forany = foraria.name;
+                            }
+                            
+                            setFormData({...formData, ...updates});
+                          }}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
                           tabIndex={16}
-                        />
+                        >
+                          <option value="">Selecione...</option>
+                          {parishesList.map(p => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Pastoral que participa</label>
+                        <label className="text-xs font-bold text-slate-700">Forania</label>
+                        <select 
+                          disabled={!isEditing}
+                          value={formData.forany || ''}
+                          onChange={(e) => setFormData({...formData, forany: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
+                          tabIndex={16}
+                        >
+                          <option value="">Selecione...</option>
+                          {forariesList.map(f => (
+                            <option key={f.id} value={f.name}>{f.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Pastoral</label>
                         <input 
                           type="text"
                           disabled={!isEditing}

@@ -129,10 +129,32 @@ export interface Contribution {
   created_at: string;
 }
 
+export type ClergyRole = 'pároco' | 'vigário' | 'diácono' | 'seminarista' | 'leigo formado';
+
+export interface ClergyLeity {
+  id: string;
+  code: string; // Sequential code
+  name: string;
+  address?: string;
+  address_number?: string;
+  address_neighborhood?: string;
+  address_city?: string;
+  address_state?: string;
+  phone_mobile?: string;
+  phone_whatsapp?: string;
+  email?: string;
+  parish_id?: string;
+  role: ClergyRole;
+  user_id: string;
+  created_at: string;
+}
+
 export interface Foraria {
   id: string;
-  code: string;
+  code: string; // Sequential code
   name: string;
+  priest_name?: string; // Padre Forâneo
+  user_id: string;
   created_at: string;
 }
 
@@ -140,8 +162,9 @@ export interface Parish {
   id: string;
   code: string;
   name: string;
-  forania: string; // Name or ID of the forania
-  priest_name: string;
+  forania_id?: string;
+  priest_id?: string; // ID of the clergyman responsible
+  priest_name?: string; // Cache for display
   address_street?: string;
   address_number?: string;
   address_neighborhood?: string;
@@ -150,6 +173,7 @@ export interface Parish {
   address_zip?: string;
   email?: string;
   phone?: string;
+  user_id: string;
   created_at: string;
 }
 

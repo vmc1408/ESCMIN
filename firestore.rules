@@ -8,20 +8,30 @@ service cloud.firestore {
 
     // Helpers
     function isSignedIn() { return request.auth != null; }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
+    
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
+    
     function isRole(role) {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserRole() == role;
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             getUserRole() == role;
     }
-    function isAdmin() { return isRole('admin'); }
+    
+    function isAdmin() { 
+      return isRole('admin') || (isSignedIn() && (request.auth.token.email == 'alves@alves.com' || request.auth.token.email == 'vmcjobnow@gmail.com')); 
+    }
+    
     function isDirector() { 
-      return isAdmin() || isRole('diretor') || (isSignedIn() && request.auth.token.email == 'alves@alves.com');
+      return isAdmin() || isRole('diretor');
     }
+    
     function isStaff() { 
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (getUserRole() in ['admin', 'diretor', 'secretario']); 
+      return isAdmin() || (isSignedIn() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        (getUserRole() in ['admin', 'diretor', 'secretario'])
+      )); 
     }
 
     // Users & Roles
@@ -88,6 +98,11 @@ service cloud.firestore {
     }
 
     match /parishes/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /clergy_leity/{id} {
       allow read: if isStaff();
       allow write: if isStaff();
     }

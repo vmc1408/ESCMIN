@@ -40,7 +40,7 @@ import {
   Terminal,
   Key
 } from 'lucide-react';
-import { db, fetchCount, uploadImage, saveData, fetchAll } from '../lib/firebase';
+import { db, fetchCount, uploadImage, saveData, fetchAll, fetchFromFirestore } from '../lib/firebase';
 import { collection, query, limit, getDocs, doc, updateDoc, setDoc, deleteDoc, orderBy, addDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -126,6 +126,7 @@ export function Settings() {
   const [schemaReport, setSchemaReport] = useState<any>(null);
   const [fixSql, setFixSql] = useState<string>('');
   const [checkingSchema, setCheckingSchema] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState<{
     show: boolean;
     title: string;
@@ -139,6 +140,82 @@ export function Settings() {
     onConfirm: () => {},
     type: 'warning'
   });
+
+  const handleSyncSupabase = async () => {
+    try {
+      setIsSyncing(true);
+      setNotification({ type: 'success', message: 'Iniciando sincronização completa com Supabase...' });
+      
+      const collectionsToSync = [
+        'users', 
+        'email_registry', 
+        'students', 
+        'classes', 
+        'subjects', 
+        'teachers', 
+        'pix_reconciliations', 
+        'contributions', 
+        'foraries', 
+        'parishes', 
+        'institution_settings'
+      ];
+
+      let totalSynced = 0;
+      let totalCollections = collectionsToSync.length;
+
+      for (let i = 0; i < collectionsToSync.length; i++) {
+        const col = collectionsToSync[i];
+        setNotification({ 
+          type: 'success', 
+          message: `Sincronizando ${col} (${i + 1}/${totalCollections})...` 
+        });
+
+        try {
+          // Force fetch from Firebase for Sync to ensure we have the source of truth for migration
+          const items = await fetchFromFirestore(col) as any[];
+          
+          if (items && items.length > 0) {
+            // Process items in chunks of 10 to be much safer with Supabase rate limits/connections
+            const chunkSize = 10;
+            for (let j = 0; j < items.length; j += chunkSize) {
+              const chunk = items.slice(j, j + chunkSize);
+              
+              // We use sequential processing for each chunk or a limited Promise.all
+              await Promise.all(chunk.map(async (item) => {
+                try {
+                  // saveData already handles the duplication check and provides detailed errors
+                  await saveData(col, item.id || item.email, item);
+                  totalSynced++;
+                } catch (saveErr) {
+                  console.warn(`Item fail in ${col}:`, item.id || item.email, saveErr);
+                }
+              }));
+              
+              // Small pause between batches
+              await new Promise(r => setTimeout(r, 200));
+            }
+          }
+        } catch (colErr: any) {
+          console.error(`Falha ao sincronizar coleção ${col}:`, colErr);
+        }
+        
+        // Solid pause between collections
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      
+      setNotification({ 
+        type: 'success', 
+        message: `Sincronização concluída! ${totalSynced} registros processados em ${totalCollections} coleções.` 
+      });
+      fetchCounts();
+    } catch (err: any) {
+      console.error('Sync failed:', err);
+      setNotification({ type: 'error', message: 'Falha crítica na sincronização: ' + err.message });
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setNotification(null), 5000);
+    }
+  };
 
   useEffect(() => {
     fetchInstitution();
@@ -928,6 +1005,35 @@ export function Settings() {
                 </button>
 
                 <button 
+                  onClick={handleSyncSupabase}
+                  disabled={isSyncing}
+                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-blue-50 hover:border-blue-100 transition-all text-left active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center transition-all shadow-sm",
+                      isSyncing ? "bg-blue-600 text-white" : "group-hover:bg-blue-600 group-hover:text-white"
+                    )}>
+                      <Database size={18} className={isSyncing ? "animate-pulse" : ""} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-[#00174b]">Sincronizar com Supabase</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        Migrar todos os dados do Firebase para o Banco de Dados SQL
+                      </p>
+                    </div>
+                  </div>
+                  {isSyncing ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[8px] font-black text-blue-600 animate-pulse uppercase">Processando...</span>
+                      <Loader2 size={18} className="animate-spin text-blue-600" />
+                    </div>
+                  ) : (
+                    <RefreshCw size={18} className="text-slate-300 group-hover:rotate-180 transition-transform duration-700" />
+                  )}
+                </button>
+
+                <button 
                   onClick={handleInactivateOldStudents}
                   disabled={loading}
                   className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-amber-50 hover:border-amber-100 transition-all text-left active:scale-[0.98]"
@@ -1044,13 +1150,13 @@ export function Settings() {
                   {Object.entries(schemaReport).map(([table, info]: [any, any]) => (
                     <div key={table} className={cn(
                       "p-5 rounded-2xl border transition-all",
-                      info.status === 'ok' ? "bg-emerald-50/30 border-emerald-100" : 
-                      info.status === 'incomplete' ? "bg-amber-50/30 border-amber-100" : 
-                      "bg-red-50/30 border-red-100"
+                      (info.status === 'up_to_date' || info.status === 'ok') ? "bg-emerald-50/40 border-emerald-100 shadow-sm shadow-emerald-500/5 hover:bg-emerald-50" : 
+                      info.status === 'incomplete' ? "bg-amber-50/20 border-amber-100" : 
+                      "bg-red-50/20 border-red-100"
                     )}>
                       <div className="flex justify-between items-start mb-3">
                         <h5 className="font-black text-[#00174b] uppercase text-xs tracking-tight">{table}</h5>
-                        {info.status === 'ok' ? (
+                        {(info.status === 'up_to_date' || info.status === 'ok') ? (
                           <CheckCircle2 size={16} className="text-emerald-500" />
                         ) : info.status === 'incomplete' ? (
                           <AlertCircle size={16} className="text-amber-500" />
@@ -1068,7 +1174,7 @@ export function Settings() {
                             ))}
                           </div>
                         </div>
-                      ) : info.status === 'ok' ? (
+                      ) : (info.status === 'up_to_date' || info.status === 'ok') ? (
                         <p className="text-[10px] font-bold text-emerald-600">Schema sincronizado.</p>
                       ) : (
                         <p className="text-[10px] font-bold text-red-600 truncate" title={info.message}>{info.message}</p>

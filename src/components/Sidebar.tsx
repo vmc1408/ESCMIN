@@ -38,7 +38,7 @@ const navItems = [
     icon: ClassesIcon,
     children: [
       { icon: ImportIcon, label: 'Importação', path: '/import' },
-      { icon: Church, label: 'Paróquias', path: '/parishes' },
+      { icon: Church, label: 'Diocese', path: '/parishes' },
       {
         label: 'Acadêmico',
         icon: GraduationCap,

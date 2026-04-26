@@ -52,16 +52,39 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
   let hasMore = true;
 
   while (hasMore) {
-    const { data, error } = await supabase
+    let query = supabase
       .from(tableName)
-      .select(select)
-      .order(orderCol, { ascending })
+      .select(select);
+    
+    // Only order if orderCol is provided and likely exists
+    if (orderCol) {
+      query = query.order(orderCol, { ascending });
+    }
+
+    const { data, error } = await query
       .range(from, from + step - 1);
 
     if (error) {
       if (error.code === '42P01' || error.message.includes('Could not find the table')) {
         return []; // Retorna vazio silenciosamente para permitir fallback
       }
+      
+      // If ordering failed because column doesn't exist, retry once without order
+      if (orderCol && (error.message.includes('column') || error.code === '42703')) {
+        console.warn(`[Supabase] Column ${orderCol} does not exist in ${tableName}, retrying without order.`);
+        const retry = await supabase
+          .from(tableName)
+          .select(select)
+          .range(from, from + step - 1);
+        
+        if (!retry.error && retry.data) {
+          allData = [...allData, ...retry.data];
+          from += step;
+          if (retry.data.length < step) hasMore = false;
+          continue;
+        }
+      }
+
       console.error(`Erro na busca recursiva de ${tableName}:`, error.message);
       throw error;
     }

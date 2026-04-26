@@ -96,35 +96,95 @@ async function testConnection() {
 testConnection();
 
 /**
- * Utility to fetch all data from a collection (Prioritizes Supabase)
+ * Utility to fetch all data from a collection, merging Supabase and Firebase
  */
 export const fetchAll = async (collectionName: string, select = '*', orderCol = 'created_at', ascending = false) => {
+  const allItemsMap = new Map<string, any>();
+
   try {
     // 1. Try Supabase first if configured
     if (isSupabaseConfigured) {
       try {
-        const data = await fetchRecursive(collectionName, { select, orderCol, ascending });
-        if (data && data.length > 0) {
-          return data;
+        const sbData = await fetchRecursive(collectionName, { select, orderCol, ascending });
+        if (sbData && sbData.length > 0) {
+          sbData.forEach(item => {
+            if (item.id !== undefined && item.id !== null) {
+              const idStr = String(item.id);
+              allItemsMap.set(idStr, { ...item, id: idStr });
+            }
+          });
         }
       } catch (sbErr: any) {
         if (!sbErr.message?.includes('Could not find the table')) {
-          console.warn(`[Supabase] Erro ao buscar ${collectionName}, tentando Firebase:`, sbErr.message);
+          console.warn(`[Supabase] Erro ao buscar ${collectionName}:`, sbErr.message);
         }
       }
     }
 
-    // 2. Fallback to Firebase
+    // 2. Fetch from Firebase
+    try {
+      const colRef = collection(db, collectionName);
+      // Removed orderBy to prevent excluding documents with missing fields (Firestore behavior)
+      const q = query(colRef);
+      const snapshot = await getDocs(q);
+      snapshot.docs.forEach(doc => {
+        const idStr = String(doc.id);
+        const fbData = doc.data();
+        const data = { ...fbData, id: idStr };
+        
+        let existingKey = idStr;
+        
+        // Deduplication strategy: if item has a 'code', check if we already have it under a different ID
+        if (fbData.code) {
+          const itemWithSameCode = Array.from(allItemsMap.entries()).find(([_, item]) => item.code === fbData.code);
+          if (itemWithSameCode) {
+            existingKey = itemWithSameCode[0];
+          }
+        }
+
+        const existing = allItemsMap.get(existingKey);
+        if (existing) {
+          // Merge prioritizing Firebase (data) over Supabase (existing)
+          const merged = { ...existing, ...data };
+          allItemsMap.set(existingKey, merged);
+        } else {
+          allItemsMap.set(idStr, data);
+        }
+      });
+    } catch (fErr: any) {
+      if (fErr.message && fErr.message.includes('quota')) {
+        console.warn(`Firestore quota reached for ${collectionName} list.`);
+      } else {
+        console.error(`Firebase error fetching ${collectionName}:`, fErr);
+      }
+    }
+
+    const mergedData = Array.from(allItemsMap.values());
+    
+    // Re-sort because merged data might be out of order
+    return mergedData.sort((a, b) => {
+      const valA = a[orderCol] || '';
+      const valB = b[orderCol] || '';
+      return ascending ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+    });
+
+  } catch (err: any) {
+    return handleFirestoreError(err, 'list', collectionName);
+  }
+};
+
+/**
+ * Utility to fetch specifically from Firestore (useful for migrations/backups)
+ */
+export const fetchFromFirestore = async (collectionName: string, orderCol = 'created_at', ascending = false) => {
+  try {
     const colRef = collection(db, collectionName);
     const q = query(colRef, orderBy(orderCol || 'created_at', ascending ? 'asc' : 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (err: any) {
-    if (err.message && err.message.includes('quota')) {
-      console.warn(`Firestore quota reached for ${collectionName} list. Returning empty array.`);
-      return [];
-    }
-    return handleFirestoreError(err, 'list', collectionName);
+    console.error(`Error fetching from Firestore (${collectionName}):`, err);
+    return [];
   }
 };
 
@@ -353,10 +413,15 @@ export const saveData = async (collectionName: string, id: string | undefined, d
 /**
  * Synchronous delete from both Supabase and Firebase
  */
-export const deleteData = async (collectionName: string, id: string) => {
+export const deleteData = async (collectionName: string, id: string, secondaryId?: string) => {
   if (!id) throw new Error("ID é obrigatório para exclusão.");
 
+  console.log(`[deleteData] Tentando excluir ${id} ${secondaryId ? `e ${secondaryId}` : ''} de ${collectionName}...`);
+
   try {
+    let sbDeleted = false;
+    let fbDeleted = false;
+
     // 1. Delete from Supabase if configured
     if (isSupabaseConfigured) {
       try {
@@ -366,7 +431,14 @@ export const deleteData = async (collectionName: string, id: string) => {
           .eq('id', id);
 
         if (sbError) {
-          console.warn(`[Supabase] Erro ao excluir de ${collectionName}:`, sbError.message);
+          console.warn(`[Supabase] Erro ao excluir ${id} de ${collectionName}:`, sbError.message);
+        } else {
+          console.log(`[Supabase] Exclusão de ${id} em ${collectionName} concluída.`);
+          sbDeleted = true;
+        }
+
+        if (secondaryId) {
+          await supabase.from(collectionName).delete().eq('id', secondaryId);
         }
       } catch (sbErr: any) {
         console.warn(`[Supabase] Erro fatal na exclusão de ${collectionName}:`, sbErr.message);
@@ -377,9 +449,15 @@ export const deleteData = async (collectionName: string, id: string) => {
     if (db) {
       try {
         await deleteDoc(doc(db, collectionName, id));
+        console.log(`[Firebase] Exclusão de ${id} em ${collectionName} concluída.`);
+        if (secondaryId) {
+           await deleteDoc(doc(db, collectionName, secondaryId));
+           console.log(`[Firebase] Exclusão de ${secondaryId} em ${collectionName} concluída.`);
+        }
+        fbDeleted = true;
       } catch (fError: any) {
         if (fError.message && fError.message.includes('quota')) {
-           // Silent warning
+           console.warn(`[Firebase] Quota atingida na exclusão de ${collectionName}.`);
         } else {
           console.error(`[Firebase] Erro na exclusão:`, fError);
           throw fError; // Re-throw to inform UI of Firebase failure
@@ -387,7 +465,7 @@ export const deleteData = async (collectionName: string, id: string) => {
       }
     }
 
-    return true;
+    return sbDeleted || fbDeleted;
   } catch (err: any) {
     if (err.message?.includes('Missing or insufficient permissions')) {
       return handleFirestoreError(err, 'delete', `${collectionName}/${id}`);
