@@ -38,19 +38,55 @@ export function Users() {
   const [updatingSecurity, setUpdatingSecurity] = useState(false);
 
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const handleResetPassword = async (email: string) => {
+    if (!email) return;
+    try {
+      setSendingReset(true);
+      const { sendPasswordResetEmail } = await import('firebase/auth');
+      
+      // Personalizando as notificações com a marca do sistema
+      await sendPasswordResetEmail(auth, email);
+      
+      setNotification({ 
+        type: 'success', 
+        message: 'E-mail de redefinição enviado para o ESCMIN! Verifique sua caixa de entrada e siga as instruções para definir sua nova senha.' 
+      });
+    } catch (error: any) {
+      console.error('Erro ao enviar reset:', error);
+      setNotification({ type: 'err', message: 'Erro ao enviar e-mail. Verifique se o endereço está correto em nosso sistema.' });
+    } finally {
+      setSendingReset(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch both managers and the general registry
-      const [usersData, registryData] = await Promise.all([
-        fetchAll('users', '*', 'name'),
-        fetchAll('email_registry', '*', 'email')
-      ]);
-      
-      const managers = usersData as UserProfile[];
-      const registered = registryData as any[];
+      let managers: UserProfile[] = [];
+      let registered: any[] = [];
 
+      if (isAdmin || isDirector) {
+        // Admins and Directors can see everyone
+        const [usersData, registryData] = await Promise.all([
+          fetchAll('users', '*', 'name'),
+          fetchAll('email_registry', '*', 'email')
+        ]);
+        managers = usersData as UserProfile[];
+        registered = registryData as any[];
+      } else if (currentProfile) {
+        // Secretaries (or others) only see themselves
+        managers = [currentProfile];
+      }
+      
       // deduplication Logic: Prioritize profiles with UID over pre-registered ones (Email ID)
       const uniqueUsersMap = new Map<string, UserProfile>();
       
@@ -108,9 +144,19 @@ export function Users() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [isAdmin, isDirector, isSecretary, currentProfile]);
 
   const handleEdit = (user: UserProfile) => {
+    // RBAC check: only admin can edit anyone. Director can edit secretaries and self. Secretary only self.
+    const canEdit = isAdmin || 
+                  (isDirector && (user.role === 'secretario' || user.id === userAuth?.uid)) ||
+                  (isSecretary && user.id === userAuth?.uid);
+    
+    if (!canEdit) {
+      setNotification({ type: 'err', message: 'Você não tem permissão para editar este perfil.' });
+      return;
+    }
+
     setSelectedUser(user);
     setFormData({
       email: user.email,
@@ -431,10 +477,58 @@ export function Users() {
     }
   });
 
-  const filteredUsers = sortedUsers.filter(u => 
-    (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (u.email || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const getRoleColor = (role: string, status?: string) => {
+    if (status === 'inactive') return 'bg-slate-100 text-slate-500 border-slate-200';
+    
+    switch (role?.toLowerCase()) {
+      case 'administrador':
+        return 'bg-violet-50 text-violet-600 border-violet-100';
+      case 'diretor':
+        return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      case 'secretario':
+        return 'bg-amber-50 text-amber-600 border-amber-100';
+      default:
+        return 'bg-slate-50 text-slate-500 border-slate-100';
+    }
+  };
+
+  const getRoleIconColor = (role: string, status?: string) => {
+    if (status === 'inactive') return 'bg-slate-50 text-slate-400';
+    
+    switch (role?.toLowerCase()) {
+      case 'administrador':
+        return 'bg-violet-50 text-violet-500';
+      case 'diretor':
+        return 'bg-emerald-50 text-emerald-500';
+      case 'secretario':
+        return 'bg-amber-50 text-amber-500';
+      default:
+        return 'bg-slate-50 text-slate-400';
+    }
+  };
+
+  const filteredUsers = sortedUsers.filter(u => {
+    // 1. Search Filter
+    const matchesSearch = (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
+                         (u.email || '').toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    // 2. Role-Based Access Control (RBAC) Filter
+    // ALWAYS permit self-visibility (Identification)
+    const isSelf = u.id === userAuth?.uid || (u.email && userAuth?.email && u.email.toLowerCase() === userAuth?.email?.toLowerCase());
+    if (isSelf) return true;
+
+    if (isAdmin) return true; // Admin sees everyone
+    
+    if (isDirector) {
+      // Director sees all secretaries
+      return u.role === 'secretario';
+    }
+    
+    // Secretary only sees themselves (already handled by isSelf above)
+    return false;
+  });
 
   const groupedUsers = React.useMemo(() => {
     if (groupBy === 'none') {
@@ -686,24 +780,28 @@ export function Users() {
                           <div className="flex items-center gap-4">
                             <div className="relative shrink-0">
                               <div className={cn(
-                                "w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#00174b] font-black text-lg border shadow-sm overflow-hidden",
-                                user.status === 'active' ? "border-slate-200" : "grayscale opacity-60"
-                              )}>
-                                {user.avatar_url ? (
-                                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  user.name.charAt(0).toUpperCase()
-                                )}
-                              </div>
-                              <div className={cn(
-                                "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white",
-                                user.status === 'active' ? "bg-emerald-500 shadow-sm" : "bg-slate-300"
-                              )} />
+                              "w-11 h-11 rounded-xl bg-white flex items-center justify-center font-black text-lg border shadow-sm overflow-hidden transition-all",
+                              getRoleIconColor(user.role || '', user.status),
+                              (user.status === 'inactive') ? "grayscale opacity-60" : ""
+                            )}>
+                              {user.avatar_url ? (
+                                <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                user.name.charAt(0).toUpperCase()
+                              )}
                             </div>
-                            <div className="min-w-0">
-                              <p className="font-black text-[#131b2e] text-sm leading-tight uppercase truncate max-w-[200px]">
-                                {user.name}
-                              </p>
+                            <div className={cn(
+                              "absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white",
+                              (user.status === 'active') ? "bg-emerald-500 shadow-sm" : "bg-slate-300"
+                            )} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className={cn(
+                              "font-black text-sm leading-tight uppercase truncate max-w-[200px]",
+                              (user.status === 'inactive') ? "text-slate-400" : "text-[#131b2e]"
+                            )}>
+                              {user.name}
+                            </p>
                               <p className="text-[10px] font-bold text-slate-400 truncate max-w-[180px]">
                                 {user.email}
                               </p>
@@ -723,9 +821,7 @@ export function Users() {
                         <td className="px-8 py-4">
                           <span className={cn(
                             "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                            user.role === 'admin' ? "bg-indigo-50 text-indigo-700 border-indigo-100/50" :
-                            user.role === 'diretor' ? "bg-blue-50 text-blue-700 border-blue-100/50" : 
-                            "bg-slate-50 text-slate-700 border-slate-100/50"
+                            getRoleColor(user.role || '', user.status)
                           )}>
                             {user.role}
                           </span>
@@ -752,7 +848,7 @@ export function Users() {
                             >
                               <Edit2 size={16} />
                             </button>
-                            {(isAdmin || isDirector) && user.id !== userAuth?.uid && (
+                            {(isAdmin || (isDirector && user.role === 'secretario')) && user.id !== userAuth?.uid && (
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -790,21 +886,28 @@ export function Users() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-lg font-black text-[#00174b]">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl bg-white border shadow-sm flex items-center justify-center text-lg font-black transition-all overflow-hidden",
+                      getRoleIconColor(user.role || '', user.status),
+                      (user.status === 'inactive') ? "grayscale opacity-60 border-slate-100" : ""
+                    )}>
                       {user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : user.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white", user.status === 'active' ? "bg-emerald-500" : "bg-slate-300")} />
+                    <div className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white", (user.status === 'active') ? "bg-emerald-500" : "bg-slate-300")} />
                   </div>
                   <div>
-                    <h4 className="font-black text-[#131b2e] text-xs leading-tight uppercase tracking-tight">{user.name}</h4>
+                    <h4 className={cn(
+                      "font-black text-xs leading-tight uppercase tracking-tight",
+                      (user.status === 'inactive') ? "text-slate-400" : "text-[#131b2e]"
+                    )}>
+                      {user.name}
+                    </h4>
                     <p className="text-[10px] font-bold text-slate-400 truncate max-w-[150px]">{user.email}</p>
                   </div>
                 </div>
                 <span className={cn(
                   "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border",
-                  user.role === 'admin' ? "bg-indigo-50 text-indigo-700 border-indigo-100/50" :
-                  user.role === 'diretor' ? "bg-blue-50 text-blue-700 border-blue-100/50" : 
-                  "bg-slate-50 text-slate-700 border-slate-100/50"
+                  getRoleColor(user.role || '', user.status)
                 )}>
                   {user.role}
                 </span>
@@ -814,7 +917,7 @@ export function Users() {
                   <Edit2 size={12} />
                   EDITAR
                 </button>
-                {(isAdmin || isDirector) && user.id !== userAuth?.uid && (
+                {(isAdmin || (isDirector && user.role === 'secretario')) && user.id !== userAuth?.uid && (
                   <button 
                     onClick={(e) => {
                       e.preventDefault();
@@ -1107,7 +1210,7 @@ export function Users() {
                       <section className="space-y-4 p-4 bg-orange-50/50 rounded-2xl border border-orange-100">
                          <div className="flex items-center gap-2">
                            <div className="px-2 py-0.5 bg-orange-600 text-white text-[7px] font-black rounded-md uppercase tracking-widest">03</div>
-                           <h5 className="text-[10px] font-black text-orange-950 uppercase tracking-widest">Segurança</h5>
+                           <h5 className="text-[10px] font-black text-orange-950 uppercase tracking-widest">Segurança (Auto-Gestão)</h5>
                          </div>
 
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1137,6 +1240,30 @@ export function Users() {
                                 <Key size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-300" />
                               </div>
                             </div>
+                         </div>
+                      </section>
+                    )}
+
+                    {(selectedUser && isAdmin && userAuth?.uid !== selectedUser.id) && (
+                      <section className="space-y-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                         <div className="flex items-center gap-2">
+                           <div className="px-2 py-0.5 bg-blue-600 text-white text-[7px] font-black rounded-md uppercase tracking-widest">03</div>
+                           <h5 className="text-[10px] font-black text-blue-950 uppercase tracking-widest">Acesso de Administrador</h5>
+                         </div>
+                         
+                         <div className="p-4 bg-white rounded-xl border border-blue-100 space-y-3">
+                           <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
+                             Como administrador, você pode solicitar a redefinição de senha para este usuário. Um e-mail de recuperação para o sistema <span className="font-bold text-blue-600">ESCMIN</span> será enviado para <span className="font-bold text-blue-600">{selectedUser.email}</span>.
+                           </p>
+                           <button
+                             type="button"
+                             onClick={() => handleResetPassword(selectedUser.email)}
+                             disabled={sendingReset}
+                             className="w-full py-3 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                           >
+                             {sendingReset ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                             Enviar E-mail de Redefinição
+                           </button>
                          </div>
                       </section>
                     )}

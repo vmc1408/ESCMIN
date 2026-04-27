@@ -124,9 +124,15 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     // 2. Fetch from Firebase
     try {
       const colRef = collection(db, collectionName);
-      // Removed orderBy to prevent excluding documents with missing fields (Firestore behavior)
       const q = query(colRef);
       const snapshot = await getDocs(q);
+      
+      // Map for quick code lookups O(1)
+      const codeToIdMap = new Map<string, string>();
+      allItemsMap.forEach((item, id) => {
+        if (item.code) codeToIdMap.set(String(item.code), id);
+      });
+
       snapshot.docs.forEach(doc => {
         const idStr = String(doc.id);
         const fbData = doc.data();
@@ -134,11 +140,11 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
         
         let existingKey = idStr;
         
-        // Deduplication strategy: if item has a 'code', check if we already have it under a different ID
+        // Deduplication strategy: if item has a 'code', check if we already have it
         if (fbData.code) {
-          const itemWithSameCode = Array.from(allItemsMap.entries()).find(([_, item]) => item.code === fbData.code);
-          if (itemWithSameCode) {
-            existingKey = itemWithSameCode[0];
+          const matchedId = codeToIdMap.get(String(fbData.code));
+          if (matchedId) {
+            existingKey = matchedId;
           }
         }
 

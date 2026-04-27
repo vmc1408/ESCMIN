@@ -173,6 +173,7 @@ export interface Parish {
   address_zip?: string;
   email?: string;
   phone?: string;
+  foundation_date?: string;
   user_id: string;
   created_at: string;
 }

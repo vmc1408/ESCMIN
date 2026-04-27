@@ -69,6 +69,21 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
         return []; // Retorna vazio silenciosamente para permitir fallback
       }
       
+      // Schema cache issue: retry once after a short delay
+      if (error.message?.includes('schema cache')) {
+        console.warn(`[Supabase] Schema cache issue detected for ${tableName}, retrying in 500ms...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const retry = await supabase.from(tableName).select(select).range(from, from + step - 1);
+        if (!retry.error) {
+          if (retry.data && retry.data.length > 0) {
+            allData = [...allData, ...retry.data];
+            from += step;
+            if (retry.data.length < step) hasMore = false;
+            continue;
+          } else { hasMore = false; continue; }
+        }
+      }
+
       // If ordering failed because column doesn't exist, retry once without order
       if (orderCol && (error.message.includes('column') || error.code === '42703')) {
         console.warn(`[Supabase] Column ${orderCol} does not exist in ${tableName}, retrying without order.`);

@@ -36,24 +36,32 @@ service cloud.firestore {
 
     // Users & Roles
     match /users/{userId} {
-      // Allow single document lookup for pre-registration check and profile fetching
-      allow get: if true;
-      allow list: if isSignedIn();
-      
-      // Basic profile creation for self or by director
-      allow create: if isSignedIn() && (request.auth.uid == userId || isDirector());
-      
-      // Update: self can update some fields, director can update everything
-      allow update: if isSignedIn() && (
-        request.auth.uid == userId || isDirector()
+      // Get: allow anyone signed in to get their own (and for login checks)
+      // but strictly restrict list to the requested logic
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (
+        isAdmin() || 
+        (isRole('diretor') && (resource.data.role == 'secretario' || userId == request.auth.uid)) ||
+        (userId == request.auth.uid)
       );
       
-      // Allow delete if director OR if the user is cleaning up their own pre-registration record
-      allow delete: if isDirector() || (isSignedIn() && (userId == request.auth.uid || userId == request.auth.token.email));
+      // Basic profile creation for self or by director
+      // Note: we use isDirector() here which includes admin
+      allow create: if isSignedIn() && (request.auth.uid == userId || isDirector());
+      
+      // Update: admin can update anyone. Director can update self and secretaries. Secretary update self.
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (isRole('diretor') && (resource.data.role == 'secretario' || userId == request.auth.uid)) ||
+        (userId == request.auth.uid)
+      );
+      
+      // Allow delete if admin OR if director is removing a secretary OR if the user is cleaning up their own record
+      allow delete: if isAdmin() || (isRole('diretor') && resource.data.role == 'secretario') || (isSignedIn() && (userId == request.auth.uid || userId == request.auth.token.email));
     }
 
     match /email_registry/{email} {
-      allow read: if isStaff();
+      allow read: if isDirector(); // Only directors and admins (via isDirector helper) can see the registry
       allow write: if isDirector();
     }
 
