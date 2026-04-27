@@ -232,6 +232,72 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "code", "name"]
+    },
+    "CalendarEvent": {
+      "title": "CalendarEvent",
+      "description": "Academic calendar event",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" },
+        "type": { "type": "string", "enum": ["holiday", "exam", "meeting", "event"] },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "start_date", "type"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Student attendance record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "student_id": { "type": "string" },
+        "class_id": { "type": "string" },
+        "subject_id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["P", "F", "J"] },
+        "observations": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "student_id", "class_id", "date", "status"]
+    },
+    "Grade": {
+      "title": "Grade",
+      "description": "Student subject grade",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "student_id": { "type": "string" },
+        "class_id": { "type": "string" },
+        "subject_id": { "type": "string" },
+        "period": { "type": "string" },
+        "value": { "type": "number" },
+        "status": { "type": "string", "enum": ["Aprovado", "Reprovado", "Recuperação"] },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "student_id", "class_id", "subject_id", "value"]
+    },
+    "Certificate": {
+      "title": "Certificate",
+      "description": "Academic certificate or diploma",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "student_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["conclusão", "participação", "honra"] },
+        "issuance_date": { "type": "string", "format": "date" },
+        "course": { "type": "string" },
+        "verification_code": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "student_id", "type", "issuance_date"]
     }
   },
   "firestore": {
@@ -246,6 +312,10 @@
     "email_registry": { "schema": "EmailRegistry", "description": "Email registry for pre-auth" },
     "foraries": { "schema": "Foraria", "description": "Foraries collection" },
     "parishes": { "schema": "Parish", "description": "Parishes collection" },
-    "clergy_leity": { "schema": "ClergyLeity", "description": "Clergy and Leity collection" }
+    "clergy_leity": { "schema": "ClergyLeity", "description": "Clergy and Leity collection" },
+    "calendar_events": { "schema": "CalendarEvent", "description": "Academic calendar events" },
+    "attendances": { "schema": "Attendance", "description": "Attendance tracking" },
+    "grades": { "schema": "Grade", "description": "Student grades" },
+    "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" }
   }
 }

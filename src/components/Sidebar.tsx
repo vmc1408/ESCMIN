@@ -16,6 +16,10 @@ import {
   LogOut as LogoutIcon,
   User as UserIcon,
   UserSquare2 as UserManagementIcon,
+  Calendar as CalendarIcon,
+  ClipboardCheck as AttendanceIcon,
+  FileSpreadsheet as GradesIcon,
+  FileCheck as CertificateIcon,
   ChevronDown,
   ChevronRight,
   GraduationCap,
@@ -47,6 +51,10 @@ const navItems = [
           { icon: TeachersIcon, label: 'Professores', path: '/teachers' },
           { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
+          { icon: CalendarIcon, label: 'Calendário', path: '/calendar' },
+          { icon: AttendanceIcon, label: 'Presença', path: '/attendance' },
+          { icon: GradesIcon, label: 'Notas', path: '/grades' },
+          { icon: CertificateIcon, label: 'Documentos', path: '/documents' },
         ]
       },
       {

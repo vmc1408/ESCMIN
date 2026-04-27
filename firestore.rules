@@ -114,5 +114,25 @@ service cloud.firestore {
       allow read: if isStaff();
       allow write: if isStaff();
     }
+
+    match /calendar_events/{id} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+    }
+
+    match /attendances/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /grades/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
+
+    match /certificates/{id} {
+      allow read: if isStaff();
+      allow write: if isStaff();
+    }
   }
 }

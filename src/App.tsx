@@ -5,6 +5,10 @@ import { Students } from './pages/Students';
 import { Teachers } from './pages/Teachers';
 import { Classes } from './pages/Classes';
 import { Subjects } from './pages/Subjects';
+import { AcademicCalendar } from './pages/AcademicCalendar';
+import { Attendance } from './pages/Attendance';
+import { Grades } from './pages/Grades';
+import { Documents } from './pages/Documents';
 import { Diocese } from './pages/Diocese';
 import { Import } from './pages/Import';
 import { Reports } from './pages/Reports';
@@ -49,6 +53,26 @@ export default function App() {
               <Route path="subjects" element={
                 <ProtectedRoute requiredModule="/subjects">
                   <Subjects />
+                </ProtectedRoute>
+              } />
+              <Route path="calendar" element={
+                <ProtectedRoute requiredModule="/calendar">
+                  <AcademicCalendar />
+                </ProtectedRoute>
+              } />
+              <Route path="attendance" element={
+                <ProtectedRoute requiredModule="/attendance">
+                  <Attendance />
+                </ProtectedRoute>
+              } />
+              <Route path="grades" element={
+                <ProtectedRoute requiredModule="/grades">
+                  <Grades />
+                </ProtectedRoute>
+              } />
+              <Route path="documents" element={
+                <ProtectedRoute requiredModule="/documents">
+                  <Documents />
                 </ProtectedRoute>
               } />
               <Route path="parishes" element={
