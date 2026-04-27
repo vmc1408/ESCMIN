@@ -115,6 +115,40 @@ export function AcademicCalendar() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
+  // Lista de feriados fixos para sincronização automática
+  const FIXED_HOLIDAYS = [
+    // 2026
+    { title: "Confraternização Universal", date: "2026-01-01", type: "holiday" },
+    { title: "Carnaval", date: "2026-02-17", type: "holiday" },
+    { title: "Sexta-feira Santa", date: "2026-04-03", type: "holiday" },
+    { title: "Páscoa", date: "2026-04-05", type: "holiday" },
+    { title: "Tiradentes", date: "2026-04-21", type: "holiday" },
+    { title: "Dia do Trabalho", date: "2026-05-01", type: "holiday" },
+    { title: "Corpus Christi", date: "2026-06-04", type: "holiday" },
+    { title: "Revolução Constitucionalista (SP)", date: "2026-07-09", type: "holiday" },
+    { title: "Independência do Brasil", date: "2026-09-07", type: "holiday" },
+    { title: "Nossa Sra Aparecida", date: "2026-10-12", type: "holiday" },
+    { title: "Finados", date: "2026-11-02", type: "holiday" },
+    { title: "Proclamação da República", date: "2026-11-15", type: "holiday" },
+    { title: "Consciência Negra", date: "2026-11-20", type: "holiday" },
+    { title: "Natal", date: "2026-12-25", type: "holiday" },
+    // 2027
+    { title: "Confraternização Universal", date: "2027-01-01", type: "holiday" },
+    { title: "Carnaval", date: "2027-02-09", type: "holiday" },
+    { title: "Sexta-feira Santa", date: "2027-03-26", type: "holiday" },
+    { title: "Páscoa", date: "2027-03-28", type: "holiday" },
+    { title: "Tiradentes", date: "2027-04-21", type: "holiday" },
+    { title: "Dia do Trabalho", date: "2027-05-01", type: "holiday" },
+    { title: "Corpus Christi", date: "2027-05-27", type: "holiday" },
+    { title: "Revolução Constitucionalista (SP)", date: "2027-07-09", type: "holiday" },
+    { title: "Independência do Brasil", date: "2027-09-07", type: "holiday" },
+    { title: "Nossa Sra Aparecida", date: "2027-10-12", type: "holiday" },
+    { title: "Finados", date: "2027-11-02", type: "holiday" },
+    { title: "Proclamação da República", date: "2027-11-15", type: "holiday" },
+    { title: "Consciência Negra", date: "2027-11-20", type: "holiday" },
+    { title: "Natal", date: "2027-12-25", type: "holiday" },
+  ];
+
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 5000);
@@ -122,46 +156,22 @@ export function AcademicCalendar() {
     }
   }, [notification]);
 
-  const syncHolidays = async () => {
-    if (!userAuth) return;
-    setIsSyncing(true);
-    try {
-      // Feriados Nacionais e Estaduais (SP) para 2026 e 2027
-      const fixedHolidays = [
-        // 2026
-        { title: "Confraternização Universal", date: "2026-01-01", type: "holiday" },
-        { title: "Carnaval", date: "2026-02-17", type: "holiday" },
-        { title: "Sexta-feira Santa", date: "2026-04-03", type: "holiday" },
-        { title: "Páscoa", date: "2026-04-05", type: "holiday" },
-        { title: "Tiradentes", date: "2026-04-21", type: "holiday" },
-        { title: "Dia do Trabalho", date: "2026-05-01", type: "holiday" },
-        { title: "Corpus Christi", date: "2026-06-04", type: "holiday" },
-        { title: "Revolução Constitucionalista (SP)", date: "2026-07-09", type: "holiday" },
-        { title: "Independência do Brasil", date: "2026-09-07", type: "holiday" },
-        { title: "Nossa Sra Aparecida", date: "2026-10-12", type: "holiday" },
-        { title: "Finados", date: "2026-11-02", type: "holiday" },
-        { title: "Proclamação da República", date: "2026-11-15", type: "holiday" },
-        { title: "Consciência Negra", date: "2026-11-20", type: "holiday" },
-        { title: "Natal", date: "2026-12-25", type: "holiday" },
-        // 2027
-        { title: "Confraternização Universal", date: "2027-01-01", type: "holiday" },
-        { title: "Carnaval", date: "2027-02-09", type: "holiday" },
-        { title: "Sexta-feira Santa", date: "2027-03-26", type: "holiday" },
-        { title: "Páscoa", date: "2027-03-28", type: "holiday" },
-        { title: "Tiradentes", date: "2027-04-21", type: "holiday" },
-        { title: "Dia do Trabalho", date: "2027-05-01", type: "holiday" },
-        { title: "Corpus Christi", date: "2027-05-27", type: "holiday" },
-        { title: "Revolução Constitucionalista (SP)", date: "2027-07-09", type: "holiday" },
-        { title: "Independência do Brasil", date: "2027-09-07", type: "holiday" },
-        { title: "Nossa Sra Aparecida", date: "2027-10-12", type: "holiday" },
-        { title: "Finados", date: "2027-11-02", type: "holiday" },
-        { title: "Proclamação da República", date: "2027-11-15", type: "holiday" },
-        { title: "Consciência Negra", date: "2027-11-20", type: "holiday" },
-        { title: "Natal", date: "2027-12-25", type: "holiday" },
-      ];
+  // Auto-sync feriados quando o administrador entra na página
+  useEffect(() => {
+    if (isAdmin && !loading) {
+      const hasHolidays = events.some(e => e.type === 'holiday');
+      // Se não houver nenhum feriado nacional na lista, disparar a sincronização
+      if (!hasHolidays) {
+        syncHolidays(true); 
+      }
+    }
+  }, [isAdmin, loading, events.length]);
 
-      const promises = fixedHolidays.map(async (h) => {
-        // Verificar se já existe para evitar duplicidade
+  const syncHolidays = async (silent = false) => {
+    if (!userAuth) return;
+    if (!silent) setIsSyncing(true);
+    try {
+      const promises = FIXED_HOLIDAYS.map(async (h) => {
         const exists = events.some(e => e.start_date === h.date && e.title === h.title);
         if (!exists) {
           await addDoc(collection(db, 'calendar_events'), {
@@ -177,14 +187,15 @@ export function AcademicCalendar() {
       });
 
       await Promise.all(promises);
-      setNotification({ type: 'success', message: 'Calendário sincronizado com feriados de SP e Nacionais!' });
+      if (!silent) setNotification({ type: 'success', message: 'Calendário sincronizado com feriados!' });
     } catch (error) {
       console.error("Error syncing holidays:", error);
-      setNotification({ type: 'err', message: 'Erro ao sincronizar feriados.' });
+      if (!silent) setNotification({ type: 'err', message: 'Erro ao sincronizar.' });
     } finally {
-      setIsSyncing(false);
+      if (!silent) setIsSyncing(false);
     }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,7 +259,7 @@ export function AcademicCalendar() {
 
   const getTypeStyle = (type: CalendarEvent['type']) => {
     switch (type) {
-      case 'holiday': return 'bg-red-50 text-red-600 border-red-100';
+      case 'holiday': return 'bg-red-600 text-white border-red-700 shadow-sm';
       case 'exam': return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'start_term': return 'bg-blue-50 text-blue-600 border-blue-100';
       case 'end_term': return 'bg-slate-50 text-slate-600 border-slate-100';
@@ -345,7 +356,7 @@ export function AcademicCalendar() {
           </div>
           {(isAdmin || isDirector) && (
             <button 
-              onClick={syncHolidays}
+              onClick={() => syncHolidays(false)}
               disabled={isSyncing}
               className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
             >
