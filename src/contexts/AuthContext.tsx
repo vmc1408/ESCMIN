@@ -161,9 +161,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!profile) return false;
     if (profile.role === 'admin') return true;
     const p = path.startsWith('/') ? path : `/${path}`;
-    if (profile.role === 'diretor') return p !== '/import' && p !== '/settings';
+    if (profile.role === 'diretor') return p !== '/import' && p !== '/settings' && p !== '/users';
     if (profile.role === 'secretario') {
-      const allowed = ['/', '/students', '/teachers', '/classes', '/subjects', '/pix-conference', '/contributions', '/reports', '/users'];
+      const allowed = [
+        '/', 
+        '/students', 
+        '/teachers', 
+        '/classes', 
+        '/subjects', 
+        '/calendar', 
+        '/attendance', 
+        '/grades', 
+        '/documents',
+        '/parishes',
+        '/pix-conference', 
+        '/contributions', 
+        '/reports'
+      ];
       return allowed.includes(p);
     }
     return false;

@@ -115,35 +115,39 @@ export function AcademicCalendar() {
   // Lista de feriados fixos para sincronização automática
   const FIXED_HOLIDAYS = [
     // 2026
-    { title: "Confraternização Universal", date: "2026-01-01", type: "holiday" },
-    { title: "Carnaval", date: "2026-02-17", type: "holiday" },
-    { title: "Sexta-feira Santa", date: "2026-04-03", type: "holiday" },
-    { title: "Páscoa", date: "2026-04-05", type: "holiday" },
-    { title: "Tiradentes", date: "2026-04-21", type: "holiday" },
-    { title: "Dia do Trabalho", date: "2026-05-01", type: "holiday" },
-    { title: "Corpus Christi", date: "2026-06-04", type: "holiday" },
-    { title: "Revolução Constitucionalista (SP)", date: "2026-07-09", type: "holiday" },
-    { title: "Independência do Brasil", date: "2026-09-07", type: "holiday" },
-    { title: "Nossa Sra Aparecida", date: "2026-10-12", type: "holiday" },
-    { title: "Finados", date: "2026-11-02", type: "holiday" },
-    { title: "Proclamação da República", date: "2026-11-15", type: "holiday" },
-    { title: "Consciência Negra", date: "2026-11-20", type: "holiday" },
-    { title: "Natal", date: "2026-12-25", type: "holiday" },
+    { title: "Confraternização Universal", date: "2026-01-01", type: "holiday", category: 'nacional' },
+    { title: "Aniversário de São Paulo (SP)", date: "2026-01-25", type: "holiday", category: 'estadual' },
+    { title: "Carnaval", date: "2026-02-17", type: "holiday", category: 'nacional' },
+    { title: "Sexta-feira Santa", date: "2026-04-03", type: "holiday", category: 'nacional' },
+    { title: "Páscoa", date: "2026-04-05", type: "holiday", category: 'nacional' },
+    { title: "Tiradentes", date: "2026-04-21", type: "holiday", category: 'nacional' },
+    { title: "Dia do Trabalho", date: "2026-05-01", type: "holiday", category: 'nacional' },
+    { title: "Corpus Christi", date: "2026-06-04", type: "holiday", category: 'nacional' },
+    { title: "Revolução Constitucionalista (SP)", date: "2026-07-09", type: "holiday", category: 'estadual' },
+    { title: "Independência do Brasil", date: "2026-09-07", type: "holiday", category: 'nacional' },
+    { title: "Nossa Sra Aparecida", date: "2026-10-12", type: "holiday", category: 'nacional' },
+    { title: "Finados", date: "2026-11-02", type: "holiday", category: 'nacional' },
+    { title: "Proclamação da República", date: "2026-11-15", type: "holiday", category: 'nacional' },
+    { title: "Consciência Negra", date: "2026-11-20", type: "holiday", category: 'nacional' },
+    { title: "Aniversário de Guarulhos (Guarulhos)", date: "2026-12-08", type: "holiday", category: 'municipal' },
+    { title: "Natal", date: "2026-12-25", type: "holiday", category: 'nacional' },
     // 2027
-    { title: "Confraternização Universal", date: "2027-01-01", type: "holiday" },
-    { title: "Carnaval", date: "2027-02-09", type: "holiday" },
-    { title: "Sexta-feira Santa", date: "2027-03-26", type: "holiday" },
-    { title: "Páscoa", date: "2027-03-28", type: "holiday" },
-    { title: "Tiradentes", date: "2027-04-21", type: "holiday" },
-    { title: "Dia do Trabalho", date: "2027-05-01", type: "holiday" },
-    { title: "Corpus Christi", date: "2027-05-27", type: "holiday" },
-    { title: "Revolução Constitucionalista (SP)", date: "2027-07-09", type: "holiday" },
-    { title: "Independência do Brasil", date: "2027-09-07", type: "holiday" },
-    { title: "Nossa Sra Aparecida", date: "2027-10-12", type: "holiday" },
-    { title: "Finados", date: "2027-11-02", type: "holiday" },
-    { title: "Proclamação da República", date: "2027-11-15", type: "holiday" },
-    { title: "Consciência Negra", date: "2027-11-20", type: "holiday" },
-    { title: "Natal", date: "2027-12-25", type: "holiday" },
+    { title: "Confraternização Universal", date: "2027-01-01", type: "holiday", category: 'nacional' },
+    { title: "Aniversário de São Paulo (SP)", date: "2027-01-25", type: "holiday", category: 'estadual' },
+    { title: "Carnaval", date: "2027-02-09", type: "holiday", category: 'nacional' },
+    { title: "Sexta-feira Santa", date: "2027-03-26", type: "holiday", category: 'nacional' },
+    { title: "Páscoa", date: "2027-03-28", type: "holiday", category: 'nacional' },
+    { title: "Tiradentes", date: "2027-04-21", type: "holiday", category: 'nacional' },
+    { title: "Dia do Trabalho", date: "2027-05-01", type: "holiday", category: 'nacional' },
+    { title: "Corpus Christi", date: "2027-05-27", type: "holiday", category: 'nacional' },
+    { title: "Revolução Constitucionalista (SP)", date: "2027-07-09", type: "holiday", category: 'estadual' },
+    { title: "Independência do Brasil", date: "2027-09-07", type: "holiday", category: 'nacional' },
+    { title: "Nossa Sra Aparecida", date: "2027-10-12", type: "holiday", category: 'nacional' },
+    { title: "Finados", date: "2027-11-02", type: "holiday", category: 'nacional' },
+    { title: "Proclamação da República", date: "2027-11-15", type: "holiday", category: 'nacional' },
+    { title: "Consciência Negra", date: "2027-11-20", type: "holiday", category: 'nacional' },
+    { title: "Aniversário de Guarulhos (Guarulhos)", date: "2027-12-08", type: "holiday", category: 'municipal' },
+    { title: "Natal", date: "2027-12-25", type: "holiday", category: 'nacional' },
   ];
 
   useEffect(() => {
@@ -168,15 +172,19 @@ export function AcademicCalendar() {
     if (!userAuth) return;
     if (!silent) setIsSyncing(true);
     try {
-      const promises = FIXED_HOLIDAYS.map(async (h) => {
+      const promises = FIXED_HOLIDAYS.map(async (h: any) => {
         const exists = events.some(e => e.start_date === h.date && e.title === h.title);
         if (!exists) {
+          let description = 'Feriado Nacional';
+          if (h.category === 'estadual') description = 'Feriado Estadual (SP)';
+          if (h.category === 'municipal') description = 'Feriado Municipal (Guarulhos)';
+
           await saveData('calendar_events', undefined, {
             title: h.title,
             start_date: h.date,
             end_date: h.date,
             type: 'holiday',
-            description: h.title.includes('(SP)') ? 'Feriado Estadual de São Paulo' : 'Feriado Nacional',
+            description: description,
             user_id: userAuth.uid,
             created_at: new Date().toISOString()
           });
@@ -190,6 +198,103 @@ export function AcademicCalendar() {
       if (!silent) setNotification({ type: 'err', message: 'Erro ao sincronizar.' });
     } finally {
       if (!silent) setIsSyncing(false);
+    }
+  };
+
+
+  const generateClassDays = async () => {
+    if (!userAuth) return;
+    setIsSyncing(true);
+    setNotification({ type: 'success', message: 'Gerando dias de aula...' });
+    
+    try {
+      const term1Start = new Date('2026-03-04T00:00:00');
+      const term1End = new Date('2026-06-24T00:00:00');
+      const term2Start = new Date('2026-08-05T00:00:00');
+      const term2End = new Date('2026-11-25T00:00:00');
+
+      const ranges = [
+        { start: term1Start, end: term1End },
+        { start: term2Start, end: term2End }
+      ];
+
+      // Get holidays to check successors/predecessors
+      const holidays = events.filter(e => e.type === 'holiday');
+      const holidayDates = new Set(holidays.map(h => h.start_date));
+
+      const newEvents: any[] = [];
+
+      // Add Term Start/End
+      const termEvents = [
+        { date: '2026-03-04', title: 'Início do 1º Semestre', type: 'start_term' },
+        { date: '2026-06-24', title: 'Término do 1º Semestre', type: 'end_term' },
+        { date: '2026-08-05', title: 'Início do 2º Semestre', type: 'start_term' },
+        { date: '2026-11-25', title: 'Término do Ano Letivo', type: 'end_term' }
+      ];
+
+      for (const te of termEvents) {
+        const exists = events.some(e => e.start_date === te.date && e.type === te.type);
+        if (!exists) {
+          newEvents.push({
+            title: te.title,
+            start_date: te.date,
+            end_date: te.date,
+            type: te.type,
+            description: te.title,
+            user_id: userAuth.uid,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+
+      for (const range of ranges) {
+        let current = new Date(range.start);
+        while (current <= range.end) {
+          // Check if Wednesday (3)
+          if (current.getDay() === 3) {
+            const dateStr = current.toISOString().split('T')[0];
+            
+            // Checks for neighbors
+            const yesterday = new Date(current);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+            const tomorrow = new Date(current);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+            const isHoliday = holidayDates.has(dateStr);
+            const prevIsHoliday = holidayDates.has(yesterdayStr);
+            const nextIsHoliday = holidayDates.has(tomorrowStr);
+
+            if (!isHoliday && !prevIsHoliday && !nextIsHoliday) {
+              const exists = events.some(e => e.start_date === dateStr && e.type === 'class_day');
+              if (!exists) {
+                newEvents.push({
+                  title: 'Dia de Aula',
+                  start_date: dateStr,
+                  end_date: dateStr,
+                  type: 'class_day',
+                  description: 'Quarta-feira regular de aula',
+                  user_id: userAuth.uid,
+                  created_at: new Date().toISOString()
+                });
+              }
+            }
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      }
+
+      const promises = newEvents.map(ev => saveData('calendar_events', undefined, ev));
+      await Promise.all(promises);
+
+      setNotification({ type: 'success', message: `${newEvents.length} eventos acadêmicos gerados!` });
+    } catch (error) {
+      console.error("Error generating class days:", error);
+      setNotification({ type: 'err', message: 'Erro ao gerar dias de aula.' });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -354,6 +459,17 @@ export function AcademicCalendar() {
               Lista
             </button>
           </div>
+          {(isAdmin || isDirector) && (
+            <button 
+              onClick={generateClassDays}
+              disabled={isSyncing}
+              className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+            >
+              {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              Gerar Eventos Acadêmicos
+            </button>
+          )}
+
           {(isAdmin || isDirector) && (
             <button 
               onClick={() => syncHolidays(false)}

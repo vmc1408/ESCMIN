@@ -200,8 +200,8 @@ export function Settings() {
               const chunk = items.slice(j, j + chunkSize);
               
               await Promise.all(chunk.map(async (item) => {
+                const cleanItem: any = {};
                 try {
-                  const cleanItem: any = {};
                   const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
                   const whitelist: Record<string, string[]> = {
                     institution_settings: ['id', 'name', 'logo_url', 'updated_at'],

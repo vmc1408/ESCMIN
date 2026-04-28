@@ -84,20 +84,30 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const [imageError, setImageError] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
-  // Filter items based on access
+  // Filter items based on access without modifying original objects
   const filterByAccess = (items: any[]): any[] => {
-    return items.filter(item => {
-      if (item.requiredRole && item.requiredRole === 'admin' && !isAdmin) return false;
-      if (item.path && !canAccess(item.path)) return false;
-      if (item.children) {
-        item.children = filterByAccess(item.children);
-        return item.children.length > 0;
-      }
-      return true;
-    });
+    return items
+      .filter(item => {
+        if (item.requiredRole && item.requiredRole === 'admin' && !isAdmin) return false;
+        if (item.path && !canAccess(item.path)) return false;
+        return true;
+      })
+      .map(item => {
+        if (item.children) {
+          return { ...item, children: filterByAccess(item.children) };
+        }
+        return { ...item };
+      })
+      .filter(item => {
+        // If it was a group (had children), only keep it if children remain
+        if (items.find(original => original.label === item.label)?.children && (!item.children || item.children.length === 0)) {
+          return false;
+        }
+        return true;
+      });
   };
 
-  const filteredNavItems = filterByAccess([...navItems]);
+  const filteredNavItems = filterByAccess(navItems);
 
   const checkConnection = async () => {
     try {
