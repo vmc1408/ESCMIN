@@ -56,7 +56,7 @@ import {
   TooltipProps
 } from 'recharts';
 import { formatCurrency, cn } from '../lib/utils';
-import { db } from '../lib/firebase';
+import { db } from '../lib/database';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { financialService } from '../services/financialService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';

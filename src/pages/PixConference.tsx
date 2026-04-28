@@ -34,7 +34,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { cn, safeFormat, parseSafeDate, formatDate } from '../lib/utils';
-import { db, fetchAll, auth, saveData, deleteData } from '../lib/firebase';
+import { db, fetchAll, auth, saveData, deleteData } from '../lib/database';
 import { collection, query, where, getDocs, orderBy, limit, doc, setDoc } from 'firebase/firestore';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
@@ -211,34 +211,18 @@ export function PixConference() {
 
   const fetchRegisteredPixIds = async () => {
     try {
-      if (isSupabaseConfigured) {
-        // Check contributions (Student Statements)
-        // Prioritize Supabase for larger datasets or better performance in hybrid mode
-        const { data: contribData, error: sbError } = await supabase
-          .from('contributions')
-          .select('pix_id')
-          .not('pix_id', 'is', null);
-
-        if (!sbError && contribData) {
-          setRegisteredPixIds(new Set(contribData.map(d => String(d.pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
-        } else {
-          // Fallback to Firebase
-          const qContrib = query(
-            collection(db, 'contributions'),
-            where('pix_id', '!=', null)
-          );
-          const contribSnap = await getDocs(qContrib);
-          setRegisteredPixIds(new Set(contribSnap.docs.map(d => String(d.data().pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
-        }
-      } else {
-        // Direct Firebase
-        const qContrib = query(
-          collection(db, 'contributions'),
-          where('pix_id', '!=', null)
-        );
-        const contribSnap = await getDocs(qContrib);
-        setRegisteredPixIds(new Set(contribSnap.docs.map(d => String(d.data().pix_id)).filter(id => id && id !== 'null' && id !== 'undefined')));
+      // Prioritize fetchAll which handles migration status correctly
+      const contributions = await fetchAll('contributions', 'pix_id');
+      const pixIds = new Set<string>();
+      
+      if (contributions) {
+        contributions.forEach((d: any) => {
+          if (d.pix_id && d.pix_id !== 'null' && d.pix_id !== 'undefined') {
+            pixIds.add(String(d.pix_id));
+          }
+        });
       }
+      setRegisteredPixIds(pixIds);
 
       // Check existing reconciliations (Pix History)
       const reconciliations = await fetchAll('pix_reconciliations', 'id, transaction_id');
@@ -257,9 +241,10 @@ export function PixConference() {
 
   const fetchInstitution = async () => {
     try {
-      const q = query(collection(db, 'institution_settings'), limit(1));
-      const snap = await getDocs(q);
-      if (!snap.empty) setInstitution(snap.docs[0].data());
+      const institutions = await fetchAll('institution_settings');
+      if (institutions && institutions.length > 0) {
+        setInstitution(institutions[0]);
+      }
     } catch (e) {
       console.error('Error fetching institution:', e);
     }
@@ -275,31 +260,8 @@ export function PixConference() {
   const fetchHistory = async () => {
     setHistoryLoading(true);
     try {
-      // First try with ordered query
-      let q = query(
-        collection(db, 'pix_reconciliations'),
-        orderBy('created_at', 'desc')
-      );
+      const raw = await fetchAll('pix_reconciliations', '*', 'created_at', true);
       
-      let snap;
-      try {
-        snap = await getDocs(q);
-      } catch (err) {
-        console.warn('Ordenação por data falhou, tentando busca simples...', err);
-        // Fallback if index missing or field missing
-        q = query(collection(db, 'pix_reconciliations'));
-        snap = await getDocs(q);
-      }
-
-      const raw = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-      
-      // Local sort fallback
-      raw.sort((a, b) => {
-        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return db - da;
-      });
-
       // Group by batch_id
       const grouped = (raw || []).reduce((acc: any, curr: any) => {
         const batchId = curr.batch_id || 'sem-lote';

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Users, GraduationCap, BookOpen, UserCheck, ArrowUpRight, RefreshCw } from 'lucide-react';
-import { db, fetchCount } from '../lib/firebase';
+import { db, fetchCount } from '../lib/database';
 import { motion } from 'motion/react';
 
 export function Dashboard() {

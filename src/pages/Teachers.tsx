@@ -18,7 +18,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn } from '../lib/utils';
-import { db, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { db, fetchAll, saveData, deleteData } from '../lib/database';
 import { collection, addDoc, updateDoc, doc, query, limit, getDocs } from 'firebase/firestore';
 
 interface Teacher {
@@ -210,9 +210,8 @@ export function Teachers() {
       const pageWidth = doc.internal.pageSize.width;
       const margin = 20;
       
-      const instRef = collection(db, 'institution_settings');
-      const instSnap = await getDocs(query(instRef, limit(1)));
-      const inst = instSnap.empty ? null : instSnap.docs[0].data();
+      const institutions = await fetchAll('institution_settings');
+      const inst = institutions && institutions.length > 0 ? institutions[0] : null;
 
       if (inst?.logo_url) {
         try {

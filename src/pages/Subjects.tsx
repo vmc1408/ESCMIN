@@ -12,7 +12,7 @@ import {
   Code
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { db, fetchAll, saveData, deleteData } from '../lib/database';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 
 interface Subject {

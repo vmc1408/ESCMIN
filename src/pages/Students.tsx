@@ -28,7 +28,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn } from '../lib/utils';
-import { db, uploadImage, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { db, uploadImage, fetchAll, saveData, deleteData } from '../lib/database';
 import { collection, addDoc, updateDoc, doc, query, limit, getDocs } from 'firebase/firestore';
 import { Student, Class } from '../types';
 import { useNavigate } from 'react-router-dom';

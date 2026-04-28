@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Bell, Wallet, User, LogOut } from 'lucide-react';
-import { db } from '../lib/firebase';
+import { db } from '../lib/database';
 import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';

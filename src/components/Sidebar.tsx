@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
-import { db } from '../lib/firebase';
+import { db } from '../lib/database';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 

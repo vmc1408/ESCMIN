@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search } from 'lucide-react';
 import { financialService } from '../services/financialService';
-import { db, fetchAll, saveData } from '../lib/firebase';
+import { db, fetchAll, saveData } from '../lib/database';
 import { collection, query, where, getDocs, orderBy, limit, doc, deleteDoc, Timestamp, and, or, startAt, endAt } from 'firebase/firestore';
 import { Student, Contribution, Class } from '../types';
 import { formatCurrency, cn, safeFormat, parseSafeDate } from '../lib/utils';

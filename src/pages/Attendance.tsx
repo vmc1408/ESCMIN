@@ -15,7 +15,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db } from '../lib/firebase';
+import { db } from '../lib/database';
 import { 
   collection, 
   query, 

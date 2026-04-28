@@ -1,14 +1,23 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { 
-  onAuthStateChanged, 
-  User,
-  signOut
+  onAuthStateChanged as onAuthFirebase,
+  User as FirebaseUser,
+  signOut as signOutFirebase
 } from 'firebase/auth';
-import { auth, saveData, deleteData, fetchById } from '../lib/firebase';
+import { auth as authFirebase, saveData, deleteData, fetchById } from '../lib/database';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { UserProfile, UserRole } from '../types';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+
+type AppUser = {
+  uid: string;
+  email: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+};
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   profile: UserProfile | null;
   loading: boolean;
   isAdmin: boolean;
@@ -17,64 +26,39 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   canAccess: (path: string) => boolean;
+  userAuth: AppUser | null; // Legacy support
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (firebaseUser: User) => {
+  const fetchProfile = useCallback(async (appUser: AppUser) => {
     try {
-      const { uid, email } = firebaseUser;
+      const { uid, email } = appUser;
       const profileData = await fetchById('users', uid);
       
       if (profileData) {
         setProfile(profileData as UserProfile);
       } else if (email) {
-        // UID document doesn't exist, check if there's a pre-registered document named as the email
         const emailId = email.toLowerCase().trim();
         const preRegistration = await fetchById('users', emailId);
         
         if (preRegistration) {
-          const preRegData = preRegistration;
-          const emailId = email.toLowerCase().trim();
-          
-          console.log(`Migrating pre-registration for ${emailId} to UID ${uid}`);
-          
-          // Found a pre-registered user! Migrate it to the UID document
           const newProfile: UserProfile = {
-            ...preRegData,
+            ...preRegistration,
             id: uid,
-            uid: uid, // Explicitly set both
-            email: email, // ensure correct casing from Auth
+            email: email,
             is_pre_registered: false,
             updated_at: new Date().toISOString()
           } as any;
           
-          try {
-            await saveData('users', uid, newProfile);
-            console.log(`New profile saved for UID ${uid}`);
-            
-            // Try to cleanup pre-registration doc
-            // We do this AFTER saving the new one to avoid losing data if delete fails
-            try {
-              await deleteData('users', emailId);
-              console.log(`Old pre-registration doc ${emailId} deleted`);
-            } catch (deleteError) {
-              console.warn("Could not delete pre-registration record, but profile is migrated:", deleteError);
-            }
-            
-            setProfile(newProfile);
-          } catch (saveError) {
-            console.error("Failed to save migrated profile:", saveError);
-            // If save failed, we might still have the pre-registration doc
-            // We should still allow the user to see their "pre-reg" profile if possible?
-            // No, better to keep profile null so they don't see inconsistent state
-            setProfile(null);
-          }
+          await saveData('users', uid, newProfile);
+          await deleteData('users', emailId);
+          setProfile(newProfile);
         } else {
           setProfile(null);
         }
@@ -88,29 +72,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser?.uid === user?.uid && profile) {
-          // Already have exactly this user and profile, skip fetching again
-          return;
-        }
-
-        setUser(firebaseUser);
-        
-        if (firebaseUser) {
-          await fetchProfile(firebaseUser);
+    // 1. Firebase Auth listener (Legacy/Migration)
+    const unsubscribeFirebase = onAuthFirebase(authFirebase, async (fbUser) => {
+      if (fbUser) {
+        const mappedUser: AppUser = {
+          uid: fbUser.uid,
+          email: fbUser.email,
+          displayName: fbUser.displayName,
+          photoURL: fbUser.photoURL
+        };
+        setUser(mappedUser);
+        await fetchProfile(mappedUser);
+        setLoading(false);
+      } else {
+        // If no Firebase user, check Supabase
+        if (isSupabaseConfigured) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const mappedUser: AppUser = {
+              uid: session.user.id,
+              email: session.user.email || null,
+              displayName: session.user.user_metadata?.full_name,
+              photoURL: session.user.user_metadata?.avatar_url
+            };
+            setUser(mappedUser);
+            await fetchProfile(mappedUser);
+          } else {
+            setUser(null);
+            setProfile(null);
+          }
         } else {
+          setUser(null);
           setProfile(null);
         }
-      } catch (err) {
-        console.error("Auth state change error:", err);
-      } finally {
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
-  }, [user, profile, fetchProfile]);
+    // 2. Supabase Auth listener (New)
+    let authSubscription: any;
+    if (isSupabaseConfigured) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          if (session?.user) {
+            const mappedUser: AppUser = {
+              uid: session.user.id,
+              email: session.user.email || null,
+              displayName: session.user.user_metadata?.full_name,
+              photoURL: session.user.user_metadata?.avatar_url
+            };
+            setUser(mappedUser);
+            await fetchProfile(mappedUser);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+        }
+      });
+      authSubscription = subscription;
+    }
+
+    return () => {
+      unsubscribeFirebase();
+      if (authSubscription) authSubscription.unsubscribe();
+    };
+  }, [fetchProfile]);
 
   const refreshProfile = useCallback(async () => {
     if (user) {
@@ -119,7 +145,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile]);
 
   const logout = useCallback(async () => {
-    await signOut(auth);
+    await signOutFirebase(authFirebase);
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+    setUser(null);
+    setProfile(null);
   }, []);
 
   const isAdmin = profile?.role === 'admin';
@@ -129,32 +160,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const canAccess = useCallback((path: string): boolean => {
     if (!profile) return false;
     if (profile.role === 'admin') return true;
-    
-    // Normalize path
     const p = path.startsWith('/') ? path : `/${path}`;
-
-    if (profile.role === 'diretor') {
-      // Diretor accesses everything EXCEPT Settings and Import
-      return p !== '/import' && p !== '/settings';
-    }
-
+    if (profile.role === 'diretor') return p !== '/import' && p !== '/settings';
     if (profile.role === 'secretario') {
-      // Secretario accesses Academic, PIX, Contributions, Reports, Users
-      const allowed = [
-        '/', 
-        '/students', '/teachers', '/classes', '/subjects', // Academic
-        '/pix-conference', '/contributions', // Finance
-        '/reports', 
-        '/users'
-      ];
+      const allowed = ['/', '/students', '/teachers', '/classes', '/subjects', '/pix-conference', '/contributions', '/reports', '/users'];
       return allowed.includes(p);
     }
-
     return false;
   }, [profile]);
 
   const contextValue = React.useMemo(() => ({
     user, 
+    userAuth: user,
     profile, 
     loading, 
     isAdmin, 
@@ -167,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

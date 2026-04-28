@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap } from 'lucide-react';
-import { auth, db, fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/firebase';
+import { auth, db, fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/database';
 import { fetchSignInMethodsForEmail, updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';

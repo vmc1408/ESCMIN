@@ -15,7 +15,7 @@ import {
   limit, 
   query 
 } from 'firebase/firestore';
-import { auth, db, fetchById } from '../lib/firebase';
+import { auth, db, fetchById } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -52,6 +52,35 @@ export function Login() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const from = location.state?.from?.pathname || "/";
 
+  // Helper to strip JSON from error messages if they come from handleFirestoreError
+  const formatError = (error: any): string => {
+    if (!error) return "";
+    const msg = typeof error === 'string' ? error : (error.message || String(error));
+    
+    // Check if it's our JSON error format
+    if (msg.includes('{"error":')) {
+      try {
+        const parsed = JSON.parse(msg);
+        if (parsed.error.includes('Missing or insufficient permissions')) {
+          return "Você não tem permissão para esta ação ou seu perfil ainda não foi autorizado.";
+        }
+        return parsed.error;
+      } catch (e) {
+        // Fallback if parsing fails
+      }
+    }
+    
+    // Handle common auth codes manually just in case
+    if (msg.includes('auth/invalid-credential') || msg.includes('auth/wrong-password')) {
+      return "E-mail ou senha incorretos. Verifique suas credenciais.";
+    }
+    if (msg.includes('auth/user-not-found')) {
+      return "Usuário não encontrado. Se é seu primeiro acesso, use a aba ao lado.";
+    }
+    
+    return msg;
+  };
+
   useEffect(() => {
     // If we are logged in and system is OK, go to home
     if (user && profile && !needsBootstrap && !loading) {
@@ -69,7 +98,7 @@ export function Login() {
       const timer = setTimeout(() => {
         // Double check all conditions again before setting error
         if (user && !profile && !shouldIgnoreError && !needsBootstrap && !error) {
-          setError("Seu perfil não foi encontrado em nossa base de dados. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso' ao lado. Caso contrário, consulte o administrador.");
+          setError("Olá! 🎉 Parece que você ainda não tem um perfil cadastrado. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso' aqui em cima. Se você já tem conta, aguarde um instante ou fale com o coordenador.");
         }
       }, 4000); // Increased to 4s for stability
       return () => clearTimeout(timer);
@@ -131,7 +160,7 @@ export function Login() {
       } else if (err.code === 'auth/too-many-requests') {
         setError("Muitas tentativas malsucedidas. Tente novamente em alguns minutos.");
       } else {
-        setError("Ocorreu um erro ao tentar entrar. " + (err.message || "Tente novamente."));
+        setError("Ocorreu um erro ao entrar: " + formatError(err));
       }
     } finally {
       setLoading(false);
@@ -196,7 +225,7 @@ export function Login() {
       } else if (errorCode === 'auth/invalid-email') {
         setError("O formato do e-mail é inválido.");
       } else {
-        setError("Falha no primeiro acesso: " + (errorMessage || "Tente novamente mais tarde."));
+        setError("Falha no primeiro acesso: " + formatError(err));
       }
     } finally {
       setLoading(false);
@@ -254,7 +283,7 @@ export function Login() {
       } else if (err.code === 'permission-denied') {
         setError("Erro de permissão ao criar configurações. Verifique as regras do Firestore.");
       } else {
-        setError("Falha na inicialização: " + (err.message || 'Erro desconhecido'));
+        setError("Falha na inicialização: " + formatError(err));
       }
     } finally {
       setLoading(false);
@@ -277,7 +306,7 @@ export function Login() {
       if (err.code === 'auth/user-not-found') {
         setError("E-mail não encontrado na base de dados.");
       } else {
-        setError("Erro ao enviar e-mail de recuperação: " + (err.message || "Tente novamente."));
+        setError("Erro ao recuperar senha: " + formatError(err));
       }
     } finally {
       setLoading(false);
@@ -357,8 +386,8 @@ export function Login() {
                     <AlertCircle size={22} />
                   </div>
                   <div className="flex-1 pr-6">
-                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Atenção / Erro</h5>
-                    <p className="text-sm font-bold leading-tight">{error}</p>
+                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Aviso do Sistema</h5>
+                    <p className="text-sm font-bold leading-tight">{formatError(error)}</p>
                   </div>
                   <button 
                     onClick={() => setError(null)}
@@ -451,8 +480,8 @@ export function Login() {
                     <AlertCircle size={22} />
                   </div>
                   <div className="flex-1 pr-6">
-                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Atenção / Erro</h5>
-                    <p className="text-sm font-bold leading-tight">{error}</p>
+                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Aviso do Sistema</h5>
+                    <p className="text-sm font-bold leading-tight">{formatError(error)}</p>
                   </div>
                   <button 
                     onClick={() => setError(null)}

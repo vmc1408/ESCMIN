@@ -243,7 +243,9 @@
         "description": { "type": "string" },
         "start_date": { "type": "string", "format": "date" },
         "end_date": { "type": "string", "format": "date" },
-        "type": { "type": "string", "enum": ["holiday", "exam", "meeting", "event"] },
+        "type": { "type": "string", "enum": ["holiday", "exam", "start_term", "end_term", "class_day", "event"] },
+        "class_id": { "type": "string" },
+        "subject_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },

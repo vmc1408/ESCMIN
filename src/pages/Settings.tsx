@@ -40,7 +40,7 @@ import {
   Terminal,
   Key
 } from 'lucide-react';
-import { db, fetchCount, uploadImage, saveData, fetchAll, fetchFromFirestore } from '../lib/firebase';
+import { db, fetchCount, uploadImage, saveData, fetchAll, fetchFromFirestore, MIGRATED_COLLECTIONS } from '../lib/database';
 import { collection, query, limit, getDocs, doc, updateDoc, setDoc, deleteDoc, orderBy, addDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -127,6 +127,19 @@ export function Settings() {
   const [fixSql, setFixSql] = useState<string>('');
   const [checkingSchema, setCheckingSchema] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{
+    currentCol: string;
+    completed: string[];
+    failed: string[];
+    totalSynced: number;
+    totalFailed: number;
+  }>({
+    currentCol: '',
+    completed: [],
+    failed: [],
+    totalSynced: 0,
+    totalFailed: 0
+  });
   const [showConfirmModal, setShowConfirmModal] = useState<{
     show: boolean;
     title: string;
@@ -144,76 +157,127 @@ export function Settings() {
   const handleSyncSupabase = async () => {
     try {
       setIsSyncing(true);
-      setNotification({ type: 'success', message: 'Iniciando sincronização completa com Supabase...' });
-      
       const collectionsToSync = [
+        'institution_settings',
         'users', 
         'email_registry', 
-        'students', 
-        'classes', 
-        'subjects', 
-        'teachers', 
+        'foraries',            
+        'parishes',            
+        'clergy_leity',        
+        'subjects',
+        'teachers',
+        'classes',             
+        'students',            
+        'attendances',         
+        'grades',             
+        'calendar_events',     
+        'contributions',       
         'pix_reconciliations', 
-        'contributions', 
-        'foraries', 
-        'parishes', 
-        'institution_settings'
+        'certificates'         
       ];
 
+      setSyncProgress({
+        currentCol: '',
+        completed: [],
+        failed: [],
+        totalSynced: 0,
+        totalFailed: 0
+      });
+
       let totalSynced = 0;
-      let totalCollections = collectionsToSync.length;
+      let totalFailed = 0;
 
       for (let i = 0; i < collectionsToSync.length; i++) {
         const col = collectionsToSync[i];
-        setNotification({ 
-          type: 'success', 
-          message: `Sincronizando ${col} (${i + 1}/${totalCollections})...` 
-        });
+        setSyncProgress(prev => ({ ...prev, currentCol: col }));
 
         try {
-          // Force fetch from Firebase for Sync to ensure we have the source of truth for migration
           const items = await fetchFromFirestore(col) as any[];
           
           if (items && items.length > 0) {
-            // Process items in chunks of 10 to be much safer with Supabase rate limits/connections
-            const chunkSize = 10;
+            const chunkSize = 20;
             for (let j = 0; j < items.length; j += chunkSize) {
               const chunk = items.slice(j, j + chunkSize);
               
-              // We use sequential processing for each chunk or a limited Promise.all
               await Promise.all(chunk.map(async (item) => {
                 try {
-                  // saveData already handles the duplication check and provides detailed errors
-                  await saveData(col, item.id || item.email, item);
+                  const cleanItem: any = {};
+                  const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
+                  const whitelist: Record<string, string[]> = {
+                    institution_settings: ['id', 'name', 'logo_url', 'updated_at'],
+                    users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
+                    email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
+                    foraries: [...baseFields, 'code', 'name', 'priest_name'],
+                    parishes: [...baseFields, 'code', 'name', 'forania_id', 'priest_id', 'priest_name', 'address_street', 'address_number', 'address_neighborhood', 'address_city', 'address_zip', 'email', 'phone'],
+                    clergy_leity: [...baseFields, 'code', 'name', 'address', 'phone_residential', 'phone_commercial', 'phone_mobile', 'phone_whatsapp', 'email', 'parish_id', 'role'],
+                    subjects: [...baseFields, 'code', 'name', 'program_content'],
+                    classes: [...baseFields, 'code', 'name', 'room', 'period', 'days_of_week', 'semester', 'start_date', 'observations'],
+                    students: [...baseFields, 'registration_number', 'name', 'cpf', 'rg', 'birth_date', 'start_date', 'is_former_student', 'class_id', 'parish_id', 'address_street', 'address_city', 'address_state', 'address_neighborhood', 'address_zip', 'parish', 'course', 'phone_residential', 'phone_commercial', 'phone_mobile', 'phone_whatsapp', 'email', 'guardian_father', 'guardian_mother', 'guardian_cpf', 'photo_url'],
+                    teachers: [...baseFields, 'code', 'name', 'email', 'phone', 'specialization', 'address_street', 'address_number', 'address_neighborhood', 'address_city', 'address_zip', 'birth_date', 'observations'],
+                    attendances: ['id', 'student_id', 'class_id', 'subject_id', 'date', 'status', 'observations', 'user_id', 'created_at'],
+                    grades: ['id', 'student_id', 'class_id', 'subject_id', 'period', 'value', 'status', 'user_id', 'created_at'],
+                    calendar_events: ['id', 'title', 'description', 'start_date', 'end_date', 'type', 'class_id', 'subject_id', 'user_id', 'created_at'],
+                    contributions: ['id', 'student_id', 'amount', 'reference_month', 'reference_year', 'payment_date', 'payment_method', 'origin', 'pix_id', 'user_id', 'created_at'],
+                    pix_reconciliations: ['id', 'date', 'payer_name', 'origin_bank', 'amount', 'transaction_id', 'batch_id', 'status', 'matched_student_id', 'is_manual', 'created_at'],
+                    certificates: ['id', 'student_id', 'type', 'issuance_date', 'course', 'verification_code', 'user_id', 'created_at']
+                  };
+
+                  const allowedFields = whitelist[col] || null;
+
+                  Object.keys(item).forEach(key => {
+                    if (key !== 'id' && (!allowedFields || allowedFields.includes(key))) {
+                      if (key.endsWith('_id') && item[key] === '') {
+                        cleanItem[key] = null;
+                      } else {
+                        cleanItem[key] = item[key];
+                      }
+                    }
+                  });
+
+                  await saveData(col, item.id, cleanItem);
                   totalSynced++;
-                } catch (saveErr) {
-                  console.warn(`Item fail in ${col}:`, item.id || item.email, saveErr);
+                  setSyncProgress(prev => ({ ...prev, totalSynced }));
+                } catch (saveErr: any) {
+                  if (saveErr.message?.includes('Dependência não encontrada')) {
+                    const saferItem = { ...cleanItem };
+                    Object.keys(saferItem).forEach(k => {
+                      if (k.endsWith('_id')) delete saferItem[k];
+                    });
+                    try {
+                      await saveData(col, item.id, saferItem);
+                      totalSynced++;
+                      setSyncProgress(prev => ({ ...prev, totalSynced }));
+                      return;
+                    } catch (retryErr: any) {}
+                  }
+                  totalFailed++;
+                  setSyncProgress(prev => ({ ...prev, totalFailed }));
                 }
               }));
-              
-              // Small pause between batches
-              await new Promise(r => setTimeout(r, 200));
+              await new Promise(r => setTimeout(r, 50));
             }
           }
+          setSyncProgress(prev => ({ ...prev, completed: [...prev.completed, col] }));
         } catch (colErr: any) {
           console.error(`Falha ao sincronizar coleção ${col}:`, colErr);
+          setSyncProgress(prev => ({ ...prev, failed: [...prev.failed, col] }));
+          if (colErr.message?.includes('Quota Exceeded') || colErr.message?.includes('cota diária')) {
+            throw new Error('A cota diária do Firebase foi atingida. A migração não pode continuar hoje.');
+          }
         }
-        
-        // Solid pause between collections
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 200));
       }
       
       setNotification({ 
         type: 'success', 
-        message: `Sincronização concluída! ${totalSynced} registros processados em ${totalCollections} coleções.` 
+        message: `Sincronização concluída! ${totalSynced} registros migrados.` 
       });
       fetchCounts();
     } catch (err: any) {
       console.error('Sync failed:', err);
-      setNotification({ type: 'error', message: 'Falha crítica na sincronização: ' + err.message });
+      setNotification({ type: 'error', message: 'Falha na sincronização: ' + err.message });
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -382,9 +446,8 @@ export function Settings() {
       // Ensure we have an ID for institution_settings
       let instId = institution.id;
       if (!instId) {
-        const q = query(collection(db, 'institution_settings'), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty) instId = snap.docs[0].id;
+        const institutions = await fetchAll('institution_settings');
+        if (institutions && institutions.length > 0) instId = institutions[0].id;
         else instId = '1'; // Default fixed ID
       }
 
@@ -961,10 +1024,65 @@ export function Settings() {
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <h4 className="text-lg font-black text-[#00174b] flex items-center gap-2">
                 <RefreshCw size={20} className="text-blue-500" />
-                Limpeza de Integridade
+                Status da Migração Progressiva
               </h4>
-              <p className="text-slate-500 text-sm">Remova inconsistências e dados duplicados causados por importações falhas.</p>
+              <p className="text-slate-500 text-sm">
+                Acompanhe quais tabelas já estão operando exclusivamente no Supabase.
+              </p>
               
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {[
+                  'institution_settings', 'users', 'email_registry', 'foraries', 'parishes', 
+                  'clergy_leity', 'subjects', 'teachers', 'classes', 
+                  'students', 'attendances', 'grades', 'calendar_events', 
+                  'contributions', 'pix_reconciliations', 'certificates'
+                ].map(col => {
+                  const isMigrated = MIGRATED_COLLECTIONS.includes(col);
+                  return (
+                    <div key={col} className={cn(
+                      "p-3 rounded-xl border flex flex-col gap-1 transition-all",
+                      isMigrated ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100 grayscale opacity-60"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase text-[#00174b] truncate">{col}</span>
+                        {isMigrated ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Clock size={12} className="text-slate-400" />}
+                      </div>
+                      <span className={cn(
+                        "text-[8px] font-bold uppercase",
+                        isMigrated ? "text-emerald-600" : "text-slate-400"
+                      )}>
+                        {isMigrated ? 'Migrado' : 'Pendente'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {isSyncing && (
+                <div className="mt-6 p-6 bg-blue-50 border border-blue-100 rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-sm font-black text-blue-900 flex items-center gap-2">
+                      <Loader2 size={16} className="animate-spin" />
+                      Sincronizando: {syncProgress.currentCol}
+                    </h5>
+                    <span className="text-[10px] font-black text-blue-600 uppercase">
+                      {syncProgress.totalSynced} Sucessos
+                    </span>
+                  </div>
+                  <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-600 transition-all duration-500" 
+                      style={{ width: `${(syncProgress.completed.length / 16) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {syncProgress.failed.map(f => (
+                      <span key={f} className="px-2 py-0.5 bg-red-100 text-red-600 rounded-md text-[8px] font-bold uppercase">Erro: {f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3 pt-4">
                 <button 
                   onClick={handleSchemaCheckup}

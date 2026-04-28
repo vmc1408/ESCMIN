@@ -14,12 +14,12 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
-import { db, fetchAll, saveData } from '../lib/firebase';
+import { db, fetchAll, saveData } from '../lib/database';
 import { collection, setDoc, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { useImport } from '../contexts/ImportContext';
 
-type ImportType = 'students' | 'teachers' | 'classes' | 'subjects' | 'parishes' | 'foraries';
+type ImportType = 'students' | 'teachers' | 'classes' | 'subjects' | 'parishes' | 'foraries' | 'clergy_leity';
 type ImportStep = 'type' | 'upload' | 'mapping' | 'review' | 'processing';
 
 interface FieldDefinition {
@@ -45,7 +45,7 @@ const ENTITY_FIELDS: Record<ImportType, FieldDefinition[]> = {
     { label: 'Fone Residencial', key: 'phone_residential', synonyms: ['residencial', 'phone_residential', 'telefone_residencial'] },
     { label: 'Fone Comercial', key: 'phone_commercial', synonyms: ['comercial', 'phone_commercial', 'telefone_comercial'] },
     { label: 'Status (SIT)', key: 'status', synonyms: ['sit', 'status', 'situacao'] },
-    { label: 'Paróquia', key: 'parish', synonyms: ['paroquia', 'church', 'parish'] },
+    { label: 'Paróquia', key: 'parish_id', synonyms: ['paroquia', 'church', 'parish'] },
     { label: 'Curso', key: 'course', synonyms: ['curso', 'grade', 'specialty'] },
     { label: 'Nome do Pai', key: 'guardian_father', synonyms: ['pai', 'father', 'guardian_father', 'nome_pai'] },
     { label: 'Nome da Mãe', key: 'guardian_mother', synonyms: ['mae', 'mother', 'guardian_mother', 'nome_mae'] },
@@ -79,7 +79,7 @@ const ENTITY_FIELDS: Record<ImportType, FieldDefinition[]> = {
   parishes: [
     { label: 'Código', key: 'code', synonyms: ['codigo', 'code', 'id', 'paroquia_id'] },
     { label: 'Nome da Paróquia', key: 'name', synonyms: ['paroquia', 'nome', 'parish', 'church'] },
-    { label: 'Forania', key: 'forania', synonyms: ['forania', 'vicariato', 'region'] },
+    { label: 'Forania', key: 'forania_id', synonyms: ['forania', 'vicariato', 'region'] },
     { label: 'Padre Responsável', key: 'priest_name', synonyms: ['padre', 'responsavel', 'priest', 'pastor'] },
     { label: 'Logradouro', key: 'address_street', synonyms: ['endereco', 'rua', 'logradouro', 'street'] },
     { label: 'Número', key: 'address_number', synonyms: ['numero', 'number'] },
@@ -93,6 +93,16 @@ const ENTITY_FIELDS: Record<ImportType, FieldDefinition[]> = {
   foraries: [
     { label: 'Código', key: 'code', synonyms: ['codigo', 'id'] },
     { label: 'Nome da Forania', key: 'name', synonyms: ['forania', 'nome', 'vicariato'] }
+  ],
+  clergy_leity: [
+    { label: 'Código', key: 'code', synonyms: ['codigo', 'id', 'code'] },
+    { label: 'Nome', key: 'name', synonyms: ['nome', 'name', 'clero', 'leigo'] },
+    { label: 'E-mail', key: 'email', synonyms: ['email', 'mail'] },
+    { label: 'Telefone Celular', key: 'phone_mobile', synonyms: ['celular', 'mobile'] },
+    { label: 'WhatsApp', key: 'phone_whatsapp', synonyms: ['whatsapp', 'zap'] },
+    { label: 'Paróquia', key: 'parish_id', synonyms: ['paroquia', 'parish'] },
+    { label: 'Função/Cargo', key: 'role', synonyms: ['funcao', 'cargo', 'role', 'tipo'] },
+    { label: 'Endereço', key: 'address', synonyms: ['endereco', 'address', 'rua'] }
   ]
 };
 
@@ -351,7 +361,8 @@ export function Import() {
             { id: 'classes', label: 'Turmas', icon: School, color: 'bg-orange-50 text-orange-600' },
             { id: 'subjects', label: 'Disciplinas', icon: BookOpen, color: 'bg-green-50 text-green-600' },
             { id: 'parishes', label: 'Paróquias', icon: Church, color: 'bg-indigo-50 text-indigo-600' },
-            { id: 'foraries', label: 'Foranias', icon: Map, color: 'bg-rose-50 text-rose-600' }
+            { id: 'foraries', label: 'Foranias', icon: Map, color: 'bg-rose-50 text-rose-600' },
+            { id: 'clergy_leity', label: 'Clero/Leigos', icon: Users, color: 'bg-amber-50 text-amber-600' }
           ].map((type) => (
             <button
               key={type.id}
@@ -386,7 +397,8 @@ export function Import() {
               importType === 'teachers' ? 'Professores' : 
               importType === 'classes' ? 'Turmas' : 
               importType === 'subjects' ? 'Disciplinas' : 
-              importType === 'parishes' ? 'Paróquias' : 'Foranias'
+              importType === 'parishes' ? 'Paróquias' : 
+              importType === 'foraries' ? 'Foranias' : 'Clero/Leigos'
             }</h3>
             <p className="text-slate-500 mb-8">Arraste seu arquivo Excel ou CSV aqui</p>
             <label className="px-8 py-4 bg-[#00174b] text-white rounded-2xl font-bold cursor-pointer hover:scale-105 transition-all shadow-xl">
@@ -469,7 +481,8 @@ export function Import() {
               importType === 'teachers' ? 'Professores' : 
               importType === 'classes' ? 'Turmas' : 
               importType === 'subjects' ? 'Disciplinas' : 
-              importType === 'parishes' ? 'Paróquias' : 'Foranias'
+              importType === 'parishes' ? 'Paróquias' : 
+              importType === 'foraries' ? 'Foranias' : 'Clero/Leigos'
             }
           </button>
         </div>

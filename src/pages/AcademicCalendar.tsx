@@ -18,14 +18,11 @@ import {
   BookOpen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db } from '../lib/firebase';
+import { db, saveData, deleteData, handleFirestoreError } from '../lib/database';
 import { 
   collection, 
   query, 
   onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
   doc, 
   serverTimestamp,
   orderBy,
@@ -93,7 +90,7 @@ export function AcademicCalendar() {
       setEvents(data);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching events:", error);
+      handleFirestoreError(error, 'list', 'calendar_events');
       setLoading(false);
     });
 
@@ -174,14 +171,14 @@ export function AcademicCalendar() {
       const promises = FIXED_HOLIDAYS.map(async (h) => {
         const exists = events.some(e => e.start_date === h.date && e.title === h.title);
         if (!exists) {
-          await addDoc(collection(db, 'calendar_events'), {
+          await saveData('calendar_events', undefined, {
             title: h.title,
             start_date: h.date,
             end_date: h.date,
             type: 'holiday',
             description: h.title.includes('(SP)') ? 'Feriado Estadual de São Paulo' : 'Feriado Nacional',
             user_id: userAuth.uid,
-            created_at: serverTimestamp()
+            created_at: new Date().toISOString()
           });
         }
       });
@@ -205,17 +202,10 @@ export function AcademicCalendar() {
       const data = {
         ...formData,
         user_id: userAuth.uid,
-        updated_at: serverTimestamp()
+        updated_at: new Date().toISOString()
       };
 
-      if (selectedEvent) {
-        await updateDoc(doc(db, 'calendar_events', selectedEvent.id), data);
-      } else {
-        await addDoc(collection(db, 'calendar_events'), {
-          ...data,
-          created_at: serverTimestamp()
-        });
-      }
+      await saveData('calendar_events', selectedEvent?.id, data);
 
       setIsEditing(false);
       setSelectedEvent(null);
@@ -228,9 +218,8 @@ export function AcademicCalendar() {
         class_id: '',
         subject_id: ''
       });
-    } catch (error) {
-      console.error("Error saving event:", error);
-      alert("Erro ao salvar evento");
+    } catch (error: any) {
+      handleFirestoreError(error, selectedEvent ? 'update' : 'create', 'calendar_events');
     }
   };
 
@@ -251,9 +240,9 @@ export function AcademicCalendar() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Deseja realmente excluir este evento?")) return;
     try {
-      await deleteDoc(doc(db, 'calendar_events', id));
+      await deleteData('calendar_events', id);
     } catch (error) {
-      console.error("Error deleting event:", error);
+      handleFirestoreError(error, 'delete', `calendar_events/${id}`);
     }
   };
 
@@ -279,15 +268,26 @@ export function AcademicCalendar() {
     }
   };
 
+  const getTypeColor = (type: CalendarEvent['type']) => {
+    switch (type) {
+      case 'holiday': return 'bg-red-500';
+      case 'exam': return 'bg-amber-500';
+      case 'start_term': return 'bg-blue-500';
+      case 'end_term': return 'bg-slate-500';
+      case 'class_day': return 'bg-emerald-500';
+      default: return 'bg-slate-400';
+    }
+  };
+
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  const prevYear = () => {
+    setCurrentDate(new Date(currentDate.getFullYear() - 1, currentDate.getMonth()));
   };
 
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+  const nextYear = () => {
+    setCurrentDate(new Date(currentDate.getFullYear() + 1, currentDate.getMonth()));
   };
 
   const filteredEvents = events.filter(event => {
@@ -433,79 +433,144 @@ export function AcademicCalendar() {
               <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-              <div className="flex items-center justify-between pb-6 border-b border-slate-50">
-                <button onClick={prevMonth} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
-                  <ChevronLeft size={24} className="text-slate-400" />
-                </button>
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">
-                  {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                </h3>
-                <button onClick={nextMonth} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
-                  <ChevronRight size={24} className="text-slate-400" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-7 gap-2">
-                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                  <div key={day} className="text-center py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    {day}
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                <div className="flex items-center justify-between pb-8 border-b border-slate-50 mb-8">
+                  <button onClick={prevYear} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
+                    <ChevronLeft size={24} className="text-slate-400" />
+                  </button>
+                  <div className="text-center">
+                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                      Calendário Anual {currentDate.getFullYear()}
+                    </h3>
                   </div>
-                ))}
-                
-                {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => (
-                  <div key={`empty-${i}`} className="h-24 md:h-32 bg-slate-50/30 rounded-2xl border border-transparent" />
-                ))}
+                  <button onClick={nextYear} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
+                    <ChevronRight size={24} className="text-slate-400" />
+                  </button>
+                </div>
 
-                {Array.from({ length: daysInMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                  const dayEvents = events.filter(e => e.start_date === dateStr);
+                <div className="space-y-12">
+                  {/* Primeiro Semestre */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-3">
+                      <div className="w-8 h-1 bg-blue-600 rounded-full" />
+                      1º Semestre (Jan - Jun)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {[0, 1, 2, 3, 4, 5].map(monthIndex => (
+                        <div key={monthIndex} className="p-4 bg-slate-50/50 rounded-3xl border border-slate-100/50 hover:shadow-xl transition-all hover:bg-white hover:scale-[1.02] duration-300">
+                          <h5 className="text-[10px] font-black text-[#00174b] uppercase tracking-widest text-center mb-4 border-b border-slate-200/50 pb-2">
+                            {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
+                          </h5>
+                          <div className="grid grid-cols-7 gap-1">
+                            {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
+                              <div key={`sem1-${monthIndex}-${d}-${idx}`} className="text-center text-[8px] font-black text-slate-400 uppercase py-1">{d}</div>
+                            ))}
+                            {/* Days Logic */}
+                            {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
+                              <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
+                            ))}
+                            {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
+                              const day = i + 1;
+                              const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                              const dayEvents = events.filter(e => e.start_date === dateStr);
+                              const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
-                  return (
-                    <div 
-                      key={day} 
-                      className={cn(
-                        "h-24 md:h-32 p-3 rounded-2xl border border-slate-50 transition-all hover:border-blue-200 hover:shadow-md bg-white group relative",
-                        dayEvents.length > 0 && "cursor-pointer"
-                      )}
-                    >
-                      <span className="text-sm font-black text-slate-400 group-hover:text-blue-600 transition-colors">
-                        {day}
-                      </span>
-                      <div className="mt-2 space-y-1">
-                        {dayEvents.map(event => (
-                          <div 
-                            key={event.id}
-                            onClick={() => handleEdit(event)}
-                            className={cn(
-                              "text-[8px] md:text-[9px] font-black uppercase tracking-tight px-2 py-1 rounded-md border truncate",
-                              getTypeStyle(event.type)
-                            )}
-                            title={event.title}
-                          >
-                            {event.title}
+                              return (
+                                <div 
+                                  key={`${monthIndex}-${day}`}
+                                  onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
+                                  className={cn(
+                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day",
+                                    dayEvents.length > 0 
+                                      ? "bg-white text-blue-600 cursor-pointer border border-blue-100 shadow-sm hover:scale-110" 
+                                      : isToday ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:bg-slate-200/50"
+                                  )}
+                                >
+                                  {day}
+                                  {dayEvents.length > 0 && (
+                                    <div className={cn(
+                                      "absolute -bottom-0.5 w-1 h-1 rounded-full",
+                                      getTypeColor(dayEvents[0].type)
+                                    )} />
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex flex-wrap gap-4 pt-6 mt-4 border-t border-slate-50">
-                {[
-                  { type: 'holiday', label: 'Feriado' },
-                  { type: 'exam', label: 'Avaliação' },
-                  { type: 'start_term', label: 'Início Turma' },
-                  { type: 'end_term', label: 'Final Turma' },
-                  { type: 'class_day', label: 'Dia de Aula' }
-                ].map(item => (
-                  <div key={item.type} className="flex items-center gap-2">
-                    <div className={cn("w-3 h-3 rounded-full border", getTypeStyle(item.type as any))} />
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
                   </div>
-                ))}
+
+                  {/* Segundo Semestre */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black text-emerald-600 uppercase tracking-[0.2em] flex items-center gap-3">
+                      <div className="w-8 h-1 bg-emerald-600 rounded-full" />
+                      2º Semestre (Jul - Dez)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {[6, 7, 8, 9, 10, 11].map(monthIndex => (
+                        <div key={monthIndex} className="p-4 bg-slate-50/50 rounded-3xl border border-slate-100/50 hover:shadow-xl transition-all hover:bg-white hover:scale-[1.02] duration-300">
+                          <h5 className="text-[10px] font-black text-[#00174b] uppercase tracking-widest text-center mb-4 border-b border-slate-200/50 pb-2">
+                            {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
+                          </h5>
+                          <div className="grid grid-cols-7 gap-1">
+                            {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
+                              <div key={`sem2-${monthIndex}-${d}-${idx}`} className="text-center text-[8px] font-black text-slate-400 uppercase py-1">{d}</div>
+                            ))}
+                            {/* Days Logic */}
+                            {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
+                              <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
+                            ))}
+                            {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
+                              const day = i + 1;
+                              const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                              const dayEvents = events.filter(e => e.start_date === dateStr);
+                              const isToday = new Date().toISOString().split('T')[0] === dateStr;
+
+                              return (
+                                <div 
+                                  key={`${monthIndex}-${day}`}
+                                  onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
+                                  className={cn(
+                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day",
+                                    dayEvents.length > 0 
+                                      ? "bg-white text-blue-600 cursor-pointer border border-blue-100 shadow-sm hover:scale-110" 
+                                      : isToday ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:bg-slate-200/50"
+                                  )}
+                                >
+                                  {day}
+                                  {dayEvents.length > 0 && (
+                                    <div className={cn(
+                                      "absolute -bottom-0.5 w-1 h-1 rounded-full",
+                                      getTypeColor(dayEvents[0].type)
+                                    )} />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 pt-8 mt-12 border-t border-slate-50">
+                  {[
+                    { type: 'holiday', label: 'Feriado' },
+                    { type: 'exam', label: 'Avaliação' },
+                    { type: 'start_term', label: 'Início Turma' },
+                    { type: 'end_term', label: 'Final Turma' },
+                    { type: 'class_day', label: 'Dia de Aula' }
+                  ].map(item => (
+                    <div key={item.type} className="flex items-center gap-2">
+                      <div className={cn("w-3 h-3 rounded-full border", getTypeColor(item.type as any))} />
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : Object.keys(groupedEvents).length > 0 ? (

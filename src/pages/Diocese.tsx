@@ -28,7 +28,7 @@ import {
   Shield,
   Upload
 } from 'lucide-react';
-import { db, fetchAll, saveData, deleteData } from '../lib/firebase';
+import { db, fetchAll, saveData, deleteData } from '../lib/database';
 import { cn, maskCEP, maskPhone } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Parish, Foraria, ClergyLeity, ClergyRole } from '../types';
@@ -328,14 +328,10 @@ export function Diocese() {
       const collection = activeTab === 'foranias' ? 'foraries' : activeTab === 'parishes' ? 'parishes' : 'clergy_leity';
       
       console.log(`[handleDeleteConfirm] Iniciando exclusão de ${itemToDelete.id} (code: ${itemToDelete.code}) na coleção ${collection}`);
-      const success = await deleteData(collection, itemToDelete.id, itemToDelete.code);
+      await deleteData(collection, itemToDelete.id);
       
-      if (success) {
-        setNotification({ type: 'success', message: 'Registro excluído!' });
-        fetchData();
-      } else {
-        setNotification({ type: 'error', message: 'Erro: O registro não pôde ser excluído.' });
-      }
+      setNotification({ type: 'success', message: 'Registro excluído!' });
+      fetchData();
     } catch (error) {
       console.error('Erro na exclusão:', error);
       setNotification({ type: 'error', message: 'Erro ao excluir o registro.' });
