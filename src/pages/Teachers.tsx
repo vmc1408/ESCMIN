@@ -18,8 +18,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn } from '../lib/utils';
-import { db, fetchAll, saveData, deleteData } from '../lib/database';
-import { collection, addDoc, updateDoc, doc, query, limit, getDocs } from 'firebase/firestore';
+import { fetchAll, saveData, deleteData } from '../lib/database';
 
 interface Teacher {
   id: string;

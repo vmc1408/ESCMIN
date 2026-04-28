@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search } from 'lucide-react';
 import { financialService } from '../services/financialService';
-import { db, fetchAll, saveData } from '../lib/database';
-import { collection, query, where, getDocs, orderBy, limit, doc, deleteDoc, Timestamp, and, or, startAt, endAt } from 'firebase/firestore';
+import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { Student, Contribution, Class } from '../types';
 import { formatCurrency, cn, safeFormat, parseSafeDate } from '../lib/utils';
 import { jsPDF } from 'jspdf';
@@ -124,26 +123,20 @@ export function Contributions() {
     const fifteenDaysAgoStr = fifteenDaysAgo.toISOString().split('T')[0];
 
     try {
-      const q = query(
-        collection(db, 'contributions'),
-        where('payment_date', '>=', fifteenDaysAgoStr + 'T00:00:00Z'),
-        orderBy('payment_date', 'desc')
-      );
+      const data = await fetchQuery('contributions', [
+        { field: 'payment_date', operator: '>=', value: fifteenDaysAgoStr + 'T00:00:00Z' }
+      ], 'payment_date');
 
-      const snap = await getDocs(q);
-      const data = await Promise.all(snap.docs.map(async (docSnap) => {
-        const c = { id: docSnap.id, ...(docSnap.data() as any) } as any;
+      const dataWithStudents = await Promise.all((data || []).map(async (c: any) => {
         let student = null;
         if (c.student_id) {
-          const sSnap = await getDocs(query(collection(db, 'students'), where('__name__', '==', c.student_id)));
-          student = sSnap.empty ? null : sSnap.docs[0].data();
+          student = await fetchById('students', c.student_id);
         }
-        c.student = student;
-        return c;
+        return { ...c, student };
       }));
-      setRecentContributions(data);
+      setRecentContributions(dataWithStudents as any);
       if (!selectedStudent && viewMode === 'individual' && !initialStudentId) {
-        setPeriodData(data);
+        setPeriodData(dataWithStudents as any);
         setViewMode('period');
       }
     } catch (error) {
@@ -155,7 +148,7 @@ export function Contributions() {
     setLoading(true);
     try {
       const [classesData, instData] = await Promise.all([
-        fetchAll('classes', '*', 'code', true),
+        fetchAll('classes', '*', 'code'),
         financialService.getInstitutionSettings()
       ]);
 
@@ -163,14 +156,14 @@ export function Contributions() {
       setInstitution(instData || null);
 
       if (initialStudentId) {
-        const studentSnap = await getDocs(query(collection(db, 'students'), where('__name__', '==', initialStudentId)));
-        const studentData = studentSnap.empty ? null : { id: studentSnap.docs[0].id, ...studentSnap.docs[0].data() } as Student;
+        const studentData = await fetchById('students', initialStudentId);
         
         if (studentData) {
-          setSelectedStudent(studentData);
-          setStudents([studentData]);
+          const typedStudent = studentData as Student;
+          setSelectedStudent(typedStudent);
+          setStudents([typedStudent]);
           setViewMode('individual');
-          fetchContributions(studentData.id, selectedYear);
+          fetchContributions(typedStudent.id, selectedYear);
         }
       }
     } catch (error) {
@@ -186,17 +179,10 @@ export function Contributions() {
 
     setIsSearching(true);
     try {
-      const q = query(
-        collection(db, 'students'),
-        where('name', '>=', val),
-        where('name', '<=', val + '\uf8ff'),
-        limit(20)
-      );
-      // Firebase doesn't support ilike naturally for multiple fields easily without third party.
-      // Search by name is primary.
-      const snap = await getDocs(q);
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Student[];
-      setStudents(data);
+      const data = await fetchQuery('students', [
+        { field: 'name', operator: 'ilike', value: `%${val}%` }
+      ], 'name');
+      setStudents((data || []) as Student[]);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -207,31 +193,27 @@ export function Contributions() {
   const fetchPeriodContributions = async () => {
     setLoading(true);
     try {
-      let q;
       const dateField = filterType === 'payment' ? 'payment_date' : 'created_at';
       
-      q = query(
-        collection(db, 'contributions'),
-        where(dateField, '>=', startDate + 'T00:00:00Z'),
-        where(dateField, '<=', endDate + 'T23:59:59Z'),
-        orderBy(dateField, 'desc')
-      );
+      const docsData = await fetchQuery('contributions', [
+        { field: dateField, operator: '>=', value: startDate + 'T00:00:00Z' },
+        { field: dateField, operator: '<=', value: endDate + 'T23:59:59Z' }
+      ], dateField);
 
-      const snap = await getDocs(q);
-      const docsData = snap.docs.map(docSnap => ({ id: docSnap.id, ...(docSnap.data() as any) })) as any[];
+      if (!docsData) {
+        setPeriodData([]);
+        setViewMode('period');
+        return;
+      }
       
-      // Batch fetch students for better performance
+      // Batch fetch students
       const rawStudentIds = docsData.map(c => c.student_id).filter(Boolean);
       const uniqueStudentIds = Array.from(new Set(rawStudentIds));
       const studentMap = new Map();
       
       if (uniqueStudentIds.length > 0) {
-        // Query in chunks of 10 (Firebase limitation for 'in' operator)
-        for (let i = 0; i < uniqueStudentIds.length; i += 10) {
-          const chunk = uniqueStudentIds.slice(i, i + 10);
-          const sSnap = await getDocs(query(collection(db, 'students'), where('__name__', 'in', chunk)));
-          sSnap.forEach(sDoc => studentMap.set(sDoc.id, { id: sDoc.id, ...sDoc.data() }));
-        }
+        const sData = await fetchQuery('students', [{ field: 'id', operator: 'in', value: uniqueStudentIds }]);
+        (sData || []).forEach(s => studentMap.set(s.id, s));
       }
 
       let data = docsData.map(c => ({
@@ -247,7 +229,7 @@ export function Contributions() {
         );
       }
 
-      setPeriodData(data);
+      setPeriodData(data as any);
       setViewMode('period');
     } catch (error: any) {
       setNotification({ type: 'error', message: 'Erro ao buscar dados: ' + error.message });
@@ -262,20 +244,13 @@ export function Contributions() {
       return;
     }
     try {
-      const q = query(
-        collection(db, 'contributions'),
-        where('student_id', '==', studentId),
-        where('reference_year', '==', year)
-      );
-      const snap = await getDocs(q);
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contribution[];
-      setContributions(data);
+      const data = await fetchQuery('contributions', [
+        { field: 'student_id', operator: '==', value: studentId },
+        { field: 'reference_year', operator: '==', value: year }
+      ], 'reference_month');
+      setContributions((data || []) as Contribution[]);
     } catch (error: any) {
       console.error('Error fetching contributions:', error.message);
-      // If table doesn't exist yet, we handle it silently or show a warning
-      if (error.code === 'PGRST116' || error.message?.includes('relation "contributions" does not exist')) {
-        console.warn('Table contributions might not exist yet.');
-      }
     }
   };
 
@@ -333,14 +308,13 @@ export function Contributions() {
 
     setIsDeleting(contrib.id);
     try {
-      const docRef = doc(db, 'contributions', contrib.id);
-      await deleteDoc(docRef);
+      await deleteData('contributions', contrib.id);
 
       setContributions(prev => prev.filter(c => c.id !== contrib.id));
       setNotification({ type: 'success', message: 'Contribuição excluída com sucesso!' });
       
       // Limpa seleção de impressão se estiver nela
-      setSelectedForPrint(prev => prev.filter(id => id !== contrib.id));
+      setSelectedForPrint(prev => prev.filter(c => c.id !== contrib.id));
     } catch (error: any) {
       console.error('Falha ao excluir:', error);
       setNotification({ type: 'error', message: 'Erro ao excluir: ' + error.message });
@@ -406,18 +380,14 @@ export function Contributions() {
       const finalDate = parseSafeDate(manualDate).toISOString();
 
       // Check for existing contributions
-      const q = query(
-        collection(db, 'contributions'),
-        where('student_id', '==', selectedStudent.id),
-        where('reference_year', '==', selectedYear),
-        where('reference_month', 'in', manualMonths.map(idx => idx + 1))
-      );
+      const existingContribs = await fetchQuery('contributions', [
+        { field: 'student_id', operator: '==', value: selectedStudent.id },
+        { field: 'reference_year', operator: '==', value: selectedYear },
+        { field: 'reference_month', operator: 'in', value: manualMonths.map(idx => idx + 1) }
+      ]);
 
-      const existingSnap = await getDocs(q);
-      const existingContribs = existingSnap.docs.map(d => d.data());
-
-      if (existingContribs && existingContribs.length > 0) {
-        const duplicateMonths = existingContribs.map((c: any) => MONTHS[c.reference_month - 1]).join(', ');
+      if (existingContribs && (existingContribs as any[]).length > 0) {
+        const duplicateMonths = (existingContribs as any[]).map((c: any) => MONTHS[c.reference_month - 1]).join(', ');
         setNotification({ 
           type: 'error', 
           message: `Já existe contribuição para ${duplicateMonths}/${selectedYear}. Verifique.` 

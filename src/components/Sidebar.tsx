@@ -29,8 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
-import { db } from '../lib/database';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { getInstitutionSettings } from '../lib/database';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -121,54 +120,27 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         }
       }
 
-      // Fallback only if Supabase fails
-      const colRef = collection(db, 'institution_settings');
-      const q = query(colRef, limit(1));
-      await getDocs(q);
       setDbStatus('online');
     } catch (e: any) {
-      if (e.message?.includes('quota')) {
-        console.warn('Firestore Quota reached, but Supabase may still be active.');
-        setDbStatus('online'); // Keep active if quota is the only issue
-      } else {
-        console.error('DB Status Check Error:', e);
-        setDbStatus('offline');
-      }
+      console.error('DB Status Check Error:', e);
+      setDbStatus('offline');
     }
   };
 
   const fetchInst = async () => {
     try {
-      // 1. Try Supabase first
-      const instData = await financialService.getInstitutionSettings();
+      const instData = await getInstitutionSettings();
       if (instData) {
         if (instData.name) setInstName(instData.name);
         if (instData.logo_url) {
           setLogoUrl(instData.logo_url);
-          setImageError(false);
-        }
-        return;
-      }
-
-      // 2. Fallback to Firebase
-      const colRef = collection(db, 'institution_settings');
-      const q = query(colRef, orderBy('created_at', 'desc'), limit(1));
-      const snapshot = await getDocs(q);
-      
-      if (!snapshot.empty) {
-        const inst = snapshot.docs[0].data();
-        if (inst.name) setInstName(inst.name);
-        if (inst.logo_url) {
-          setLogoUrl(inst.logo_url);
           setImageError(false);
         } else {
           setLogoUrl('');
         }
       }
     } catch (e: any) {
-      if (!e.message?.includes('quota')) {
-        console.error('Error fetching sidebar info:', e);
-      }
+      console.error('Error fetching sidebar info:', e);
     }
   };
 

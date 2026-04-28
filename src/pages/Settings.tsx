@@ -38,22 +38,14 @@ import {
   CheckCircle,
   Copy,
   Terminal,
-  Key
+  Key,
+  Info
 } from 'lucide-react';
-import { db, fetchCount, uploadImage, saveData, fetchAll, fetchFromFirestore, MIGRATED_COLLECTIONS } from '../lib/database';
-import { collection, query, limit, getDocs, doc, updateDoc, setDoc, deleteDoc, orderBy, addDoc, writeBatch, getDoc } from 'firebase/firestore';
-import { 
-  getAuth, 
-  updatePassword,
-  verifyBeforeUpdateEmail,
-  signOut,
-  setPersistence,
-  browserLocalPersistence
-} from 'firebase/auth';
-import { Student, Class, InstitutionSettings, UserProfile } from '../types';
+import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings } from '../lib/database';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
 import { financialService } from '../services/financialService';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { schemaService } from '../services/schemaService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -94,7 +86,7 @@ const extractYearFromText = (text: string | undefined): number | null => {
 };
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance'>('institution');
+  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic'>('institution');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -110,6 +102,15 @@ export function Settings() {
     logo_url: '',
     footer_text: '',
     receipt_message: ''
+  });
+
+  // Academic Parameters State
+  const [academicParams, setAcademicParams] = useState<AcademicParameters>({
+    approval_grade: 7.0,
+    recovery_grade: 5.0,
+    failure_grade: 4.9,
+    absence_limit_percentage: 25,
+    updated_at: new Date().toISOString()
   });
 
   const { user, refreshProfile } = useAuth();
@@ -192,7 +193,7 @@ export function Settings() {
         setSyncProgress(prev => ({ ...prev, currentCol: col }));
 
         try {
-          const items = await fetchFromFirestore(col) as any[];
+          const items = await fetchAll(col) as any[];
           
           if (items && items.length > 0) {
             const chunkSize = 20;
@@ -281,10 +282,51 @@ export function Settings() {
     }
   };
 
+  const fetchAcademicParams = async () => {
+    try {
+      const data = await fetchAll('academic_parameters');
+      if (data && data.length > 0) {
+        setAcademicParams(data[0] as AcademicParameters);
+      }
+    } catch (error) {
+      console.error('Error fetching academic params:', error);
+    }
+  };
+
+  const handleSaveAcademicParams = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const dataToSave = {
+        ...academicParams,
+        updated_at: new Date().toISOString()
+      };
+      
+      let docId = academicParams.id;
+      if (!docId) {
+        const existing = await fetchAll('academic_parameters');
+        if (existing && existing.length > 0) docId = existing[0].id;
+        else docId = crypto.randomUUID();
+      }
+
+      await saveData('academic_parameters', docId, dataToSave);
+      setAcademicParams({ ...dataToSave, id: docId });
+      setNotification({ type: 'success', message: 'Parâmetros acadêmicos salvos!' });
+    } catch (error: any) {
+      setNotification({ type: 'error', message: 'Erro ao salvar: ' + error.message });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
   useEffect(() => {
     fetchInstitution();
     if (activeTab === 'maintenance') {
       fetchCounts();
+    }
+    if (activeTab === 'academic') {
+      fetchAcademicParams();
     }
   }, [activeTab]);
 
@@ -363,15 +405,6 @@ export function Settings() {
       if (data) {
         setInstitution(data as InstitutionSettings);
         return;
-      }
-
-      if (db) {
-        const q = query(collection(db, 'institution_settings'), limit(1));
-        const snap = await getDocs(q);
-
-        if (!snap.empty) {
-          setInstitution({ id: snap.docs[0].id, ...snap.docs[0].data() } as InstitutionSettings);
-        }
       }
     } catch (error: any) {
       if (!error.message?.includes('quota')) {
@@ -497,9 +530,12 @@ export function Settings() {
             return;
           }
 
-          // Hybrid Batch Update
-          for (const student of toUpdate) {
-            await saveData('students', student.id, { ...student, status: 'Inativo' });
+          // Bulk Update in chunks
+          const toUpdateIds = toUpdate.map(s => s.id);
+          for (let i = 0; i < toUpdateIds.length; i += 100) {
+            const chunk = toUpdateIds.slice(i, i + 100);
+            const { error } = await supabase.from('students').update({ status: 'Inativo', updated_at: new Date().toISOString() }).in('id', chunk);
+            if (error) throw error;
           }
           
           setNotification({ type: 'success', message: `${toUpdate.length} alunos inativados com sucesso!` });
@@ -546,9 +582,12 @@ export function Settings() {
 
           setNotification({ type: 'success', message: `Atualizando ${toUpdate.length} alunos...` });
 
-          // Hybrid Batch Update
-          for (const student of toUpdate) {
-            await saveData('students', student.id, { ...student, status: 'Ativo' });
+          // Bulk Update
+          const toUpdateIds = toUpdate.map(s => s.id);
+          for (let i = 0; i < toUpdateIds.length; i += 100) {
+            const chunk = toUpdateIds.slice(i, i + 100);
+            const { error } = await supabase.from('students').update({ status: 'Ativo', updated_at: new Date().toISOString() }).in('id', chunk);
+            if (error) throw error;
           }
           
           setNotification({ type: 'success', message: `${toUpdate.length} alunos ativados com sucesso!` });
@@ -576,12 +615,10 @@ export function Settings() {
           setShowConfirmModal(prev => ({ ...prev, show: false }));
           setNotification({ type: 'success', message: 'Iniciando processamento de turmas...' });
           
-          const snap = await getDocs(collection(db, 'classes'));
-          const toUpdate: any[] = [];
+          const items = await fetchAll('classes');
+          const toUpdateIds: string[] = [];
           
-          snap.docs.forEach(doc => {
-            const data = doc.data();
-            
+          (items || []).forEach(data => {
             // Try to find year in code or name first
             const yearFromCode = extractYearFromText(data.code);
             const yearFromName = extractYearFromText(data.name);
@@ -591,22 +628,20 @@ export function Settings() {
             const detectedYear = yearFromCode || yearFromName || (createdAt ? createdAt.getFullYear() : null);
             
             if (detectedYear && detectedYear < 2023 && data.status !== 'Inativo') {
-              toUpdate.push(doc.ref);
+              toUpdateIds.push(data.id);
             }
           });
 
-          if (toUpdate.length === 0) {
+          if (toUpdateIds.length === 0) {
             setNotification({ type: 'success', message: 'Nenhuma turma anterior a 2023 encontrada para inativar.' });
             return;
           }
 
           // Batch update
-          for (let i = 0; i < toUpdate.length; i += 500) {
-            const batch = writeBatch(db);
-            toUpdate.slice(i, i + 500).forEach(ref => {
-              batch.update(ref, { status: 'Inativo', updated_at: new Date().toISOString() });
-            });
-            await batch.commit();
+          for (let i = 0; i < toUpdateIds.length; i += 100) {
+            const chunk = toUpdateIds.slice(i, i + 100);
+            const { error } = await supabase.from('classes').update({ status: 'Inativo', updated_at: new Date().toISOString() }).in('id', chunk);
+            if (error) throw error;
           }
           
           setNotification({ type: 'success', message: `${toUpdate.length} turmas inativadas com sucesso!` });
@@ -628,7 +663,7 @@ export function Settings() {
     setShowConfirmModal({
       show: true,
       title: `Excluir ${label}`,
-      message: `ATENÇÃO: Isso irá EXCLUIR DEFINITIVAMENTE os ${counts[module] || 0} registros encontrados em "${label}". Confirma?`,
+      message: `ATENÇÃO: Isso irá EXCLUIR DEFINITIVAMENTE os registros encontrados em "${label}". Confirma?`,
       type: 'danger',
       onConfirm: async () => {
         try {
@@ -636,27 +671,26 @@ export function Settings() {
           setShowConfirmModal(prev => ({ ...prev, show: false }));
           setNotification({ type: 'success', message: `Iniciando limpeza de ${label}...` });
           
-          const snap = await getDocs(collection(db, module));
-          const totalDocs = snap.docs.length;
+          if (!isSupabaseConfigured) throw new Error('Supabase não configurado.');
           
-          if (totalDocs === 0) {
+          // Fetch all IDs to delete
+          const items = await fetchAll(module, 'id');
+          if (!items || items.length === 0) {
             setNotification({ type: 'success', message: `O módulo ${label} já está vazio.` });
             return;
           }
 
-          // Firestore batch limit is 500 operations
-          const chunks = [];
-          for (let i = 0; i < snap.docs.length; i += 500) {
-            chunks.push(snap.docs.slice(i, i + 500));
-          }
-
-          for (const chunk of chunks) {
-            const batch = writeBatch(db);
-            chunk.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
+          const ids = items.map(i => i.id);
+          
+          // Delete in chunks of 100 for Supabase safety (or just one call if manageable)
+          const chunkSize = 100;
+          for (let i = 0; i < ids.length; i += chunkSize) {
+            const chunk = ids.slice(i, i + chunkSize);
+            const { error } = await supabase.from(module).delete().in('id', chunk);
+            if (error) throw error;
           }
           
-          setNotification({ type: 'success', message: `${totalDocs} registros de ${label} removidos com sucesso!` });
+          setNotification({ type: 'success', message: `${ids.length} registros de ${label} removidos com sucesso!` });
           fetchCounts();
         } catch (error: any) {
           console.error(`Erro ao limpar módulo ${module}:`, error);
@@ -683,19 +717,18 @@ export function Settings() {
           setShowConfirmModal(prev => ({ ...prev, show: false }));
           setNotification({ type: 'success', message: 'Analisando duplicatas de alunos...' });
           
-          const snap = await getDocs(collection(db, 'students'));
+          const items = await fetchAll('students');
           const records: Record<string, any[]> = {};
           
-          snap.docs.forEach(doc => {
-            const data = doc.data();
+          (items || []).forEach(data => {
             const reg = String(data.registration_number || '').trim();
             if (reg) {
               if (!records[reg]) records[reg] = [];
-              records[reg].push({ id: doc.id, ...data, ref: doc.ref });
+              records[reg].push(data);
             }
           });
 
-          const toDeleteRefs: any[] = [];
+          const toDeleteIds: string[] = [];
 
           Object.values(records).forEach(group => {
             if (group.length > 1) {
@@ -705,18 +738,18 @@ export function Settings() {
                 return dateB - dateA;
               });
               for (let i = 1; i < group.length; i++) {
-                toDeleteRefs.push(group[i].ref);
+                toDeleteIds.push(group[i].id);
               }
             }
           });
 
-          if (toDeleteRefs.length > 0) {
-            for (let i = 0; i < toDeleteRefs.length; i += 500) {
-              const batch = writeBatch(db);
-              toDeleteRefs.slice(i, i + 500).forEach(ref => batch.delete(ref));
-              await batch.commit();
+          if (toDeleteIds.length > 0) {
+            for (let i = 0; i < toDeleteIds.length; i += 100) {
+              const chunk = toDeleteIds.slice(i, i + 100);
+              const { error } = await supabase.from('students').delete().in('id', chunk);
+              if (error) throw error;
             }
-            setNotification({ type: 'success', message: `${toDeleteRefs.length} registros duplicados removidos!` });
+            setNotification({ type: 'success', message: `${toDeleteIds.length} registros duplicados removidos!` });
             fetchCounts();
           } else {
             setNotification({ type: 'success', message: 'Nenhum registro duplicado encontrado.' });
@@ -755,6 +788,17 @@ export function Settings() {
           </button>
 
           <button 
+            onClick={() => setActiveTab('academic')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'academic' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Clock size={18} />
+            Acadêmico
+          </button>
+
+          <button 
             onClick={() => setActiveTab('maintenance')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
@@ -780,7 +824,7 @@ export function Settings() {
         </div>
       )}
 
-      {activeTab === 'institution' ? (
+      {activeTab === 'institution' && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <form onSubmit={handleSaveInstitution} className="p-8 md:p-10 space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
@@ -1004,8 +1048,157 @@ export function Settings() {
             </div>
           </form>
         </div>
+      )}
 
-      ) : (
+      {activeTab === 'academic' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-emerald-50 border border-emerald-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <School size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-emerald-900">Configurações Acadêmicas</h3>
+              <p className="text-emerald-700 font-medium text-sm mt-1">
+                Defina os parâmetros de avaliação, médias e limites de presença que regem o sistema acadêmico.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveAcademicParams} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-8">
+              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Plus size={20} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-[#00174b]">Parâmetros Acadêmicos</h4>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Critérios de Aprovação e Retenção</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Média para Aprovação Direta</label>
+                  <input 
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="10"
+                    value={academicParams.approval_grade}
+                    onChange={(e) => setAcademicParams({...academicParams, approval_grade: parseFloat(e.target.value)})}
+                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
+                  />
+                  <p className="text-[9px] text-slate-400 font-medium px-1">Ex: 7.0 - Aluno aprovado sem recuperação</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Média Mínima para Recuperação</label>
+                  <input 
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="10"
+                    value={academicParams.recovery_grade}
+                    onChange={(e) => setAcademicParams({...academicParams, recovery_grade: parseFloat(e.target.value)})}
+                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
+                  />
+                  <p className="text-[9px] text-slate-400 font-medium px-1">Alunos entre este valor e a aprovação entram em recuperação</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Média de Reprovação Direta</label>
+                  <input 
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    value={academicParams.failure_grade}
+                    onChange={(e) => setAcademicParams({...academicParams, failure_grade: parseFloat(e.target.value)})}
+                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
+                  />
+                  <p className="text-[9px] text-slate-400 font-medium px-1">Abaixo deste valor o aluno é reprovado sem recuperação</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Limite Máximo de Faltas (%)</label>
+                  <div className="relative">
+                    <input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={academicParams.absence_limit_percentage}
+                      onChange={(e) => setAcademicParams({...academicParams, absence_limit_percentage: parseInt(e.target.value)})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-300">%</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-medium px-1">Porcentagem sobre o total de dias letivos</p>
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <button 
+                  type="submit"
+                  disabled={saving}
+                  className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar Parâmetros
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
+              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-[#00174b]">Regras de Frequência</h4>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Vínculo com Calendário Acadêmico</p>
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                <p className="text-sm font-bold text-slate-600 leading-relaxed">
+                  O sistema de faltas está configurado para calcular a assiduidade com base em:
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check size={12} />
+                    </div>
+                    <p className="text-xs font-medium text-slate-500">Dias de aula registrados no Calendário Escolar.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check size={12} />
+                    </div>
+                    <p className="text-xs font-medium text-slate-500">Frequência diária lançada por disciplina ou turma.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check size={12} />
+                    </div>
+                    <p className="text-xs font-medium text-slate-500">Limite de {academicParams.absence_limit_percentage}% sobre o total de horas letivas.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-2xl flex items-start gap-4">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                  <Info size={16} />
+                </div>
+                <p className="text-[10px] font-bold text-amber-800 uppercase leading-loose">
+                  Lembre-se: Para que o controle de faltas seja preciso, todos os dias de aula devem estar marcados como "Dia de Aula" no calendário acadêmico.
+                </p>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {activeTab === 'maintenance' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-red-50 border border-red-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6">
             <div className="w-16 h-16 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">

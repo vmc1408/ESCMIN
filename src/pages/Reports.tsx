@@ -56,22 +56,28 @@ import {
   TooltipProps
 } from 'recharts';
 import { formatCurrency, cn } from '../lib/utils';
-import { db } from '../lib/database';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { fetchAll, fetchQuery, fetchById, saveData } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, isSameMonth, startOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Student, Class, PixTransaction, Teacher, Subject } from '../types';
+import { Student, Class, PixTransaction, Teacher, Subject, AcademicParameters } from '../types';
 
-type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational';
+type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational' | 'attendance';
 
 export function Reports() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<ReportCategory>('dashboard');
   const [institution, setInstitution] = useState<any>(null);
+  const [academicParams, setAcademicParams] = useState<AcademicParameters>({
+    approval_grade: 7.0,
+    recovery_grade: 5.0,
+    failure_grade: 4.9,
+    absence_limit_percentage: 25,
+    updated_at: ''
+  });
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   // Data States
@@ -81,6 +87,8 @@ export function Reports() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [pixTransactions, setPixTransactions] = useState<PixTransaction[]>([]);
   const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [totalClassDays, setTotalClassDays] = useState(0);
   
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -99,18 +107,25 @@ export function Reports() {
   useEffect(() => {
     fetchInitialData();
     fetchInstitution();
+    fetchAcademicParams();
   }, []);
+
+  const fetchAcademicParams = async () => {
+    try {
+      const data = await fetchAll('academic_parameters');
+      if (data && data.length > 0) {
+        setAcademicParams(data[0] as AcademicParameters);
+      }
+    } catch (e) {
+      console.error('Error fetching academic params:', e);
+    }
+  };
 
   const fetchInstitution = async () => {
     try {
       const data = await financialService.getInstitutionSettings();
       if (data) {
         setInstitution(data);
-      } else {
-        // Fallback for Firebase if Supabase settings table is empty
-        const instRef = collection(db, 'institution_settings');
-        const snap = await getDocs(query(instRef, orderBy('created_at', 'desc'), limit(1)));
-        if (!snap.empty) setInstitution({ id: snap.docs[0].id, ...snap.docs[0].data() });
       }
     } catch (e) {
       console.error('Error institution sync:', e);
@@ -120,81 +135,36 @@ export function Reports() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      // 1. Dual-Source Fetch Strategy (Supabase Primary, Firebase Fallback)
-      let studentsData: Student[] = [];
-      let teachersData: Teacher[] = [];
-      let classesData: Class[] = [];
-      let subjectsData: Subject[] = [];
-      let pixData: PixTransaction[] = [];
+      // 1. Fetch all data from Supabase via database utilities
+      const [studentsData, teachersData, classesData, subjectsData, pixData, attendancesData, calendarData] = await Promise.all([
+        fetchAll('students'),
+        fetchAll('teachers'),
+        fetchAll('classes'),
+        fetchAll('subjects'),
+        financialService.getPixReconciliation(),
+        fetchAll('attendances'),
+        fetchQuery('calendar_events', [
+          { field: 'type', operator: '==', value: 'class_day' }
+        ])
+      ]);
 
-      try {
-        if (isSupabaseConfigured) {
-          // Tentativa via Supabase (Performance & No Quota)
-          const [sRes, tRes, cRes, subRes, pRes] = await Promise.all([
-            supabase.from('students').select('*'),
-            supabase.from('teachers').select('*'),
-            supabase.from('classes').select('*'),
-            supabase.from('subjects').select('*'),
-            financialService.getPixReconciliation()
-          ]);
-
-          if (sRes && sRes.data && sRes.data.length > 0) studentsData = sRes.data as any;
-          if (tRes && tRes.data && tRes.data.length > 0) teachersData = tRes.data as any;
-          if (cRes && cRes.data && cRes.data.length > 0) classesData = cRes.data as any;
-          if (subRes && subRes.data && subRes.data.length > 0) subjectsData = subRes.data as any;
-          if (pRes && pRes.length > 0) pixData = pRes as any;
-        }
-      } catch (supabaseError) {
-        console.warn('Supabase fetch failed, falling back to Firebase...', supabaseError);
-      }
-
-      // 2. Fallback to Firebase for missing data (Protected from Quota Errors)
-      const safeFetchFirebase = async (collectionName: string) => {
-        try {
-          const snap = await getDocs(collection(db, collectionName));
-          return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        } catch (e: any) {
-          if (e.message?.includes('quota')) {
-            console.warn(`Firestore quota reached for ${collectionName}. Using empty local state.`);
-            return [];
-          }
-          throw e;
-        }
-      };
-
-      if (studentsData.length === 0) {
-        studentsData = (await safeFetchFirebase('students')) as Student[];
-      }
-      if (teachersData.length === 0) {
-        teachersData = (await safeFetchFirebase('teachers')) as Teacher[];
-      }
-      if (classesData.length === 0) {
-        classesData = (await safeFetchFirebase('classes')) as Class[];
-      }
-      if (subjectsData.length === 0) {
-        subjectsData = (await safeFetchFirebase('subjects')) as Subject[];
-      }
-      if (pixData.length === 0) {
-        try {
-          const snap = await getDocs(query(collection(db, 'pix_reconciliations'), orderBy('created_at', 'desc'), limit(100)));
-          pixData = snap.docs.map(d => ({ id: d.id, ...d.data() } as PixTransaction));
-        } catch (e: any) {
-          if (e.message?.includes('quota')) {
-            console.warn('Firestore quota reached for pix_reconciliations.');
-          }
-        }
-      }
-
-      setStudents(studentsData);
-      setTeachers(teachersData);
-      setClasses(classesData);
-      setSubjects(subjectsData);
-      setPixTransactions(pixData);
+      setStudents(studentsData || []);
+      setTeachers(teachersData || []);
+      setClasses(classesData || []);
+      setSubjects(subjectsData || []);
+      setPixTransactions(pixData || []);
+      setAttendanceData(attendancesData || []);
+      setTotalClassDays(calendarData?.length || 0);
 
       // 3. Process Stats
-      const activeTotal = studentsData.filter(s => s.status === 'Ativo' || !s.status).length;
-      const totalAmount = pixData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-      const matchedCount = pixData.filter(p => p.status === 'matched').length;
+      const sData = studentsData || [];
+      const pData = pixData || [];
+      const cData = classesData || [];
+      const tData = teachersData || [];
+
+      const activeTotal = sData.filter(s => s.status === 'Ativo' || !s.status).length;
+      const totalAmount = pData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+      const matchedCount = pData.filter(p => p.status === 'matched').length;
 
       // 3. Revenue Trend (Last 6 Months)
       const months = Array.from({ length: 6 }).map((_, i) => {
@@ -207,7 +177,7 @@ export function Reports() {
         };
       });
 
-      pixData.forEach(p => {
+      pData.forEach(p => {
         const pDate = parseISO(p.created_at || (p as any).date);
         months.forEach(m => {
           if (isWithinInterval(pDate, { start: startOfMonth(m.date), end: endOfMonth(m.date) })) {
@@ -224,23 +194,23 @@ export function Reports() {
       const prevMonthRev = months.find(m => isSameMonth(m.date, lastMonth))?.amount || 0;
       const growth = prevMonthRev > 0 ? ((curMonthRev - prevMonthRev) / prevMonthRev) * 100 : 0;
 
-      const occupancyRate = classesData.length > 0 ? Math.round((studentsData.length / (classesData.length * 30)) * 100) : 0;
+      const occupancyRate = cData.length > 0 ? Math.round((sData.length / (cData.length * 30)) * 100) : 0;
 
       setStats({
-        totalStudents: studentsData.length,
+        totalStudents: sData.length,
         activeStudents: activeTotal,
-        inactiveStudents: studentsData.filter(s => s.status === 'Inativo').length,
-        concludedStudents: studentsData.filter(s => s.status === 'Concluído').length,
-        totalTeachers: teachersData.length,
-        activeTeachers: teachersData.filter(t => (t as any).status !== 'Inativo').length,
-        totalClasses: classesData.length,
+        inactiveStudents: sData.filter(s => s.status === 'Inativo').length,
+        concludedStudents: sData.filter(s => s.status === 'Concluído').length,
+        totalTeachers: tData.length,
+        activeTeachers: tData.filter(t => (t as any).status !== 'Inativo').length,
+        totalClasses: cData.length,
         totalPixAmount: totalAmount,
         matchedPix: matchedCount,
         revenueGrowth: Number(growth.toFixed(1)),
         studentGrowth: 5.2,
         occupancyRate: Math.min(occupancyRate, 100),
-        pixCount: pixData.length,
-        efficiency: pixData.length > 0 ? Math.round((matchedCount / pixData.length) * 100) : 0
+        pixCount: pData.length,
+        efficiency: pData.length > 0 ? Math.round((matchedCount / pData.length) * 100) : 0
       });
 
     } catch (error) {
@@ -526,7 +496,7 @@ export function Reports() {
           
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-              {(['dashboard', 'financial', 'academic', 'operational'] as ReportCategory[]).map((cat) => (
+              {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -537,7 +507,7 @@ export function Reports() {
                       : "text-slate-500 hover:text-slate-700"
                   )}
                 >
-                  {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : 'Operacional'}
+                  {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : 'Docente'}
                 </button>
               ))}
             </div>
@@ -934,6 +904,87 @@ export function Reports() {
                    </div>
                  </div>
                ))}
+             </div>
+          </div>
+        )}
+
+        {activeCategory === 'attendance' && (
+          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+             <div className="px-10 py-10 border-b border-slate-50 flex items-center justify-between">
+                <div>
+                   <h3 className="text-xl font-black text-[#00174b] tracking-tight">Monitoramento de Frequência Escolar</h3>
+                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Baseado em {totalClassDays} dias letivos cadastrados no calendário</p>
+                </div>
+                <div className="text-right">
+                   <div className="px-4 py-2 bg-amber-50 border border-amber-100 rounded-xl">
+                      <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Limite Permitido</p>
+                      <p className="text-lg font-black text-amber-700">{academicParams.absence_limit_percentage}% de faltas</p>
+                   </div>
+                </div>
+             </div>
+             <div className="overflow-x-auto">
+               <table className="w-full text-left">
+                  <thead className="bg-slate-50/80">
+                    <tr>
+                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudante</th>
+                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
+                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Faltas</th>
+                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Freq. %</th>
+                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {students.filter(s => s.status === 'Ativo' || !s.status).map((student, i) => {
+                      const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
+                      const studentPresence = totalClassDays > 0 ? ((totalClassDays - studentAbsences) / totalClassDays) * 100 : 100;
+                      const absencePercentage = totalClassDays > 0 ? (studentAbsences / totalClassDays) * 100 : 0;
+                      const isOverLimit = absencePercentage > (academicParams.absence_limit_percentage || 25);
+                      const studentClass = classes.find(c => c.id === student.class_id);
+
+                      return (
+                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-10 py-6">
+                            <p className="text-sm font-black text-[#00174b] uppercase">{student.name}</p>
+                            <p className="text-[10px] font-bold text-slate-400">RA: {student.registration_number}</p>
+                          </td>
+                          <td className="px-10 py-6 text-sm font-bold text-slate-500">
+                             {studentClass?.name || 'Sem turma'}
+                          </td>
+                          <td className="px-10 py-6 text-center text-sm font-black text-[#00174b]">
+                            {studentAbsences} / {totalClassDays}
+                          </td>
+                          <td className="px-10 py-6 text-center">
+                             <div className="flex flex-col items-center gap-1">
+                                <span className={cn(
+                                  "text-sm font-black",
+                                  isOverLimit ? "text-red-600" : "text-emerald-600"
+                                )}>
+                                  {studentPresence.toFixed(1)}%
+                                </span>
+                                <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                  <div 
+                                    className={cn(
+                                      "h-full rounded-full",
+                                      isOverLimit ? "bg-red-500" : "bg-emerald-500"
+                                    )} 
+                                    style={{ width: `${studentPresence}%` }}
+                                  />
+                                </div>
+                             </div>
+                          </td>
+                          <td className="px-10 py-6 text-right">
+                             <span className={cn(
+                               "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest",
+                               isOverLimit ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                             )}>
+                               {isOverLimit ? 'Risco Reprovação' : 'Regular'}
+                             </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+               </table>
              </div>
           </div>
         )}

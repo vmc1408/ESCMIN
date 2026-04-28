@@ -15,19 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db } from '../lib/database';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp,
-  orderBy,
-  where,
-  getDocs
-} from 'firebase/firestore';
+import { fetchAll, saveData, deleteData } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -63,26 +51,24 @@ export function Documents() {
     course: ''
   });
 
-  useEffect(() => {
-    const q = query(collection(db, 'certificates'), orderBy('created_at', 'desc'));
-    const unsubscribeCert = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Certificate[];
-      setCertificates(data);
+  const fetchData = React.useCallback(async () => {
+    try {
+      const [certs, studs] = await Promise.all([
+        fetchAll('certificates', '*', 'created_at', true),
+        fetchAll('students', '*', 'name')
+      ]);
+      setCertificates(certs || []);
+      setStudents(studs || []);
+    } catch (error) {
+      console.error('Error fetching documents data:', error);
+    } finally {
       setLoading(false);
-    });
-
-    const unsubscribeStudents = onSnapshot(query(collection(db, 'students')), (snap) => {
-      setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() } as Student)));
-    });
-
-    return () => {
-      unsubscribeCert();
-      unsubscribeStudents();
-    };
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleIssue = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,12 +78,14 @@ export function Documents() {
     const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
     try {
-      await addDoc(collection(db, 'certificates'), {
+      const newDocId = crypto.randomUUID();
+      await saveData('certificates', newDocId, {
         ...formData,
+        id: newDocId,
         student_name: student?.name,
         verification_code: verificationCode,
         user_id: userAuth.uid,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
 
       setIsIssuing(false);
@@ -107,6 +95,7 @@ export function Documents() {
         issuance_date: new Date().toISOString().split('T')[0],
         course: ''
       });
+      fetchData();
     } catch (error) {
       console.error("Error issuing certificate:", error);
     }
@@ -115,7 +104,8 @@ export function Documents() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Deseja realmente cancelar este documento?")) return;
     try {
-      await deleteDoc(doc(db, 'certificates', id));
+      await deleteData('certificates', id);
+      fetchData();
     } catch (error) {
       console.error("Error deleting document:", error);
     }

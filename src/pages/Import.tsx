@@ -14,8 +14,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
-import { db, fetchAll, saveData } from '../lib/database';
-import { collection, setDoc, doc } from 'firebase/firestore';
+import { fetchAll, saveData } from '../lib/database';
 import { useNavigate } from 'react-router-dom';
 import { useImport } from '../contexts/ImportContext';
 
@@ -296,12 +295,11 @@ export function Import() {
 
       if (toInsert.length > 0) {
         try {
-          const collRef = collection(db, importType);
           for (const entity of toInsert) {
-            // Sanitise docId: Firestore IDs cannot contain '/'
+            // Sanitise docId
             const docId = String(entity[uniqueField]).replace(/\//g, '-');
             
-            // Sync both Supabase and Firebase
+            // Save to Supabase via our generic saveData
             await saveData(importType, docId, entity);
           }
           const currentImported = (processed + batch.length) > total ? total : (processed + batch.length);

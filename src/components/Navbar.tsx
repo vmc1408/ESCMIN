@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Bell, Wallet, User, LogOut } from 'lucide-react';
-import { db } from '../lib/database';
-import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
+import { getInstitutionSettings } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -13,14 +12,9 @@ export function Navbar() {
 
   const fetchInstitution = async () => {
     try {
-      // Fetch Institution (Prio: Supabase)
-      const instSupabase = await financialService.getInstitutionSettings();
-      if (instSupabase) {
-        setInstitutionName(instSupabase.name);
-      } else {
-        const instRef = collection(db, 'institution_settings');
-        const instSnap = await getDocs(query(instRef, orderBy('created_at', 'desc'), limit(1)));
-        if (!instSnap.empty) setInstitutionName(instSnap.docs[0].data().name);
+      const inst = await getInstitutionSettings();
+      if (inst) {
+        setInstitutionName(inst.name);
       }
     } catch (e) {
       console.error('Error fetching institution info:', e);

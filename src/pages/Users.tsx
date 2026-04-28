@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap } from 'lucide-react';
-import { auth, db, fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/database';
-import { fetchSignInMethodsForEmail, updatePassword, verifyBeforeUpdateEmail } from 'firebase/auth';
+import { fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/database';
+import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, UserRole } from '../types';
@@ -51,18 +51,20 @@ export function Users() {
     if (!email) return;
     try {
       setSendingReset(true);
-      const { sendPasswordResetEmail } = await import('firebase/auth');
       
-      // Personalizando as notificações com a marca do sistema
-      await sendPasswordResetEmail(auth, email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) throw error;
       
       setNotification({ 
         type: 'success', 
-        message: 'E-mail de redefinição enviado para o ESCMIN! Verifique sua caixa de entrada e siga as instruções para definir sua nova senha.' 
+        message: 'E-mail de redefinição enviado para o ESCMIN! Verifique sua caixa de entrada.' 
       });
     } catch (error: any) {
       console.error('Erro ao enviar reset:', error);
-      setNotification({ type: 'err', message: 'Erro ao enviar e-mail. Verifique se o endereço está correto em nosso sistema.' });
+      setNotification({ type: 'err', message: 'Erro ao enviar e-mail. Verifique se o endereço está correto.' });
     } finally {
       setSendingReset(false);
     }
@@ -233,7 +235,8 @@ export function Users() {
     try {
       // 1. Update Email if changed
       if (newEmail !== userAuth.email && newEmail) {
-        await verifyBeforeUpdateEmail(userAuth, newEmail);
+        const { error } = await supabase.auth.updateUser({ email: newEmail });
+        if (error) throw error;
         setNotification({ type: 'success', message: 'Verificação enviada para o novo e-mail!' });
       }
 
@@ -242,7 +245,8 @@ export function Users() {
         if (passwordData.newPassword !== passwordData.confirmPassword) {
           throw new Error('As senhas não coincidem');
         }
-        await updatePassword(userAuth, passwordData.newPassword);
+        const { error } = await supabase.auth.updateUser({ password: passwordData.newPassword });
+        if (error) throw error;
         setNotification({ type: 'success', message: 'Senha atualizada com sucesso!' });
         setPasswordData({ newPassword: '', confirmPassword: '' });
       }
@@ -342,18 +346,7 @@ export function Users() {
 
         // 2. Double check by fetching across all sources (safety)
         try {
-          // 2a. Check Firebase Authentication first
-          try {
-            const methods = await fetchSignInMethodsForEmail(auth, emailId);
-            if (methods && methods.length > 0) {
-              throw new Error('Este e-mail já possui uma conta de acesso ativa no sistema (Autenticação).');
-            }
-          } catch (authErr: any) {
-             if (authErr.message?.includes('Autenticação')) throw authErr;
-             console.log('Auth check skipped:', authErr.message);
-          }
-
-          // 2b. Check by ID (pre-registered)
+          // 2a. Check by ID (pre-registered)
           const preRegData = await fetchById('users', emailId);
           if (preRegData && preRegData.is_pre_registered === false && preRegData.id !== emailId) {
              throw new Error('Este e-mail já está vinculado a um perfil ativo no sistema (UID).');

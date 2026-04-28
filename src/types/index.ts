@@ -190,3 +190,12 @@ export interface InstitutionSettings {
   footer_text: string;
   receipt_message: string;
 }
+
+export interface AcademicParameters {
+  id?: string;
+  approval_grade: number;
+  recovery_grade: number;
+  failure_grade: number;
+  absence_limit_percentage: number;
+  updated_at: string;
+}

@@ -1,13 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { 
-  onAuthStateChanged as onAuthFirebase,
-  User as FirebaseUser,
-  signOut as signOutFirebase
-} from 'firebase/auth';
-import { auth as authFirebase, saveData, deleteData, fetchById } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { UserProfile, UserRole } from '../types';
-import { User as SupabaseUser } from '@supabase/supabase-js';
+import { saveData, deleteData, fetchById } from '../lib/database';
+import { UserProfile } from '../types';
 
 type AppUser = {
   uid: string;
@@ -44,20 +38,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profileData) {
         setProfile(profileData as UserProfile);
       } else if (email) {
-        const emailId = email.toLowerCase().trim();
-        const preRegistration = await fetchById('users', emailId);
+        // Check for pre-registration in users table using email if id doesn't match yet
+        const emailLower = email.toLowerCase().trim();
+        const preRegistration = await fetchById('email_registry', emailLower); // Assuming email_registry holds pre-auth data
         
         if (preRegistration) {
           const newProfile: UserProfile = {
-            ...preRegistration,
             id: uid,
             email: email,
-            is_pre_registered: false,
+            name: preRegistration.name || email.split('@')[0],
+            role: preRegistration.role || 'secretario',
+            status: 'active',
             updated_at: new Date().toISOString()
           } as any;
           
           await saveData('users', uid, newProfile);
-          await deleteData('users', emailId);
+          await deleteData('email_registry', emailLower);
           setProfile(newProfile);
         } else {
           setProfile(null);
@@ -72,69 +68,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // 1. Firebase Auth listener (Legacy/Migration)
-    const unsubscribeFirebase = onAuthFirebase(authFirebase, async (fbUser) => {
-      if (fbUser) {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    // Initialize session
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
         const mappedUser: AppUser = {
-          uid: fbUser.uid,
-          email: fbUser.email,
-          displayName: fbUser.displayName,
-          photoURL: fbUser.photoURL
+          uid: session.user.id,
+          email: session.user.email || null,
+          displayName: session.user.user_metadata?.full_name,
+          photoURL: session.user.user_metadata?.avatar_url
         };
         setUser(mappedUser);
         await fetchProfile(mappedUser);
-        setLoading(false);
-      } else {
-        // If no Firebase user, check Supabase
-        if (isSupabaseConfigured) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            const mappedUser: AppUser = {
-              uid: session.user.id,
-              email: session.user.email || null,
-              displayName: session.user.user_metadata?.full_name,
-              photoURL: session.user.user_metadata?.avatar_url
-            };
-            setUser(mappedUser);
-            await fetchProfile(mappedUser);
-          } else {
-            setUser(null);
-            setProfile(null);
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
+      }
+      setLoading(false);
+    };
+
+    initSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        if (session?.user) {
+          const mappedUser: AppUser = {
+            uid: session.user.id,
+            email: session.user.email || null,
+            displayName: session.user.user_metadata?.full_name,
+            photoURL: session.user.user_metadata?.avatar_url
+          };
+          setUser(mappedUser);
+          await fetchProfile(mappedUser);
         }
-        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
       }
     });
 
-    // 2. Supabase Auth listener (New)
-    let authSubscription: any;
-    if (isSupabaseConfigured) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-          if (session?.user) {
-            const mappedUser: AppUser = {
-              uid: session.user.id,
-              email: session.user.email || null,
-              displayName: session.user.user_metadata?.full_name,
-              photoURL: session.user.user_metadata?.avatar_url
-            };
-            setUser(mappedUser);
-            await fetchProfile(mappedUser);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setProfile(null);
-        }
-      });
-      authSubscription = subscription;
-    }
-
     return () => {
-      unsubscribeFirebase();
-      if (authSubscription) authSubscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [fetchProfile]);
 
@@ -145,7 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchProfile]);
 
   const logout = useCallback(async () => {
-    await signOutFirebase(authFirebase);
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
     }

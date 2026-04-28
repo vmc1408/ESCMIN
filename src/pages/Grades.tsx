@@ -13,45 +13,14 @@ import {
   Save,
   Loader2,
   Trophy,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
+import { Student, Class, Subject, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
-import { db } from '../lib/database';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp,
-  orderBy,
-  where,
-  getDocs,
-  setDoc,
-  limit
-} from 'firebase/firestore';
+import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-
-interface Student {
-  id: string;
-  name: string;
-  registration_number: string;
-  class_id: string;
-}
-
-interface Class {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface Subject {
-  id: string;
-  name: string;
-}
 
 interface GradeRecord {
   id: string;
@@ -70,75 +39,96 @@ export function Grades() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [grades, setGrades] = useState<Record<string, GradeRecord>>({});
+  const [academicParams, setAcademicParams] = useState<AcademicParameters>({
+    approval_grade: 7.0,
+    recovery_grade: 5.0,
+    failure_grade: 4.9,
+    absence_limit_percentage: 25,
+    updated_at: ''
+  });
   
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('Bimestre 1');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('Avaliação 1');
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
-  const periods = ['Bimestre 1', 'Bimestre 2', 'Bimestre 3', 'Bimestre 4', 'Final'];
+  const periods = ['Avaliação 1', 'Avaliação 2', 'Avaliação 3', 'Avaliação 4', 'Resultado Final'];
 
-  useEffect(() => {
-    const unsubscribeClasses = onSnapshot(query(collection(db, 'classes'), where('status', '==', 'Ativo')), (snap) => {
-      setClasses(snap.docs.map(d => ({ id: d.id, ...d.data() } as Class)));
-    });
-    const unsubscribeSubjects = onSnapshot(query(collection(db, 'subjects'), where('status', '==', 'Ativo')), (snap) => {
-      setSubjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
-    });
-    return () => {
-      unsubscribeClasses();
-      unsubscribeSubjects();
-    };
+  const fetchData = React.useCallback(async () => {
+    const [params, classesData, subjectsData] = await Promise.all([
+      fetchAll('academic_parameters'),
+      fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+      fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }])
+    ]);
+
+    if (params && params.length > 0) {
+      setAcademicParams(params[0] as AcademicParameters);
+    }
+    setClasses(classesData || []);
+    setSubjects(subjectsData || []);
   }, []);
 
   useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const fetchStudentsAndGrades = React.useCallback(async () => {
     if (!selectedClass || !selectedSubject || !selectedPeriod) return;
     
-    const fetchStudentsAndGrades = async () => {
-      setLoading(true);
-      try {
-        const qStudents = query(
-          collection(db, 'students'), 
-          where('class_id', '==', selectedClass),
-          where('status', '==', 'Ativo')
-        );
-        const studentsSnap = await getDocs(qStudents);
-        const studentsList = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Student));
-        setStudents(studentsList.sort((a, b) => a.name.localeCompare(b.name)));
+    setLoading(true);
+    try {
+      const [studentsList, gradesList] = await Promise.all([
+        fetchQuery('students', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'status', operator: '==', value: 'Ativo' }
+        ]),
+        fetchQuery('grades', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject },
+          { field: 'period', operator: '==', value: selectedPeriod }
+        ])
+      ]);
 
-        const qGrades = query(
-          collection(db, 'grades'),
-          where('class_id', '==', selectedClass),
-          where('subject_id', '==', selectedSubject),
-          where('period', '==', selectedPeriod)
-        );
-        const gradesSnap = await getDocs(qGrades);
-        const gradesMap: Record<string, GradeRecord> = {};
-        gradesSnap.docs.forEach(d => {
-          const data = d.data() as GradeRecord;
-          gradesMap[data.student_id] = { id: d.id, ...data };
-        });
-        setGrades(gradesMap);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setStudents((studentsList || []).sort((a, b) => a.name.localeCompare(b.name)));
 
-    fetchStudentsAndGrades();
+      const gradesMap: Record<string, GradeRecord> = {};
+      (gradesList || []).forEach(data => {
+        gradesMap[data.student_id] = data as GradeRecord;
+      });
+      setGrades(gradesMap);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedClass, selectedSubject, selectedPeriod]);
 
-  const handleGradeChange = (studentId: string, value: string) => {
-    const numValue = parseFloat(value.replace(',', '.'));
-    if (isNaN(numValue) && value !== '') return;
+  useEffect(() => {
+    fetchStudentsAndGrades();
+  }, [fetchStudentsAndGrades]);
 
-    let status: GradeRecord['status'] = 'Reprovado';
-    if (numValue >= 7) status = 'Aprovado';
-    else if (numValue >= 5) status = 'Recuperação';
+  const handleGradeChange = (studentId: string, value: string) => {
+    let rawValue = value.replace(',', '.');
+    // Allow empty or partial decimal
+    if (value === '' || value === ',') {
+      rawValue = '0';
+    }
+
+    let numValue = parseFloat(rawValue);
+    if (isNaN(numValue)) return;
+    
+    // Limit to 10
+    if (numValue > 10) numValue = 10;
+    if (numValue < 0) numValue = 0;
+
+    const calculateStatus = (val: number) => {
+      if (val >= academicParams.approval_grade) return 'Aprovado';
+      if (val >= academicParams.recovery_grade) return 'Recuperação';
+      return 'Reprovado';
+    };
 
     setGrades(prev => ({
       ...prev,
@@ -148,35 +138,81 @@ export function Grades() {
         class_id: selectedClass,
         subject_id: selectedSubject,
         period: selectedPeriod,
-        value: numValue,
-        status: value === '' ? prev[studentId]?.status || 'Reprovado' : status
+        value: parseFloat(numValue.toFixed(2)),
+        status: calculateStatus(numValue)
       }
     }));
+  };
+
+  const calculateFinalResults = async () => {
+    if (selectedPeriod !== 'Resultado Final') return;
+    setLoading(true);
+    try {
+      const allGrades = await fetchQuery('grades', [
+        { field: 'class_id', operator: '==', value: selectedClass },
+        { field: 'subject_id', operator: '==', value: selectedSubject }
+      ]);
+      
+      const newGradesMap = { ...grades };
+      
+      students.forEach(student => {
+        const studentGrades = (allGrades || []).filter(g => 
+          g.student_id === student.id && 
+          g.period !== 'Resultado Final'
+        );
+        
+        if (studentGrades.length > 0) {
+          const sum = studentGrades.reduce((acc, curr) => acc + (curr.value || 0), 0);
+          const avg = sum / 4; // Dividing by 4 evaluations as requested
+          
+          const status = avg >= academicParams.approval_grade ? 'Aprovado' : 
+                         avg >= academicParams.recovery_grade ? 'Recuperação' : 'Reprovado';
+          
+          newGradesMap[student.id] = {
+            ...newGradesMap[student.id],
+            student_id: student.id,
+            class_id: selectedClass,
+            subject_id: selectedSubject,
+            period: 'Resultado Final',
+            value: parseFloat(avg.toFixed(2)),
+            status: status as any
+          };
+        }
+      });
+      
+      setGrades(newGradesMap);
+      setNotification({ type: 'success', message: 'Médias calculadas automaticamente (Soma das 4 avaliações / 4)!' });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (error) {
+      console.error("Error calculating results:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const saveGrades = async () => {
     if (!userAuth) return;
     setSaving(true);
     try {
-      const promises = (Object.entries(grades) as [string, GradeRecord][]).map(async ([studentId, record]) => {
-        if (record.value === undefined || isNaN(record.value)) return;
+      const recordsToSave = Object.values(grades);
+      for (const record of recordsToSave) {
+        if (record.value === undefined || isNaN(record.value)) continue;
         
-        const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedPeriod}_${studentId}`;
-        const docRef = doc(db, 'grades', docId);
+        const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedPeriod}_${record.student_id}`;
         
         const data = {
           ...record,
+          id: docId,
           user_id: userAuth.uid,
-          updated_at: serverTimestamp(),
-          created_at: record.id ? undefined : serverTimestamp()
+          updated_at: new Date().toISOString()
         };
         
-        await setDoc(docRef, data, { merge: true });
-      });
+        await saveData('grades', docId, data);
+      }
 
-      await Promise.all(promises);
       setNotification({ type: 'success', message: 'Notas salvas com sucesso!' });
       setTimeout(() => setNotification(null), 3000);
+      fetchStudentsAndGrades();
     } catch (error) {
       console.error("Error saving grades:", error);
       setNotification({ type: 'err', message: 'Erro ao salvar notas.' });
@@ -208,14 +244,25 @@ export function Grades() {
         </div>
 
         {students.length > 0 && (
-          <button 
-            disabled={saving}
-            onClick={saveGrades}
-            className="flex items-center gap-2 px-8 py-4 bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-800 shadow-xl shadow-blue-200 transition-all active:scale-95 disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Salvar Notas
-          </button>
+          <div className="flex gap-3">
+            {selectedPeriod === 'Resultado Final' && (
+              <button 
+                onClick={calculateFinalResults}
+                className="flex items-center gap-2 px-6 py-4 bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 shadow-xl shadow-amber-200 transition-all active:scale-95"
+              >
+                <RefreshCw size={16} />
+                Calcular Médias
+              </button>
+            )}
+            <button 
+              disabled={saving}
+              onClick={saveGrades}
+              className="flex items-center gap-2 px-8 py-4 bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-800 shadow-xl shadow-blue-200 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Salvar Notas
+            </button>
+          </div>
         )}
       </div>
 
@@ -290,7 +337,7 @@ export function Grades() {
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-4">
               <Info size={16} className="text-blue-500 shrink-0" />
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                As notas variam de 0 a 10. <span className="text-emerald-600">7.0+ (Aprovado)</span> | <span className="text-amber-600">5.0-6.9 (Recuperação)</span> | <span className="text-red-600">Sub 5.0 (Reprovado)</span>
+                As notas variam de 1 a 10. <span className="text-emerald-600">{academicParams.approval_grade}+ (Aprovado)</span> | <span className="text-amber-600">{academicParams.recovery_grade}-{academicParams.approval_grade - 0.1} (Recuperação)</span> | <span className="text-red-600">Sub {academicParams.recovery_grade} (Reprovado)</span>
               </p>
             </div>
 

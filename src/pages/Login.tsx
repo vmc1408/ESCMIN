@@ -1,21 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  browserLocalPersistence,
-  setPersistence
-} from 'firebase/auth';
-import { 
-  doc, 
-  setDoc, 
-  getDoc,
-  getDocs, 
-  collection, 
-  limit, 
-  query 
-} from 'firebase/firestore';
-import { auth, db, fetchById } from '../lib/database';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { saveData, fetchById } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -52,30 +37,19 @@ export function Login() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const from = location.state?.from?.pathname || "/";
 
-  // Helper to strip JSON from error messages if they come from handleFirestoreError
+  // Helper to strip JSON from error messages
   const formatError = (error: any): string => {
     if (!error) return "";
     const msg = typeof error === 'string' ? error : (error.message || String(error));
     
-    // Check if it's our JSON error format
-    if (msg.includes('{"error":')) {
-      try {
-        const parsed = JSON.parse(msg);
-        if (parsed.error.includes('Missing or insufficient permissions')) {
-          return "Você não tem permissão para esta ação ou seu perfil ainda não foi autorizado.";
-        }
-        return parsed.error;
-      } catch (e) {
-        // Fallback if parsing fails
-      }
-    }
-    
-    // Handle common auth codes manually just in case
-    if (msg.includes('auth/invalid-credential') || msg.includes('auth/wrong-password')) {
+    if (msg.includes('Invalid login credentials')) {
       return "E-mail ou senha incorretos. Verifique suas credenciais.";
     }
-    if (msg.includes('auth/user-not-found')) {
-      return "Usuário não encontrado. Se é seu primeiro acesso, use a aba ao lado.";
+    if (msg.includes('Email not confirmed')) {
+      return "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
+    }
+    if (msg.includes('User already registered')) {
+      return "Este e-mail já possui uma conta ativa no sistema.";
     }
     
     return msg;
@@ -89,18 +63,14 @@ export function Login() {
   }, [user, profile, needsBootstrap, loading, navigate, from]);
 
   useEffect(() => {
-    // If we are logged in but have no profile after loading, show error
-    // Only show if we are NOT currently in a local loading state (login/register process)
-    // AND if we are NOT in the registration tab (where profile is expected to be null momentarily)
     const shouldIgnoreError = authLoading || loading || isRegistering || isProcessing || initialLoading;
     
     if (user && !profile && !shouldIgnoreError && !needsBootstrap) {
       const timer = setTimeout(() => {
-        // Double check all conditions again before setting error
         if (user && !profile && !shouldIgnoreError && !needsBootstrap && !error) {
-          setError("Olá! 🎉 Parece que você ainda não tem um perfil cadastrado. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso' aqui em cima. Se você já tem conta, aguarde um instante ou fale com o coordenador.");
+          setError("Olá! 🎉 Parece que você ainda não tem um perfil cadastrado. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso'.");
         }
-      }, 4000); // Increased to 4s for stability
+      }, 4000);
       return () => clearTimeout(timer);
     } else if (profile || !user) {
       if (error?.includes("perfil não foi encontrado")) {
@@ -110,12 +80,16 @@ export function Login() {
   }, [user, profile, authLoading, needsBootstrap, loading, isRegistering, isProcessing, initialLoading, error]);
 
   useEffect(() => {
-    // Check if system is initialized (only once on true mount)
     const checkInitialization = async () => {
       try {
-        const settingsRef = doc(db, 'institution_settings', 'main');
-        const snapshot = await getDoc(settingsRef);
-        setNeedsBootstrap(!snapshot.exists());
+        if (!isSupabaseConfigured) return;
+        const { data, error: sbErr } = await supabase
+          .from('institution_settings')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+        
+        setNeedsBootstrap(!data && !sbErr);
       } catch (err) {
         setNeedsBootstrap(false);
       } finally {
@@ -134,34 +108,16 @@ export function Login() {
     setError(null);
 
     try {
-      await setPersistence(auth, browserLocalPersistence);
-      await signInWithEmailAndPassword(auth, email.toLowerCase().trim(), password);
+      const { error: sbErr } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password
+      });
+      if (sbErr) throw sbErr;
       setError(null);
     } catch (err: any) {
       console.error("Login failed:", err);
-      setIsProcessing(false); // Only reset processing on error
-      
-      // New Firebase Auth error code for unified invalid credentials
-      const invalidCreds = ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'];
-      
-      if (invalidCreds.includes(err.code)) {
-        // Check if user is pre-registered but not in Auth
-        try {
-          const emailId = email.toLowerCase().trim();
-          const preRegData = await fetchById('users', emailId);
-          if (preRegData) {
-            setError("Credenciais inválidas. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso' ao lado.");
-          } else {
-            setError("E-mail ou senha incorretos. Verifique suas credenciais.");
-          }
-        } catch (checkErr) {
-          setError("E-mail ou senha incorretos. Verifique suas credenciais.");
-        }
-      } else if (err.code === 'auth/too-many-requests') {
-        setError("Muitas tentativas malsucedidas. Tente novamente em alguns minutos.");
-      } else {
-        setError("Ocorreu um erro ao entrar: " + formatError(err));
-      }
+      setIsProcessing(false);
+      setError(formatError(err));
     } finally {
       setLoading(false);
     }
@@ -186,47 +142,33 @@ export function Login() {
     setError(null);
 
     try {
-      // 1. Check if user is pre-registered
-      const emailId = email.toLowerCase().trim();
-      const preRegData = await fetchById('users', emailId);
+      // 1. Check if user is pre-registered in email_registry
+      const emailLower = email.toLowerCase().trim();
+      const preRegData = await fetchById('email_registry', emailLower);
       
       if (!preRegData) {
-        setError("Este e-mail não está autorizado para primeiro acesso. Por favor, solicite seu pré-cadastro ao administrador.");
+        setError("Este e-mail não está autorizado para primeiro acesso. Por favor, solicite seu pré-cadastro.");
         setLoading(false);
         setIsProcessing(false);
         return;
       }
-      
-      if (preRegData?.status === 'inactive') {
-         setError("Seu acesso foi desativado pelo administrador. Entre em contato para reativar.");
-         setLoading(false);
-         setIsProcessing(false);
-         return;
-      }
 
-      // 2. Create Auth user
-      await createUserWithEmailAndPassword(auth, email, password);
-      // AuthContext will handle linking when onAuthStateChanged triggers
+      // 2. Create Supabase Auth user
+      const { error: sbErr } = await supabase.auth.signUp({
+        email: emailLower,
+        password,
+        options: {
+          data: {
+            full_name: preRegData.name || emailLower.split('@')[0]
+          }
+        }
+      });
+      if (sbErr) throw sbErr;
+      
     } catch (err: any) {
       console.error("Registration failed:", err);
       setIsProcessing(false);
-      
-      const errorCode = err.code || "";
-      const errorMessage = err.message || "";
-      const emailInUse = errorCode === 'auth/email-already-in-use' || 
-                         errorMessage.includes('auth/email-already-in-use') ||
-                         errorMessage.includes('email-already-in-use');
-      
-      if (emailInUse) {
-        setError("Este e-mail já possui uma conta ativa no sistema. Por favor, tente fazer login. Se esqueceu sua senha, use a opção de recuperação abaixo.");
-        setIsRegistering(false); // Switch to login tab
-      } else if (errorCode === 'auth/weak-password') {
-        setError("A senha é muito fraca. Use pelo menos 6 caracteres.");
-      } else if (errorCode === 'auth/invalid-email') {
-        setError("O formato do e-mail é inválido.");
-      } else {
-        setError("Falha no primeiro acesso: " + formatError(err));
-      }
+      setError(formatError(err));
     } finally {
       setLoading(false);
     }
@@ -241,23 +183,32 @@ export function Login() {
     const adminPassword = 'admin123456';
 
     try {
-      let userRef;
-      try {
-        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-        userRef = userCredential.user;
-      } catch (authErr: any) {
-        if (authErr.code === 'auth/email-already-in-use') {
-          // If already exists, just sign in
-          const userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-          userRef = userCredential.user;
-        } else {
-          throw authErr;
+      // 1. Create Admin Auth user
+      const { data: authData, error: authErr } = await supabase.auth.signUp({
+        email: adminEmail,
+        password: adminPassword,
+        options: {
+          data: { full_name: 'Administrador do Sistema' }
         }
+      });
+      
+      if (authErr && !authErr.message.includes('already registered')) throw authErr;
+      
+      let userId = authData.user?.id;
+      if (!userId) {
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: adminEmail,
+          password: adminPassword
+        });
+        if (signInErr) throw signInErr;
+        userId = signInData.user?.id;
       }
 
-      // 2. Create profile in Firestore (Allowed by 'create' rule)
-      await setDoc(doc(db, 'users', userRef.uid), {
-        id: userRef.uid,
+      if (!userId) throw new Error("Could not determine admin ID");
+
+      // 2. Create profile in 'users' table
+      await saveData('users', userId, {
+        id: userId,
         email: adminEmail,
         name: 'Administrador do Sistema',
         role: 'admin',
@@ -266,11 +217,9 @@ export function Login() {
       });
 
       // 3. Create institution settings
-      // We might need to wait a small bit for rules to recognize the new role if using get() in rules
-      await setDoc(doc(db, 'institution_settings', 'main'), {
+      await saveData('institution_settings', crypto.randomUUID(), {
         name: 'Diocese de Guarulhos',
-        short_name: 'Diocese',
-        created_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
       });
 
       await refreshProfile();
@@ -278,13 +227,7 @@ export function Login() {
       navigate('/', { replace: true });
     } catch (err: any) {
       console.error("Bootstrap failed:", err);
-      if (err.code === 'auth/operation-not-allowed') {
-        setError("Erro: O provedor 'E-mail/Senha' não está ativado no Console do Firebase.");
-      } else if (err.code === 'permission-denied') {
-        setError("Erro de permissão ao criar configurações. Verifique as regras do Firestore.");
-      } else {
-        setError("Falha na inicialização: " + formatError(err));
-      }
+      setError("Falha na inicialização: " + formatError(err));
     } finally {
       setLoading(false);
       setIsInitializing(false);
@@ -299,19 +242,19 @@ export function Login() {
     setError(null);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      const { error: sbErr } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (sbErr) throw sbErr;
       setResetSent(true);
     } catch (err: any) {
       console.error("Reset failed:", err);
-      if (err.code === 'auth/user-not-found') {
-        setError("E-mail não encontrado na base de dados.");
-      } else {
-        setError("Erro ao recuperar senha: " + formatError(err));
-      }
+      setError(formatError(err));
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#00174b] flex items-center justify-center p-4 relative overflow-hidden">

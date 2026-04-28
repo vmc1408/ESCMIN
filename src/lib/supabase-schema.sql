@@ -241,6 +241,16 @@ CREATE TABLE IF NOT EXISTS certificates (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 17. Parâmetros Acadêmicos
+CREATE TABLE IF NOT EXISTS academic_parameters (
+    id TEXT PRIMARY KEY,
+    approval_grade NUMERIC(4,2) DEFAULT 7.0,
+    recovery_grade NUMERIC(4,2) DEFAULT 5.0,
+    failure_grade NUMERIC(4,2) DEFAULT 4.9,
+    absence_limit_percentage INTEGER DEFAULT 25,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Habilitar RLS para todas as tabelas
 DO $$ 
 DECLARE 

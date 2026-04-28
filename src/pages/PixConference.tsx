@@ -34,8 +34,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { cn, safeFormat, parseSafeDate, formatDate } from '../lib/utils';
-import { db, fetchAll, auth, saveData, deleteData } from '../lib/database';
-import { collection, query, where, getDocs, orderBy, limit, doc, setDoc } from 'firebase/firestore';
+import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
 
@@ -326,32 +325,24 @@ export function PixConference() {
         }
 
         if (!transactionId) {
-          // Fallback to Firebase
-          const docSnap = await getDocs(query(collection(db, 'pix_reconciliations'), where('__name__', '==', id)));
-          if (!docSnap.empty) {
-            transactionId = docSnap.docs[0].data().transaction_id;
+          // Check for transaction_id in our database
+          const results = await fetchQuery('pix_reconciliations', [
+            { field: 'id', operator: '==', value: id }
+          ]);
+          if (results && results.length > 0) {
+            transactionId = results[0].transaction_id;
           }
         }
 
         if (transactionId) {
           // Delete linked contributions everywhere
-          if (isSupabaseConfigured) {
-            const { data: sbContribs } = await supabase.from('contributions')
-              .select('id')
-              .or(`pix_id.eq.${id},pix_id.eq.${transactionId}`);
-            
-            if (sbContribs) {
-              for (const c of sbContribs) {
-                await deleteData('contributions', c.id);
-              }
-            }
-          }
+          const [s1, s2] = await Promise.all([
+            fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: id }]),
+            fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }])
+          ]);
           
-          // Double check Firebase for contributions
-          const q1 = query(collection(db, 'contributions'), where('pix_id', '==', id));
-          const q2 = query(collection(db, 'contributions'), where('pix_id', '==', transactionId));
-          const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-          for (const d of [...s1.docs, ...s2.docs]) {
+          const docsToDelete = [...(s1 || []), ...(s2 || [])];
+          for (const d of docsToDelete) {
             await deleteData('contributions', d.id);
           }
         }
@@ -428,42 +419,24 @@ export function PixConference() {
     setNotification({ type: 'success', message: 'Iniciando limpeza sincronizada do registro e vínculos...' });
     
     try {
-      // 1. Locate items by Batch ID in hybrid mode
-      let batchItems: any[] = [];
-      if (isSupabaseConfigured) {
-        const { data: sbItems } = await supabase.from('pix_reconciliations').select('id, transaction_id').eq('batch_id', batchId);
-        if (sbItems) batchItems = sbItems;
-      }
-
-      // Fallback/Sync with Firebase
-      const q = query(collection(db, 'pix_reconciliations'), where('batch_id', '==', batchId));
-      const fbSnap = await getDocs(q);
-      fbSnap.docs.forEach(d => {
-        if (!batchItems.find(item => item.id === d.id)) batchItems.push({ id: d.id, ...d.data() });
-      });
+      // 1. Locate items by Batch ID
+      const batchItems = await fetchQuery('pix_reconciliations', [
+        { field: 'batch_id', operator: '==', value: batchId }
+      ]);
       
       if (batchItems && batchItems.length > 0) {
         for (const item of batchItems) {
           const reconciliationId = item.id;
           const transactionId = item.transaction_id;
           
-          // 2. Clear linked contributions from both DBs
-          if (isSupabaseConfigured) {
-            const { data: sbContribs } = await supabase.from('contributions')
-              .select('id')
-              .or(`pix_id.eq.${reconciliationId},pix_id.eq.${transactionId}`);
-            
-            if (sbContribs) {
-              for (const c of sbContribs) await deleteData('contributions', c.id);
-            }
-          }
-
-          // Check Firebase contributions too
-          const q1 = query(collection(db, 'contributions'), where('pix_id', '==', reconciliationId));
-          const q2 = transactionId ? query(collection(db, 'contributions'), where('pix_id', '==', transactionId)) : null;
+          // 2. Clear linked contributions
+          const [s1, s2] = await Promise.all([
+            fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: reconciliationId }]),
+            transactionId ? fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }]) : Promise.resolve([])
+          ]);
           
-          const [s1, s2] = await Promise.all([getDocs(q1), q2 ? getDocs(q2) : Promise.resolve({ docs: [] })]);
-          for (const d of [...s1.docs, ...s2.docs]) {
+          const docsToDelete = [...(s1 || []), ...(s2 || [])];
+          for (const d of docsToDelete) {
             await deleteData('contributions', d.id);
           }
 

@@ -18,16 +18,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db, saveData, deleteData, handleFirestoreError } from '../lib/database';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  doc, 
-  serverTimestamp,
-  orderBy,
-  where
-} from 'firebase/firestore';
+import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -80,34 +71,26 @@ export function AcademicCalendar() {
     subject_id: ''
   });
 
-  useEffect(() => {
-    const q = query(collection(db, 'calendar_events'), orderBy('start_date', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as CalendarEvent[];
-      setEvents(data);
+  const fetchData = React.useCallback(async () => {
+    try {
+      const [eventsData, classesData, subjectsData] = await Promise.all([
+        fetchAll('calendar_events', '*', 'start_date'),
+        fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+        fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }])
+      ]);
+      setEvents(eventsData || []);
+      setClasses(classesData || []);
+      setSubjects(subjectsData || []);
+    } catch (error) {
+      console.error('Error fetching calendar data:', error);
+    } finally {
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, 'list', 'calendar_events');
-      setLoading(false);
-    });
-
-    const unsubscribeClasses = onSnapshot(query(collection(db, 'classes'), where('status', '==', 'Ativo')), (snap) => {
-      setClasses(snap.docs.map(d => ({ id: d.id, ...d.data() } as Class)));
-    });
-
-    const unsubscribeSubjects = onSnapshot(query(collection(db, 'subjects'), where('status', '==', 'Ativo')), (snap) => {
-      setSubjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Subject)));
-    });
-
-    return () => {
-      unsubscribe();
-      unsubscribeClasses();
-      unsubscribeSubjects();
-    };
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
@@ -115,39 +98,39 @@ export function AcademicCalendar() {
   // Lista de feriados fixos para sincronização automática
   const FIXED_HOLIDAYS = [
     // 2026
-    { title: "Confraternização Universal", date: "2026-01-01", type: "holiday", category: 'nacional' },
-    { title: "Aniversário de São Paulo (SP)", date: "2026-01-25", type: "holiday", category: 'estadual' },
-    { title: "Carnaval", date: "2026-02-17", type: "holiday", category: 'nacional' },
-    { title: "Sexta-feira Santa", date: "2026-04-03", type: "holiday", category: 'nacional' },
-    { title: "Páscoa", date: "2026-04-05", type: "holiday", category: 'nacional' },
-    { title: "Tiradentes", date: "2026-04-21", type: "holiday", category: 'nacional' },
-    { title: "Dia do Trabalho", date: "2026-05-01", type: "holiday", category: 'nacional' },
-    { title: "Corpus Christi", date: "2026-06-04", type: "holiday", category: 'nacional' },
-    { title: "Revolução Constitucionalista (SP)", date: "2026-07-09", type: "holiday", category: 'estadual' },
-    { title: "Independência do Brasil", date: "2026-09-07", type: "holiday", category: 'nacional' },
-    { title: "Nossa Sra Aparecida", date: "2026-10-12", type: "holiday", category: 'nacional' },
-    { title: "Finados", date: "2026-11-02", type: "holiday", category: 'nacional' },
-    { title: "Proclamação da República", date: "2026-11-15", type: "holiday", category: 'nacional' },
-    { title: "Consciência Negra", date: "2026-11-20", type: "holiday", category: 'nacional' },
-    { title: "Aniversário de Guarulhos (Guarulhos)", date: "2026-12-08", type: "holiday", category: 'municipal' },
-    { title: "Natal", date: "2026-12-25", type: "holiday", category: 'nacional' },
+    { title: "Confraternização Universal", date: "2026-01-01", category: 'nacional' },
+    { title: "Aniversário de São Paulo (SP)", date: "2026-01-25", category: 'estadual' },
+    { title: "Carnaval", date: "2026-02-17", category: 'nacional' },
+    { title: "Sexta-feira Santa", date: "2026-04-03", category: 'nacional' },
+    { title: "Páscoa", date: "2026-04-05", category: 'nacional' },
+    { title: "Tiradentes", date: "2026-04-21", category: 'nacional' },
+    { title: "Dia do Trabalho", date: "2026-05-01", category: 'nacional' },
+    { title: "Corpus Christi", date: "2026-06-04", category: 'nacional' },
+    { title: "Revolução Constitucionalista (SP)", date: "2026-07-09", category: 'estadual' },
+    { title: "Independência do Brasil", date: "2026-09-07", category: 'nacional' },
+    { title: "Nossa Sra Aparecida", date: "2026-10-12", category: 'nacional' },
+    { title: "Finados", date: "2026-11-02", category: 'nacional' },
+    { title: "Proclamação da República", date: "2026-11-15", category: 'nacional' },
+    { title: "Consciência Negra", date: "2026-11-20", category: 'nacional' },
+    { title: "Aniversário de Guarulhos (Municipal)", date: "2026-12-08", category: 'municipal' },
+    { title: "Natal", date: "2026-12-25", category: 'nacional' },
     // 2027
-    { title: "Confraternização Universal", date: "2027-01-01", type: "holiday", category: 'nacional' },
-    { title: "Aniversário de São Paulo (SP)", date: "2027-01-25", type: "holiday", category: 'estadual' },
-    { title: "Carnaval", date: "2027-02-09", type: "holiday", category: 'nacional' },
-    { title: "Sexta-feira Santa", date: "2027-03-26", type: "holiday", category: 'nacional' },
-    { title: "Páscoa", date: "2027-03-28", type: "holiday", category: 'nacional' },
-    { title: "Tiradentes", date: "2027-04-21", type: "holiday", category: 'nacional' },
-    { title: "Dia do Trabalho", date: "2027-05-01", type: "holiday", category: 'nacional' },
-    { title: "Corpus Christi", date: "2027-05-27", type: "holiday", category: 'nacional' },
-    { title: "Revolução Constitucionalista (SP)", date: "2027-07-09", type: "holiday", category: 'estadual' },
-    { title: "Independência do Brasil", date: "2027-09-07", type: "holiday", category: 'nacional' },
-    { title: "Nossa Sra Aparecida", date: "2027-10-12", type: "holiday", category: 'nacional' },
-    { title: "Finados", date: "2027-11-02", type: "holiday", category: 'nacional' },
-    { title: "Proclamação da República", date: "2027-11-15", type: "holiday", category: 'nacional' },
-    { title: "Consciência Negra", date: "2027-11-20", type: "holiday", category: 'nacional' },
-    { title: "Aniversário de Guarulhos (Guarulhos)", date: "2027-12-08", type: "holiday", category: 'municipal' },
-    { title: "Natal", date: "2027-12-25", type: "holiday", category: 'nacional' },
+    { title: "Confraternização Universal", date: "2027-01-01", category: 'nacional' },
+    { title: "Aniversário de São Paulo (SP)", date: "2027-01-25", category: 'estadual' },
+    { title: "Carnaval", date: "2027-02-09", category: 'nacional' },
+    { title: "Sexta-feira Santa", date: "2027-03-26", category: 'nacional' },
+    { title: "Páscoa", date: "2027-03-28", category: 'nacional' },
+    { title: "Tiradentes", date: "2027-04-21", category: 'nacional' },
+    { title: "Dia do Trabalho", date: "2027-05-01", category: 'nacional' },
+    { title: "Corpus Christi", date: "2027-05-27", category: 'nacional' },
+    { title: "Revolução Constitucionalista (SP)", date: "2027-07-09", category: 'estadual' },
+    { title: "Independência do Brasil", date: "2027-09-07", category: 'nacional' },
+    { title: "Nossa Sra Aparecida", date: "2027-10-12", category: 'nacional' },
+    { title: "Finados", date: "2027-11-02", category: 'nacional' },
+    { title: "Proclamação da República", date: "2027-11-15", category: 'nacional' },
+    { title: "Consciência Negra", date: "2027-11-20", category: 'nacional' },
+    { title: "Aniversário de Guarulhos (Municipal)", date: "2027-12-08", category: 'municipal' },
+    { title: "Natal", date: "2027-12-25", category: 'nacional' },
   ];
 
   useEffect(() => {
@@ -172,13 +155,15 @@ export function AcademicCalendar() {
     if (!userAuth) return;
     if (!silent) setIsSyncing(true);
     try {
-      const promises = FIXED_HOLIDAYS.map(async (h: any) => {
-        const exists = events.some(e => e.start_date === h.date && e.title === h.title);
-        if (!exists) {
-          let description = 'Feriado Nacional';
-          if (h.category === 'estadual') description = 'Feriado Estadual (SP)';
-          if (h.category === 'municipal') description = 'Feriado Municipal (Guarulhos)';
+      const results = await Promise.all(FIXED_HOLIDAYS.map(async (h) => {
+        let description = 'Feriado Nacional';
+        if (h.category === 'estadual') description = 'Feriado Estadual (SP)';
+        if (h.category === 'municipal') description = 'Feriado Municipal (Guarulhos)';
 
+        // Tenta encontrar por data primeiro para evitar duplicatas no mesmo dia com nomes diferentes
+        const existingEvent = events.find(e => e.start_date === h.date && e.type === 'holiday');
+
+        if (!existingEvent) {
           await saveData('calendar_events', undefined, {
             title: h.title,
             start_date: h.date,
@@ -188,14 +173,33 @@ export function AcademicCalendar() {
             user_id: userAuth.uid,
             created_at: new Date().toISOString()
           });
+          return 'new';
+        } else if (existingEvent.description !== description || existingEvent.title !== h.title) {
+          // Atualiza se a descrição ou título mudou
+          await saveData('calendar_events', existingEvent.id, {
+            title: h.title,
+            description: description,
+            updated_at: new Date().toISOString()
+          });
+          return 'updated';
         }
-      });
+        return 'none';
+      }));
 
-      await Promise.all(promises);
-      if (!silent) setNotification({ type: 'success', message: 'Calendário sincronizado com feriados!' });
+      const newCount = results.filter(r => r === 'new').length;
+      const updatedCount = results.filter(r => r === 'updated').length;
+
+      if (newCount > 0 || updatedCount > 0) {
+        // onSnapshot handles updates
+      }
+
+      if (!silent) setNotification({ 
+        type: 'success', 
+        message: `Sincronização concluída! ${newCount} novos e ${updatedCount} atualizados.` 
+      });
     } catch (error) {
       console.error("Error syncing holidays:", error);
-      if (!silent) setNotification({ type: 'err', message: 'Erro ao sincronizar.' });
+      if (!silent) setNotification({ type: 'err', message: 'Erro ao sincronizar feriados.' });
     } finally {
       if (!silent) setIsSyncing(false);
     }
@@ -205,9 +209,12 @@ export function AcademicCalendar() {
   const generateClassDays = async () => {
     if (!userAuth) return;
     setIsSyncing(true);
-    setNotification({ type: 'success', message: 'Gerando dias de aula...' });
+    setNotification({ type: 'success', message: 'Sincronizando holidays e gerando dias de aula...' });
     
     try {
+      // First, ensure holidays are up to date
+      await syncHolidays(true);
+
       const term1Start = new Date('2026-03-04T00:00:00');
       const term1End = new Date('2026-06-24T00:00:00');
       const term2Start = new Date('2026-08-05T00:00:00');
@@ -323,8 +330,9 @@ export function AcademicCalendar() {
         class_id: '',
         subject_id: ''
       });
+      fetchData();
     } catch (error: any) {
-      handleFirestoreError(error, selectedEvent ? 'update' : 'create', 'calendar_events');
+      console.error('Error saving calendar event:', error);
     }
   };
 
@@ -351,20 +359,26 @@ export function AcademicCalendar() {
     }
   };
 
-  const getTypeStyle = (type: CalendarEvent['type']) => {
+  const getTypeStyle = (type: CalendarEvent['type'], description?: string) => {
     switch (type) {
-      case 'holiday': return 'bg-red-600 text-white border-red-700 shadow-sm';
-      case 'exam': return 'bg-amber-50 text-amber-600 border-amber-100';
-      case 'start_term': return 'bg-blue-50 text-blue-600 border-blue-100';
-      case 'end_term': return 'bg-slate-50 text-slate-600 border-slate-100';
+      case 'holiday': 
+        if (description?.includes('Estadual')) return 'bg-indigo-600 text-white border-indigo-700 shadow-sm';
+        if (description?.includes('Municipal')) return 'bg-amber-600 text-white border-amber-700 shadow-sm';
+        return 'bg-red-600 text-white border-red-700 shadow-sm';
+      case 'exam': return 'bg-orange-50 text-orange-600 border-orange-100';
+      case 'start_term': return 'bg-blue-600 text-white border-blue-700 font-black';
+      case 'end_term': return 'bg-slate-800 text-white border-slate-900 font-black';
       case 'class_day': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
       default: return 'bg-slate-50 text-slate-600 border-slate-100';
     }
   };
 
-  const getTypeText = (type: CalendarEvent['type']) => {
+  const getTypeText = (type: CalendarEvent['type'], description?: string) => {
     switch (type) {
-      case 'holiday': return 'Feriado';
+      case 'holiday': 
+        if (description?.includes('Estadual')) return 'Feriado Estadual';
+        if (description?.includes('Municipal')) return 'Feriado Municipal';
+        return 'Feriado Nacional';
       case 'exam': return 'Avaliação';
       case 'start_term': return 'Início de Turma';
       case 'end_term': return 'Término de Turma';
@@ -373,12 +387,15 @@ export function AcademicCalendar() {
     }
   };
 
-  const getTypeColor = (type: CalendarEvent['type']) => {
+  const getTypeColor = (type: CalendarEvent['type'], description?: string) => {
     switch (type) {
-      case 'holiday': return 'bg-red-500';
+      case 'holiday': 
+        if (description?.includes('Estadual')) return 'bg-indigo-500';
+        if (description?.includes('Municipal')) return 'bg-amber-500';
+        return 'bg-red-500';
       case 'exam': return 'bg-amber-500';
-      case 'start_term': return 'bg-blue-500';
-      case 'end_term': return 'bg-slate-500';
+      case 'start_term': return 'bg-blue-600';
+      case 'end_term': return 'bg-slate-800';
       case 'class_day': return 'bg-emerald-500';
       default: return 'bg-slate-400';
     }
@@ -404,7 +421,8 @@ export function AcademicCalendar() {
 
   // Group events by month
   const groupedEvents = filteredEvents.reduce((acc, event) => {
-    const date = new Date(event.start_date);
+    // Force local date interpretation
+    const date = new Date(event.start_date + 'T00:00:00');
     const monthYear = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     if (!acc[monthYear]) acc[monthYear] = [];
     acc[monthYear].push(event);
@@ -567,7 +585,7 @@ export function AcademicCalendar() {
 
                 <div className="space-y-12">
                   {/* Primeiro Semestre */}
-                  <div className="space-y-4">
+                      <div className="space-y-4">
                     <h4 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-3">
                       <div className="w-8 h-1 bg-blue-600 rounded-full" />
                       1º Semestre (Jan - Jun)
@@ -590,6 +608,7 @@ export function AcademicCalendar() {
                               const day = i + 1;
                               const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                               const dayEvents = events.filter(e => e.start_date === dateStr);
+                              const holiday = dayEvents.find(e => e.type === 'holiday');
                               const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
                               return (
@@ -597,17 +616,26 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day",
-                                    dayEvents.length > 0 
-                                      ? "bg-white text-blue-600 cursor-pointer border border-blue-100 shadow-sm hover:scale-110" 
-                                      : isToday ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:bg-slate-200/50"
+                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day border",
+                                    holiday 
+                                      ? holiday.description?.includes('Estadual')
+                                        ? "bg-indigo-600 text-white border-indigo-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-indigo-100 ring-offset-1"
+                                        : holiday.description?.includes('Municipal')
+                                          ? "bg-amber-600 text-white border-amber-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-amber-100 ring-offset-1"
+                                          : "bg-red-600 text-white border-red-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-red-100 ring-offset-1"
+                                      : dayEvents.length > 0 
+                                        ? "bg-blue-600 text-white cursor-pointer border-blue-700 hover:scale-110 shadow-sm" 
+                                        : isToday ? "bg-slate-800 text-white border-slate-900 shadow-lg" : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
                                   )}
                                 >
                                   {day}
+                                  {dayEvents.length > 1 && !holiday && (
+                                    <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                                  )}
                                   {dayEvents.length > 0 && (
                                     <div className={cn(
                                       "absolute -bottom-0.5 w-1 h-1 rounded-full",
-                                      getTypeColor(dayEvents[0].type)
+                                      getTypeColor(dayEvents[0].type, dayEvents[0].description)
                                     )} />
                                   )}
                                 </div>
@@ -643,6 +671,7 @@ export function AcademicCalendar() {
                               const day = i + 1;
                               const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                               const dayEvents = events.filter(e => e.start_date === dateStr);
+                              const holiday = dayEvents.find(e => e.type === 'holiday');
                               const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
                               return (
@@ -650,17 +679,26 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day",
-                                    dayEvents.length > 0 
-                                      ? "bg-white text-blue-600 cursor-pointer border border-blue-100 shadow-sm hover:scale-110" 
-                                      : isToday ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:bg-slate-200/50"
+                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day border",
+                                    holiday 
+                                      ? holiday.description?.includes('Estadual')
+                                        ? "bg-indigo-600 text-white border-indigo-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-indigo-100 ring-offset-1"
+                                        : holiday.description?.includes('Municipal')
+                                          ? "bg-amber-600 text-white border-amber-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-amber-100 ring-offset-1"
+                                          : "bg-red-600 text-white border-red-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-red-100 ring-offset-1"
+                                      : dayEvents.length > 0 
+                                        ? "bg-blue-600 text-white cursor-pointer border-blue-700 hover:scale-110 shadow-sm" 
+                                        : isToday ? "bg-slate-800 text-white border-slate-900 shadow-lg" : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
                                   )}
                                 >
                                   {day}
+                                  {dayEvents.length > 1 && !holiday && (
+                                    <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                                  )}
                                   {dayEvents.length > 0 && (
                                     <div className={cn(
                                       "absolute -bottom-0.5 w-1 h-1 rounded-full",
-                                      getTypeColor(dayEvents[0].type)
+                                      getTypeColor(dayEvents[0].type, dayEvents[0].description)
                                     )} />
                                   )}
                                 </div>
@@ -673,17 +711,19 @@ export function AcademicCalendar() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 pt-8 mt-12 border-t border-slate-50">
+                <div className="flex flex-wrap gap-4 pt-8 mt-12 border-t border-slate-100">
                   {[
-                    { type: 'holiday', label: 'Feriado' },
-                    { type: 'exam', label: 'Avaliação' },
-                    { type: 'start_term', label: 'Início Turma' },
-                    { type: 'end_term', label: 'Final Turma' },
-                    { type: 'class_day', label: 'Dia de Aula' }
+                    { type: 'holiday_nac', label: 'Feriado Nacional', color: 'bg-red-600' },
+                    { type: 'holiday_est', label: 'Feriado Estadual', color: 'bg-indigo-600' },
+                    { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-600' },
+                    { type: 'class_day', label: 'Dia de Aula', color: 'bg-blue-600' },
+                    { type: 'exam', label: 'Avaliação', color: 'bg-amber-500' },
+                    { type: 'start_term', label: 'Início Turma', color: 'bg-blue-600' },
+                    { type: 'end_term', label: 'Final Turma', color: 'bg-slate-800' },
                   ].map(item => (
                     <div key={item.type} className="flex items-center gap-2">
-                      <div className={cn("w-3 h-3 rounded-full border", getTypeColor(item.type as any))} />
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
+                      <div className={cn("w-3 h-3 rounded-full shadow-sm", item.color)} />
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
                     </div>
                   ))}
                 </div>
@@ -710,9 +750,9 @@ export function AcademicCalendar() {
                         <div className="space-y-3">
                           <span className={cn(
                             "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                            getTypeStyle(event.type)
+                            getTypeStyle(event.type, event.description)
                           )}>
-                            {getTypeText(event.type)}
+                            {getTypeText(event.type, event.description)}
                           </span>
                           <h4 className="text-lg font-black text-slate-800 leading-tight">{event.title}</h4>
                           <div className="flex flex-col gap-1">

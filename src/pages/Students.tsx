@@ -28,8 +28,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn } from '../lib/utils';
-import { db, uploadImage, fetchAll, saveData, deleteData } from '../lib/database';
-import { collection, addDoc, updateDoc, doc, query, limit, getDocs } from 'firebase/firestore';
+import { uploadImage, fetchAll, saveData, deleteData } from '../lib/database';
 import { Student, Class } from '../types';
 import { useNavigate } from 'react-router-dom';
 
@@ -446,9 +445,8 @@ export function Students() {
       const centerX = pageWidth / 2;
       
       // Fetch institution settings
-      const instRef = collection(db, 'institution_settings');
-      const instSnap = await getDocs(query(instRef, limit(1)));
-      const inst = instSnap.empty ? null : instSnap.docs[0].data();
+      const institutions = await fetchAll('institution_settings');
+      const inst = institutions && institutions.length > 0 ? institutions[0] : null;
 
       // --- HEADER SECTION ---
       let y = 15;

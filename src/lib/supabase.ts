@@ -18,18 +18,18 @@ export const supabase = createClient(
 );
 
 /**
- * Interface para Sincronização Firebase -> Supabase
- * Esta função ajuda a manter o UID do Firebase sincronizado com a tabela de perfis no Postgres.
+ * Interface para Sincronização de Usuários
+ * Esta função ajuda a manter os dados do usuário sincronizados com a tabela de perfis no Postgres.
  */
-export const syncUserWithSupabase = async (firebaseUser: { uid: string; email: string | null; displayName: string | null }) => {
+export const syncUserWithSupabase = async (userData: { uid: string; email: string | null; displayName: string | null }) => {
   if (!supabaseUrl || !supabaseAnonKey) return;
 
   const { data, error } = await supabase
     .from('users')
     .upsert({
-      id: firebaseUser.uid,
-      email: firebaseUser.email,
-      full_name: firebaseUser.displayName,
+      id: userData.uid,
+      email: userData.email,
+      full_name: userData.displayName,
     });
 
   if (error) {

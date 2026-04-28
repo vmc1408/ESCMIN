@@ -285,6 +285,20 @@
       },
       "required": ["id", "student_id", "class_id", "subject_id", "value"]
     },
+    "AcademicParameters": {
+      "title": "AcademicParameters",
+      "description": "Global academic configuration parameters",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "approval_grade": { "type": "number" },
+        "recovery_grade": { "type": "number" },
+        "failure_grade": { "type": "number" },
+        "absence_limit_percentage": { "type": "number" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["approval_grade", "recovery_grade", "failure_grade", "absence_limit_percentage"]
+    },
     "Certificate": {
       "title": "Certificate",
       "description": "Academic certificate or diploma",
@@ -318,6 +332,7 @@
     "calendar_events": { "schema": "CalendarEvent", "description": "Academic calendar events" },
     "attendances": { "schema": "Attendance", "description": "Attendance tracking" },
     "grades": { "schema": "Grade", "description": "Student grades" },
+    "academic_parameters": { "schema": "AcademicParameters", "description": "Global academic parameters" },
     "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" }
   }
 }

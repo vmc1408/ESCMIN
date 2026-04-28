@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import blueprint from '../../firebase-blueprint.json';
+import blueprint from '../../blueprint.json';
 
 export const schemaService = {
   /**
