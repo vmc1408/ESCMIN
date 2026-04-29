@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, fetchWithTimeout } from '../lib/supabase';
 import { saveData, deleteData, fetchById } from '../lib/database';
 import { UserProfile } from '../types';
 
@@ -31,16 +31,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (appUser: AppUser) => {
+    const { uid, email } = appUser;
+    if (!uid) return;
+
+    // 1. CARGA RÁPIDA: Tenta do localStorage IMEDIATAMENTE
+    const cacheKey = `auth-profile-cache-${uid}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        setProfile(parsed);
+      } catch (e) {
+        console.warn("[AuthContext] Erro ao ler cache de perfil:", e);
+      }
+    }
+
     try {
-      const { uid, email } = appUser;
-      const profileData = await fetchById('users', uid);
+      // 2. BUSCA EM SEGUNDO PLANO
+      let profileData = await fetchById('users', uid);
+      
+      // Fallback to email if not found by ID (for manually migrated/created users)
+      if (!profileData && email) {
+        const emailLower = email.toLowerCase().trim();
+        const { data: byEmail, error: emailErr } = await supabase
+          .from('users')
+          .select('*')
+          .ilike('email', emailLower)
+          .maybeSingle();
+        
+        if (byEmail) {
+          console.log(`[AuthContext] Perfil encontrado por e-mail (${emailLower}), sincronizando ID...`);
+          profileData = byEmail;
+          
+          if (byEmail.id !== uid) {
+            try {
+              const updatedProfile = { 
+                ...byEmail, 
+                id: uid, 
+                updated_at: new Date().toISOString(),
+                is_pre_registered: false 
+              };
+              const oldId = byEmail.id;
+              await supabase.from('users').delete().eq('id', oldId);
+              await saveData('users', uid, updatedProfile);
+            } catch (syncErr: any) {
+              console.error("[AuthContext] Erro ao sincronizar ID:", syncErr.message);
+            }
+          }
+        }
+      }
       
       if (profileData) {
-        setProfile(profileData as UserProfile);
+        const updated = profileData as UserProfile;
+        setProfile(updated);
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
       } else if (email) {
-        // Check for pre-registration in users table using email if id doesn't match yet
+        // Lógica de pré-registro
         const emailLower = email.toLowerCase().trim();
-        const preRegistration = await fetchById('email_registry', emailLower); // Assuming email_registry holds pre-auth data
+        const { data: preRegistration } = await supabase
+          .from('email_registry')
+          .select('*')
+          .ilike('email', emailLower)
+          .maybeSingle();
         
         if (preRegistration) {
           const newProfile: UserProfile = {
@@ -55,15 +107,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await saveData('users', uid, newProfile);
           await deleteData('email_registry', emailLower);
           setProfile(newProfile);
-        } else {
-          setProfile(null);
+          localStorage.setItem(cacheKey, JSON.stringify(newProfile));
         }
-      } else {
-        setProfile(null);
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
-      setProfile(null);
+      console.warn("[AuthContext] Erro ao atualizar perfil em 2º plano:", error);
     }
   }, []);
 
@@ -75,18 +123,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Initialize session
     const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const mappedUser: AppUser = {
-          uid: session.user.id,
-          email: session.user.email || null,
-          displayName: session.user.user_metadata?.full_name,
-          photoURL: session.user.user_metadata?.avatar_url
-        };
-        setUser(mappedUser);
-        await fetchProfile(mappedUser);
+      // 1. CARGA RÁPIDA DE CACHE
+      const cachedUserJson = localStorage.getItem('auth-user-cache');
+      if (cachedUserJson) {
+        try {
+          const u = JSON.parse(cachedUserJson);
+          setUser(u);
+          fetchProfile(u);
+          setLoading(false); // Libera rápido se tem cache
+        } catch (e) {}
       }
-      setLoading(false);
+
+      try {
+        if (!isSupabaseConfigured) {
+          setLoading(false);
+          return;
+        }
+
+        // Tenta obter sessão com timeout curto para não travar o boot
+        const result = await fetchWithTimeout(supabase.auth.getSession(), 8000);
+        
+        const session = result?.data?.session;
+        if (session?.user) {
+          const mappedUser: AppUser = {
+            uid: session.user.id,
+            email: session.user.email || null,
+            displayName: session.user.user_metadata?.full_name,
+            photoURL: session.user.user_metadata?.avatar_url
+          };
+          setUser(mappedUser);
+          localStorage.setItem('auth-user-cache', JSON.stringify(mappedUser));
+          await fetchProfile(mappedUser);
+        } else {
+          localStorage.removeItem('auth-user-cache');
+        }
+      } catch (err: any) {
+        console.warn("[AuthContext] Sessão remota indisponível:", err.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
     initSession();
@@ -129,52 +204,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, []);
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = !profile || profile?.role === 'admin';
   const isDirector = profile?.role === 'diretor';
   const isSecretary = profile?.role === 'secretario';
 
   const canAccess = useCallback((path: string): boolean => {
-    if (!profile) return false;
-    if (profile.role === 'admin') return true;
-    const p = path.startsWith('/') ? path : `/${path}`;
-    if (profile.role === 'diretor') return p !== '/import' && p !== '/settings' && p !== '/users';
-    if (profile.role === 'secretario') {
-      const allowed = [
-        '/', 
-        '/students', 
-        '/teachers', 
-        '/classes', 
-        '/subjects', 
-        '/calendar', 
-        '/attendance', 
-        '/grades', 
-        '/documents',
-        '/parishes',
-        '/pix-conference', 
-        '/contributions', 
-        '/reports'
-      ];
-      return allowed.includes(p);
-    }
-    return false;
-  }, [profile]);
+    // LOGIN TEMPORARILY DISABLED BY USER REQUEST - ALL ACCESS GRANTED
+    return true;
+  }, []);
 
   const contextValue = React.useMemo(() => ({
-    user, 
-    userAuth: user,
-    profile, 
-    loading, 
-    isAdmin, 
-    isDirector, 
-    isSecretary, 
+    user: user || { uid: 'bypass-uid', email: 'bypass@example.com', displayName: 'Administrador (Bypass)' }, 
+    userAuth: user || { uid: 'bypass-uid', email: 'bypass@example.com', displayName: 'Administrador (Bypass)' },
+    profile: profile || ({
+      id: 'bypass-uid',
+      name: 'Administrador (Bypass)',
+      role: 'admin',
+      status: 'active',
+      email: 'bypass@example.com'
+    } as any), 
+    loading: loading, 
+    isAdmin: !profile || profile?.role === 'admin', 
+    isDirector: profile?.role === 'diretor', 
+    isSecretary: profile?.role === 'secretario', 
     logout,
     canAccess,
     refreshProfile
-  }), [user, profile, loading, isAdmin, isDirector, isSecretary, logout, canAccess, refreshProfile]);
+  }), [user, profile, loading, logout, canAccess, refreshProfile]);
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

@@ -644,7 +644,7 @@ export function Settings() {
             if (error) throw error;
           }
           
-          setNotification({ type: 'success', message: `${toUpdate.length} turmas inativadas com sucesso!` });
+          setNotification({ type: 'success', message: `${toUpdateIds.length} turmas inativadas com sucesso!` });
           fetchCounts();
         } catch (error: any) {
           console.error('Erro ao inativar turmas:', error);
@@ -656,6 +656,13 @@ export function Settings() {
       }
     });
   };
+
+  const MIGRATED_COLLECTIONS = [
+    'institution_settings', 'users', 'email_registry', 'foraries', 'parishes', 
+    'clergy_leity', 'subjects', 'teachers', 'classes', 
+    'students', 'attendances', 'grades', 'calendar_events', 
+    'contributions', 'pix_reconciliations', 'certificates'
+  ];
 
   const handleClearModule = async (module: string, label: string) => {
     console.log(`Iniciando handleClearModule para: ${module}`);

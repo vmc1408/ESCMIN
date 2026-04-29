@@ -194,9 +194,9 @@ export function Grades() {
     if (!userAuth) return;
     setSaving(true);
     try {
-      const recordsToSave = Object.values(grades);
+      const recordsToSave = Object.values(grades) as GradeRecord[];
       for (const record of recordsToSave) {
-        if (record.value === undefined || isNaN(record.value)) continue;
+        if (record.value === undefined || isNaN(record.value as number)) continue;
         
         const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedPeriod}_${record.student_id}`;
         

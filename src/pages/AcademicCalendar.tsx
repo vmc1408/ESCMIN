@@ -18,7 +18,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
+import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -73,14 +73,23 @@ export function AcademicCalendar() {
 
   const fetchData = React.useCallback(async () => {
     try {
-      const [eventsData, classesData, subjectsData] = await Promise.all([
+      const fetchResults = await Promise.allSettled([
         fetchAll('calendar_events', '*', 'start_date'),
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }])
       ]);
+
+      const eventsData = fetchResults[0].status === 'fulfilled' ? fetchResults[0].value : [];
+      const classesData = fetchResults[1].status === 'fulfilled' ? fetchResults[1].value : [];
+      const subjectsData = fetchResults[2].status === 'fulfilled' ? fetchResults[2].value : [];
+
       setEvents(eventsData || []);
       setClasses(classesData || []);
       setSubjects(subjectsData || []);
+      
+      if (fetchResults.some(r => r.status === 'rejected')) {
+        console.warn('Algumas consultas falharam ao carregar o calendário acadêmico.');
+      }
     } catch (error) {
       console.error('Error fetching calendar data:', error);
     } finally {
@@ -155,16 +164,19 @@ export function AcademicCalendar() {
     if (!userAuth) return;
     if (!silent) setIsSyncing(true);
     try {
-      const results = await Promise.all(FIXED_HOLIDAYS.map(async (h) => {
+      const itemsToUpdate: any[] = [];
+      let newCount = 0;
+      let updatedCount = 0;
+
+      for (const h of FIXED_HOLIDAYS) {
         let description = 'Feriado Nacional';
         if (h.category === 'estadual') description = 'Feriado Estadual (SP)';
         if (h.category === 'municipal') description = 'Feriado Municipal (Guarulhos)';
 
-        // Tenta encontrar por data primeiro para evitar duplicatas no mesmo dia com nomes diferentes
         const existingEvent = events.find(e => e.start_date === h.date && e.type === 'holiday');
 
         if (!existingEvent) {
-          await saveData('calendar_events', undefined, {
+          itemsToUpdate.push({
             title: h.title,
             start_date: h.date,
             end_date: h.date,
@@ -173,24 +185,20 @@ export function AcademicCalendar() {
             user_id: userAuth.uid,
             created_at: new Date().toISOString()
           });
-          return 'new';
+          newCount++;
         } else if (existingEvent.description !== description || existingEvent.title !== h.title) {
-          // Atualiza se a descrição ou título mudou
-          await saveData('calendar_events', existingEvent.id, {
+          itemsToUpdate.push({
+            id: existingEvent.id,
             title: h.title,
             description: description,
             updated_at: new Date().toISOString()
           });
-          return 'updated';
+          updatedCount++;
         }
-        return 'none';
-      }));
+      }
 
-      const newCount = results.filter(r => r === 'new').length;
-      const updatedCount = results.filter(r => r === 'updated').length;
-
-      if (newCount > 0 || updatedCount > 0) {
-        // onSnapshot handles updates
+      if (itemsToUpdate.length > 0) {
+        await saveBatch('calendar_events', itemsToUpdate, 45000); // 45s timeout for batch
       }
 
       if (!silent) setNotification({ 
@@ -293,8 +301,9 @@ export function AcademicCalendar() {
         }
       }
 
-      const promises = newEvents.map(ev => saveData('calendar_events', undefined, ev));
-      await Promise.all(promises);
+      if (newEvents.length > 0) {
+        await saveBatch('calendar_events', newEvents, 60000);
+      }
 
       setNotification({ type: 'success', message: `${newEvents.length} eventos acadêmicos gerados!` });
     } catch (error) {
@@ -355,7 +364,7 @@ export function AcademicCalendar() {
     try {
       await deleteData('calendar_events', id);
     } catch (error) {
-      handleFirestoreError(error, 'delete', `calendar_events/${id}`);
+      handleDbError(error, 'delete', `calendar_events/${id}`);
     }
   };
 
@@ -590,15 +599,15 @@ export function AcademicCalendar() {
                       <div className="w-8 h-1 bg-blue-600 rounded-full" />
                       1º Semestre (Jan - Jun)
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {[0, 1, 2, 3, 4, 5].map(monthIndex => (
-                        <div key={monthIndex} className="p-4 bg-slate-50/50 rounded-3xl border border-slate-100/50 hover:shadow-xl transition-all hover:bg-white hover:scale-[1.02] duration-300">
-                          <h5 className="text-[10px] font-black text-[#00174b] uppercase tracking-widest text-center mb-4 border-b border-slate-200/50 pb-2">
+                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-[2.5rem] border border-slate-100/50 hover:shadow-2xl transition-all hover:bg-white hover:scale-[1.02] duration-500">
+                          <h5 className="text-xs font-black text-[#00174b] uppercase tracking-widest text-center mb-6 border-b border-slate-200/50 pb-4">
                             {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                           </h5>
-                          <div className="grid grid-cols-7 gap-1">
+                          <div className="grid grid-cols-7 gap-2">
                             {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
-                              <div key={`sem1-${monthIndex}-${d}-${idx}`} className="text-center text-[8px] font-black text-slate-400 uppercase py-1">{d}</div>
+                              <div key={`sem1-${monthIndex}-${d}-${idx}`} className="text-center text-[10px] font-black text-slate-400 uppercase py-2">{d}</div>
                             ))}
                             {/* Days Logic */}
                             {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
@@ -616,16 +625,16 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day border",
+                                    "aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-black transition-all relative group/day border-2 min-h-[44px]",
                                     holiday 
                                       ? holiday.description?.includes('Estadual')
-                                        ? "bg-indigo-600 text-white border-indigo-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-indigo-100 ring-offset-1"
+                                        ? "bg-indigo-600 text-white border-indigo-700 cursor-pointer hover:scale-110 shadow-md ring-4 ring-indigo-100 ring-offset-2"
                                         : holiday.description?.includes('Municipal')
-                                          ? "bg-amber-600 text-white border-amber-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-amber-100 ring-offset-1"
-                                          : "bg-red-600 text-white border-red-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-red-100 ring-offset-1"
+                                          ? "bg-amber-600 text-white border-amber-700 cursor-pointer hover:scale-110 shadow-md ring-4 ring-amber-100 ring-offset-2"
+                                          : "bg-red-600 text-white border-red-700 cursor-pointer hover:scale-110 shadow-md ring-4 ring-red-100 ring-offset-2"
                                       : dayEvents.length > 0 
                                         ? "bg-blue-600 text-white cursor-pointer border-blue-700 hover:scale-110 shadow-sm" 
-                                        : isToday ? "bg-slate-800 text-white border-slate-900 shadow-lg" : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
+                                        : isToday ? "bg-slate-800 text-white border-slate-950 shadow-xl scale-110 z-10" : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/80 hover:border-slate-300"
                                   )}
                                 >
                                   {day}
@@ -653,15 +662,15 @@ export function AcademicCalendar() {
                       <div className="w-8 h-1 bg-emerald-600 rounded-full" />
                       2º Semestre (Jul - Dez)
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {[6, 7, 8, 9, 10, 11].map(monthIndex => (
-                        <div key={monthIndex} className="p-4 bg-slate-50/50 rounded-3xl border border-slate-100/50 hover:shadow-xl transition-all hover:bg-white hover:scale-[1.02] duration-300">
-                          <h5 className="text-[10px] font-black text-[#00174b] uppercase tracking-widest text-center mb-4 border-b border-slate-200/50 pb-2">
+                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-[2.5rem] border border-slate-100/50 hover:shadow-2xl transition-all hover:bg-white hover:scale-[1.02] duration-500">
+                          <h5 className="text-xs font-black text-[#00174b] uppercase tracking-widest text-center mb-6 border-b border-slate-200/50 pb-4">
                             {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                           </h5>
-                          <div className="grid grid-cols-7 gap-1">
+                          <div className="grid grid-cols-7 gap-2">
                             {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
-                              <div key={`sem2-${monthIndex}-${d}-${idx}`} className="text-center text-[8px] font-black text-slate-400 uppercase py-1">{d}</div>
+                              <div key={`sem2-${monthIndex}-${d}-${idx}`} className="text-center text-[10px] font-black text-slate-400 uppercase py-2">{d}</div>
                             ))}
                             {/* Days Logic */}
                             {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
@@ -679,16 +688,16 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex flex-col items-center justify-center rounded-lg text-[10px] font-black transition-all relative group/day border",
+                                    "aspect-square flex flex-col items-center justify-center rounded-xl text-xs font-black transition-all relative group/day border-2 min-h-[44px]",
                                     holiday 
                                       ? holiday.description?.includes('Estadual')
-                                        ? "bg-indigo-600 text-white border-indigo-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-indigo-100 ring-offset-1"
+                                        ? "bg-indigo-600 text-white border-indigo-700 cursor-pointer hover:scale-110 shadow-md ring-4 ring-indigo-100 ring-offset-2"
                                         : holiday.description?.includes('Municipal')
-                                          ? "bg-amber-600 text-white border-amber-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-amber-100 ring-offset-1"
-                                          : "bg-red-600 text-white border-red-700 cursor-pointer hover:scale-110 shadow-md ring-2 ring-red-100 ring-offset-1"
+                                          ? "bg-amber-600 text-white border-amber-700 cursor-pointer hover:scale-110 shadow-md ring-4 ring-amber-100 ring-offset-2"
+                                          : "bg-red-600 text-white border-red-700 cursor-pointer hover:scale-110 shadow-md ring-4 ring-red-100 ring-offset-2"
                                       : dayEvents.length > 0 
                                         ? "bg-blue-600 text-white cursor-pointer border-blue-700 hover:scale-110 shadow-sm" 
-                                        : isToday ? "bg-slate-800 text-white border-slate-900 shadow-lg" : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
+                                        : isToday ? "bg-slate-800 text-white border-slate-950 shadow-xl scale-110 z-10" : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/80 hover:border-slate-300"
                                   )}
                                 >
                                   {day}

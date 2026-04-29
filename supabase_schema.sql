@@ -180,10 +180,72 @@ CREATE TABLE IF NOT EXISTS public.institution_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- 12. Presenças
+CREATE TABLE IF NOT EXISTS public.attendances (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    class_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    date DATE NOT NULL,
+    status TEXT NOT NULL, -- 'P' (presente), 'F' (falta), 'J' (justificada)
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 13. Notas
+CREATE TABLE IF NOT EXISTS public.grades (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    class_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    period TEXT NOT NULL, -- 'B1', 'B2', etc.
+    value NUMERIC(4,2) NOT NULL,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 14. Eventos do Calendário
+CREATE TABLE IF NOT EXISTS public.calendar_events (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    type TEXT NOT NULL, -- 'academic', 'holiday', etc.
+    description TEXT,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 15. Certificados
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    issue_date DATE NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 16. Clero e Leigos
+CREATE TABLE IF NOT EXISTS public.clergy_leity (
+    id TEXT PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    parish_id TEXT,
+    email TEXT,
+    phone_mobile TEXT,
+    phone_whatsapp TEXT,
+    address TEXT,
+    status TEXT DEFAULT 'active',
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Habilitar RLS e criar políticas de acesso público para todas as tabelas
 DO $$
 DECLARE
-    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings'];
+    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity'];
     t text;
 BEGIN
     FOREACH t IN ARRAY tables LOOP

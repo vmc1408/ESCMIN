@@ -1,54 +1,96 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Users, GraduationCap, BookOpen, UserCheck, ArrowUpRight, RefreshCw } from 'lucide-react';
-import { db, fetchCount } from '../lib/database';
+import { fetchCount } from '../lib/database';
+import { isDbConnected, isSupabaseConfigured } from '../lib/supabase';
 import { motion } from 'motion/react';
+import { cn } from '../lib/utils';
 
 export function Dashboard() {
-  const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({
-    students: { total: 0, active: 0, inactive: 0 },
-    teachers: { total: 0, active: 0, inactive: 0 },
-    classes: { total: 0, active: 0, inactive: 0 },
-    subjects: { total: 0, active: 0, inactive: 0 }
+  const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'disconnected' | 'checking'>(
+    isSupabaseConfigured ? (isDbConnected ? 'connected' : 'checking') : 'disconnected'
+  );
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Initial state from cache if available
+  const [stats, setStats] = useState(() => {
+    const cached = localStorage.getItem('dashboard-stats-cache');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        return {
+          students: { total: 0, active: 0, inactive: 0 },
+          teachers: { total: 0, active: 0, inactive: 0 },
+          classes: { total: 0, active: 0, inactive: 0 },
+          subjects: { total: 0, active: 0, inactive: 0 }
+        };
+      }
+    }
+    return {
+      students: { total: 0, active: 0, inactive: 0 },
+      teachers: { total: 0, active: 0, inactive: 0 },
+      classes: { total: 0, active: 0, inactive: 0 },
+      subjects: { total: 0, active: 0, inactive: 0 }
+    };
   });
 
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date>(() => {
+    const cached = localStorage.getItem('dashboard-stats-last-updated');
+    return cached ? new Date(cached) : new Date();
+  });
 
   const fetchStats = useCallback(async () => {
-    setLoading(true);
-    const getStats = async (collectionName: string) => {
+    if (!isSupabaseConfigured) return;
+    setIsRefreshing(true);
+    
+    const updateCategory = async (category: keyof typeof stats, collection: string) => {
       try {
         const [total, active, inactive] = await Promise.all([
-          fetchCount(collectionName),
-          fetchCount(collectionName, 'Ativo'),
-          fetchCount(collectionName, 'Inativo')
+          fetchCount(collection),
+          fetchCount(collection, 'Ativo'),
+          fetchCount(collection, 'Inativo')
         ]);
         
-        return { total, active, inactive };
+        const newStats = { total, active, inactive };
+        
+        setStats(prev => {
+          const updated = {
+            ...prev,
+            [category]: newStats
+          };
+          localStorage.setItem('dashboard-stats-cache', JSON.stringify(updated));
+          return updated;
+        });
       } catch (e) {
-        console.error(`Stats error for ${collectionName}:`, e);
-        return { total: 0, active: 0, inactive: 0 };
+        console.error(`Stats error for ${collection}:`, e);
       }
     };
 
     try {
-      const [students, teachers, classes, subjects] = await Promise.all([
-        getStats('students'),
-        getStats('teachers'),
-        getStats('classes'),
-        getStats('subjects')
+      // Run updates in parallel
+      await Promise.allSettled([
+        updateCategory('students', 'students'),
+        updateCategory('teachers', 'teachers'),
+        updateCategory('classes', 'classes'),
+        updateCategory('subjects', 'subjects')
       ]);
-      setStats({ students, teachers, classes, subjects });
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Error fetching stats:', err);
+      
+      const now = new Date();
+      setLastUpdated(now);
+      localStorage.setItem('dashboard-stats-last-updated', now.toISOString());
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     fetchStats();
+    
+    // Listen for connection status changes
+    const handleStatusChange = (e: any) => {
+      setDbStatus(e.detail.connected ? 'connected' : 'error');
+    };
+    window.addEventListener('supabase-status-change', handleStatusChange);
     
     // Refresh only on explicit window re-focus if significantly later
     const handleFocus = () => {
@@ -65,6 +107,7 @@ export function Dashboard() {
     
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('supabase-status-change', handleStatusChange);
       clearInterval(interval);
     };
   }, [fetchStats]);
@@ -84,7 +127,15 @@ export function Dashboard() {
         className="flex items-center justify-between"
       >
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-black text-[#131b2e] tracking-tight">Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black text-[#131b2e] tracking-tight">Dashboard</h1>
+            {isRefreshing && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold border border-emerald-100/50 animate-pulse">
+                <RefreshCw size={10} className="animate-spin" />
+                Sincronizando...
+              </div>
+            )}
+          </div>
           <p className="text-sm font-medium text-slate-500">Visão geral do sistema de gestão ESCMIN.</p>
         </div>
         
@@ -95,11 +146,13 @@ export function Dashboard() {
           </div>
           <button 
             onClick={fetchStats}
-            disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-100 rounded-2xl text-slate-500 font-bold text-xs uppercase tracking-widest hover:bg-slate-50 hover:text-blue-600 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+            disabled={isRefreshing}
+            className={cn(
+              "p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-[#131b2e] hover:border-slate-300 transition-all shadow-sm active:scale-95",
+              isRefreshing && "opacity-50 cursor-wait"
+            )}
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Atualizando...' : 'Atualizar Dados'}
+            <RefreshCw size={18} className={cn(isRefreshing && "animate-spin")} />
           </button>
         </div>
       </motion.div>
@@ -125,19 +178,28 @@ export function Dashboard() {
             <div className="space-y-0.5">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">{stat.label} Ativos</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-5xl font-black text-[#131b2e] tracking-tighter">{stat.stats.active}</h3>
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <h3 className="text-5xl font-black text-[#131b2e] tracking-tighter">
+                  {isRefreshing && stat.stats.total === 0 ? "..." : stat.stats.active}
+                </h3>
+                <div className={cn(
+                  "h-2 w-2 rounded-full",
+                  dbStatus === 'connected' ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+                )}></div>
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-50">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider leading-none">Inativos</p>
-                <p className="text-lg font-black text-slate-400 tracking-tight">{stat.stats.inactive}</p>
+                <p className="text-lg font-black text-slate-400 tracking-tight">
+                  {isRefreshing && stat.stats.total === 0 ? "-" : stat.stats.inactive}
+                </p>
               </div>
               <div className="space-y-1 border-l border-slate-100 pl-4">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider leading-none">Registrados</p>
-                <p className="text-lg font-black text-slate-700 tracking-tight">{stat.stats.total}</p>
+                <p className="text-lg font-black text-slate-700 tracking-tight">
+                  {isRefreshing && stat.stats.total === 0 ? "-" : stat.stats.total}
+                </p>
               </div>
             </div>
             

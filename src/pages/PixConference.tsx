@@ -37,8 +37,10 @@ import { cn, safeFormat, parseSafeDate, formatDate } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 export function PixConference() {
+  const { user: userAuth } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<PixTransaction[]>([]);
@@ -1117,7 +1119,7 @@ export function PixConference() {
     if (!registeringContribution || selectedPeriods.length === 0) return;
     
     try {
-      const user = auth.currentUser;
+      const user = userAuth;
       const totalAmount = registeringContribution.amount;
       const studentData = registeringContribution.student || students.find(s => s.id === registeringContribution.matched_student_id);
       const studentId = studentData?.id || registeringContribution.matched_student_id;
@@ -1127,18 +1129,18 @@ export function PixConference() {
       }
 
       const amountPerMonth = totalAmount / selectedPeriods.length;
-      const safeDate = parseSafeDate(registeringContribution.date).toISOString();
+      // Use registeringContribution.date if it's already a Date object or convert it
+      const rawDate = registeringContribution.date;
+      const safeDate = (rawDate instanceof Date ? rawDate : parseSafeDate(rawDate)).toISOString();
 
       // Check for existing contributions to prevent duplicates - more complex now with multiple years
       const duplicateChecks = await Promise.all(selectedPeriods.map(async (period) => {
-        const q = query(
-          collection(db, 'contributions'),
-          where('student_id', '==', studentId),
-          where('reference_year', '==', period.year),
-          where('reference_month', '==', period.month)
-        );
-        const snap = await getDocs(q);
-        return snap.empty ? null : period;
+        const records = await fetchQuery('contributions', [
+          { field: 'student_id', operator: '==', value: studentId },
+          { field: 'reference_year', operator: '==', value: period.year },
+          { field: 'reference_month', operator: '==', value: period.month }
+        ]);
+        return records && records.length > 0 ? period : null;
       }));
 
       const activeDuplicates = duplicateChecks.filter(d => d !== null) as { month: number, year: number }[];

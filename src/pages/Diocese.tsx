@@ -28,7 +28,7 @@ import {
   Shield,
   Upload
 } from 'lucide-react';
-import { db, fetchAll, saveData, deleteData } from '../lib/database';
+import { fetchAll, saveData, deleteData } from '../lib/database';
 import { cn, maskCEP, maskPhone } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Parish, Foraria, ClergyLeity, ClergyRole } from '../types';

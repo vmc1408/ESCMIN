@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, Wallet, User, LogOut } from 'lucide-react';
+import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { getInstitutionSettings } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured, isDbConnected, testConnection } from '../lib/supabase';
 import { cn } from '../lib/utils';
 
 export function Navbar() {
   const { profile, logout } = useAuth();
   const [institutionName, setInstitutionName] = useState('Gestão Escolar');
   const [avatarError, setAvatarError] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'disconnected' | 'checking'>(
+    isSupabaseConfigured ? (isDbConnected ? 'connected' : 'checking') : 'disconnected'
+  );
+  const [latency, setLatency] = useState<number | null>(null);
 
   const fetchInstitution = async () => {
     try {
@@ -21,13 +27,28 @@ export function Navbar() {
     }
   };
 
+  const handleRetry = async () => {
+    if (isRetrying || !isSupabaseConfigured) return;
+    setIsRetrying(true);
+    setDbStatus('checking');
+    await testConnection();
+    setIsRetrying(false);
+  };
+
   useEffect(() => {
     fetchInstitution();
 
-    // Listen for updates from Settings page
+    const handleStatusChange = (e: any) => {
+      setDbStatus(e.detail.connected ? 'connected' : 'error');
+      setLatency(e.detail.latency);
+    };
+
     window.addEventListener('institution-updated', fetchInstitution);
+    window.addEventListener('supabase-status-change', handleStatusChange);
+    
     return () => {
       window.removeEventListener('institution-updated', fetchInstitution);
+      window.removeEventListener('supabase-status-change', handleStatusChange);
     };
   }, []);
 
@@ -40,7 +61,34 @@ export function Navbar() {
     <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/50 flex items-center justify-between px-4 md:px-6 z-30 print:hidden shrink-0">
       <div className="flex items-center gap-4 md:gap-8 flex-1 min-w-0">
         <div className="lg:hidden w-10" /> {/* Espaçador para o botão de menu que está no Layout */}
-        <h2 className="text-sm md:text-lg font-black text-[#131b2e] tracking-tight truncate">{institutionName}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm md:text-lg font-black text-[#131b2e] tracking-tight truncate">{institutionName}</h2>
+          
+          <button 
+            onClick={handleRetry}
+            disabled={isRetrying || dbStatus === 'connected'}
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight transition-all",
+              dbStatus === 'connected' ? "bg-emerald-50 text-emerald-600 border border-emerald-100 cursor-default" :
+              dbStatus === 'error' ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer" :
+              dbStatus === 'checking' ? "bg-amber-50 text-amber-600 border border-amber-100 animate-pulse cursor-wait" :
+              "bg-slate-50 text-slate-400 border border-slate-100"
+            )}
+            title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
+          >
+            {dbStatus === 'connected' && <CheckCircle2 size={10} />}
+            {dbStatus === 'error' && <WifiOff size={10} />}
+            {dbStatus === 'checking' && <Database size={10} />}
+            {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
+            <span className="hidden xs:inline">
+              {dbStatus === 'connected' ? (
+                <>Online {latency ? `(${latency}ms)` : ''}</>
+              ) :
+               dbStatus === 'error' ? (isRetrying ? 'Tentando...' : 'Erro - Tentar Reconc.') :
+               dbStatus === 'checking' ? 'Conectando...' : 'Não Configurado'}
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 md:gap-5">

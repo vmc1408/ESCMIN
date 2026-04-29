@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, fetchWithTimeout } from '../lib/supabase';
 import { saveData, fetchById } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,15 +82,25 @@ export function Login() {
   useEffect(() => {
     const checkInitialization = async () => {
       try {
-        if (!isSupabaseConfigured) return;
-        const { data, error: sbErr } = await supabase
-          .from('institution_settings')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
+        if (!isSupabaseConfigured) {
+          setInitialLoading(false);
+          return;
+        }
+        
+        const result = await fetchWithTimeout(
+          supabase
+            .from('institution_settings')
+            .select('id')
+            .limit(1)
+            .maybeSingle()
+        );
+        
+        const data = result?.data;
+        const sbErr = result?.error;
         
         setNeedsBootstrap(!data && !sbErr);
-      } catch (err) {
+      } catch (err: any) {
+        console.error("[Login] Erro ao verificar inicialização:", err.message);
         setNeedsBootstrap(false);
       } finally {
         setInitialLoading(false);
@@ -142,16 +152,25 @@ export function Login() {
     setError(null);
 
     try {
-      // 1. Check if user is pre-registered in email_registry
+      // 1. Check if user is authorized (either in registry or already in users table)
       const emailLower = email.toLowerCase().trim();
-      const preRegData = await fetchById('email_registry', emailLower);
       
-      if (!preRegData) {
+      const [preRegRes, existingUserRes] = await Promise.all([
+        supabase.from('email_registry').select('*').ilike('email', emailLower).maybeSingle(),
+        supabase.from('users').select('*').ilike('email', emailLower).maybeSingle()
+      ]);
+      
+      const preRegData = preRegRes.data;
+      const existingUserData = existingUserRes.data;
+      
+      if (!preRegData && !existingUserData) {
         setError("Este e-mail não está autorizado para primeiro acesso. Por favor, solicite seu pré-cadastro.");
         setLoading(false);
         setIsProcessing(false);
         return;
       }
+
+      const displayName = preRegData?.name || existingUserData?.name || emailLower.split('@')[0];
 
       // 2. Create Supabase Auth user
       const { error: sbErr } = await supabase.auth.signUp({
@@ -159,7 +178,7 @@ export function Login() {
         password,
         options: {
           data: {
-            full_name: preRegData.name || emailLower.split('@')[0]
+            full_name: displayName
           }
         }
       });

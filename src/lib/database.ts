@@ -1,4 +1,4 @@
-import { supabase, fetchRecursive, isSupabaseConfigured } from './supabase';
+import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout } from './supabase';
 
 // Helper to handle Errors
 export interface DbErrorInfo {
@@ -32,9 +32,15 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
     
+    // fetchRecursive internally calls supabase, but let's wrap it in a timeout conceptually if possible
+    // Since fetchRecursive is complex, we just set a large timeout or rely on its internal parts
     const sbData = await fetchRecursive(collectionName, { select, orderCol, ascending });
     return sbData || [];
   } catch (err: any) {
+    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout ao listar em ${collectionName}`);
+      return [];
+    }
     console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err.message);
     throw err;
   }
@@ -49,15 +55,24 @@ export const fetchById = async (collectionName: string, id: string) => {
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
     
-    const { data, error } = await supabase
-      .from(collectionName)
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+    const result = await fetchWithTimeout(
+      supabase
+        .from(collectionName)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+    );
+
+    const data = result?.data;
+    const error = result?.error;
 
     if (error) throw error;
     return data;
   } catch (err: any) {
+    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout ao buscar em ${collectionName} ID ${id}`);
+      return null;
+    }
     console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err.message);
     throw err;
   }
@@ -95,10 +110,14 @@ export const fetchQuery = async (
       else if (op === 'in') queryBuilder = queryBuilder.in(fieldOrFilters, value);
     }
     
-    const { data, error } = await queryBuilder;
-    if (error) throw error;
-    return data;
+    const result = await fetchWithTimeout(queryBuilder);
+    if (result?.error) throw result.error;
+    return result?.data || [];
   } catch (err: any) {
+    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout na query em ${collectionName}`);
+      return [];
+    }
     console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, err.message);
     return [];
   }
@@ -113,10 +132,16 @@ export const fetchCount = async (collectionName: string, status?: string) => {
     
     let q = supabase.from(collectionName).select('*', { count: 'exact', head: true });
     if (status) q = q.eq('status', status);
-    const { count, error } = await q;
-    if (error) throw error;
-    return count || 0;
+    
+    const result = await fetchWithTimeout(q);
+    if (result?.error) throw result.error;
+    
+    return result?.count || 0;
   } catch (err: any) {
+    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
+      console.warn(`[Supabase] Timeout ao contar em ${collectionName}`);
+      return 0;
+    }
     console.error(`[Supabase] Erro ao contar em ${collectionName}:`, err.message);
     return 0;
   }
@@ -132,15 +157,43 @@ export const saveData = async (collectionName: string, id: string | undefined, d
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
     
-    const { error } = await supabase.from(collectionName).upsert(payload);
-    if (error) {
-      console.error(`[Supabase Critical] ${collectionName}:`, error.message);
-      throw error;
-    }
+    const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payload));
+    if (result?.error) throw result.error;
 
     return finalId;
   } catch (err: any) {
+    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
+       throw new Error(`Tempo esgotado ao salvar em ${collectionName}.`);
+    }
     console.error(`[saveData] Erro fatal em "${collectionName}":`, err.message);
+    throw err;
+  }
+};
+
+/**
+ * Save multiple records using Supabase Upsert
+ */
+export const saveBatch = async (collectionName: string, items: any[], timeoutMs = 60000) => {
+  if (!items || items.length === 0) return [];
+
+  const payloads = items.map(item => ({
+    ...item,
+    id: item.id || crypto.randomUUID(),
+    updated_at: new Date().toISOString()
+  }));
+
+  try {
+    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
+    
+    const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payloads), timeoutMs);
+    if (result?.error) throw result.error;
+
+    return payloads.map(p => p.id);
+  } catch (err: any) {
+    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
+       throw new Error(`Tempo esgotado ao salvar lote em ${collectionName}.`);
+    }
+    console.error(`[saveBatch] Erro fatal em "${collectionName}":`, err.message);
     throw err;
   }
 };
@@ -159,6 +212,26 @@ export const deleteData = async (collectionName: string, id: string) => {
   } catch (err: any) {
     console.error(`[deleteData] Erro em "${collectionName}":`, err.message);
     throw err;
+  }
+};
+
+/**
+ * Utility to fetch institution settings
+ */
+export const getInstitutionSettings = async () => {
+  try {
+    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from('institution_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+    
+    if (error) throw error;
+    return data;
+  } catch (err: any) {
+    console.error('[Supabase] Erro ao buscar configurações da instituição:', err.message);
+    return null;
   }
 };
 

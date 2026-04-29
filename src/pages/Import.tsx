@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
-import { fetchAll, saveData } from '../lib/database';
+import { fetchAll, saveData, saveBatch } from '../lib/database';
 import { useNavigate } from 'react-router-dom';
 import { useImport } from '../contexts/ImportContext';
 
@@ -295,13 +295,15 @@ export function Import() {
 
       if (toInsert.length > 0) {
         try {
-          for (const entity of toInsert) {
-            // Sanitise docId
+          // Prepare entities with correct IDs for batch upsert
+          const entitiesWithIds = toInsert.map(entity => {
             const docId = String(entity[uniqueField]).replace(/\//g, '-');
-            
-            // Save to Supabase via our generic saveData
-            await saveData(importType, docId, entity);
-          }
+            return { ...entity, id: docId };
+          });
+
+          // Save to Supabase via our new saveBatch utility
+          await saveBatch(importType, entitiesWithIds, 60000);
+          
           const currentImported = (processed + batch.length) > total ? total : (processed + batch.length);
           updateProgress(currentImported, Math.round((currentImported / total) * 100));
         } catch (error: any) {

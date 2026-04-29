@@ -212,7 +212,7 @@ export function Attendance() {
     if (!userAuth || !selectedSubject) return;
     setSaving(true);
     try {
-      const recordsToSave = Object.values(attendance);
+      const recordsToSave = Object.values(attendance) as AttendanceRecord[];
       for (const record of recordsToSave) {
         const studentId = record.student_id;
         const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedDate}_${studentId}`;
