@@ -95,18 +95,17 @@ export function Navbar() {
           </div>
 
           {(institution?.address || institution?.email) && (
-            <div className="hidden lg:flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+            <div className="hidden lg:flex flex-col gap-0.5 mt-1">
               {institution?.address && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[#497cff] font-black underline decoration-blue-200">Endereço:</span> 
-                  <span className="truncate max-w-[300px]">{institution.address}</span>
+                <div className="flex items-center gap-1.5 text-[9.5px] font-medium text-slate-500 uppercase tracking-wide">
+                  <span>{institution.address}</span>
                 </div>
               )}
-              {institution?.address && institution?.email && <div className="h-1 w-1 bg-slate-300 rounded-full" />}
               {institution?.email && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[#497cff] font-black underline decoration-blue-200">Email:</span> 
+                <div className="flex items-center gap-1.5 text-[9.5px] font-medium text-slate-500 uppercase tracking-wide">
                   <span>{institution.email}</span>
+                  {institution?.phone && <span className="text-slate-300 mx-1">|</span>}
+                  {institution?.phone && <span>{institution.phone}</span>}
                 </div>
               )}
             </div>

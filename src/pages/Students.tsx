@@ -471,21 +471,19 @@ export function Students() {
                 <img src={inst.logo_url} className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
               </div>
             )}
-            <div className="flex-1 space-y-1">
+            <div className="flex-1">
               <p className="text-[10pt] font-medium tracking-wider text-slate-600">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[16pt] font-black uppercase tracking-tight text-slate-900 leading-tight">
+              <h1 className="text-[15pt] font-black uppercase tracking-tight text-slate-900 leading-tight">
                 {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
               <p className="text-[11pt] font-bold text-slate-700">Pe. José Fernando de Brito</p>
               
-              <div className="mt-3 text-[9pt] text-slate-500 leading-normal">
-                <p className="flex items-center gap-2">
-                  <span className="font-bold text-slate-700 uppercase">Endereço:</span> 
-                  {inst?.address || 'Av. Venus, 195 - Itapegica - Guarulhos/SP - Cep 07044-170'}
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="font-bold text-slate-700 uppercase">Contato:</span> 
-                  {inst?.phone || '(11) 2421-2935'} | {inst?.email || 'email@email.com'}
+              <div className="mt-2 text-[9.5pt] text-slate-600 leading-tight space-y-0.5">
+                <p>{inst?.address || 'Av. Venus, 195 - Itapegica - Guarulhos/SP - Cep 07044-170'}</p>
+                <p>
+                  {inst?.phone || '(11) 2421-2935'} 
+                  {inst?.email && <span className="mx-2 text-slate-300">|</span>}
+                  {inst?.email || 'email@email.com'}
                 </p>
               </div>
             </div>
