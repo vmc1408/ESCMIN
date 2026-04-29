@@ -12,6 +12,7 @@ import {
   MapPin,
   Calendar,
   FileText,
+  Printer,
   Loader2,
   Plus,
   GraduationCap,
@@ -21,8 +22,11 @@ import {
   Upload,
   RotateCcw,
   ArrowUpDown,
-  CreditCard
+  CreditCard,
+  Info,
+  BookOpen
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -209,6 +213,7 @@ export function Students() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const webcamRef = useRef<Webcam>(null);
 
   useEffect(() => {
@@ -437,249 +442,141 @@ export function Students() {
     }
   };
 
-  const generateStudentPDF = async (student: Student) => {
-    try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 15;
-      const centerX = pageWidth / 2;
-      
-      // Fetch institution settings
-      const institutions = await fetchAll('institution_settings');
-      const inst = institutions && institutions.length > 0 ? institutions[0] : null;
+  const handlePrint = () => {
+    window.print();
+    setShowPrintPreview(false);
+  };
 
-      // --- HEADER SECTION ---
-      let y = 15;
-      if (inst?.logo_url) {
-        try { 
-          doc.addImage(inst.logo_url, 'auto', margin, y, 25, 25); 
-        } catch (e) {}
-      }
+  const PrintableGrade = () => {
+    if (!selectedStudent) return null;
+    const currentClass = classes.find(c => c.id === selectedStudent.class_id);
+    
+    return (
+      <div id="printable-student-record" className="hidden print:block fixed inset-0 bg-white z-[9999] p-12 text-black overflow-visible font-serif">
+        <div className="max-w-[190mm] mx-auto space-y-8">
+          {/* Cabeçalho Institucional */}
+          <div className="flex items-center gap-8 border-b-4 border-slate-900 pb-6">
+            <div className="w-24 h-24 bg-slate-100 flex items-center justify-center border-2 border-slate-900">
+              <GraduationCap size={48} className="text-black" />
+            </div>
+            <div className="flex-1 text-center">
+              <h1 className="text-2xl font-black uppercase tracking-tight">DIOCESE DE GUARULHOS</h1>
+              <h2 className="text-lg font-bold text-slate-700 uppercase">Escola Diocesana de Ministérios</h2>
+              <p className="text-[10px] mt-1 font-bold italic">Ficha de Inscrição Acadêmica - Registro Oficial</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase">Matrícula</p>
+              <p className="text-xl font-black tracking-tighter">{selectedStudent.registration_number}</p>
+            </div>
+          </div>
 
-      doc.setTextColor(50);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('DIOCESE DE GUARULHOS', centerX + 10, y + 5, { align: 'center' });
-      
-      doc.setFontSize(22);
-      doc.setFont('helvetica', 'bold');
-      doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), centerX + 10, y + 15, { align: 'center' });
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Pe. José Fernando de Brito', centerX + 10, y + 21, { align: 'center' });
+          <div className="grid grid-cols-4 gap-8">
+            <div className="col-span-1">
+              <div className="aspect-[3/4] border-2 border-slate-900 flex items-center justify-center overflow-hidden bg-slate-50 relative">
+                {selectedStudent.photo_url ? (
+                   <img src={selectedStudent.photo_url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <p className="text-[10px] font-black uppercase text-slate-300">Foto 3x4</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="col-span-3 space-y-6">
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Nome Completo do Candidato</p>
+                <p className="text-2xl font-black uppercase border-b border-slate-900 pb-1">{selectedStudent.name}</p>
+              </div>
 
-      y += 35;
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Ficha de Inscrição', centerX, y, { align: 'center' });
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">CPF</p>
+                  <p className="text-sm font-bold border-b border-slate-100">{selectedStudent.cpf || '---'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">RG</p>
+                  <p className="text-sm font-bold border-b border-slate-100">{selectedStudent.rg || '---'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Nascimento</p>
+                  <p className="text-sm font-bold border-b border-slate-100">{formatDateForDisplay(selectedStudent.birth_date) || '---'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      y += 10;
-      
-      // --- TOP BOXES SECTION ---
-      const boxHeight = 40;
-      
-      // Controle da Escola Box
-      doc.setDrawColor(150);
-      doc.setLineWidth(0.3);
-      doc.rect(margin, y, 60, boxHeight);
-      doc.setFontSize(12);
-      doc.text('Controle da Escola', margin + 2, y + 6);
-      doc.line(margin + 2, y + 8, margin + 55, y + 8);
-      
-      doc.setFontSize(11);
-      doc.text('Inscrição:', margin + 4, y + 22);
-      doc.rect(margin + 4, y + 26, 52, 11);
-      doc.setFontSize(9);
-      doc.text(`Nº ${student.registration_number || ''}`, margin + 6, y + 33);
+          <div className="grid grid-cols-2 gap-12 py-8 border-t border-slate-200">
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-slate-900 pl-3 bg-slate-50 py-1">Endereço e Contato</h3>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase">Logradouro</p>
+                  <p className="text-sm font-bold">{selectedStudent.address_street || '---'}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase">Bairro</p>
+                    <p className="text-sm font-bold">{selectedStudent.address_neighborhood || '---'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase">Cidade/UF</p>
+                    <p className="text-sm font-bold">{selectedStudent.address_city} - {selectedStudent.address_state}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase">E-mail</p>
+                  <p className="text-sm font-bold">{(selectedStudent.email || '---').toLowerCase()}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-xs font-black uppercase tracking-widest border-l-4 border-slate-900 pl-3 bg-slate-50 py-1">Informações Pastorais</h3>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase">Paróquia / Forania</p>
+                  <p className="text-sm font-bold">{selectedStudent.parish || '---'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase">Atuação Pastoral</p>
+                  <p className="text-sm font-bold">{selectedStudent.pastoral_participates || '---'}</p>
+                </div>
+                <div className="p-4 border-2 border-slate-100 rounded-xl bg-slate-50/50">
+                   <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Curso Selecionado</p>
+                   <p className="text-base font-black text-blue-800">{currentClass?.name || 'FORMAÇÃO TEOLÓGICA BÁSICA'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      // Course selection Box (Yellow) - Reduced width to 82 to avoid overlap with photo
-      doc.rect(margin + 62, y, 82, boxHeight);
-      doc.setFontSize(10);
-      doc.setTextColor(0);
-      doc.setFont('helvetica', 'bold');
-      doc.text('CURSO:', margin + 66, y + 7);
-      
-      const studentClass = classes.find(c => c.id === student.class_id);
-      doc.setFont('helvetica', 'normal');
-      const courses = ['Teologia', 'Doutrina Social da Igreja', 'História dos Santos Negros'];
-      
-      courses.forEach((c, i) => {
-        // Auto-check based on student's course record OR class name match
-        const isChecked = student.course === c || (studentClass?.name && studentClass.name.toLowerCase().includes(c.toLowerCase()));
-        doc.rect(margin + 66, y + 13 + (i * 8), 5, 5);
-        if (isChecked) {
-          doc.line(margin + 66, y + 13 + (i * 8), margin + 71, y + 18 + (i * 8));
-          doc.line(margin + 71, y + 13 + (i * 8), margin + 66, y + 18 + (i * 8));
-        }
-        doc.text(c, margin + 75, y + 17 + (i * 8));
-      });
+          <div className="p-8 border-2 border-slate-900 rounded-3xl space-y-6">
+            <h4 className="text-xs font-black uppercase text-center border-b border-slate-200 pb-2">Termo de Ciência e Acordo</h4>
+            <div className="text-[11px] leading-relaxed text-slate-700 italic text-justify space-y-2">
+              <p>1. O(a) interessado(a) afirma estar ciente de que as aulas ocorrerão conforme o calendário acadêmico vigente.</p>
+              <p>2. É obrigatória a frequência mínima de 75% em cada disciplina para a obtenção do certificado de conclusão.</p>
+              <p>3. O(a) aluno(a) autoriza a Diocese de Guarulhos a utilizar seus dados cadastrais para fins exclusivamente acadêmicos e administrativos.</p>
+            </div>
+            <p className="text-[11px] pt-4">
+              Eu, <strong>{selectedStudent.name.toUpperCase()}</strong>, declaro para os devidos fins que os dados acima são verdadeiros e que aceito as normas da Escola Diocesana de Ministérios.
+            </p>
+          </div>
 
-      // Special note if it's a specific class
-      if (studentClass?.name) {
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        doc.text(`Turma: ${studentClass.name}`, margin + 66, y + 38);
-      }
+          <div className="mt-24 flex justify-between items-end px-12">
+            <div className="w-72 border-t-2 border-slate-900 pt-3 text-center">
+              <p className="text-[10px] font-black uppercase">Assinatura do Candidato</p>
+            </div>
+            <div className="w-72 border-t-2 border-slate-900 pt-3 text-center">
+              <p className="text-[10px] font-black uppercase">Secretaria Acadêmica</p>
+              <p className="text-[8px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Selo de Autenticidade</p>
+            </div>
+          </div>
 
-      // Photo Box (Adjusted to fit perfectly)
-      const photoBoxWidth = 34;
-      const photoBoxHeight = boxHeight;
-      const photoX = pageWidth - margin - photoBoxWidth;
-      doc.setDrawColor(150);
-      doc.rect(photoX, y, photoBoxWidth, photoBoxHeight);
-      
-      if (student.photo_url) {
-        try {
-          doc.addImage(student.photo_url, 'auto', photoX + 1, y + 1, photoBoxWidth - 2, photoBoxHeight - 2);
-        } catch (e) {
-          doc.setFontSize(7);
-          doc.setTextColor(150);
-          doc.text('COLE AQUI', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 - 2, { align: 'center' });
-          doc.text('FOTO 3X4', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 + 2, { align: 'center' });
-        }
-      } else {
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        doc.text('COLE AQUI', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 - 2, { align: 'center' });
-        doc.text('FOTO 3X4', photoX + photoBoxWidth / 2, y + photoBoxHeight / 2 + 2, { align: 'center' });
-      }
-
-      y += boxHeight + 15;
-      doc.setTextColor(50);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-
-      // --- PERSONAL DATA LINES (Red Adjustment for Margins) ---
-      const fieldEndX = pageWidth - margin;
-      const drawField = (label: string, value: string, x: number, yPos: number, endXPos: number) => {
-        doc.text(label, x, yPos);
-        const labelWidth = doc.getTextWidth(label) + 2;
-        // The line now stops EXACTLY at endXPos
-        doc.line(x + labelWidth, yPos + 1, endXPos, yPos + 1);
-        doc.setFont('helvetica', 'bold');
-        
-        // Ensure text doesn't overflow the segment
-        const availableWidth = endXPos - (x + labelWidth) - 2;
-        const textToDraw = (value || '').toUpperCase();
-        doc.text(textToDraw, x + labelWidth + 1, yPos, { maxWidth: availableWidth });
-        doc.setFont('helvetica', 'normal');
-      };
-
-      drawField('Nome:', student.name, margin, y, fieldEndX);
-      
-      y += 8;
-      drawField('Endereço:', student.address_street || '', margin, y, fieldEndX);
-      
-      y += 8;
-      // Fixed segments for Bairro/Cidade/Uf to hit the right margin perfectly
-      const colBairroEnd = margin + 75; // Reduced slightly to balance
-      const colCidadeEnd = fieldEndX - 28; // Increased space for UF from 15 to 28
-      drawField('Bairro:', student.address_neighborhood || '', margin, y, colBairroEnd);
-      drawField('Cidade:', student.address_city || '', colBairroEnd + 2, y, colCidadeEnd);
-      drawField('Uf:', student.address_state || '', colCidadeEnd + 2, y, fieldEndX);
-      
-      y += 8;
-      const colCepEnd = margin + 80;
-      drawField('Cep:', student.address_zip || '', margin, y, colCepEnd);
-      drawField('Celular:', student.phone_mobile || '', colCepEnd + 2, y, fieldEndX);
-      
-      y += 8;
-      const colNascEnd = margin + 70;
-      const colRGEnd = margin + 125;
-      drawField('Data de Nascimento:', formatDateForDisplay(student.birth_date), margin, y, colNascEnd);
-      drawField('RG:', student.rg || '', colNascEnd + 2, y, colRGEnd);
-      drawField('CPF:', student.cpf || '', colRGEnd + 2, y, fieldEndX);
-      
-      y += 8;
-      drawField('Email:', (student.email || '').toLowerCase(), margin, y, fieldEndX);
-      
-      y += 10;
-      const colParishEnd = margin + 110;
-      drawField('É participante de qual Paróquia?', student.parish || '', margin, y, colParishEnd);
-      drawField('Forania:', student.forany || '', colParishEnd + 2, y, fieldEndX);
-      
-      y += 8;
-      drawField('Participa de qual Pastoral?', student.pastoral_participates || '', margin, y, fieldEndX);
-
-      y += 15;
-
-      // --- INFORMATION SECTION ---
-      doc.setFont('helvetica', 'bold');
-      doc.text('Informações básicas para admissão ao curso escolhido', centerX, y, { align: 'center' });
-      doc.setLineWidth(0.1);
-      doc.line(centerX - 65, y + 1, centerX + 65, y + 1);
-      
-      y += 8;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      const guidelines = [
-        '1) No ato da matrícula o(a) aluno(a) concorda em priorizar a frequência no curso escolhido.',
-        '2) Como critério de aprovação o(a) aluno(a) deverá ter frequência mínima de 75% das aulas.',
-        '3) A nota mínima exigida para a promoção do(a) aluno(a) é de 5,0 (cinco) por disciplina.',
-        '4) O(a) aluno(a) se compromete a manter em dia a mensalidade estabelecida dentro do prazo de vencimento.'
-      ];
-      
-      guidelines.forEach(line => {
-        doc.text(line, margin + 5, y);
-        y += 5;
-      });
-
-      y += 5;
-      doc.text('Eu ', margin, y);
-      doc.line(margin + 5, y + 1, margin + 135, y + 1);
-      doc.setFont('helvetica', 'bold');
-      doc.text(student.name.toUpperCase(), margin + 10, y);
-      doc.setFont('helvetica', 'normal');
-      doc.text(', declaro que', margin + 136, y);
-      
-      y += 5;
-      const declaration = `estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.`;
-      const splitDec = doc.splitTextToSize(declaration, pageWidth - margin * 2);
-      doc.text(splitDec, margin, y);
-
-      y += 20;
-      // Auto-fill date
-      const regDate = student.start_date || format(new Date(), 'dd/MM/yyyy');
-      doc.text(`Guarulhos, ${regDate}`, margin, y);
-      
-      doc.line(pageWidth - margin - 80, y, pageWidth - margin - 5, y);
-      doc.setFontSize(8);
-      doc.text('Aluno(a)', pageWidth - margin - 42.5, y + 4, { align: 'center' });
-
-      // --- FOOTER SECTION ---
-      y = doc.internal.pageSize.height - 35;
-      doc.setLineWidth(0.5);
-      doc.line(margin, y, pageWidth - margin, y);
-      
-      y += 6;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('ENDEREÇO:', margin, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text(inst?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP', margin, y + 4);
-      doc.text(`Telefone: ${inst?.phone || '(11) 2421-2935'}`, margin, y + 8);
-      doc.text(`Email: ${inst?.email || 'edm@diocesedeguarulhos.org.br'}`, margin, y + 12);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('ATENDIMENTO SECRETARIA:', centerX + 15, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text('De Quarta à Sexta-feira das 14h às 18h', centerX + 15, y + 4);
-
-      // Discrete Footer Message
-      doc.setFontSize(9);
-      doc.setTextColor(0, 150, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Ficha exclusiva para controle interno. via única.', centerX, doc.internal.pageSize.height - 5, { align: 'center' });
-
-      doc.save(`Ficha_Inscricao_${student.name.replace(/\s+/g, '_')}.pdf`);
-    } catch (error) {
-      console.error('Error generating student PDF:', error);
-      alert('Erro ao gerar ficha de inscrição');
-    }
+          <div className="mt-16 text-[9px] text-slate-400 font-bold uppercase text-center flex justify-between items-center opacity-50">
+            <p>Gerado pelo Sistema Acadêmico ESCMIN</p>
+            <p>Guarulhos, {new Date().toLocaleDateString('pt-BR')}</p>
+            <p>Pág 1/1</p>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const filteredStudents = React.useMemo(() => {
@@ -892,11 +789,11 @@ export function Students() {
               <div className="flex gap-3">
                 {!isEditing && selectedStudent && (
                   <button 
-                    onClick={() => generateStudentPDF(selectedStudent)}
+                    onClick={() => setShowPrintPreview(true)}
                     className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
                   >
-                    <FileText size={16} />
-                    Ficha (PDF)
+                    <Printer size={16} />
+                    Imprimir Ficha
                   </button>
                 )}
                 {!isEditing && selectedStudent && (
@@ -1087,14 +984,6 @@ export function Students() {
                           tabIndex={8}
                         />
                       </div>
-                      {formData.created_at && (
-                        <div className="col-span-4 space-y-1">
-                          <label className="text-xs font-bold text-slate-700">Data da Inscrição</label>
-                          <div className="w-full px-4 py-2 bg-slate-100/50 text-slate-500 rounded-xl text-sm border-none italic">
-                            {formatDateForDisplay(formData.created_at)}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </section>
 
@@ -1327,6 +1216,176 @@ export function Students() {
           </div>
         )}
       </div>
+      {/* Print Preview Modal */}
+      <AnimatePresence>
+        {showPrintPreview && selectedStudent && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2.5rem] shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200"
+            >
+              {/* Header */}
+              <div className="px-8 py-10 bg-[#00174b] text-white flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl ring-4 ring-white/10">
+                    <Printer size={32} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black uppercase tracking-tight">Pré-visualização da Ficha</h3>
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mt-1">
+                      Revise os dados antes de confirmar a impressão
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowPrintPreview(false)}
+                  className="p-3 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Content Preview */}
+              <div className="flex-1 overflow-y-auto p-10 bg-slate-50/30">
+                <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8 space-y-10">
+                  {/* Institutional Mini Header */}
+                  <div className="flex items-center gap-6 pb-8 border-b border-slate-50">
+                    <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                      <GraduationCap size={32} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">DIOCESE DE GUARULHOS</h4>
+                      <p className="text-xs font-bold text-slate-500">Escola Diocesana de Ministérios</p>
+                    </div>
+                  </div>
+
+                  {/* Student Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <div className="aspect-[3/4] bg-slate-50 rounded-2xl border-2 border-slate-100 overflow-hidden flex items-center justify-center relative">
+                      {selectedStudent.photo_url ? (
+                        <img src={selectedStudent.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="text-center p-4">
+                          <UserIcon size={32} className="mx-auto text-slate-300 mb-2" />
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">Sem Foto</p>
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-slate-100">
+                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-tighter">
+                          MAT: {selectedStudent.registration_number}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-3 space-y-6">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Aluno</p>
+                        <p className="text-2xl font-black text-[#131b2e] leading-tight uppercase">{selectedStudent.name}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documento CPF</p>
+                          <p className="text-sm font-bold text-slate-700">{selectedStudent.cpf || 'Não informado'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Documento RG</p>
+                          <p className="text-sm font-bold text-slate-700">{selectedStudent.rg || 'Não informado'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nascimento</p>
+                          <p className="text-sm font-bold text-slate-700">{formatDateForDisplay(selectedStudent.birth_date) || 'Não informado'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma Vinculada</p>
+                          <p className="text-sm font-bold text-blue-600">
+                            {classes.find(c => c.id === selectedStudent.class_id)?.name || 'Geral'}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data Inscrição</p>
+                          <p className="text-sm font-bold text-slate-700">{formatDateForDisplay(selectedStudent.created_at) || '---'}</p>
+                        </div>
+                         <div className="space-y-1">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Celular</p>
+                          <p className="text-sm font-bold text-slate-700">{selectedStudent.phone_mobile || 'Não informado'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-50">
+                    <div className="space-y-3">
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <MapPin size={12} className="text-blue-500" />
+                        Endereço Completo
+                      </h5>
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-slate-700 leading-snug">
+                          {selectedStudent.address_street || 'Rua não informada'}, {selectedStudent.address_neighborhood || 'Bairro omitido'}
+                        </p>
+                        <p className="text-xs font-bold text-slate-400 uppercase">
+                          {selectedStudent.address_city} - {selectedStudent.address_state} | CEP: {selectedStudent.address_zip}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Phone size={12} className="text-blue-500" />
+                        Participação Pastoral
+                      </h5>
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-slate-700 leading-snug">
+                          {selectedStudent.parish || 'Sem paróquia vinculada'}
+                        </p>
+                        <p className="text-xs font-bold text-slate-400 uppercase">
+                          Pastoral: {selectedStudent.pastoral_participates || 'Não informada'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Warning Box */}
+                  <div className="p-6 bg-amber-50 border border-amber-100 rounded-3xl flex gap-4">
+                    <div className="w-10 h-10 bg-amber-200/50 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
+                      <AlertCircle size={20} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-black text-amber-900 uppercase">Atenção</p>
+                      <p className="text-[11px] font-bold text-amber-700 leading-relaxed">
+                        Ao imprimir, o sistema irá gerar o documento oficial em formato PDF com o timbre da Diocese e as normas de admissão. Certifique-se de que todos os dados acima estão corretos.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+                <button 
+                  onClick={() => setShowPrintPreview(false)}
+                  className="flex-1 py-5 px-6 bg-white border-2 border-slate-200 text-slate-500 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 hover:border-slate-300 transition-all active:scale-[0.98]"
+                >
+                  Cancelar e Voltar
+                </button>
+                <button 
+                  onClick={handlePrint}
+                  className="flex-[1.5] py-5 px-6 bg-blue-600 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  <Printer size={18} />
+                  Confirmar Impressão da Ficha
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <PrintableGrade />
+
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedStudent && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">

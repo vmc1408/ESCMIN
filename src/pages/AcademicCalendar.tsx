@@ -149,16 +149,21 @@ export function AcademicCalendar() {
     }
   }, [notification]);
 
-  // Auto-sync feriados quando o administrador entra na página
+  // Auto-sync feriados quando o administrador entra na página ou muda o ano
   useEffect(() => {
     if (isAdmin && !loading) {
-      const hasHolidays = events.some(e => e.type === 'holiday');
-      // Se não houver nenhum feriado nacional na lista, disparar a sincronização
-      if (!hasHolidays) {
+      const currentYear = currentDate.getFullYear();
+      const hasHolidaysForYear = events.some(e => {
+        const d = new Date(e.start_date + 'T00:00:00');
+        return e.type === 'holiday' && d.getFullYear() === currentYear;
+      });
+      
+      // Se não houver nenhum feriado para o ano selecionado, disparar a sincronização
+      if (!hasHolidaysForYear) {
         syncHolidays(true); 
       }
     }
-  }, [isAdmin, loading, events.length]);
+  }, [isAdmin, loading, events.length, currentDate.getFullYear()]);
 
   const syncHolidays = async (silent = false) => {
     if (!userAuth) return;
@@ -422,10 +427,13 @@ export function AcademicCalendar() {
   };
 
   const filteredEvents = events.filter(event => {
+    const date = new Date(event.start_date + 'T00:00:00');
+    const matchesYear = date.getFullYear() === currentDate.getFullYear();
     const matchesSearch = event.title.toLowerCase().includes(search.toLowerCase()) ||
                          event.description.toLowerCase().includes(search.toLowerCase());
-    const matchesType = typeFilter === 'all' || event.type === typeFilter;
-    return matchesSearch && matchesType;
+    const matchesType = typeFilter === 'all' || 
+                       (typeFilter === 'term' ? (event.type === 'start_term' || event.type === 'end_term') : event.type === typeFilter);
+    return matchesYear && matchesSearch && matchesType;
   });
 
   // Group events by month
@@ -465,71 +473,62 @@ export function AcademicCalendar() {
           </motion.div>
         )}
 
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
-            <button 
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'grid' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Grade
-            </button>
-            <button 
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'list' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Lista
-            </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                  viewMode === 'grid' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                Grade
+              </button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                  viewMode === 'list' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                Lista
+              </button>
+            </div>
+
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl px-2 py-1 shadow-sm mr-2">
+              <button onClick={prevYear} className="p-1 hover:bg-slate-50 rounded-lg transition-all text-slate-400">
+                <ChevronLeft size={18} />
+              </button>
+              <span className="px-3 text-xs font-black text-slate-700 tracking-tight">
+                {currentDate.getFullYear()}
+              </span>
+              <button onClick={nextYear} className="p-1 hover:bg-slate-50 rounded-lg transition-all text-slate-400">
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {(isAdmin || isDirector) && (
+              <button 
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setFormData({
+                    title: '',
+                    description: '',
+                    start_date: '',
+                    end_date: '',
+                    type: 'event',
+                    class_id: '',
+                    subject_id: ''
+                  });
+                  setIsEditing(true);
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all active:scale-95"
+              >
+                <Plus size={16} />
+                Novo Evento
+              </button>
+            )}
           </div>
-          {(isAdmin || isDirector) && (
-            <button 
-              onClick={generateClassDays}
-              disabled={isSyncing}
-              className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 text-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-            >
-              {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-              Gerar Eventos Acadêmicos
-            </button>
-          )}
-
-          {(isAdmin || isDirector) && (
-            <button 
-              onClick={() => syncHolidays(false)}
-              disabled={isSyncing}
-              className="flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-            >
-              {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-              Sincronizar Feriados
-            </button>
-          )}
-
-          {(isAdmin || isDirector) && (
-            <button 
-              onClick={() => {
-                setSelectedEvent(null);
-                setFormData({
-                  title: '',
-                  description: '',
-                  start_date: '',
-                  end_date: '',
-                  type: 'event',
-                  class_id: '',
-                  subject_id: ''
-                });
-                setIsEditing(true);
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all active:scale-95"
-            >
-              <Plus size={16} />
-              Novo Evento
-            </button>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -552,7 +551,7 @@ export function AcademicCalendar() {
             <div className="space-y-4">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Filtrar por Tipo</label>
               <div className="space-y-2">
-                {['all', 'holiday', 'exam', 'start_term', 'end_term', 'class_day', 'event'].map(type => (
+                {['all', 'holiday', 'exam', 'term', 'class_day', 'event'].map(type => (
                   <button
                     key={type}
                     onClick={() => setTypeFilter(type)}
@@ -561,7 +560,7 @@ export function AcademicCalendar() {
                       typeFilter === type ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-50"
                     )}
                   >
-                    {type === 'all' ? 'Todos' : getTypeText(type as any)}
+                    {type === 'all' ? 'Todos' : type === 'term' ? 'Período Letivo' : getTypeText(type as any)}
                     {typeFilter === type && <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
                   </button>
                 ))}
@@ -578,18 +577,10 @@ export function AcademicCalendar() {
           ) : viewMode === 'grid' ? (
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between pb-8 border-b border-slate-50 mb-8">
-                  <button onClick={prevYear} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
-                    <ChevronLeft size={24} className="text-slate-400" />
-                  </button>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-                      Calendário Anual {currentDate.getFullYear()}
-                    </h3>
-                  </div>
-                  <button onClick={nextYear} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
-                    <ChevronRight size={24} className="text-slate-400" />
-                  </button>
+                <div className="text-center pb-8 border-b border-slate-50 mb-8">
+                  <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                    Calendário Anual {currentDate.getFullYear()}
+                  </h3>
                 </div>
 
                 <div className="space-y-12">
@@ -843,116 +834,160 @@ export function AcademicCalendar() {
         {isEditing && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white max-w-lg w-full rounded-[2.5rem] shadow-2xl overflow-hidden"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white max-w-2xl w-full rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-200/50"
             >
-              <div className="bg-slate-50 p-8 border-b border-slate-100">
-                <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                    {selectedEvent ? <Edit2 size={20} /> : <Plus size={20} />}
-                  </div>
-                  {selectedEvent ? 'Editar Evento' : 'Novo Evento'}
-                </h3>
-              </div>
-
-              <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Título do Evento</label>
-                    <input 
-                      required
-                      type="text"
-                      value={formData.title}
-                      onChange={e => setFormData({...formData, title: e.target.value})}
-                      placeholder="Ex: Prova Bimestral, Feriado Municipal..."
-                      className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Início</label>
-                      <input 
-                        required
-                        type="date"
-                        value={formData.start_date}
-                        onChange={e => setFormData({...formData, start_date: e.target.value})}
-                        className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                      />
+              <form onSubmit={handleSubmit} className="flex flex-col max-h-[90vh]">
+                {/* Header do Modal */}
+                <div className="px-8 py-10 bg-[#00174b] text-white relative">
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="absolute top-8 right-8 p-2 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white"
+                  >
+                    <X size={20} />
+                  </button>
+                  <div className="flex items-center gap-5">
+                    <div className={cn(
+                      "w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl ring-4 ring-white/10",
+                      getTypeColor(formData.type)
+                    )}>
+                      {formData.type === 'holiday' ? <CalendarIcon size={28} /> : 
+                       formData.type === 'exam' ? <Info size={28} /> : 
+                       formData.type === 'class_day' ? <BookOpen size={28} /> : <CalendarIcon size={28} />}
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Fim (Opcional)</label>
-                      <input 
-                        type="date"
-                        value={formData.end_date}
-                        onChange={e => setFormData({...formData, end_date: e.target.value})}
-                        className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                      />
+                    <div>
+                      <h3 className="text-2xl font-black uppercase tracking-tight leading-tight">
+                        {formData.title || (selectedEvent ? 'Editar Registro' : 'Novo Registro')}
+                      </h3>
+                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em] mt-1">
+                        {selectedEvent ? 'Gestão de Conteúdo Existente' : 'Inclusão no Calendário Acadêmico'}
+                      </p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Tipo de Evento</label>
-                    <div className="grid grid-cols-2 gap-2">
+                <div className="flex-1 overflow-y-auto p-10 space-y-10">
+                  {/* Tipo de Evento (Grid Elegante) */}
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Natureza do Evento</label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {[
-                        { id: 'event', label: 'Evento Geral' },
-                        { id: 'holiday', label: 'Feriado' },
-                        { id: 'start_term', label: 'Início Turma' },
-                        { id: 'end_term', label: 'Final Turma' },
-                        { id: 'class_day', label: 'Dia de Aula' },
-                        { id: 'exam', label: 'Avaliação' }
+                        { id: 'event', label: 'Geral', icon: <CalendarIcon size={14} /> },
+                        { id: 'holiday', label: 'Feriado', icon: <CalendarIcon size={14} /> },
+                        { id: 'start_term', label: 'Início', icon: <Plus size={14} /> },
+                        { id: 'end_term', label: 'Final', icon: <X size={14} /> },
+                        { id: 'class_day', label: 'Aula', icon: <BookOpen size={14} /> },
+                        { id: 'exam', label: 'Avaliação', icon: <Info size={14} /> }
                       ].map(type => (
                         <button
                           key={type.id}
                           type="button"
                           onClick={() => setFormData({...formData, type: type.id as any})}
                           className={cn(
-                            "px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-tight border transition-all text-center",
+                            "py-4 px-4 rounded-[1.25rem] text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-3 border-2",
                             formData.type === type.id 
-                              ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
-                              : "bg-slate-50 border-transparent text-slate-400 hover:border-slate-200"
+                              ? "bg-blue-50 border-blue-600 text-blue-600 shadow-sm scale-[1.02]" 
+                              : "bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100 hover:border-slate-200"
                           )}
                         >
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            formData.type === type.id ? "bg-blue-600 scale-125" : getTypeColor(type.id as any)
+                          )} />
                           {type.label}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Descrição</label>
-                    <textarea 
-                      value={formData.description}
-                      onChange={e => setFormData({...formData, description: e.target.value})}
-                      placeholder="Detalhes adicionais sobre o evento..."
-                      rows={3}
-                      className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"
-                    />
+                  {/* Datas */}
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Período Selecionado</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="group">
+                        <div className="relative">
+                          <input 
+                            required
+                            type="date"
+                            value={formData.start_date}
+                            onChange={e => {
+                              const date = e.target.value;
+                              setFormData({...formData, start_date: date, end_date: formData.end_date || date});
+                            }}
+                            className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all shadow-inner"
+                          />
+                          <span className="absolute -top-2.5 left-6 px-2 bg-white text-[9px] font-black text-slate-400 uppercase rounded-full border border-slate-100">Início</span>
+                        </div>
+                      </div>
+                      <div className="group">
+                        <div className="relative">
+                          <input 
+                            type="date"
+                            value={formData.end_date}
+                            onChange={e => setFormData({...formData, end_date: e.target.value})}
+                            className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all shadow-inner"
+                          />
+                          <span className="absolute -top-2.5 left-6 px-2 bg-white text-[9px] font-black text-slate-400 uppercase rounded-full border border-slate-100">Término (Opcional)</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 mt-2 pl-2 flex items-center gap-2 italic">
+                      <Info size={12} className="text-blue-500" />
+                      Para eventos de um único dia, utilize apenas a primeira data.
+                    </p>
                   </div>
 
+                  {/* Título e Descrição */}
+                  <div className="space-y-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 text-[10px]">Título do Evento</label>
+                      <input 
+                        required
+                        type="text"
+                        placeholder="Ex: Reunião de Planejamento, Feriado..."
+                        value={formData.title}
+                        onChange={e => setFormData({...formData, title: e.target.value})}
+                        className="w-full px-6 py-5 bg-slate-50 border-none rounded-[1.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-300 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all shadow-inner"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 text-[10px]">Informações Complementares</label>
+                      <textarea 
+                        placeholder="Detalhes relevantes sobre o evento..."
+                        value={formData.description}
+                        onChange={e => setFormData({...formData, description: e.target.value})}
+                        rows={4}
+                        className="w-full px-6 py-5 bg-slate-50 border-none rounded-[1.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-300 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all resize-none shadow-inner"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Turma e Disciplina */}
                   {['start_term', 'end_term', 'class_day', 'exam'].includes(formData.type) && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-50">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Turma (Opcional)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Vincular Turma</label>
                         <select 
                           value={formData.class_id}
                           onChange={e => setFormData({...formData, class_id: e.target.value})}
-                          className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all appearance-none"
+                          className="w-full px-6 py-5 bg-slate-50 border-none rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 transition-all appearance-none shadow-inner cursor-pointer"
                         >
-                          <option value="">Selecione...</option>
+                          <option value="">Geral (Sem turma específica)</option>
                           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Disciplina (Opcional)</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Vincular Disciplina</label>
                         <select 
                           value={formData.subject_id}
                           onChange={e => setFormData({...formData, subject_id: e.target.value})}
-                          className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all appearance-none"
+                          className="w-full px-6 py-5 bg-slate-50 border-none rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 transition-all appearance-none shadow-inner cursor-pointer"
                         >
-                          <option value="">Selecione...</option>
+                          <option value="">Geral (Sem disciplina específica)</option>
                           {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                       </div>
@@ -960,19 +995,20 @@ export function AcademicCalendar() {
                   )}
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                {/* Footer Fixo */}
+                <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
                   <button 
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                    className="flex-1 py-5 bg-white border-2 border-slate-200 text-slate-500 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 hover:border-slate-300 transition-all active:scale-[0.98]"
                   >
-                    Cancelar
+                    Descartar
                   </button>
                   <button 
                     type="submit"
-                    className="flex-1 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all active:scale-95"
+                    className="flex-2 py-5 bg-blue-600 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all active:scale-[0.98]"
                   >
-                    Salvar Evento
+                    Confirmar Alterações
                   </button>
                 </div>
               </form>

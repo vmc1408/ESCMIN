@@ -18,13 +18,31 @@
 
 @layer base {
   @media print {
-    .print\:hidden {
-      display: none !important;
+    /* Hide everything by default */
+    body * {
+      visibility: hidden;
     }
-    body {
-      background: white !important;
-      padding: 0 !important;
-      margin: 0 !important;
+    /* Show only the printable section and its children */
+    #printable-student-record,
+    #printable-student-record * {
+      visibility: visible;
+    }
+    /* Position it correctly */
+    #printable-student-record {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      display: block !important;
+      visibility: visible !important;
+    }
+    /* Clean up the page */
+    @page {
+      margin: 10mm;
+      size: auto;
+    }
+    nav, sidebar, button:not(#printable-student-record *) {
+      display: none !important;
     }
   }
 }

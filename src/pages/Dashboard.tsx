@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Users, GraduationCap, BookOpen, UserCheck, ArrowUpRight, RefreshCw } from 'lucide-react';
 import { fetchCount } from '../lib/database';
-import { isDbConnected, isSupabaseConfigured } from '../lib/supabase';
+import { isDbConnected, isSupabaseConfigured, lastLatency } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -10,6 +10,10 @@ export function Dashboard() {
     isSupabaseConfigured ? (isDbConnected ? 'connected' : 'checking') : 'disconnected'
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dbInfo, setDbInfo] = useState<{connected: boolean, latency: number | null}>({
+    connected: isDbConnected,
+    latency: lastLatency
+  });
   
   // Initial state from cache if available
   const [stats, setStats] = useState(() => {
@@ -45,12 +49,13 @@ export function Dashboard() {
     
     const updateCategory = async (category: keyof typeof stats, collection: string) => {
       try {
-        const [total, active, inactive] = await Promise.all([
+        // Buscamos apenas Total e Ativo para economizar 1 requisição por card (economiza 33% de tráfego inicial)
+        const [total, active] = await Promise.all([
           fetchCount(collection),
-          fetchCount(collection, 'Ativo'),
-          fetchCount(collection, 'Inativo')
+          fetchCount(collection, 'Ativo')
         ]);
         
+        const inactive = Math.max(0, total - active);
         const newStats = { total, active, inactive };
         
         setStats(prev => {
@@ -89,6 +94,10 @@ export function Dashboard() {
     // Listen for connection status changes
     const handleStatusChange = (e: any) => {
       setDbStatus(e.detail.connected ? 'connected' : 'error');
+      setDbInfo({
+        connected: e.detail.connected,
+        latency: e.detail.latency
+      });
     };
     window.addEventListener('supabase-status-change', handleStatusChange);
     
@@ -176,15 +185,22 @@ export function Dashboard() {
             </div>
 
             <div className="space-y-0.5">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">{stat.label} Ativos</p>
+              <p className="text-[11px] font-black text-blue-600/80 uppercase tracking-[0.2em] mb-1">{stat.label} Ativos</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-5xl font-black text-[#131b2e] tracking-tighter">
+                <h3 className="text-6xl font-black text-[#131b2e] tracking-tighter transition-all duration-500">
                   {isRefreshing && stat.stats.total === 0 ? "..." : stat.stats.active}
                 </h3>
-                <div className={cn(
-                  "h-2 w-2 rounded-full",
-                  dbStatus === 'connected' ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
-                )}></div>
+                <div className="flex items-center gap-2 group/status relative">
+                  <div className={cn(
+                    "h-2.5 w-2.5 rounded-full transition-all duration-500",
+                    dbStatus === 'connected' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400"
+                  )}></div>
+                  
+                  {/* Tooltip de Latência Precision */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[#131b2e] text-[10px] text-white rounded opacity-0 group-hover/status:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-bold z-20 shadow-xl border border-slate-700">
+                    {dbInfo.connected ? `${dbInfo.latency || '?'}ms (Estável)` : 'Reconectando...'}
+                  </div>
+                </div>
               </div>
             </div>
             

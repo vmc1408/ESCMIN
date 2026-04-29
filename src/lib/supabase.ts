@@ -75,20 +75,22 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder'
 );
 
-// Teste de conexão com heartbeat otimizado e timeout agressivo
+// Teste de conexão com heartbeat ultraleve e timeout agressivo
 export const testConnection = async () => {
   if (!isSupabaseConfigured) return;
 
   try {
     const startTime = Date.now();
-    // Timeout de 10s para o pulso de status (mais tolerante)
+    // Timeout de 8s para o pulso de status (mais rápido)
+    // Usando head: true para não baixar dados, apenas verificar se o servidor responde
     const response = await fetchWithTimeout(
-      supabase.from('institution_settings').select('id').limit(1),
-      10000
+      supabase.from('institution_settings').select('id', { count: 'exact', head: true }).limit(1),
+      8000
     );
     const latency = Date.now() - startTime;
     
-    if (response && response.status) {
+    // Se o servidor respondeu com qualquer status (mesmo erro 403/404), ele está alcançável
+    if (response && response.status !== undefined) {
       setDbConnected(true, latency);
     } else {
       setDbConnected(false, latency);
