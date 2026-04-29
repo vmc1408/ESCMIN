@@ -464,17 +464,35 @@ export function Students() {
       <div id="printable-student-record" className="hidden print:block fixed inset-0 bg-white z-[9999] p-[15mm] text-black overflow-visible font-sans leading-tight">
         <div className="max-w-[185mm] mx-auto">
           
-          {/* HEADER SECTION */}
-          <div className="relative mb-8 text-center pt-2">
+          {/* HEADER SECTION - Left Aligned Professional Style */}
+          <div className="flex items-start gap-8 mb-10 pb-6 border-b border-slate-300">
             {inst?.logo_url && (
-              <img src={inst.logo_url} className="absolute left-0 top-0 w-24 h-24 object-contain" referrerPolicy="no-referrer" />
+              <div className="flex-shrink-0">
+                <img src={inst.logo_url} className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
+              </div>
             )}
-            <div className="inline-block">
-              <p className="text-[11pt] font-medium tracking-wide">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[20pt] font-extrabold tracking-tight mt-0.5">ESCOLA DIOCESANA DE MINISTÉRIOS</h1>
-              <p className="text-[12pt] font-medium">Pe. José Fernando de Brito</p>
-              <h2 className="text-[18pt] font-bold mt-8 mb-4">Ficha de Inscrição</h2>
+            <div className="flex-1 space-y-1">
+              <p className="text-[10pt] font-medium tracking-wider text-slate-600">DIOCESE DE GUARULHOS</p>
+              <h1 className="text-[16pt] font-black uppercase tracking-tight text-slate-900 leading-tight">
+                {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+              </h1>
+              <p className="text-[11pt] font-bold text-slate-700">Pe. José Fernando de Brito</p>
+              
+              <div className="mt-3 text-[9pt] text-slate-500 leading-normal">
+                <p className="flex items-center gap-2">
+                  <span className="font-bold text-slate-700 uppercase">Endereço:</span> 
+                  {inst?.address || 'Av. Venus, 195 - Itapegica - Guarulhos/SP - Cep 07044-170'}
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="font-bold text-slate-700 uppercase">Contato:</span> 
+                  {inst?.phone || '(11) 2421-2935'} | {inst?.email || 'email@email.com'}
+                </p>
+              </div>
             </div>
+          </div>
+
+          <div className="text-center mb-10">
+            <h2 className="text-[20pt] font-black uppercase tracking-widest border-b-2 border-slate-900 inline-block px-12 pb-2">Ficha de Inscrição</h2>
           </div>
 
           {/* TOP CONTROL BOXES */}

@@ -8,7 +8,7 @@ import { cn } from '../lib/utils';
 
 export function Navbar() {
   const { profile, logout } = useAuth();
-  const [institutionName, setInstitutionName] = useState('Gestão Escolar');
+  const [institution, setInstitution] = useState<any>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'disconnected' | 'checking'>(
@@ -20,7 +20,7 @@ export function Navbar() {
     try {
       const inst = await getInstitutionSettings();
       if (inst) {
-        setInstitutionName(inst.name);
+        setInstitution(inst);
       }
     } catch (e) {
       console.error('Error fetching institution info:', e);
@@ -58,36 +58,59 @@ export function Navbar() {
   const avatarUrl = profile?.avatar_url || '';
 
   return (
-    <header className="h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/50 flex items-center justify-between px-4 md:px-6 z-30 print:hidden shrink-0">
-      <div className="flex items-center gap-4 md:gap-8 flex-1 min-w-0">
-        <div className="lg:hidden w-10" /> {/* Espaçador para o botão de menu que está no Layout */}
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm md:text-lg font-black text-[#131b2e] tracking-tight truncate">{institutionName}</h2>
-          
-          <button 
-            onClick={handleRetry}
-            disabled={isRetrying || dbStatus === 'connected'}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight transition-all",
-              dbStatus === 'connected' ? "bg-emerald-50 text-emerald-600 border border-emerald-100 cursor-default" :
-              dbStatus === 'error' ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer" :
-              dbStatus === 'checking' ? "bg-amber-50 text-amber-600 border border-amber-100 animate-pulse cursor-wait" :
-              "bg-slate-50 text-slate-400 border border-slate-100"
-            )}
-            title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
-          >
-            {dbStatus === 'connected' && <CheckCircle2 size={10} />}
-            {dbStatus === 'error' && <WifiOff size={10} />}
-            {dbStatus === 'checking' && <Database size={10} />}
-            {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
-            <span className="hidden xs:inline">
-              {dbStatus === 'connected' ? (
-                <>Online {latency ? `(${latency}ms)` : ''}</>
-              ) :
-               dbStatus === 'error' ? (isRetrying ? 'Tentando...' : 'Erro - Tentar Reconc.') :
-               dbStatus === 'checking' ? 'Conectando...' : 'Não Configurado'}
-            </span>
-          </button>
+    <header className="h-20 bg-white/70 backdrop-blur-md border-b border-slate-200/50 flex items-center justify-between px-4 md:px-6 z-30 print:hidden shrink-0">
+      <div className="flex items-center gap-6 flex-1 min-w-0">
+        <div className="lg:hidden w-10" /> 
+        
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm md:text-base font-black text-[#131b2e] uppercase tracking-tight truncate">
+              {institution?.name || 'Gestão Escolar'}
+            </h2>
+            
+            <button 
+              onClick={handleRetry}
+              disabled={isRetrying || dbStatus === 'connected'}
+              className={cn(
+                "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight transition-all",
+                dbStatus === 'connected' ? "bg-emerald-50 text-emerald-600 border border-emerald-100 cursor-default" :
+                dbStatus === 'error' ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer" :
+                dbStatus === 'checking' ? "bg-amber-50 text-amber-600 border border-amber-100 animate-pulse cursor-wait" :
+                "bg-slate-50 text-slate-400 border border-slate-100"
+              )}
+              title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
+            >
+              {dbStatus === 'connected' && <CheckCircle2 size={10} />}
+              {dbStatus === 'error' && <WifiOff size={10} />}
+              {dbStatus === 'checking' && <Database size={10} />}
+              {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
+              <span className="hidden xs:inline">
+                {dbStatus === 'connected' ? (
+                  <>Online {latency ? `(${latency}ms)` : ''}</>
+                ) :
+                 dbStatus === 'error' ? (isRetrying ? 'Tentando...' : 'Erro - Tentar Reconc.') :
+                 dbStatus === 'checking' ? 'Conectando...' : 'Não Configurado'}
+              </span>
+            </button>
+          </div>
+
+          {(institution?.address || institution?.email) && (
+            <div className="hidden lg:flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+              {institution?.address && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#497cff] font-black underline decoration-blue-200">Endereço:</span> 
+                  <span className="truncate max-w-[300px]">{institution.address}</span>
+                </div>
+              )}
+              {institution?.address && institution?.email && <div className="h-1 w-1 bg-slate-300 rounded-full" />}
+              {institution?.email && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#497cff] font-black underline decoration-blue-200">Email:</span> 
+                  <span>{institution.email}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
