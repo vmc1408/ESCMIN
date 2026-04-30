@@ -421,7 +421,7 @@ export function Settings() {
 
     try {
       setUploadingLogo(true);
-      const url = await uploadImage(file, 'assets', 'logos');
+      const url = await uploadImage(file, 'students', 'logos');
       setInstitution({ ...institution, logo_url: url });
       setNotification({ type: 'success', message: 'Logo carregada com sucesso!' });
     } catch (error: any) {

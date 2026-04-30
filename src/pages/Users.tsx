@@ -201,7 +201,7 @@ export function Users() {
       const blob = await res.blob();
       const file = new File([blob], `webcam_${Date.now()}.jpg`, { type: 'image/jpeg' });
       
-      const url = await uploadImage(file, 'avatars', `${Date.now()}_webcam.jpg`);
+      const url = await uploadImage(file, 'students', `avatars/${Date.now()}_webcam.jpg`);
       setFormData(prev => ({ ...prev, avatar_url: url }));
       setNotification({ type: 'success', message: 'Foto capturada e salva!' });
       setShowWebcam(false);
@@ -218,7 +218,7 @@ export function Users() {
 
     try {
       setUploadingAvatar(true);
-      const url = await uploadImage(file, 'avatars', `${Date.now()}_${file.name}`);
+      const url = await uploadImage(file, 'students', `avatars/${Date.now()}_${file.name}`);
       setFormData(prev => ({ ...prev, avatar_url: url }));
       setNotification({ type: 'success', message: 'Avatar carregado com sucesso!' });
     } catch (error) {

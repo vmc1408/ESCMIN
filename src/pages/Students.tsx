@@ -111,6 +111,14 @@ const maskPhone = (value: string) => {
     .replace(/(-\d{4})\d+?$/, '$1');
 };
 
+const maskDate = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .replace(/(\d{2})(\d)/, '$1/$2')
+    .replace(/(\d{2})(\d)/, '$1/$2')
+    .replace(/(\/\d{4})\d+?$/, '$1');
+};
+
 const getYearFromRegistration = (reg: string | undefined): string => {
   if (!reg) return '';
   if (reg.includes('/')) return reg.split('/')[1];
@@ -199,6 +207,7 @@ export function Students() {
     address_state: 'SP',
     address_zip: '',
     parish: '',
+    forany: '',
     course: '',
     pastoral_participates: '',
     start_date: '',
@@ -303,6 +312,7 @@ export function Students() {
       address_state: student.address_state || 'SP',
       address_zip: student.address_zip || '',
       parish: student.parish || '',
+      forany: student.forany || '',
       course: student.course || '',
       pastoral_participates: student.pastoral_participates || '',
       start_date: student.start_date || '',
@@ -349,18 +359,6 @@ export function Students() {
       // Set created_at only if it's the first time saving (no id)
       if (!selectedStudent?.id && !dataToSave.created_at) {
         dataToSave.created_at = new Date().toISOString();
-      }
-
-      // Fix for missing 'address_neighborhood' column in some database versions
-      // We'll remove it from the database payload but keep it in UI state if needed
-      if (dataToSave.address_neighborhood) {
-        // Option: merge into address_street to not lose data
-        if (dataToSave.address_street) {
-          dataToSave.address_street = `${dataToSave.address_street} - ${dataToSave.address_neighborhood}`;
-        } else {
-          dataToSave.address_street = dataToSave.address_neighborhood;
-        }
-        delete dataToSave.address_neighborhood;
       }
 
       const savedId = await saveData('students', selectedStudent?.id, dataToSave);
@@ -420,7 +418,7 @@ export function Students() {
         const blob = await res.blob();
         const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
 
-        const url = await uploadImage(file, 'assets', 'students');
+        const url = await uploadImage(file, 'students', 'students');
         setFormData(prev => ({ ...prev, photo_url: url }));
         setShowWebcam(false);
         setNotification({ type: 'success', message: 'Foto capturada com sucesso!' });
@@ -441,7 +439,7 @@ export function Students() {
     try {
       setUploadingPhoto(true);
       setNotification({ type: 'success', message: 'Carregando foto...' });
-      const url = await uploadImage(file, 'assets', 'students');
+      const url = await uploadImage(file, 'students', 'students');
       setFormData(prev => ({ ...prev, photo_url: url }));
       setNotification({ type: 'success', message: 'Foto carregada com sucesso!' });
     } catch (error: any) {
@@ -1047,10 +1045,11 @@ export function Students() {
                       <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Data de Nascimento</label>
                         <input 
-                          type="date"
+                          type="text"
                           disabled={!isEditing}
+                          placeholder="DD/MM/AAAA"
                           value={formData.birth_date || ''}
-                          onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
+                          onChange={(e) => setFormData({...formData, birth_date: maskDate(e.target.value)})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={6}
@@ -1081,7 +1080,7 @@ export function Students() {
                           disabled={!isEditing}
                           placeholder="DD/MM/AAAA"
                           value={formData.start_date || ''}
-                          onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                          onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={8}
