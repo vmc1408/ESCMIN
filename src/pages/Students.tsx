@@ -459,61 +459,50 @@ export function Students() {
     }, []);
     
     return (
-      <div id="printable-student-record" className="hidden print:block fixed inset-0 bg-white z-[9999] p-[15mm] text-black overflow-visible font-sans leading-tight">
-        <div className="max-w-[185mm] mx-auto">
+      <div id="printable-student-record" className="hidden print:block fixed inset-0 bg-white z-[9999] p-[10mm] text-black overflow-visible font-sans leading-tight">
+        <div className="max-w-[190mm] mx-auto">
           
-          {/* HEADER SECTION - Left Aligned Professional Style */}
-          <div className="flex items-start gap-8 mb-6 pb-4 border-b border-slate-300">
+          {/* HEADER SECTION */}
+          <div className="flex items-center gap-6 mb-4">
             {inst?.logo_url && (
               <div className="flex-shrink-0">
-                <img src={inst.logo_url} className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
+                <img src={inst.logo_url} className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
               </div>
             )}
-            <div className="flex-1">
-              <p className="text-[10pt] font-medium tracking-wider text-slate-600">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[14pt] font-black uppercase tracking-tight text-slate-900 leading-none mb-1">
-                {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+            <div className="flex-1 text-right">
+              <p className="text-[11pt] font-medium text-slate-600">DIOCESE DE GUARULHOS</p>
+              <h1 className="text-[20pt] font-black uppercase tracking-tight text-slate-900 leading-none mb-1">
+                ESCOLA DIOCESANA DE MINISTÉRIOS
               </h1>
-              <p className="text-[11pt] font-bold text-slate-700 leading-tight">Pe. José Fernando de Brito</p>
-              
-              <div className="mt-1 text-[9pt] text-slate-600 leading-tight space-y-0">
-                <p>{inst?.address || 'Av. Venus, 195 - Itapegica - Guarulhos/SP - Cep 07044-170'}</p>
-                <p>
-                  {inst?.phone || '(11) 2421-2935'} 
-                  {inst?.email && <span className="mx-2 text-slate-300">|</span>}
-                  {inst?.email || 'email@email.com'}
-                </p>
-              </div>
+              <p className="text-[13pt] font-medium text-slate-700">Pe. José Fernando de Brito</p>
             </div>
           </div>
 
           <div className="text-center mb-6">
-            <h2 className="text-[18pt] font-black uppercase tracking-widest border-b-2 border-slate-900 inline-block px-12 pb-1">Ficha de Inscrição</h2>
+            <h2 className="text-[18pt] font-bold">Ficha de Inscrição</h2>
           </div>
 
           {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-3 mb-8 h-40">
-            {/* Controle da Escola */}
-            <div className="col-span-4 border border-slate-400 p-2 flex flex-col">
-              <p className="text-[10pt] font-bold border-b border-slate-300 pb-0.5 mb-4">Controle da Escola</p>
-              <div className="mt-auto pb-1">
-                <p className="text-[10pt] font-bold mb-1">Inscrição:</p>
-                <div className="border border-slate-400 h-10 flex items-center px-3 font-bold text-[12pt]">
-                  Nº {selectedStudent.registration_number || `_____${new Date().getFullYear()}`}
+          <div className="grid grid-cols-12 gap-4 mb-8">
+            <div className="col-span-4 border border-slate-400 p-3 flex flex-col h-32">
+              <p className="text-[12pt] font-medium border-b border-slate-300 pb-1 mb-6 w-fit">Controle da Escola</p>
+              <div className="mt-auto">
+                <p className="text-[12pt] font-medium mb-1">Inscrição:</p>
+                <div className="border border-slate-300 h-10 flex items-center px-3 font-bold text-[14pt]">
+                  Nº {selectedStudent.registration_number || ''}
                 </div>
               </div>
             </div>
 
-            {/* CURSO */}
-            <div className="col-span-5 border border-slate-400 p-2 flex flex-col relative overflow-hidden">
-              <p className="text-[9pt] font-bold mb-1">CURSO:</p>
-              <div className="space-y-1 ml-1 overflow-visible">
+            <div className="col-span-5 border border-slate-400 p-3 h-32">
+              <p className="text-[11pt] font-bold mb-2">CURSO:</p>
+              <div className="grid grid-cols-1 gap-1">
                 {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'História dos Santos Negros'].map(course => {
                   const isChecked = currentClass?.name?.toLowerCase().includes(course.toLowerCase()) || 
                                   selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
                   return (
-                    <div key={course} className="flex items-center gap-2">
-                      <div className="w-4 h-4 border border-slate-400 flex items-center justify-center bg-white relative shrink-0">
+                    <div key={course} className="flex items-center gap-3">
+                      <div className="w-5 h-5 border border-slate-300 flex items-center justify-center bg-white relative">
                         {isChecked && (
                            <div className="absolute inset-0">
                              <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black rotate-45 -translate-y-1/2"></div>
@@ -521,114 +510,117 @@ export function Students() {
                            </div>
                         )}
                       </div>
-                      <span className="text-[9pt] font-medium leading-none whitespace-nowrap">{course}</span>
+                      <span className="text-[10.5pt] font-normal">{course}</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-[7pt] text-slate-400 mt-auto italic leading-tight">
-                Turma: {currentClass?.name || '____________________'}
-              </p>
             </div>
 
-            {/* PHOTO - Exact 3x4 Aspect Ratio */}
-            <div className="col-span-3 flex items-center justify-center">
-              <div className="w-[30mm] h-[40mm] border border-slate-400 flex items-center justify-center relative bg-slate-50 shrink-0">
-                {selectedStudent.photo_url ? (
-                  <img src={selectedStudent.photo_url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="text-center text-slate-300">
-                    <p className="text-[7pt] font-bold leading-tight">COLE AQUI</p>
-                    <p className="text-[7pt] font-bold leading-tight">FOTO 3X4</p>
-                  </div>
-                )}
-              </div>
+            <div className="col-span-3 border border-slate-400 flex items-center justify-center relative bg-white h-32">
+              {selectedStudent.photo_url ? (
+                <img src={selectedStudent.photo_url} className="w-full h-full object-cover p-1" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="text-center text-slate-300 uppercase">
+                  <p className="text-[7pt] font-bold">COLE AQUI</p>
+                  <p className="text-[7pt] font-bold">FOTO 3X4</p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* PERSONAL DATA - LINE STYLE FIELDS */}
-          <div className="space-y-4 mb-10">
-            <div className="flex items-baseline group">
-              <span className="text-[10pt] font-normal mr-2">Nome:</span>
-              <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.name}</span>
+          {/* PERSONAL DATA - EXACT MODEL ALIGNMENT */}
+          <div className="space-y-4 mb-8 text-[11pt]">
+            <div className="flex items-end">
+              <span className="mr-2">Nome:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase px-2 pb-0.5 min-h-[24px]">{selectedStudent.name}</span>
             </div>
 
-            <div className="flex items-baseline group">
-              <span className="text-[10pt] font-normal mr-2">Endereço:</span>
-              <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.address_street}</span>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-[4] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">Bairro:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.address_neighborhood}</span>
-              </div>
-              <div className="flex-[4] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">Cidade:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.address_city}</span>
-              </div>
-              <div className="flex-[1.5] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">Uf:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5 text-center">{selectedStudent.address_state}</span>
-              </div>
+            <div className="flex items-end">
+              <span className="mr-2">Endereço:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase px-2 pb-0.5 min-h-[24px]">{selectedStudent.address_street}</span>
             </div>
 
             <div className="flex gap-4">
-              <div className="flex-[1] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">Cep:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.address_zip}</span>
+              <div className="flex-[4] flex items-end">
+                <span className="mr-2">Bairro:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase px-2 pb-0.5 min-h-[24px]">{selectedStudent.address_neighborhood}</span>
               </div>
-              <div className="flex-[1.5] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">Celular:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.phone_mobile}</span>
+              <div className="flex-[4] flex items-end">
+                <span className="mr-2">Cidade:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase px-2 pb-0.5 min-h-[24px]">{selectedStudent.address_city}</span>
+              </div>
+              <div className="flex-[1] flex items-end">
+                <span className="mr-2">Uf:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase px-2 pb-0.5 text-center min-h-[24px]">{selectedStudent.address_state}</span>
               </div>
             </div>
 
             <div className="flex gap-4">
-              <div className="flex-[2] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2 whitespace-nowrap">Data de Nascimento:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{formatDateForDisplay(selectedStudent.birth_date)}</span>
+              <div className="flex-[3] flex items-end">
+                <span className="mr-2">Cep:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold px-2 pb-0.5 min-h-[24px]">{selectedStudent.address_zip}</span>
               </div>
-              <div className="flex-[1.5] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">RG:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.rg}</span>
+              <div className="flex-[5] flex items-end relative">
+                <span className="mr-2">Celular:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold px-2 pb-0.5 min-h-[24px]">{selectedStudent.phone_mobile}</span>
+                <div className="flex items-center gap-2 ml-4 mb-0.5 text-[9pt]">
+                  <span className="text-emerald-600 font-bold">WhatsApp</span>
+                  <span className="ml-2 font-normal">Sim</span>
+                  <div className="w-5 h-5 border border-slate-300"></div>
+                  <span className="ml-2 font-normal">Não</span>
+                  <div className="w-5 h-5 border border-slate-300"></div>
+                </div>
               </div>
-              <div className="flex-[2] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">CPF:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.cpf}</span>
-              </div>
-            </div>
-
-            <div className="flex items-baseline group">
-              <span className="text-[10pt] font-normal mr-2">Email:</span>
-              <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5 normal-case">{selectedStudent.email}</span>
             </div>
 
             <div className="flex gap-4">
-              <div className="flex-[3] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">É participante de qual Paróquia?</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.parish}</span>
+              <div className="flex-[3] flex items-end">
+                <span className="mr-2 whitespace-nowrap">Data de Nascimento:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold px-2 pb-0.5 text-center min-h-[24px]">
+                  {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
+                </span>
               </div>
-              <div className="flex-[1.5] flex items-baseline relative">
-                <span className="text-[10pt] font-normal mr-2">Forania:</span>
-                <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.forany}</span>
+              <div className="flex-[2] flex items-end">
+                <span className="mr-2">RG:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold px-2 pb-0.5 text-center min-h-[24px]">{selectedStudent.rg}</span>
+              </div>
+              <div className="flex-[3] flex items-end">
+                <span className="mr-2">CPF:</span>
+                <span className="flex-1 border-b border-slate-400 font-bold px-2 pb-0.5 text-center min-h-[24px]">{selectedStudent.cpf}</span>
               </div>
             </div>
 
-            <div className="flex items-baseline group">
-              <span className="text-[10pt] font-normal mr-2">Participa de qual Pastoral?</span>
-              <span className="flex-1 border-b border-black font-bold uppercase text-[11pt] pb-0.5">{selectedStudent.pastoral_participates}</span>
+            <div className="flex items-end">
+              <span className="mr-2">Email:</span>
+              <span className="flex-1 border-b border-slate-400 font-bold px-2 pb-0.5 lowercase min-h-[24px]">{selectedStudent.email}</span>
+            </div>
+
+            <div className="flex items-end">
+              <span className="mr-2">É participante de qual Paróquia?</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase px-2 pb-0.5 min-h-[24px]">{selectedStudent.parish}</span>
+            </div>
+
+            <div className="flex items-end">
+              <span className="mr-2">Já foi aluno(a) da Escola?</span>
+              <div className="flex items-center gap-4 ml-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-normal">Sim</span>
+                  <div className="w-5 h-5 border border-slate-300"></div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-normal">Não</span>
+                  <div className="w-5 h-5 border border-slate-300"></div>
+                </div>
+              </div>
+              <span className="flex-1 border-b border-slate-400 pb-0.5 ml-4"></span>
             </div>
           </div>
 
-          {/* INFORMAÇÕES ADMISSÃO */}
-          <div className="mt-12 mb-8">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="h-[1px] bg-slate-300 flex-1"></div>
-              <h4 className="text-[10pt] font-bold">Informações básicas para admissão ao curso escolhido</h4>
-              <div className="h-[1px] bg-slate-300 flex-1"></div>
-            </div>
-            <div className="text-[9pt] leading-snug space-y-1 pl-4">
+          {/* BASIC INFORMATION SECTION */}
+          <div className="flex flex-col items-center mb-6">
+            <h4 className="text-[12pt] border-b border-slate-300 mb-4 px-4 pb-1">Informações básicas para admissão ao curso escolhido</h4>
+            <div className="text-[10pt] leading-relaxed space-y-1 text-slate-800">
               <p>1) No ato da matrícula o(a) aluno(a) concorda em priorizar a frequência no curso escolhido.</p>
               <p>2) Como critério de aprovação o(a) aluno(a) deverá ter frequência mínima de 75% das aulas.</p>
               <p>3) A nota mínima exigida para a promoção do(a) aluno(a) é de 5,0 (cinco) por disciplina.</p>
@@ -636,37 +628,38 @@ export function Students() {
             </div>
           </div>
 
-          <div className="text-[10.5pt] leading-relaxed mb-16 pt-4">
-            <div className="flex items-baseline gap-2 mb-2">
-              <span>Eu</span>
-              <span className="flex-1 border-b border-black font-bold uppercase px-3">{selectedStudent.name}</span>
-              <span>, declaro que</span>
+          <div className="text-[11pt] leading-relaxed mb-10 pt-4">
+            <div className="flex items-baseline mb-2">
+              <span className="mr-2">Eu</span>
+              <span className="flex-1 border-b border-slate-400 font-bold uppercase px-2 pb-0.5">{selectedStudent.name}</span>
+              <span className="ml-2">, declaro que</span>
             </div>
-            <p>
+            <p className="text-justify">
               estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
             </p>
           </div>
 
           {/* DATE AND SIGNATURE */}
-          <div className="flex justify-between items-end mb-24 pr-4">
-            <p className="text-[10.5pt]">Guarulhos, {new Date().toLocaleDateString('pt-BR')}</p>
+          <div className="flex justify-between items-end mb-16">
+            <p className="text-[11pt]">Guarulhos, _____ / _____ / _____</p>
             <div className="flex flex-col items-center">
-              <div className="w-[80mm] border-t border-black mb-1"></div>
-              <p className="text-[9pt] font-medium">Aluno(a)</p>
+              <div className="w-[85mm] border-t border-black mb-1"></div>
+              <p className="text-[10pt] font-medium leading-none">Aluno(a)</p>
             </div>
           </div>
 
           {/* INSTITUTIONAL FOOTER */}
-          <div className="mt-12 pt-4 border-t-2 border-slate-900 border-opacity-80 grid grid-cols-2 gap-10">
-            <div className="space-y-0.5 text-[8.5pt]">
-              <p className="font-bold">ENDEREÇO:</p>
-              <p>{inst?.address || 'Av. Venus, 195 - Itapegica - Guarulhos/SP - Cep 07044-170'}</p>
-              <p>Telefone: {inst?.phone || '(11) 2421-2935'}</p>
-              <p>Email: {inst?.email || 'email@email.com'}</p>
+          <div className="grid grid-cols-2 gap-10 border-t border-slate-400 pt-3">
+            <div className="space-y-0.5 leading-tight text-[9.5pt]">
+              <p className="font-bold uppercase mb-1">ENDEREÇO:</p>
+              <p>Avenida Vênus, 195 - Itapegica - Guarulhos-SP</p>
+              <p>Telefone: (11) 2421-2935 | <span className="text-emerald-600 font-bold">WhatsApp</span></p>
+              <p>Email: edm@diocesedeguarulhos.org.br</p>
             </div>
-            <div className="space-y-0.5 text-[8.5pt] text-right">
-              <p className="font-bold">ATENDIMENTO SECRETARIA:</p>
+            <div className="space-y-0.5 leading-tight text-[9.5pt]">
+              <p className="font-bold uppercase mb-1">ATENDIMENTO SECRETARIA:</p>
               <p>De Quarta à Sexta-feira das 14h às 18h</p>
+              <p>Sábado das 09h às 11h30</p>
             </div>
           </div>
 
