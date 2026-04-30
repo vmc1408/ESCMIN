@@ -27,21 +27,24 @@
     #printable-student-record * {
       visibility: visible;
     }
-    /* Position it correctly */
+    /* Position and size it correctly for A4 */
     #printable-student-record {
       position: absolute;
       left: 0;
       top: 0;
-      width: 100%;
-      height: 100%;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 15mm;
+      margin: 0;
       display: block !important;
       visibility: visible !important;
       background: white;
+      box-sizing: border-box;
     }
     /* Clean up the page */
     @page {
-      margin: 0;
       size: A4;
+      margin: 0;
     }
     nav, sidebar, button:not(#printable-student-record *) {
       display: none !important;

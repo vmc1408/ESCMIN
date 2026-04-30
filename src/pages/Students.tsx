@@ -459,8 +459,8 @@ export function Students() {
     }, []);
     
     return (
-      <div id="printable-student-record" className="hidden print:block fixed inset-0 bg-white z-[9999] p-[10mm] text-black overflow-visible font-sans leading-tight">
-        <div className="max-w-[190mm] mx-auto">
+      <div id="printable-student-record" className="hidden print:block text-black overflow-visible font-sans leading-tight">
+        <div className="w-full">
           
           {/* HEADER SECTION */}
           <div className="flex items-center gap-6 mb-4">
