@@ -93,23 +93,6 @@ export function Navbar() {
               </span>
             </button>
           </div>
-
-          {(institution?.address || institution?.email) && (
-            <div className="hidden lg:flex flex-col gap-0.5 mt-1">
-              {institution?.address && (
-                <div className="flex items-center gap-1.5 text-[9.5px] font-medium text-slate-500 uppercase tracking-wide">
-                  <span>{institution.address}</span>
-                </div>
-              )}
-              {institution?.email && (
-                <div className="flex items-center gap-1.5 text-[9.5px] font-medium text-slate-500 uppercase tracking-wide">
-                  <span>{institution.email}</span>
-                  {institution?.phone && <span className="text-slate-300 mx-1">|</span>}
-                  {institution?.phone && <span>{institution.phone}</span>}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
