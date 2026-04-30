@@ -23,9 +23,27 @@ ALTER TABLE classes ADD COLUMN IF NOT EXISTS start_date DATE;
 CREATE TABLE IF NOT EXISTS institution_settings (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    cnpj TEXT,
+    address TEXT,
+    phone TEXT,
+    whatsapp TEXT,
+    email TEXT,
+    website TEXT,
     logo_url TEXT,
+    footer_text TEXT,
+    receipt_message TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Adicionar colunas caso a tabela já exista sem elas
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS cnpj TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS whatsapp TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS footer_text TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS receipt_message TEXT;
 
 -- Inserir configuração padrão usando um ID compatível com TEXT ou UUID
 -- Usamos um valor que parece um UUID técnico para evitar o erro 22P02
@@ -60,6 +78,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Liberar acesso público total para o bucket 'students'
 -- Isso permite leitura e escrita para o app gerenciar fotos de alunos, logos e avatares
 DROP POLICY IF EXISTS "Public Access Photos" ON storage.objects;
+DROP POLICY IF EXISTS "Public Access students" ON storage.objects;
 CREATE POLICY "Public Access students" ON storage.objects FOR ALL USING (bucket_id = 'students') WITH CHECK (bucket_id = 'students');
 
 -- 6. Recriar políticas de acesso (RLS) - Permite leitura/escrita para todos no modo dev

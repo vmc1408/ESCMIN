@@ -205,7 +205,7 @@ export function Settings() {
                 try {
                   const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
                   const whitelist: Record<string, string[]> = {
-                    institution_settings: ['id', 'name', 'logo_url', 'updated_at'],
+                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'updated_at'],
                     users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
                     email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
                     foraries: [...baseFields, 'code', 'name', 'priest_name'],
