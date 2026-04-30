@@ -295,7 +295,7 @@ export function Students() {
     setFormData({
       ...initialStudentState,
       ...student,
-      // Ensure specific fields aren't null/undefined from DB
+      // Ensure specific fields aren't null/undefined from DB and format dates for UI
       name: student.name || '',
       registration_number: student.registration_number || '',
       status: student.status || 'Ativo',
@@ -305,7 +305,7 @@ export function Students() {
       phone_residential: student.phone_residential || '',
       cpf: student.cpf || '',
       rg: student.rg || '',
-      birth_date: student.birth_date || '',
+      birth_date: formatDateForDisplay(student.birth_date),
       address_street: student.address_street || '',
       address_neighborhood: student.address_neighborhood || '',
       address_city: student.address_city || 'Guarulhos',
@@ -315,7 +315,7 @@ export function Students() {
       forany: student.forany || '',
       course: student.course || '',
       pastoral_participates: student.pastoral_participates || '',
-      start_date: student.start_date || '',
+      start_date: formatDateForDisplay(student.start_date),
       photo_url: student.photo_url || ''
     });
     setIsEditing(false);
@@ -356,6 +356,21 @@ export function Students() {
       
       const dataToSave: any = { ...formData };
       
+      // Convert dates from DD/MM/YYYY to YYYY-MM-DD for database
+      if (dataToSave.birth_date && dataToSave.birth_date.includes('/')) {
+        const parts = dataToSave.birth_date.split('/');
+        if (parts.length === 3) {
+          dataToSave.birth_date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+      
+      if (dataToSave.start_date && dataToSave.start_date.includes('/')) {
+        const parts = dataToSave.start_date.split('/');
+        if (parts.length === 3) {
+          dataToSave.start_date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+      
       // Set created_at only if it's the first time saving (no id)
       if (!selectedStudent?.id && !dataToSave.created_at) {
         dataToSave.created_at = new Date().toISOString();
@@ -372,7 +387,7 @@ export function Students() {
       if (!selectedStudent?.id && savedId) {
         handleSelectStudent({ ...dataToSave, id: savedId } as Student);
       } else {
-        // Update local state if editing existing
+        // Update local state if editing existing (using fresh data from DB after potentially re-fetching)
         setSelectedStudent({ ...dataToSave, id: selectedStudent?.id } as Student);
       }
     } catch (error: any) {
@@ -534,95 +549,89 @@ export function Students() {
           </div>
 
           {/* PERSONAL DATA */}
-          <div className="space-y-3 mb-6 text-[10.5pt] text-slate-800">
+          <div className="space-y-1.5 mb-4 text-[9pt] text-slate-800">
             <div className="flex items-end gap-2">
-              <span className="font-semibold uppercase min-w-[70px] text-slate-900">Nome:</span>
-              <span className="flex-1 border-b border-black/10 font-semibold uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.name}</span>
+              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Nome:</span>
+              <span className="flex-1 border-b border-black/10 font-semibold uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.name}</span>
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="font-semibold uppercase min-w-[70px] text-slate-900">Endereço:</span>
-              <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_street}</span>
+              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Endereço:</span>
+              <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.address_street}</span>
             </div>
 
             <div className="flex gap-4">
               <div className="flex-[4] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Bairro:</span>
-                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[22px]">
+                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[20px]">
                    {selectedStudent.address_neighborhood || (selectedStudent.address_street?.includes(' - ') ? selectedStudent.address_street.split(' - ').pop() : '')}
                 </span>
               </div>
               <div className="flex-[4] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Cidade:</span>
-                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_city}</span>
+                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.address_city}</span>
               </div>
               <div className="flex-[1] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Uf:</span>
-                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.address_state}</span>
+                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 text-center min-h-[20px]">{selectedStudent.address_state}</span>
               </div>
             </div>
 
             <div className="flex gap-4">
               <div className="flex-[3] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Cep:</span>
-                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_zip}</span>
+                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 min-h-[20px]">{selectedStudent.address_zip}</span>
               </div>
-              <div className="flex-[5] flex items-end relative gap-2">
-                <span className="font-semibold uppercase text-slate-900">Celular:</span>
-                <span className="flex-1 border-b border-black/10 font-semibold px-2 pb-0.5 min-h-[22px]">{selectedStudent.phone_mobile}</span>
-                <div className="flex items-center gap-3 ml-2 mb-0.5 text-[9pt]">
-                  <span className="text-slate-600 font-semibold uppercase">WhatsApp:</span>
+              <div className="flex-[2.5] flex items-end gap-2">
+                <span className="font-semibold uppercase whitespace-nowrap text-slate-900 text-[8pt]">Nasc.:</span>
+                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 text-center min-h-[20px]">
+                  {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
+                </span>
+              </div>
+              <div className="flex-[2] flex items-end gap-2">
+                <span className="font-semibold uppercase text-slate-900 text-[8pt]">RG:</span>
+                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 text-center min-h-[20px]">{selectedStudent.rg}</span>
+              </div>
+              <div className="flex-[2.5] flex items-end gap-2">
+                <span className="font-semibold uppercase text-slate-900 text-[8pt]">CPF:</span>
+                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 text-center min-h-[20px]">{selectedStudent.cpf}</span>
+              </div>
+            </div>
+
+            <div className="flex items-end gap-3">
+              <div className="flex-[5] flex items-end gap-2">
+                <span className="font-semibold uppercase min-w-[60px] text-slate-900 font-bold">Email:</span>
+                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 lowercase min-h-[20px] text-[8.5pt]">{selectedStudent.email}</span>
+              </div>
+              <div className="flex-[4] flex items-end gap-2">
+                <span className="font-semibold uppercase text-slate-900 text-[8pt]">Celular:</span>
+                <span className="flex-1 border-b border-black/10 font-semibold px-2 pb-0.5 min-h-[20px]">{selectedStudent.phone_mobile}</span>
+                <div className="flex items-center gap-2 ml-1 mb-0.5 text-[8pt]">
+                  <span className="text-slate-500 font-semibold uppercase text-[7pt]">Wpp:</span>
                   <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black/40 flex items-center justify-center">
-                       {selectedStudent.phone_mobile && <div className="w-2 h-2 bg-slate-800"></div>}
+                    <div className="w-3 h-3 border border-black/30 flex items-center justify-center">
+                       {selectedStudent.phone_mobile && <div className="w-1.5 h-1.5 bg-slate-700"></div>}
                     </div>
-                    <span className="font-semibold uppercase text-[8pt]">Sim</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black/40"></div>
-                    <span className="font-semibold uppercase text-[8pt]">Não</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-[2] flex items-end gap-2">
-                <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Nasc.:</span>
-                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 text-center min-h-[22px]">
-                  {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
-                </span>
-              </div>
-              <div className="flex-[1.5] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">RG:</span>
-                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.rg}</span>
-              </div>
-              <div className="flex-[2] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">CPF:</span>
-                <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.cpf}</span>
-              </div>
-            </div>
-
-            <div className="flex items-end gap-2">
-              <span className="font-semibold uppercase min-w-[70px] text-slate-900">Email:</span>
-              <span className="flex-1 border-b border-black/10 font-medium px-2 pb-0.5 lowercase min-h-[22px]">{selectedStudent.email}</span>
-            </div>
-
             {/* Pastoral Info Layout */}
-            <div className="space-y-3">
+            <div className="space-y-1.5 pt-1">
               <div className="flex items-end gap-2">
-                <span className="font-semibold uppercase min-w-[70px] text-slate-900">Paróquia:</span>
-                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.parish}</span>
+                <span className="font-semibold uppercase min-w-[60px] text-slate-900">Paróquia:</span>
+                <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.parish}</span>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-end gap-2">
-                  <span className="font-semibold uppercase min-w-[70px] text-slate-900">Forania:</span>
-                  <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.forany}</span>
+                  <span className="font-semibold uppercase min-w-[60px] text-slate-900 text-[8pt]">Forania:</span>
+                  <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.forany}</span>
                 </div>
                 <div className="flex items-end gap-2">
-                  <span className="font-semibold uppercase text-slate-900">Pastoral:</span>
-                  <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.pastoral_participates}</span>
+                  <span className="font-semibold uppercase text-slate-900 text-[8pt]">Pastoral:</span>
+                  <span className="flex-1 border-b border-black/10 font-medium uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.pastoral_participates}</span>
                 </div>
               </div>
             </div>
@@ -639,33 +648,33 @@ export function Students() {
             </div>
           </div>
 
-          <div className="text-[10.5pt] leading-normal mb-8 pt-2">
+          <div className="text-[10pt] leading-normal mb-6 pt-1">
             <div className="flex items-baseline mb-1 gap-2">
               <span className="font-semibold uppercase">Eu,</span>
               <span className="flex-1 border-b border-black/10 font-semibold uppercase px-2">{selectedStudent.name}</span>
             </div>
-            <p className="text-justify leading-relaxed font-normal text-slate-800">
+            <p className="text-justify leading-relaxed font-normal text-slate-700">
               declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição.
             </p>
           </div>
 
           {/* DATE AND SIGNATURE */}
-          <div className="flex justify-between items-end mb-12 px-2">
-            <p className="text-[10pt] font-semibold text-slate-800">
+          <div className="flex justify-between items-end mb-8 px-2">
+            <p className="text-[9pt] font-semibold text-slate-800">
               Guarulhos, <span className="border-b border-black/20 pb-0.5">
                 {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
               </span>
             </p>
             <div className="flex flex-col items-center">
-              <div className="w-[80mm] border-t border-black/40 mb-1"></div>
-              <p className="text-[9pt] font-semibold uppercase tracking-wider text-slate-800">Assinatura do Aluno(a)</p>
+              <div className="w-[70mm] border-t border-black/40 mb-1"></div>
+              <p className="text-[8.5pt] font-semibold uppercase tracking-wider text-slate-800">Assinatura do Aluno(a)</p>
             </div>
           </div>
 
           {/* RODAPÉ - Data from settings */}
-          <div className="mt-auto border-t border-black/10 pt-4 flex justify-between items-start text-[7.5pt] font-medium text-slate-500 uppercase tracking-tight">
+          <div className="mt-auto border-t border-black/10 pt-2 flex justify-between items-start text-[6.5pt] font-medium text-slate-500 uppercase tracking-tight">
             <div className="flex flex-col gap-0.5">
-              {inst?.address && <p className="flex items-center gap-1">{inst.address}</p>}
+              {inst?.address && <p>{inst.address}</p>}
               {!inst?.address && <p>Avenida Vênus, 195 - Itapegica - Guarulhos-SP</p>}
               <div className="flex gap-4">
                 {(inst?.phone || inst?.whatsapp) ? (
@@ -677,12 +686,11 @@ export function Students() {
                   <p>Telefone: (11) 2421-2935</p>
                 )}
               </div>
-              {inst?.email && <p className="lowercase">Email: {inst.email}</p>}
+              {inst?.email && <p className="lowercase italic opacity-80">Email: {inst.email}</p>}
             </div>
             <div className="text-right flex flex-col gap-0.5">
-              <p className="font-semibold text-slate-800 border-b border-black/5 mb-0.5">Escola Diocesana de Ministérios</p>
-              <p>Departamento Acadêmico</p>
-              {inst?.footer_text && <p className="text-[6.5pt] normal-case opacity-60 italic">{inst.footer_text}</p>}
+              {inst?.name && <p className="font-semibold text-slate-800 border-b border-black/5 mb-0.5">{inst.name}</p>}
+              {inst?.footer_text && <p className="text-[5.5pt] normal-case opacity-60 italic max-w-[200px] leading-tight">{inst.footer_text}</p>}
             </div>
           </div>
         </div>
