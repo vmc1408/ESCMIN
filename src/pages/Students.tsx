@@ -453,7 +453,6 @@ export function Students() {
               </h1>
               <p className="text-[12pt] font-medium text-slate-700 italic">Pe. José Fernando de Brito</p>
               <div className="pt-1 text-[9pt] font-normal text-slate-500 leading-tight">
-                <p>Telefone: (11) 2421-2935</p>
               </div>
             </div>
           </div>
@@ -636,8 +635,6 @@ export function Students() {
               <p>Telefone: (11) 2421-2935</p>
             </div>
             <div className="text-right space-y-0.5">
-              <p className="font-bold text-slate-800">Departamento Acadêmico</p>
-              <p>Escola Diocesana de Ministérios</p>
             </div>
           </div>
         </div>
