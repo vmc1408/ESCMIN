@@ -878,13 +878,14 @@ export function Settings() {
                     />
                   </div>
                   <div className="md:col-span-2 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secretaria (Rodapé)</label>
-                    <input 
-                      type="text"
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Atendimento Secretaria (Fins de Rodapé)</label>
+                    <textarea 
+                      rows={3}
                       value={institution.secretary}
                       onChange={(e) => setInstitution({...institution, secretary: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                      placeholder="Informações da secretaria para o rodapé"
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm resize-none"
+                      placeholder="Informações de atendimento (Máx 3 linhas de 50 caracteres)"
+                      maxLength={150}
                     />
                   </div>
                 </div>
