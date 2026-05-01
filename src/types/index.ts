@@ -189,6 +189,7 @@ export interface InstitutionSettings {
   logo_url: string;
   footer_text: string;
   receipt_message: string;
+  secretary?: string;
 }
 
 export interface AcademicParameters {

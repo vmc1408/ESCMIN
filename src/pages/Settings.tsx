@@ -101,7 +101,8 @@ export function Settings() {
     website: '',
     logo_url: '',
     footer_text: '',
-    receipt_message: ''
+    receipt_message: '',
+    secretary: ''
   });
 
   // Academic Parameters State
@@ -205,7 +206,7 @@ export function Settings() {
                 try {
                   const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
                   const whitelist: Record<string, string[]> = {
-                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'updated_at'],
+                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'secretary', 'updated_at'],
                     users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
                     email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
                     foraries: [...baseFields, 'code', 'name', 'priest_name'],
@@ -473,7 +474,8 @@ export function Settings() {
         website: institution.website || null,
         logo_url: institution.logo_url || null,
         footer_text: institution.footer_text || null,
-        receipt_message: institution.receipt_message || null
+        receipt_message: institution.receipt_message || null,
+        secretary: institution.secretary || null
       };
 
       // Ensure we have an ID for institution_settings
@@ -873,6 +875,16 @@ export function Settings() {
                       onChange={(e) => setInstitution({...institution, website: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
                       placeholder="www.escola.com.br"
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secretaria (Rodapé)</label>
+                    <input 
+                      type="text"
+                      value={institution.secretary}
+                      onChange={(e) => setInstitution({...institution, secretary: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      placeholder="Informações da secretaria para o rodapé"
                     />
                   </div>
                 </div>

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.institution_settings (
     logo_url TEXT,
     footer_text TEXT,
     receipt_message TEXT,
+    secretary TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

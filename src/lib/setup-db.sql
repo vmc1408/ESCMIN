@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS institution_settings (
     logo_url TEXT,
     footer_text TEXT,
     receipt_message TEXT,
+    secretary TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -44,6 +45,7 @@ ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS website TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS footer_text TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS receipt_message TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS secretary TEXT;
 
 -- Inserir configuração padrão usando um ID compatível com TEXT ou UUID
 -- Usamos um valor que parece um UUID técnico para evitar o erro 22P02

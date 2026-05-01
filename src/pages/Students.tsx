@@ -634,6 +634,7 @@ export function Students() {
           {/* RODAPÉ */}
           <div className="border-t border-black/10 pt-3 flex justify-between items-start text-[8pt] font-medium text-slate-500 uppercase tracking-tight">
             <div className="space-y-0.5">
+              {inst?.secretary && <p>{inst.secretary}</p>}
             </div>
             <div className="text-right space-y-0.5">
             </div>

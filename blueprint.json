@@ -154,7 +154,16 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "email": { "type": "string" },
+        "website": { "type": "string" },
         "logo_url": { "type": "string" },
+        "footer_text": { "type": "string" },
+        "receipt_message": { "type": "string" },
+        "secretary": { "type": "string" },
         "updated_at": { "type": "string", "format": "date-time" }
       }
     },
