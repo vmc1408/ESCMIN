@@ -252,7 +252,7 @@ export function Reports() {
       doc.text(institution?.address || '', textStartX, y + 16, { align: textHeaderAlign });
       
       const meta = [
-        institution?.phone ? `TEL: ${institution.phone}${institution?.whatsapp === institution?.phone ? ' (WhatsApp)' : ''}` : '',
+        institution?.phone ? `TEL: ${institution.phone}` : '',
         institution?.whatsapp && institution?.whatsapp !== institution?.phone ? `WHATSAPP: ${institution.whatsapp}` : '',
         institution?.email ? `EMAIL: ${institution.email}` : '',
         institution?.website ? `SITE: ${institution.website}` : ''

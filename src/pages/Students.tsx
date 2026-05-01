@@ -649,9 +649,6 @@ export function Students() {
                 {inst?.phone && (
                   <span className="flex items-center gap-1.5">
                     <span className="opacity-80 text-[6.5pt] font-bold">TELEFONE:</span> {inst.phone}
-                    {inst?.whatsapp === inst?.phone && (
-                      <span className="text-[6.5pt] font-black text-green-700 ml-1">(WhatsApp)</span>
-                    )}
                   </span>
                 )}
                 {(inst?.phone && (inst?.whatsapp || inst?.email)) && (
@@ -660,7 +657,6 @@ export function Students() {
                 {inst?.whatsapp && inst?.whatsapp !== inst?.phone && (
                   <span className="flex items-center gap-1.5 font-bold text-green-800">
                     <span className="opacity-80 text-[6.5pt] text-slate-500 font-black">WHATSAPP:</span> {inst.whatsapp}
-                    <span className="text-[6.5pt] ml-0.5">(WhatsApp)</span>
                   </span>
                 )}
                 {(inst?.whatsapp || inst?.phone) && inst?.email && (
