@@ -1945,7 +1945,7 @@ export function Contributions() {
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
                       {institution?.cnpj && <span>CNPJ: {institution.cnpj}</span>}
                       {institution?.phone && <span>TEL: {institution.phone}</span>}
-                      {institution?.whatsapp && institution?.whatsapp !== institution?.phone && <span>WS: {institution.whatsapp}</span>}
+                      {institution?.whatsapp && institution?.whatsapp !== institution?.phone && <span>CEL: {institution.whatsapp}</span>}
                       {institution?.email && <span className="lowercase">EMAIL: {institution.email.toLowerCase()}</span>}
                     </div>
                   </div>
