@@ -253,9 +253,9 @@ export function Reports() {
       
       const meta = [
         institution?.phone ? `TEL: ${institution.phone}` : '',
-        institution?.whatsapp && institution?.whatsapp !== institution?.phone ? `WHATSAPP: ${institution.whatsapp}` : '',
-        institution?.email ? `EMAIL: ${institution.email}` : '',
-        institution?.website ? `SITE: ${institution.website}` : ''
+        institution?.whatsapp && institution?.whatsapp !== institution?.phone ? `CEL: ${institution.whatsapp}` : '',
+        institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : '',
+        institution?.website ? `SITE: ${institution.website.toLowerCase()}` : ''
       ].filter(Boolean).join('   |   ');
       doc.text(meta, textStartX, y + 21, { align: textHeaderAlign });
 
