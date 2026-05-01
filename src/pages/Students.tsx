@@ -446,19 +446,19 @@ export function Students() {
                 <img src={inst.logo_url} className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
               </div>
             )}
-            <div className="flex-1 text-left space-y-0.5">
-              <p className="text-[10pt] font-semibold tracking-wider">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[18pt] font-bold uppercase tracking-tight text-black leading-none">
+            <div className="flex-1 space-y-0.5">
+              <p className="text-[10pt] font-semibold tracking-wider text-left">DIOCESE DE GUARULHOS</p>
+              <h1 className="text-[18pt] font-bold uppercase tracking-tight text-black leading-none text-left">
                 {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
-              <p className="text-[12pt] font-medium text-slate-700 italic">Pe. José Fernando de Brito</p>
-              <div className="pt-1 text-[9pt] font-normal text-slate-500 leading-tight">
+              <div className="flex justify-end pt-1">
+                <p className="text-[12pt] font-medium text-slate-700 italic">Pe. José Fernando de Brito</p>
               </div>
             </div>
           </div>
 
           <div className="text-center mb-4">
-            <h2 className="text-[16pt] font-bold uppercase tracking-widest border-b border-black/40 w-fit mx-auto pb-0.5">Ficha de Inscrição</h2>
+            <h2 className="text-[16pt] font-bold uppercase tracking-widest w-fit mx-auto pb-0.5">Ficha de Inscrição</h2>
           </div>
 
           {/* TOP CONTROL BOXES */}
@@ -578,20 +578,22 @@ export function Students() {
             </div>
 
             {/* Pastoral Info Grid */}
-            <div className="grid grid-cols-2 gap-4 pt-1">
+            <div className="space-y-3 pt-1">
               <div className="flex items-end gap-2">
                 <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Paróquia:</span>
                 <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.parish}</span>
               </div>
-              <div className="flex items-end gap-2">
-                <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Forania:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.forany}</span>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-end gap-2">
+                  <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Forania:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px] text-center">{selectedStudent.forany}</span>
+                </div>
+                <div className="flex items-end gap-2">
+                  <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Pastoral:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px] text-center">{selectedStudent.pastoral_participates}</span>
+                </div>
               </div>
-            </div>
-            
-            <div className="flex items-end gap-2">
-              <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Pastoral/Movimento:</span>
-              <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.pastoral_participates}</span>
             </div>
           </div>
 
@@ -619,7 +621,7 @@ export function Students() {
           {/* DATE AND SIGNATURE */}
           <div className="flex justify-between items-end mb-12 px-2">
             <p className="text-[10.5pt] font-semibold text-slate-800">
-              Guarulhos, <span className="border-b border-black/20 pb-0.5">
+              Guarulhos, <span>
                 {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
               </span>
             </p>
@@ -632,7 +634,6 @@ export function Students() {
           {/* RODAPÉ */}
           <div className="border-t border-black/10 pt-3 flex justify-between items-start text-[8pt] font-medium text-slate-500 uppercase tracking-tight">
             <div className="space-y-0.5">
-              <p>Telefone: (11) 2421-2935</p>
             </div>
             <div className="text-right space-y-0.5">
             </div>
