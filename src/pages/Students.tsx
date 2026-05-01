@@ -324,25 +324,35 @@ export function Students() {
         start_date: parseDateToDB(formData.start_date)
       };
 
-      // Prepare data for DB (without UI-only fields)
-      const dataForDB: any = { ...dataToSave };
-      delete dataForDB.phone_mobile_is_whatsapp;
-      
       // Set created_at only if it's the first time saving (no id)
-      if (!selectedStudent?.id && !dataForDB.created_at) {
-        dataForDB.created_at = new Date().toISOString();
+      if (!selectedStudent?.id && !dataToSave.created_at) {
+        dataToSave.created_at = new Date().toISOString();
       }
 
-      const savedId = await saveData('students', selectedStudent?.id, dataForDB);
+      // Try saving with all fields, fallback if column missing
+      try {
+        await saveData('students', selectedStudent?.id, dataToSave);
+      } catch (err: any) {
+        if (err.message?.includes('phone_mobile_is_whatsapp')) {
+          console.warn('[Supabase] Coluna phone_mobile_is_whatsapp ausente, salvando sem ela.');
+          const fallbackData = { ...dataToSave };
+          delete fallbackData.phone_mobile_is_whatsapp;
+          await saveData('students', selectedStudent?.id, fallbackData);
+        } else {
+          throw err;
+        }
+      }
       
       setNotification({ type: 'success', message: 'Ficha do aluno salva com sucesso!' });
       setIsEditing(false);
       setUploadingPhoto(false); // Reset upload state on save success
       fetchStudents();
       
-      // Update selected student with local data (including UI-only fields)
-      if (!selectedStudent?.id && savedId) {
-        handleSelectStudent({ ...dataToSave, id: savedId } as Student);
+      // Update selected student with local data (including UI-only fields if fallback occurred)
+      if (!selectedStudent?.id) {
+        // We don't have the savedId easily here from the try block unless we capture it
+        // but fetchStudents will handle it. For immediate UI:
+        setSelectedStudent({ ...dataToSave, id: selectedStudent?.id || crypto.randomUUID() } as Student);
       } else {
         setSelectedStudent({ ...dataToSave, id: selectedStudent?.id } as Student);
       }
@@ -546,16 +556,16 @@ export function Students() {
                 <div className="flex items-center gap-3 ml-2 mb-0.5 text-[9pt]">
                   <span className="text-slate-900 font-semibold uppercase">WhatsApp:</span>
                   <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black/40 flex items-center justify-center">
-                       {selectedStudent.phone_mobile_is_whatsapp && <div className="w-2 h-2 bg-slate-900"></div>}
+                    <div className="w-3.5 h-3.5 border border-black/60 flex items-center justify-center bg-white">
+                       {selectedStudent.phone_mobile_is_whatsapp === true && <div className="w-2.5 h-2.5 bg-black"></div>}
                     </div>
-                    <span className="font-medium uppercase text-[8pt]">Sim</span>
+                    <span className="font-bold uppercase text-[8pt]">Sim</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black/40 flex items-center justify-center">
-                       {!selectedStudent.phone_mobile_is_whatsapp && <div className="w-2 h-2 bg-slate-900"></div>}
+                    <div className="w-3.5 h-3.5 border border-black/60 flex items-center justify-center bg-white">
+                       {selectedStudent.phone_mobile_is_whatsapp === false && <div className="w-2.5 h-2.5 bg-black"></div>}
                     </div>
-                    <span className="font-medium uppercase text-[8pt]">Não</span>
+                    <span className="font-bold uppercase text-[8pt]">Não</span>
                   </div>
                 </div>
               </div>

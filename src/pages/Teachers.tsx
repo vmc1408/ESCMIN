@@ -121,6 +121,7 @@ export function Teachers() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Teacher>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   useEffect(() => {
     fetchTeachers();
@@ -162,11 +163,20 @@ export function Teachers() {
     try {
       const dataToSave = { ...formData };
       
-      // Prepare data for DB (strip UI-only fields until DB is updated)
-      const dataForDB = { ...dataToSave };
-      delete (dataForDB as any).phone_mobile_is_whatsapp;
-
-      const savedId = await saveData('teachers', selectedTeacher?.id, dataForDB);
+      // Try saving with all fields, fallback if column missing
+      let savedId;
+      try {
+        savedId = await saveData('teachers', selectedTeacher?.id, dataToSave);
+      } catch (err: any) {
+        if (err.message?.includes('phone_mobile_is_whatsapp')) {
+          console.warn('[Supabase] Coluna phone_mobile_is_whatsapp ausente em teachers, salvando sem ela.');
+          const fallbackData = { ...dataToSave };
+          delete (fallbackData as any).phone_mobile_is_whatsapp;
+          savedId = await saveData('teachers', selectedTeacher?.id, fallbackData);
+        } else {
+          throw err;
+        }
+      }
       
       setNotification({ type: 'success', message: 'Ficha do professor salva com sucesso!' });
       setIsEditing(false);
@@ -681,6 +691,16 @@ export function Teachers() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Notification Toast */}
+      {notification && (
+        <div className={cn(
+          "fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-[300]",
+          notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+        )}>
+          {notification.type === 'success' ? <Loader2 className="animate-spin" size={20} /> : <X size={20} />}
+          <span className="font-bold text-sm tracking-wide">{notification.message}</span>
         </div>
       )}
     </div>

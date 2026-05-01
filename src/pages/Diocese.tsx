@@ -300,9 +300,8 @@ export function Diocese() {
       const collection = activeTab === 'foranias' ? 'foraries' : activeTab === 'parishes' ? 'parishes' : 'clergy_leity';
       let data = { ...(activeTab === 'foranias' ? forariaForm : activeTab === 'parishes' ? parishForm : clergyForm) };
       
-      // Prepare data for DB (without UI-only fields)
+      // Prepare data for DB
       const dataForDB = { ...data };
-      delete (dataForDB as any).phone_mobile_is_whatsapp;
       
       if (activeTab === 'parishes') {
         const foundationDate = (dataForDB as any).foundation_date;
@@ -315,11 +314,27 @@ export function Diocese() {
       
       const docId = selectedItem?.id || (dataForDB as any).code;
 
-      await saveData(collection, docId as string, {
-        ...dataForDB,
-        user_id: userAuth.uid,
-        created_at: selectedItem?.created_at || new Date().toISOString()
-      });
+      // Try saving with all fields, fallback if column missing
+      try {
+        await saveData(collection, docId as string, {
+          ...dataForDB,
+          user_id: userAuth.uid,
+          created_at: selectedItem?.created_at || new Date().toISOString()
+        });
+      } catch (err: any) {
+        if (err.message?.includes('phone_mobile_is_whatsapp')) {
+          console.warn(`[Supabase] Coluna phone_mobile_is_whatsapp ausente em ${collection}, salvando sem ela.`);
+          const fallbackData = { ...dataForDB };
+          delete (fallbackData as any).phone_mobile_is_whatsapp;
+          await saveData(collection, docId as string, {
+            ...fallbackData,
+            user_id: userAuth.uid,
+            created_at: selectedItem?.created_at || new Date().toISOString()
+          });
+        } else {
+          throw err;
+        }
+      }
 
       setNotification({ type: 'success', message: 'Registro salvo com sucesso!' });
       setIsEditing(false);

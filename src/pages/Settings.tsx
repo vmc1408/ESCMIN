@@ -474,10 +474,9 @@ export function Settings() {
       setSaving(true);
       
       const now = new Date().toISOString();
-      // Preparar dados para salvar - Apenas os campos suportados pelo schema atual
+      // Preparar dados para salvar
       const dataToSave: any = {
-        name: institution.name,
-        logo_url: institution.logo_url || null,
+        ...institution,
         updated_at: now
       };
 
@@ -489,7 +488,24 @@ export function Settings() {
         else instId = '1'; // Default fixed ID
       }
 
-      const finalId = await saveData('institution_settings', instId, dataToSave);
+      // Tentar salvar com todos os campos, fallback se colunas novas faltarem
+      let finalId;
+      try {
+        finalId = await saveData('institution_settings', instId, dataToSave);
+      } catch (err: any) {
+        if (err.message?.includes('cnpj') || err.message?.includes('footer_text') || err.message?.includes('phone_is_whatsapp')) {
+          console.warn('[Supabase] Algumas colunas ausentes em institution_settings, salvando apenas o básico.');
+          const fallbackData = {
+            name: institution.name,
+            logo_url: institution.logo_url || null,
+            updated_at: now,
+            id: instId
+          };
+          finalId = await saveData('institution_settings', instId, fallbackData);
+        } else {
+          throw err;
+        }
+      }
       
       setInstitution({ ...institution, id: finalId as string, ...dataToSave });
       setNotification({ type: 'success', message: 'Configurações sincronizadas com sucesso!' });
