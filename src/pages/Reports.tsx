@@ -252,11 +252,11 @@ export function Reports() {
       doc.text(institution?.address || '', textStartX, y + 16, { align: textHeaderAlign });
       
       const meta = [
-        institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
-        institution?.phone ? `TEL: ${institution.phone}` : '',
+        institution?.phone ? `TEL: ${institution.phone}${institution?.whatsapp === institution?.phone ? ' (WhatsApp)' : ''}` : '',
+        institution?.whatsapp && institution?.whatsapp !== institution?.phone ? `WHATSAPP: ${institution.whatsapp}` : '',
         institution?.email ? `EMAIL: ${institution.email}` : '',
         institution?.website ? `SITE: ${institution.website}` : ''
-      ].filter(Boolean).join('  |  ');
+      ].filter(Boolean).join('   |   ');
       doc.text(meta, textStartX, y + 21, { align: textHeaderAlign });
 
       doc.setDrawColor(0, 23, 75);
