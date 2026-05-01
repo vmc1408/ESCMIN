@@ -480,12 +480,12 @@ export function Students() {
               </div>
             )}
             <div className="flex-1 text-left space-y-0.5">
-              <p className="text-[10pt] font-bold tracking-wider">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[18pt] font-black uppercase tracking-tight text-black leading-none">
+              <p className="text-[10pt] font-semibold tracking-wider">DIOCESE DE GUARULHOS</p>
+              <h1 className="text-[18pt] font-bold uppercase tracking-tight text-black leading-none">
                 {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
-              <p className="text-[12pt] font-bold text-slate-800 italic">Pe. José Fernando de Brito</p>
-              <div className="pt-1 text-[9pt] font-medium text-slate-600 leading-tight">
+              <p className="text-[12pt] font-medium text-slate-700 italic">Pe. José Fernando de Brito</p>
+              <div className="pt-1 text-[9pt] font-normal text-slate-500 leading-tight">
                 <p>Avenida Vênus, 195 - Itapegica - Guarulhos-SP</p>
                 <p>Telefone: (11) 2421-2935 | WhatsApp (11) 97135-2605</p>
               </div>
@@ -493,45 +493,45 @@ export function Students() {
           </div>
 
           <div className="text-center mb-4">
-            <h2 className="text-[16pt] font-black uppercase tracking-widest border-b-2 border-black w-fit mx-auto pb-0.5">Ficha de Inscrição</h2>
+            <h2 className="text-[16pt] font-bold uppercase tracking-widest border-b border-black/40 w-fit mx-auto pb-0.5">Ficha de Inscrição</h2>
           </div>
 
           {/* TOP CONTROL BOXES */}
           <div className="grid grid-cols-12 gap-3 mb-6">
-            <div className="col-span-4 border-2 border-black p-2 flex flex-col h-32">
-              <p className="text-[10pt] font-bold border-b border-black/20 pb-0.5 mb-2">Controle da Escola</p>
+            <div className="col-span-4 border border-black/40 p-2 flex flex-col h-32">
+              <p className="text-[10pt] font-semibold border-b border-black/10 pb-0.5 mb-2">Controle da Escola</p>
               <div className="flex-1 flex flex-col justify-center items-center">
-                <p className="text-[9pt] font-bold mb-1 uppercase opacity-60 text-center">Matrícula</p>
-                <div className="border border-black/20 h-10 w-full flex items-center justify-center font-black text-[15pt] bg-slate-50">
+                <p className="text-[9pt] font-semibold mb-1 uppercase opacity-40 text-center">Matrícula</p>
+                <div className="border border-black/10 h-10 w-full flex items-center justify-center font-bold text-[15pt] bg-white">
                   {selectedStudent.registration_number || ''}
                 </div>
               </div>
             </div>
 
-            <div className="col-span-5 border-2 border-black p-2 h-32 flex flex-col">
-              <p className="text-[9pt] font-black mb-2 uppercase">CURSO:</p>
+            <div className="col-span-5 border border-black/40 p-2 h-32 flex flex-col">
+              <p className="text-[9pt] font-bold mb-2 uppercase border-b border-black/10 pb-0.5">CURSO:</p>
               <div className="flex-1 flex flex-col justify-center gap-1">
                 {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
                   const isChecked = currentClass?.name?.toLowerCase().includes(course.toLowerCase()) || 
                                   selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
                   return (
                     <div key={course} className="flex items-center gap-3">
-                      <div className="w-4 h-4 border border-black flex items-center justify-center bg-white relative shrink-0">
-                        {isChecked && <div className="w-2.5 h-2.5 bg-black rounded-sm"></div>}
+                      <div className="w-3.5 h-3.5 border border-black/60 flex items-center justify-center bg-white relative shrink-0">
+                        {isChecked && <div className="w-2.5 h-2.5 bg-black/80 rounded-[1px]"></div>}
                       </div>
-                      <span className="text-[9.5pt] font-bold leading-none uppercase">{course === 'S. Negros' ? 'História dos Santos Negros' : course}</span>
+                      <span className="text-[9.5pt] font-medium leading-none uppercase">{course === 'S. Negros' ? 'História dos Santos Negros' : course}</span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="col-span-3 border-2 border-black flex items-center justify-center relative bg-white h-32">
+            <div className="col-span-3 border border-black/40 flex items-center justify-center relative bg-white h-32">
               {selectedStudent.photo_url ? (
                 <img src={selectedStudent.photo_url} className="w-full h-full object-cover p-0.5" referrerPolicy="no-referrer" />
               ) : (
-                <div className="text-center text-black/20 uppercase">
-                  <p className="text-[7pt] font-black leading-tight tracking-tighter">FOTO 3X4</p>
+                <div className="text-center text-black/10 uppercase">
+                  <p className="text-[7pt] font-bold leading-tight tracking-tighter">FOTO 3X4</p>
                 </div>
               )}
             </div>
@@ -540,51 +540,51 @@ export function Students() {
           {/* PERSONAL DATA */}
           <div className="space-y-3 mb-6 text-[10.5pt]">
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[60px]">Nome:</span>
-              <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.name}</span>
+              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Nome:</span>
+              <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.name}</span>
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[60px]">Endereço:</span>
-              <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_street}</span>
+              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Endereço:</span>
+              <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_street}</span>
             </div>
 
             <div className="flex gap-4">
               <div className="flex-[4] flex items-end gap-2">
-                <span className="font-bold uppercase">Bairro:</span>
-                <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 min-h-[22px]">
+                <span className="font-semibold uppercase text-slate-900">Bairro:</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">
                    {selectedStudent.address_neighborhood || (selectedStudent.address_street?.includes(' - ') ? selectedStudent.address_street.split(' - ').pop() : '')}
                 </span>
               </div>
               <div className="flex-[4] flex items-end gap-2">
-                <span className="font-bold uppercase">Cidade:</span>
-                <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_city}</span>
+                <span className="font-semibold uppercase text-slate-900">Cidade:</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_city}</span>
               </div>
               <div className="flex-[1] flex items-end gap-2">
-                <span className="font-bold uppercase">Uf:</span>
-                <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.address_state}</span>
+                <span className="font-semibold uppercase text-slate-900">Uf:</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.address_state}</span>
               </div>
             </div>
 
             <div className="flex gap-4">
               <div className="flex-[3] flex items-end gap-2">
-                <span className="font-bold uppercase">Cep:</span>
-                <span className="flex-1 border-b border-black/30 font-black px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_zip}</span>
+                <span className="font-semibold uppercase text-slate-900">Cep:</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_zip}</span>
               </div>
               <div className="flex-[5] flex items-end relative gap-2">
-                <span className="font-bold uppercase">Celular:</span>
-                <span className="flex-1 border-b border-black/30 font-black px-2 pb-0.5 min-h-[22px]">{selectedStudent.phone_mobile}</span>
+                <span className="font-semibold uppercase text-slate-900">Celular:</span>
+                <span className="flex-1 border-b border-black/20 font-bold px-2 pb-0.5 min-h-[22px]">{selectedStudent.phone_mobile}</span>
                 <div className="flex items-center gap-3 ml-2 mb-0.5 text-[9pt]">
-                  <span className="text-emerald-700 font-bold uppercase">WhatsApp:</span>
+                  <span className="text-slate-600 font-semibold uppercase">WhatsApp:</span>
                   <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 border border-black flex items-center justify-center">
-                       {selectedStudent.phone_mobile && <div className="w-2.5 h-2.5 bg-black"></div>}
+                    <div className="w-3.5 h-3.5 border border-black/40 flex items-center justify-center">
+                       {selectedStudent.phone_mobile && <div className="w-2 h-2 bg-slate-900"></div>}
                     </div>
-                    <span className="font-bold uppercase">Sim</span>
+                    <span className="font-medium uppercase text-[8pt]">Sim</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-4 h-4 border border-black"></div>
-                    <span className="font-bold uppercase">Não</span>
+                    <div className="w-3.5 h-3.5 border border-black/40"></div>
+                    <span className="font-medium uppercase text-[8pt]">Não</span>
                   </div>
                 </div>
               </div>
@@ -592,48 +592,48 @@ export function Students() {
 
             <div className="flex gap-4">
               <div className="flex-[2] flex items-end gap-2">
-                <span className="font-bold uppercase whitespace-nowrap">Nasc.:</span>
-                <span className="flex-1 border-b border-black/30 font-black px-2 pb-0.5 text-center min-h-[22px]">
+                <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Nasc.:</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[22px]">
                   {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
                 </span>
               </div>
               <div className="flex-[1.5] flex items-end gap-2">
-                <span className="font-bold uppercase">RG:</span>
-                <span className="flex-1 border-b border-black/30 font-black px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.rg}</span>
+                <span className="font-semibold uppercase text-slate-900">RG:</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.rg}</span>
               </div>
               <div className="flex-[2] flex items-end gap-2">
-                <span className="font-bold uppercase">CPF:</span>
-                <span className="flex-1 border-b border-black/30 font-black px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.cpf}</span>
+                <span className="font-semibold uppercase text-slate-900">CPF:</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.cpf}</span>
               </div>
             </div>
 
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase min-w-[60px]">Email:</span>
-              <span className="flex-1 border-b border-black/30 font-black px-2 pb-0.5 lowercase min-h-[22px]">{selectedStudent.email}</span>
+              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Email:</span>
+              <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 lowercase min-h-[22px]">{selectedStudent.email}</span>
             </div>
 
             {/* Pastoral Info Grid */}
             <div className="grid grid-cols-2 gap-4 pt-1">
               <div className="flex items-end gap-2">
-                <span className="font-bold uppercase whitespace-nowrap">Paróquia:</span>
-                <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.parish}</span>
+                <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Paróquia:</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.parish}</span>
               </div>
               <div className="flex items-end gap-2">
-                <span className="font-bold uppercase whitespace-nowrap">Forania:</span>
-                <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.forany}</span>
+                <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Forania:</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.forany}</span>
               </div>
             </div>
             
             <div className="flex items-end gap-2">
-              <span className="font-bold uppercase whitespace-nowrap">Pastoral/Movimento:</span>
-              <span className="flex-1 border-b border-black/30 font-black uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.pastoral_participates}</span>
+              <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Pastoral/Movimento:</span>
+              <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.pastoral_participates}</span>
             </div>
           </div>
 
           {/* BASIC INFORMATION SECTION */}
-          <div className="mb-6 p-3 bg-slate-50 border-2 border-black/10 rounded-xl">
-            <h4 className="text-[10pt] font-black uppercase text-center mb-3 tracking-wider">Normas Básicas para Admissão</h4>
-            <div className="text-[8.5pt] leading-relaxed space-y-1 font-medium text-slate-800">
+          <div className="mb-6 p-3 bg-white border border-black/20 rounded-xl">
+            <h4 className="text-[10pt] font-bold uppercase text-center mb-3 tracking-wider">Normas Básicas para Admissão</h4>
+            <div className="text-[8.5pt] leading-relaxed space-y-1 font-normal text-slate-800">
               <p>1) O(a) aluno(a) concorda em priorizar a frequência no curso escolhido.</p>
               <p>2) Frequência mínima de 75% das aulas para aprovação.</p>
               <p>3) Nota mínima exigida para promoção é de 5,0 (cinco) por disciplina.</p>
@@ -644,35 +644,35 @@ export function Students() {
           <div className="text-[10.5pt] leading-normal mb-10 pt-2">
             <div className="flex items-baseline mb-1 gap-2">
               <span className="font-bold uppercase">Eu,</span>
-              <span className="flex-1 border-b-2 border-black font-black uppercase px-2">{selectedStudent.name}</span>
+              <span className="flex-1 border-b border-black font-semibold uppercase px-2">{selectedStudent.name}</span>
             </div>
-            <p className="text-justify leading-relaxed font-medium">
+            <p className="text-justify leading-relaxed font-normal text-slate-800">
               declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição.
             </p>
           </div>
 
           {/* DATE AND SIGNATURE */}
           <div className="flex justify-between items-end mb-12 px-2">
-            <p className="text-[10.5pt] font-bold">
-              Guarulhos, <span className="underline decoration-2 underline-offset-4">
+            <p className="text-[10.5pt] font-semibold text-slate-800">
+              Guarulhos, <span className="border-b border-black/20 pb-0.5">
                 {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
               </span>
             </p>
             <div className="flex flex-col items-center">
-              <div className="w-[80mm] border-t-2 border-black mb-1"></div>
-              <p className="text-[9pt] font-bold uppercase tracking-wider">Assinatura do Aluno(a)</p>
+              <div className="w-[80mm] border-t border-black/40 mb-1"></div>
+              <p className="text-[9pt] font-semibold uppercase tracking-wider text-slate-700">Assinatura do Aluno(a)</p>
             </div>
           </div>
 
           {/* RODAPÉ */}
-          <div className="border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-bold text-slate-700 uppercase tracking-tight">
+          <div className="border-t border-black/10 pt-3 flex justify-between items-start text-[8pt] font-medium text-slate-500 uppercase tracking-tight">
             <div className="space-y-0.5">
               <p>Avenida Vênus, 195 - Itapegica - Guarulhos-SP</p>
-              <p>Telefone: (11) 2421-2935 | WhatsApp (11) 97135-2605</p>
+              <p>Telefone: (11) 2421-2935</p>
             </div>
             <div className="text-right space-y-0.5">
-              <p>Atendimento Secretaria:</p>
-              <p>Quarta à Sexta-feira das 14h às 18h</p>
+              <p className="font-bold text-slate-800">Departamento Acadêmico</p>
+              <p>Escola Diocesana de Ministérios</p>
             </div>
           </div>
         </div>
@@ -725,7 +725,7 @@ export function Students() {
     <div className="h-[calc(100vh-8rem)] flex gap-6">
       {/* Sidebar List */}
       <div className="w-72 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-slate-50 space-y-4">
+        <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Alunos</h2>
             <div className="flex gap-2">
@@ -749,7 +749,7 @@ export function Students() {
                 placeholder="Buscar aluno..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
             <div className="flex gap-2">
@@ -772,7 +772,7 @@ export function Students() {
               <select 
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="">Todas as Turmas (Nome)</option>
                 {classes.filter(c => c.status === 'Ativo').map(c => (
@@ -783,7 +783,7 @@ export function Students() {
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">Escolha um ano</option>
                   <option value="all">Todos os Anos</option>
@@ -791,8 +791,8 @@ export function Students() {
                 </select>
                 <button
                   onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
-                  className="p-2 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
-                  title={sortBy === 'name' ? "Ordenar por Matrícula" : "Ordenar por Nome"}
+                  className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+                  title={sortBy === 'name' ? "Ordering by Matrícula" : "Ordering by Name"}
                 >
                   <ArrowUpDown size={16} />
                 </button>
@@ -840,7 +840,7 @@ export function Students() {
                 <p className="text-sm font-bold">{notification.message}</p>
               </div>
             )}
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
               <div className="flex items-center gap-4">
                 <div className="relative group">
                   <div className="w-24 h-32 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 overflow-hidden border-2 border-white relative">
@@ -984,7 +984,7 @@ export function Students() {
                           value={formData.registration_number || ''}
                           onChange={(e) => setFormData({...formData, registration_number: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={1}
                         />
                       </div>
@@ -996,7 +996,7 @@ export function Students() {
                           value={formData.name || ''}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={2}
                         />
                       </div>
@@ -1007,7 +1007,7 @@ export function Students() {
                           value={formData.status || 'Ativo'}
                           onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={3}
                         >
                           <option value="Ativo">Ativo</option>
@@ -1024,7 +1024,7 @@ export function Students() {
                           value={formData.cpf || ''}
                           onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           placeholder="000.000.000-00"
                           tabIndex={4}
                         />
@@ -1037,7 +1037,7 @@ export function Students() {
                           value={formData.rg || ''}
                           onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           placeholder="00.000.000-0"
                           tabIndex={5}
                         />
@@ -1051,7 +1051,7 @@ export function Students() {
                           value={formData.birth_date || ''}
                           onChange={(e) => setFormData({...formData, birth_date: maskDate(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={6}
                         />
                       </div>
@@ -1062,7 +1062,7 @@ export function Students() {
                           value={formData.class_id || ''}
                           onChange={(e) => setFormData({...formData, class_id: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={7}
                         >
                           <option value="">Selecione uma turma</option>
@@ -1082,7 +1082,7 @@ export function Students() {
                           value={formData.start_date || ''}
                           onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={8}
                         />
                       </div>
@@ -1104,7 +1104,7 @@ export function Students() {
                           value={formData.address_street || ''}
                           onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={9}
                         />
                       </div>
@@ -1116,7 +1116,7 @@ export function Students() {
                           value={formData.address_neighborhood || ''}
                           onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={10}
                         />
                       </div>
@@ -1128,7 +1128,7 @@ export function Students() {
                           value={formData.address_city || ''}
                           onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={11}
                         />
                       </div>
@@ -1140,7 +1140,7 @@ export function Students() {
                           value={formData.address_state || ''}
                           onChange={(e) => setFormData({...formData, address_state: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={12}
                         />
                       </div>
@@ -1152,7 +1152,7 @@ export function Students() {
                           value={formData.address_zip || ''}
                           onChange={(e) => setFormData({...formData, address_zip: maskCEP(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           placeholder="00000-000"
                           tabIndex={13}
                         />
@@ -1165,7 +1165,7 @@ export function Students() {
                           value={formData.email || ''}
                           onChange={(e) => setFormData({...formData, email: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={14}
                         />
                       </div>
@@ -1177,7 +1177,7 @@ export function Students() {
                           value={formData.phone_mobile || ''}
                           onChange={(e) => setFormData({...formData, phone_mobile: maskPhone(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           placeholder="(00) 00000-0000"
                           tabIndex={15}
                         />
@@ -1210,7 +1210,7 @@ export function Students() {
                             setFormData({...formData, ...updates});
                           }}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
                           tabIndex={16}
                         >
                           <option value="">Selecione...</option>
@@ -1226,7 +1226,7 @@ export function Students() {
                           value={formData.forany || ''}
                           onChange={(e) => setFormData({...formData, forany: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
                           tabIndex={16}
                         >
                           <option value="">Selecione...</option>
@@ -1243,7 +1243,7 @@ export function Students() {
                           value={formData.pastoral_participates || ''}
                           onChange={(e) => setFormData({...formData, pastoral_participates: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={17}
                         />
                       </div>
