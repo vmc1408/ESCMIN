@@ -503,10 +503,10 @@ export function Students() {
           </div>
 
           {/* PERSONAL DATA */}
-          <div className="space-y-3 mb-4 text-[10.5pt]">
+          <div className="space-y-2 mb-2 text-[10.5pt]">
             <div className="flex items-end gap-2">
               <span className="font-semibold uppercase min-w-[60px] text-slate-900">Nome:</span>
-              <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.name}</span>
+              <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.name}</span>
             </div>
 
             <div className="flex items-end gap-2">
@@ -598,7 +598,7 @@ export function Students() {
           </div>
 
           {/* BASIC INFORMATION SECTION */}
-          <div className="mb-4 p-3 bg-white border border-black/20 rounded-xl">
+          <div className="mb-2 p-3 bg-white border border-black/20 rounded-xl">
             <h4 className="text-[10pt] font-bold uppercase text-center mb-3 tracking-wider">Normas Básicas para Admissão</h4>
             <div className="text-[8.5pt] leading-relaxed space-y-1 font-normal text-slate-800">
               <p>1) O(a) aluno(a) concorda em priorizar a frequência no curso escolhido.</p>
@@ -608,7 +608,7 @@ export function Students() {
             </div>
           </div>
 
-          <div className="text-[10.5pt] leading-normal mb-8 pt-2">
+          <div className="text-[10.5pt] leading-normal mb-4 pt-1">
             <div className="flex items-baseline mb-1 gap-2">
               <span className="font-bold uppercase">Eu,</span>
               <span className="flex-1 border-b border-black font-semibold uppercase px-2">{selectedStudent.name}</span>
@@ -619,7 +619,7 @@ export function Students() {
           </div>
 
           {/* DATE AND SIGNATURE */}
-          <div className="flex justify-between items-end mb-8 px-2">
+          <div className="flex justify-between items-end mb-4 px-2">
             <p className="text-[10.5pt] font-semibold text-slate-800">
               Guarulhos, <span>
                 {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}

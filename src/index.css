@@ -31,28 +31,26 @@
       overflow: visible !important;
     }
 
-    body * {
-      display: none !important;
+    /* Reset layout for print */
+    html, body, #root, [class*="min-h-screen"], [class*="h-screen"], main {
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      position: static !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
-    /* Show only the printable section and its families */
+    /* Visibility-based printing to avoid ancestor display:none issues */
+    body * {
+      visibility: hidden;
+    }
+
     #printable-student-record,
     #printable-student-record * {
-      display: block !important;
-    }
-    
-    #printable-student-record div,
-    #printable-student-record span,
-    #printable-student-record p,
-    #printable-student-record h1,
-    #printable-student-record h2,
-    #printable-student-record h3,
-    #printable-student-record h4,
-    #printable-student-record img {
-      display: unset !important;
+      visibility: visible !important;
     }
 
-    /* Force visibility and reset styles */
     #printable-student-record {
       position: absolute !important;
       left: 0 !important;
@@ -60,18 +58,19 @@
       width: 210mm !important;
       margin: 0 !important;
       padding: 15mm !important;
-      visibility: visible !important;
-      opacity: 1 !important;
       background: white !important;
-      box-sizing: border-box !important;
-      overflow: hidden !important; /* Prevent any bleed into 2nd page */
+      z-index: 9999 !important;
+      display: block !important;
     }
 
-    #printable-student-record .flex {
-      display: flex !important;
+    /* Target specific UI to remove them from document flow */
+    nav, aside, header, footer, button, .print-hide {
+      display: none !important;
     }
-    #printable-student-record .grid {
-      display: grid !important;
+
+    @page {
+      size: A4;
+      margin: 0;
     }
   }
 }
