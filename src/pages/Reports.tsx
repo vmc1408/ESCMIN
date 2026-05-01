@@ -253,7 +253,7 @@ export function Reports() {
       
       const meta = [
         institution?.phone ? `TEL: ${institution.phone}` : '',
-        institution?.whatsapp && institution?.whatsapp !== institution?.phone ? `CEL: ${institution.whatsapp}` : '',
+        institution?.whatsapp && institution?.whatsapp !== institution?.phone ? `WHATSAPP: ${institution.whatsapp}` : '',
         institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : '',
         institution?.website ? `SITE: ${institution.website.toLowerCase()}` : ''
       ].filter(Boolean).join('   |   ');

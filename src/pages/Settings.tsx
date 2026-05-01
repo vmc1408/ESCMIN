@@ -1018,7 +1018,6 @@ export function Settings() {
                     />
                   </div>
                 </div>
-              </div>
 
               {/* Visual Section */}
               <div className="lg:col-span-2 space-y-6">
@@ -1057,18 +1056,6 @@ export function Settings() {
                       </div>
                     )}
                   </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Texto do Rodapé (Relatórios)</label>
-                    <textarea 
-                      rows={3}
-                      value={institution.footer_text || ''}
-                      onChange={(e) => setInstitution({...institution, footer_text: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm resize-none"
-                      placeholder="Texto que aparecerá centralizado no rodapé dos documentos..."
-                      maxLength={300}
-                    />
-                  </div>
                 </div>
 
                 {/* Document Preview Mockup */}
@@ -1094,7 +1081,7 @@ export function Settings() {
                            {institution.cnpj && <span className="text-[8.5px] font-bold text-slate-400">CNPJ: {institution.cnpj}</span>}
                            {institution.phone && <span className="text-[8.5px] font-bold text-slate-400">TEL: {institution.phone}</span>}
                            {institution.whatsapp && institution.whatsapp !== institution.phone && (
-                             <span className="text-[8.5px] font-bold text-slate-400">CEL: {institution.whatsapp}</span>
+                             <span className="text-[8.5px] font-bold text-slate-400">WHATSAPP: {institution.whatsapp}</span>
                            )}
                            {institution.email && <span className="text-[8.5px] font-bold text-slate-400 lowercase">EMAIL: {institution.email}</span>}
                         </div>
@@ -1108,17 +1095,13 @@ export function Settings() {
                       </div>
                     </div>
 
-                    <div className="pt-6 text-center">
-                      <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-relaxed">
-                        {institution.footer_text || 'O texto do rodapé configurado acima aparecerá aqui.'}
-                      </p>
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="pt-8 border-t border-slate-100 flex justify-end">
+          <div className="pt-8 border-t border-slate-100 flex justify-end">
                 <button 
                   type="submit"
                   disabled={saving}
