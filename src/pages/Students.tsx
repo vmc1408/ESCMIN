@@ -454,9 +454,6 @@ export function Students() {
               {inst?.subtitle && (
                 <p className="text-[11pt] font-bold uppercase text-blue-800 tracking-wider mt-1">{inst.subtitle}</p>
               )}
-              <div className="flex justify-end pt-1">
-                <p className="text-[12pt] font-medium text-slate-700 italic">Pe. José Fernando de Brito</p>
-              </div>
             </div>
           </div>
 
