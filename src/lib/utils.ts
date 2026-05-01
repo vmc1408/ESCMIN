@@ -81,3 +81,62 @@ export function maskPhone(value: string) {
     .replace(/(\d)(\d{4})$/, '$1-$2')
     .substring(0, 15);
 }
+
+export function maskDate(value: string) {
+  const digits = value.replace(/\D/g, '').substring(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.substring(0, 2)}/${digits.substring(2)}`;
+  return `${digits.substring(0, 2)}/${digits.substring(2, 4)}/${digits.substring(4)}`;
+}
+
+export function formatDateForDisplay(dateStr: string | undefined | null): string {
+  if (!dateStr) return '';
+  
+  // Handle ISO string by taking only the date part
+  const pureDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  
+  if (pureDate.includes('/')) {
+    // Check if it's already DD/MM/YYYY
+    const parts = pureDate.split('/');
+    if (parts.length === 3 && parts[0].length <= 2) return pureDate;
+    return pureDate;
+  }
+  
+  const parts = pureDate.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    if (year.length === 4) return `${day}/${month}/${year}`;
+    if (day.length === 4) return `${year}/${month}/${day}`; // Handles some weird cases
+  }
+  return pureDate;
+}
+
+export function parseDateToDB(dateStr: string | undefined | null): string | null {
+  if (!dateStr) return null;
+  // If already YYYY-MM-DD
+  if (dateStr.includes('-') && !dateStr.includes('/')) {
+    const parts = dateStr.split('-');
+    if (parts[0].length === 4) return dateStr;
+  }
+  
+  const digits = dateStr.replace(/\D/g, '');
+  if (digits.length === 8) {
+    const day = digits.substring(0, 2);
+    const month = digits.substring(2, 4);
+    const year = digits.substring(4, 8);
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Fallback for partial dates or things that look like DD/MM/YYYY
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      if (day.length === 2 && month.length === 2 && year.length === 4) {
+        return `${year}-${month}-${day}`;
+      }
+    }
+  }
+  
+  return null;
+}

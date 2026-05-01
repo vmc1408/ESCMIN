@@ -15,7 +15,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 
 interface Class {
@@ -161,7 +161,10 @@ export function Classes() {
 
   const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
-    setFormData(cls);
+    setFormData({
+      ...cls,
+      start_date: formatDateForDisplay(cls.start_date)
+    });
     setIsEditing(false);
   }, []);
 
@@ -191,7 +194,11 @@ export function Classes() {
 
   const handleSave = async () => {
     try {
-      const savedId = await saveData('classes', selectedClass?.id, formData);
+      const dataToSave = {
+        ...formData,
+        start_date: parseDateToDB(formData.start_date)
+      };
+      const savedId = await saveData('classes', selectedClass?.id, dataToSave);
       
       setIsEditing(false);
       // Wait for refresh
@@ -450,10 +457,11 @@ export function Classes() {
                     <div className="col-span-4 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Data de Início</label>
                       <input 
-                        type="date"
+                        type="text"
+                        placeholder="DD/MM/AAAA"
                         disabled={!isEditing}
-                        value={formatToISODate(formData.start_date)}
-                        onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                        value={formData.start_date || ''}
+                        onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
                         onKeyDown={handleKeyDown}
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                         tabIndex={5}

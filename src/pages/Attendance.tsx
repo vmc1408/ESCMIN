@@ -14,7 +14,7 @@ import {
   Save,
   Loader2
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -60,7 +60,7 @@ export function Attendance() {
   
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -143,7 +143,7 @@ export function Attendance() {
         (selectedSubject && selectedDate) ? fetchQuery('attendances', [
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'subject_id', operator: '==', value: selectedSubject },
-          { field: 'date', operator: '==', value: selectedDate }
+          { field: 'date', operator: '==', value: parseDateToDB(selectedDate) }
         ]) : Promise.resolve([])
       ]);
 
@@ -213,13 +213,16 @@ export function Attendance() {
     setSaving(true);
     try {
       const recordsToSave = Object.values(attendance) as AttendanceRecord[];
+      const dbDate = parseDateToDB(selectedDate);
+      
       for (const record of recordsToSave) {
         const studentId = record.student_id;
-        const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedDate}_${studentId}`;
+        const docId = record.id || `${selectedClass}_${selectedSubject}_${dbDate}_${studentId}`;
         
         const data = {
           ...record,
           id: docId,
+          date: dbDate,
           user_id: userAuth.uid,
           updated_at: new Date().toISOString()
         };
@@ -327,9 +330,10 @@ export function Attendance() {
               <div className="relative">
                 <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
-                  type="date"
+                  type="text"
+                  placeholder="DD/MM/AAAA"
                   value={selectedDate}
-                  onChange={e => setSelectedDate(e.target.value)}
+                  onChange={e => setSelectedDate(maskDate(e.target.value))}
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500"
                 />
               </div>

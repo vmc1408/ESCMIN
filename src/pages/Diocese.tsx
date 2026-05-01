@@ -29,7 +29,7 @@ import {
   Upload
 } from 'lucide-react';
 import { fetchAll, saveData, deleteData } from '../lib/database';
-import { cn, maskCEP, maskPhone } from '../lib/utils';
+import { cn, maskCEP, maskPhone, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Parish, Foraria, ClergyLeity, ClergyRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -277,7 +277,8 @@ export function Diocese() {
       setParishForm({
         address_city: 'Guarulhos',
         address_state: 'SP',
-        ...item
+        ...item,
+        foundation_date: formatDateForDisplay(item.foundation_date)
       });
     } else {
       setClergyForm({
@@ -296,7 +297,15 @@ export function Diocese() {
     try {
       setLoading(true);
       const collection = activeTab === 'foranias' ? 'foraries' : activeTab === 'parishes' ? 'parishes' : 'clergy_leity';
-      const data = activeTab === 'foranias' ? forariaForm : activeTab === 'parishes' ? parishForm : clergyForm;
+      let data = activeTab === 'foranias' ? forariaForm : activeTab === 'parishes' ? parishForm : clergyForm;
+      
+      if (activeTab === 'parishes') {
+        data = {
+          ...data,
+          foundation_date: parseDateToDB(data.foundation_date)
+        };
+      }
+      
       const docId = selectedItem?.id || data.code;
 
       await saveData(collection, docId as string, {
@@ -831,9 +840,10 @@ export function Diocese() {
                           <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Data de Fundação</label>
                             <input 
-                              type="date"
+                              type="text"
+                              placeholder="DD/MM/AAAA"
                               value={parishForm.foundation_date || ''}
-                              onChange={e => setParishForm({...parishForm, foundation_date: e.target.value})}
+                              onChange={e => setParishForm({...parishForm, foundation_date: maskDate(e.target.value)})}
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
                             />
                           </div>

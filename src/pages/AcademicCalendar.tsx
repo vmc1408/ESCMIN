@@ -17,7 +17,7 @@ import {
   School,
   BookOpen
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -327,6 +327,8 @@ export function AcademicCalendar() {
     try {
       const data = {
         ...formData,
+        start_date: parseDateToDB(formData.start_date) || '',
+        end_date: parseDateToDB(formData.end_date) || '',
         user_id: userAuth.uid,
         updated_at: new Date().toISOString()
       };
@@ -355,8 +357,8 @@ export function AcademicCalendar() {
     setFormData({
       title: event.title,
       description: event.description,
-      start_date: event.start_date,
-      end_date: event.end_date,
+      start_date: formatDateForDisplay(event.start_date),
+      end_date: formatDateForDisplay(event.end_date),
       type: event.type,
       class_id: event.class_id || '',
       subject_id: event.subject_id || ''
@@ -908,13 +910,14 @@ export function AcademicCalendar() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Período Selecionado</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="group">
-                        <div className="relative">
+                         <div className="relative">
                           <input 
                             required
-                            type="date"
+                            type="text"
+                            placeholder="DD/MM/AAAA"
                             value={formData.start_date}
                             onChange={e => {
-                              const date = e.target.value;
+                              const date = maskDate(e.target.value);
                               setFormData({...formData, start_date: date, end_date: formData.end_date || date});
                             }}
                             className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all shadow-inner"
@@ -925,9 +928,10 @@ export function AcademicCalendar() {
                       <div className="group">
                         <div className="relative">
                           <input 
-                            type="date"
+                            type="text"
+                            placeholder="DD/MM/AAAA"
                             value={formData.end_date}
-                            onChange={e => setFormData({...formData, end_date: e.target.value})}
+                            onChange={e => setFormData({...formData, end_date: maskDate(e.target.value)})}
                             className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all shadow-inner"
                           />
                           <span className="absolute -top-2.5 left-6 px-2 bg-white text-[9px] font-black text-slate-400 uppercase rounded-full border border-slate-100">Término (Opcional)</span>

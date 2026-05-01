@@ -3,7 +3,7 @@ import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckC
 import { financialService } from '../services/financialService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
 import { Student, Contribution, Class } from '../types';
-import { formatCurrency, cn, safeFormat, parseSafeDate } from '../lib/utils';
+import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -26,8 +26,8 @@ export function Contributions() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [viewMode, setViewMode] = useState<'individual' | 'period'>('individual');
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(formatDateForDisplay(format(startOfMonth(new Date()), 'yyyy-MM-dd')));
+  const [endDate, setEndDate] = useState(formatDateForDisplay(format(endOfMonth(new Date()), 'yyyy-MM-dd')));
   const [periodData, setPeriodData] = useState<(Contribution & { student?: Student })[]>([]);
   const [recentContributions, setRecentContributions] = useState<(Contribution & { student?: Student })[]>([]);
   const [filterType, setFilterType] = useState<'payment' | 'created'>('payment');
@@ -54,7 +54,7 @@ export function Contributions() {
 
   // Estados para Registro Manual
   const [manualMonths, setManualMonths] = useState<number[]>([]);
-  const [manualDate, setManualDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [manualDate, setManualDate] = useState(formatDateForDisplay(format(new Date(), 'yyyy-MM-dd')));
   const [manualAmount, setManualAmount] = useState('100,00');
   const [manualMethod, setManualMethod] = useState<'Dinheiro' | 'PIX' | 'Cartão'>('Dinheiro');
   const [manualObservations, setManualObservations] = useState('');
@@ -194,10 +194,12 @@ export function Contributions() {
     setLoading(true);
     try {
       const dateField = filterType === 'payment' ? 'payment_date' : 'created_at';
+      const dbStart = parseDateToDB(startDate);
+      const dbEnd = parseDateToDB(endDate);
       
       const docsData = await fetchQuery('contributions', [
-        { field: dateField, operator: '>=', value: startDate + 'T00:00:00Z' },
-        { field: dateField, operator: '<=', value: endDate + 'T23:59:59Z' }
+        { field: dateField, operator: '>=', value: dbStart + 'T00:00:00Z' },
+        { field: dateField, operator: '<=', value: dbEnd + 'T23:59:59Z' }
       ], dateField);
 
       if (!docsData) {
@@ -961,18 +963,20 @@ export function Contributions() {
               <div className="flex-1 flex items-center px-3 gap-2">
                 <Calendar size={14} className="text-slate-300" />
                 <input 
-                  type="date" 
+                  type="text" 
+                  placeholder="DD/MM/AAAA"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => setStartDate(maskDate(e.target.value))}
                   className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
                 />
               </div>
               <div className="w-px h-6 bg-slate-100" />
               <div className="flex-1 flex items-center px-3 gap-2">
                 <input 
-                  type="date" 
+                  type="text" 
+                  placeholder="DD/MM/AAAA"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => setEndDate(maskDate(e.target.value))}
                   className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
                 />
               </div>
@@ -1658,9 +1662,10 @@ export function Contributions() {
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Data do Pagamento</label>
                   <input 
-                    type="date"
+                    type="text"
+                    placeholder="DD/MM/AAAA"
                     value={manualDate}
-                    onChange={(e) => setManualDate(e.target.value)}
+                    onChange={(e) => setManualDate(maskDate(e.target.value))}
                     className="w-full bg-slate-50 border-0 rounded-2xl py-4 px-6 text-xl font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all"
                   />
                 </div>

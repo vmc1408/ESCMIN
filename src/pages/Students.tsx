@@ -31,7 +31,7 @@ import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone } from '../lib/utils';
 import { uploadImage, fetchAll, saveData, deleteData } from '../lib/database';
 import { Student, Class } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -77,7 +77,7 @@ const StudentItem = React.memo(({
           </span>
           <span className="text-[10px] text-slate-400 font-bold">{student.registration_number}</span>
           {student.start_date && (
-            <span className="text-[9px] text-blue-600 font-black ml-1 uppercase">Entrada: {student.start_date}</span>
+            <span className="text-[9px] text-blue-600 font-black ml-1 uppercase">Entrada: {formatDateForDisplay(student.start_date)}</span>
           )}
         </div>
       </div>
@@ -101,22 +101,6 @@ const maskRG = (value: string) => {
 
 const maskCEP = (value: string) => {
   return value.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2').substring(0, 9);
-};
-
-const maskPhone = (value: string) => {
-  return value
-    .replace(/\D/g, '')
-    .replace(/(\d{2})(\d)/, '($1) $2')
-    .replace(/(\d{5})(\d)/, '$1-$2')
-    .replace(/(-\d{4})\d+?$/, '$1');
-};
-
-const maskDate = (value: string) => {
-  return value
-    .replace(/\D/g, '')
-    .replace(/(\d{2})(\d)/, '$1/$2')
-    .replace(/(\d{2})(\d)/, '$1/$2')
-    .replace(/(\/\d{4})\d+?$/, '$1');
 };
 
 const getYearFromRegistration = (reg: string | undefined): string => {
@@ -157,27 +141,6 @@ const generateNextRegistrationNumber = (students: Student[]) => {
 };
 
 // Helper to format date from YYYY-MM-DD or ISO to DD/MM/YYYY
-const formatDateForDisplay = (dateStr: string | undefined): string => {
-  if (!dateStr) return '';
-  
-  // Handle ISO string by taking only the date part
-  const pureDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
-  
-  if (pureDate.includes('/')) {
-    // Check if it's already DD/MM/YYYY
-    const parts = pureDate.split('/');
-    if (parts.length === 3 && parts[0].length <= 2) return pureDate;
-    return pureDate;
-  }
-  
-  const parts = pureDate.split('-');
-  if (parts.length === 3) {
-    const [year, month, day] = parts;
-    return `${day}/${month}/${year}`;
-  }
-  return pureDate;
-};
-
 export function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
@@ -305,7 +268,7 @@ export function Students() {
       phone_residential: student.phone_residential || '',
       cpf: student.cpf || '',
       rg: student.rg || '',
-      birth_date: student.birth_date || '',
+      birth_date: formatDateForDisplay(student.birth_date),
       address_street: student.address_street || '',
       address_neighborhood: student.address_neighborhood || '',
       address_city: student.address_city || 'Guarulhos',
@@ -315,7 +278,7 @@ export function Students() {
       forany: student.forany || '',
       course: student.course || '',
       pastoral_participates: student.pastoral_participates || '',
-      start_date: student.start_date || '',
+      start_date: formatDateForDisplay(student.start_date),
       photo_url: student.photo_url || ''
     });
     setIsEditing(false);
@@ -354,7 +317,11 @@ export function Students() {
     try {
       setLoading(true);
       
-      const dataToSave: any = { ...formData };
+      const dataToSave: any = { 
+        ...formData,
+        birth_date: parseDateToDB(formData.birth_date),
+        start_date: parseDateToDB(formData.start_date)
+      };
       
       // Set created_at only if it's the first time saving (no id)
       if (!selectedStudent?.id && !dataToSave.created_at) {

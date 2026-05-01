@@ -14,7 +14,7 @@ import {
   Download,
   AlertCircle
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -82,6 +82,7 @@ export function Documents() {
       await saveData('certificates', newDocId, {
         ...formData,
         id: newDocId,
+        issuance_date: parseDateToDB(formData.issuance_date),
         student_name: student?.name,
         verification_code: verificationCode,
         user_id: userAuth.uid,
@@ -92,7 +93,7 @@ export function Documents() {
       setFormData({
         student_id: '',
         type: 'conclusão',
-        issuance_date: new Date().toISOString().split('T')[0],
+        issuance_date: formatDateForDisplay(new Date().toISOString().split('T')[0]),
         course: ''
       });
       fetchData();
@@ -280,9 +281,10 @@ export function Documents() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Data de Emissão</label>
                     <input 
                       required
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/AAAA"
                       value={formData.issuance_date}
-                      onChange={e => setFormData({...formData, issuance_date: e.target.value})}
+                      onChange={e => setFormData({...formData, issuance_date: maskDate(e.target.value)})}
                       className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                     />
                   </div>
