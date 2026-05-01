@@ -164,6 +164,9 @@
         "footer_text": { "type": "string" },
         "receipt_message": { "type": "string" },
         "secretary": { "type": "string" },
+        "cep": { "type": "string" },
+        "city_uf": { "type": "string" },
+        "subtitle": { "type": "string" },
         "updated_at": { "type": "string", "format": "date-time" }
       }
     },

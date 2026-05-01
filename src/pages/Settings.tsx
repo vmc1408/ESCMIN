@@ -13,6 +13,7 @@ import {
   Camera,
   Globe,
   MapPin,
+  MessageCircle,
   Phone,
   FileText,
   Upload,
@@ -102,7 +103,10 @@ export function Settings() {
     logo_url: '',
     footer_text: '',
     receipt_message: '',
-    secretary: ''
+    secretary: '',
+    cep: '',
+    city_uf: '',
+    subtitle: ''
   });
 
   // Academic Parameters State
@@ -206,7 +210,7 @@ export function Settings() {
                 try {
                   const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
                   const whitelist: Record<string, string[]> = {
-                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'secretary', 'updated_at'],
+                    institution_settings: ['id', 'name', 'subtitle', 'cnpj', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'secretary', 'cep', 'city_uf', 'updated_at'],
                     users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
                     email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
                     foraries: [...baseFields, 'code', 'name', 'priest_name'],
@@ -434,6 +438,12 @@ export function Settings() {
 
 
 
+  const formatCEP = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 5) return digits;
+    return `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
+  };
+
   const formatCNPJ = (value: string) => {
     const digits = value.replace(/\D/g, '');
     return digits
@@ -475,7 +485,10 @@ export function Settings() {
         logo_url: institution.logo_url || null,
         footer_text: institution.footer_text || null,
         receipt_message: institution.receipt_message || null,
-        secretary: institution.secretary || null
+        secretary: institution.secretary || null,
+        cep: institution.cep || null,
+        city_uf: institution.city_uf || null,
+        subtitle: institution.subtitle || null
       };
 
       // Ensure we have an ID for institution_settings
@@ -493,10 +506,16 @@ export function Settings() {
       window.dispatchEvent(new Event('institution-updated'));
     } catch (error: any) {
       console.error('Save error:', error);
-      setNotification({ type: 'error', message: 'Erro ao salvar: ' + (error.message || 'Erro desconhecido') });
+      let message = error.message || 'Erro desconhecido';
+      
+      if (message.includes('column') || message.includes('schema cache')) {
+        message = 'Erro de Banco de Dados: Colunas faltando. Vá na aba "Manutenção" e execute o "Checkup de Schema" para baixar o SQL de correção.';
+      }
+      
+      setNotification({ type: 'error', message: message });
     } finally {
       setSaving(false);
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 8000);
     }
   };
 
@@ -837,97 +856,137 @@ export function Settings() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <form onSubmit={handleSaveInstitution} className="p-8 md:p-10 space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
-              {/* Identificação Section */}
-              <div className="space-y-6">
+              {/* Identificação & Endereço Section */}
+              <div className="lg:col-span-2 space-y-6">
                 <h3 className="text-lg font-black text-[#00174b] flex items-center gap-3 border-b border-slate-50 pb-4">
                   <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                     <Building2 size={18} />
                   </div>
-                  Identificação da Instituição
+                  Informações da Instituição
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="md:col-span-2 space-y-1.5">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-5">
+                  {/* Row 1: Name and Subtitle */}
+                  <div className="md:col-span-3 space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Instituição</label>
                     <input 
                       type="text"
-                      value={institution.name}
+                      value={institution.name || ''}
                       onChange={(e) => setInstitution({...institution, name: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
                       placeholder="Ex: Escola ESCMIN"
                       required
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CNPJ</label>
+                  <div className="md:col-span-3 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subtítulo</label>
                     <input 
                       type="text"
-                      value={institution.cnpj}
-                      onChange={(e) => setInstitution({...institution, cnpj: formatCNPJ(e.target.value)})}
+                      value={institution.subtitle || ''}
+                      onChange={(e) => setInstitution({...institution, subtitle: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                      placeholder="00.000.000/0000-00"
+                      placeholder="Ex: Ensino Religioso e Profissional"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Website</label>
-                    <input 
-                      type="text"
-                      value={institution.website}
-                      onChange={(e) => setInstitution({...institution, website: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                      placeholder="www.escola.com.br"
-                    />
-                  </div>
-                  <div className="md:col-span-2 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Atendimento Secretaria (Fins de Rodapé)</label>
-                    <textarea 
-                      rows={3}
-                      value={institution.secretary}
-                      onChange={(e) => setInstitution({...institution, secretary: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm resize-none"
-                      placeholder="Informações de atendimento (Máx 3 linhas de 50 caracteres)"
-                      maxLength={150}
-                    />
-                  </div>
-                </div>
-              </div>
 
-              {/* Contato Section */}
-              <div className="space-y-6">
-                <h3 className="text-lg font-black text-[#00174b] flex items-center gap-3 border-b border-slate-50 pb-4">
-                  <div className="w-9 h-9 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
-                    <MapPin size={18} />
-                  </div>
-                  Contato & Endereço
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="md:col-span-2 space-y-1.5">
+                  {/* Row 2: Address, CEP, City/UF */}
+                  <div className="md:col-span-3 space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
                     <input 
                       type="text"
-                      value={institution.address}
+                      value={institution.address || ''}
                       onChange={(e) => setInstitution({...institution, address: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                      placeholder="Rua, Número, Bairro, Cidade - UF"
+                      placeholder="Rua, Número, Bairro"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="md:col-span-1 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CEP</label>
+                    <input 
+                      type="text"
+                      value={institution.cep || ''}
+                      onChange={(e) => setInstitution({...institution, cep: formatCEP(e.target.value)})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      placeholder="00000-000"
+                      maxLength={9}
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cidade / UF</label>
+                    <input 
+                      type="text"
+                      value={institution.city_uf || ''}
+                      onChange={(e) => setInstitution({...institution, city_uf: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      placeholder="Ex: Guarulhos / SP"
+                    />
+                  </div>
+
+                  {/* Row 3: Phone, WhatsApp and Email */}
+                  <div className="md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
                     <input 
                       type="text"
-                      value={institution.phone}
+                      value={institution.phone || ''}
                       onChange={(e) => setInstitution({...institution, phone: formatPhone(e.target.value)})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
                       placeholder="(00) 00000-0000"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="md:col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-green-600 flex items-center gap-1">
+                      <MessageCircle size={10} /> WhatsApp
+                    </label>
+                    <input 
+                      type="text"
+                      value={institution.whatsapp || ''}
+                      onChange={(e) => setInstitution({...institution, whatsapp: formatPhone(e.target.value)})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent border-green-100 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:bg-white focus:border-green-200 transition-all font-bold text-[#00174b] text-sm"
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
                     <input 
                       type="email"
-                      value={institution.email}
+                      value={institution.email || ''}
                       onChange={(e) => setInstitution({...institution, email: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
                       placeholder="contato@escola.com"
+                    />
+                  </div>
+
+                  {/* Row 4: CNPJ and Website */}
+                  <div className="md:col-span-3 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CNPJ</label>
+                    <input 
+                      type="text"
+                      value={institution.cnpj || ''}
+                      onChange={(e) => setInstitution({...institution, cnpj: formatCNPJ(e.target.value)})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      placeholder="00.000.000/0000-00"
+                    />
+                  </div>
+                  <div className="md:col-span-3 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Website</label>
+                    <input 
+                      type="text"
+                      value={institution.website || ''}
+                      onChange={(e) => setInstitution({...institution, website: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      placeholder="www.escola.com.br"
+                    />
+                  </div>
+
+                  {/* Rodapé info */}
+                  <div className="md:col-span-6 space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Atendimento Secretaria (Fins de Rodapé)</label>
+                    <textarea 
+                      rows={3}
+                      value={institution.secretary || ''}
+                      onChange={(e) => setInstitution({...institution, secretary: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm resize-none"
+                      placeholder="Informações de atendimento (Máx 3 linhas de 50 caracteres)"
+                      maxLength={150}
                     />
                   </div>
                 </div>
@@ -956,7 +1015,7 @@ export function Settings() {
                       <div className="flex gap-2">
                         <input 
                           type="text"
-                          value={institution.logo_url}
+                          value={institution.logo_url || ''}
                           onChange={(e) => setInstitution({...institution, logo_url: e.target.value})}
                           className="flex-1 px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
                           placeholder="https://link-da-imagem.png"
@@ -994,7 +1053,7 @@ export function Settings() {
                       </span>
                     </div>
                     <textarea 
-                      value={institution.receipt_message}
+                      value={institution.receipt_message || ''}
                       onChange={(e) => setInstitution({...institution, receipt_message: e.target.value.substring(0, 300)})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm min-h-[110px] resize-none"
                       placeholder="Ex: 'Mensalidade paga com sucesso. Paz e Bem!'"
@@ -1004,7 +1063,7 @@ export function Settings() {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Texto do Rodapé (Relatórios)</label>
                     <textarea 
-                      value={institution.footer_text}
+                      value={institution.footer_text || ''}
                       onChange={(e) => setInstitution({...institution, footer_text: e.target.value})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm min-h-[110px] resize-none"
                       placeholder="Texto que aparecerá no rodapé dos documentos..."
@@ -1104,7 +1163,7 @@ export function Settings() {
                     step="0.1"
                     min="1"
                     max="10"
-                    value={academicParams.approval_grade}
+                    value={academicParams.approval_grade || 0}
                     onChange={(e) => setAcademicParams({...academicParams, approval_grade: parseFloat(e.target.value)})}
                     className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
                   />
@@ -1118,7 +1177,7 @@ export function Settings() {
                     step="0.1"
                     min="1"
                     max="10"
-                    value={academicParams.recovery_grade}
+                    value={academicParams.recovery_grade || 0}
                     onChange={(e) => setAcademicParams({...academicParams, recovery_grade: parseFloat(e.target.value)})}
                     className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
                   />
@@ -1132,7 +1191,7 @@ export function Settings() {
                     step="0.1"
                     min="0"
                     max="10"
-                    value={academicParams.failure_grade}
+                    value={academicParams.failure_grade || 0}
                     onChange={(e) => setAcademicParams({...academicParams, failure_grade: parseFloat(e.target.value)})}
                     className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
                   />
@@ -1146,7 +1205,7 @@ export function Settings() {
                       type="number"
                       min="0"
                       max="100"
-                      value={academicParams.absence_limit_percentage}
+                      value={academicParams.absence_limit_percentage || 0}
                       onChange={(e) => setAcademicParams({...academicParams, absence_limit_percentage: parseInt(e.target.value)})}
                       className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
                     />

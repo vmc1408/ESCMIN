@@ -190,6 +190,9 @@ export interface InstitutionSettings {
   footer_text: string;
   receipt_message: string;
   secretary?: string;
+  cep?: string;
+  city_uf?: string;
+  subtitle?: string;
 }
 
 export interface AcademicParameters {

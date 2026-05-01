@@ -178,6 +178,9 @@ CREATE TABLE IF NOT EXISTS public.institution_settings (
     footer_text TEXT,
     receipt_message TEXT,
     secretary TEXT,
+    cep TEXT,
+    city_uf TEXT,
+    subtitle TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
