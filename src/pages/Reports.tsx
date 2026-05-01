@@ -1177,7 +1177,7 @@ export function Reports() {
         </div>
 
         <div className="mt-24 text-center text-[10px] text-slate-400 font-bold italic tracking-widest uppercase border-t border-slate-100 pt-10">
-          Documento gerado eletronicamente pelo ESCMIN Intelligence System. A reprodução não autorizada é proibida.
+          {institution?.footer_text || ''}
         </div>
       </div>
     </div>

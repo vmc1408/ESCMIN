@@ -44,6 +44,7 @@ export interface Student {
   
   // Contacts
   phone_mobile?: string;
+  phone_mobile_is_whatsapp?: boolean;
   phone_residential?: string;
   phone_commercial?: string;
   email: string;
@@ -89,6 +90,7 @@ export interface Teacher {
   email: string;
   phone?: string;
   phone_mobile?: string;
+  phone_mobile_is_whatsapp?: boolean;
   cpf?: string;
   rg?: string;
   address_street?: string;
@@ -141,6 +143,7 @@ export interface ClergyLeity {
   address_city?: string;
   address_state?: string;
   phone_mobile?: string;
+  phone_mobile_is_whatsapp?: boolean;
   phone_whatsapp?: string;
   email?: string;
   parish_id?: string;
@@ -184,6 +187,8 @@ export interface InstitutionSettings {
   cnpj: string;
   address: string;
   phone: string;
+  phone_is_whatsapp?: boolean;
+  whatsapp?: string;
   email: string;
   website: string;
   logo_url: string;

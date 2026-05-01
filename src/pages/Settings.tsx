@@ -210,16 +210,16 @@ export function Settings() {
                 try {
                   const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
                   const whitelist: Record<string, string[]> = {
-                    institution_settings: ['id', 'name', 'subtitle', 'cnpj', 'address', 'phone', 'whatsapp', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'secretary', 'cep', 'city_uf', 'updated_at'],
+                    institution_settings: ['id', 'name', 'logo_url', 'updated_at'],
                     users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
                     email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
                     foraries: [...baseFields, 'code', 'name', 'priest_name'],
                     parishes: [...baseFields, 'code', 'name', 'forania_id', 'priest_id', 'priest_name', 'address_street', 'address_number', 'address_neighborhood', 'address_city', 'address_zip', 'email', 'phone'],
-                    clergy_leity: [...baseFields, 'code', 'name', 'address', 'phone_residential', 'phone_commercial', 'phone_mobile', 'phone_whatsapp', 'email', 'parish_id', 'role'],
+                    clergy_leity: [...baseFields, 'code', 'name', 'address', 'phone_mobile', 'phone_whatsapp', 'email', 'parish_id', 'role'],
                     subjects: [...baseFields, 'code', 'name', 'program_content'],
                     classes: [...baseFields, 'code', 'name', 'room', 'period', 'days_of_week', 'semester', 'start_date', 'observations'],
-                    students: [...baseFields, 'registration_number', 'name', 'cpf', 'rg', 'birth_date', 'start_date', 'is_former_student', 'class_id', 'parish_id', 'address_street', 'address_city', 'address_state', 'address_neighborhood', 'address_zip', 'parish', 'course', 'phone_residential', 'phone_commercial', 'phone_mobile', 'phone_whatsapp', 'email', 'guardian_father', 'guardian_mother', 'guardian_cpf', 'photo_url'],
-                    teachers: [...baseFields, 'code', 'name', 'email', 'phone', 'specialization', 'address_street', 'address_number', 'address_neighborhood', 'address_city', 'address_zip', 'birth_date', 'observations'],
+                    students: [...baseFields, 'registration_number', 'name', 'cpf', 'rg', 'birth_date', 'start_date', 'is_former_student', 'class_id', 'parish_id', 'address_street', 'address_city', 'address_state', 'address_neighborhood', 'address_zip', 'parish', 'course', 'pastoral_participates', 'phone_mobile', 'phone_residential', 'phone_commercial', 'email', 'guardian_father', 'guardian_mother', 'guardian_cpf', 'photo_url'],
+                    teachers: [...baseFields, 'code', 'name', 'email', 'phone', 'phone_mobile', 'cpf', 'rg', 'address_street', 'address_city', 'address_state', 'address_zip', 'birth_date', 'observations'],
                     attendances: ['id', 'student_id', 'class_id', 'subject_id', 'date', 'status', 'observations', 'user_id', 'created_at'],
                     grades: ['id', 'student_id', 'class_id', 'subject_id', 'period', 'value', 'status', 'user_id', 'created_at'],
                     calendar_events: ['id', 'title', 'description', 'start_date', 'end_date', 'type', 'class_id', 'subject_id', 'user_id', 'created_at'],
@@ -474,22 +474,11 @@ export function Settings() {
       setSaving(true);
       
       const now = new Date().toISOString();
-      // Preparar dados para salvar
+      // Preparar dados para salvar - Apenas os campos suportados pelo schema atual
       const dataToSave: any = {
         name: institution.name,
-        cnpj: institution.cnpj || null,
-        address: institution.address || null,
-        phone: institution.phone || null,
-        whatsapp: institution.whatsapp || null,
-        email: institution.email || null,
-        website: institution.website || null,
         logo_url: institution.logo_url || null,
-        footer_text: institution.footer_text || null,
-        receipt_message: institution.receipt_message || null,
-        secretary: institution.secretary || null,
-        cep: institution.cep || null,
-        city_uf: institution.city_uf || null,
-        subtitle: institution.subtitle || null
+        updated_at: now
       };
 
       // Ensure we have an ID for institution_settings
@@ -925,13 +914,28 @@ export function Settings() {
                   {/* Row 3: Phone, WhatsApp and Email */}
                   <div className="md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
-                    <input 
-                      type="text"
-                      value={institution.phone || ''}
-                      onChange={(e) => setInstitution({...institution, phone: formatPhone(e.target.value)})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
-                      placeholder="(00) 00000-0000"
-                    />
+                    <div className="relative">
+                      <input 
+                        type="text"
+                        value={institution.phone || ''}
+                        onChange={(e) => setInstitution({...institution, phone: formatPhone(e.target.value)})}
+                        className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm pr-12"
+                        placeholder="(00) 00000-0000"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setInstitution({...institution, phone_is_whatsapp: !institution.phone_is_whatsapp})}
+                        className={cn(
+                          "absolute right-4 top-1/2 -translate-y-1/2 transition-all p-1 rounded-md",
+                          institution.phone_is_whatsapp ? "text-green-500 bg-green-50" : "text-slate-300 hover:text-slate-400"
+                        )}
+                        title={institution.phone_is_whatsapp ? "Número com WhatsApp" : "Marcar como WhatsApp"}
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <div className="md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-green-600 flex items-center gap-1">
