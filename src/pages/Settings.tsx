@@ -480,6 +480,7 @@ export function Settings() {
         cnpj: institution.cnpj || null,
         address: institution.address || null,
         phone: institution.phone || null,
+        whatsapp: institution.whatsapp || null,
         email: institution.email || null,
         website: institution.website || null,
         logo_url: institution.logo_url || null,
