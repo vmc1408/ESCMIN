@@ -324,26 +324,26 @@ export function Students() {
         start_date: parseDateToDB(formData.start_date)
       };
 
-      // Strip fields that are not in the database schema
-      delete dataToSave.phone_mobile_is_whatsapp;
+      // Prepare data for DB (without UI-only fields)
+      const dataForDB: any = { ...dataToSave };
+      delete dataForDB.phone_mobile_is_whatsapp;
       
       // Set created_at only if it's the first time saving (no id)
-      if (!selectedStudent?.id && !dataToSave.created_at) {
-        dataToSave.created_at = new Date().toISOString();
+      if (!selectedStudent?.id && !dataForDB.created_at) {
+        dataForDB.created_at = new Date().toISOString();
       }
 
-      const savedId = await saveData('students', selectedStudent?.id, dataToSave);
+      const savedId = await saveData('students', selectedStudent?.id, dataForDB);
       
       setNotification({ type: 'success', message: 'Ficha do aluno salva com sucesso!' });
       setIsEditing(false);
       setUploadingPhoto(false); // Reset upload state on save success
       fetchStudents();
       
-      // Update selected student with fresh data including the ID if it was new
+      // Update selected student with local data (including UI-only fields)
       if (!selectedStudent?.id && savedId) {
         handleSelectStudent({ ...dataToSave, id: savedId } as Student);
       } else {
-        // Update local state if editing existing
         setSelectedStudent({ ...dataToSave, id: selectedStudent?.id } as Student);
       }
     } catch (error: any) {

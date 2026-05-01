@@ -300,22 +300,23 @@ export function Diocese() {
       const collection = activeTab === 'foranias' ? 'foraries' : activeTab === 'parishes' ? 'parishes' : 'clergy_leity';
       let data = { ...(activeTab === 'foranias' ? forariaForm : activeTab === 'parishes' ? parishForm : clergyForm) };
       
-      // Strip fields that are not in the database schema
-      delete (data as any).phone_mobile_is_whatsapp;
+      // Prepare data for DB (without UI-only fields)
+      const dataForDB = { ...data };
+      delete (dataForDB as any).phone_mobile_is_whatsapp;
       
       if (activeTab === 'parishes') {
-        data = {
-          ...data,
-          foundation_date: parseDateToDB((data as any).foundation_date)
-        };
+        const foundationDate = (dataForDB as any).foundation_date;
+        if (foundationDate) {
+          (dataForDB as any).foundation_date = parseDateToDB(foundationDate);
+        }
         // Strip foundation_date as it is not in the current SQL schema
-        delete (data as any).foundation_date;
+        delete (dataForDB as any).foundation_date;
       }
       
-      const docId = selectedItem?.id || data.code;
+      const docId = selectedItem?.id || (dataForDB as any).code;
 
       await saveData(collection, docId as string, {
-        ...data,
+        ...dataForDB,
         user_id: userAuth.uid,
         created_at: selectedItem?.created_at || new Date().toISOString()
       });

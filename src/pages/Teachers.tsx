@@ -161,15 +161,28 @@ export function Teachers() {
   const handleSave = async () => {
     try {
       const dataToSave = { ...formData };
-      delete (dataToSave as any).phone_mobile_is_whatsapp;
-
-      await saveData('teachers', selectedTeacher?.id, dataToSave);
       
+      // Prepare data for DB (strip UI-only fields until DB is updated)
+      const dataForDB = { ...dataToSave };
+      delete (dataForDB as any).phone_mobile_is_whatsapp;
+
+      const savedId = await saveData('teachers', selectedTeacher?.id, dataForDB);
+      
+      setNotification({ type: 'success', message: 'Ficha do professor salva com sucesso!' });
       setIsEditing(false);
       fetchTeachers();
+      
+      // Update local state
+      if (!selectedTeacher?.id && savedId) {
+        setSelectedTeacher({ ...dataToSave, id: savedId } as Teacher);
+      } else {
+        setSelectedTeacher({ ...dataToSave, id: selectedTeacher?.id } as Teacher);
+      }
     } catch (error: any) {
       console.error('Error saving teacher:', error);
-      alert('Erro ao salvar professor: ' + error.message);
+      setNotification({ type: 'error', message: 'Erro ao salvar professor: ' + error.message });
+    } finally {
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
