@@ -633,16 +633,13 @@ export function Students() {
 
           {/* RODAPÉ */}
           <div className="border-t border-black/10 pt-3 flex justify-between items-start text-[7.5pt] font-medium text-slate-500 uppercase tracking-tight">
-            <div className="flex-1">
-              {/* Optional: Add left-side content here if needed later */}
+            <div className="flex-1 space-y-0.5">
+              {inst?.address && <p>{inst.address}</p>}
+              {inst?.phone && <p>Telefone: {inst.phone}</p>}
+              {inst?.email && <p className="lowercase">{inst.email}</p>}
             </div>
-            <div className="text-right space-y-0.5 max-w-[320px]">
-              {inst?.secretary && <p className="whitespace-pre-line leading-tight mb-2 italic text-slate-600">{inst.secretary}</p>}
-              <div className="pt-1 border-t border-black/10">
-                {inst?.address && <p>{inst.address}</p>}
-                {inst?.phone && <p>Telefone: {inst.phone}</p>}
-                {inst?.email && <p className="lowercase">{inst.email}</p>}
-              </div>
+            <div className="text-right max-w-[320px]">
+              {inst?.secretary && <p className="whitespace-pre-line leading-tight italic text-slate-600">{inst.secretary}</p>}
             </div>
           </div>
         </div>
