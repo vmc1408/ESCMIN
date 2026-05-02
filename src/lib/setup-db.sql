@@ -52,6 +52,7 @@ ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS secretary TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS cep TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS city_uf TEXT;
 ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS subtitle TEXT;
+ALTER TABLE institution_settings ADD COLUMN IF NOT EXISTS phone_is_whatsapp BOOLEAN DEFAULT FALSE;
 
 -- Inserir configuração padrão usando um ID compatível com TEXT ou UUID
 -- Usamos um valor que parece um UUID técnico para evitar o erro 22P02

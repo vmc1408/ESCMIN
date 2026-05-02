@@ -83,16 +83,30 @@ export const financialService = {
    * Busca as configurações da instituição do Supabase.
    */
   async getInstitutionSettings() {
-    if (!isSupabaseConfigured) return null;
-    
-    const { data, error } = await supabase
-      .from('institution_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-
-    if (error) throw error;
-    return data;
+    try {
+      if (!isSupabaseConfigured) return null;
+      
+      const { data, error } = await supabase
+        .from('institution_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+  
+      if (error) {
+        if (error.code === '42P01' || error.message?.includes('not found')) {
+          return null;
+        }
+        throw error;
+      }
+      return data;
+    } catch (err: any) {
+      if (err.message?.includes('fetch') || err.message?.includes('TIMEOUT')) {
+        console.warn('[Supabase] Problema de conexão ao buscar instituição. Retornando null.');
+        return null;
+      }
+      console.error('[financialService] Erro ao buscar instituição:', err.message);
+      return null;
+    }
   },
 
   /**

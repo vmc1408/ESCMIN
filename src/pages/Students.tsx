@@ -330,14 +330,15 @@ export function Students() {
       }
 
       // Try saving with all fields, fallback if column missing
+      let savedId;
       try {
-        await saveData('students', selectedStudent?.id, dataToSave);
+        savedId = await saveData('students', selectedStudent?.id, dataToSave);
       } catch (err: any) {
         if (err.message?.includes('phone_mobile_is_whatsapp')) {
           console.warn('[Supabase] Coluna phone_mobile_is_whatsapp ausente, salvando sem ela.');
           const fallbackData = { ...dataToSave };
           delete fallbackData.phone_mobile_is_whatsapp;
-          await saveData('students', selectedStudent?.id, fallbackData);
+          savedId = await saveData('students', selectedStudent?.id, fallbackData);
         } else {
           throw err;
         }
@@ -349,10 +350,8 @@ export function Students() {
       fetchStudents();
       
       // Update selected student with local data (including UI-only fields if fallback occurred)
-      if (!selectedStudent?.id) {
-        // We don't have the savedId easily here from the try block unless we capture it
-        // but fetchStudents will handle it. For immediate UI:
-        setSelectedStudent({ ...dataToSave, id: selectedStudent?.id || crypto.randomUUID() } as Student);
+      if (savedId) {
+        setSelectedStudent({ ...dataToSave, id: savedId } as Student);
       } else {
         setSelectedStudent({ ...dataToSave, id: selectedStudent?.id } as Student);
       }
@@ -495,8 +494,8 @@ export function Students() {
                                   selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
                   return (
                     <div key={course} className="flex items-center gap-3">
-                      <div className="w-3.5 h-3.5 border border-black/60 flex items-center justify-center bg-white relative shrink-0">
-                        {isChecked && <div className="w-2.5 h-2.5 bg-black/80 rounded-[1px]"></div>}
+                      <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white relative shrink-0">
+                        {isChecked && <span className="text-[10pt] font-black leading-none text-black">X</span>}
                       </div>
                       <span className="text-[9.5pt] font-medium leading-none uppercase">{course === 'S. Negros' ? 'História dos Santos Negros' : course}</span>
                     </div>
@@ -556,14 +555,18 @@ export function Students() {
                 <div className="flex items-center gap-3 ml-2 mb-0.5 text-[9pt]">
                   <span className="text-slate-900 font-semibold uppercase">WhatsApp:</span>
                   <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black/60 flex items-center justify-center bg-white">
-                       {selectedStudent.phone_mobile_is_whatsapp === true && <div className="w-2.5 h-2.5 bg-black"></div>}
+                    <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
+                       {(String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
+                         <span className="text-[10pt] font-black leading-none text-black">X</span>
+                       )}
                     </div>
                     <span className="font-bold uppercase text-[8pt]">Sim</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black/60 flex items-center justify-center bg-white">
-                       {selectedStudent.phone_mobile_is_whatsapp === false && <div className="w-2.5 h-2.5 bg-black"></div>}
+                    <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
+                       {(String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
+                         <span className="text-[10pt] font-black leading-none text-black">X</span>
+                       )}
                     </div>
                     <span className="font-bold uppercase text-[8pt]">Não</span>
                   </div>
