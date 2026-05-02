@@ -17,6 +17,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isDirector: boolean;
   isSecretary: boolean;
+  isLocked: boolean;
+  unlock: (pin: string) => boolean;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   canAccess: (path: string) => boolean;
@@ -29,6 +31,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
+
+  // Check locking state on profile load
+  useEffect(() => {
+    if (profile?.pin) {
+      const sessionUnlocked = sessionStorage.getItem(`unlocked-${profile.id}`);
+      if (!sessionUnlocked) {
+        setIsLocked(true);
+      }
+    } else {
+      setIsLocked(false);
+    }
+  }, [profile]);
+
+  const unlock = useCallback((pin: string): boolean => {
+    if (profile && profile.pin === pin) {
+      setIsLocked(false);
+      sessionStorage.setItem(`unlocked-${profile.id}`, 'true');
+      return true;
+    }
+    return false;
+  }, [profile]);
 
   const fetchProfile = useCallback(async (appUser: AppUser) => {
     const { uid, email } = appUser;
@@ -227,10 +251,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: !profile || profile?.role === 'admin', 
     isDirector: profile?.role === 'diretor', 
     isSecretary: profile?.role === 'secretario', 
+    isLocked,
+    unlock,
     logout,
     canAccess,
     refreshProfile
-  }), [user, profile, loading, logout, canAccess, refreshProfile]);
+  }), [user, profile, loading, isLocked, unlock, logout, canAccess, refreshProfile]);
 
   return (
     <AuthContext.Provider value={contextValue}>

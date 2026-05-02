@@ -21,10 +21,12 @@ import { ImportProvider } from './contexts/ImportContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { GlobalImportOverlay } from './components/GlobalImportOverlay';
+import { PinLock } from './components/PinLock';
 
 export default function App() {
   return (
     <AuthProvider>
+      <PinLock />
       <ImportProvider>
         <Router>
           <Routes>

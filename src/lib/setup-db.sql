@@ -3,6 +3,8 @@
 
 -- 1. Tabela de Alunos (students)
 -- Adiciona colunas extras para um cadastro completo e profissional
+ALTER TABLE users ADD COLUMN IF NOT EXISTS pin TEXT;
+
 ALTER TABLE students ADD COLUMN IF NOT EXISTS address_neighborhood TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS forany TEXT;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS pastoral_participates TEXT;

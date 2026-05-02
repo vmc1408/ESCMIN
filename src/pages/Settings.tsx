@@ -87,10 +87,16 @@ const extractYearFromText = (text: string | undefined): number | null => {
 };
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic'>('institution');
+  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic' | 'security'>('institution');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  // Security State
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [currentPin, setCurrentPin] = useState('');
+  const [savingPin, setSavingPin] = useState(false);
 
   // Institution State
   const [institution, setInstitution] = useState<InstitutionSettings>({
@@ -118,7 +124,36 @@ export function Settings() {
     updated_at: new Date().toISOString()
   });
 
-  const { user, refreshProfile } = useAuth();
+  const handleUpdatePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile?.id) return;
+
+    if (newPin.length !== 4 || !/^\d+$/.test(newPin)) {
+      setNotification({ type: 'error', message: 'O PIN deve ter 4 números.' });
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      setNotification({ type: 'error', message: 'Os PINs não conferem.' });
+      return;
+    }
+
+    try {
+      setSavingPin(true);
+      await saveData('users', profile.id, { ...profile, pin: newPin });
+      await refreshProfile();
+      setNewPin('');
+      setConfirmPin('');
+      setNotification({ type: 'success', message: 'PIN atualizado com sucesso!' });
+    } catch (err: any) {
+      setNotification({ type: 'error', message: 'Erro ao salvar PIN: ' + err.message });
+    } finally {
+      setSavingPin(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const { user, profile, refreshProfile } = useAuth();
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -833,6 +868,17 @@ export function Settings() {
           </button>
 
           <button 
+            onClick={() => setActiveTab('security')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'security' ? "bg-amber-600 text-white shadow-lg shadow-amber-100" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <ShieldCheck size={18} />
+            Segurança
+          </button>
+
+          <button 
             onClick={() => setActiveTab('maintenance')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
@@ -1134,6 +1180,141 @@ export function Settings() {
             </form>
           </div>
         )}
+
+      {activeTab === 'security' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-amber-50 border border-amber-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+              <ShieldCheck size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-amber-900">Segurança de Acesso (PIN)</h3>
+              <p className="text-amber-700 font-medium text-sm mt-1">
+                Aumente a segurança do sistema definindo um código PIN numérico. Sempre que você acessar o sistema, este código será solicitado.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-8">
+              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <Key size={20} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-[#00174b]">Gestão de PIN</h4>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Defina seu código de acesso rápido</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdatePin} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Novo PIN (4 dígitos)</label>
+                    <input 
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      value={newPin}
+                      onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:bg-white focus:border-amber-200 transition-all font-black text-[#00174b] text-center text-xl tracking-[0.5em]"
+                      placeholder="****"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar Novo PIN</label>
+                    <input 
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={4}
+                      value={confirmPin}
+                      onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:bg-white focus:border-amber-200 transition-all font-black text-[#00174b] text-center text-xl tracking-[0.5em]"
+                      placeholder="****"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {profile?.pin ? (
+                      <div className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5">
+                        <Check size={12} />
+                        PIN Configurado
+                      </div>
+                    ) : (
+                      <div className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black uppercase">
+                        Sem PIN definido
+                      </div>
+                    )}
+                  </div>
+                  
+                  <button 
+                    type="submit"
+                    disabled={savingPin || newPin.length < 4}
+                    className="px-8 py-3 bg-amber-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-amber-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                  >
+                    {savingPin ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    {profile?.pin ? 'Atualizar PIN' : 'Definir PIN'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
+              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Info size={20} />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-[#00174b]">Como funciona</h4>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Segurança em duas camadas</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">1</div>
+                  <p className="text-sm font-medium text-slate-600">O PIN é solicitado imediatamente após o login ou ao reabrir a aba do sistema.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">2</div>
+                  <p className="text-sm font-medium text-slate-600">Este código é pessoal e intransferível. Cada usuário tem seu próprio PIN.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">3</div>
+                  <p className="text-sm font-medium text-slate-600">Se você esquecer seu PIN, entre em contato com o administrador do sistema para resetar seu perfil.</p>
+                </div>
+              </div>
+
+              {profile?.pin && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-3">
+                  <p className="text-xs font-bold text-red-800 uppercase tracking-tight">Deseja remover a proteção por PIN?</p>
+                  <button 
+                    onClick={async () => {
+                      if (window.confirm('Tem certeza que deseja remover a proteção por PIN da sua conta?')) {
+                        try {
+                          await saveData('users', profile.id, { ...profile, pin: null });
+                          await refreshProfile();
+                          setNotification({ type: 'success', message: 'Proteção por PIN removida.' });
+                        } catch (e: any) {
+                          setNotification({ type: 'error', message: 'Erro ao remover: ' + e.message });
+                        }
+                      }
+                    }}
+                    className="w-full py-2.5 bg-white text-red-600 border border-red-200 rounded-lg text-[10px] font-black uppercase hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                  >
+                    Remover Proteção
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'academic' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

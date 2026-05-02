@@ -13,6 +13,7 @@ export interface UserProfile {
   last_login?: string;
   updated_at?: string;
   is_pre_registered?: boolean;
+  pin?: string;
 }
 
 export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Suspenso';

@@ -556,7 +556,7 @@ export function Students() {
                   <span className="text-slate-900 font-semibold uppercase">WhatsApp:</span>
                   <div className="flex items-center gap-1">
                     <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
-                       {(String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
+                       {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
                          <span className="text-[10pt] font-black leading-none text-black">X</span>
                        )}
                     </div>
@@ -564,7 +564,7 @@ export function Students() {
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
-                       {(String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
+                       {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
                          <span className="text-[10pt] font-black leading-none text-black">X</span>
                        )}
                     </div>
