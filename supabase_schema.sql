@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS public.students (
     start_date TEXT,
     status TEXT DEFAULT 'Ativo',
     is_former_student BOOLEAN DEFAULT false,
-    class_id TEXT,
+    class_id TEXT REFERENCES public.classes(id) ON DELETE SET NULL,
     address_street TEXT,
     address_neighborhood TEXT,
     address_city TEXT,
@@ -112,10 +112,10 @@ CREATE TABLE IF NOT EXISTS public.pix_reconciliations (
     date TIMESTAMP WITH TIME ZONE NOT NULL,
     payer_name TEXT NOT NULL,
     origin_bank TEXT,
-    amount NUMERIC(10,2) NOT NULL,
+    amount NUMERIC(15,2) NOT NULL,
     transaction_id TEXT UNIQUE NOT NULL,
     status TEXT DEFAULT 'unmatched',
-    matched_student_id TEXT,
+    matched_student_id TEXT REFERENCES public.students(id) ON DELETE SET NULL,
     is_manual BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -123,8 +123,8 @@ CREATE TABLE IF NOT EXISTS public.pix_reconciliations (
 -- 8. Contribuições
 CREATE TABLE IF NOT EXISTS public.contributions (
     id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    amount NUMERIC(10,2) NOT NULL,
+    student_id TEXT REFERENCES public.students(id) ON DELETE SET NULL,
+    amount NUMERIC(15,2) NOT NULL,
     reference_month INTEGER NOT NULL,
     reference_year INTEGER NOT NULL,
     payment_date DATE NOT NULL,
@@ -187,9 +187,9 @@ CREATE TABLE IF NOT EXISTS public.institution_settings (
 -- 12. Presenças
 CREATE TABLE IF NOT EXISTS public.attendances (
     id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    class_id TEXT NOT NULL,
-    subject_id TEXT NOT NULL,
+    student_id TEXT REFERENCES public.students(id) ON DELETE SET NULL,
+    class_id TEXT REFERENCES public.classes(id) ON DELETE SET NULL,
+    subject_id TEXT REFERENCES public.subjects(id) ON DELETE SET NULL,
     date DATE NOT NULL,
     status TEXT NOT NULL, -- 'P' (presente), 'F' (falta), 'J' (justificada)
     user_id TEXT,
@@ -199,9 +199,9 @@ CREATE TABLE IF NOT EXISTS public.attendances (
 -- 13. Notas
 CREATE TABLE IF NOT EXISTS public.grades (
     id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    class_id TEXT NOT NULL,
-    subject_id TEXT NOT NULL,
+    student_id TEXT REFERENCES public.students(id) ON DELETE SET NULL,
+    class_id TEXT REFERENCES public.classes(id) ON DELETE SET NULL,
+    subject_id TEXT REFERENCES public.subjects(id) ON DELETE SET NULL,
     period TEXT NOT NULL, -- 'B1', 'B2', etc.
     value NUMERIC(4,2) NOT NULL,
     user_id TEXT,
@@ -222,7 +222,7 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
 -- 15. Certificados
 CREATE TABLE IF NOT EXISTS public.certificates (
     id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
+    student_id TEXT REFERENCES public.students(id) ON DELETE SET NULL,
     type TEXT NOT NULL,
     issue_date DATE NOT NULL,
     code TEXT UNIQUE NOT NULL,
@@ -249,18 +249,24 @@ CREATE TABLE IF NOT EXISTS public.clergy_leity (
 -- 17. Matrículas (Multi-turma)
 CREATE TABLE IF NOT EXISTS public.enrollments (
     id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    class_id TEXT NOT NULL,
+    student_id TEXT REFERENCES public.students(id) ON DELETE SET NULL,
+    class_id TEXT REFERENCES public.classes(id) ON DELETE SET NULL,
     status TEXT DEFAULT 'Ativo',
     enrollment_date DATE,
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 18. Arquivo Morto (Tabelas Espelho)
+CREATE TABLE IF NOT EXISTS public.archived_students (LIKE public.students INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.archived_teachers (LIKE public.teachers INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.archived_classes (LIKE public.classes INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.archived_subjects (LIKE public.subjects INCLUDING ALL);
+
 -- Habilitar RLS e criar políticas de acesso público para todas as tabelas
 DO $$
 DECLARE
-    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments'];
+    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments', 'archived_students', 'archived_teachers', 'archived_classes', 'archived_subjects'];
     t text;
 BEGIN
     FOREACH t IN ARRAY tables LOOP

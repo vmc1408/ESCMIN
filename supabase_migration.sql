@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS public.students (
     start_date DATE,
     status TEXT DEFAULT 'Ativo',
     is_former_student BOOLEAN DEFAULT FALSE,
-    class_id UUID REFERENCES public.classes(id),
+    class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
     address_street TEXT,
     address_neighborhood TEXT, -- Added based on error report
     address_city TEXT,
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS public.pix_reconciliations (
     transaction_id TEXT UNIQUE NOT NULL,
     batch_id TEXT,
     status TEXT DEFAULT 'unmatched' CHECK (status IN ('matched', 'unmatched', 'multiple')),
-    matched_student_id UUID REFERENCES public.students(id),
+    matched_student_id UUID REFERENCES public.students(id) ON DELETE SET NULL,
     is_manual BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS public.pix_reconciliations (
 -- 12. contributions
 CREATE TABLE IF NOT EXISTS public.contributions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES public.students(id),
+    student_id UUID REFERENCES public.students(id) ON DELETE SET NULL,
     amount NUMERIC(15,2) NOT NULL,
     reference_month INTEGER NOT NULL,
     reference_year INTEGER NOT NULL,
@@ -207,8 +207,8 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
     start_date DATE NOT NULL,
     end_date DATE,
     type TEXT CHECK (type IN ('holiday', 'exam', 'start_term', 'end_term', 'class_day', 'event')),
-    class_id UUID REFERENCES public.classes(id),
-    subject_id UUID REFERENCES public.subjects(id),
+    class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
+    subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
     user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -216,9 +216,9 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
 -- 14. attendances
 CREATE TABLE IF NOT EXISTS public.attendances (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES public.students(id),
-    class_id UUID REFERENCES public.classes(id),
-    subject_id UUID REFERENCES public.subjects(id),
+    student_id UUID REFERENCES public.students(id) ON DELETE SET NULL,
+    class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
+    subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
     date DATE NOT NULL,
     status TEXT CHECK (status IN ('P', 'F', 'J')),
     observations TEXT,
@@ -229,9 +229,9 @@ CREATE TABLE IF NOT EXISTS public.attendances (
 -- 15. grades
 CREATE TABLE IF NOT EXISTS public.grades (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES public.students(id),
-    class_id UUID REFERENCES public.classes(id),
-    subject_id UUID REFERENCES public.subjects(id),
+    student_id UUID REFERENCES public.students(id) ON DELETE SET NULL,
+    class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
+    subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
     period TEXT,
     value NUMERIC(4,2), -- 0.00 to 10.00
     status TEXT CHECK (status IN ('Aprovado', 'Reprovado', 'Recuperação')),
@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS public.academic_parameters (
 -- 17. certificates
 CREATE TABLE IF NOT EXISTS public.certificates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES public.students(id),
+    student_id UUID REFERENCES public.students(id) ON DELETE SET NULL,
     type TEXT CHECK (type IN ('conclusão', 'participação', 'honra')),
     issuance_date DATE NOT NULL,
     course TEXT,
@@ -261,6 +261,12 @@ CREATE TABLE IF NOT EXISTS public.certificates (
     user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 18. Arquivo Morto
+CREATE TABLE IF NOT EXISTS public.archived_students (LIKE public.students INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.archived_teachers (LIKE public.teachers INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.archived_classes (LIKE public.classes INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS public.archived_subjects (LIKE public.subjects INCLUDING ALL);
 
 -- RLS POLICIES (Simplified)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;

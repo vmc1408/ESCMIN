@@ -361,6 +361,10 @@
     "grades": { "schema": "Grade", "description": "Student grades" },
     "academic_parameters": { "schema": "AcademicParameters", "description": "Global academic parameters" },
     "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" },
-    "enrollments": { "schema": "Enrollment", "description": "Student enrollments in classes" }
+    "enrollments": { "schema": "Enrollment", "description": "Student enrollments in classes" },
+    "archived_students": { "schema": "Student", "description": "Archived student records" },
+    "archived_teachers": { "schema": "Teacher", "description": "Archived teacher records" },
+    "archived_classes": { "schema": "Class", "description": "Archived class records" },
+    "archived_subjects": { "schema": "Subject", "description": "Archived subject records" }
   }
 }
