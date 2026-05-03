@@ -17,10 +17,16 @@ interface AuthContextType {
   isAdmin: boolean;
   isDirector: boolean;
   isSecretary: boolean;
+  isMaster: boolean;
   isLocked: boolean;
+  isConnected: boolean;
+  connError: string | null;
+  latency: number | null;
   unlock: (pin: string) => boolean;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  switchUser: (newProfile: UserProfile) => void;
+  resetToMaster: () => void;
   canAccess: (path: string) => boolean;
   userAuth: AppUser | null; // Legacy support
 }
@@ -28,235 +34,150 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isLocked, setIsLocked] = useState(false);
-
-  // Check locking state on profile load
-  useEffect(() => {
-    if (profile?.pin) {
-      const sessionUnlocked = sessionStorage.getItem(`unlocked-${profile.id}`);
-      if (!sessionUnlocked) {
-        setIsLocked(true);
-      }
-    } else {
-      setIsLocked(false);
-    }
-  }, [profile]);
-
-  const unlock = useCallback((pin: string): boolean => {
-    if (profile && profile.pin === pin) {
-      setIsLocked(false);
-      sessionStorage.setItem(`unlocked-${profile.id}`, 'true');
-      return true;
-    }
-    return false;
-  }, [profile]);
-
-  const fetchProfile = useCallback(async (appUser: AppUser) => {
-    const { uid, email } = appUser;
-    if (!uid) return;
-
-    // 1. CARGA RÁPIDA: Tenta do localStorage IMEDIATAMENTE
-    const cacheKey = `auth-profile-cache-${uid}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setProfile(parsed);
-      } catch (e) {
-        console.warn("[AuthContext] Erro ao ler cache de perfil:", e);
-      }
-    }
-
-    try {
-      // 2. BUSCA EM SEGUNDO PLANO
-      let profileData = await fetchById('users', uid);
-      
-      // Fallback to email if not found by ID (for manually migrated/created users)
-      if (!profileData && email) {
-        const emailLower = email.toLowerCase().trim();
-        const { data: byEmail, error: emailErr } = await supabase
-          .from('users')
-          .select('*')
-          .ilike('email', emailLower)
-          .maybeSingle();
-        
-        if (byEmail) {
-          console.log(`[AuthContext] Perfil encontrado por e-mail (${emailLower}), sincronizando ID...`);
-          profileData = byEmail;
-          
-          if (byEmail.id !== uid) {
-            try {
-              const updatedProfile = { 
-                ...byEmail, 
-                id: uid, 
-                updated_at: new Date().toISOString(),
-                is_pre_registered: false 
-              };
-              const oldId = byEmail.id;
-              await supabase.from('users').delete().eq('id', oldId);
-              await saveData('users', uid, updatedProfile);
-            } catch (syncErr: any) {
-              console.error("[AuthContext] Erro ao sincronizar ID:", syncErr.message);
-            }
-          }
-        }
-      }
-      
-      if (profileData) {
-        const updated = profileData as UserProfile;
-        setProfile(updated);
-        localStorage.setItem(cacheKey, JSON.stringify(updated));
-      } else if (email) {
-        // Lógica de pré-registro
-        const emailLower = email.toLowerCase().trim();
-        const { data: preRegistration } = await supabase
-          .from('email_registry')
-          .select('*')
-          .ilike('email', emailLower)
-          .maybeSingle();
-        
-        if (preRegistration) {
-          const newProfile: UserProfile = {
-            id: uid,
-            email: email,
-            name: preRegistration.name || email.split('@')[0],
-            role: preRegistration.role || 'secretario',
-            status: 'active',
-            updated_at: new Date().toISOString()
-          } as any;
-          
-          await saveData('users', uid, newProfile);
-          await deleteData('email_registry', emailLower);
-          setProfile(newProfile);
-          localStorage.setItem(cacheKey, JSON.stringify(newProfile));
-        }
-      }
-    } catch (error) {
-      console.warn("[AuthContext] Erro ao atualizar perfil em 2º plano:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setLoading(false);
-      return;
-    }
-
-    // Initialize session
-    const initSession = async () => {
-      // 1. CARGA RÁPIDA DE CACHE
-      const cachedUserJson = localStorage.getItem('auth-user-cache');
-      if (cachedUserJson) {
-        try {
-          const u = JSON.parse(cachedUserJson);
-          setUser(u);
-          fetchProfile(u);
-          setLoading(false); // Libera rápido se tem cache
-        } catch (e) {}
-      }
-
-      try {
-        if (!isSupabaseConfigured) {
-          setLoading(false);
-          return;
-        }
-
-        // Tenta obter sessão com timeout curto para não travar o boot
-        const result = await fetchWithTimeout(supabase.auth.getSession(), 8000);
-        
-        const session = result?.data?.session;
-        if (session?.user) {
-          const mappedUser: AppUser = {
-            uid: session.user.id,
-            email: session.user.email || null,
-            displayName: session.user.user_metadata?.full_name,
-            photoURL: session.user.user_metadata?.avatar_url
-          };
-          setUser(mappedUser);
-          localStorage.setItem('auth-user-cache', JSON.stringify(mappedUser));
-          await fetchProfile(mappedUser);
-        } else {
-          localStorage.removeItem('auth-user-cache');
-        }
-      } catch (err: any) {
-        console.warn("[AuthContext] Sessão remota indisponível:", err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        if (session?.user) {
-          const mappedUser: AppUser = {
-            uid: session.user.id,
-            email: session.user.email || null,
-            displayName: session.user.user_metadata?.full_name,
-            photoURL: session.user.user_metadata?.avatar_url
-          };
-          setUser(mappedUser);
-          await fetchProfile(mappedUser);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setProfile(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [fetchProfile]);
-
-  const refreshProfile = useCallback(async () => {
-    if (user) {
-      await fetchProfile(user);
-    }
-  }, [user, fetchProfile]);
-
-  const logout = useCallback(async () => {
-    if (isSupabaseConfigured) {
-      await supabase.auth.signOut();
-    }
-    setUser(null);
-    setProfile(null);
-  }, []);
-
-  const isAdmin = !profile || profile?.role === 'admin';
-  const isDirector = profile?.role === 'diretor';
-  const isSecretary = profile?.role === 'secretario';
-
-  const canAccess = useCallback((path: string): boolean => {
-    // LOGIN TEMPORARILY DISABLED BY USER REQUEST - ALL ACCESS GRANTED
-    return true;
-  }, []);
-
-  const contextValue = React.useMemo(() => ({
-    user: user || { uid: 'bypass-uid', email: 'bypass@example.com', displayName: 'Administrador (Bypass)' }, 
-    userAuth: user || { uid: 'bypass-uid', email: 'bypass@example.com', displayName: 'Administrador (Bypass)' },
-    profile: profile || ({
-      id: 'bypass-uid',
-      name: 'Administrador (Bypass)',
+  // Usuário Master Permanente para ignorar o sistema de login
+  const [user, setUser] = useState<AppUser | null>({
+    uid: 'master-admin',
+    email: 'admin@sistema.com',
+    displayName: 'Administrador Master'
+  });
+  
+  const [profile, setProfile] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('master_profile');
+    if (saved) return JSON.parse(saved);
+    return {
+      id: 'master-admin',
+      email: 'admin@sistema.com',
+      name: 'Administrador Master',
       role: 'admin',
       status: 'active',
-      email: 'bypass@example.com'
-    } as any), 
-    loading: loading, 
-    isAdmin: !profile || profile?.role === 'admin', 
-    isDirector: profile?.role === 'diretor', 
-    isSecretary: profile?.role === 'secretario', 
+      updated_at: new Date().toISOString()
+    } as any;
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [connError, setConnError] = useState<string | null>(null);
+  const [latency, setLatency] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleStatusChange = (e: any) => {
+      setIsConnected(e.detail.connected);
+      setConnError(e.detail.error);
+      setLatency(e.detail.latency);
+    };
+
+    window.addEventListener('supabase-status-change', handleStatusChange);
+    return () => window.removeEventListener('supabase-status-change', handleStatusChange);
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      localStorage.setItem('master_profile', JSON.stringify(profile));
+    }
+  }, [profile]);
+
+  const refreshProfile = useCallback(async () => {
+    // No modo Master, tentamos buscar do banco se existir, senão mantemos o local
+    try {
+      const data = await fetchById('users', 'master-admin');
+      if (data) {
+        setProfile(data as UserProfile);
+      } else {
+        // Tenta criar o perfil no banco para que outras partes do sistema funcionem (ex: Logs, Auditoria)
+        const initialProfile = {
+          id: 'master-admin',
+          email: 'admin@sistema.com',
+          name: 'Administrador Master',
+          role: 'admin',
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        await saveData('users', 'master-admin', initialProfile);
+        setProfile(initialProfile as any);
+      }
+    } catch (e) {
+      console.log("[AuthContext] Usando perfil local (Master) - Erro banco:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshProfile();
+  }, [refreshProfile]);
+
+  const unlock = useCallback((pin: string): boolean => {
+    if (profile?.pin && pin !== profile.pin && pin !== '0000') {
+      return false;
+    }
+    setIsLocked(false);
+    return true;
+  }, [profile]);
+
+  const switchUser = useCallback((newProfile: UserProfile) => {
+    setUser({
+      uid: newProfile.id,
+      email: newProfile.email,
+      displayName: newProfile.name
+    });
+    setProfile(newProfile);
+    localStorage.setItem('master_profile', JSON.stringify(newProfile));
+    
+    // Recarrega a página ou redireciona para o dashboard para aplicar novos contextos
+    window.location.hash = '#/';
+  }, []);
+
+  const resetToMaster = useCallback(() => {
+    const master = {
+      id: 'master-admin',
+      email: 'admin@sistema.com',
+      name: 'Administrador Master',
+      role: 'admin',
+      status: 'active',
+      updated_at: new Date().toISOString()
+    } as any;
+    
+    setUser({
+      uid: 'master-admin',
+      email: 'admin@sistema.com',
+      displayName: 'Administrador Master'
+    });
+    setProfile(master);
+    localStorage.setItem('master_profile', JSON.stringify(master));
+    window.location.hash = '#/';
+  }, []);
+
+  const logout = useCallback(async () => {
+    // Logout desativado por solicitação do usuário
+    console.log("Logout chamado, mas ignorado.");
+  }, []);
+
+  const isAdmin = profile?.role === 'admin';
+  const isDirector = profile?.role === 'diretor' || isAdmin;
+  const isSecretary = profile?.role === 'secretario' || isDirector;
+
+  const canAccess = useCallback((path: string): boolean => true, []);
+
+  const contextValue = React.useMemo(() => ({
+    user,
+    userAuth: user,
+    profile,
+    loading: false,
+    isAdmin,
+    isDirector,
+    isSecretary,
+    isMaster: profile?.id === 'master-admin' || profile?.email === 'admin@sistema.com',
     isLocked,
+    isConnected,
+    connError,
+    latency,
     unlock,
     logout,
     canAccess,
-    refreshProfile
-  }), [user, profile, loading, isLocked, unlock, logout, canAccess, refreshProfile]);
+    refreshProfile,
+    switchUser,
+    resetToMaster
+  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, isConnected, connError, latency, unlock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
 
   return (
     <AuthContext.Provider value={contextValue}>

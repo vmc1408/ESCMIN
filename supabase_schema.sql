@@ -246,10 +246,21 @@ CREATE TABLE IF NOT EXISTS public.clergy_leity (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 17. Matrículas (Multi-turma)
+CREATE TABLE IF NOT EXISTS public.enrollments (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    class_id TEXT NOT NULL,
+    status TEXT DEFAULT 'Ativo',
+    enrollment_date DATE,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Habilitar RLS e criar políticas de acesso público para todas as tabelas
 DO $$
 DECLARE
-    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity'];
+    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments'];
     t text;
 BEGIN
     FOREACH t IN ARRAY tables LOOP

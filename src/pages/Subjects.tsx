@@ -166,7 +166,7 @@ export function Subjects() {
       const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.code.includes(searchTerm);
       
-      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter || (s.status === '' && statusFilter === 'Ativo');
+      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
       
       return matchesSearch && matchesStatus;
     });

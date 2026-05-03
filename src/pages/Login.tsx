@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured, fetchWithTimeout } from '../lib/supabase';
-import { saveData, fetchById } from '../lib/database';
+import { saveData } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -11,7 +11,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Database,
-  X
+  X,
+  ChevronRight,
+  BookOpen,
+  Users,
+  GraduationCap,
+  Calendar,
+  CheckCircle,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,87 +30,41 @@ export function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
   const [needsBootstrap, setNeedsBootstrap] = useState(false);
-  
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
-  
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError } = useAuth();
   const from = location.state?.from?.pathname || "/";
+  const stateError = location.state?.error;
 
-  // Helper to strip JSON from error messages
-  const formatError = (error: any): string => {
-    if (!error) return "";
-    const msg = typeof error === 'string' ? error : (error.message || String(error));
-    
-    if (msg.includes('Invalid login credentials')) {
-      return "E-mail ou senha incorretos. Verifique suas credenciais.";
-    }
-    if (msg.includes('Email not confirmed')) {
-      return "E-mail ainda não confirmado. Verifique sua caixa de entrada.";
-    }
-    if (msg.includes('User already registered')) {
-      return "Este e-mail já possui uma conta ativa no sistema.";
-    }
-    
-    return msg;
-  };
-
+  // Redirect if already logged in and NOT locked and has profile
   useEffect(() => {
-    // If we are logged in and system is OK, go to home
-    if (user && profile && !needsBootstrap && !loading) {
+    if (user && profile && !isLocked && !authLoading) {
       navigate(from, { replace: true });
     }
-  }, [user, profile, needsBootstrap, loading, navigate, from]);
+  }, [user, profile, isLocked, authLoading, navigate, from]);
 
+  // Set error from navigation state if present
   useEffect(() => {
-    const shouldIgnoreError = authLoading || loading || isRegistering || isProcessing || initialLoading;
-    
-    if (user && !profile && !shouldIgnoreError && !needsBootstrap) {
-      const timer = setTimeout(() => {
-        if (user && !profile && !shouldIgnoreError && !needsBootstrap && !error) {
-          setError("Olá! 🎉 Parece que você ainda não tem um perfil cadastrado. Se este é seu primeiro acesso, use a aba 'Primeiro Acesso'.");
-        }
-      }, 4000);
-      return () => clearTimeout(timer);
-    } else if (profile || !user) {
-      if (error?.includes("perfil não foi encontrado")) {
-        setError(null);
-      }
+    if (stateError) {
+      setError(stateError);
+      // Limpa o estado para não reexibir o erro ao recarregar a página
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [user, profile, authLoading, needsBootstrap, loading, isRegistering, isProcessing, initialLoading, error]);
+  }, [stateError, navigate, location.pathname]);
 
+  // Check for first time setup
   useEffect(() => {
     const checkInitialization = async () => {
       try {
-        if (!isSupabaseConfigured) {
-          setInitialLoading(false);
-          return;
-        }
-        
-        const result = await fetchWithTimeout(
-          supabase
-            .from('institution_settings')
-            .select('id')
-            .limit(1)
-            .maybeSingle()
-        );
-        
-        const data = result?.data;
-        const sbErr = result?.error;
-        
+        if (!isSupabaseConfigured) return;
+        const { data, error: sbErr } = await supabase.from('institution_settings').select('id').limit(1).maybeSingle();
         setNeedsBootstrap(!data && !sbErr);
-      } catch (err: any) {
-        console.error("[Login] Erro ao verificar inicialização:", err.message);
-        setNeedsBootstrap(false);
-      } finally {
-        setInitialLoading(false);
+      } catch (err) {
+        console.error("Init check error:", err);
       }
     };
     checkInitialization();
@@ -112,22 +73,18 @@ export function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-
     setLoading(true);
-    setIsProcessing(true);
     setError(null);
 
     try {
-      const { error: sbErr } = await supabase.auth.signInWithPassword({
+      const result = await fetchWithTimeout(supabase.auth.signInWithPassword({
         email: email.toLowerCase().trim(),
         password
-      });
-      if (sbErr) throw sbErr;
-      setError(null);
+      }), 20000);
+      
+      if (result?.error) throw result.error;
     } catch (err: any) {
-      console.error("Login failed:", err);
-      setIsProcessing(false);
-      setError(formatError(err));
+      setError(err.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : err.message);
     } finally {
       setLoading(false);
     }
@@ -142,52 +99,31 @@ export function Login() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres.");
-      return;
-    }
-
     setLoading(true);
-    setIsProcessing(true);
     setError(null);
 
     try {
-      // 1. Check if user is authorized (either in registry or already in users table)
       const emailLower = email.toLowerCase().trim();
       
+      // Check authorization
       const [preRegRes, existingUserRes] = await Promise.all([
         supabase.from('email_registry').select('*').ilike('email', emailLower).maybeSingle(),
         supabase.from('users').select('*').ilike('email', emailLower).maybeSingle()
       ]);
       
-      const preRegData = preRegRes.data;
-      const existingUserData = existingUserRes.data;
-      
-      if (!preRegData && !existingUserData) {
-        setError("Este e-mail não está autorizado para primeiro acesso. Por favor, solicite seu pré-cadastro.");
-        setLoading(false);
-        setIsProcessing(false);
-        return;
+      if (!preRegRes.data && !existingUserRes.data) {
+        throw new Error("Este e-mail não está autorizado para primeiro acesso. Fale com a secretaria.");
       }
 
-      const displayName = preRegData?.name || existingUserData?.name || emailLower.split('@')[0];
-
-      // 2. Create Supabase Auth user
       const { error: sbErr } = await supabase.auth.signUp({
         email: emailLower,
         password,
-        options: {
-          data: {
-            full_name: displayName
-          }
-        }
+        options: { data: { full_name: preRegRes.data?.name || emailLower.split('@')[0] } }
       });
       if (sbErr) throw sbErr;
       
     } catch (err: any) {
-      console.error("Registration failed:", err);
-      setIsProcessing(false);
-      setError(formatError(err));
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -196,338 +132,323 @@ export function Login() {
   const handleBootstrap = async () => {
     setLoading(true);
     setError(null);
-    setIsInitializing(true);
-
-    const adminEmail = 'admin@diocese.com';
-    const adminPassword = 'admin123456';
-
     try {
-      // 1. Create Admin Auth user
+      const adminEmail = 'admin@diocese.com';
+      const adminPassword = 'admin123456';
+      
       const { data: authData, error: authErr } = await supabase.auth.signUp({
         email: adminEmail,
         password: adminPassword,
-        options: {
-          data: { full_name: 'Administrador do Sistema' }
-        }
+        options: { data: { full_name: 'Administrador Root' } }
       });
       
       if (authErr && !authErr.message.includes('already registered')) throw authErr;
       
-      let userId = authData.user?.id;
-      if (!userId) {
-        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+      const userId = authData.user?.id;
+      if (userId) {
+        await saveData('users', userId, {
+          id: userId,
           email: adminEmail,
-          password: adminPassword
+          name: 'Administrador Root',
+          role: 'admin',
+          status: 'active',
+          created_at: new Date().toISOString()
         });
-        if (signInErr) throw signInErr;
-        userId = signInData.user?.id;
+        await saveData('institution_settings', crypto.randomUUID(), {
+          name: 'Escola Diocesana de Ministérios',
+          city: 'Guarulhos',
+          updated_at: new Date().toISOString()
+        });
+        setNeedsBootstrap(false);
+        refreshProfile();
       }
-
-      if (!userId) throw new Error("Could not determine admin ID");
-
-      // 2. Create profile in 'users' table
-      await saveData('users', userId, {
-        id: userId,
-        email: adminEmail,
-        name: 'Administrador do Sistema',
-        role: 'admin',
-        status: 'active',
-        created_at: new Date().toISOString()
-      });
-
-      // 3. Create institution settings
-      await saveData('institution_settings', crypto.randomUUID(), {
-        name: 'Diocese de Guarulhos',
-        updated_at: new Date().toISOString()
-      });
-
-      await refreshProfile();
-      setNeedsBootstrap(false);
-      navigate('/', { replace: true });
     } catch (err: any) {
-      console.error("Bootstrap failed:", err);
-      setError("Falha na inicialização: " + formatError(err));
-    } finally {
-      setLoading(false);
-      setIsInitializing(false);
-    }
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { error: sbErr } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (sbErr) throw sbErr;
-      setResetSent(true);
-    } catch (err: any) {
-      console.error("Reset failed:", err);
-      setError(formatError(err));
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
-    <div className="min-h-screen bg-[#00174b] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full -mr-48 -mt-48 blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-900/20 rounded-full -ml-48 -mb-48 blur-3xl" />
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10 relative z-10"
-      >
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-50 rounded-3xl mb-6">
-            <Shield className="w-10 h-10 text-blue-600" />
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row overflow-hidden font-sans">
+      {/* Left side: Information (Decorative/Branding) */}
+      <div className="lg:w-[45%] bg-[#00174b] p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+        {/* Background Patterns */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-400/5 rounded-full -ml-32 -mb-32 blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-4 mb-16">
+            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-900/40">
+              <Shield className="text-[#00174b]" size={32} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#b4941d]">Diocese de Guarulhos</p>
+              <h1 className="text-2xl font-black text-white tracking-tight leading-none">EDM Portal</h1>
+            </div>
           </div>
-          <h1 className="text-3xl font-black text-[#131b2e] leading-tight">
-            Sistema Acadêmico
-          </h1>
-          <p className="text-slate-500 mt-2 font-medium">Diocese de Guarulhos</p>
-        </div>
 
-        {needsBootstrap ? (
-          <div className="space-y-6">
-            <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 flex items-start gap-4">
-              <Database className="text-amber-600 shrink-0 mt-1" size={24} />
-              <div>
-                <h4 className="font-bold text-amber-900">Sistema Não Inicializado</h4>
-                <p className="text-sm text-amber-700 mt-1">
-                  Detectamos que este é o primeiro acesso ao sistema. O Administrador Root precisa ser criado.
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="space-y-12"
+          >
+            {/* Connection Error Message */}
+          {!isConnected && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4"
+            >
+              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+                <AlertCircle size={24} />
+              </div>
+              <div className="flex-1">
+                <p className="text-amber-900 font-black text-[10px] uppercase tracking-wider mb-1">Erro de Conexão</p>
+                <p className="text-amber-700 text-[11px] leading-relaxed font-medium">
+                  Não foi possível conectar ao banco de dados. {connError || 'Verifique sua internet ou se o Supabase está ativo.'}
                 </p>
               </div>
+            </motion.div>
+          )}
+
+          <div className="space-y-4">
+              <h2 className="text-4xl lg:text-5xl font-black text-white leading-[1.1]">
+                Formação para o <span className="text-[#b4941d]">Serviço</span> e Missão
+              </h2>
+              <p className="text-blue-100/60 font-medium text-lg max-w-md">
+                Espaço de crescimento teológico e pastoral para leigos e leigas da Diocese de Guarulhos.
+              </p>
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-xl space-y-2">
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest text-center">Acesso Padrão</p>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Usuário:</span>
-                <span className="font-mono font-bold text-slate-800">admin@diocese.com</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Senha:</span>
-                <span className="font-mono font-bold text-slate-800">admin123456</span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8">
+              <InfoFeature icon={<GraduationCap size={18} />} title="Cursos" text="+20 cursos ativos" />
+              <InfoFeature icon={<Users size={18} />} title="Alunos" text="+1200 formados" />
+              <InfoFeature icon={<BookOpen size={18} />} title="Material" text="100% digital" />
+              <InfoFeature icon={<Calendar size={18} />} title="Encontros" text="Aulas presenciais" />
             </div>
+          </motion.div>
+        </div>
 
-            <button
-              onClick={handleBootstrap}
-              disabled={loading}
-              className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={20} />}
-              {loading ? 'Inicializando...' : 'Criar Administrador Root'}
-            </button>
-          </div>
-        ) : isForgotPassword ? (
-          <form onSubmit={handleResetPassword} className="space-y-6">
-            <div className="text-center mb-4">
-              <h4 className="font-bold text-[#131b2e]">Recuperar Senha</h4>
-              <p className="text-xs text-slate-500 mt-1">Enviaremos um link para o seu e-mail cadastrado.</p>
-            </div>
+        <div className="relative z-10 pt-12 border-t border-white/5">
+           <div className="flex items-center gap-2">
+              <CheckCircle className="text-[#b4941d]" size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-100/40">Sistema de Gestão Acadêmica v2.0</span>
+           </div>
+        </div>
+      </div>
 
-            <AnimatePresence mode="wait">
-              {error && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="p-5 bg-red-50 rounded-3xl border-2 border-red-100 flex items-start gap-4 text-red-700 relative group animate-in fade-in slide-in-from-top-2 duration-300"
-                >
-                  <div className="p-2 bg-red-100 rounded-xl text-red-600">
-                    <AlertCircle size={22} />
+      {/* Right side: Login Form */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-white relative">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm"
+        >
+          {needsBootstrap ? (
+             <div className="space-y-8">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-amber-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                    <Database className="text-amber-600" size={32} />
                   </div>
-                  <div className="flex-1 pr-6">
-                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Aviso do Sistema</h5>
-                    <p className="text-sm font-bold leading-tight">{formatError(error)}</p>
-                  </div>
-                  <button 
-                    onClick={() => setError(null)}
-                    className="absolute top-4 right-4 p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </motion.div>
-              )}
-              {resetSent && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3 text-emerald-600 text-sm font-medium"
-                >
-                  <CheckCircle2 size={18} />
-                  E-mail enviado! Verifique sua caixa de entrada.
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input 
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-lg font-medium focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="seu@email.com"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <button
-                type="submit"
-                disabled={loading || resetSent}
-                className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-bold shadow-xl shadow-blue-900/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
-              >
-                {loading ? <Loader2 className="animate-spin" /> : <Mail size={20} />}
-                {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setIsForgotPassword(false); setResetSent(false); setError(null); }}
-                className="w-full text-center text-sm font-bold text-blue-600 hover:text-blue-700"
-              >
-                Voltar para o Login
-              </button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-6">
-            <div className="flex bg-slate-100 p-1 rounded-2xl mb-2">
-              <button
-                type="button"
-                onClick={() => { setIsRegistering(false); setError(null); }}
-                className={cn(
-                  "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                  !isRegistering ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                Entrar
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIsRegistering(true); setError(null); }}
-                className={cn(
-                  "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                  isRegistering ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                Primeiro Acesso
-              </button>
-            </div>
-
-            <AnimatePresence mode="wait">
-              {error && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="p-5 bg-red-50 rounded-3xl border-2 border-red-100 flex items-start gap-4 text-red-700 relative group animate-in fade-in slide-in-from-top-2 duration-300"
-                >
-                  <div className="p-2 bg-red-100 rounded-xl text-red-600">
-                    <AlertCircle size={22} />
-                  </div>
-                  <div className="flex-1 pr-6">
-                    <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400 mb-1">Aviso do Sistema</h5>
-                    <p className="text-sm font-bold leading-tight">{formatError(error)}</p>
-                  </div>
-                  <button 
-                    onClick={() => setError(null)}
-                    className="absolute top-4 right-4 p-1 rounded-lg hover:bg-red-100 text-red-400 transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input 
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-lg font-medium focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="ex@diocese.com"
-                  />
+                  <h2 className="text-2xl font-black text-[#00174b] mb-2 uppercase">Configuração Inicial</h2>
+                  <p className="text-slate-500 font-medium text-sm">Este é o primeiro acesso. Clique abaixo para inicializar o sistema e criar o administrador.</p>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Senha</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input 
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-lg font-medium focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="••••••••"
-                  />
+                <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
+                   <p className="text-[10px] font-black uppercase text-slate-400 mb-2 text-center tracking-widest">Acesso de Emergência</p>
+                   <div className="space-y-1 text-xs text-[#00174b] font-bold text-center">
+                      <p>admin@diocese.com</p>
+                      <p>admin123456</p>
+                   </div>
                 </div>
+
+                <button 
+                  onClick={handleBootstrap}
+                  disabled={loading}
+                  className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                >
+                  {loading ? <Loader2 className="animate-spin" /> : <ChevronRight size={20} />}
+                  {loading ? 'Inicializando...' : 'Criar Administrador'}
+                </button>
+             </div>
+          ) : (
+            <>
+              <div className="text-center mb-10">
+                <h2 className="text-3xl font-black text-[#00174b] mb-2 uppercase tracking-tight">
+                  {isRegistering ? 'Primeiro Acesso' : isForgotPassword ? 'Recuperar Acesso' : 'Bem-vindo de volta'}
+                </h2>
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">
+                  {isRegistering ? 'Crie sua senha de estudante' : isForgotPassword ? 'Redefina sua senha por e-mail' : 'Portal do Aluno e Secretaria'}
+                </p>
               </div>
 
-              {isRegistering && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="space-y-2"
-                >
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Confirmar Senha</label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              {/* Tabs for Login/Register */}
+              {!isForgotPassword && (
+                <div className="flex bg-slate-100/80 p-1 rounded-2xl mb-8 border border-slate-200/50">
+                  <button 
+                    onClick={() => { setIsRegistering(false); setError(null); }}
+                    className={cn(
+                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      !isRegistering ? "bg-white text-[#00174b] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    Entrar
+                  </button>
+                  <button 
+                    onClick={() => { setIsRegistering(true); setError(null); }}
+                    className={cn(
+                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      isRegistering ? "bg-white text-[#00174b] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    Primeiro Acesso
+                  </button>
+                </div>
+              )}
+
+              <AnimatePresence mode="wait">
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
+                  >
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
+                    <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
+                  </motion.div>
+                )}
+                {resetSent && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3"
+                  >
+                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
+                    <p className="text-xs font-bold text-emerald-700 leading-tight">Link enviado! Verifique seu e-mail.</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <form onSubmit={isForgotPassword ? () => {} : isRegistering ? handleRegister : handleLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Institucional</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
                     <input 
-                      type="password"
+                      type="email"
                       required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-lg font-medium focus:ring-2 focus:ring-blue-500/20"
-                      placeholder="••••••••"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
+                      placeholder="aluno@diocese.com"
                     />
                   </div>
-                </motion.div>
-              )}
+                </div>
+
+                {!isForgotPassword && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
+                      <input 
+                        type="password"
+                        required={!isForgotPassword}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {isRegistering && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-1.5"
+                  >
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar Senha</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
+                      <input 
+                        type="password"
+                        required
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {!isRegistering && !isForgotPassword && (
+                   <div className="flex justify-end pr-1">
+                      <button 
+                        type="button" 
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-[10px] font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest"
+                      >
+                         Esqueceu a senha?
+                      </button>
+                   </div>
+                )}
+
+                <div className="pt-4 space-y-4">
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-900/20 hover:bg-blue-900 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
+                    {isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}
+                  </button>
+
+                  {(isForgotPassword || isRegistering) && (
+                    <button 
+                      type="button"
+                      onClick={() => { setIsForgotPassword(false); setIsRegistering(false); setError(null); }}
+                      className="w-full text-center text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+                    >
+                      Voltar para o Login
+                    </button>
+                  )}
+                </div>
+              </form>
+            </>
+          )}
+
+          {/* Emergency session reset if stuck */}
+          {user && !profile && !authLoading && (
+            <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col items-center gap-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sessão Ativa: {user.email}</p>
+              <p className="text-[10px] font-medium text-red-500 uppercase text-center">Usuário sem perfil habilitado</p>
+              <button 
+                onClick={() => logout()}
+                className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-100"
+              >
+                Encerrar Sessão e Tentar outro
+              </button>
             </div>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-bold shadow-xl shadow-blue-900/10 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 mt-4"
-            >
-              {loading ? <Loader2 className="animate-spin" /> : <Shield size={20} />}
-              {loading ? (isRegistering ? 'Criando Conta...' : 'Acessando...') : (isRegistering ? 'Criar Minha Conta' : 'Entrar no Sistema')}
-            </button>
-          </form>
-        )}
-
-        <div className="mt-8 text-center">
-            <button 
-              onClick={() => { setIsForgotPassword(true); setIsRegistering(false); setError(null); }}
-              className="text-sm text-slate-400 font-bold hover:text-blue-600 transition-colors"
-            >
-              Esqueceu sua senha? Clique aqui
-            </button>
-        </div>
-      </motion.div>
+function InfoFeature({ icon, title, text }: { icon: React.ReactNode, title: string, text: string }) {
+  return (
+    <div className="bg-white/5 border border-white/5 p-4 rounded-2xl hover:bg-white/10 transition-all group">
+       <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-[#b4941d] mb-3 group-hover:scale-110 transition-transform">
+          {icon}
+       </div>
+       <p className="text-[10px] font-black uppercase text-[#b4941d] tracking-widest mb-1">{title}</p>
+       <p className="text-sm font-bold text-white/80">{text}</p>
     </div>
   );
 }

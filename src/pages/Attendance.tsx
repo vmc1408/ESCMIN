@@ -38,7 +38,7 @@ interface Subject {
 }
 
 interface AttendanceRecord {
-  id: string;
+  id?: string;
   student_id: string;
   class_id: string;
   subject_id: string;

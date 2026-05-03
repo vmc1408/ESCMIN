@@ -326,6 +326,21 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "student_id", "type", "issuance_date"]
+    },
+    "Enrollment": {
+      "title": "Enrollment",
+      "description": "Student enrollment in a class",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "student_id": { "type": "string" },
+        "class_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["Ativo", "Concluído", "Trancado", "Cancelado"] },
+        "enrollment_date": { "type": "string", "format": "date" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "student_id", "class_id", "status"]
     }
   },
   "firestore": {
@@ -345,6 +360,7 @@
     "attendances": { "schema": "Attendance", "description": "Attendance tracking" },
     "grades": { "schema": "Grade", "description": "Student grades" },
     "academic_parameters": { "schema": "AcademicParameters", "description": "Global academic parameters" },
-    "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" }
+    "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" },
+    "enrollments": { "schema": "Enrollment", "description": "Student enrollments in classes" }
   }
 }

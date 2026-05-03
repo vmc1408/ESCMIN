@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap } from 'lucide-react';
+import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap, LogIn } from 'lucide-react';
 import { fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Webcam from 'react-webcam';
 
 export function Users() {
-  const { user: userAuth, profile: currentProfile, refreshProfile, isAdmin, isSecretary, isDirector } = useAuth();
+  const { user: userAuth, profile: currentProfile, refreshProfile, isAdmin, isDirector, isSecretary, switchUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -29,7 +29,8 @@ export function Users() {
     name: '',
     role: 'secretario' as UserRole,
     status: 'active' as 'active' | 'inactive',
-    avatar_url: ''
+    avatar_url: '',
+    pin: ''
   });
 
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' });
@@ -51,6 +52,11 @@ export function Users() {
     if (!email) return;
     try {
       setSendingReset(true);
+      
+      if (userAuth?.uid === 'master-admin') {
+        setNotification({ type: 'success', message: 'Simulação: E-mail de redefinição enviado com sucesso!' });
+        return;
+      }
       
       const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -165,7 +171,8 @@ export function Users() {
       name: user.name || user.full_name || '',
       role: user.role,
       status: user.status,
-      avatar_url: user.avatar_url || ''
+      avatar_url: user.avatar_url || '',
+      pin: user.pin || ''
     });
     setNewEmail(user.email);
     setPasswordData({ newPassword: '', confirmPassword: '' });
@@ -180,7 +187,8 @@ export function Users() {
       name: '',
       role: 'secretario',
       status: 'active',
-      avatar_url: ''
+      avatar_url: '',
+      pin: ''
     });
     setNewEmail('');
     setPasswordData({ newPassword: '', confirmPassword: '' });
@@ -229,7 +237,10 @@ export function Users() {
   };
 
   const handleUpdateSecurity = async () => {
-    if (!userAuth || userAuth.uid !== selectedUser?.id) return;
+    if (!userAuth || userAuth.uid !== selectedUser?.id || userAuth.uid === 'master-admin') {
+      setNotification({ type: 'err', message: 'Configurações de segurança não podem ser alteradas no modo Master/Demo.' });
+      return;
+    }
     
     setUpdatingSecurity(true);
     try {
@@ -382,6 +393,7 @@ export function Users() {
           name: formData.name,
           role: formData.role,
           status: formData.status,
+          pin: formData.pin,
           created_at: new Date().toISOString(),
           is_pre_registered: true
         });
@@ -780,7 +792,7 @@ export function Users() {
                               {user.avatar_url ? (
                                 <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                user.name.charAt(0).toUpperCase()
+                                (user.name || '?').charAt(0).toUpperCase()
                               )}
                             </div>
                             <div className={cn(
@@ -835,6 +847,15 @@ export function Users() {
                         </td>
                         <td className="px-8 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                             {isAdmin && user.id !== currentProfile?.id && (
+                               <button 
+                                 onClick={() => switchUser(user)}
+                                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                 title="Acessar como este usuário"
+                               >
+                                 <LogIn size={16} />
+                               </button>
+                             )}
                             <button 
                               onClick={() => handleEdit(user)}
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -884,7 +905,7 @@ export function Users() {
                       getRoleIconColor(user.role || '', user.status),
                       (user.status === 'inactive') ? "grayscale opacity-60 border-slate-100" : ""
                     )}>
-                      {user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : user.name.charAt(0).toUpperCase()}
+                      {user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : (user.name || '?').charAt(0).toUpperCase()}
                     </div>
                     <div className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white", (user.status === 'active') ? "bg-emerald-500" : "bg-slate-300")} />
                   </div>
@@ -906,6 +927,15 @@ export function Users() {
                 </span>
               </div>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-50">
+                {isAdmin && user.id !== currentProfile?.id && (
+                   <button 
+                     onClick={() => switchUser(user)} 
+                     className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black flex items-center gap-2"
+                   >
+                     <LogIn size={12} />
+                     ACESSAR
+                   </button>
+                )}
                 <button onClick={() => handleEdit(user)} className="px-4 py-2 bg-slate-50 text-blue-600 rounded-lg text-[9px] font-black flex items-center gap-2">
                   <Edit2 size={12} />
                   EDITAR
@@ -1195,6 +1225,51 @@ export function Users() {
                                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                               </div>
                             </div>
+                         </div>
+
+                         {/* PIN Configuration Field */}
+                         <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                           <div className="flex items-center justify-between">
+                             <div className="flex items-center gap-2">
+                               <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                                 <Shield size={16} />
+                               </div>
+                               <div>
+                                 <p className="text-[9px] font-black text-[#131b2e] uppercase tracking-tight">Segurança por PIN</p>
+                                 <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Código de 4 dígitos para bloqueio de tela</p>
+                               </div>
+                             </div>
+                             {formData.pin ? (
+                               <div className="px-2 py-0.5 bg-green-50 text-green-600 rounded-md text-[7px] font-black uppercase tracking-widest border border-green-100">Configurado</div>
+                             ) : (
+                               <div className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-md text-[7px] font-black uppercase tracking-widest border border-slate-200">Não Definido</div>
+                             )}
+                           </div>
+                           
+                           <div className="flex items-center gap-3">
+                             <div className="flex-1">
+                               <input 
+                                 type="text"
+                                 maxLength={4}
+                                 inputMode="numeric"
+                                 pattern="[0-9]*"
+                                 placeholder="Digite 4 números (ex: 1234)"
+                                 value={formData.pin}
+                                 onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 4)})}
+                                 className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-black tracking-[0.4em] text-center text-[#131b2e] focus:border-amber-400 focus:ring-4 focus:ring-amber-50 transition-all outline-none"
+                               />
+                             </div>
+                             {formData.pin && (
+                               <button 
+                                 type="button"
+                                 onClick={() => setFormData({...formData, pin: ''})}
+                                 className="p-2 text-slate-400 hover:text-red-500 transition-all"
+                                 title="Remover PIN"
+                               >
+                                 <XCircle size={18} />
+                               </button>
+                             )}
+                           </div>
                          </div>
                       </section>
                     )}

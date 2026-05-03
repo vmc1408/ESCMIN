@@ -37,12 +37,12 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     const sbData = await fetchRecursive(collectionName, { select, orderCol, ascending });
     return sbData || [];
   } catch (err: any) {
-    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
-      console.warn(`[Supabase] Timeout ao listar em ${collectionName}`);
+    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
+      console.warn(`[Supabase] Erro de rede ou timeout ao listar em ${collectionName}`);
       return [];
     }
     console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err.message);
-    throw err;
+    return []; // Return empty instead of throwing to prevent app crash
   }
 };
 
@@ -178,8 +178,7 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
 
   const payloads = items.map(item => ({
     ...item,
-    id: item.id || crypto.randomUUID(),
-    updated_at: new Date().toISOString()
+    id: item.id || crypto.randomUUID()
   }));
 
   try {
@@ -220,17 +219,24 @@ export const deleteData = async (collectionName: string, id: string) => {
  */
 export const getInstitutionSettings = async () => {
   try {
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
-    const { data, error } = await supabase
-      .from('institution_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
+    if (!isSupabaseConfigured) return null;
+    const result = await fetchWithTimeout(
+      supabase
+        .from('institution_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle(),
+      8000 // Fast timeout for settings
+    );
     
-    if (error) throw error;
-    return data;
+    if (result?.error) {
+      if (result.error.message?.includes('Failed to fetch')) return null;
+      throw result.error;
+    }
+    return result?.data;
   } catch (err: any) {
-    console.error('[Supabase] Erro ao buscar configurações da instituição:', err.message);
+    if (err.message?.includes('Failed to fetch')) return null;
+    console.warn('[Supabase] Aviso ao buscar configurações da instituição:', err.message);
     return null;
   }
 };

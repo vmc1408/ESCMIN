@@ -42,7 +42,7 @@ import {
   Key,
   Info
 } from 'lucide-react';
-import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings } from '../lib/database';
+import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
@@ -168,6 +168,7 @@ export function Settings() {
   const [fixSql, setFixSql] = useState<string>('');
   const [checkingSchema, setCheckingSchema] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isCleaningStudents, setIsCleaningStudents] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{
     currentCol: string;
     completed: string[];
@@ -194,6 +195,55 @@ export function Settings() {
     onConfirm: () => {},
     type: 'warning'
   });
+
+  const handleInactivateStudentsWithoutClass = async () => {
+    setShowConfirmModal({
+      show: true,
+      title: 'Inativar Alunos Sem Turma',
+      message: 'Esta ação irá alterar o status de todos os alunos que não possuem uma turma vinculada para "Inativo". Deseja continuar?',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setIsCleaningStudents(true);
+          setShowConfirmModal(prev => ({ ...prev, show: false }));
+          
+          const [students, enrollments] = await Promise.all([
+            fetchAll('students'),
+            fetchAll('enrollments')
+          ]);
+
+          const toUpdate = students
+            .filter(s => {
+              const hasNoLegacyClass = !s.class_id || 
+                               s.class_id.toString().trim() === '' || 
+                               s.class_id === 'null' ||
+                               s.class_id === 'undefined';
+              
+              const hasNoEnrollments = !enrollments.some(e => e.student_id === s.id && e.status === 'Ativo');
+              
+              const isNotAlreadyInactive = s.status !== 'Inativo';
+              return hasNoLegacyClass && hasNoEnrollments && isNotAlreadyInactive;
+            })
+            .map(s => ({ ...s, status: 'Inativo' }));
+
+          if (toUpdate.length === 0) {
+            setNotification({ type: 'success', message: 'Todos os alunos sem turma já estão inativos!' });
+            return;
+          }
+
+          await saveBatch('students', toUpdate);
+          setNotification({ type: 'success', message: `${toUpdate.length} alunos foram inativados.` });
+          fetchCounts();
+        } catch (error: any) {
+          console.error('Error inactivating students:', error);
+          setNotification({ type: 'error', message: 'Erro ao inativar alunos: ' + error.message });
+        } finally {
+          setIsCleaningStudents(false);
+          setTimeout(() => setNotification(null), 3000);
+        }
+      }
+    });
+  };
 
   const handleSyncSupabase = async () => {
     try {
@@ -1646,6 +1696,25 @@ export function Settings() {
                     </div>
                   </div>
                   {loading ? <Loader2 size={18} className="animate-spin text-slate-300" /> : <Check size={18} className="text-slate-300" />}
+                </button>
+
+                <button 
+                  onClick={handleInactivateStudentsWithoutClass}
+                  disabled={isCleaningStudents}
+                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-red-50 hover:border-red-100 transition-all text-left active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-all shadow-sm">
+                      <AlertCircle size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-[#00174b]">Inativar Alunos Sem Turma</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        Mudar para Inativo alunos que não possuem vínculo com nenhuma turma
+                      </p>
+                    </div>
+                  </div>
+                  {isCleaningStudents ? <Loader2 size={18} className="animate-spin text-red-600" /> : <AlertCircle size={18} className="text-slate-300" />}
                 </button>
 
                 <button 

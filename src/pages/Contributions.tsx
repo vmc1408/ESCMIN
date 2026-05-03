@@ -1459,7 +1459,7 @@ export function Contributions() {
                                       <span className="px-2.5 py-1 bg-slate-100/50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
                                         {c.payment_method || 'PIX'}
                                       </span>
-                                      {c.pix_id && <Link2Off size={11} className="text-blue-500" title="Registro Conciliado" />}
+                                      {c.pix_id && <span title="Registro Conciliado"><Link2Off size={11} className="text-blue-500" /></span>}
                                       {c.observations && (
                                         <span className="text-[10px] text-slate-400 italic truncate max-w-[150px]" title={c.observations}>
                                           • {c.observations}

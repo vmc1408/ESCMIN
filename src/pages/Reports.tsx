@@ -101,7 +101,10 @@ export function Reports() {
     totalPixAmount: 0,
     matchedPix: 0,
     revenueGrowth: 0,
-    efficiency: 0
+    efficiency: 0,
+    studentGrowth: 0,
+    occupancyRate: 0,
+    pixCount: 0
   });
 
   useEffect(() => {

@@ -1,16 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-export let isDbConnected = false;
+export let isDbConnected = true;
 export let lastLatency: number | null = null;
+export let connectionError: string | null = null;
 
-const setDbConnected = (val: boolean, latency: number | null = null) => {
-  const changed = isDbConnected !== val || lastLatency !== latency;
+const setDbConnected = (val: boolean, latency: number | null = null, error: string | null = null) => {
+  const changed = isDbConnected !== val || lastLatency !== latency || connectionError !== error;
   isDbConnected = val;
   lastLatency = latency;
+  connectionError = error;
   
   if (changed) {
     window.dispatchEvent(new CustomEvent('supabase-status-change', { 
-      detail: { connected: val, latency } 
+      detail: { connected: val, latency, error } 
     }));
   }
 };
@@ -32,27 +34,66 @@ export const fetchWithTimeout = async (promise: any, timeoutMs = 60000): Promise
     const result = await Promise.race([promise, timeout]);
     const latency = Date.now() - startTime;
     
-    // Qualquer status de resposta confirma alcance do servidor
-    if (result && (result.status || !result.error)) {
-      setDbConnected(true, latency);
+    // Se recebemos um resultado com status, o servidor está vivo
+    if (result && result.status !== undefined) {
+      setDbConnected(true, latency, null);
     }
     
     return result;
   } catch (err: any) {
     const latency = Date.now() - startTime;
-    if (err.message === 'TIMEOUT') {
+    const errorMessage = err.message || String(err);
+    
+    // Lista de erros que indicam falha real de rede/conectividade
+    const isConnectivityError = 
+      errorMessage === 'TIMEOUT' ||
+      errorMessage.includes('Failed to fetch') ||
+      errorMessage.includes('Network Error') ||
+      errorMessage.includes('TypeError: Load failed') ||
+      errorMessage.includes('TypeError: NetworkError') ||
+      errorMessage.includes('Network request failed') ||
+      errorMessage.includes('Socket closed') ||
+      errorMessage.includes('connection refused') ||
+      err.status === 0 || 
+      err.code === 'PGRST301' || // JWT Expired (sometimes triggers on disconnect)
+      err.code === '08001' ||    // SQL Connection failure
+      err.code === '08004' ||    // SQL Connection failure
+      err.code === '08006' ||    // SQL Connection failure
+      err.code === '08P01';      // Protocol violation
+
+    if (errorMessage === 'TIMEOUT') {
       console.warn(`[Supabase] Timeout (${timeoutMs}ms) em operação.`);
-      // Não marca como desconectado imediatamente se for apenas um timeout de query pesada
-      if (timeoutMs < 10000) setDbConnected(false, latency);
+      // Só marca como offline se o timeout for curto (indicando instabilidades bruscas)
+      if (timeoutMs < 10000) setDbConnected(false, latency, 'Tempo de resposta excedido (Timeout)');
       return { data: null, error: { message: 'Operação lenta ou sem resposta (TIMEOUT)', isTimeout: true } };
     }
-    setDbConnected(false, latency);
-    throw err;
+
+    // Só marca dispositivo como offline se for erro de conectividade
+    // Erros de permissão (403), código de objeto duplicado (23505), tabela inexistente (42P01), etc, 
+    // são erros de negócio/configuração e NÃO devem derrubar o status do sistema.
+    if (isConnectivityError) {
+      setDbConnected(false, latency, errorMessage);
+    } else {
+      // Se deu erro mas NÃO é conectividade, garantimos que o sistema continue como "conectado"
+      setDbConnected(true, latency, null);
+    }
+    
+    return { data: null, error: err };
   }
 };
 
 const rawUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-const supabaseUrl = rawUrl.split('/rest/v1')[0].split('/auth/v1')[0].replace(/\/$/, '');
+// Garante que a URL não tenha sufíxos de API e seja um host limpo
+let supabaseUrl = rawUrl;
+if (rawUrl) {
+  try {
+    const urlObj = new URL(rawUrl);
+    supabaseUrl = `${urlObj.protocol}//${urlObj.host}`;
+  } catch (e) {
+    // Fallback para o split se a URL não for válida para o construtor URL
+    supabaseUrl = rawUrl.split('/rest/v1')[0].split('/auth/v1')[0].replace(/\/$/, '');
+  }
+}
 const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
 export const isSupabaseConfigured = Boolean(
@@ -81,22 +122,33 @@ export const testConnection = async () => {
 
   try {
     const startTime = Date.now();
-    // Timeout de 8s para o pulso de status (mais rápido)
-    // Usando head: true para não baixar dados, apenas verificar se o servidor responde
+    // Timeout maior para o pulso de status inicial
     const response = await fetchWithTimeout(
-      supabase.from('institution_settings').select('id', { count: 'exact', head: true }).limit(1),
-      8000
+      supabase.from('users').select('id', { count: 'exact', head: true }).limit(1),
+      15000
     );
     const latency = Date.now() - startTime;
     
-    // Se o servidor respondeu com qualquer status (mesmo erro 403/404), ele está alcançável
+    // Se o servidor respondeu com qualquer status (mesmo erro 400, 401, 403), ele está alcançável.
+    // Falha de rede geralmente resulta em response sendo null ou sem status.
     if (response && response.status !== undefined) {
-      setDbConnected(true, latency);
+      setDbConnected(true, latency, null);
+    } else if (response && response.error) {
+      const msg = response.error.message || '';
+      // Se for erro de auth ou permissão, o servidor está ONLINE
+      const isAuthError = msg.includes('JWT') || msg.includes('permission') || response.status === 401 || response.status === 403;
+      
+      if (isAuthError) {
+        setDbConnected(true, latency, null);
+      } else {
+        setDbConnected(false, latency, msg || 'Erro de configuração do cliente');
+      }
     } else {
-      setDbConnected(false, latency);
+      // Caso estranho sem resposta nem erro, mantemos o status anterior por precaução
+      console.warn('[Supabase] Resposta vazia no heartbeat');
     }
-  } catch (err) {
-    setDbConnected(false);
+  } catch (err: any) {
+    setDbConnected(false, null, err.message || 'Falha na conexão física');
   }
 };
 
@@ -166,8 +218,19 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
     );
 
     if (error) {
-      if (error.code === '42P01' || error.message.includes('Could not find the table')) {
-        return []; // Retorna vazio silenciosamente para permitir fallback
+      // Common transient errors: return empty array instead of throwing to prevent component crashes
+      const isTransient = 
+        error.code === '42P01' || 
+        error.message.includes('Could not find the table') ||
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('NetworkError') ||
+        error.isOffline;
+
+      if (isTransient) {
+        if (!error.message.includes('Failed to fetch')) {
+          console.warn(`[Supabase] Erro transiente em ${tableName}:`, error.message);
+        }
+        return allData; // Return whatever we found so far (likely empty)
       }
       
       // Schema cache issue: retry once after a short delay

@@ -60,6 +60,18 @@ export interface Student {
   user_id: string;
 }
 
+export type EnrollmentStatus = 'Ativo' | 'Concluído' | 'Trancado' | 'Cancelado';
+
+export interface Enrollment {
+  id: string;
+  student_id: string;
+  class_id: string;
+  status: EnrollmentStatus;
+  enrollment_date: string;
+  user_id: string;
+  created_at: string;
+}
+
 export interface Class {
   id: string;
   code: string;
@@ -108,11 +120,13 @@ export interface PixTransaction {
   id?: string;
   date: string;
   payer_name: string;
+  payer_document?: string;
   origin_bank?: string;
   amount: number;
   transaction_id: string;
   status: 'matched' | 'unmatched' | 'multiple';
   matched_student_id?: string;
+  batch_id?: string;
   is_manual?: boolean;
   created_at: string;
 }
@@ -138,16 +152,20 @@ export interface ClergyLeity {
   id: string;
   code: string; // Sequential code
   name: string;
+  priest_name?: string;
   address?: string;
   address_number?: string;
   address_neighborhood?: string;
   address_city?: string;
   address_state?: string;
+  address_street?: string;
   phone_mobile?: string;
+  phone?: string;
+  email?: string;
   phone_mobile_is_whatsapp?: boolean;
   phone_whatsapp?: string;
-  email?: string;
   parish_id?: string;
+  forania_id?: string;
   role: ClergyRole;
   user_id: string;
   created_at: string;
@@ -158,6 +176,8 @@ export interface Foraria {
   code: string; // Sequential code
   name: string;
   priest_name?: string; // Padre Forâneo
+  address?: string;
+  foundation_date?: string;
   user_id: string;
   created_at: string;
 }
@@ -169,6 +189,7 @@ export interface Parish {
   forania_id?: string;
   priest_id?: string; // ID of the clergyman responsible
   priest_name?: string; // Cache for display
+  address?: string;
   address_street?: string;
   address_number?: string;
   address_neighborhood?: string;
@@ -177,6 +198,7 @@ export interface Parish {
   address_zip?: string;
   email?: string;
   phone?: string;
+  phone_mobile?: string;
   foundation_date?: string;
   user_id: string;
   created_at: string;

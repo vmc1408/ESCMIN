@@ -32,8 +32,8 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone } from '../lib/utils';
-import { uploadImage, fetchAll, saveData, deleteData } from '../lib/database';
-import { Student, Class } from '../types';
+import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery } from '../lib/database';
+import { Student, Class, Enrollment } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 // Memoized List Item to prevent lag
@@ -186,6 +186,10 @@ export function Students() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [studentEnrollments, setStudentEnrollments] = useState<Enrollment[]>([]);
+  const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
+  const [enrollClassId, setEnrollClassId] = useState('');
   const webcamRef = useRef<Webcam>(null);
 
   useEffect(() => {
@@ -193,6 +197,7 @@ export function Students() {
     fetchClasses();
     fetchParishes();
     fetchForaries();
+    fetchAllEnrollments();
   }, []);
 
   // Auto-fill student start date based on selected class
@@ -201,19 +206,15 @@ export function Students() {
       const targetClass = classes.find(c => c.id === formData.class_id);
       if (targetClass?.start_date) {
         const formattedDate = formatDateForDisplay(targetClass.start_date);
-        // Only auto-fill if the current start_date is empty or a default placeholder
-        const isPlaceholder = !formData.start_date || 
-                            formData.start_date === 'MM/AAAA' || 
-                            formData.start_date === 'DD/MM/AAAA' ||
-                            formData.start_date.includes('MM') ||
-                            formData.start_date.includes('DD');
-                            
-        if (isPlaceholder) {
+        
+        // Se a data da turma for diferente da data no formulário, atualizamos
+        // para garantir que o aluno esteja sincronizado com a turma selecionada
+        if (formData.start_date !== formattedDate) {
           setFormData(prev => ({ ...prev, start_date: formattedDate }));
         }
       }
     }
-  }, [formData.class_id, classes, isEditing, formData.start_date]);
+  }, [formData.class_id, classes, isEditing]);
 
   const fetchClasses = async () => {
     try {
@@ -254,6 +255,77 @@ export function Students() {
     }
   }, []);
 
+  const fetchAllEnrollments = async () => {
+    try {
+      const data = await fetchAll('enrollments');
+      setAllEnrollments(data || []);
+    } catch (error: any) {
+      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
+        setAllEnrollments([]);
+        return;
+      }
+      console.error('Error fetching all enrollments:', error);
+    }
+  };
+
+  const fetchEnrollments = async (studentId: string) => {
+    try {
+      const data = await fetchQuery('enrollments', 'student_id', '==', studentId);
+      setStudentEnrollments(data || []);
+    } catch (error: any) {
+      // Ingore 404 (table not found) to prevent crash before migration
+      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
+        console.warn('Tabela enrollments ainda não criada no Supabase.');
+        setStudentEnrollments([]);
+        return;
+      }
+      console.error('Error fetching enrollments:', error);
+    }
+  };
+
+  const handleAddEnrollment = async (classId: string) => {
+    if (!selectedStudent || !classId) return;
+    
+    // Check if already enrolled
+    if (studentEnrollments.some(e => e.class_id === classId)) {
+      setNotification({ type: 'error', message: 'Aluno já está matriculado nesta turma' });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    const newEnrollment: Partial<Enrollment> = {
+      student_id: selectedStudent.id,
+      class_id: classId,
+      status: 'Ativo',
+      enrollment_date: new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      await saveData('enrollments', undefined, newEnrollment);
+      setNotification({ type: 'success', message: 'Matrícula realizada com sucesso!' });
+      fetchEnrollments(selectedStudent.id);
+      fetchAllEnrollments();
+    } catch (error: any) {
+      setNotification({ type: 'error', message: 'Erro ao matricular: ' + error.message });
+    } finally {
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleRemoveEnrollment = async (enrollmentId: string) => {
+    try {
+      await deleteData('enrollments', enrollmentId);
+      setNotification({ type: 'success', message: 'Matrícula removida com sucesso!' });
+      if (selectedStudent) fetchEnrollments(selectedStudent.id);
+      fetchAllEnrollments();
+    } catch (error: any) {
+      setNotification({ type: 'error', message: 'Erro ao remover matrícula: ' + error.message });
+    } finally {
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
   const handleSelectStudent = useCallback((student: Student) => {
     setSelectedStudent(student);
     setFormData({
@@ -283,6 +355,7 @@ export function Students() {
       photo_url: student.photo_url || ''
     });
     setIsEditing(false);
+    fetchEnrollments(student.id);
   }, [initialStudentState]);
 
   const handleNew = () => {
@@ -325,7 +398,8 @@ export function Students() {
       };
 
       // Set created_at only if it's the first time saving (no id)
-      if (!selectedStudent?.id && !dataToSave.created_at) {
+      const isNew = !selectedStudent?.id;
+      if (isNew && !dataToSave.created_at) {
         dataToSave.created_at = new Date().toISOString();
       }
 
@@ -341,6 +415,21 @@ export function Students() {
           savedId = await saveData('students', selectedStudent?.id, fallbackData);
         } else {
           throw err;
+        }
+      }
+
+      // Auto-enroll in selected class if it's new
+      if (isNew && savedId && dataToSave.class_id) {
+        try {
+          await saveData('enrollments', undefined, {
+            student_id: savedId,
+            class_id: dataToSave.class_id,
+            status: 'Ativo',
+            enrollment_date: new Date().toISOString().split('T')[0],
+            created_at: new Date().toISOString()
+          });
+        } catch (enrollErr) {
+          console.error('Error auto-enrolling student:', enrollErr);
         }
       }
       
@@ -712,7 +801,7 @@ export function Students() {
         (s.registration_number || '').includes(searchTerm) ||
         (s.cpf || '').includes(searchTerm);
       
-      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter || (s.status === '' && statusFilter === 'Ativo');
+      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
       
       // Filter logic
       let matchesYear = true;
@@ -723,7 +812,9 @@ export function Students() {
 
       let matchesClass = true;
       if (selectedClassId !== '') {
-        matchesClass = s.class_id === selectedClassId;
+        const isInPrimaryClass = s.class_id === selectedClassId;
+        const isEnrolledViaMultiTurma = allEnrollments.some(e => e.student_id === s.id && e.class_id === selectedClassId && e.status === 'Ativo');
+        matchesClass = isInPrimaryClass || isEnrolledViaMultiTurma;
       }
 
       // If user selected "all" for year, we still check search and status
@@ -740,7 +831,7 @@ export function Students() {
         return (b.registration_number || '').localeCompare(a.registration_number || '', undefined, { numeric: true });
       }
     });
-  }, [students, searchTerm, statusFilter, selectedYear, selectedClassId, sortBy]);
+  }, [students, searchTerm, statusFilter, selectedYear, selectedClassId, sortBy, allEnrollments]);
 
   const availableYears = React.useMemo(() => {
     return Array.from(new Set(students.map(s => getYearFromRegistration(s.registration_number)).filter(Boolean))).sort().reverse();
@@ -752,10 +843,12 @@ export function Students() {
       <div className="w-72 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
         <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#131b2e]">Alunos</h2>
-            <div className="flex gap-2">
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100">
-                {students.length}
+            <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              {selectedClassId ? 'Turma Selecionada' : 'Total Registrado'}
+            </h2>
+            <div className="flex gap-2 items-center">
+              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100" title={selectedClassId ? "Total na Turma Selecionada" : "Total de Alunos Registrados"}>
+                {filteredStudents.length}
               </div>
               <button 
                 onClick={handleNew}
@@ -793,6 +886,7 @@ export function Students() {
                 </button>
               ))}
             </div>
+
             <div className="space-y-2">
               <select 
                 value={selectedClassId}
@@ -1081,7 +1175,7 @@ export function Students() {
                         />
                       </div>
                       <div className="col-span-8 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Turma</label>
+                        <label className="text-xs font-bold text-slate-700">Turma Principal (Vínculo Direto)</label>
                         <select 
                           disabled={!isEditing}
                           value={formData.class_id || ''}
@@ -1098,8 +1192,9 @@ export function Students() {
                           ))}
                         </select>
                       </div>
+
                       <div className="col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Data de Início</label>
+                        <label className="text-xs font-bold text-slate-700">Data de inicio da TURMA</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
@@ -1111,6 +1206,88 @@ export function Students() {
                           tabIndex={8}
                         />
                       </div>
+
+                      {/* Enrollment Management - Integrated directly */}
+                      {selectedStudent?.id ? (
+                        <div className="col-span-12 p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3 mt-2 mb-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                              <BookOpen size={14} />
+                              Matrículas Adicionais (Multi-turma)
+                            </h4>
+                            <span className="text-[9px] font-bold text-blue-400 uppercase bg-white px-2 py-0.5 rounded-full border border-blue-100">
+                              Gestão Ativa
+                            </span>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <select 
+                              disabled={!isEditing}
+                              value={enrollClassId}
+                              onChange={(e) => setEnrollClassId(e.target.value)}
+                              className="flex-1 px-3 py-2 bg-white border border-blue-100 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm disabled:opacity-50"
+                            >
+                              <option value="">Matricular em outra turma...</option>
+                              {classes.filter(c => c.status === 'Ativo' && c.id !== formData.class_id).map(c => (
+                                <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => {
+                                handleAddEnrollment(enrollClassId);
+                                setEnrollClassId('');
+                              }}
+                              disabled={!enrollClassId || !isEditing}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center gap-1 shadow-md shadow-blue-100"
+                            >
+                              <Plus size={14} />
+                              Matricular
+                            </button>
+                          </div>
+
+                          <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
+                            {studentEnrollments.length === 0 ? (
+                              <p className="text-[9px] text-blue-400 font-bold text-center py-2 italic bg-white/50 rounded-lg border border-dashed border-blue-100">
+                                Nenhuma matrícula adicional registrada
+                              </p>
+                            ) : (
+                              studentEnrollments.map(enrollment => {
+                                const targetClass = classes.find(c => c.id === enrollment.class_id);
+                                return (
+                                  <div key={enrollment.id} className="flex items-center justify-between p-2 bg-white rounded-xl border border-blue-50 shadow-sm group">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                                        <GraduationCap size={12} />
+                                      </div>
+                                      <div className="leading-tight">
+                                        <p className="text-[10px] font-black text-slate-700 uppercase">{targetClass?.name || 'Turma N/I'}</p>
+                                        <p className="text-[8px] text-slate-400 font-bold uppercase">
+                                          {enrollment.enrollment_date ? formatDateForDisplay(enrollment.enrollment_date) : ''}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {isEditing && (
+                                      <button 
+                                        onClick={() => handleRemoveEnrollment(enrollment.id)}
+                                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        title="Remover Matrícula"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="col-span-12 p-3 bg-slate-50 border border-dashed border-slate-200 rounded-2xl mb-4 text-center">
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">
+                            Salve o cadastro básico primeiro para habilitar as matriculas múltiplas
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </section>
 
@@ -1393,6 +1570,7 @@ export function Students() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-type ImportType = 'students' | 'teachers' | 'classes' | 'subjects' | 'parishes' | 'foraries';
+type ImportType = 'students' | 'teachers' | 'classes' | 'subjects' | 'parishes' | 'foraries' | 'clergy_leity';
 
 interface ImportStatus {
   isProcessing: boolean;

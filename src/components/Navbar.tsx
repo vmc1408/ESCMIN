@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { getInstitutionSettings } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,7 +7,7 @@ import { isSupabaseConfigured, isDbConnected, testConnection } from '../lib/supa
 import { cn } from '../lib/utils';
 
 export function Navbar() {
-  const { profile, logout } = useAuth();
+  const { profile, isMaster, resetToMaster } = useAuth();
   const [institution, setInstitution] = useState<any>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -97,6 +97,16 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-5">
+        {!isMaster && (
+          <button 
+            onClick={resetToMaster}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100 hover:bg-blue-100 transition-all active:scale-95"
+            title="Voltar ao Perfil Administrador Master"
+          >
+            <ShieldCheck size={14} />
+            <span className="hidden sm:inline">Modo Master</span>
+          </button>
+        )}
         <div className="flex items-center gap-2 md:gap-4 text-slate-500 border-l border-slate-200 pl-3 md:pl-5">
           <div className="relative cursor-pointer hover:text-[#497cff] transition-colors hidden xs:block">
             <Bell size={20} />
@@ -124,13 +134,6 @@ export function Navbar() {
                 </div>
               )}
             </div>
-            <button 
-              onClick={logout}
-              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-95 ml-1"
-              title="Sair do sistema"
-            >
-              <LogOut size={18} />
-            </button>
           </div>
         </div>
       </div>

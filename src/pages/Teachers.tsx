@@ -30,6 +30,7 @@ interface Teacher {
   address_zip?: string;
   phone?: string;
   phone_mobile?: string;
+  phone_mobile_is_whatsapp?: boolean;
   birth_date?: string;
   email?: string;
   cpf?: string;
@@ -331,7 +332,7 @@ export function Teachers() {
         t.code.includes(searchTerm) ||
         t.cpf?.includes(searchTerm);
       
-      const matchesStatus = statusFilter === 'Todos' || (t.status || 'Ativo') === statusFilter || (t.status === '' && statusFilter === 'Ativo');
+      const matchesStatus = statusFilter === 'Todos' || (t.status || 'Ativo') === statusFilter;
       
       return matchesSearch && matchesStatus;
     });

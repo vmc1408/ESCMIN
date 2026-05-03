@@ -596,7 +596,15 @@ export function PixConference() {
           const normalizedPayer = normalize(cleanedName);
           
           if (!normalizedPayer) {
-            return { date, payer_name: rawName, origin_bank: bank, amount, transaction_id: finalId, status: 'unmatched' };
+            return { 
+              date, 
+              payer_name: rawName, 
+              origin_bank: bank, 
+              amount, 
+              transaction_id: finalId, 
+              status: 'unmatched' as const,
+              created_at: new Date().toISOString()
+            };
           }
 
           const results = fuzzysort.go<{ id: string; searchName: string }>(normalizedPayer, searchableStudents, {
@@ -642,7 +650,8 @@ export function PixConference() {
             transaction_id: finalId,
             status,
             matched_student_id: matchedId,
-            is_manual: false
+            is_manual: false,
+            created_at: new Date().toISOString()
           };
         });
 

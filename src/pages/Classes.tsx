@@ -258,7 +258,7 @@ export function Classes() {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.code.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = statusFilter === 'Todos' || (c.status || 'Ativo') === statusFilter || (c.status === '' && statusFilter === 'Ativo');
+      const matchesStatus = statusFilter === 'Todos' || (c.status || 'Ativo') === statusFilter;
       
       return matchesSearch && matchesStatus;
     });

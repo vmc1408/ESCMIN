@@ -383,7 +383,7 @@ export function Diocese() {
         String(val).toLowerCase().includes(search.toLowerCase())
       )
     )
-    .sort((a, b) => {
+    .sort((a: any, b: any) => {
       if (activeTab === 'parishes') {
         let valA: any, valB: any;
         
@@ -534,7 +534,7 @@ export function Diocese() {
                 <p className="text-slate-400 font-bold">Nenhum registro encontrado nesta categoria.</p>
               </div>
             ) : (
-              filteredItems.map(item => (
+              filteredItems.map((item: any) => (
                 <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all group relative overflow-hidden print:border-slate-300 print:mb-4 print:shadow-none">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 opacity-20 group-hover:opacity-100 transition-opacity" />
                   
