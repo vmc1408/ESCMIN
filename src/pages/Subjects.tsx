@@ -14,7 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { fetchAll, saveData, deleteData, archiveRecord, restoreRecord } from '../lib/database';
+import { fetchAll, saveData, deleteData } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
 interface Subject {
@@ -78,7 +78,6 @@ export function Subjects() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
-  const [isArchivedMode, setIsArchivedMode] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Subject>>({});
@@ -95,8 +94,7 @@ export function Subjects() {
   const fetchSubjects = React.useCallback(async () => {
     setLoading(true);
     try {
-      const table = isArchivedMode ? 'archived_subjects' : 'subjects';
-      const data = await fetchAll(table, '*', 'name', true);
+      const data = await fetchAll('subjects', '*', 'name', true);
       setSubjects(data || []);
       if (data && data.length > 0 && !selectedSubject) {
         setSelectedSubject(data[0]);
@@ -107,37 +105,7 @@ export function Subjects() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSubject, isArchivedMode]);
-
-  const handleArchiveSubject = async (id: string) => {
-    if (!window.confirm('Deseja mover esta disciplina para o Arquivo Morto?')) return;
-    try {
-      setLoading(true);
-      await archiveRecord('subjects', id);
-      setNotification({ type: 'success', message: 'Disciplina movida para o Arquivo Morto!' });
-      setSelectedSubject(null);
-      fetchSubjects();
-    } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRestoreSubject = async (id: string) => {
-    if (!window.confirm('Deseja restaurar esta disciplina do Arquivo Morto?')) return;
-    try {
-      setLoading(true);
-      await restoreRecord('subjects', id);
-      setNotification({ type: 'success', message: 'Disciplina restaurada com sucesso!' });
-      setSelectedSubject(null);
-      fetchSubjects();
-    } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedSubject]);
 
   useEffect(() => {
     fetchSubjects();
@@ -261,18 +229,6 @@ export function Subjects() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setIsArchivedMode(!isArchivedMode)}
-            className={cn(
-              "w-full py-2 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
-              isArchivedMode 
-                ? "bg-amber-600 text-white shadow-lg" 
-                : "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100"
-            )}
-          >
-            <FileIcon size={14} />
-            {isArchivedMode ? 'Modo Arquivo Morto' : 'Arquivo Morto'}
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -354,34 +310,13 @@ export function Subjects() {
                   </>
                 ) : (
                   <div className="flex gap-2">
-                    {isArchivedMode ? (
-                      <button 
-                        onClick={() => handleRestoreSubject(selectedSubject!.id)}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
-                      >
-                        <RotateCcw size={16} />
-                        Restaurar Registro
-                      </button>
-                    ) : (
-                      <>
-                        {selectedSubject?.status === 'Inativo' && (
-                          <button 
-                            onClick={() => handleArchiveSubject(selectedSubject!.id)}
-                            className="px-6 py-2 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
-                          >
-                            <FileIcon size={16} />
-                            Arquivar Registro
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => setIsEditing(true)}
-                          className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                        >
-                          <Edit2 size={16} />
-                          Editar Cadastro
-                        </button>
-                      </>
-                    )}
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
+                      <Edit2 size={16} />
+                      Editar Cadastro
+                    </button>
                   </div>
                 )}
               </div>

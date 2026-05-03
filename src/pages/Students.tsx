@@ -32,7 +32,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone } from '../lib/utils';
-import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery, archiveRecord, restoreRecord } from '../lib/database';
+import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery } from '../lib/database';
 import { Student, Class, Enrollment } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -151,7 +151,6 @@ export function Students() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
-  const [isArchivedMode, setIsArchivedMode] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   // Initialize with all fields to prevent uncontrolled input warnings
@@ -195,50 +194,18 @@ export function Students() {
   const webcamRef = useRef<Webcam>(null);
   const { user, profile, refreshProfile } = useAuth();
 
-  const handleArchiveStudent = async (id: string) => {
-    if (!window.confirm('Deseja mover este aluno para o Arquivo Morto?')) return;
-    try {
-      setLoading(true);
-      await archiveRecord('students', id);
-      setNotification({ type: 'success', message: 'Aluno movido para o Arquivo Morto!' });
-      setSelectedStudent(null);
-      fetchStudents();
-    } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
-    } finally {
-      setLoading(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
-
-  const handleRestoreStudent = async (id: string) => {
-    if (!window.confirm('Deseja restaurar este aluno do Arquivo Morto?')) return;
-    try {
-      setLoading(true);
-      await restoreRecord('students', id);
-      setNotification({ type: 'success', message: 'Aluno restaurado com sucesso!' });
-      setSelectedStudent(null);
-      fetchStudents();
-    } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
-    } finally {
-      setLoading(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const table = isArchivedMode ? 'archived_students' : 'students';
-      const data = await fetchAll(table, '*', 'registration_number', true);
+      const data = await fetchAll('students', '*', 'registration_number', true);
       setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);
     } finally {
       setLoading(false);
     }
-  }, [isArchivedMode]);
+  }, []);
 
   useEffect(() => {
     fetchStudents();
@@ -899,21 +866,13 @@ export function Students() {
       <div className="w-72 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
         <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">
-              {selectedClassId ? 'Turma Selecionada' : 'Total Registrado'}
-            </h2>
-            <div className="flex gap-2 items-center">
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100" title={selectedClassId ? "Total na Turma Selecionada" : "Total de Alunos Registrados"}>
-                {filteredStudents.length}
-              </div>
-              <button 
-                onClick={handleNew}
-                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                title="Novo Aluno"
-              >
-                <Plus size={18} />
-              </button>
-            </div>
+            <button 
+              onClick={handleNew}
+              className="flex-1 h-10 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus size={18} />
+              Novo Aluno
+            </button>
           </div>
           <div className="space-y-2">
             <div className="relative">

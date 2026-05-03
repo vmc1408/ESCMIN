@@ -53,14 +53,13 @@ export function Dashboard() {
     
     const updateCategory = async (category: keyof typeof stats, collection: string) => {
       try {
-        const [total, active, archived] = await Promise.all([
+        const [total, active] = await Promise.all([
           fetchCount(collection),
-          fetchCount(collection, 'Ativo'),
-          fetchCount(collection, 'Arquivado') // Custom logic added to database.ts
+          fetchCount(collection, 'Ativo')
         ]);
         
         const inactive = Math.max(0, total - active);
-        const newStats = { total: total + archived, active, inactive, archived, current: total };
+        const newStats = { total, active, inactive, archived: 0, current: total };
         
         setStats(prev => {
           const updated = {
@@ -101,7 +100,7 @@ export function Dashboard() {
     return classes
       .filter(c => c.status === 'Ativo')
       .map(c => {
-        const count = students.filter(s => s.class_id === c.id).length;
+        const count = students.filter(s => s.class_id === c.id && (s.status === 'Ativo' || !s.status)).length;
         const totalActive = stats.students.active;
         return {
           code: c.code,

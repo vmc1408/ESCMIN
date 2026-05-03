@@ -132,10 +132,8 @@ export const fetchCount = async (collectionName: string, status?: string) => {
     
     let q = supabase.from(collectionName).select('*', { count: 'exact', head: true });
     
-    // Filtro especial para contar apenas arquivados se solicitado
-    if (status === 'Arquivado') {
-      const archivedTable = `archived_${collectionName}`;
-      q = supabase.from(archivedTable).select('*', { count: 'exact', head: true });
+    if (status === 'Ativo') {
+      q = q.or('status.eq.Ativo,status.is.null');
     } else if (status) {
       q = q.eq('status', status);
     }
@@ -273,64 +271,5 @@ export const uploadImage = async (file: File, bucketName: string, path: string):
   }
 };
 
-/**
- * Move a record to Arquivo Morto
- */
-export const archiveRecord = async (collectionName: string, id: string) => {
-  if (!id) return;
-  
-  try {
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
-    
-    // 1. Fetch current data
-    const record = await fetchById(collectionName, id);
-    if (!record) throw new Error('Registro não encontrado para arquivamento');
-    
-    const archivedTable = `archived_${collectionName}`;
-    
-    // 2. Insert into archived table
-    const { error: insertError } = await supabase.from(archivedTable).insert(record);
-    if (insertError) throw insertError;
-    
-    // 3. Delete from original table
-    const { error: deleteError } = await supabase.from(collectionName).delete().eq('id', id);
-    if (deleteError) throw deleteError;
-    
-    return true;
-  } catch (err: any) {
-    console.error(`[archiveRecord] Erro ao arquivar em "${collectionName}":`, err.message);
-    throw err;
-  }
-};
 
-/**
- * Restore a record from Arquivo Morto
- */
-export const restoreRecord = async (collectionName: string, id: string) => {
-  if (!id) return;
-  
-  try {
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
-    
-    const archivedTable = `archived_${collectionName}`;
-    
-    // 1. Fetch from archived
-    const result = await supabase.from(archivedTable).select('*').eq('id', id).maybeSingle();
-    if (result.error) throw result.error;
-    if (!result.data) throw new Error('Registro arquivado não encontrado');
-    
-    // 2. Insert into original
-    const { error: insertError } = await supabase.from(collectionName).insert(result.data);
-    if (insertError) throw insertError;
-    
-    // 3. Delete from archive
-    const { error: deleteError } = await supabase.from(archivedTable).delete().eq('id', id);
-    if (deleteError) throw deleteError;
-    
-    return true;
-  } catch (err: any) {
-    console.error(`[restoreRecord] Erro ao restaurar em "${collectionName}":`, err.message);
-    throw err;
-  }
-};
 

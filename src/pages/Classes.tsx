@@ -16,7 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
-import { fetchAll, saveData, deleteData, archiveRecord, restoreRecord } from '../lib/database';
+import { fetchAll, saveData, deleteData } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
 interface Class {
@@ -121,7 +121,6 @@ export function Classes() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
-  const [isArchivedMode, setIsArchivedMode] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -144,8 +143,7 @@ export function Classes() {
   const fetchClasses = React.useCallback(async () => {
     setLoading(true);
     try {
-      const table = isArchivedMode ? 'archived_classes' : 'classes';
-      const data = await fetchAll(table, '*', 'name', true);
+      const data = await fetchAll('classes', '*', 'name', true);
       setClasses(data || []);
       if (data && data.length > 0 && !selectedClass) {
         setSelectedClass(data[0]);
@@ -159,37 +157,7 @@ export function Classes() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, isArchivedMode]);
-
-  const handleArchiveClass = async (id: string) => {
-    if (!window.confirm('Deseja mover esta turma para o Arquivo Morto?')) return;
-    try {
-      setLoading(true);
-      await archiveRecord('classes', id);
-      setNotification({ type: 'success', message: 'Turma movida para o Arquivo Morto!' });
-      setSelectedClass(null);
-      fetchClasses();
-    } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRestoreClass = async (id: string) => {
-    if (!window.confirm('Deseja restaurar esta turma do Arquivo Morto?')) return;
-    try {
-      setLoading(true);
-      await restoreRecord('classes', id);
-      setNotification({ type: 'success', message: 'Turma restaurada com sucesso!' });
-      setSelectedClass(null);
-      fetchClasses();
-    } catch (err: any) {
-      setNotification({ type: 'error', message: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedClass]);
 
   useEffect(() => {
     fetchClasses();
@@ -421,34 +389,13 @@ export function Classes() {
                   </>
                 ) : (
                   <div className="flex gap-2">
-                    {isArchivedMode ? (
-                      <button 
-                        onClick={() => handleRestoreClass(selectedClass!.id)}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
-                      >
-                        <RotateCcw size={16} />
-                        Restaurar Registro
-                      </button>
-                    ) : (
-                      <>
-                        {selectedClass?.status === 'Inativo' && (
-                          <button 
-                            onClick={() => handleArchiveClass(selectedClass!.id)}
-                            className="px-6 py-2 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
-                          >
-                            <FileText size={16} />
-                            Arquivar Registro
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => setIsEditing(true)}
-                          className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                        >
-                          <Edit2 size={16} />
-                          Editar Cadastro
-                        </button>
-                      </>
-                    )}
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
+                      <Edit2 size={16} />
+                      Editar Cadastro
+                    </button>
                   </div>
                 )}
               </div>

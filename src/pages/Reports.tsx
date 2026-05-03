@@ -197,7 +197,8 @@ export function Reports() {
       const prevMonthRev = months.find(m => isSameMonth(m.date, lastMonth))?.amount || 0;
       const growth = prevMonthRev > 0 ? ((curMonthRev - prevMonthRev) / prevMonthRev) * 100 : 0;
 
-      const occupancyRate = cData.length > 0 ? Math.round((sData.length / (cData.length * 30)) * 100) : 0;
+      const activeClasses = cData.filter(c => c.status === 'Ativo');
+      const occupancyRate = activeClasses.length > 0 ? Math.round((activeTotal / (activeClasses.length * 30)) * 100) : 0;
 
       setStats({
         totalStudents: sData.length,
@@ -205,8 +206,8 @@ export function Reports() {
         inactiveStudents: sData.filter(s => s.status === 'Inativo').length,
         concludedStudents: sData.filter(s => s.status === 'Concluído').length,
         totalTeachers: tData.length,
-        activeTeachers: tData.filter(t => (t as any).status !== 'Inativo').length,
-        totalClasses: cData.length,
+        activeTeachers: tData.filter(t => t.status !== 'Inativo').length,
+        totalClasses: activeClasses.length,
         totalPixAmount: totalAmount,
         matchedPix: matchedCount,
         revenueGrowth: Number(growth.toFixed(1)),
@@ -433,17 +434,19 @@ export function Reports() {
   ], [stats]);
 
   const studentsByClass = useMemo(() => {
-    return classes.map(c => {
-      const count = students.filter(s => s.class_id === c.id).length;
-      return {
-        code: c.code,
-        name: c.name,
-        period: c.period,
-        count,
-        percentage: stats.totalStudents > 0 ? Math.round((count / stats.totalStudents) * 100) : 0
-      };
-    }).sort((a, b) => b.count - a.count);
-  }, [classes, students, stats.totalStudents]);
+    return classes
+      .filter(c => c.status === 'Ativo')
+      .map(c => {
+        const count = students.filter(s => s.class_id === c.id && (s.status === 'Ativo' || !s.status)).length;
+        return {
+          code: c.code,
+          name: c.name,
+          period: c.period,
+          count,
+          percentage: stats.activeStudents > 0 ? Math.round((count / stats.activeStudents) * 100) : 0
+        };
+      }).sort((a, b) => b.count - a.count);
+  }, [classes, students, stats.activeStudents]);
 
   const recentPix = useMemo(() => {
     return pixTransactions.map(p => ({
@@ -550,15 +553,7 @@ export function Reports() {
               </div>
             </div>
             <p className="text-4xl font-black text-[#00174b] tracking-tighter mb-1">{stats.activeStudents}</p>
-            <div className="flex items-baseline gap-2 mb-1">
-               <p className="text-sm font-bold text-slate-400">{stats.inactiveStudents} Inativos</p>
-               <span className="text-slate-200">|</span>
-               <p className="text-xs font-medium text-slate-300">{stats.totalStudents} Total</p>
-            </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Gestão de Alunos</p>
-            <div className="mt-6 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${(stats.activeStudents / stats.totalStudents) * 100}%` }}></div>
-            </div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Gestão de Alunos Ativos</p>
           </div>
 
           <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all duration-500">
@@ -590,12 +585,7 @@ export function Reports() {
               <div className="bg-emerald-50 text-emerald-600 font-black text-[10px] px-2.5 py-1.5 rounded-xl uppercase">Ativas</div>
             </div>
             <p className="text-4xl font-black text-[#00174b] tracking-tighter mb-1">{stats.totalClasses}</p>
-            <div className="flex items-baseline gap-2 mb-1">
-               <p className="text-sm font-bold text-slate-400">{stats.activeTeachers} Prof. Ativos</p>
-               <span className="text-slate-200">|</span>
-               <p className="text-xs font-medium text-slate-300">{stats.totalTeachers} Total</p>
-            </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Turmas e Corpo Docente</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Turmas e Professores Ativos</p>
             <div className="mt-6 flex items-center gap-2">
               <div className="flex -space-x-2">
                 {[1,2,3].map(i => <div key={i} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white"></div>)}
