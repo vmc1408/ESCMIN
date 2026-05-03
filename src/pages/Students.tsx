@@ -579,8 +579,13 @@ export function Students() {
               <p className="text-[9pt] font-bold mb-2 uppercase border-b border-black/10 pb-0.5">CURSO:</p>
               <div className="flex-1 flex flex-col justify-center gap-1">
                 {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
-                  const isChecked = currentClass?.name?.toLowerCase().includes(course.toLowerCase()) || 
-                                  selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
+                  const isInPrimaryClass = currentClass?.name?.toLowerCase().includes(course.toLowerCase());
+                  const isInExtraEnrollments = studentEnrollments.some(enrollment => {
+                    const targetClass = classes.find(c => c.id === enrollment.class_id);
+                    return targetClass?.name?.toLowerCase().includes(course.toLowerCase()) && enrollment.status === 'Ativo';
+                  });
+                  const isChecked = isInPrimaryClass || isInExtraEnrollments || selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
+                  
                   return (
                     <div key={course} className="flex items-center gap-3">
                       <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white relative shrink-0">
@@ -590,6 +595,21 @@ export function Students() {
                     </div>
                   );
                 })}
+
+                {/* List all active enrollments explicitly if there are multiple */}
+                {(studentEnrollments.length > 0) && (
+                  <div className="mt-2 pt-2 border-t border-black/10">
+                    <p className="text-[7pt] font-bold uppercase mb-1">Turmas Ativas:</p>
+                    <p className="text-[8.5pt] font-black leading-tight uppercase">
+                      {[
+                        currentClass?.name,
+                        ...studentEnrollments
+                          .filter(e => e.status === 'Ativo')
+                          .map(e => classes.find(c => c.id === e.class_id)?.name)
+                      ].filter(Boolean).join(' / ')}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
