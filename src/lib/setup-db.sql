@@ -92,6 +92,12 @@ DROP POLICY IF EXISTS "Public Access Photos" ON storage.objects;
 DROP POLICY IF EXISTS "Public Access students" ON storage.objects;
 CREATE POLICY "Public Access students" ON storage.objects FOR ALL USING (bucket_id = 'students') WITH CHECK (bucket_id = 'students');
 
+-- 7. Arquivo Morto (Tabelas de Espelhamento)
+CREATE TABLE IF NOT EXISTS archived_students (LIKE students INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS archived_classes (LIKE classes INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS archived_subjects (LIKE subjects INCLUDING ALL);
+CREATE TABLE IF NOT EXISTS archived_teachers (LIKE teachers INCLUDING ALL);
+
 -- 6. Recriar políticas de acesso (RLS) - Permite leitura/escrita para todos no modo dev
 DO $$ 
 DECLARE 

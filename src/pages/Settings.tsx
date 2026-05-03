@@ -40,9 +40,10 @@ import {
   Copy,
   Terminal,
   Key,
-  Info
+  Info,
+  ArrowUpRight
 } from 'lucide-react';
-import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch } from '../lib/database';
+import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, archiveRecord } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
@@ -159,6 +160,12 @@ export function Settings() {
 
   // Maintenance State
   const [counts, setCounts] = useState<Record<string, number>>({
+    students: 0,
+    teachers: 0,
+    classes: 0,
+    subjects: 0
+  });
+  const [archivedCounts, setArchivedCounts] = useState<Record<string, number>>({
     students: 0,
     teachers: 0,
     classes: 0,
@@ -476,15 +483,56 @@ export function Settings() {
     try {
       const collections = ['students', 'teachers', 'classes', 'subjects'];
       const newCounts: Record<string, number> = {};
+      const newArchivedCounts: Record<string, number> = {};
       
       await Promise.all(collections.map(async (col) => {
         newCounts[col] = await fetchCount(col);
+        newArchivedCounts[col] = await fetchCount(col, 'Arquivado');
       }));
       
       setCounts(newCounts);
+      setArchivedCounts(newArchivedCounts);
     } catch (e) {
       console.error('Error fetching counts:', e);
     }
+  };
+
+  const handleArchiveInactives = async () => {
+    setShowConfirmModal({
+      show: true,
+      title: 'Migrar para Arquivo Morto',
+      message: 'Todos os registros marcados como "Inativo" serão movidos para as tabelas de arquivo morto. Isso deixará o sistema mais rápido. Confirma?',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          setShowConfirmModal(prev => ({ ...prev, show: false }));
+          setNotification({ type: 'success', message: 'Iniciando arquivamento...' });
+          
+          const collections = ['students', 'teachers', 'classes', 'subjects'];
+          let totalArchived = 0;
+
+          for (const col of collections) {
+            const inactives = await supabase.from(col).select('id').eq('status', 'Inativo');
+            if (inactives.data && inactives.data.length > 0) {
+              for (const record of inactives.data) {
+                await archiveRecord(col, record.id);
+                totalArchived++;
+              }
+            }
+          }
+
+          setNotification({ type: 'success', message: `${totalArchived} registros movidos para o Arquivo Morto.` });
+          fetchCounts();
+        } catch (error: any) {
+          console.error('Erro ao arquivar:', error);
+          setNotification({ type: 'error', message: 'Erro no arquivamento: ' + error.message });
+        } finally {
+          setLoading(false);
+          setTimeout(() => setNotification(null), 3000);
+        }
+      }
+    });
   };
 
 
@@ -1734,6 +1782,25 @@ export function Settings() {
                     </div>
                   </div>
                   {loading ? <Loader2 size={18} className="animate-spin text-slate-300" /> : <Database size={18} className="text-slate-300" />}
+                </button>
+
+                <button 
+                  onClick={handleArchiveInactives}
+                  disabled={loading}
+                  className="w-full p-4 bg-amber-600 text-white border border-amber-700 rounded-2xl flex items-center justify-between group hover:bg-amber-700 transition-all text-left active:scale-[0.98] shadow-lg shadow-amber-200"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shadow-sm">
+                      <Database size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black">Migrar para Arquivo Morto</p>
+                      <p className="text-[10px] text-white/70 font-bold uppercase tracking-wider">
+                        Mover todos os registros Inativos atuais para o arquivo morto
+                      </p>
+                    </div>
+                  </div>
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowUpRight size={18} />}
                 </button>
               </div>
             </div>

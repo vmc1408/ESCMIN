@@ -32,9 +32,10 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone } from '../lib/utils';
-import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery } from '../lib/database';
+import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery, archiveRecord, restoreRecord } from '../lib/database';
 import { Student, Class, Enrollment } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 // Memoized List Item to prevent lag
 const StudentItem = React.memo(({ 
@@ -150,6 +151,7 @@ export function Students() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [isArchivedMode, setIsArchivedMode] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   // Initialize with all fields to prevent uncontrolled input warnings
@@ -191,6 +193,52 @@ export function Students() {
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [enrollClassId, setEnrollClassId] = useState('');
   const webcamRef = useRef<Webcam>(null);
+  const { user, profile, refreshProfile } = useAuth();
+
+  const handleArchiveStudent = async (id: string) => {
+    if (!window.confirm('Deseja mover este aluno para o Arquivo Morto?')) return;
+    try {
+      setLoading(true);
+      await archiveRecord('students', id);
+      setNotification({ type: 'success', message: 'Aluno movido para o Arquivo Morto!' });
+      setSelectedStudent(null);
+      fetchStudents();
+    } catch (err: any) {
+      setNotification({ type: 'error', message: err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleRestoreStudent = async (id: string) => {
+    if (!window.confirm('Deseja restaurar este aluno do Arquivo Morto?')) return;
+    try {
+      setLoading(true);
+      await restoreRecord('students', id);
+      setNotification({ type: 'success', message: 'Aluno restaurado com sucesso!' });
+      setSelectedStudent(null);
+      fetchStudents();
+    } catch (err: any) {
+      setNotification({ type: 'error', message: err.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const fetchStudents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const table = isArchivedMode ? 'archived_students' : 'students';
+      const data = await fetchAll(table, '*', 'registration_number', true);
+      setStudents(data);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [isArchivedMode]);
 
   useEffect(() => {
     fetchStudents();
@@ -198,7 +246,7 @@ export function Students() {
     fetchParishes();
     fetchForaries();
     fetchAllEnrollments();
-  }, []);
+  }, [fetchStudents]);
 
   // Auto-fill student start date based on selected class
   useEffect(() => {
@@ -242,18 +290,6 @@ export function Students() {
       console.error('Error fetching foraries:', error);
     }
   };
-
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAll('students', '*', 'registration_number', true);
-      setStudents(data);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const fetchAllEnrollments = async () => {
     try {

@@ -18,7 +18,8 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn } from '../lib/utils';
-import { fetchAll, saveData, deleteData } from '../lib/database';
+import { fetchAll, saveData, deleteData, archiveRecord, restoreRecord } from '../lib/database';
+import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
 interface Teacher {
   id: string;
@@ -118,20 +119,18 @@ export function Teachers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [isArchivedMode, setIsArchivedMode] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Teacher>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-  useEffect(() => {
-    fetchTeachers();
-  }, []);
-
   const fetchTeachers = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchAll('teachers', '*', 'name', true);
+      const table = isArchivedMode ? 'archived_teachers' : 'teachers';
+      const data = await fetchAll(table, '*', 'name', true);
       setTeachers(data || []);
       if (data && data.length > 0 && !selectedTeacher) {
         setSelectedTeacher(data[0]);
@@ -142,7 +141,41 @@ export function Teachers() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTeacher]);
+  }, [selectedTeacher, isArchivedMode]);
+
+  const handleArchiveTeacher = async (id: string) => {
+    if (!window.confirm('Deseja mover este professor para o Arquivo Morto?')) return;
+    try {
+      setLoading(true);
+      await archiveRecord('teachers', id);
+      setNotification({ type: 'success', message: 'Professor movido para o Arquivo Morto!' });
+      setSelectedTeacher(null);
+      fetchTeachers();
+    } catch (err: any) {
+      setNotification({ type: 'error', message: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestoreTeacher = async (id: string) => {
+    if (!window.confirm('Deseja restaurar este professor do Arquivo Morto?')) return;
+    try {
+      setLoading(true);
+      await restoreRecord('teachers', id);
+      setNotification({ type: 'success', message: 'Professor restaurado com sucesso!' });
+      setSelectedTeacher(null);
+      fetchTeachers();
+    } catch (err: any) {
+      setNotification({ type: 'error', message: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeachers();
+  }, [fetchTeachers]);
 
   const handleSelectTeacher = React.useCallback((teacher: Teacher) => {
     setSelectedTeacher(teacher);
@@ -458,13 +491,36 @@ export function Teachers() {
                     </button>
                   </>
                 ) : (
-                  <button 
-                    onClick={() => setIsEditing(true)}
-                    className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                  >
-                    <Edit2 size={16} />
-                    Editar Cadastro
-                  </button>
+                  <div className="flex gap-2">
+                    {isArchivedMode ? (
+                      <button 
+                        onClick={() => handleRestoreTeacher(selectedTeacher!.id)}
+                        className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+                      >
+                        <RotateCcw size={16} />
+                        Restaurar Registro
+                      </button>
+                    ) : (
+                      <>
+                        {selectedTeacher?.status === 'Inativo' && (
+                          <button 
+                            onClick={() => handleArchiveTeacher(selectedTeacher!.id)}
+                            className="px-6 py-2 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+                          >
+                            <FileIcon size={16} />
+                            Arquivar Registro
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => setIsEditing(true)}
+                          className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                        >
+                          <Edit2 size={16} />
+                          Editar Cadastro
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

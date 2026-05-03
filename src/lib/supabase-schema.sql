@@ -162,6 +162,23 @@ CREATE TABLE IF NOT EXISTS teachers (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- ARQUIVO MORTO (Tabelas de Arquivamento)
+CREATE TABLE IF NOT EXISTS archived_students (
+    LIKE students INCLUDING ALL
+);
+
+CREATE TABLE IF NOT EXISTS archived_classes (
+    LIKE classes INCLUDING ALL
+);
+
+CREATE TABLE IF NOT EXISTS archived_subjects (
+    LIKE subjects INCLUDING ALL
+);
+
+CREATE TABLE IF NOT EXISTS archived_teachers (
+    LIKE teachers INCLUDING ALL
+);
+
 -- 11. Frequência
 CREATE TABLE IF NOT EXISTS attendances (
     id TEXT PRIMARY KEY,
