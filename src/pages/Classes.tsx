@@ -269,9 +269,9 @@ export function Classes() {
   }, [classes, searchTerm, statusFilter]);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-6">
+    <div className="h-[calc(100vh-8rem)] flex gap-2">
       {/* Sidebar List */}
-      <div className="w-72 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-50 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Turmas</h2>
@@ -345,8 +345,9 @@ export function Classes() {
                 <p className="text-sm font-bold">{notification.message}</p>
               </div>
             )}
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-4">
+            <div className="p-4 border-b border-slate-50 bg-slate-50/50">
+              <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
                   <School size={32} />
                 </div>
@@ -400,16 +401,17 @@ export function Classes() {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="max-w-4xl space-y-8">
+          <div className="flex-1 overflow-y-auto p-4">
+              <div className="max-w-4xl mx-auto space-y-4">
                 {/* Basic Info */}
-                <section className="space-y-4">
+                <section className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <School size={14} />
                     Informações da Turma
                   </h4>
-                  <div className="grid grid-cols-12 gap-4">
+                  <div className="grid grid-cols-12 gap-3">
                     <div className="col-span-3 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Turma (Código)</label>
                       <input 
@@ -496,7 +498,7 @@ export function Classes() {
                             disabled={!isEditing}
                             onClick={() => setFormData({...formData, period: p as any})}
                             className={cn(
-                              "flex-1 py-2 rounded-xl text-xs font-bold transition-all",
+                              "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all",
                               formData.period === p 
                                 ? "bg-blue-600 text-white shadow-md" 
                                 : "bg-slate-50 text-slate-500 hover:bg-slate-100"
@@ -511,7 +513,7 @@ export function Classes() {
                 </section>
 
                 {/* Days of Week */}
-                <section className="space-y-4">
+                <section className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Calendar size={14} />
                     Dias da Semana
@@ -537,7 +539,7 @@ export function Classes() {
                 </section>
 
                 {/* Additional Info */}
-                <section className="space-y-4">
+                <section className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <FileText size={14} />
                     Observações

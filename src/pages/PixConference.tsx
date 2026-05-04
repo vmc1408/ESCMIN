@@ -33,7 +33,7 @@ import fuzzysort from 'fuzzysort';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { cn, safeFormat, parseSafeDate, formatDate } from '../lib/utils';
+import { cn, safeFormat, parseSafeDate, formatDate, formatDateForDisplay } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
@@ -1261,7 +1261,7 @@ export function PixConference() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto space-y-6 print:hidden">
+      <div className="max-w-[1920px] mx-auto space-y-6 print:hidden">
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-3xl font-black text-[#00174b] tracking-tight">Conferência de Pix</h2>
@@ -1588,7 +1588,7 @@ export function PixConference() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50/50">
-                        <th className="px-6 py-5 text-center">
+                        <th className="px-6 py-3 text-center">
                           <input 
                             type="checkbox"
                             checked={selectedIds.size === transactions.length && transactions.length > 0}
@@ -1596,12 +1596,12 @@ export function PixConference() {
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
                         </th>
-                        <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data / ID</th>
-                        <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Banco Origem</th>
-                        <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagador</th>
-                        <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</th>
-                        <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno Identificado</th>
-                        <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data / ID</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Banco Origem</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagador</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno Identificado</th>
+                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -1622,7 +1622,7 @@ export function PixConference() {
                             />
                           </td>
                           <td className="px-4 py-6">
-                            <p className="text-sm font-bold text-[#00174b]">{t.date}</p>
+                            <p className="text-sm font-bold text-[#00174b]">{formatDateForDisplay(t.date)}</p>
                             <p className="text-[10px] font-mono text-slate-400 mt-1">{t.transaction_id}</p>
                           </td>
                           <td className="px-4 py-6">
@@ -2349,7 +2349,7 @@ export function PixConference() {
                             
                             return (
                               <tr key={i} className="break-inside-avoid hover:bg-slate-50/50 transition-colors">
-                                <td className="py-3 text-xs font-bold text-slate-500">{t.date}</td>
+                                <td className="py-3 text-xs font-bold text-slate-500">{formatDateForDisplay(t.date)}</td>
                                 <td className="py-3 text-xs font-medium text-slate-400 uppercase">{t.origin_bank || 'N/I'}</td>
                                 <td className="py-3">
                                   <p className="text-xs font-black text-[#00174b] uppercase">{t.payer_name}</p>

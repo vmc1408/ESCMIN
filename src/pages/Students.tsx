@@ -34,7 +34,7 @@ import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone } from '../lib/utils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery } from '../lib/database';
 import { Student, Class, Enrollment } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 // Memoized List Item to prevent lag
@@ -142,8 +142,34 @@ const generateNextRegistrationNumber = (students: Student[]) => {
 };
 
 // Helper to format date from YYYY-MM-DD or ISO to DD/MM/YYYY
+const INITIAL_STUDENT_STATE: Partial<Student> = {
+  name: '',
+  registration_number: '',
+  status: 'Ativo',
+  class_id: '',
+  email: '',
+  phone_mobile: '',
+  phone_mobile_is_whatsapp: false,
+  phone_residential: '',
+  cpf: '',
+  rg: '',
+  birth_date: '',
+  address_street: '',
+  address_neighborhood: '',
+  address_city: 'Guarulhos',
+  address_state: 'SP',
+  address_zip: '',
+  parish: '',
+  forany: '',
+  course: '',
+  pastoral_participates: '',
+  start_date: '',
+  photo_url: ''
+};
+
 export function Students() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [parishesList, setParishesList] = useState<any[]>([]);
@@ -153,33 +179,8 @@ export function Students() {
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  // Initialize with all fields to prevent uncontrolled input warnings
-  const initialStudentState: Partial<Student> = {
-    name: '',
-    registration_number: '',
-    status: 'Ativo',
-    class_id: '',
-    email: '',
-    phone_mobile: '',
-    phone_mobile_is_whatsapp: false,
-    phone_residential: '',
-    cpf: '',
-    rg: '',
-    birth_date: '',
-    address_street: '',
-    address_neighborhood: '',
-    address_city: 'Guarulhos',
-    address_state: 'SP',
-    address_zip: '',
-    parish: '',
-    forany: '',
-    course: '',
-    pastoral_participates: '',
-    start_date: '',
-    photo_url: ''
-  };
-
-  const [formData, setFormData] = useState<Partial<Student>>(initialStudentState);
+  
+  const [formData, setFormData] = useState<Partial<Student>>(INITIAL_STUDENT_STATE);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [sortBy, setSortBy] = useState<'name' | 'registration'>('registration');
@@ -214,6 +215,29 @@ export function Students() {
     fetchForaries();
     fetchAllEnrollments();
   }, [fetchStudents]);
+
+  // Handle auto-selection from Dashboard deep links
+  useEffect(() => {
+    const studentId = (location.state as any)?.studentId;
+    if (studentId && students.length > 0) {
+      const student = students.find(s => s.id === studentId);
+      if (student) {
+        // Select student and keep in view mode (isEditing = false)
+        setSelectedStudent(student);
+        setFormData({
+          ...INITIAL_STUDENT_STATE,
+          ...student,
+          birth_date: formatDateForDisplay(student.birth_date),
+          start_date: formatDateForDisplay(student.start_date)
+        });
+        setIsEditing(false);
+        fetchEnrollments(student.id);
+        
+        // Clear state to avoid re-selecting if the user navigates away and back
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [students, location.state]);
 
   // Auto-fill student start date based on selected class
   useEffect(() => {
@@ -332,7 +356,7 @@ export function Students() {
   const handleSelectStudent = useCallback((student: Student) => {
     setSelectedStudent(student);
     setFormData({
-      ...initialStudentState,
+      ...INITIAL_STUDENT_STATE,
       ...student,
       // Ensure specific fields aren't null/undefined from DB
       name: student.name || '',
@@ -359,13 +383,13 @@ export function Students() {
     });
     setIsEditing(false);
     fetchEnrollments(student.id);
-  }, [initialStudentState]);
+  }, []);
 
   const handleNew = () => {
     setSelectedStudent(null);
     const nextReg = generateNextRegistrationNumber(students);
     setFormData({
-      ...initialStudentState,
+      ...INITIAL_STUDENT_STATE,
       name: '',
       status: 'Ativo',
       registration_number: nextReg,
@@ -465,7 +489,7 @@ export function Students() {
       
       setNotification({ type: 'success', message: 'Aluno removido com sucesso!' });
       setSelectedStudent(null);
-      setFormData(initialStudentState);
+      setFormData(INITIAL_STUDENT_STATE);
       setIsEditing(false);
       setShowDeleteConfirm(false);
       fetchStudents();
@@ -861,9 +885,9 @@ export function Students() {
   }, [students]);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-6">
+    <div className="h-[calc(100vh-8rem)] flex gap-2">
       {/* Sidebar List */}
-      <div className="w-72 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
             <button 
@@ -974,8 +998,9 @@ export function Students() {
                 <p className="text-sm font-bold">{notification.message}</p>
               </div>
             )}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
-              <div className="flex items-center gap-4">
+            <div className="p-4 border-b border-slate-100 bg-white">
+              <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-4">
                 <div className="relative group">
                   <div className="w-24 h-32 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 overflow-hidden border-2 border-white relative">
                     {formData.photo_url ? (
@@ -1065,9 +1090,10 @@ export function Students() {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-8 pb-32">
+          <div className="flex-1 overflow-y-auto">
+              <div className="p-3 pb-24">
                 {showWebcam ? (
                 <div className="max-w-md mx-auto space-y-4">
                   <div className="aspect-video bg-black rounded-3xl overflow-hidden relative">
@@ -1102,14 +1128,14 @@ export function Students() {
                   </div>
                 </div>
               ) : (
-                <div className="max-w-4xl space-y-8">
+                <div className="max-w-4xl mx-auto space-y-4">
                   {/* Basic Info */}
-                  <section className="space-y-4">
+                  <section className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                       <UserIcon size={14} />
                       Dados Pessoais
                     </h4>
-                    <div className="grid grid-cols-12 gap-4">
+                    <div className="grid grid-cols-12 gap-3">
                       <div className="col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Matrícula</label>
                         <input 
@@ -1307,12 +1333,12 @@ export function Students() {
                   </section>
 
                   {/* Contact & Address */}
-                  <section className="space-y-4">
+                  <section className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                       <MapPin size={14} />
                       Endereço e Contato
                     </h4>
-                    <div className="grid grid-cols-12 gap-4">
+                    <div className="grid grid-cols-12 gap-3">
                       <div className="col-span-12 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Logradouro (Rua, Número, Complemento)</label>
                         <input 
@@ -1419,12 +1445,12 @@ export function Students() {
                   </section>
 
                   {/* Pastoral Info */}
-                  <section className="space-y-4">
+                  <section className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                       <GraduationCap size={14} />
                       Informações Pastorais
                     </h4>
-                    <div className="grid grid-cols-12 gap-4">
+                    <div className="grid grid-cols-12 gap-3">
                       <div className="col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Paróquia Origem</label>
                         <select 

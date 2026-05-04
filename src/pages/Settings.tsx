@@ -896,7 +896,7 @@ export function Settings() {
 
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black text-[#00174b] tracking-tight">Configurações</h2>
@@ -1241,8 +1241,8 @@ export function Settings() {
         )}
 
       {activeTab === 'security' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-amber-50 border border-amber-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6">
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl flex flex-col md:flex-row items-center gap-6">
             <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
               <ShieldCheck size={32} />
             </div>
@@ -1254,8 +1254,8 @@ export function Settings() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6">
               <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
                   <Key size={20} />
@@ -1376,8 +1376,8 @@ export function Settings() {
       )}
 
       {activeTab === 'academic' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-emerald-50 border border-emerald-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6">
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-3xl flex flex-col md:flex-row items-center gap-6">
             <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
               <School size={32} />
             </div>
@@ -1389,8 +1389,8 @@ export function Settings() {
             </div>
           </div>
 
-          <form onSubmit={handleSaveAcademicParams} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-8">
+          <form onSubmit={handleSaveAcademicParams} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6">
               <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                   <Plus size={20} />

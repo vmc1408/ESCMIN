@@ -407,7 +407,7 @@ export function Diocese() {
     });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-20">
+    <div className="max-w-6xl mx-auto space-y-6 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
           <h2 className="text-3xl font-black text-[#131b2e] tracking-tight flex items-center gap-3">
@@ -479,8 +479,8 @@ export function Diocese() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className={cn("lg:col-span-2 space-y-4", isEditing && "hidden lg:block")}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className={cn("lg:col-span-2 space-y-3", isEditing && "hidden lg:block")}>
           <div className="flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100 print:hidden">
             <div className="flex-1 flex items-center gap-4 w-full">
               <Search className="text-slate-400" size={20} />
@@ -1163,7 +1163,7 @@ export function Diocese() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden"
             >
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
                     {activeTab === 'foranias' ? <MapIcon size={24} /> : activeTab === 'parishes' ? <Church size={24} /> : <User size={24} />}
@@ -1178,7 +1178,7 @@ export function Diocese() {
                 </button>
               </div>
 
-              <div className="p-8 max-h-[60vh] overflow-y-auto space-y-8 custom-scrollbar">
+              <div className="p-6 max-h-[60vh] overflow-y-auto space-y-6 custom-scrollbar">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {activeTab === 'foranias' && (
                     <>
@@ -1217,7 +1217,7 @@ export function Diocese() {
                 </div>
               </div>
 
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                 <button 
                   onClick={() => setIsViewing(false)}
                   className="px-8 py-4 text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-slate-200 rounded-2xl transition-all"
@@ -1300,7 +1300,7 @@ export function Diocese() {
         @media print {
           body { background: white !important; }
           .print\\:hidden { display: none !important; }
-          .max-w-7xl { max-width: 100% !important; margin: 0 !important; width: 100% !important; }
+          .max-w-\[1920px\] { max-width: 100% !important; margin: 0 !important; width: 100% !important; }
           .grid { display: block !important; }
           .rounded-[2rem] { border-radius: 0 !important; border: 1px solid #e2e8f0 !important; margin-bottom: 2rem !important; page-break-inside: avoid; }
           @page { margin: 2cm; }

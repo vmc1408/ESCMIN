@@ -556,9 +556,9 @@ export function Users() {
   const suspendedUsers = users.filter(u => u.status === 'inactive').length;
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-6 pb-6">
+    <div className="max-w-7xl mx-auto space-y-6 pb-6">
       {/* Dynamic Header & Stats Center */}
-      <div className="flex flex-col gap-6">
+      <div className="max-w-4xl mx-auto flex flex-col gap-6">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-0.5">

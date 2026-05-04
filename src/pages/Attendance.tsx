@@ -242,7 +242,7 @@ export function Attendance() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-[1920px] mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
@@ -287,9 +287,9 @@ export function Attendance() {
         )}
       </div>
 
-      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+      <div className="bg-white p-4 md:p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
         <div className={cn(
-          "grid grid-cols-1 gap-6",
+          "grid grid-cols-1 gap-4",
           activeTab === 'marking' ? "md:grid-cols-3" : "md:grid-cols-2"
         )}>
           <div className="space-y-2">

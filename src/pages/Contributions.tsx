@@ -26,8 +26,8 @@ export function Contributions() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [viewMode, setViewMode] = useState<'individual' | 'period'>('individual');
-  const [startDate, setStartDate] = useState(formatDateForDisplay(format(startOfMonth(new Date()), 'yyyy-MM-dd')));
-  const [endDate, setEndDate] = useState(formatDateForDisplay(format(endOfMonth(new Date()), 'yyyy-MM-dd')));
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [periodData, setPeriodData] = useState<(Contribution & { student?: Student })[]>([]);
   const [recentContributions, setRecentContributions] = useState<(Contribution & { student?: Student })[]>([]);
   const [filterType, setFilterType] = useState<'payment' | 'created'>('payment');
@@ -54,7 +54,7 @@ export function Contributions() {
 
   // Estados para Registro Manual
   const [manualMonths, setManualMonths] = useState<number[]>([]);
-  const [manualDate, setManualDate] = useState(formatDateForDisplay(format(new Date(), 'yyyy-MM-dd')));
+  const [manualDate, setManualDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [manualAmount, setManualAmount] = useState('100,00');
   const [manualMethod, setManualMethod] = useState<'Dinheiro' | 'PIX' | 'Cartão'>('Dinheiro');
   const [manualObservations, setManualObservations] = useState('');
@@ -198,8 +198,8 @@ export function Contributions() {
       const dbEnd = parseDateToDB(endDate);
       
       const docsData = await fetchQuery('contributions', [
-        { field: dateField, operator: '>=', value: dbStart + 'T00:00:00Z' },
-        { field: dateField, operator: '<=', value: dbEnd + 'T23:59:59Z' }
+        { field: dateField, operator: '>=', value: dbStart },
+        { field: dateField, operator: '<=', value: dbEnd + (dateField === 'created_at' ? 'T23:59:59Z' : 'z') }
       ], dateField);
 
       if (!docsData) {
@@ -896,14 +896,14 @@ export function Contributions() {
   return (
     <>
       <div className={cn(
-        "h-[calc(100vh-8rem)] flex flex-col gap-6 print:hidden",
+        "h-[calc(100vh-8rem)] flex flex-col gap-2 print:hidden",
         isPrinting && "hidden"
       )}>
       {/* Header Profissional mais compacto */}
-      <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+      <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-2">
+        <div className="flex items-center justify-between px-2 pt-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#00174b] flex items-center justify-center text-white shadow-lg shadow-blue-900/10">
+            <div className="w-8 h-8 rounded-xl bg-[#00174b] flex items-center justify-center text-white shadow-lg shadow-blue-900/10">
               <TrendingUp size={20} />
             </div>
             <div>
@@ -956,27 +956,24 @@ export function Contributions() {
             </select>
           </div>
 
-          {/* Intervalo de Datas */}
           <div className="lg:col-span-4 space-y-1.5">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Período</label>
             <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 h-[3.25rem]">
               <div className="flex-1 flex items-center px-3 gap-2">
                 <Calendar size={14} className="text-slate-300" />
                 <input 
-                  type="text" 
-                  placeholder="DD/MM/AAAA"
+                  type="date" 
                   value={startDate}
-                  onChange={(e) => setStartDate(maskDate(e.target.value))}
+                  onChange={(e) => setStartDate(e.target.value)}
                   className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
                 />
               </div>
               <div className="w-px h-6 bg-slate-100" />
               <div className="flex-1 flex items-center px-3 gap-2">
                 <input 
-                  type="text" 
-                  placeholder="DD/MM/AAAA"
+                  type="date" 
                   value={endDate}
-                  onChange={(e) => setEndDate(maskDate(e.target.value))}
+                  onChange={(e) => setEndDate(e.target.value)}
                   className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
                 />
               </div>
@@ -996,20 +993,20 @@ export function Contributions() {
         </div>
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-hidden">
+      <div className="flex-1 flex gap-2 overflow-hidden">
         {/* Sidebar - Conditional Results or Recent */}
         <div className={cn(
-          "w-80 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden transition-all duration-300",
+          "w-80 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden transition-all duration-300 order-last",
           searchTerm.length > 0 || students.length > 0 ? "translate-x-0" : "-translate-x-full opacity-0 pointer-events-none w-0"
         )}>
-          <div className="p-6 border-b border-slate-50">
-            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
-              Resultados
-              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[10px]">{students.length}</span>
-            </h3>
-          </div>
+            <div className="p-4 border-b border-slate-50">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                Resultados
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[10px]">{students.length}</span>
+              </h3>
+            </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {students.length === 0 && searchTerm.length >= 3 && !isSearching && (
               <div className="p-8 text-center space-y-3">
                 <Search size={32} className="mx-auto text-slate-200" />
@@ -1051,88 +1048,88 @@ export function Contributions() {
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
           {selectedStudent && viewMode === 'individual' ? (
           <>
-            <div className="p-8 border-b border-slate-50 bg-slate-50/50">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-3xl bg-blue-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-blue-200">
+            <div className="p-4 border-b border-slate-50 bg-slate-50/50">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-3xl bg-blue-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-blue-200">
                     {selectedStudent.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-[#131b2e]">{selectedStudent.name}</h3>
-                    <div className="flex items-center gap-3 text-sm font-bold text-slate-500">
+                    <h3 className="text-xl font-black text-[#131b2e] leading-tight">{selectedStudent.name}</h3>
+                    <div className="flex items-center gap-3 text-xs font-bold text-slate-500 mt-1">
                       <span className="flex items-center gap-1"><Calendar size={14} /> {selectedStudent.registration_number}</span>
                       <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-lg text-[10px] font-black uppercase tracking-wider">{selectedStudent.status}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                     <button 
                       onClick={() => setSelectedYear(selectedYear - 1)}
-                      className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+                      className="p-1 px-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
                     >
-                      <ChevronLeft size={16} />
+                      <ChevronLeft size={14} />
                     </button>
-                    <span className="px-3 text-base font-black text-[#131b2e]">{selectedYear}</span>
+                    <span className="px-2 text-sm font-black text-[#131b2e]">{selectedYear}</span>
                     <button 
                       onClick={() => setSelectedYear(selectedYear + 1)}
-                      className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+                      className="p-1 px-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
                     >
-                      <ChevronRight size={16} />
+                      <ChevronRight size={14} />
                     </button>
                   </div>
                         {selectedForPrint.length > 0 && (
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <button 
                               onClick={() => {
                                 triggerDirectPrint(selectedForPrint);
                               }}
-                              className="flex items-center gap-2 px-6 py-3 bg-white text-emerald-600 border-2 border-emerald-600 rounded-2xl font-bold hover:bg-emerald-50 transition-all shadow-md active:scale-95 animate-in fade-in slide-in-from-right-4"
+                              className="flex items-center gap-1.5 px-4 py-2.5 bg-white text-emerald-600 border-2 border-emerald-600 rounded-xl font-bold text-xs hover:bg-emerald-50 transition-all shadow-md active:scale-95 animate-in fade-in slide-in-from-right-4"
                             >
-                              <FileDown size={18} />
-                              Visualizar ({selectedForPrint.length})
+                              <FileDown size={14} />
+                              ({selectedForPrint.length})
                             </button>
                             <button 
                               onClick={() => {
                                 generateSelectedReceipts(selectedForPrint, 'print');
                                 setSelectedForPrint([]);
                               }}
-                              className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg active:scale-95 animate-in fade-in slide-in-from-right-4"
+                              className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg active:scale-95 animate-in fade-in slide-in-from-right-4"
                             >
-                              <Printer size={18} />
-                              Imprimir ({selectedForPrint.length})
+                              <Printer size={14} />
+                              ({selectedForPrint.length})
                             </button>
                           </div>
                         )}
                   <button 
                     onClick={generateStatement}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#00174b] text-white rounded-2xl font-bold hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
                   >
-                    <FileText size={18} />
-                    Extrato Anual
+                    <FileText size={16} />
+                    Extrato
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><TrendingUp size={18} /></div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0"><TrendingUp size={14} /></div>
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total no Ano</p>
-                    <p className="text-lg font-black text-[#131b2e]">{formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}</p>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total no Ano</p>
+                    <p className="text-sm font-black text-[#131b2e]">{formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}</p>
                   </div>
                 </div>
-                <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center"><CheckCircle2 size={18} /></div>
+                <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center shrink-0"><CheckCircle2 size={14} /></div>
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Meses Pagos</p>
-                    <p className="text-lg font-black text-[#131b2e]">{contributions.length} / 12</p>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Meses Pagos</p>
+                    <p className="text-sm font-black text-[#131b2e]">{contributions.length} / 12</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 bg-slate-50/20">
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {MONTHS.map((month, idx) => {
                   const contrib = contributions.find(c => c.reference_month === idx + 1);
@@ -1253,7 +1250,7 @@ export function Contributions() {
                   <div>
                     <h3 className="text-base font-black text-[#131b2e] leading-tight">Relatório de Período</h3>
                     <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
-                      {safeFormat(startDate + 'T12:00:00Z', 'dd/MM/yy', '---')} ATÉ {safeFormat(endDate + 'T12:00:00Z', 'dd/MM/yy', '---')}
+                      {formatDateForDisplay(startDate)} ATÉ {formatDateForDisplay(endDate)}
                     </p>
                   </div>
                 </div>
@@ -1662,10 +1659,9 @@ export function Contributions() {
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Data do Pagamento</label>
                   <input 
-                    type="text"
-                    placeholder="DD/MM/AAAA"
+                    type="date"
                     value={manualDate}
-                    onChange={(e) => setManualDate(maskDate(e.target.value))}
+                    onChange={(e) => setManualDate(e.target.value)}
                     className="w-full bg-slate-50 border-0 rounded-2xl py-4 px-6 text-xl font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all"
                   />
                 </div>

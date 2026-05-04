@@ -198,7 +198,13 @@ export function Reports() {
       const growth = prevMonthRev > 0 ? ((curMonthRev - prevMonthRev) / prevMonthRev) * 100 : 0;
 
       const activeClasses = cData.filter(c => c.status === 'Ativo');
-      const occupancyRate = activeClasses.length > 0 ? Math.round((activeTotal / (activeClasses.length * 30)) * 100) : 0;
+      const studentsInActiveClasses = sData.filter(s => 
+        (s.status === 'Ativo' || !s.status) && 
+        s.class_id && 
+        activeClasses.some(ac => ac.id === s.class_id)
+      ).length;
+
+      const occupancyRate = activeClasses.length > 0 ? Math.round((studentsInActiveClasses / (activeClasses.length * 30)) * 100) : 0;
 
       setStats({
         totalStudents: sData.length,
@@ -434,18 +440,53 @@ export function Reports() {
   ], [stats]);
 
   const studentsByClass = useMemo(() => {
-    return classes
-      .filter(c => c.status === 'Ativo')
-      .map(c => {
-        const count = students.filter(s => s.class_id === c.id && (s.status === 'Ativo' || !s.status)).length;
-        return {
-          code: c.code,
-          name: c.name,
-          period: c.period,
-          count,
-          percentage: stats.activeStudents > 0 ? Math.round((count / stats.activeStudents) * 100) : 0
-        };
-      }).sort((a, b) => b.count - a.count);
+    const activeClasses = classes.filter(c => c.status === 'Ativo');
+    const activeStudents = students.filter(s => s.status === 'Ativo' || !s.status);
+    
+    const classStats = activeClasses.map(c => {
+      const count = activeStudents.filter(s => s.class_id === c.id).length;
+      return {
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        period: c.period,
+        count,
+        percentage: stats.activeStudents > 0 ? Math.round((count / stats.activeStudents) * 100) : 0
+      };
+    });
+
+    const activeClassIds = new Set(activeClasses.map(c => c.id));
+    const unallocatedCount = activeStudents.filter(s => !s.class_id || !activeClassIds.has(s.class_id)).length;
+
+    if (unallocatedCount > 0) {
+      classStats.push({
+        id: 'unallocated',
+        code: 'S/T',
+        name: 'Sem Turma / Turma Inativa',
+        period: '---' as any,
+        count: unallocatedCount,
+        percentage: stats.activeStudents > 0 ? Math.round((unallocatedCount / stats.activeStudents) * 100) : 0
+      });
+    }
+
+    const sortOrder = ['teo-26', 'teo-25', 'teo-24', 'teo-23', 'ds-2026'];
+    
+    return [...classStats].sort((a, b) => {
+      const indexA = sortOrder.findIndex(pattern => 
+        a.code?.toLowerCase().includes(pattern.toLowerCase()) || 
+        a.name?.toLowerCase().includes(pattern.toLowerCase())
+      );
+      const indexB = sortOrder.findIndex(pattern => 
+        b.code?.toLowerCase().includes(pattern.toLowerCase()) || 
+        b.name?.toLowerCase().includes(pattern.toLowerCase())
+      );
+
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      
+      return b.count - a.count;
+    });
   }, [classes, students, stats.activeStudents]);
 
   const recentPix = useMemo(() => {
@@ -486,7 +527,7 @@ export function Reports() {
 
       {/* Modern Sticky Header */}
       <div className="bg-white border-b border-slate-200 px-8 py-6 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-[#00174b] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
               <BarChart3 size={32} />
@@ -536,12 +577,12 @@ export function Reports() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 space-y-8 print:hidden">
+      <div className="max-w-[1920px] mx-auto px-8 space-y-4 print:hidden">
         {activeCategory === 'dashboard' && (
           <>
         {/* KPI Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative group hover:shadow-xl transition-all duration-500">
             <div className="flex items-center justify-between mb-6">
               <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Users size={28} />
@@ -611,8 +652,8 @@ export function Reports() {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white p-10 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
               <div>
                 <h3 className="text-xl font-black text-[#00174b] tracking-tight">Análise de Fluxo Financeiro</h3>
@@ -667,7 +708,7 @@ export function Reports() {
             </div>
           </div>
 
-          <div className="bg-white p-10 rounded-3xl border border-slate-100 shadow-sm flex flex-col">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col order-last md:order-none lg:order-last">
             <h3 className="text-xl font-black text-[#00174b] tracking-tight mb-2">Composição da Base</h3>
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-10">Distribuição por Status</p>
             
@@ -714,7 +755,7 @@ export function Reports() {
         </div>
 
         {/* AI Insights Section */}
-        <div className="bg-gradient-to-br from-[#00174b] to-[#002b8a] rounded-3xl p-10 text-white shadow-2xl shadow-blue-900/40 relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-[#00174b] to-[#002b8a] rounded-3xl p-6 text-white shadow-2xl shadow-blue-900/40 relative overflow-hidden group">
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-8">
               <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10">
@@ -726,7 +767,7 @@ export function Reports() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-4 p-6 bg-white/5 rounded-[2rem] border border-white/5 hover:bg-white/10 transition-all">
                 <div className="flex items-center gap-3 text-emerald-400">
                   <TrendingUp size={20} />
@@ -791,23 +832,23 @@ export function Reports() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50/50">
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Data</th>
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pagador</th>
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Valor</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Data</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pagador</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Valor</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {recentPix.slice(0, 7).map((p, i) => (
                     <tr key={i} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-10 py-5 text-xs font-bold text-slate-500">{p.date}</td>
-                      <td className="px-10 py-5">
+                      <td className="px-6 py-4 text-xs font-bold text-slate-500">{p.date}</td>
+                      <td className="px-6 py-4">
                         <p className="text-sm font-black text-[#00174b] uppercase truncate max-w-[200px]">{p.payer_name}</p>
                         <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                           <Users size={10} />
                           {p.student?.name || 'Não Identificado'}
                         </p>
                       </td>
-                      <td className="px-10 py-5 text-right">
+                      <td className="px-6 py-4 text-right">
                         <span className={cn(
                           "px-3 py-1.5 rounded-xl text-xs font-black",
                           p.status === 'matched' ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
@@ -826,11 +867,11 @@ export function Reports() {
 
         {activeCategory === 'academic' && (
           <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className="px-10 py-10 border-b border-slate-50">
+             <div className="px-6 py-6 border-b border-slate-50">
                <h3 className="text-xl font-black text-[#00174b] tracking-tight">Mapa Mestre de Matrículas</h3>
                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Listagem consolidada por unidade e turma</p>
              </div>
-             <div className="p-10 space-y-12">
+             <div className="p-6 space-y-8">
                {classes.map(c => (
                  <div key={c.id} className="space-y-6">
                    <div className="flex items-center gap-4 border-l-4 border-blue-600 pl-6">
@@ -855,15 +896,15 @@ export function Reports() {
 
         {activeCategory === 'attendance' && (
           <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className="px-10 py-10 border-b border-slate-50 flex items-center justify-between">
+             <div className="px-6 py-6 border-b border-slate-50 flex items-center justify-between">
                 <div>
                    <h3 className="text-xl font-black text-[#00174b] tracking-tight">Monitoramento de Frequência Escolar</h3>
                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Baseado em {totalClassDays} dias letivos cadastrados no calendário</p>
                 </div>
                 <div className="text-right">
-                   <div className="px-4 py-2 bg-amber-50 border border-amber-100 rounded-xl">
+                   <div className="px-2 py-1 bg-amber-50 border border-amber-100 rounded-xl">
                       <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Limite Permitido</p>
-                      <p className="text-lg font-black text-amber-700">{academicParams.absence_limit_percentage}% de faltas</p>
+                      <p className="text-sm font-black text-amber-700">{academicParams.absence_limit_percentage}% de faltas</p>
                    </div>
                 </div>
              </div>
@@ -871,11 +912,11 @@ export function Reports() {
                <table className="w-full text-left">
                   <thead className="bg-slate-50/80">
                     <tr>
-                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudante</th>
-                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
-                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Faltas</th>
-                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Freq. %</th>
-                      <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudante</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Faltas</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Freq. %</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -888,17 +929,17 @@ export function Reports() {
 
                       return (
                         <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-10 py-6">
+                          <td className="px-6 py-4">
                             <p className="text-sm font-black text-[#00174b] uppercase">{student.name}</p>
                             <p className="text-[10px] font-bold text-slate-400">RA: {student.registration_number}</p>
                           </td>
-                          <td className="px-10 py-6 text-sm font-bold text-slate-500">
+                          <td className="px-6 py-4 text-sm font-bold text-slate-500">
                              {studentClass?.name || 'Sem turma'}
                           </td>
-                          <td className="px-10 py-6 text-center text-sm font-black text-[#00174b]">
+                          <td className="px-6 py-4 text-center text-sm font-black text-[#00174b]">
                             {studentAbsences} / {totalClassDays}
                           </td>
-                          <td className="px-10 py-6 text-center">
+                          <td className="px-6 py-4 text-center">
                              <div className="flex flex-col items-center gap-1">
                                 <span className={cn(
                                   "text-sm font-black",
@@ -984,13 +1025,13 @@ export function Reports() {
         )}
 
         {activeCategory === 'operational' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
              <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-10 border-b border-slate-50 flex items-center gap-4">
+                <div className="p-6 border-b border-slate-50 flex items-center gap-4">
                    <Briefcase className="text-indigo-600" size={24} />
                    <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Quadro de Professores</h3>
                 </div>
-                <div className="p-8 space-y-4">
+                <div className="p-6 space-y-3">
                    {teachers.map(t => (
                      <div key={t.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -1007,11 +1048,11 @@ export function Reports() {
              </div>
 
              <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-10 border-b border-slate-50 flex items-center gap-4">
+                <div className="p-6 border-b border-slate-50 flex items-center gap-4">
                    <BookOpen className="text-amber-600" size={24} />
                    <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Matriz Curricular</h3>
                 </div>
-                <div className="p-8 space-y-4">
+                <div className="p-6 space-y-3">
                    {subjects.map(s => (
                      <div key={s.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
                         <div className="flex items-center gap-4">

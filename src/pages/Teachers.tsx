@@ -340,9 +340,9 @@ export function Teachers() {
   }, [teachers, searchTerm, statusFilter]);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-6">
+    <div className="h-[calc(100vh-8rem)] flex gap-2">
       {/* Sidebar List */}
-      <div className="w-72 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-50 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Professores</h2>
@@ -407,8 +407,9 @@ export function Teachers() {
       <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
         {selectedTeacher || isEditing ? (
           <>
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-4">
+            <div className="p-4 border-b border-slate-50 bg-slate-50/50">
+              <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
                   <UserIcon size={32} />
                 </div>
@@ -471,16 +472,17 @@ export function Teachers() {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="max-w-4xl space-y-8">
+          <div className="flex-1 overflow-y-auto p-4">
+              <div className="max-w-4xl mx-auto space-y-4">
                 {/* Basic Info */}
-                <section className="space-y-4">
+                <section className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <UserIcon size={14} />
                     Informações Básicas
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-700">Nome Completo</label>
                       <input 
@@ -549,12 +551,12 @@ export function Teachers() {
                 </section>
 
                 {/* Contact & Address */}
-                <section className="space-y-4">
+                <section className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <MapPin size={14} />
                     Endereço e Contato
                   </h4>
-                  <div className="grid grid-cols-12 gap-4">
+                  <div className="grid grid-cols-12 gap-3">
                     <div className="col-span-8 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Logradouro (Rua, Av, etc)</label>
                       <input 
@@ -637,7 +639,7 @@ export function Teachers() {
                 </section>
 
                 {/* Additional Info */}
-                <section className="space-y-4">
+                <section className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <FileText size={14} />
                     Observações
