@@ -130,10 +130,6 @@ export function Teachers() {
     try {
       const data = await fetchAll('teachers', '*', 'name', true);
       setTeachers(data || []);
-      if (data && data.length > 0 && !selectedTeacher) {
-        setSelectedTeacher(data[0]);
-        setFormData(data[0]);
-      }
     } catch (error) {
       console.error('Error fetching teachers:', error);
     } finally {

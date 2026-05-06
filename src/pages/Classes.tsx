@@ -145,13 +145,6 @@ export function Classes() {
     try {
       const data = await fetchAll('classes', '*', 'name', true);
       setClasses(data || []);
-      if (data && data.length > 0 && !selectedClass) {
-        setSelectedClass(data[0]);
-        setFormData({
-          ...data[0],
-          start_date: formatDateForDisplay(data[0].start_date)
-        });
-      }
     } catch (error) {
       console.error('Error fetching classes:', error);
     } finally {

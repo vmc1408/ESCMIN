@@ -96,10 +96,6 @@ export function Subjects() {
     try {
       const data = await fetchAll('subjects', '*', 'name', true);
       setSubjects(data || []);
-      if (data && data.length > 0 && !selectedSubject) {
-        setSelectedSubject(data[0]);
-        setFormData(data[0]);
-      }
     } catch (error) {
       console.error('Error fetching subjects:', error);
     } finally {

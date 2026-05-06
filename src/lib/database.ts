@@ -157,15 +157,52 @@ export const fetchCount = async (collectionName: string, status?: string) => {
  */
 export const saveData = async (collectionName: string, id: string | undefined, data: any) => {
   const finalId = id || data.id || crypto.randomUUID();
-  const payload = { ...data, id: finalId };
+  let payload = { ...data, id: finalId };
 
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
     
-    const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payload));
-    if (result?.error) throw result.error;
+    // Use a loop to handle multiple potentially missing columns recursively
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (attempts < maxAttempts) {
+      const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payload));
+      
+      if (!result?.error) {
+        return finalId;
+      }
 
-    return finalId;
+      // Check if it's a missing column error
+      const errorMsg = result.error.message || '';
+      console.error(`[saveData] Supabase Error on "${collectionName}" (Attempt ${attempts + 1}):`, errorMsg);
+      
+      const isMissingCol = errorMsg.includes('column') && 
+                           (errorMsg.includes('not found') || 
+                            errorMsg.includes('schema cache') || 
+                            errorMsg.includes('does not exist') ||
+                            errorMsg.includes('missing'));
+
+      if (isMissingCol) {
+        const match = errorMsg.match(/['"](.+?)['"] column/) || 
+                      errorMsg.match(/column ['"](.+?)['"]/) ||
+                      errorMsg.match(/column (.+?) of/);
+        
+        if (match && match[1]) {
+          const missingCol = match[1].replace(/['"]/g, '');
+          console.warn(`[Supabase Fallback] Removendo coluna inexistente "${missingCol}" e tentando novamente.`);
+          
+          delete (payload as any)[missingCol];
+          attempts++;
+          continue; // Try again with cleaned payload
+        }
+      }
+      
+      // If not a missing column error or we couldn't identify the column, throw
+      throw result.error;
+    }
+
+    throw new Error(`Excedeu o limite de tentativas de fallback para a tabela ${collectionName}.`);
   } catch (err: any) {
     if (err.isTimeout || err.message?.includes('TIMEOUT')) {
        throw new Error(`Tempo esgotado ao salvar em ${collectionName}.`);

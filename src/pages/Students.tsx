@@ -160,7 +160,7 @@ const INITIAL_STUDENT_STATE: Partial<Student> = {
   address_state: 'SP',
   address_zip: '',
   parish: '',
-  forany: '',
+  forania: '',
   course: '',
   pastoral_participates: '',
   start_date: '',
@@ -375,7 +375,7 @@ export function Students() {
       address_state: student.address_state || 'SP',
       address_zip: student.address_zip || '',
       parish: student.parish || '',
-      forany: student.forany || '',
+      forania: student.forania || '',
       course: student.course || '',
       pastoral_participates: student.pastoral_participates || '',
       start_date: formatDateForDisplay(student.start_date),
@@ -742,7 +742,7 @@ export function Students() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-end gap-2">
                   <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Forania:</span>
-                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px] text-center">{selectedStudent.forany}</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px] text-center">{selectedStudent.forania}</span>
                 </div>
                 <div className="flex items-end gap-2">
                   <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Pastoral:</span>
@@ -1463,7 +1463,7 @@ export function Students() {
                             
                             if (parishData?.forania_id) {
                               const foraria = forariesList.find(f => f.id === parishData.forania_id);
-                              if (foraria) updates.forany = foraria.name;
+                              if (foraria) updates.forania = foraria.name;
                             }
                             
                             setFormData({...formData, ...updates});
@@ -1482,8 +1482,8 @@ export function Students() {
                         <label className="text-xs font-bold text-slate-700">Forania</label>
                         <select 
                           disabled={!isEditing}
-                          value={formData.forany || ''}
-                          onChange={(e) => setFormData({...formData, forany: e.target.value})}
+                          value={formData.forania || ''}
+                          onChange={(e) => setFormData({...formData, forania: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
                           tabIndex={16}
