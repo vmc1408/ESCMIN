@@ -114,7 +114,7 @@ export function Contributions() {
       } catch (e) {
         console.error("Print command failed, user can use manual button.", e);
       }
-    }, 300);
+    }, 600);
   };
 
   const fetchRecentContributions = async () => {
@@ -1791,13 +1791,13 @@ export function Contributions() {
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Matricula / Aluno(a)</p>
                           <p className="text-sm font-black text-[#00174b]">
-                            {((receiptPreviewData[0] as any).student || selectedStudent)?.registration_number || '---'} - {((receiptPreviewData[0] as any).student || selectedStudent)?.name || 'NOME NÃO ENCONTRADO'}
+                            {(receiptPreviewData?.[0] as any)?.student?.registration_number || selectedStudent?.registration_number || '---'} - {(receiptPreviewData?.[0] as any)?.student?.name || selectedStudent?.name || 'NOME NÃO ENCONTRADO'}
                           </p>
                         </div>
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Turma Acadêmica</p>
                           <p className="text-sm font-black text-[#00174b]">
-                            {classes.find(cl => cl.id === ((receiptPreviewData[0] as any).student || selectedStudent)?.class_id)?.code || '---'}
+                            {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.id || selectedStudent?.id))?.code || '---'}
                           </p>
                         </div>
                       </div>
@@ -1832,7 +1832,7 @@ export function Contributions() {
 
                       <div className="flex justify-between items-end pt-4">
                         <div className="space-y-1">
-                          <p className="text-[9px] font-bold text-slate-400">Data do Recebimento: {safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy')}</p>
+                          <p className="text-[9px] font-bold text-slate-400">Data do Recebimento: {receiptPreviewData?.[0]?.payment_date ? safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy') : '---'}</p>
                           <p className="text-[9px] font-bold text-slate-300">Emissão: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
                         </div>
                         <div className="text-center">
@@ -1873,9 +1873,9 @@ export function Contributions() {
       {/* Printable Area - THE ONLY THING VISIBLE DURING PRINT */}
       {receiptPreviewData && (
         <div className={cn(
-          "bg-white text-black p-0 m-0 w-full min-h-screen",
-          isPrinting ? "relative" : "hidden",
-          "print:block"
+          "bg-white text-black p-0 m-0 w-full min-h-screen z-[9999]",
+          isPrinting ? "fixed inset-0 overflow-y-auto bg-white" : "hidden",
+          "print:static print:block print:overflow-visible print:h-auto"
         )}>
           {/* Barra de Controle de Segurança (Não sai na impressão) */}
           <div className="print:hidden sticky top-0 left-0 w-full bg-slate-900 text-white p-4 flex flex-col sm:flex-row items-center justify-between z-[200] shadow-2xl gap-4">
@@ -1965,13 +1965,13 @@ export function Contributions() {
                     <div>
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Matricula / Aluno(a)</p>
                       <p className="text-xs font-black text-[#00174b]">
-                        {((receiptPreviewData[0] as any).student || selectedStudent)?.registration_number || '---'} - {((receiptPreviewData[0] as any).student || selectedStudent)?.name || 'NOME NÃO ENCONTRADO'}
+                        {(receiptPreviewData?.[0] as any)?.student?.registration_number || selectedStudent?.registration_number || '---'} - {(receiptPreviewData?.[0] as any)?.student?.name || selectedStudent?.name || 'NOME NÃO ENCONTRADO'}
                       </p>
                     </div>
                     <div>
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Turma Acadêmica</p>
                       <p className="text-xs font-black text-[#00174b]">
-                        {classes.find(cl => cl.id === ((receiptPreviewData[0] as any).student || selectedStudent)?.class_id)?.code || '---'}
+                        {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.id || selectedStudent?.id))?.code || '---'}
                       </p>
                     </div>
                   </div>
@@ -2006,7 +2006,7 @@ export function Contributions() {
 
                   <div className="flex justify-between items-end pt-2">
                     <div className="space-y-0.5">
-                      <p className="text-[8px] font-bold text-slate-400">Recebido em: {safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy')}</p>
+                      <p className="text-[8px] font-bold text-slate-400">Recebido em: {receiptPreviewData?.[0]?.payment_date ? safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy') : '---'}</p>
                       <p className="text-[8px] font-bold text-slate-300">Emitido: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
                     </div>
                     <div className="text-center">

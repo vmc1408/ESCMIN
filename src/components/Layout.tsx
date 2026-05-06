@@ -24,11 +24,11 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="min-h-screen bg-[#faf8ff] flex overflow-hidden">
+    <div className="min-h-screen bg-[#faf8ff] flex overflow-hidden print:overflow-visible print:h-auto">
       {/* Botão de Menu Mobile */}
       <button
         onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#00174b] text-white rounded-lg shadow-lg active:scale-90 transition-transform"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#00174b] text-white rounded-lg shadow-lg active:scale-90 transition-transform print:hidden"
       >
         <Menu size={20} />
       </button>
@@ -36,23 +36,25 @@ export function Layout() {
       {/* Overlay para fechar no Mobile */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden print:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar com classes responsivas */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 lg:relative lg:block transition-transform duration-300 ease-in-out",
+        "fixed inset-y-0 left-0 z-50 lg:relative lg:block transition-transform duration-300 ease-in-out print:hidden",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <Sidebar onClose={() => setIsSidebarOpen(false)} />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-4 custom-scrollbar">
-          <div className="max-w-[2400px] mx-auto">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:overflow-visible print:h-auto">
+        <div className="print:hidden">
+          <Navbar />
+        </div>
+        <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-4 custom-scrollbar print:overflow-visible print:p-0">
+          <div className="max-w-[2400px] mx-auto print:max-w-none">
             <Outlet />
           </div>
         </main>
