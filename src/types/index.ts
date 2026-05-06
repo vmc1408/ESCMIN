@@ -39,7 +39,7 @@ export interface Student {
   
   // Parochial/Course
   parish?: string;
-  forany?: string;
+  forania?: string;
   course?: string;
   pastoral_participates?: string;
   

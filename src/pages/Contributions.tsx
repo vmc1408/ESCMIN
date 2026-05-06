@@ -1760,10 +1760,10 @@ export function Contributions() {
                         "flex-1 space-y-1",
                         !institution?.logo_url && "text-center"
                       )}>
-                        <h4 className="text-xl font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name}</h4>
-                        <p className="text-[10px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address}</p>
+                        <h4 className="text-xl font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+                        <p className="text-[10px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address || 'Endereço não configurado'}</p>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] text-slate-400 font-bold uppercase tracking-wider pt-1">
-                          {institution?.cnpj && <span>CNPJ: {institution.cnpj}</span>}
+                          {institution?.cnpj ? <span>CNPJ: {institution.cnpj}</span> : <span>CNPJ não configurado</span>}
                           {institution?.phone && <span>TEL: {institution.phone}</span>}
                           {institution?.email && <span className="lowercase underline">email: {institution.email.toLowerCase()}</span>}
                         </div>
@@ -1791,7 +1791,7 @@ export function Contributions() {
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Matricula / Aluno(a)</p>
                           <p className="text-sm font-black text-[#00174b]">
-                            {((receiptPreviewData[0] as any).student || selectedStudent)?.registration_number} - {((receiptPreviewData[0] as any).student || selectedStudent)?.name}
+                            {((receiptPreviewData[0] as any).student || selectedStudent)?.registration_number || '---'} - {((receiptPreviewData[0] as any).student || selectedStudent)?.name || 'NOME NÃO ENCONTRADO'}
                           </p>
                         </div>
                         <div>
@@ -1814,7 +1814,7 @@ export function Contributions() {
                           <tbody>
                             {receiptPreviewData.map((reg) => (
                               <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                                <td className="py-2 px-4">{MONTHS[reg.reference_month - 1]} / {reg.reference_year}</td>
+                                <td className="py-2 px-4">{(MONTHS[reg.reference_month - 1] || 'N/I')} / {reg.reference_year}</td>
                                 <td className="py-2 px-4 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
                                 <td className="py-2 px-4 border-l border-slate-100 text-[9px] uppercase">{reg.payment_method || (reg.pix_id ? 'PIX' : 'Dinheiro')}</td>
                               </tr>
@@ -1965,7 +1965,7 @@ export function Contributions() {
                     <div>
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Matricula / Aluno(a)</p>
                       <p className="text-xs font-black text-[#00174b]">
-                        {((receiptPreviewData[0] as any).student || selectedStudent)?.registration_number} - {((receiptPreviewData[0] as any).student || selectedStudent)?.name}
+                        {((receiptPreviewData[0] as any).student || selectedStudent)?.registration_number || '---'} - {((receiptPreviewData[0] as any).student || selectedStudent)?.name || 'NOME NÃO ENCONTRADO'}
                       </p>
                     </div>
                     <div>
@@ -1988,7 +1988,7 @@ export function Contributions() {
                       <tbody>
                         {receiptPreviewData.map((reg) => (
                           <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                            <td className="py-1.5 px-3">{MONTHS[reg.reference_month - 1]} / {reg.reference_year}</td>
+                            <td className="py-1.5 px-3">{(MONTHS[reg.reference_month - 1] || 'N/I')} / {reg.reference_year}</td>
                             <td className="py-1.5 px-3 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
                             <td className="py-1.5 px-3 border-l border-slate-100 text-[8px] uppercase">{reg.payment_method || (reg.pix_id ? 'PIX' : 'Dinheiro')}</td>
                           </tr>
