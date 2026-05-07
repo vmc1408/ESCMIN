@@ -13,7 +13,9 @@ import {
   Calendar,
   FileText,
   Loader2,
-  Plus
+  Plus,
+  BookOpen,
+  Printer
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -38,8 +40,16 @@ interface Teacher {
   rg?: string;
   status: 'Ativo' | 'Inativo';
   observations?: string;
+  subject_ids?: string[];
   created_at: string;
   user_id: string;
+}
+
+interface Subject {
+  id: string;
+  code: string;
+  name: string;
+  status: 'Ativo' | 'Inativo';
 }
 
 // Masking helpers
@@ -116,7 +126,9 @@ const TeacherItem = React.memo(({
 
 export function Teachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inst, setInst] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
@@ -128,10 +140,16 @@ export function Teachers() {
   const fetchTeachers = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchAll('teachers', '*', 'name', true);
-      setTeachers(data || []);
+      const [teachersData, subjectsData, instData] = await Promise.all([
+        fetchAll('teachers', '*', 'name', true),
+        fetchAll('subjects', 'id, code, name, status', 'name', true),
+        fetchAll('institution_settings')
+      ]);
+      setTeachers(teachersData || []);
+      setSubjects(subjectsData || []);
+      if (instData && instData.length > 0) setInst(instData[0]);
     } catch (error) {
-      console.error('Error fetching teachers:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -263,12 +281,20 @@ export function Teachers() {
 
       doc.setFontSize(10);
       doc.setTextColor(0);
+      
+      // Get subject names
+      const teacherSubjects = subjects
+        .filter(s => teacher.subject_ids?.includes(s.id))
+        .map(s => s.name)
+        .join(', ');
+
       const personalData = [
         ['Nome:', teacher.name],
         ['Situação:', teacher.status],
         ['CPF:', teacher.cpf || '---'],
         ['RG:', teacher.rg || '---'],
-        ['E-mail:', teacher.email || '---']
+        ['E-mail:', teacher.email || '---'],
+        ['Disciplinas:', teacherSubjects || 'Nenhuma selecionada']
       ];
 
       autoTable(doc, {
@@ -321,6 +347,139 @@ export function Teachers() {
       console.error('Error generating teacher PDF:', error);
       alert('Erro ao gerar PDF do professor');
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const PrintableTeacher = () => {
+    if (!selectedTeacher) return null;
+    
+    // Get subject names
+    const teacherSubjects = subjects
+      .filter(s => selectedTeacher.subject_ids?.includes(s.id))
+      .map(s => s.name)
+      .join(', ');
+
+    return (
+      <div id="printable-teacher-record" className="hidden print:block text-black overflow-visible font-sans leading-tight">
+        <div className="w-full">
+          {/* HEADER SECTION - Left Aligned */}
+          <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black border-opacity-20">
+            {inst?.logo_url && (
+              <div className="flex-shrink-0">
+                <img src={inst.logo_url} className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
+              </div>
+            )}
+            <div className="flex-1 space-y-0.5">
+              <p className="text-[10pt] font-semibold tracking-wider text-left">DIOCESE DE GUARULHOS</p>
+              <h1 className="text-[18pt] font-bold uppercase tracking-tight text-black leading-none text-left">
+                {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+              </h1>
+              {inst?.subtitle && (
+                <p className="text-[11pt] font-bold uppercase text-blue-800 tracking-wider mt-1">{inst.subtitle}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="text-center mb-6">
+            <h2 className="text-[16pt] font-bold uppercase tracking-widest w-fit mx-auto pb-0.5 border-b-2 border-black">Ficha do Professor</h2>
+          </div>
+
+          {/* Teacher Info */}
+          <div className="grid grid-cols-12 gap-4 mb-6">
+            <div className="col-span-12 border border-black/20 p-4 rounded-xl space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Nome do Professor</p>
+                  <p className="text-[12pt] font-bold uppercase border-b border-black/10 pb-1">{selectedTeacher.name}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Código</p>
+                  <p className="text-[12pt] font-bold border-b border-black/10 pb-1">{selectedTeacher.code}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">CPF</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.cpf || '---'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">RG</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.rg || '---'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Situação</p>
+                  <p className="text-[10pt] font-bold border-b border-black/10 pb-1 uppercase">{selectedTeacher.status}</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase">Disciplinas Lecionadas</p>
+                <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{teacherSubjects || 'Nenhuma selecionada'}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">E-mail</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1 lowercase">{selectedTeacher.email || '---'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Celular</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.phone_mobile || '---'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-8 space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Endereço</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.address_street || '---'}</p>
+                </div>
+                <div className="col-span-4 space-y-1 text-right">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">CEP</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.address_zip || '---'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 space-y-1">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Cidade</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.address_city || '---'}</p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">UF</p>
+                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1 uppercase">{selectedTeacher.address_state || '---'}</p>
+                </div>
+              </div>
+
+              {selectedTeacher.observations && (
+                <div className="space-y-1 pt-2">
+                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Observações</p>
+                  <p className="text-[9pt] font-medium border border-black/10 p-3 rounded-lg bg-slate-50/30 whitespace-pre-wrap leading-relaxed">{selectedTeacher.observations}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-12 pt-12 flex justify-between items-end px-4">
+            <p className="text-[10pt] font-semibold text-slate-800">
+              Guarulhos, {new Date().toLocaleDateString('pt-BR')}
+            </p>
+            <div className="flex flex-col items-center">
+              <div className="w-[80mm] border-t border-black/40 mb-1"></div>
+              <p className="text-[9pt] font-semibold uppercase tracking-wider text-slate-700">Assinatura do Coordenador</p>
+            </div>
+          </div>
+
+          <div className="fixed bottom-8 left-0 w-full border-t border-black/10 pt-4 flex justify-between text-[8pt] text-slate-400 font-medium px-8">
+            <p>{inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - {inst?.address || ''}</p>
+            <p>Gerado em: {new Date().toLocaleString('pt-BR')}</p>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const filteredTeachers = React.useMemo(() => {
@@ -417,6 +576,15 @@ export function Teachers() {
                 </div>
               </div>
               <div className="flex gap-3">
+                {!isEditing && selectedTeacher && (
+                  <button 
+                    onClick={handlePrint}
+                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                  >
+                    <Printer size={16} />
+                    Imprimir
+                  </button>
+                )}
                 {!isEditing && selectedTeacher && (
                   <button 
                     onClick={() => generateTeacherPDF(selectedTeacher)}
@@ -650,6 +818,64 @@ export function Teachers() {
                     tabIndex={10}
                   />
                 </section>
+
+                {/* Subjects Selection */}
+                <section className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <BookOpen size={14} />
+                    Disciplinas Lecionadas
+                  </h4>
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    {subjects.length === 0 ? (
+                      <p className="text-xs text-slate-500 py-4 text-center">Nenhuma disciplina cadastrada no sistema.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {subjects.filter(s => s.status === 'Ativo' || (formData.subject_ids || []).includes(s.id)).map((subject) => (
+                          <label 
+                            key={subject.id}
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-all border border-transparent",
+                              (formData.subject_ids || []).includes(subject.id) 
+                                ? "bg-blue-50 border-blue-100 text-blue-700" 
+                                : "hover:bg-white hover:border-slate-200 text-slate-600",
+                              !isEditing && "cursor-default opacity-80"
+                            )}
+                          >
+                            <input 
+                              type="checkbox"
+                              disabled={!isEditing}
+                              checked={(formData.subject_ids || []).includes(subject.id)}
+                              onChange={(e) => {
+                                const current = formData.subject_ids || [];
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, subject_ids: [...current, subject.id] });
+                                } else {
+                                  setFormData({ ...formData, subject_ids: current.filter(id => id !== subject.id) });
+                                }
+                              }}
+                              className="hidden"
+                            />
+                            <div className={cn(
+                              "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                              (formData.subject_ids || []).includes(subject.id)
+                                ? "bg-blue-600 border-blue-600 text-white"
+                                : "bg-white border-slate-300"
+                            )}>
+                              {(formData.subject_ids || []).includes(subject.id) && <Plus size={10} className="stroke-[4]" />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold truncate">{subject.name}</p>
+                              <p className="text-[8px] text-slate-400 font-mono tracking-tighter">{subject.code}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {!isEditing && (formData.subject_ids || []).length === 0 && (
+                      <p className="text-xs text-slate-400 italic">Professor sem disciplinas vinculadas.</p>
+                    )}
+                  </div>
+                </section>
               </div>
             </div>
           </>
@@ -662,6 +888,7 @@ export function Teachers() {
           </div>
         )}
       </div>
+      <PrintableTeacher />
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedTeacher && (
