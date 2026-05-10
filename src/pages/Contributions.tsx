@@ -1939,17 +1939,17 @@ export function Contributions() {
             </div>
           </div>
 
-          <div className={cn("space-y-2 p-4 print:p-0", isPrinting && "pt-4 print:pt-0")}>
+          <div className={cn("space-y-2 p-4 print:p-0 print:space-y-0", isPrinting && "pt-4 print:pt-0")}>
             {[1, 2].map((via) => (
-              <div key={via} className="bg-white p-6 print:p-8 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:border-b print:border-dashed print:border-slate-300">
+              <div key={via} className="bg-white p-4 print:p-4 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:border-b print:border-dashed print:border-slate-300">
                 {/* Header Recibo */}
                 <div className={cn(
-                  "flex items-start mb-6 relative",
+                  "flex items-start mb-2 relative",
                   institution?.logo_url ? "gap-6" : "justify-center text-center"
                 )}>
                   {institution?.logo_url && (
                     <div className="shrink-0 pt-1">
-                      <img src={institution.logo_url} className="w-16 h-16 rounded-lg object-contain" referrerPolicy="no-referrer" />
+                      <img src={institution.logo_url} className="w-14 h-14 rounded-lg object-contain" referrerPolicy="no-referrer" />
                     </div>
                   )}
                   
@@ -1973,14 +1973,14 @@ export function Contributions() {
                   </div>
                 </div>
 
-                <div className="w-full h-px bg-slate-100 mb-6" />
+                <div className="w-full h-px bg-slate-100 mb-2" />
                 
-                <div className="text-center mb-6">
+                <div className="text-center mb-2">
                   <h2 className="text-lg font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">Recibo de Contribuição</h2>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-6 relative overflow-hidden">
+                <div className="space-y-2">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 grid grid-cols-2 gap-4 relative overflow-hidden">
                     <div className="absolute left-0 top-0 w-1 h-full bg-blue-600"></div>
                     <div>
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Matricula / Aluno(a)</p>
