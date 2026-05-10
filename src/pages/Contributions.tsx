@@ -274,7 +274,7 @@ export function Contributions() {
         return prev.filter(c => c.id !== contribution.id);
       } else {
         if (prev.length >= 6) {
-          setNotification({ type: 'info', message: 'Limite de 6 contribuições por recibo atingido.' });
+          setNotification({ type: 'error', message: '⚠️ AVISO: Limite máximo de 6 contribuições por recibo para manter a formatação em página única.' });
           return prev;
         }
         return [...prev, contribution];
@@ -356,7 +356,7 @@ export function Contributions() {
         return prev.filter(m => m !== monthIndex);
       }
       if (prev.length >= 6) {
-        setNotification({ type: 'info', message: 'Limite de 6 meses por lançamento atingido (para garantir recibo em página única).' });
+        setNotification({ type: 'error', message: '⚠️ LIMITE ATINGIDO: Selecione no máximo 6 meses por lançamento para garantir o recibo em duas vias na página.' });
         return prev;
       }
       return [...prev, monthIndex].sort((a, b) => a - b);
@@ -1381,7 +1381,7 @@ export function Contributions() {
                                               }
                                             });
                                             if (next.length >= 6 && addedCount < group.contributions.length) {
-                                              setNotification({ type: 'info', message: 'Alguns itens não puderam ser selecionados (limite de 6 por recibo).' });
+                                              setNotification({ type: 'error', message: '⚠️ ATENÇÃO: Apenas 6 itens permitidos por recibo. Nem todos os itens do grupo foram selecionados.' });
                                             }
                                             return next;
                                           });
@@ -1953,11 +1953,15 @@ export function Contributions() {
 
           <div id="printable-area" className={cn("space-y-2 p-4 print:p-0 print:space-y-0 print:h-full print:flex print:flex-col", isPrinting && "pt-4 print:pt-0")}>
             {[1, 2].map((via) => (
-              <div key={via} className="bg-white p-4 print:p-8 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:flex-1 print:flex print:flex-col print:justify-center">
+              <div key={via} className={cn(
+                "bg-white p-4 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:flex-1 print:flex print:flex-col print:justify-center",
+                via === 2 && "print:mt-12" // Lower via aluno to distance from cut line
+              )}>
                 <div>
                   {/* Header Recibo */}
                   <div className={cn(
-                    "flex items-start mb-4 relative",
+                    "flex items-start relative",
+                    via === 2 ? "mb-2" : "mb-4", // Reduced space for via aluno
                     institution?.logo_url ? "gap-6" : "justify-center text-center"
                   )}>
                     {institution?.logo_url && (
@@ -1978,18 +1982,18 @@ export function Contributions() {
                       </div>
                     </div>
                     
-                    <div className="absolute right-0 top-0 text-right h-full flex flex-col justify-center translate-x-4">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest vertical-rl rotate-180">
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 text-right translate-x-12 opacity-50">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">
                         {via === 1 ? 'VIA ESCOLA' : 'VIA ALUNO'}
                       </span>
                     </div>
                   </div>
 
-                <div className="w-full h-px bg-slate-100 mb-4" />
+                  <div className={cn("w-full h-px bg-slate-100", via === 2 ? "mb-2" : "mb-4")} />
                 
-                <div className="text-center mb-4">
-                  <h2 className="text-lg font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">Recibo de Contribuição</h2>
-                </div>
+                  <div className={cn("text-center", via === 2 ? "mb-3" : "mb-4")}>
+                    <h2 className="text-lg font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">Recibo de Contribuição</h2>
+                  </div>
 
                 <div className="space-y-3">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 grid grid-cols-2 gap-4 relative overflow-hidden">
