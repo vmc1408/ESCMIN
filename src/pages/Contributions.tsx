@@ -1880,11 +1880,14 @@ export function Contributions() {
 
       {/* Printable Area - THE ONLY THING VISIBLE DURING PRINT */}
       {receiptPreviewData && (
-        <div className={cn(
-          "bg-white text-black p-0 m-0 w-full min-h-screen z-[9999]",
-          isPrinting ? "fixed inset-0 overflow-y-auto bg-white" : "hidden",
-          "print:static print:block print:overflow-visible print:h-auto"
-        )}>
+        <div 
+          id="printable-contribution-receipt"
+          className={cn(
+            "bg-white text-black p-0 m-0 w-full min-h-screen z-[9999]",
+            isPrinting ? "fixed inset-0 overflow-y-auto bg-white" : "hidden",
+            "print:static print:block print:overflow-visible print:h-auto"
+          )}
+        >
           {/* Barra de Controle de Segurança (Não sai na impressão) */}
           <div className="print:hidden sticky top-0 left-0 w-full bg-slate-900 text-white p-4 flex flex-col sm:flex-row items-center justify-between z-[200] shadow-2xl gap-4">
             <div className="flex items-center gap-4">
