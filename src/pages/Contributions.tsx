@@ -273,8 +273,8 @@ export function Contributions() {
       if (isSelected) {
         return prev.filter(c => c.id !== contribution.id);
       } else {
-        if (prev.length >= 12) {
-          alert('Limite de 12 recibos por vez atingido.');
+        if (prev.length >= 6) {
+          setNotification({ type: 'info', message: 'Limite de 6 contribuições por recibo atingido.' });
           return prev;
         }
         return [...prev, contribution];
@@ -351,11 +351,16 @@ export function Contributions() {
   };
 
   const toggleManualMonth = (monthIndex: number) => {
-    setManualMonths(prev => 
-      prev.includes(monthIndex) 
-        ? prev.filter(m => m !== monthIndex) 
-        : [...prev, monthIndex].sort((a, b) => a - b)
-    );
+    setManualMonths(prev => {
+      if (prev.includes(monthIndex)) {
+        return prev.filter(m => m !== monthIndex);
+      }
+      if (prev.length >= 6) {
+        setNotification({ type: 'info', message: 'Limite de 6 meses por lançamento atingido (para garantir recibo em página única).' });
+        return prev;
+      }
+      return [...prev, monthIndex].sort((a, b) => a - b);
+    });
   };
 
   const saveManualContribution = async () => {
@@ -1368,10 +1373,17 @@ export function Contributions() {
                                         if (e.target.checked) {
                                           setSelectedForPrint(prev => {
                                             const next = [...prev];
+                                            let addedCount = 0;
                                             group.contributions.forEach((c: any) => {
-                                              if (!next.some(s => s.id === c.id)) next.push(c);
+                                              if (next.length < 6 && !next.some(s => s.id === c.id)) {
+                                                next.push(c);
+                                                addedCount++;
+                                              }
                                             });
-                                            return next.slice(0, 12);
+                                            if (next.length >= 6 && addedCount < group.contributions.length) {
+                                              setNotification({ type: 'info', message: 'Alguns itens não puderam ser selecionados (limite de 6 por recibo).' });
+                                            }
+                                            return next;
                                           });
                                         } else {
                                           const groupIds = group.contributions.map((c: any) => c.id);
