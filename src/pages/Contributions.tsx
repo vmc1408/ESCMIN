@@ -1960,8 +1960,7 @@ export function Contributions() {
                 <div>
                   {/* Header Recibo */}
                   <div className={cn(
-                    "flex items-start relative",
-                    via === 2 ? "mb-2" : "mb-4", // Reduced space for via aluno
+                    "flex items-start relative mb-2",
                     institution?.logo_url ? "gap-6" : "justify-center text-center"
                   )}>
                     {institution?.logo_url && (
@@ -1989,9 +1988,9 @@ export function Contributions() {
                     </div>
                   </div>
 
-                  <div className={cn("w-full h-px bg-slate-100", via === 2 ? "mb-2" : "mb-4")} />
+                  <div className="w-full h-px bg-slate-100 mb-2" />
                 
-                  <div className={cn("text-center", via === 2 ? "mb-3" : "mb-4")}>
+                  <div className="text-center mb-3">
                     <h2 className="text-lg font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">Recibo de Contribuição</h2>
                   </div>
 
