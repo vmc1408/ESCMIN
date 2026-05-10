@@ -2065,22 +2065,26 @@ export function Contributions() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-end pt-2 border-t border-slate-100 mt-3">
+                  <div className="w-full h-px bg-slate-100 my-4" />
+
+                  <div className="flex justify-between items-end pt-1">
                     <div className="space-y-0.5">
-                      <p className="text-[8px] font-bold text-slate-300">Emitido: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+                      <p className="text-[8px] font-bold text-slate-400">Emitido: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
                     </div>
                     <div className="text-center">
-                      <div className="w-48 border-b border-slate-300 mb-1"></div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Responsável / Tesouraria</p>
+                      <div className="w-48 border-b border-slate-400 mb-1"></div>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Responsável / Tesouraria</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {via === 1 && (
-                <div className="absolute left-0 -bottom-[1px] w-full flex items-center justify-center pointer-events-none z-10">
+                <div className="absolute left-0 -bottom-[1.5px] w-full flex items-center justify-center pointer-events-none z-10">
                   <div className="w-full border-b-2 border-dashed border-slate-300"></div>
-                  <span className="absolute bg-white px-5 text-[10px] font-black text-slate-400 uppercase py-1.5 border-2 border-slate-100 rounded-full shadow-sm tracking-[0.2em]">CORTE AQUI</span>
+                  <div className="absolute bg-white px-6 py-1.5 border-2 border-slate-200 rounded-full flex items-center gap-2 shadow-sm">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">CORTE AQUI</span>
+                  </div>
                 </div>
               )}
             </div>
