@@ -765,7 +765,7 @@ export function Students() {
             </div>
           </div>
 
-          <div className="text-[10.5pt] leading-normal mb-4 pt-1">
+          <div className="text-[10.5pt] leading-normal mb-10 pt-1">
             <div className="flex items-baseline mb-1 gap-2">
               <span className="font-bold uppercase">Eu,</span>
               <span className="flex-1 border-b border-black font-semibold uppercase px-2">{selectedStudent.name}</span>
@@ -776,13 +776,13 @@ export function Students() {
           </div>
 
           {/* DATE AND SIGNATURE */}
-          <div className="flex justify-between items-end mb-4 px-2">
-            <p className="text-[10.5pt] font-semibold text-slate-800">
+          <div className="flex flex-col gap-10 mt-12 mb-8 px-2">
+            <p className="text-[10.5pt] font-semibold text-slate-800 text-right">
               Guarulhos, <span>
                 {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
               </span>
             </p>
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center ml-auto">
               <div className="w-[80mm] border-t border-black/40 mb-1"></div>
               <p className="text-[9pt] font-semibold uppercase tracking-wider text-slate-700">Assinatura do Aluno(a)</p>
             </div>
