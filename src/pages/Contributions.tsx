@@ -1771,7 +1771,6 @@ export function Contributions() {
                         <h4 className="text-xl font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
                         <p className="text-[10px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address || 'Endereço não configurado'}</p>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] text-slate-400 font-bold uppercase tracking-wider pt-1">
-                          {institution?.cnpj ? <span>CNPJ: {institution.cnpj}</span> : <span>CNPJ não configurado</span>}
                           {institution?.phone && <span>TEL: {institution.phone}</span>}
                           {institution?.email && <span className="lowercase underline">email: {institution.email.toLowerCase()}</span>}
                         </div>
@@ -1929,9 +1928,9 @@ export function Contributions() {
             </div>
           </div>
 
-          <div className={cn("space-y-4 p-8", isPrinting && "pt-8")}>
+          <div className={cn("space-y-2 p-4 print:p-0", isPrinting && "pt-4 print:pt-0")}>
             {[1, 2].map((via) => (
-              <div key={via} className="bg-white p-8 border border-slate-200 rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-4">
+              <div key={via} className="bg-white p-6 print:p-8 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:border-b print:border-dashed print:border-slate-300">
                 {/* Header Recibo */}
                 <div className={cn(
                   "flex items-start mb-6 relative",
@@ -1950,7 +1949,6 @@ export function Contributions() {
                     <h4 className="text-lg font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
                     <p className="text-[9px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170'}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-                      {institution?.cnpj && <span>CNPJ: {institution.cnpj}</span>}
                       {institution?.phone && <span>TEL: {institution.phone}</span>}
                       {institution?.whatsapp && institution?.whatsapp !== institution?.phone && <span>WHATSAPP: {institution.whatsapp}</span>}
                       {institution?.email && <span className="lowercase">EMAIL: {institution.email.toLowerCase()}</span>}
