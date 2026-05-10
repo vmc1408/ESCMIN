@@ -1939,18 +1939,18 @@ export function Contributions() {
             </div>
           </div>
 
-          <div className={cn("space-y-2 p-4 print:p-0 print:space-y-0", isPrinting && "pt-4 print:pt-0")}>
+          <div id="printable-area" className={cn("space-y-2 p-4 print:p-0 print:space-y-0 print:h-full print:flex print:flex-col", isPrinting && "pt-4 print:pt-0")}>
             {[1, 2].map((via) => (
-              <div key={via} className="bg-white p-4 print:p-6 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:border-b print:border-dashed print:border-slate-300 last:print:border-b-0">
+              <div key={via} className="bg-white p-4 print:p-10 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:flex-1 print:flex print:flex-col print:justify-center">
                 <div>
                   {/* Header Recibo */}
                   <div className={cn(
-                    "flex items-start mb-3 relative",
-                    institution?.logo_url ? "gap-6" : "justify-center text-center"
+                    "flex items-start mb-6 relative",
+                    institution?.logo_url ? "gap-8" : "justify-center text-center"
                   )}>
                     {institution?.logo_url && (
                       <div className="shrink-0 pt-1">
-                        <img src={institution.logo_url} className="w-16 h-16 rounded-lg object-contain" referrerPolicy="no-referrer" />
+                        <img src={institution.logo_url} className="w-20 h-20 rounded-xl object-contain" referrerPolicy="no-referrer" />
                       </div>
                     )}
                     
@@ -1958,45 +1958,45 @@ export function Contributions() {
                       "flex-1 space-y-1",
                       !institution?.logo_url && "text-center"
                     )}>
-                      <h4 className="text-xl font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
-                      <p className="text-[10px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170'}</p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                      <h4 className="text-2xl font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+                      <p className="text-[11px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170'}</p>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                         {institution?.phone && <span>TEL: {institution.phone}</span>}
                         {institution?.email && <span className="lowercase">EMAIL: {institution.email.toLowerCase()}</span>}
                       </div>
                     </div>
                     
                     <div className="absolute right-0 top-0 text-right h-full flex flex-col justify-center translate-x-4">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest vertical-rl rotate-180">
+                      <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest vertical-rl rotate-180">
                         {via === 1 ? 'VIA ESCOLA' : 'VIA ALUNO'}
                       </span>
                     </div>
                   </div>
 
-                <div className="w-full h-px bg-slate-100 mb-3" />
+                <div className="w-full h-px bg-slate-100 mb-6" />
                 
-                <div className="text-center mb-4">
-                  <h2 className="text-lg font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">Recibo de Contribuição</h2>
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl font-black text-[#00174b] uppercase tracking-[0.3em] inline-block border-b-2 border-[#00174b] pb-1">Recibo de Contribuição</h2>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 grid grid-cols-2 gap-4 relative overflow-hidden">
-                    <div className="absolute left-0 top-0 w-1.5 h-full bg-blue-600"></div>
+                <div className="space-y-4">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-6 relative overflow-hidden">
+                    <div className="absolute left-0 top-0 w-2 h-full bg-blue-600"></div>
                     <div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Matricula / Aluno(a)</p>
-                      <p className="text-xs font-black text-[#00174b]">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Matricula / Aluno(a)</p>
+                      <p className="text-sm font-black text-[#00174b]">
                         {(receiptPreviewData?.[0] as any)?.student?.registration_number || selectedStudent?.registration_number || '---'} - {(receiptPreviewData?.[0] as any)?.student?.name || selectedStudent?.name || 'NOME NÃO ENCONTRADO'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Turma Acadêmica</p>
-                      <p className="text-xs font-black text-[#00174b]">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Turma Acadêmica</p>
+                      <p className="text-sm font-black text-[#00174b]">
                         {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.id || selectedStudent?.id))?.code || '---'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     {[0, 1].map((colIndex) => {
                       const half = Math.ceil(receiptPreviewData.length / 2);
                       const items = colIndex === 0 
@@ -2004,21 +2004,21 @@ export function Contributions() {
                         : receiptPreviewData.slice(half);
                       
                       return (
-                        <div key={colIndex} className="border border-slate-200 rounded-xl overflow-hidden min-h-[120px]">
+                        <div key={colIndex} className="border border-slate-200 rounded-xl overflow-hidden min-h-[140px]">
                           <table className="w-full text-xs text-center h-full">
                             <thead className="bg-slate-50 border-b border-slate-200">
                               <tr>
-                                <th className="py-2 px-2 font-black text-slate-500 uppercase leading-none text-[8px]">Mês / Ano</th>
-                                <th className="py-2 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[8px]">Valor</th>
-                                <th className="py-2 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[8px]">Data Pagto.</th>
+                                <th className="py-2.5 px-2 font-black text-slate-500 uppercase leading-none text-[9px]">Mês / Ano</th>
+                                <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Valor</th>
+                                <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Data Pagto.</th>
                               </tr>
                             </thead>
                             <tbody>
                               {items.map((reg) => (
                                 <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                                  <td className="py-1 px-2 text-[9px]">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
-                                  <td className="py-1 px-2 border-l border-slate-100 text-[9px]">{formatCurrency(reg.amount)}</td>
-                                  <td className="py-1 px-2 border-l border-slate-100 text-[#00174b] text-[9px]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
+                                  <td className="py-2 px-2 text-[10px]">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
+                                  <td className="py-2 px-2 border-l border-slate-100 text-[10px]">{formatCurrency(reg.amount)}</td>
+                                  <td className="py-2 px-2 border-l border-slate-100 text-[#00174b] text-[10px]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -2028,27 +2028,36 @@ export function Contributions() {
                     })}
                   </div>
 
-                  <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-100 flex justify-between items-center px-4">
-                    <span className="text-[9px] font-black text-blue-900 uppercase">Total das Contribuições</span>
-                    <span className="text-lg font-black text-blue-900">{formatCurrency(receiptPreviewData.reduce((acc, c) => acc + c.amount, 0))}</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col justify-center px-4 min-h-[60px]">
+                      <span className="text-[8px] font-black text-slate-400 uppercase mb-1">Mensagem / Aviso de Recibo</span>
+                      <p className="text-[9px] font-semibold text-slate-600 leading-tight">
+                        {institution?.receipt_message || 'Contribuição recebida com gratidão para o desenvolvimento da escola.'}
+                      </p>
+                    </div>
+                    <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex justify-between items-center px-6">
+                      <span className="text-[10px] font-black text-blue-900 uppercase">Total das Contribuições</span>
+                      <span className="text-xl font-black text-blue-900">{formatCurrency(receiptPreviewData.reduce((acc, c) => acc + c.amount, 0))}</span>
+                    </div>
                   </div>
 
-                  <div className="flex justify-between items-end pt-2">
-                    <div className="space-y-0.5">
-                      <p className="text-[9px] font-bold text-slate-400">Recebido em: {receiptPreviewData?.[0]?.payment_date ? safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy') : '---'}</p>
-                      <p className="text-[8px] font-bold text-slate-300">Emitido: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+                  <div className="flex justify-between items-end pt-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400">Recebido em: {receiptPreviewData?.[0]?.payment_date ? safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy') : '---'}</p>
+                      <p className="text-[9px] font-bold text-slate-300">Emitido: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
                     </div>
                     <div className="text-center">
-                      <div className="w-48 border-b border-slate-300 mb-1"></div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Responsável / Tesouraria</p>
+                      <div className="w-56 border-b border-slate-300 mb-1"></div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Responsável / Tesouraria</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {via === 1 && (
-                <div className="absolute left-0 bottom-0 w-full h-[1px] border-b border-dashed border-slate-300 flex items-center justify-center">
-                  <span className="bg-white px-2 text-[6px] font-black text-slate-300 uppercase -translate-y-[1px]">Corte Aqui</span>
+                <div className="absolute left-0 bottom-0 w-full flex items-center justify-center">
+                  <div className="w-full border-b border-dashed border-slate-300"></div>
+                  <span className="absolute bg-white px-2 text-[7px] font-black text-slate-300 uppercase">Corte Aqui</span>
                 </div>
               )}
             </div>
