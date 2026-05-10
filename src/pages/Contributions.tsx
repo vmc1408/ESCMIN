@@ -1941,56 +1941,56 @@ export function Contributions() {
 
           <div id="printable-area" className={cn("space-y-2 p-4 print:p-0 print:space-y-0 print:h-full print:flex print:flex-col", isPrinting && "pt-4 print:pt-0")}>
             {[1, 2].map((via) => (
-              <div key={via} className="bg-white p-4 print:p-10 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:flex-1 print:flex print:flex-col print:justify-center">
+              <div key={via} className="bg-white p-4 print:p-8 border border-slate-200 print:border-none rounded-lg relative overflow-hidden break-inside-avoid shadow-none mb-2 print:mb-0 print:flex-1 print:flex print:flex-col print:justify-center">
                 <div>
                   {/* Header Recibo */}
                   <div className={cn(
-                    "flex items-start mb-6 relative",
-                    institution?.logo_url ? "gap-8" : "justify-center text-center"
+                    "flex items-start mb-4 relative",
+                    institution?.logo_url ? "gap-6" : "justify-center text-center"
                   )}>
                     {institution?.logo_url && (
                       <div className="shrink-0 pt-1">
-                        <img src={institution.logo_url} className="w-20 h-20 rounded-xl object-contain" referrerPolicy="no-referrer" />
+                        <img src={institution.logo_url} className="w-16 h-16 rounded-xl object-contain" referrerPolicy="no-referrer" />
                       </div>
                     )}
                     
                     <div className={cn(
-                      "flex-1 space-y-1",
+                      "flex-1 space-y-0.5",
                       !institution?.logo_url && "text-center"
                     )}>
-                      <h4 className="text-2xl font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
-                      <p className="text-[11px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170'}</p>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      <h4 className="text-lg font-black text-[#00174b] uppercase tracking-tight leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+                      <p className="text-[9px] text-slate-500 font-bold max-w-sm leading-relaxed">{institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170'}</p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[8px] text-slate-400 font-bold uppercase tracking-wider">
                         {institution?.phone && <span>TEL: {institution.phone}</span>}
                         {institution?.email && <span className="lowercase">EMAIL: {institution.email.toLowerCase()}</span>}
                       </div>
                     </div>
                     
                     <div className="absolute right-0 top-0 text-right h-full flex flex-col justify-center translate-x-4">
-                      <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest vertical-rl rotate-180">
+                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest vertical-rl rotate-180">
                         {via === 1 ? 'VIA ESCOLA' : 'VIA ALUNO'}
                       </span>
                     </div>
                   </div>
 
-                <div className="w-full h-px bg-slate-100 mb-6" />
+                <div className="w-full h-px bg-slate-100 mb-4" />
                 
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-black text-[#00174b] uppercase tracking-[0.3em] inline-block border-b-2 border-[#00174b] pb-1">Recibo de Contribuição</h2>
+                <div className="text-center mb-4">
+                  <h2 className="text-lg font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-2 border-[#00174b] pb-0.5">Recibo de Contribuição</h2>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-6 relative overflow-hidden">
-                    <div className="absolute left-0 top-0 w-2 h-full bg-blue-600"></div>
+                <div className="space-y-3">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 grid grid-cols-2 gap-4 relative overflow-hidden">
+                    <div className="absolute left-0 top-0 w-1.5 h-full bg-blue-600"></div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Matricula / Aluno(a)</p>
-                      <p className="text-sm font-black text-[#00174b]">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Matricula / Aluno(a)</p>
+                      <p className="text-xs font-black text-[#00174b]">
                         {(receiptPreviewData?.[0] as any)?.student?.registration_number || selectedStudent?.registration_number || '---'} - {(receiptPreviewData?.[0] as any)?.student?.name || selectedStudent?.name || 'NOME NÃO ENCONTRADO'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Turma Acadêmica</p>
-                      <p className="text-sm font-black text-[#00174b]">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Turma Acadêmica</p>
+                      <p className="text-xs font-black text-[#00174b]">
                         {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.id || selectedStudent?.id))?.code || '---'}
                       </p>
                     </div>

@@ -58,12 +58,11 @@
       width: 210mm !important;
       height: 297mm !important;
       margin: 0 !important;
-      padding: 12mm !important;
+      padding: 8mm !important;
       background: white !important;
       z-index: 9999 !important;
       display: flex !important;
       flex-direction: column !important;
-      justify-content: space-between !important;
     }
 
     /* Target specific UI to remove them from document flow */
