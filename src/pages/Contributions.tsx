@@ -93,6 +93,15 @@ export function Contributions() {
     };
   }, [selectedStudent, selectedYear]);
 
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   const triggerDirectPrint = (data: Contribution[]) => {
     // 1. Sort data chronologically: Year ASC, then Month ASC
     const sortedData = [...data].sort((a, b) => {
