@@ -172,22 +172,36 @@ if (isSupabaseConfigured) {
  * Esta função ajuda a manter os dados do usuário sincronizados com a tabela de perfis no Postgres.
  */
 export const syncUserWithSupabase = async (userData: { uid: string; email: string | null; displayName: string | null }) => {
-  if (!supabaseUrl || !supabaseAnonKey) return;
+  if (!isSupabaseConfigured) return;
 
-  const { data, error } = await supabase
-    .from('users')
-    .upsert({
-      id: userData.uid,
-      email: userData.email,
-      full_name: userData.displayName,
-    });
+  try {
+    const result = await fetchWithTimeout(
+      supabase
+        .from('users')
+        .upsert({
+          id: userData.uid,
+          email: userData.email,
+          full_name: userData.displayName,
+        })
+    );
 
-  if (error) {
+    if (result?.error) {
+      if (result.error.message?.includes('Failed to fetch')) {
+        console.warn('[Supabase] Erro de rede ao sincronizar usuário (Ignorado)');
+        return null;
+      }
+      throw result.error;
+    }
+
+    return result?.data;
+  } catch (error: any) {
+    if (error.message?.includes('Failed to fetch')) {
+      console.warn('[Supabase] Erro de rede ao sincronizar usuário (Ignorado)');
+      return null;
+    }
     console.error('Erro ao sincronizar com Supabase:', error.message);
     throw error;
   }
-
-  return data;
 };
 
 /**

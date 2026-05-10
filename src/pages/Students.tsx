@@ -592,7 +592,7 @@ export function Students() {
 
           {/* TOP CONTROL BOXES */}
           <div className="grid grid-cols-12 gap-3 mb-4">
-            <div className="col-span-4 border border-black/40 p-2 flex flex-col h-32">
+            <div className="col-span-4 border border-black/40 p-2 flex flex-col h-[4cm]">
               <p className="text-[10pt] font-semibold border-b border-black/10 pb-0.5 mb-2">Controle da Escola</p>
               <div className="flex-1 flex flex-col justify-center items-center">
                 <p className="text-[9pt] font-semibold mb-1 uppercase opacity-40 text-center">Matrícula</p>
@@ -602,7 +602,7 @@ export function Students() {
               </div>
             </div>
 
-            <div className="col-span-5 border border-black/40 p-2 h-32 flex flex-col">
+            <div className="col-span-5 border border-black/40 p-2 h-[4cm] flex flex-col">
               <p className="text-[9pt] font-bold mb-2 uppercase border-b border-black/10 pb-0.5">CURSO:</p>
               <div className="flex-1 flex flex-col justify-center gap-1">
                 {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
@@ -640,14 +640,16 @@ export function Students() {
               </div>
             </div>
 
-            <div className="col-span-3 border border-black/40 flex items-center justify-center relative bg-white h-32">
-              {selectedStudent.photo_url ? (
-                <img src={selectedStudent.photo_url} className="w-full h-full object-cover p-0.5" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="text-center text-black/10 uppercase">
-                  <p className="text-[7pt] font-bold leading-tight tracking-tighter">FOTO 3X4</p>
-                </div>
-              )}
+            <div className="col-span-3 flex justify-end">
+              <div className="border border-black/40 flex items-center justify-center relative bg-white w-[3cm] h-[4cm]">
+                {selectedStudent.photo_url ? (
+                  <img src={selectedStudent.photo_url} className="w-full h-full object-cover p-0.5" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="text-center text-black/10 uppercase">
+                    <p className="text-[7pt] font-bold leading-tight tracking-tighter">FOTO 3X4</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

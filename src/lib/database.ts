@@ -69,8 +69,8 @@ export const fetchById = async (collectionName: string, id: string) => {
     if (error) throw error;
     return data;
   } catch (err: any) {
-    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
-      console.warn(`[Supabase] Timeout ao buscar em ${collectionName} ID ${id}`);
+    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
+      console.warn(`[Supabase] Erro de rede ou timeout ao buscar em ${collectionName} ID ${id}`);
       return null;
     }
     console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err.message);
@@ -114,8 +114,8 @@ export const fetchQuery = async (
     if (result?.error) throw result.error;
     return result?.data || [];
   } catch (err: any) {
-    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
-      console.warn(`[Supabase] Timeout na query em ${collectionName}`);
+    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
+      console.warn(`[Supabase] Erro de rede ou timeout na query em ${collectionName}`);
       return [];
     }
     console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, err.message);
@@ -143,8 +143,8 @@ export const fetchCount = async (collectionName: string, status?: string) => {
     
     return result?.count || 0;
   } catch (err: any) {
-    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
-      console.warn(`[Supabase] Timeout ao contar em ${collectionName}`);
+    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
+      console.warn(`[Supabase] Erro de rede ou timeout ao contar em ${collectionName}`);
       return 0;
     }
     console.error(`[Supabase] Erro ao contar em ${collectionName}:`, err.message);
