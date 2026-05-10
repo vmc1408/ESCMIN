@@ -2065,9 +2065,8 @@ export function Contributions() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-end pt-1">
+                  <div className="flex justify-between items-end pt-2 border-t border-slate-100 mt-3">
                     <div className="space-y-0.5">
-                      <p className="text-[9px] font-bold text-slate-400">Recebido em: {receiptPreviewData?.[0]?.payment_date ? safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy') : '---'}</p>
                       <p className="text-[8px] font-bold text-slate-300">Emitido: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
                     </div>
                     <div className="text-center">
@@ -2080,8 +2079,8 @@ export function Contributions() {
 
               {via === 1 && (
                 <div className="absolute left-0 -bottom-[1px] w-full flex items-center justify-center pointer-events-none z-10">
-                  <div className="w-full border-b-[1.5px] border-dashed border-slate-300"></div>
-                  <span className="absolute bg-white px-4 text-[9px] font-black text-slate-400 uppercase py-1 border-2 border-slate-100 rounded-full shadow-sm tracking-widest">CORTE AQUI</span>
+                  <div className="w-full border-b-2 border-dashed border-slate-300"></div>
+                  <span className="absolute bg-white px-5 text-[10px] font-black text-slate-400 uppercase py-1.5 border-2 border-slate-100 rounded-full shadow-sm tracking-[0.2em]">CORTE AQUI</span>
                 </div>
               )}
             </div>
