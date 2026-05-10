@@ -1990,8 +1990,8 @@ export function Contributions() {
                       </div>
                     </div>
                     
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 text-right translate-x-12 opacity-50">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">
+                    <div className="absolute right-4 top-4 opacity-40">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                         {via === 1 ? 'VIA ESCOLA' : 'VIA ALUNO'}
                       </span>
                     </div>
@@ -2079,9 +2079,9 @@ export function Contributions() {
               </div>
 
               {via === 1 && (
-                <div className="absolute left-0 -bottom-[1px] w-full flex items-center justify-center pointer-events-none">
-                  <div className="w-full border-b border-dashed border-slate-400"></div>
-                  <span className="absolute bg-white px-3 text-[8px] font-black text-slate-400 uppercase py-0.5 border border-slate-200 rounded-full shadow-sm">CORTE AQUI</span>
+                <div className="absolute left-0 -bottom-[1px] w-full flex items-center justify-center pointer-events-none z-10">
+                  <div className="w-full border-b-[1.5px] border-dashed border-slate-300"></div>
+                  <span className="absolute bg-white px-4 text-[9px] font-black text-slate-400 uppercase py-1 border-2 border-slate-100 rounded-full shadow-sm tracking-widest">CORTE AQUI</span>
                 </div>
               )}
             </div>
