@@ -26,12 +26,22 @@ interface Class {
   room?: string;
   status: 'Ativo' | 'Inativo';
   days_of_week: string[];
+  year?: string;
   semester: string;
+  subject_ids?: string[];
   start_date?: string;
   period: 'Manhã' | 'Tarde' | 'Noite';
   observations?: string;
   created_at: string;
   user_id: string;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
+  year?: string;
+  semester?: string;
 }
 
 const DAYS = [
@@ -43,8 +53,6 @@ const DAYS = [
   { label: 'Sábado', value: 'Sábado' },
   { label: 'Domingo', value: 'Domingo' },
 ];
-
-const SEMESTERS = ['1º Semestre', '2º Semestre', '3º Semestre', '4º Semestre'];
 
 const formatToISODate = (dateStr: string | undefined): string => {
   if (!dateStr) return '';
@@ -63,11 +71,13 @@ const ClassItem = React.memo(({
   cls, 
   isSelected, 
   onSelect, 
+  subjects,
   className 
 }: { 
   cls: Class, 
   isSelected: boolean, 
   onSelect: (c: Class) => void,
+  subjects: Subject[],
   className?: string
 }) => {
   return (
@@ -101,8 +111,24 @@ const ClassItem = React.memo(({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
           <span className="font-medium">{cls.period}</span>
           <span className="text-slate-300">•</span>
+          <span className="font-medium">{cls.year}</span>
+          <span className="text-slate-300">•</span>
           <span className="font-medium">{cls.semester}</span>
-          {cls.start_date && (
+        </div>
+        {cls.subject_ids && cls.subject_ids.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {cls.subject_ids.map(sid => {
+              const subject = subjects.find(s => s.id === sid);
+              if (!subject) return null;
+              return (
+                <span key={sid} className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100 text-[9px] font-bold">
+                  {subject.name}
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {cls.start_date && (
             <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 text-[10px] font-black uppercase">
               <Calendar size={10} />
               Início: {cls.start_date.includes('T') ? cls.start_date.split('T')[0].split('-').reverse().join('/') : 
@@ -110,7 +136,6 @@ const ClassItem = React.memo(({
                       cls.start_date}
             </div>
           )}
-        </div>
       </div>
     </button>
   );
@@ -118,6 +143,7 @@ const ClassItem = React.memo(({
 
 export function Classes() {
   const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
@@ -129,6 +155,7 @@ export function Classes() {
     status: 'Ativo',
     days_of_week: [],
     period: 'Tarde',
+    year: '1º Ano',
     semester: '1º Semestre',
     start_date: ''
   });
@@ -143,14 +170,69 @@ export function Classes() {
   const fetchClasses = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchAll('classes', '*', 'name', true);
-      setClasses(data || []);
+      const [classesData, subjectsData] = await Promise.all([
+        fetchAll('classes', '*', 'name', true),
+        fetchAll('subjects', 'id, name, code, year, semester, program_content', 'name', true)
+      ]);
+      
+      const normalizedSubjects = (subjectsData || []).map((s: any) => {
+        let normalized = { ...s };
+        if ((!normalized.year || !normalized.semester) && normalized.program_content) {
+          const match = normalized.program_content.match(/\[METADATA:(.+?)\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.year) normalized.year = meta.year;
+              if (!normalized.semester) normalized.semester = meta.semester;
+            } catch (e) {}
+          }
+        }
+        return normalized;
+      });
+
+      const normalizedClasses = (classesData || []).map((cls: Class) => {
+        let normalized = { ...cls };
+        
+        // Normalize subject_ids (could be single ID from subject_id column or JSON string, or array)
+        let sIds: string[] = [];
+        if (Array.isArray((normalized as any).subject_ids)) {
+          sIds = (normalized as any).subject_ids;
+        } else if (typeof (normalized as any).subject_ids === 'string') {
+          try {
+            const parsed = JSON.parse((normalized as any).subject_ids);
+            sIds = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
+          }
+        } else if ((normalized as any).subject_id) {
+          sIds = [(normalized as any).subject_id];
+        }
+
+        if ((!normalized.year || !normalized.semester || sIds.length === 0) && normalized.observations) {
+          const match = normalized.observations.match(/\[METADATA:(.+?)\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.year) normalized.year = meta.year;
+              if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
+              if (sIds.length === 0 && (meta.subject_ids || meta.subject_id)) {
+                sIds = meta.subject_ids || [meta.subject_id];
+              }
+            } catch (e) {}
+          }
+        }
+        normalized.subject_ids = sIds;
+        return normalized;
+      });
+
+      setClasses(normalizedClasses);
+      setSubjects(normalizedSubjects);
     } catch (error) {
       console.error('Error fetching classes:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedClass]);
+  }, []);
 
   useEffect(() => {
     fetchClasses();
@@ -173,8 +255,10 @@ export function Classes() {
       status: 'Ativo',
       days_of_week: [],
       period: 'Tarde',
+      year: '1º Ano',
       start_date: '',
-      semester: '1º Semestre'
+      semester: '1º Semestre',
+      subject_ids: []
     });
     setIsEditing(true);
   };
@@ -191,18 +275,35 @@ export function Classes() {
 
   const handleSave = async () => {
     try {
-      const dataToSave = {
+      setLoading(true);
+      
+      const syncData = {
         ...formData,
         start_date: parseDateToDB(formData.start_date)
       };
-      const savedId = await saveData('classes', selectedClass?.id, dataToSave);
+
+      // PROACTIVE METADATA SYNC:
+      // Always sync year, semester and subject_ids into observations metadata 
+      // before saving. This ensures data persistence even if Supabase columns are missing.
+      const metadata: any = {};
+      if (formData.year) metadata.year = formData.year;
+      if (formData.semester) metadata.semester = formData.semester;
+      if (formData.subject_ids) metadata.subject_ids = formData.subject_ids;
+      
+      if (Object.keys(metadata).length > 0) {
+        const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
+        let cleanObs = (syncData.observations || '').replace(/\[METADATA:.+?\]/, '').trim();
+        syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
+      }
+
+      const savedId = await saveData('classes', selectedClass?.id, syncData);
       
       setIsEditing(false);
       // Wait for refresh
       await fetchClasses();
       
       // Update local state with the saved data to ensure UI sync
-      const updatedData = { ...formData, id: savedId } as Class;
+      const updatedData = { ...syncData, id: savedId } as Class;
       setSelectedClass(updatedData);
       setFormData(updatedData);
       
@@ -210,6 +311,8 @@ export function Classes() {
     } catch (error: any) {
       console.error('Error saving class:', error);
       alert('Erro ao salvar turma: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -318,6 +421,7 @@ export function Classes() {
             <ClassItem
               key={cls.id}
               cls={cls}
+              subjects={subjects}
               isSelected={selectedClass?.id === cls.id}
               onSelect={handleSelectClass}
             />
@@ -405,6 +509,96 @@ export function Classes() {
                     Informações da Turma
                   </h4>
                   <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-12 grid grid-cols-12 gap-3 pb-2">
+                       <div className="col-span-8 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Ano Letivo</label>
+                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
+                          {['1º Ano', '2º Ano', '3º Ano', '4º Ano'].map((year) => (
+                            <button
+                              key={year}
+                              type="button"
+                              disabled={!isEditing}
+                              onClick={() => setFormData({...formData, year})}
+                              className={cn(
+                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                formData.year === year 
+                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                              )}
+                            >
+                              {year}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-span-4 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Semestre</label>
+                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
+                          {['1º Semestre', '2º Semestre'].map((sem) => (
+                            <button
+                              key={sem}
+                              type="button"
+                              disabled={!isEditing}
+                              onClick={() => setFormData({...formData, semester: sem})}
+                              className={cn(
+                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                formData.semester === sem 
+                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                              )}
+                            >
+                              {sem === '1º Semestre' ? '1º Sem.' : '2º Sem.'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="col-span-12 space-y-2">
+                      <label className="text-xs font-bold text-slate-700">Disciplinas (Até 2 por Semestre)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[0, 1].map((index) => (
+                          <select 
+                            key={index}
+                            disabled={!isEditing}
+                            value={formData.subject_ids?.[index] || ''}
+                            onChange={(e) => {
+                              const newIds = [...(formData.subject_ids || [])];
+                              newIds[index] = e.target.value;
+                              setFormData({...formData, subject_ids: newIds.filter(Boolean)});
+                            }}
+                            className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          >
+                            <option value="">{index === 0 ? '1ª Disciplina...' : '2ª Disciplina (Opcional)...'}</option>
+                            {subjects
+                              .filter(s => {
+                                const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                                const matchesYear = !formData.year || !s.year || s.year === formData.year;
+                                const matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
+                                return matchesYear && matchesSemester;
+                              })
+                              .map(subject => (
+                                <option 
+                                  key={subject.id} 
+                                  value={subject.id}
+                                  disabled={formData.subject_ids?.includes(subject.id) && formData.subject_ids[index] !== subject.id}
+                                >
+                                  [{subject.code}] {subject.name}
+                                </option>
+                              ))}
+                          </select>
+                        ))}
+                      </div>
+                      {subjects.filter(s => {
+                        const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                        const matchesYear = !formData.year || !s.year || s.year === formData.year;
+                        const matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
+                        return matchesYear && matchesSemester;
+                      }).length === 0 && (
+                        <p className="text-[10px] text-amber-600 font-medium mt-1">Nenhuma disciplina cadastrada para este Ano/Semestre.</p>
+                      )}
+                    </div>
+
                     <div className="col-span-3 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Turma (Código)</label>
                       <input 
@@ -468,20 +662,7 @@ export function Classes() {
                         tabIndex={5}
                       />
                     </div>
-                    <div className="col-span-4 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Semestre</label>
-                      <select 
-                        disabled={!isEditing}
-                        value={formData.semester || ''}
-                        onChange={(e) => setFormData({...formData, semester: e.target.value})}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                        tabIndex={6}
-                      >
-                        <option value="">Selecione...</option>
-                        {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
+                    {/* Semester and Period below */}
                     <div className="col-span-4 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Período</label>
                       <div className="flex gap-2">
@@ -539,7 +720,7 @@ export function Classes() {
                   </h4>
                   <textarea 
                     disabled={!isEditing}
-                    value={formData.observations || ''}
+                    value={(formData.observations || '').replace(/\[METADATA:.+?\]/, '').trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={4}

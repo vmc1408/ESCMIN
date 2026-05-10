@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS public.classes (
     days_of_week TEXT[],
     semester TEXT,
     start_date DATE,
+    year TEXT,
+    subject_ids TEXT[],
     observations TEXT,
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -81,6 +83,10 @@ CREATE TABLE IF NOT EXISTS public.subjects (
     id TEXT PRIMARY KEY,
     code TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
+    status TEXT DEFAULT 'Ativo',
+    year TEXT,
+    semester TEXT,
+    teacher_id TEXT,
     program_content TEXT,
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -102,6 +108,7 @@ CREATE TABLE IF NOT EXISTS public.teachers (
     address_zip TEXT,
     birth_date DATE,
     observations TEXT,
+    subject_ids TEXT[],
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

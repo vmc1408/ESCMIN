@@ -22,9 +22,20 @@ interface Subject {
   code: string;
   name: string;
   status: 'Ativo' | 'Inativo';
+  year?: string;
+  semester?: string;
+  teacher_id?: string;
   program_content?: string;
   created_at: string;
   user_id: string;
+}
+
+interface Teacher {
+  id: string;
+  name: string;
+  subject_ids?: string[];
+  status: string;
+  observations?: string;
 }
 
 // Memoized List Item to prevent lag
@@ -32,12 +43,14 @@ const SubjectItem = React.memo(({
   subject, 
   isSelected, 
   onSelect, 
-  className 
+  className,
+  teacherName
 }: { 
   subject: Subject, 
   isSelected: boolean, 
   onSelect: (s: Subject) => void,
-  className?: string
+  className?: string,
+  teacherName?: string
 }) => {
   return (
     <button
@@ -67,7 +80,13 @@ const SubjectItem = React.memo(({
             {subject.status || 'Ativo'}
           </span>
         </div>
-        <p className="text-xs text-slate-500 truncate">Disciplina Acadêmica</p>
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] text-slate-500 truncate">
+            {subject.year ? `${subject.year} • ` : ''}
+            {subject.semester ? `${subject.semester} • ` : ''} 
+            {teacherName || 'Sem Professor'}
+          </p>
+        </div>
       </div>
     </button>
   );
@@ -75,6 +94,7 @@ const SubjectItem = React.memo(({
 
 export function Subjects() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
@@ -94,14 +114,55 @@ export function Subjects() {
   const fetchSubjects = React.useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchAll('subjects', '*', 'name', true);
-      setSubjects(data || []);
+      const [subjectsData, teachersData] = await Promise.all([
+        fetchAll('subjects', '*', 'name', true),
+        fetchAll('teachers', 'id, name, subject_ids, status, observations', 'name', true)
+      ]);
+      
+      const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
+        let normalized = { ...s };
+        if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
+          const match = normalized.program_content.match(/\[METADATA:(.+?)\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.semester) normalized.semester = meta.semester;
+              if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
+              if (!normalized.year) normalized.year = meta.year;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+        return normalized;
+      });
+
+      const normalizedTeachers = (teachersData || []).map((t: Teacher) => {
+        let normalized = { ...t };
+        let sIds = normalized.subject_ids || [];
+        
+        if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
+          sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+        }
+        
+        if ((!sIds || sIds.length === 0) && normalized.observations) {
+          const match = normalized.observations.match(/\[SUBJECTS:(.+?)\]/);
+          if (match && match[1]) {
+            try { sIds = JSON.parse(match[1]); } catch (e) {}
+          }
+        }
+        normalized.subject_ids = Array.isArray(sIds) ? sIds : [];
+        return normalized;
+      });
+
+      setSubjects(normalizedSubjects);
+      setTeachers(normalizedTeachers);
     } catch (error) {
       console.error('Error fetching subjects:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedSubject]);
+  }, []);
 
   useEffect(() => {
     fetchSubjects();
@@ -119,19 +180,49 @@ export function Subjects() {
       name: '',
       code: String(subjects.length + 1).padStart(3, '0'),
       status: 'Ativo',
+      year: '',
+      semester: '',
+      teacher_id: '',
     });
     setIsEditing(true);
   };
 
   const handleSave = async () => {
     try {
-      await saveData('subjects', selectedSubject?.id, formData);
+      setLoading(true);
+      
+      // PROACTIVE METADATA SYNC:
+      // Always sync year, semester and teacher_id into program_content metadata 
+      // before saving. This ensures data persistence even if Supabase columns are missing.
+      const syncData = { ...formData };
+      const metadata: any = {};
+      if (formData.year) metadata.year = formData.year;
+      if (formData.semester) metadata.semester = formData.semester;
+      if (formData.teacher_id) metadata.teacher_id = formData.teacher_id;
+      
+      if (Object.keys(metadata).length > 0) {
+        const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
+        let cleanContent = (syncData.program_content || '').replace(/\[METADATA:.+?\]/, '').trim();
+        syncData.program_content = (cleanContent + (cleanContent ? '\n' : '') + metadataStr).trim();
+      }
+
+      await saveData('subjects', selectedSubject?.id, syncData);
+      
+      setNotification({
+        type: 'success',
+        message: selectedSubject ? 'Disciplina atualizada com sucesso!' : 'Nova disciplina criada com sucesso!'
+      });
       
       setIsEditing(false);
-      fetchSubjects();
-    } catch (error: any) {
-      console.error('Error saving subject:', error);
-      alert('Erro ao salvar disciplina: ' + error.message);
+      await fetchSubjects();
+    } catch (err: any) {
+      console.error('Error saving subject:', err);
+      setNotification({
+        type: 'error',
+        message: 'Erro ao salvar disciplina: ' + err.message
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -232,14 +323,18 @@ export function Subjects() {
             <div className="flex items-center justify-center h-32">
               <Loader2 className="animate-spin text-blue-500" />
             </div>
-          ) : filteredSubjects.map((subject) => (
-            <SubjectItem
-              key={subject.id}
-              subject={subject}
-              isSelected={selectedSubject?.id === subject.id}
-              onSelect={handleSelectSubject}
-            />
-          ))}
+          ) : filteredSubjects.map((subject) => {
+            const teacher = teachers.find(t => t.id === subject.teacher_id);
+            return (
+              <SubjectItem
+                key={subject.id}
+                subject={subject}
+                isSelected={selectedSubject?.id === subject.id}
+                onSelect={handleSelectSubject}
+                teacherName={teacher?.name}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -268,12 +363,32 @@ export function Subjects() {
                 <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
                   <BookOpen size={32} />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-[#131b2e]">
-                    {isEditing ? (selectedSubject ? 'Editar Disciplina' : 'Nova Disciplina') : formData.name}
-                  </h3>
-                  <p className="text-sm text-slate-500">Código: {formData.code}</p>
-                </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-[#131b2e]">
+                      {isEditing ? (selectedSubject ? 'Editar Disciplina' : 'Nova Disciplina') : formData.name}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                      <span>Código: {formData.code}</span>
+                      {formData.year && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-slate-300" />
+                          <span className="text-blue-700 font-bold">{formData.year}</span>
+                        </>
+                      )}
+                      {formData.semester && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-slate-300" />
+                          <span className="text-blue-600 font-bold">{formData.semester}</span>
+                        </>
+                      )}
+                      {formData.teacher_id && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-slate-300" />
+                          <span className="text-slate-600">Prof: {teachers.find(t => t.id === formData.teacher_id)?.name}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
               </div>
               <div className="flex gap-3">
                 {!isEditing && selectedSubject && (
@@ -353,6 +468,111 @@ export function Subjects() {
                         tabIndex={2}
                       />
                     </div>
+                    <div className="col-span-12 grid grid-cols-12 gap-3 pt-2">
+                      <div className="col-span-8 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Ano</label>
+                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
+                          {['1º Ano', '2º Ano', '3º Ano', '4º Ano'].map((year) => (
+                            <button
+                              key={year}
+                              type="button"
+                              disabled={!isEditing}
+                              onClick={() => setFormData({...formData, year})}
+                              className={cn(
+                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                formData.year === year 
+                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                              )}
+                            >
+                              {year}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-span-4 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Semestre</label>
+                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
+                          {['1º Sem.', '2º Sem.'].map((sem) => (
+                            <button
+                              key={sem}
+                              type="button"
+                              disabled={!isEditing}
+                              onClick={() => setFormData({...formData, semester: sem})}
+                              className={cn(
+                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                formData.semester === sem 
+                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
+                              )}
+                            >
+                              {sem}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-span-8 space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Professor Responsável</label>
+                      <select 
+                        disabled={!isEditing}
+                        value={formData.teacher_id || ''}
+                        onChange={(e) => setFormData({...formData, teacher_id: e.target.value})}
+                        onKeyDown={handleKeyDown}
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        tabIndex={4}
+                      >
+                        <option value="">Selecione um professor</option>
+                        {teachers
+                          .filter(t => {
+                            // Only show teachers who have this subject in their registration
+                            if (!selectedSubject?.id) return true;
+                            
+                            let sIds = t.subject_ids || [];
+                            if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
+                              sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+                            }
+
+                            // Fallback: check metadata in observations
+                            if ((!sIds || sIds.length === 0) && (t as any).observations) {
+                              const match = (t as any).observations.match(/\[SUBJECTS:(.+?)\]/);
+                              if (match && match[1]) {
+                                try {
+                                  sIds = JSON.parse(match[1]);
+                                } catch (e) {
+                                  console.warn('Failed to parse metadata');
+                                }
+                              }
+                            }
+                            
+                            return Array.isArray(sIds) && sIds.includes(selectedSubject.id);
+                          })
+                          .map(teacher => (
+                            <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                          ))
+                        }
+                      </select>
+                      {selectedSubject?.id && teachers.filter(t => {
+                        let sIds = t.subject_ids || [];
+                        if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
+                           sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+                        }
+                        // Fallback: check metadata in observations
+                        if ((!sIds || sIds.length === 0) && (t as any).observations) {
+                          const match = (t as any).observations.match(/\[SUBJECTS:(.+?)\]/);
+                          if (match && match[1]) {
+                            try {
+                              sIds = JSON.parse(match[1]);
+                            } catch (e) {
+                              // ignore
+                            }
+                          }
+                        }
+                        return Array.isArray(sIds) && sIds.includes(selectedSubject.id);
+                      }).length === 0 && (
+                        <p className="text-[10px] text-amber-600 font-medium mt-1">Nenhum professor habilitado para esta disciplina.</p>
+                      )}
+                    </div>
                     <div className="col-span-12 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Situação</label>
                       <select 
@@ -378,7 +598,7 @@ export function Subjects() {
                   </h4>
                   <textarea 
                     disabled={!isEditing}
-                    value={formData.program_content || ''}
+                    value={(formData.program_content || '').replace(/\[METADATA:.+?\]/, '').trim()}
                     onChange={(e) => setFormData({...formData, program_content: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={12}

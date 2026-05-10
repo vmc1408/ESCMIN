@@ -164,7 +164,7 @@ export const saveData = async (collectionName: string, id: string | undefined, d
     
     // Use a loop to handle multiple potentially missing columns recursively
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = 10;
     
     while (attempts < maxAttempts) {
       const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payload));
@@ -176,8 +176,6 @@ export const saveData = async (collectionName: string, id: string | undefined, d
           ? (errorVal.message || String(errorVal)) 
           : String(errorVal);
 
-        console.error(`[saveData] Supabase Error on "${collectionName}" (Attempt ${attempts + 1}):`, errorMsg);
-        
         const isMissingCol = errorMsg.includes('column') && 
                              (errorMsg.includes('not found') || 
                               errorMsg.includes('schema cache') || 
@@ -185,20 +183,25 @@ export const saveData = async (collectionName: string, id: string | undefined, d
                               errorMsg.includes('missing'));
 
         if (isMissingCol) {
+          // Robust regex to find column name in common Supabase/PostgREST error messages
           const match = errorMsg.match(/['"](.+?)['"] column/) || 
                         errorMsg.match(/column ['"](.+?)['"]/) ||
-                        errorMsg.match(/column (.+?) of/);
+                        errorMsg.match(/column (.+?) of/) ||
+                        errorMsg.match(/column (.+?) not found/) ||
+                        errorMsg.match(/property ['"](.+?)['"] not found/);
           
-          if (match && match[1]) {
-            const missingCol = match[1].replace(/['"]/g, '');
-            console.warn(`[Supabase Fallback] Removendo coluna inexistente "${missingCol}" e tentando novamente.`);
-            
-            delete (payload as any)[missingCol];
-            attempts++;
-            continue; // Try again with cleaned payload
-          }
+            if (match && match[1]) {
+              const missingCol = match[1].replace(/['"]/g, '').trim();
+              
+              console.warn(`[Supabase Fallback] Removendo coluna inexistente "${missingCol}" da tabela "${collectionName}" e tentando novamente (Tentativa ${attempts + 1}).`);
+              
+              delete (payload as any)[missingCol];
+              attempts++;
+              continue; // Try again with cleaned payload
+            }
         }
         
+        console.error(`[saveData] Erro real em "${collectionName}" (Tentativa ${attempts + 1}):`, errorMsg);
         // If not a missing column error or we couldn't identify the column, throw
         throw errorVal;
       }

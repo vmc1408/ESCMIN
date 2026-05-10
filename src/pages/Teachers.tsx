@@ -145,7 +145,25 @@ export function Teachers() {
         fetchAll('subjects', 'id, code, name, status', 'name', true),
         fetchAll('institution_settings')
       ]);
-      setTeachers(teachersData || []);
+      const normalizedTeachers = (teachersData || []).map((t: Teacher) => {
+        let normalized = { ...t };
+        let sIds = normalized.subject_ids || [];
+        
+        if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
+          sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+        }
+        
+        if ((!sIds || sIds.length === 0) && normalized.observations) {
+          const match = normalized.observations.match(/\[SUBJECTS:(.+?)\]/);
+          if (match && match[1]) {
+            try { sIds = JSON.parse(match[1]); } catch (e) {}
+          }
+        }
+        normalized.subject_ids = Array.isArray(sIds) ? sIds : [];
+        return normalized;
+      });
+
+      setTeachers(normalizedTeachers);
       setSubjects(subjectsData || []);
       if (instData && instData.length > 0) setInst(instData[0]);
     } catch (error) {
@@ -153,15 +171,38 @@ export function Teachers() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTeacher]);
+  }, []); // Remove selectedTeacher dependency
 
   useEffect(() => {
     fetchTeachers();
   }, [fetchTeachers]);
 
   const handleSelectTeacher = React.useCallback((teacher: Teacher) => {
-    setSelectedTeacher(teacher);
-    setFormData(teacher);
+    let subjectIds = teacher.subject_ids || [];
+    
+    // Handle potential Postgres array string format "{id1,id2}"
+    if (typeof subjectIds === 'string' && (subjectIds as string).startsWith('{')) {
+      subjectIds = (subjectIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+    }
+    
+    // FALLBACK: If subject_ids is empty, check if it's stored in observations as metadata
+    if ((!subjectIds || subjectIds.length === 0) && teacher.observations) {
+      const match = teacher.observations.match(/\[SUBJECTS:(.+?)\]/);
+      if (match && match[1]) {
+        try {
+          subjectIds = JSON.parse(match[1]);
+        } catch (e) {
+          console.warn('Failed to parse subject_ids from observations');
+        }
+      }
+    }
+    
+    const normalizedTeacher = {
+      ...teacher,
+      subject_ids: Array.isArray(subjectIds) ? subjectIds : []
+    };
+    setSelectedTeacher(normalizedTeacher);
+    setFormData(normalizedTeacher);
     setIsEditing(false);
   }, []);
 
@@ -171,43 +212,48 @@ export function Teachers() {
       name: '',
       code: String(teachers.length + 1).padStart(3, '0'),
       status: 'Ativo',
+      subject_ids: [],
     });
     setIsEditing(true);
   };
 
   const handleSave = async () => {
     try {
-      const dataToSave = { ...formData };
+      setLoading(true);
       
-      // Try saving with all fields, fallback if column missing
-      let savedId;
-      try {
-        savedId = await saveData('teachers', selectedTeacher?.id, dataToSave);
-      } catch (err: any) {
-        if (err.message?.includes('phone_mobile_is_whatsapp')) {
-          console.warn('[Supabase] Coluna phone_mobile_is_whatsapp ausente em teachers, salvando sem ela.');
-          const fallbackData = { ...dataToSave };
-          delete (fallbackData as any).phone_mobile_is_whatsapp;
-          savedId = await saveData('teachers', selectedTeacher?.id, fallbackData);
-        } else {
-          throw err;
-        }
+      const syncData = { 
+        ...formData,
+        subject_ids: formData.subject_ids || []
+      };
+
+      // PROACTIVE METADATA SYNC:
+      // Always sync subject_ids into observations metadata before saving.
+      // This ensures data persistence even if the Supabase column is missing.
+      if (syncData.subject_ids && syncData.subject_ids.length > 0) {
+        const metadataStr = `[SUBJECTS:${JSON.stringify(syncData.subject_ids)}]`;
+        // Clean up existing metadata first
+        let cleanObs = (syncData.observations || '').replace(/\[SUBJECTS:.+?\]/, '').trim();
+        syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
       }
+
+      console.log('[Teachers] Saving data:', syncData);
+      
+      const savedId = await saveData('teachers', selectedTeacher?.id, syncData);
       
       setNotification({ type: 'success', message: 'Ficha do professor salva com sucesso!' });
       setIsEditing(false);
-      fetchTeachers();
       
-      // Update local state
-      if (!selectedTeacher?.id && savedId) {
-        setSelectedTeacher({ ...dataToSave, id: savedId } as Teacher);
-      } else {
-        setSelectedTeacher({ ...dataToSave, id: selectedTeacher?.id } as Teacher);
-      }
+      // Update local state first to be responsive
+      const updatedTeacher = { ...syncData, id: savedId || selectedTeacher?.id } as Teacher;
+      setSelectedTeacher(updatedTeacher);
+      setTeachers(prev => prev.map(t => t.id === updatedTeacher.id ? updatedTeacher : t));
+      
+      fetchTeachers();
     } catch (error: any) {
       console.error('Error saving teacher:', error);
-      setNotification({ type: 'error', message: 'Erro ao salvar professor: ' + error.message });
+      setNotification({ type: 'error', message: 'Erro ao salvar professor: ' + (error.message || 'Verifique o console') });
     } finally {
+      setLoading(false);
       setTimeout(() => setNotification(null), 3000);
     }
   };
@@ -335,7 +381,7 @@ export function Teachers() {
         
         doc.setFontSize(10);
         doc.setTextColor(0);
-        doc.text(teacher.observations, margin, obsY + 10, { maxWidth: pageWidth - (margin * 2) });
+        doc.text(teacher.observations.replace(/\[SUBJECTS:.+?\]/, '').trim(), margin, obsY + 10, { maxWidth: pageWidth - (margin * 2) });
       }
 
       doc.setFontSize(8);
@@ -364,7 +410,7 @@ export function Teachers() {
 
     return (
       <div id="printable-teacher-record" className="hidden print:block text-black overflow-visible font-sans leading-tight">
-        <div className="w-full">
+        <div className="w-full max-w-[210mm] mx-auto bg-white p-8">
           {/* HEADER SECTION - Left Aligned */}
           <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black border-opacity-20">
             {inst?.logo_url && (
@@ -383,99 +429,119 @@ export function Teachers() {
             </div>
           </div>
 
-          <div className="text-center mb-6">
+          <div className="text-center mb-4">
             <h2 className="text-[16pt] font-bold uppercase tracking-widest w-fit mx-auto pb-0.5 border-b-2 border-black">Ficha do Professor</h2>
           </div>
 
-          {/* Teacher Info */}
-          <div className="grid grid-cols-12 gap-4 mb-6">
-            <div className="col-span-12 border border-black/20 p-4 rounded-xl space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Nome do Professor</p>
-                  <p className="text-[12pt] font-bold uppercase border-b border-black/10 pb-1">{selectedTeacher.name}</p>
-                </div>
-                <div className="space-y-1 text-right">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Código</p>
-                  <p className="text-[12pt] font-bold border-b border-black/10 pb-1">{selectedTeacher.code}</p>
+          {/* TOP CONTROL BOXES - Matching Student Record Style */}
+          <div className="grid grid-cols-12 gap-3 mb-6">
+            <div className="col-span-4 border border-black/40 p-3 flex flex-col h-32 justify-between">
+              <p className="text-[10pt] font-bold border-b border-black/10 pb-1 uppercase tracking-tight">Controle</p>
+              <div className="text-center space-y-1">
+                <p className="text-[8pt] font-bold uppercase opacity-50">Código Registro</p>
+                <div className="bg-slate-50 border border-black/10 h-12 flex items-center justify-center font-bold text-[18pt]">
+                  {selectedTeacher.code}
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">CPF</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.cpf || '---'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">RG</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.rg || '---'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Situação</p>
-                  <p className="text-[10pt] font-bold border-b border-black/10 pb-1 uppercase">{selectedTeacher.status}</p>
-                </div>
+            <div className="col-span-5 border border-black/40 p-3 h-32">
+              <p className="text-[10pt] font-bold mb-3 uppercase border-b border-black/10 pb-1 tracking-tight">Disciplinas:</p>
+              <div className="overflow-y-auto h-20 pr-1 custom-scrollbar-mini">
+                <p className="text-[9pt] font-bold leading-tight uppercase text-blue-900">
+                  {teacherSubjects || 'NENHUMA SELECIONADA'}
+                </p>
               </div>
+            </div>
 
+            <div className="col-span-3 border border-black/40 p-3 flex flex-col justify-between items-center bg-white h-32">
+              <p className="text-[8pt] font-bold uppercase opacity-50 text-center">Situação</p>
+              <div className={cn(
+                "w-full py-2 text-center font-black text-[12pt] uppercase rounded",
+                selectedTeacher.status === 'Ativo' ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-800"
+              )}>
+                {selectedTeacher.status}
+              </div>
+              <div className="w-full text-[7pt] text-center font-bold opacity-30 mt-1">Status Atual</div>
+            </div>
+          </div>
+
+          {/* Teacher Detailed Info */}
+          <div className="border border-black/40 p-6 rounded-sm space-y-6">
+            <div className="grid grid-cols-1 gap-6">
               <div className="space-y-1">
-                <p className="text-[9pt] font-bold text-slate-500 uppercase">Disciplinas Lecionadas</p>
-                <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{teacherSubjects || 'Nenhuma selecionada'}</p>
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Nome Completo do Professor</p>
+                <p className="text-[14pt] font-black uppercase border-b border-black/20 pb-1">{selectedTeacher.name}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">E-mail</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1 lowercase">{selectedTeacher.email || '---'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Celular</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.phone_mobile || '---'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-8 space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Endereço</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.address_street || '---'}</p>
-                </div>
-                <div className="col-span-4 space-y-1 text-right">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">CEP</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.address_zip || '---'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 space-y-1">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Cidade</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1">{selectedTeacher.address_city || '---'}</p>
-                </div>
-                <div className="space-y-1 text-right">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">UF</p>
-                  <p className="text-[10pt] font-medium border-b border-black/10 pb-1 uppercase">{selectedTeacher.address_state || '---'}</p>
-                </div>
-              </div>
-
-              {selectedTeacher.observations && (
-                <div className="space-y-1 pt-2">
-                  <p className="text-[9pt] font-bold text-slate-500 uppercase">Observações</p>
-                  <p className="text-[9pt] font-medium border border-black/10 p-3 rounded-lg bg-slate-50/30 whitespace-pre-wrap leading-relaxed">{selectedTeacher.observations}</p>
-                </div>
-              )}
             </div>
+
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-1">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">CPF</p>
+                <p className="text-[11pt] font-bold border-b border-black/20 pb-1">{selectedTeacher.cpf || '---'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">RG</p>
+                <p className="text-[11pt] font-bold border-b border-black/20 pb-1">{selectedTeacher.rg || '---'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-1">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">E-mail</p>
+                <p className="text-[11pt] font-bold border-b border-black/20 pb-1 lowercase">{selectedTeacher.email || '---'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Celular</p>
+                <p className="text-[11pt] font-bold border-b border-black/20 pb-1">{selectedTeacher.phone_mobile || '---'}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Endereço Residencial</p>
+              <p className="text-[11pt] font-bold border-b border-black/20 pb-1">
+                {selectedTeacher.address_street || '---'}{selectedTeacher.address_zip ? `, CEP: ${selectedTeacher.address_zip}` : ''}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-8">
+              <div className="col-span-2 space-y-1">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Cidade</p>
+                <p className="text-[11pt] font-bold border-b border-black/20 pb-1">{selectedTeacher.address_city || '---'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Estado (UF)</p>
+                <p className="text-[11pt] font-bold border-b border-black/20 pb-1 uppercase">{selectedTeacher.address_state || '---'}</p>
+              </div>
+            </div>
+
+            {selectedTeacher.observations && (
+              <div className="space-y-1 pt-4">
+                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Observações Gerais</p>
+                <div className="text-[10pt] font-medium border border-black/10 p-4 rounded bg-slate-50/20 whitespace-pre-wrap leading-relaxed min-h-[100px]">
+                  {selectedTeacher.observations.replace(/\[SUBJECTS:.+?\]/, '').trim()}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="mt-12 pt-12 flex justify-between items-end px-4">
-            <p className="text-[10pt] font-semibold text-slate-800">
-              Guarulhos, {new Date().toLocaleDateString('pt-BR')}
-            </p>
+          <div className="mt-20 pt-16 flex justify-between items-end px-4">
+            <div className="space-y-1">
+              <p className="text-[10pt] font-bold text-slate-800">
+                Guarulhos, {new Date().toLocaleDateString('pt-BR')}
+              </p>
+              <p className="text-[8pt] text-slate-400 font-medium">Local e Data</p>
+            </div>
             <div className="flex flex-col items-center">
-              <div className="w-[80mm] border-t border-black/40 mb-1"></div>
-              <p className="text-[9pt] font-semibold uppercase tracking-wider text-slate-700">Assinatura do Coordenador</p>
+              <div className="w-[85mm] border-t-2 border-black mb-1"></div>
+              <p className="text-[10pt] font-black uppercase tracking-widest text-[#00174b]">Assinatura do Coordenador</p>
+              <p className="text-[7pt] text-slate-400 font-bold mt-1 tracking-tighter">Escola Diocesana de Ministérios - ESMIN</p>
             </div>
           </div>
 
-          <div className="fixed bottom-8 left-0 w-full border-t border-black/10 pt-4 flex justify-between text-[8pt] text-slate-400 font-medium px-8">
-            <p>{inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - {inst?.address || ''}</p>
-            <p>Gerado em: {new Date().toLocaleString('pt-BR')}</p>
+          <div className="fixed bottom-10 left-0 w-full border-t border-black/10 pt-4 flex justify-between text-[8pt] text-slate-400 font-bold px-12">
+            <p className="uppercase tracking-tighter">{inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - {inst?.address || ''}</p>
+            <p>Gerado pelo Sistema ESCMIN em {new Date().toLocaleString('pt-BR')}</p>
           </div>
         </div>
       </div>
@@ -810,7 +876,7 @@ export function Teachers() {
                   </h4>
                   <textarea 
                     disabled={!isEditing}
-                    value={formData.observations || ''}
+                    value={(formData.observations || '').replace(/\[SUBJECTS:.+?\]/, '').trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={4}

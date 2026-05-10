@@ -109,7 +109,7 @@ export const schemaService = {
         if (col.includes('amount') || col.includes('price')) type = 'NUMERIC(10,2)';
         if (col.includes('is_') || col === 'pastoral_participates_bool') type = 'BOOLEAN';
         if (col === 'registration_number' || col === 'code') type = 'TEXT UNIQUE';
-        if (col === 'days_of_week') return 'TEXT[]';
+        if (col === 'days_of_week' || col === 'subject_ids') return 'TEXT[]';
         
         if (col === 'birth_date' || col === 'start_date' || col === 'payment_date' || (col.endsWith('_date') && !col.includes('created') && !col.includes('updated'))) {
           type = 'DATE';

@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS public.classes (
     days_of_week TEXT[], -- Array of strings
     semester TEXT,
     start_date DATE,
+    year TEXT,
+    subject_ids TEXT[], -- Array of strings
     observations TEXT,
     user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -149,6 +151,51 @@ CREATE TABLE IF NOT EXISTS public.subjects (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure subjects table has new columns
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subjects' AND column_name = 'status') THEN
+        ALTER TABLE public.subjects ADD COLUMN status TEXT DEFAULT 'Ativo';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subjects' AND column_name = 'year') THEN
+        ALTER TABLE public.subjects ADD COLUMN year TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subjects' AND column_name = 'semester') THEN
+        ALTER TABLE public.subjects ADD COLUMN semester TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subjects' AND column_name = 'teacher_id') THEN
+        ALTER TABLE public.subjects ADD COLUMN teacher_id TEXT;
+    END IF;
+
+    -- Update classes table
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'classes' AND column_name = 'year') THEN
+        ALTER TABLE public.classes ADD COLUMN year TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'classes' AND column_name = 'subject_ids') THEN
+        ALTER TABLE public.classes ADD COLUMN subject_ids TEXT[];
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archived_classes' AND column_name = 'year') THEN
+        ALTER TABLE public.archived_classes ADD COLUMN year TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archived_classes' AND column_name = 'subject_ids') THEN
+        ALTER TABLE public.archived_classes ADD COLUMN subject_ids TEXT[];
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archived_subjects' AND column_name = 'status') THEN
+        ALTER TABLE public.archived_subjects ADD COLUMN status TEXT DEFAULT 'Ativo';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archived_subjects' AND column_name = 'year') THEN
+        ALTER TABLE public.archived_subjects ADD COLUMN year TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archived_subjects' AND column_name = 'semester') THEN
+        ALTER TABLE public.archived_subjects ADD COLUMN semester TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archived_subjects' AND column_name = 'teacher_id') THEN
+        ALTER TABLE public.archived_subjects ADD COLUMN teacher_id TEXT;
+    END IF;
+END $$;
+
 -- 10. teachers
 CREATE TABLE IF NOT EXISTS public.teachers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -165,9 +212,28 @@ CREATE TABLE IF NOT EXISTS public.teachers (
     address_zip TEXT,
     birth_date DATE,
     observations TEXT,
+    subject_ids TEXT[],
     user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure subject_ids exists for existing databases and is of correct type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'teachers' AND column_name = 'subject_ids') THEN
+        ALTER TABLE public.teachers ADD COLUMN subject_ids TEXT[];
+    ELSE
+        ALTER TABLE public.teachers ALTER COLUMN subject_ids TYPE TEXT[] USING subject_ids::TEXT[];
+    END IF;
+    COMMENT ON COLUMN public.teachers.subject_ids IS 'List of subject IDs taught by the teacher';
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archived_teachers' AND column_name = 'subject_ids') THEN
+        ALTER TABLE public.archived_teachers ADD COLUMN subject_ids TEXT[];
+    ELSE
+        ALTER TABLE public.archived_teachers ALTER COLUMN subject_ids TYPE TEXT[] USING subject_ids::TEXT[];
+    END IF;
+    COMMENT ON COLUMN public.archived_teachers.subject_ids IS 'List of subject IDs taught by the teacher';
+END $$;
 
 -- 11. pix_reconciliations
 CREATE TABLE IF NOT EXISTS public.pix_reconciliations (
