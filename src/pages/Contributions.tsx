@@ -463,48 +463,53 @@ export function Contributions() {
       const centerX = pageWidth / 2;
       
       // Left Logo
-      let textStartX = centerX;
-      let textHeaderAlign: "center" | "left" = "center";
+      let textStartX = margin;
+      let logoWidth = 0;
 
       if (institution?.logo_url) {
         try {
-          doc.addImage(institution.logo_url, 'auto', margin, startY, 20, 20);
-          textStartX = margin + 24;
-          textHeaderAlign = "left";
+          doc.addImage(institution.logo_url, 'auto', margin, startY, 18, 18);
+          logoWidth = 22;
         } catch (e) {}
       }
       
-      // Text Content
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 23, 75);
-      doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, startY + 6, { align: textHeaderAlign });
-      
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100);
-      doc.text(institution?.address || '', textStartX, startY + 10, { align: textHeaderAlign });
-      
-      const contactInfo = [
-        institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
-        institution?.phone ? `Tel: ${institution.phone}` : '',
-        institution?.email ? `E-mail: ${institution.email}` : '',
-        institution?.website ? `Site: ${institution.website}` : ''
-      ].filter(Boolean).join('  |  ');
-      doc.text(contactInfo, textStartX, startY + 14, { align: textHeaderAlign });
+      textStartX = margin + logoWidth;
 
-      // Main Horizontal Divider
-      doc.setDrawColor(0, 23, 75);
-      doc.setLineWidth(0.4);
-      doc.line(margin, startY + 18, pageWidth - margin, startY + 18);
-      
-      doc.setFontSize(10);
+      // Text Content
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0);
-      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL (MÚLTIPLO)', centerX, startY + 24, { align: 'center' });
+      doc.text('DIOCESE DE GUARULHOS', textStartX, startY + 4);
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, startY + 10);
       
       doc.setFontSize(8);
-      doc.text(title, pageWidth - margin, startY + 24, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(80);
+      doc.text((institution?.subtitle || '').toUpperCase(), textStartX, startY + 14);
+
+      const contactInfo = [
+        institution?.phone ? `TEL: ${institution.phone}` : '',
+        institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''
+      ].filter(Boolean).join('  |  ');
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(contactInfo, textStartX, startY + 18);
+
+      // Main Horizontal Divider
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.4);
+      doc.line(margin, startY + 20, pageWidth - margin, startY + 20);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0);
+      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL (MÚLTIPLO)', centerX, startY + 26, { align: 'center' });
+      
+      doc.setFontSize(7);
+      doc.text(title, pageWidth - margin, startY + 26, { align: 'right' });
 
       // Student Info Section
       doc.setFillColor(248, 250, 252);
@@ -628,48 +633,53 @@ export function Contributions() {
       const centerX = pageWidth / 2;
       
       // Left Logo
-      let textStartX = centerX;
-      let textHeaderAlign: "center" | "left" = "center";
+      let textStartX = margin;
+      let logoWidth = 0;
 
       if (institution?.logo_url) {
         try {
-          doc.addImage(institution.logo_url, 'auto', margin, startY, 20, 20);
-          textStartX = margin + 24;
-          textHeaderAlign = "left";
+          doc.addImage(institution.logo_url, 'auto', margin, startY, 18, 18);
+          logoWidth = 22;
         } catch (e) {}
       }
       
-      // Text Content
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 23, 75);
-      doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, startY + 6, { align: textHeaderAlign });
-      
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100);
-      doc.text(institution?.address || '', textStartX, startY + 10, { align: textHeaderAlign });
-      
-      const contactInfo = [
-        institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
-        institution?.phone ? `Tel: ${institution.phone}` : '',
-        institution?.email ? `E-mail: ${institution.email}` : '',
-        institution?.website ? `Site: ${institution.website}` : ''
-      ].filter(Boolean).join('  |  ');
-      doc.text(contactInfo, textStartX, startY + 14, { align: textHeaderAlign });
+      textStartX = margin + logoWidth;
 
-      // Main Horizontal Divider
-      doc.setDrawColor(0, 23, 75);
-      doc.setLineWidth(0.4);
-      doc.line(margin, startY + 18, pageWidth - margin, startY + 18);
-      
-      doc.setFontSize(10);
+      // Text Content
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0);
-      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL', centerX, startY + 24, { align: 'center' });
+      doc.text('DIOCESE DE GUARULHOS', textStartX, startY + 4);
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, startY + 10);
       
       doc.setFontSize(8);
-      doc.text(title, pageWidth - margin, startY + 24, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(80);
+      doc.text((institution?.subtitle || '').toUpperCase(), textStartX, startY + 14);
+
+      const contactInfo = [
+        institution?.phone ? `TEL: ${institution.phone}` : '',
+        institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''
+      ].filter(Boolean).join('  |  ');
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(contactInfo, textStartX, startY + 18);
+
+      // Main Horizontal Divider
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.4);
+      doc.line(margin, startY + 20, pageWidth - margin, startY + 20);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0);
+      doc.text('RECIBO DE CONTRIBUIÇÃO MENSAL', centerX, startY + 26, { align: 'center' });
+      
+      doc.setFontSize(7);
+      doc.text(title, pageWidth - margin, startY + 26, { align: 'right' });
 
       // Student Info Section
       doc.setFillColor(248, 250, 252);
@@ -777,39 +787,37 @@ export function Contributions() {
       let y = 15;
 
       // Professional Header
-      let textStartX = centerX;
-      let textHeaderAlign: "center" | "left" = "center";
+      let textStartX = margin;
+      let logoWidth = 0;
 
       if (institution?.logo_url) {
         try { 
           doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
-          textStartX = margin + 26;
-          textHeaderAlign = "left";
+          logoWidth = 26;
         } catch (e) {}
       }
+      
+      textStartX = margin + logoWidth;
 
-      doc.setTextColor(0, 23, 75);
-      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 8, { align: textHeaderAlign });
-      
-      doc.setFontSize(8);
-      doc.setTextColor(100);
-      doc.setFont('helvetica', 'normal');
-      doc.text(institution?.address || '', textStartX, y + 13, { align: textHeaderAlign });
-      
-      const meta = [
-        institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
-        institution?.phone ? `TEL: ${institution.phone}` : '',
-        institution?.email ? `EMAIL: ${institution.email}` : ''
-      ].filter(Boolean).join('  |  ');
-      doc.text(meta, textStartX, y + 17, { align: textHeaderAlign });
+      doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
 
-      doc.setDrawColor(0, 23, 75);
-      doc.setLineWidth(0.6);
-      doc.line(margin, y + 22, pageWidth - margin, y + 22);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 13);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(80);
+      doc.text(institution?.subtitle?.toUpperCase() || '', textStartX, y + 18);
 
-      y += 32;
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.8);
+      doc.line(margin, y + 25, pageWidth - margin, y + 25);
+
+      y += 35;
 
       doc.setFontSize(14);
       doc.setTextColor(0);

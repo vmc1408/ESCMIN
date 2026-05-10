@@ -240,40 +240,37 @@ export function Reports() {
       let y = 15;
 
       // Professional Header using Institution Data
-      let textStartX = centerX;
-      let textHeaderAlign: "center" | "left" = "center";
+      let textStartX = margin;
+      let logoWidth = 0;
 
       if (institution?.logo_url) {
         try { 
           doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
-          textStartX = margin + 26;
-          textHeaderAlign = "left";
+          logoWidth = 26;
         } catch (e) {}
       }
+      
+      textStartX = margin + logoWidth;
 
-      doc.setTextColor(0, 23, 75);
-      doc.setFontSize(20);
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 10, { align: textHeaderAlign });
-      
-      doc.setFontSize(8);
-      doc.setTextColor(100);
-      doc.setFont('helvetica', 'normal');
-      doc.text(institution?.address || '', textStartX, y + 16, { align: textHeaderAlign });
-      
-      const meta = [
-        institution?.phone ? `TEL: ${institution.phone}` : '',
-        institution?.whatsapp && institution?.whatsapp !== institution?.phone ? `WHATSAPP: ${institution.whatsapp}` : '',
-        institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : '',
-        institution?.website ? `SITE: ${institution.website.toLowerCase()}` : ''
-      ].filter(Boolean).join('   |   ');
-      doc.text(meta, textStartX, y + 21, { align: textHeaderAlign });
+      doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
 
-      doc.setDrawColor(0, 23, 75);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 13);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(80);
+      doc.text(institution?.subtitle?.toUpperCase() || '', textStartX, y + 18);
+
+      doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.8);
-      doc.line(margin, y + 28, pageWidth - margin, y + 28);
+      doc.line(margin, y + 25, pageWidth - margin, y + 25);
 
-      y += 45;
+      y += 40;
 
       const title = 
         type === 'financial' ? 'RELATÓRIO DE CONTRIBUIÇÕES E CONCILIAÇÃO PIX' :
@@ -415,13 +412,40 @@ export function Reports() {
       const pageCount = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
+        
+        const footerY = doc.internal.pageSize.height - 25;
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.line(margin, footerY, pageWidth - margin, footerY);
+
         doc.setFontSize(7);
-        doc.setTextColor(180);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0);
         
-        const footerText = institution?.footer_text || `Documento Oficial emitido pelo Sistema Intelligence ESCMIN - Página ${i} de ${pageCount}`;
-        const finalFooter = institution?.footer_text ? `${institution.footer_text}  |  Página ${i} de ${pageCount}` : footerText;
+        const addressLine = [
+          institution?.address,
+          institution?.cep ? `CEP: ${institution.cep}` : '',
+          institution?.city_uf
+        ].filter(Boolean).join(' - ');
         
-        doc.text(finalFooter, centerX, doc.internal.pageSize.height - 10, { align: 'center' });
+        doc.text(addressLine.toUpperCase(), margin, footerY + 5);
+
+        const contactLine = [
+          institution?.phone ? `TEL: ${institution.phone}` : '',
+          institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''
+        ].filter(Boolean).join('  |  ');
+        doc.text(contactLine.toUpperCase(), margin, footerY + 9);
+
+        if (institution?.secretary) {
+          doc.setFontSize(7);
+          doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, footerY + 5, { align: 'right' });
+          doc.setFont('helvetica', 'normal');
+          doc.text(institution.secretary.toLowerCase(), pageWidth - margin, footerY + 9, { align: 'right' });
+        }
+
+        doc.setFontSize(6);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount} | Intelligence ESCMIN`, centerX, doc.internal.pageSize.height - 8, { align: 'center' });
       }
 
       doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);

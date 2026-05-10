@@ -570,13 +570,16 @@ export function Students() {
           
           {/* HEADER SECTION */}
           <div className="flex items-center gap-6 mb-6 pb-2 border-b-2 border-black">
-            {inst?.logo_url ? (
-              <div className="flex-shrink-0">
-                <img src={inst.logo_url} className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
-              </div>
-            ) : (
-              <div className="w-24 h-24 border-2 border-slate-200 border-dashed flex items-center justify-center text-[10pt] text-slate-300 font-black uppercase">LOGO</div>
-            )}
+            <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+              {inst?.logo_url ? (
+                <img src={inst.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
+              ) : (
+                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                  <span className="leading-none">SEM</span>
+                  <span className="leading-none">LOGO</span>
+                </div>
+              )}
+            </div>
             <div className="flex-1 flex flex-col">
               <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
               <h1 className="text-[19pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
@@ -777,32 +780,34 @@ export function Students() {
             </p>
           </div>
 
-          {/* DATE AND SIGNATURE */}
-          <div className="flex justify-between items-end mt-24 mb-12 px-6">
-            <div className="flex flex-col">
-              <p className="text-[10.5pt] font-semibold text-black">
-                Guarulhos, <span>
-                  {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
-                </span>
-              </p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-[85mm] border-t border-black mb-1"></div>
-              <p className="text-[9pt] font-bold uppercase tracking-widest text-black">Assinatura do Aluno(a)</p>
+          {/* DATE AND SIGNATURE - Adjusted to be above footer line */}
+          <div className="mt-auto mb-4 scale-[0.95] origin-bottom">
+            <div className="flex justify-between items-end px-6">
+              <div className="flex flex-col pb-2">
+                <p className="text-[11pt] font-black text-black">
+                  Guarulhos, <span>
+                    {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
+                  </span>
+                </p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-[90mm] border-t-2 border-black mb-1"></div>
+                <p className="text-[10pt] font-black uppercase tracking-[0.2em] text-black">Assinatura do Aluno(a)</p>
+              </div>
             </div>
           </div>
 
           {/* RODAPÉ */}
-          <div className="absolute bottom-8 left-8 right-8 border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight">
+          <div className="border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight mb-2">
             <div className="flex-1 space-y-1">
-              <p className="leading-none">
+              <p className="leading-none text-[9pt]">
                 {inst?.address} {inst?.cep ? ` - CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
               </p>
-              <div className="flex items-center gap-3 leading-none font-bold">
+              <div className="flex items-center gap-4 leading-none font-bold text-[9pt]">
                 {inst?.phone && (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5">
                     TEL: {inst.phone}
-                    <svg viewBox="0 0 24 24" width="10" height="10" fill="#25D366" className="shrink-0 mb-0.5">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="#25D366" className="shrink-0">
                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                     </svg>
                   </span>
@@ -810,15 +815,15 @@ export function Students() {
                 {inst?.phone && inst?.email && <span className="opacity-30">|</span>}
                 {inst?.email && (
                   <span className="flex items-center gap-1">
-                    EMAIL: <span className="lowercase">{inst.email}</span>
+                    EMAIL: <span className="lowercase font-bold">{inst.email}</span>
                   </span>
                 )}
               </div>
             </div>
             {inst?.secretary && (
-              <div className="text-right max-w-[400px] leading-tight text-black font-black uppercase text-[7.5pt]">
+              <div className="text-right max-w-[450px] leading-tight text-black font-black uppercase text-[8pt]">
                 <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
-                <p className="whitespace-pre-line lowercase font-bold">{inst.secretary}</p>
+                <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{inst.secretary}</p>
               </div>
             )}
           </div>
