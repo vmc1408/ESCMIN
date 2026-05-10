@@ -568,21 +568,29 @@ export function Students() {
       <div id="printable-student-record" className="hidden print:block text-black overflow-visible font-sans leading-tight">
         <div className="w-full">
           
-          {/* HEADER SECTION - Left Aligned */}
-          <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black border-opacity-20">
-            {inst?.logo_url && (
+          {/* HEADER SECTION - Standardized */}
+          <div className="flex items-start gap-4 mb-4 pb-2 border-b-2 border-black">
+            {inst?.logo_url ? (
               <div className="flex-shrink-0">
-                <img src={inst.logo_url} className="w-24 h-24 object-contain" referrerPolicy="no-referrer" />
+                <img src={inst.logo_url} className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
               </div>
+            ) : (
+              <div className="w-20 h-20 border border-slate-200 border-dashed flex items-center justify-center text-[10px] text-slate-300 uppercase">Logo</div>
             )}
-            <div className="flex-1 space-y-0.5">
-              <p className="text-[10pt] font-semibold tracking-wider text-left">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[18pt] font-bold uppercase tracking-tight text-black leading-none text-left">
+            <div className="flex-1 flex flex-col justify-center">
+              <p className="text-[9pt] font-semibold tracking-widest text-[#1e293b] leading-tight">DIOCESE DE GUARULHOS</p>
+              <h1 className="text-[17pt] font-black uppercase tracking-tight text-black leading-tight">
                 {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
               {inst?.subtitle && (
-                <p className="text-[11pt] font-bold uppercase text-blue-800 tracking-wider mt-1">{inst.subtitle}</p>
+                <p className="text-[10pt] font-bold uppercase text-blue-900 tracking-wider mb-1">{inst.subtitle}</p>
               )}
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[7pt] font-medium text-slate-500 uppercase mt-0.5">
+                {inst?.cnpj && <span className="flex items-center gap-1">CNPJ: {inst.cnpj}</span>}
+                {inst?.address && <span className="flex items-center gap-1">END: {inst.address}</span>}
+                {inst?.phone && <span className="flex items-center gap-1">TEL: {inst.phone}</span>}
+                {inst?.email && <span className="flex items-center gap-1">EMAIL: {inst.email}</span>}
+              </div>
             </div>
           </div>
 
@@ -776,15 +784,15 @@ export function Students() {
           </div>
 
           {/* DATE AND SIGNATURE */}
-          <div className="flex flex-col gap-10 mt-12 mb-8 px-2">
-            <p className="text-[10.5pt] font-semibold text-slate-800 text-right">
+          <div className="flex flex-col gap-10 mt-28 mb-10 px-2">
+            <p className="text-[10.5pt] font-semibold text-slate-800 text-right pr-4">
               Guarulhos, <span>
                 {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
               </span>
             </p>
-            <div className="flex flex-col items-center ml-auto">
-              <div className="w-[80mm] border-t border-black/40 mb-1"></div>
-              <p className="text-[9pt] font-semibold uppercase tracking-wider text-slate-700">Assinatura do Aluno(a)</p>
+            <div className="flex flex-col items-center ml-auto mt-6">
+              <div className="w-[90mm] border-t border-black mb-1"></div>
+              <p className="text-[9pt] font-bold uppercase tracking-widest text-black">Assinatura do Aluno(a)</p>
             </div>
           </div>
 
