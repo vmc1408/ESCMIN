@@ -56,11 +56,13 @@
       left: 0 !important;
       top: 0 !important;
       width: 210mm !important;
+      height: 297mm !important;
       margin: 0 !important;
-      padding: 10mm !important;
+      padding: 0 !important;
       background: white !important;
       z-index: 9999 !important;
-      display: block !important;
+      display: flex !important;
+      flex-direction: column !important;
     }
 
     /* Target specific UI to remove them from document flow */
