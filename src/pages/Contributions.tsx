@@ -1809,32 +1809,43 @@ export function Contributions() {
                         </div>
                       </div>
 
-                      <div className="border border-slate-200 rounded-xl overflow-hidden">
-                        <table className="w-full text-[10px] text-center">
-                          <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                              <th className="py-2 px-4 font-black text-slate-500 uppercase">Mês de Ref.</th>
-                              <th className="py-2 px-4 font-black text-slate-500 uppercase border-l border-slate-200">Valor</th>
-                              <th className="py-2 px-4 font-black text-slate-500 uppercase border-l border-slate-200">Meio Pagto.</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {receiptPreviewData.map((reg) => (
-                              <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                                <td className="py-2 px-4">{(MONTHS[reg.reference_month - 1] || 'N/I')} / {reg.reference_year}</td>
-                                <td className="py-2 px-4 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
-                                <td className="py-2 px-4 border-l border-slate-100 text-[9px] uppercase">{reg.payment_method || (reg.pix_id ? 'PIX' : 'Dinheiro')}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-blue-50 border-t border-slate-200">
-                            <tr className="font-black text-blue-900">
-                              <td className="py-3 px-4 text-right">TOTAL</td>
-                              <td className="py-3 px-4 border-l border-blue-100">{formatCurrency(receiptPreviewData.reduce((acc, c) => acc + c.amount, 0))}</td>
-                              <td className="py-3 px-4 border-l border-blue-100"></td>
-                            </tr>
-                          </tfoot>
-                        </table>
+                      <div className="grid grid-cols-2 gap-4">
+                        {[0, 1].map((colIndex) => {
+                          const half = Math.ceil(receiptPreviewData.length / 2);
+                          const items = colIndex === 0 
+                            ? receiptPreviewData.slice(0, half) 
+                            : receiptPreviewData.slice(half);
+                          
+                          if (colIndex === 1 && items.length === 0) return null;
+
+                          return (
+                            <div key={colIndex} className="border border-slate-200 rounded-xl overflow-hidden">
+                              <table className="w-full text-[10px] text-center">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                  <tr>
+                                    <th className="py-2 px-3 font-black text-slate-500 uppercase leading-none">Mês / Ano</th>
+                                    <th className="py-2 px-3 font-black text-slate-500 uppercase border-l border-slate-200 leading-none">Valor</th>
+                                    <th className="py-2 px-3 font-black text-slate-500 uppercase border-l border-slate-200 leading-none">Data Pagto.</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {items.map((reg) => (
+                                    <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
+                                      <td className="py-1.5 px-3">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
+                                      <td className="py-1.5 px-3 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
+                                      <td className="py-1.5 px-3 border-l border-slate-100 text-[#00174b]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex justify-between items-center px-6">
+                        <span className="text-[10px] font-black text-blue-900 uppercase">Total das Contribuições</span>
+                        <span className="text-sm font-black text-blue-900">{formatCurrency(receiptPreviewData.reduce((acc, c) => acc + c.amount, 0))}</span>
                       </div>
 
                       <div className="flex justify-between items-end pt-4">
@@ -1985,32 +1996,43 @@ export function Contributions() {
                     </div>
                   </div>
 
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-[9px] text-center">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          <th className="py-1.5 px-3 font-black text-slate-500 uppercase">Mês de Ref.</th>
-                          <th className="py-1.5 px-3 font-black text-slate-500 uppercase border-l border-slate-200">Valor</th>
-                          <th className="py-1.5 px-3 font-black text-slate-500 uppercase border-l border-slate-200">Meio Pagto.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {receiptPreviewData.map((reg) => (
-                          <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                            <td className="py-1.5 px-3">{(MONTHS[reg.reference_month - 1] || 'N/I')} / {reg.reference_year}</td>
-                            <td className="py-1.5 px-3 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
-                            <td className="py-1.5 px-3 border-l border-slate-100 text-[8px] uppercase">{reg.payment_method || (reg.pix_id ? 'PIX' : 'Dinheiro')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot className="bg-blue-50 border-t border-slate-200">
-                        <tr className="font-black text-blue-900">
-                          <td className="py-2 px-3 text-right text-[8px]">TOTAL</td>
-                          <td className="py-2 px-3 border-l border-blue-100 font-black">{formatCurrency(receiptPreviewData.reduce((acc, c) => acc + c.amount, 0))}</td>
-                          <td className="py-2 px-3 border-l border-blue-100"></td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[0, 1].map((colIndex) => {
+                      const half = Math.ceil(receiptPreviewData.length / 2);
+                      const items = colIndex === 0 
+                        ? receiptPreviewData.slice(0, half) 
+                        : receiptPreviewData.slice(half);
+                      
+                      if (colIndex === 1 && items.length === 0) return null;
+
+                      return (
+                        <div key={colIndex} className={cn("border border-slate-200 rounded-xl overflow-hidden", colIndex === 1 && items.length === 0 && "hidden")}>
+                          <table className="w-full text-[8px] text-center">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                              <tr>
+                                <th className="py-1.5 px-2 font-black text-slate-500 uppercase leading-none">Mês / Ano</th>
+                                <th className="py-1.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none">Valor</th>
+                                <th className="py-1.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none">Data Pagto.</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((reg) => (
+                                <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
+                                  <td className="py-1 px-2">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
+                                  <td className="py-1 px-2 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
+                                  <td className="py-1 px-2 border-l border-slate-100 text-[#00174b]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="bg-blue-50/50 p-2 rounded-lg border border-blue-100 flex justify-between items-center px-4">
+                    <span className="text-[9px] font-black text-blue-900 uppercase">Total das Contribuições</span>
+                    <span className="text-[11px] font-black text-blue-900">{formatCurrency(receiptPreviewData.reduce((acc, c) => acc + c.amount, 0))}</span>
                   </div>
 
                   <div className="flex justify-between items-end pt-2">
