@@ -279,7 +279,22 @@ export function Teachers() {
       }
 
       doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          // Remove iframe and revoke URL after some time
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            URL.revokeObjectURL(url);
+          }, 1000);
+        }, 300);
+      };
     } catch (error) {
       console.error('Error generating teacher list PDF:', error);
       alert('Erro ao gerar relatório de professores');
