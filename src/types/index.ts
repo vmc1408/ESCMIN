@@ -91,6 +91,7 @@ export interface Subject {
   id: string;
   code: string;
   name: string;
+  status?: 'Ativo' | 'Inativo';
   program_content?: string;
   user_id: string;
   created_at: string;
@@ -101,6 +102,8 @@ export interface Teacher {
   code: string;
   name: string;
   email: string;
+  status?: 'Ativo' | 'Inativo';
+  subject_ids?: string[];
   phone?: string;
   phone_mobile?: string;
   phone_mobile_is_whatsapp?: boolean;

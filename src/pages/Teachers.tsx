@@ -206,6 +206,85 @@ export function Teachers() {
     setIsEditing(false);
   }, []);
 
+  const generateTeacherListPDF = async () => {
+    try {
+      const doc = new jsPDF();
+      const margin = 15;
+      const pageWidth = doc.internal.pageSize.width;
+
+      // Header
+      if (inst?.logo_url) {
+        try {
+          doc.addImage(inst.logo_url, 'PNG', margin, 10, 20, 20);
+        } catch (e) {
+          console.error('Error adding logo to list PDF', e);
+        }
+      }
+      
+      doc.setFontSize(14);
+      doc.setTextColor(0, 23, 75);
+      doc.setFont('helvetica', 'bold');
+      doc.text(inst?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 38, 18);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`RELAÇÃO DE CORPO DOCENTE • FILTRO: ${statusFilter.toUpperCase()}`, 38, 24);
+      doc.text(`${inst?.city_uf || ''} • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, 38, 29);
+
+      doc.setDrawColor(0, 23, 75);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 35, pageWidth - margin, 35);
+
+      const tableData = filteredTeachers.map(t => {
+        const teacherSubjects = subjects
+          .filter(s => t.subject_ids?.includes(s.id))
+          .map(s => s.name)
+          .join(', ');
+          
+        return [
+          t.code,
+          t.name.toUpperCase(),
+          t.email || '---',
+          teacherSubjects || '---',
+          t.status || 'Ativo'
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 40,
+        head: [['CÓD.', 'NOME DO PROFESSOR', 'E-MAIL', 'DISCIPLINAS', 'STATUS']],
+        body: tableData,
+        headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
+        columnStyles: {
+          0: { cellWidth: 12 },
+          1: { cellWidth: 55 },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 55 },
+          4: { cellWidth: 18 }
+        },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        margin: { left: margin, right: margin }
+      });
+
+      // Footer
+      const pages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        const footerText = `SISTEMA ESCMIN • Documento emitido em ${new Date().toLocaleString('pt-BR')} • Página ${i} de ${pages}`;
+        doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      }
+
+      doc.save(`Relatorio_Professores_${statusFilter}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+    } catch (error) {
+      console.error('Error generating teacher list PDF:', error);
+      alert('Erro ao gerar relatório de professores');
+    }
+  };
+
   const handleNew = () => {
     setSelectedTeacher(null);
     setFormData({
@@ -590,9 +669,16 @@ export function Teachers() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Professores</h2>
             <div className="flex gap-2">
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100">
+              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100 flex items-center">
                 {teachers.length}
               </div>
+              <button 
+                onClick={generateTeacherListPDF}
+                className="p-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Imprimir Listagem"
+              >
+                <Printer size={18} />
+              </button>
               <button 
                 onClick={handleNew}
                 className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
