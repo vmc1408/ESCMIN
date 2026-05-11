@@ -42,6 +42,7 @@ export function Contributions() {
   const [unlinkConfirmationFor, setUnlinkConfirmationFor] = useState<Contribution | null>(null);
   const [receiptPreviewData, setReceiptPreviewData] = useState<Contribution[] | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isPrintingStatement, setIsPrintingStatement] = useState(false);
   const [expandedStudents, setExpandedStudents] = useState<string[]>([]);
   
   const toggleStudentExpansion = (studentId: string) => {
@@ -1104,15 +1105,6 @@ export function Contributions() {
                           <div className="flex gap-1.5">
                             <button 
                               onClick={() => {
-                                triggerDirectPrint(selectedForPrint);
-                              }}
-                              className="flex items-center gap-1.5 px-4 py-2.5 bg-white text-emerald-600 border-2 border-emerald-600 rounded-xl font-bold text-xs hover:bg-emerald-50 transition-all shadow-md active:scale-95 animate-in fade-in slide-in-from-right-4"
-                            >
-                              <FileDown size={14} />
-                              ({selectedForPrint.length})
-                            </button>
-                            <button 
-                              onClick={() => {
                                 generateSelectedReceipts(selectedForPrint, 'print');
                                 setSelectedForPrint([]);
                               }}
@@ -1124,7 +1116,13 @@ export function Contributions() {
                           </div>
                         )}
                   <button 
-                    onClick={generateStatement}
+                    onClick={() => {
+                      setIsPrintingStatement(true);
+                      setTimeout(() => {
+                        window.focus();
+                        window.print();
+                      }, 600);
+                    }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
                   >
                     <FileText size={16} />
@@ -2089,6 +2087,131 @@ export function Contributions() {
               )}
             </div>
           ))}
+          </div>
+        </div>
+      )}
+
+      {/* Printable Area - Statement */}
+      {isPrintingStatement && selectedStudent && (
+        <div 
+          id="printable-statement"
+          className={cn(
+            "bg-white text-black p-0 m-0 w-full min-h-screen z-[9999]",
+            "fixed inset-0 overflow-y-auto bg-white",
+            "print:static print:block print:overflow-visible print:h-auto"
+          )}
+        >
+          {/* Control Bar */}
+          <div className="print:hidden sticky top-0 left-0 w-full bg-slate-900 text-white p-4 flex flex-col sm:flex-row items-center justify-between z-[200] shadow-2xl gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-[#00174b] flex items-center justify-center">
+                <FileText size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest leading-none mb-1">Extrato Anual</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Visualização de Impressão</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center flex-wrap justify-center gap-3">
+              <button 
+                onMouseDown={() => window.print()}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
+              >
+                <Printer size={16} /> Abrir Impressora
+              </button>
+
+              <button 
+                onClick={generateStatement}
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
+              >
+                <FileDown size={16} /> Baixar PDF
+              </button>
+
+              <button 
+                onClick={() => setIsPrintingStatement(false)}
+                className="px-6 py-2.5 bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <X size={16} /> Voltar ao Sistema
+              </button>
+            </div>
+          </div>
+
+          <div className="max-w-[800px] mx-auto p-12 bg-white flex flex-col min-h-screen">
+            {/* Header */}
+            <div className="flex items-center gap-8 mb-8 pb-8 border-b-2 border-slate-900">
+               {institution?.logo_url && (
+                  <img src={institution.logo_url} className="w-24 h-24 rounded-2xl object-contain" referrerPolicy="no-referrer" />
+               )}
+               <div className="flex-1">
+                  <h1 className="text-3xl font-black text-[#00174b] uppercase tracking-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
+                  <h2 className="text-xl font-bold text-slate-500 tracking-wide">{institution?.subtitle || ''}</h2>
+                  <p className="text-xs text-slate-400 font-medium mt-1">{institution?.address}</p>
+                  <div className="flex gap-4 mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {institution?.phone && <span>TEL: {institution.phone}</span>}
+                    {institution?.email && <span className="lowercase">EMAIL: {institution.email.toLowerCase()}</span>}
+                  </div>
+               </div>
+            </div>
+
+            <h2 className="text-2xl font-black text-center text-[#00174b] uppercase tracking-[0.2em] mb-10">Extrato Anual de Contribuições</h2>
+
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-start mb-8">
+               <div className="space-y-2">
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno(a)</span>
+                    <p className="text-lg font-black text-[#00174b]">{selectedStudent.name.toUpperCase()}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matrícula</span>
+                    <p className="text-sm font-bold text-slate-600">{selectedStudent.registration_number || '---'}</p>
+                  </div>
+               </div>
+               <div className="text-right">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ano de Referência</span>
+                  <p className="text-3xl font-black text-[#00174b]">{selectedYear}</p>
+               </div>
+            </div>
+
+            <div className="flex-1">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-[#00174b] text-white">
+                    <th className="py-3 px-4 text-left text-xs font-black uppercase tracking-widest">Mês de Referência</th>
+                    <th className="py-3 px-4 text-right text-xs font-black uppercase tracking-widest">Valor Pago</th>
+                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-widest">Data Pagamento</th>
+                    <th className="py-3 px-4 text-left text-xs font-black uppercase tracking-widest">Observações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 border-x border-b border-slate-100">
+                  {MONTHS.map((month, idx) => {
+                    const contrib = contributions.find(c => c.reference_month === idx + 1);
+                    return (
+                      <tr key={month} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 px-4 text-sm font-bold text-slate-700">{month.toUpperCase()}</td>
+                        <td className="py-3 px-4 text-sm font-black text-[#00174b] text-right">{contrib ? formatCurrency(contrib.amount) : '---'}</td>
+                        <td className="py-3 px-4 text-sm font-medium text-slate-500 text-center">{contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : 'PENDENTE'}</td>
+                        <td className="py-3 px-4 text-xs font-medium text-slate-400">{contrib?.observations || ''}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-12 flex justify-between items-end border-t-2 border-slate-900 pt-8">
+               <div className="space-y-1">
+                  <p className="text-sm font-black text-slate-900">Total Acumulado no Ano</p>
+                  <p className="text-3xl font-black text-blue-600 leading-none">
+                    {formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}
+                  </p>
+               </div>
+               <div className="text-right">
+                  <div className="w-64 border-b border-slate-900 mb-2 mx-auto"></div>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest center font-bold">Assinatura / Carimbo Escolar</p>
+                  <p className="text-[10px] text-slate-300 font-bold mt-4 uppercase tracking-tighter">Emitido via ESCMIN em {new Date().toLocaleString('pt-BR')}</p>
+               </div>
+            </div>
           </div>
         </div>
       )}
