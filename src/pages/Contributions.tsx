@@ -1824,7 +1824,7 @@ export function Contributions() {
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Turma Acadêmica</p>
                           <p className="text-sm font-black text-[#00174b]">
-                            {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.id || selectedStudent?.id))?.code || '---'}
+                            {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.class_id || selectedStudent?.class_id))?.name || '---'}
                           </p>
                         </div>
                       </div>
@@ -2014,7 +2014,7 @@ export function Contributions() {
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Turma Acadêmica</p>
                       <p className="text-xs font-black text-[#00174b]">
-                        {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.id || selectedStudent?.id))?.code || '---'}
+                        {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.class_id || selectedStudent?.class_id))?.name || '---'}
                       </p>
                     </div>
                   </div>
@@ -2160,6 +2160,7 @@ export function Contributions() {
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dados do Aluno</span>
                     <p className="text-sm font-bold text-black uppercase">{selectedStudent.name}</p>
                     <p className="text-[11px] text-slate-600 font-medium">Matrícula: {selectedStudent.registration_number || 'Não Informada'}</p>
+                    <p className="text-[11px] text-slate-600 font-medium">Turma: {classes.find(cl => cl.id === selectedStudent?.class_id)?.name || 'Não informada'}</p>
                   </div>
                   <div className="text-right space-y-1">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Período de Referência</span>
