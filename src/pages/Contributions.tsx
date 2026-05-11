@@ -2137,7 +2137,7 @@ export function Contributions() {
 
           <div className="max-w-[800px] mx-auto p-12 print:p-0 bg-white flex flex-col min-h-screen font-sans">
             {/* Header */}
-            <div className="flex items-center gap-6 mb-8 pt-8 pb-6 border-b border-black">
+            <div className="flex items-center gap-6 mb-4 pt-4 pb-4 border-b border-black">
                {institution?.logo_url && (
                   <img src={institution.logo_url} className="w-16 h-16 object-contain" referrerPolicy="no-referrer" />
                )}
@@ -2152,11 +2152,11 @@ export function Contributions() {
                </div>
             </div>
 
-            <div className="mb-8">
-               <h2 className="text-lg font-bold text-center uppercase tracking-[0.1em] border-b border-black/10 pb-4 mb-6">Extrato Anual de Contribuições - {selectedYear}</h2>
+            <div className="mb-6">
+               <h2 className="text-base font-bold text-center uppercase tracking-[0.1em] border-b border-black/10 pb-3 mb-4">Extrato Anual de Contribuições - {selectedYear}</h2>
                
-               <div className="grid grid-cols-2 gap-8 bg-slate-50 p-5 rounded border border-slate-200">
-                  <div className="space-y-1">
+               <div className="grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded border border-slate-200">
+                  <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dados do Aluno</span>
                     <p className="text-sm font-bold text-black uppercase">{selectedStudent.name}</p>
                     <p className="text-[11px] text-slate-600 font-medium">Matrícula: {selectedStudent.registration_number || 'Não Informada'}</p>
@@ -2211,22 +2211,9 @@ export function Contributions() {
               </table>
             </div>
 
-            <div className="mt-12 pt-12 border-t border-slate-200">
-               <div className="grid grid-cols-2 gap-16">
-                  <div className="text-center pt-8 border-t border-black max-w-[240px] mx-auto">
-                    <p className="text-[10px] font-bold text-black uppercase tracking-wider mb-1">Tesouraria Escolar</p>
-                    <p className="text-[8px] text-slate-400 font-medium italic">Assinatura e Carimbo</p>
-                  </div>
-                  <div className="text-center pt-8 border-t border-black max-w-[240px] mx-auto">
-                    <p className="text-[10px] font-bold text-black uppercase tracking-wider mb-1">Responsável / Aluno</p>
-                    <p className="text-[8px] text-slate-400 font-medium italic">Assinatura</p>
-                  </div>
-               </div>
-               
-               <div className="mt-12 flex justify-between items-center text-[8px] font-medium text-slate-400 uppercase tracking-widest border-t border-slate-100 pt-4">
-                  <span>Documento gerado automaticamente pelo Sistema ESCMIN</span>
-                  <span>Data de Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-               </div>
+            <div className="mt-8 flex justify-between items-center text-[8px] font-medium text-slate-400 uppercase tracking-widest border-t border-slate-100 pt-4">
+               <span>Documento gerado automaticamente pelo Sistema ESCMIN</span>
+               <span>Data de Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
         </div>
