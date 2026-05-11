@@ -84,6 +84,7 @@ export function Contributions() {
     
     const handleAfterPrint = () => {
       setIsPrinting(false);
+      setIsPrintingStatement(false);
       setReceiptPreviewData(null);
     };
     window.addEventListener('afterprint', handleAfterPrint);
@@ -2079,14 +2080,7 @@ export function Contributions() {
 
               {via === 1 && (
                 <div className="absolute left-0 -bottom-[1px] w-full flex items-center justify-center pointer-events-none z-20">
-                  <div className="w-full border-b-2 border-dashed border-slate-300"></div>
-                  <div className="absolute bg-white px-5 py-1.5 border border-slate-200 rounded-full flex items-center gap-2 shadow-sm">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] inline-flex items-center gap-2">
-                       <span className="w-1.5 h-1.5 border-b border-l border-slate-400 rotate-45"></span>
-                       CORTE AQUI
-                       <span className="w-1.5 h-1.5 border-t border-r border-slate-400 rotate-45"></span>
-                    </span>
-                  </div>
+                  <div className="w-full border-b-[1.5px] border-dashed border-slate-300"></div>
                 </div>
               )}
             </div>
@@ -2141,22 +2135,22 @@ export function Contributions() {
             </div>
           </div>
 
-          <div className="max-w-[1000px] mx-auto p-16 print:p-8 bg-white flex flex-col min-h-screen">
+          <div className="max-w-[800px] mx-auto p-12 print:p-6 bg-white flex flex-col min-h-screen">
             {/* Header */}
-            <div className="flex items-start gap-10 mb-10 pb-10 border-b-4 border-[#00174b]">
+            <div className="flex items-start gap-8 mb-6 pb-6 border-b-4 border-[#00174b]">
                {institution?.logo_url && (
-                  <img src={institution.logo_url} className="w-28 h-28 rounded-3xl object-contain shadow-sm border border-slate-50" referrerPolicy="no-referrer" />
+                  <img src={institution.logo_url} className="w-20 h-20 rounded-2xl object-contain shadow-sm border border-slate-50" referrerPolicy="no-referrer" />
                )}
                <div className="flex-1 pt-1">
-                  <h1 className="text-4xl font-black text-[#00174b] uppercase tracking-tighter leading-none mb-2">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
-                  <h2 className="text-xl font-bold text-slate-400 tracking-wide mb-4">{institution?.subtitle || 'TESOURARIA E CONFERÊNCIA'}</h2>
+                  <h1 className="text-3xl font-black text-[#00174b] uppercase tracking-tighter leading-none mb-1">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
+                  <h2 className="text-lg font-bold text-slate-400 tracking-wide mb-3">{institution?.subtitle || 'TESOURARIA E CONFERÊNCIA'}</h2>
                   
-                  <div className="grid grid-cols-2 gap-y-1 gap-x-8 max-w-2xl">
-                    <p className="text-[11px] text-slate-500 font-bold flex items-center gap-2">
-                       <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <div className="grid grid-cols-2 gap-y-1 gap-x-6 max-w-2xl">
+                    <p className="text-[10px] text-slate-500 font-bold flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                        {institution?.address}
                     </p>
-                    <div className="flex gap-6 text-[10px] font-black text-slate-600 uppercase tracking-[0.1em]">
+                    <div className="flex gap-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.1em]">
                       {institution?.phone && <span className="flex items-center gap-1.5"><span className="text-slate-300">TEL:</span> {institution.phone}</span>}
                       {institution?.email && <span className="flex items-center gap-1.5"><span className="text-slate-300">EMAIL:</span> {institution.email.toLowerCase()}</span>}
                     </div>
@@ -2164,66 +2158,65 @@ export function Contributions() {
                </div>
             </div>
 
-            <div className="flex justify-between items-end mb-12">
-              <div className="space-y-4">
-                <h3 className="text-3xl font-black text-[#00174b] uppercase tracking-[0.3em] inline-block border-b-4 border-blue-100 pb-2">Extrato de Contribuições</h3>
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 bg-[#00174b] text-white text-[10px] font-black rounded-lg uppercase tracking-widest">Ano Base</span>
-                  <span className="text-3xl font-black text-slate-900 tracking-tighter">{selectedYear}</span>
+            <div className="flex justify-between items-end mb-8">
+              <div className="space-y-3">
+                <h3 className="text-2xl font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-4 border-blue-100 pb-1">Extrato de Contribuições</h3>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-[#00174b] text-white text-[9px] font-black rounded-md uppercase tracking-widest">Ano Base</span>
+                  <span className="text-2xl font-black text-slate-900 tracking-tighter">{selectedYear}</span>
                 </div>
               </div>
               
-              <div className="text-right p-6 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm min-w-[280px]">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 block">Aluno em Referência</span>
-                 <p className="text-xl font-black text-[#00174b] uppercase leading-tight mb-1">{selectedStudent.name}</p>
-                 <p className="text-xs font-bold text-blue-600">Matrícula: {selectedStudent.registration_number || 'N/A'}</p>
+              <div className="text-right p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm min-w-[240px]">
+                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-0.5 block">Aluno em Referência</span>
+                 <p className="text-lg font-black text-[#00174b] uppercase leading-tight mb-0.5">{selectedStudent.name}</p>
+                 <p className="text-[11px] font-bold text-blue-600">Matrícula: {selectedStudent.registration_number || 'N/A'}</p>
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden rounded-3xl border-2 border-slate-100 shadow-sm mb-12">
+            <div className="flex-1 overflow-hidden rounded-2xl border-2 border-slate-100 shadow-sm mb-8">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-slate-50">
-                    <th className="py-5 px-8 text-left text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Competência</th>
-                    <th className="py-5 px-8 text-right text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Valor Nominal</th>
-                    <th className="py-5 px-8 text-center text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Pagamento</th>
-                    <th className="py-5 px-8 text-left text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Status</th>
+                    <th className="py-3 px-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Competência</th>
+                    <th className="py-3 px-6 text-right text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Valor</th>
+                    <th className="py-3 px-6 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Pagamento</th>
+                    <th className="py-3 px-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y-2 divide-slate-50">
+                <tbody className="divide-y divide-slate-50">
                   {MONTHS.map((month, idx) => {
                     const contrib = contributions.find(c => c.reference_month === idx + 1);
                     return (
                       <tr key={month} className="hover:bg-slate-50/30 transition-all group">
-                        <td className="py-4 px-8">
-                           <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{month}</p>
-                           <p className="text-[10px] font-bold text-slate-400">{selectedYear}</p>
+                        <td className="py-2.5 px-6">
+                           <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{month}</p>
                         </td>
-                        <td className="py-4 px-8 text-right">
+                        <td className="py-2.5 px-6 text-right">
                            <span className={cn(
-                             "text-base font-black tracking-tighter",
+                             "text-sm font-black tracking-tighter",
                              contrib ? "text-[#00174b]" : "text-slate-300"
                            )}>
                              {contrib ? formatCurrency(contrib.amount) : formatCurrency(0)}
                            </span>
                         </td>
-                        <td className="py-4 px-8 text-center">
+                        <td className="py-2.5 px-6 text-center">
                            {contrib ? (
-                             <span className="text-sm font-bold text-slate-600">{safeFormat(contrib.payment_date, 'dd/MM/yyyy')}</span>
+                             <span className="text-xs font-bold text-slate-600">{safeFormat(contrib.payment_date, 'dd/MM/yyyy')}</span>
                            ) : (
-                             <span className="text-[10px] font-black text-slate-300 uppercase italic">Não Identificado</span>
+                             <span className="text-[9px] font-black text-slate-300 uppercase italic">---</span>
                            )}
                         </td>
-                        <td className="py-4 px-8">
+                        <td className="py-2.5 px-6">
                            {contrib ? (
-                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full">
-                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                               <span className="text-[9px] font-black uppercase tracking-widest">Liquidado</span>
+                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full">
+                               <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                               <span className="text-[8px] font-black uppercase tracking-widest">Liquidado</span>
                              </div>
                            ) : (
-                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-full">
-                               <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                               <span className="text-[9px] font-black uppercase tracking-widest">Pendente</span>
+                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full">
+                               <div className="w-1 h-1 rounded-full bg-amber-500"></div>
+                               <span className="text-[8px] font-black uppercase tracking-widest">Pendente</span>
                              </div>
                            )}
                         </td>
@@ -2234,28 +2227,28 @@ export function Contributions() {
               </table>
             </div>
 
-            <div className="mt-auto grid grid-cols-2 gap-12 items-end">
-               <div className="bg-[#00174b] text-white p-10 rounded-[40px] shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.3em] opacity-60 mb-2">Total Consolidado</p>
-                  <p className="text-5xl font-black tracking-tighter leading-none mb-1">
+            <div className="mt-auto grid grid-cols-2 gap-8 items-end">
+               <div className="bg-[#00174b] text-white p-8 rounded-[30px] shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Total Consolidado</p>
+                  <p className="text-4xl font-black tracking-tighter leading-none mb-1">
                     {formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}
                   </p>
-                  <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Soma de todos os meses liquidados</p>
+                  <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Registros de {selectedYear}</p>
                </div>
                
-               <div className="space-y-12 pb-2">
+               <div className="space-y-8 pb-1">
                   <div className="text-center">
-                     <div className="w-full border-b-2 border-slate-200 mb-4 scale-x-90"></div>
-                     <p className="text-[11px] font-black text-[#00174b] uppercase tracking-[0.3em] mb-1">Assinatura Responsável</p>
-                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Controle de Tesouraria Escolar</p>
+                     <div className="w-full border-b-2 border-slate-200 mb-3 ml-auto mr-auto max-w-[200px]"></div>
+                     <p className="text-[10px] font-black text-[#00174b] uppercase tracking-[0.2em] mb-0.5">Assinatura Responsável</p>
+                     <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Controle de Tesouraria</p>
                   </div>
                   
-                  <div className="flex justify-between items-center px-4">
-                     <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
-                       Relatório Gerado via ESCMIN
+                  <div className="flex justify-between items-center px-2">
+                     <div className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
+                       Gerado via ESCMIN
                      </div>
-                     <div className="text-[9px] font-black text-slate-400 uppercase">
+                     <div className="text-[8px] font-black text-slate-400 uppercase">
                        {new Date().toLocaleDateString('pt-BR')} • {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                      </div>
                   </div>
