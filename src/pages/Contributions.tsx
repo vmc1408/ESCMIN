@@ -1988,8 +1988,8 @@ export function Contributions() {
                       </div>
                     </div>
                     
-                    <div className="absolute right-4 top-4 opacity-40">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    <div className="absolute -right-4 top-1/2 -translate-y-1/2 opacity-30 select-none">
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.4em] [writing-mode:vertical-rl] rotate-180 py-4">
                         {via === 1 ? 'VIA ESCOLA' : 'VIA ALUNO'}
                       </span>
                     </div>
@@ -2078,10 +2078,14 @@ export function Contributions() {
               </div>
 
               {via === 1 && (
-                <div className="absolute left-0 -bottom-[1.5px] w-full flex items-center justify-center pointer-events-none z-10">
+                <div className="absolute left-0 -bottom-[1px] w-full flex items-center justify-center pointer-events-none z-20">
                   <div className="w-full border-b-2 border-dashed border-slate-300"></div>
-                  <div className="absolute bg-white px-6 py-1.5 border-2 border-slate-200 rounded-full flex items-center gap-2 shadow-sm">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">CORTE AQUI</span>
+                  <div className="absolute bg-white px-5 py-1.5 border border-slate-200 rounded-full flex items-center gap-2 shadow-sm">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] inline-flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 border-b border-l border-slate-400 rotate-45"></span>
+                       CORTE AQUI
+                       <span className="w-1.5 h-1.5 border-t border-r border-slate-400 rotate-45"></span>
+                    </span>
                   </div>
                 </div>
               )}
@@ -2091,7 +2095,7 @@ export function Contributions() {
         </div>
       )}
 
-      {/* Printable Area - Statement */}
+      {/* Printable Area - Statement (Refined) */}
       {isPrintingStatement && selectedStudent && (
         <div 
           id="printable-statement"
@@ -2102,96 +2106,127 @@ export function Contributions() {
           )}
         >
           {/* Control Bar */}
-          <div className="print:hidden sticky top-0 left-0 w-full bg-slate-900 text-white p-4 flex flex-col sm:flex-row items-center justify-between z-[200] shadow-2xl gap-4">
+          <div className="print:hidden sticky top-0 left-0 w-full bg-slate-900/95 backdrop-blur text-white p-4 flex flex-col sm:flex-row items-center justify-between z-[200] shadow-2xl gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-[#00174b] flex items-center justify-center">
-                <FileText size={20} />
+              <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
+                <FileText className="text-blue-400" size={24} />
               </div>
               <div>
-                <h3 className="text-sm font-black uppercase tracking-widest leading-none mb-1">Extrato Anual</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Visualização de Impressão</p>
+                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none mb-1">Extrato Anual</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{selectedStudent.name}</p>
               </div>
             </div>
             
             <div className="flex items-center flex-wrap justify-center gap-3">
               <button 
                 onMouseDown={() => window.print()}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl hover:shadow-blue-500/20 flex items-center gap-3 active:scale-95"
               >
-                <Printer size={16} /> Abrir Impressora
+                <Printer size={18} /> Imprimir Extrato
               </button>
 
               <button 
                 onClick={generateStatement}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
+                className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-3 active:scale-95"
               >
-                <FileDown size={16} /> Baixar PDF
+                <FileDown size={18} /> Salvar PDF
               </button>
 
               <button 
                 onClick={() => setIsPrintingStatement(false)}
-                className="px-6 py-2.5 bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all flex items-center gap-2"
+                className="px-8 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-3 active:scale-95 ml-4"
               >
-                <X size={16} /> Voltar ao Sistema
+                <X size={18} /> Sair
               </button>
             </div>
           </div>
 
-          <div className="max-w-[800px] mx-auto p-12 bg-white flex flex-col min-h-screen">
+          <div className="max-w-[1000px] mx-auto p-16 print:p-8 bg-white flex flex-col min-h-screen">
             {/* Header */}
-            <div className="flex items-center gap-8 mb-8 pb-8 border-b-2 border-slate-900">
+            <div className="flex items-start gap-10 mb-10 pb-10 border-b-4 border-[#00174b]">
                {institution?.logo_url && (
-                  <img src={institution.logo_url} className="w-24 h-24 rounded-2xl object-contain" referrerPolicy="no-referrer" />
+                  <img src={institution.logo_url} className="w-28 h-28 rounded-3xl object-contain shadow-sm border border-slate-50" referrerPolicy="no-referrer" />
                )}
-               <div className="flex-1">
-                  <h1 className="text-3xl font-black text-[#00174b] uppercase tracking-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
-                  <h2 className="text-xl font-bold text-slate-500 tracking-wide">{institution?.subtitle || ''}</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-1">{institution?.address}</p>
-                  <div className="flex gap-4 mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    {institution?.phone && <span>TEL: {institution.phone}</span>}
-                    {institution?.email && <span className="lowercase">EMAIL: {institution.email.toLowerCase()}</span>}
+               <div className="flex-1 pt-1">
+                  <h1 className="text-4xl font-black text-[#00174b] uppercase tracking-tighter leading-none mb-2">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
+                  <h2 className="text-xl font-bold text-slate-400 tracking-wide mb-4">{institution?.subtitle || 'TESOURARIA E CONFERÊNCIA'}</h2>
+                  
+                  <div className="grid grid-cols-2 gap-y-1 gap-x-8 max-w-2xl">
+                    <p className="text-[11px] text-slate-500 font-bold flex items-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                       {institution?.address}
+                    </p>
+                    <div className="flex gap-6 text-[10px] font-black text-slate-600 uppercase tracking-[0.1em]">
+                      {institution?.phone && <span className="flex items-center gap-1.5"><span className="text-slate-300">TEL:</span> {institution.phone}</span>}
+                      {institution?.email && <span className="flex items-center gap-1.5"><span className="text-slate-300">EMAIL:</span> {institution.email.toLowerCase()}</span>}
+                    </div>
                   </div>
                </div>
             </div>
 
-            <h2 className="text-2xl font-black text-center text-[#00174b] uppercase tracking-[0.2em] mb-10">Extrato Anual de Contribuições</h2>
-
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-start mb-8">
-               <div className="space-y-2">
-                  <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno(a)</span>
-                    <p className="text-lg font-black text-[#00174b]">{selectedStudent.name.toUpperCase()}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Matrícula</span>
-                    <p className="text-sm font-bold text-slate-600">{selectedStudent.registration_number || '---'}</p>
-                  </div>
-               </div>
-               <div className="text-right">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ano de Referência</span>
-                  <p className="text-3xl font-black text-[#00174b]">{selectedYear}</p>
-               </div>
+            <div className="flex justify-between items-end mb-12">
+              <div className="space-y-4">
+                <h3 className="text-3xl font-black text-[#00174b] uppercase tracking-[0.3em] inline-block border-b-4 border-blue-100 pb-2">Extrato de Contribuições</h3>
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 bg-[#00174b] text-white text-[10px] font-black rounded-lg uppercase tracking-widest">Ano Base</span>
+                  <span className="text-3xl font-black text-slate-900 tracking-tighter">{selectedYear}</span>
+                </div>
+              </div>
+              
+              <div className="text-right p-6 bg-slate-50 rounded-3xl border border-slate-100 shadow-sm min-w-[280px]">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 block">Aluno em Referência</span>
+                 <p className="text-xl font-black text-[#00174b] uppercase leading-tight mb-1">{selectedStudent.name}</p>
+                 <p className="text-xs font-bold text-blue-600">Matrícula: {selectedStudent.registration_number || 'N/A'}</p>
+              </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-1 overflow-hidden rounded-3xl border-2 border-slate-100 shadow-sm mb-12">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-[#00174b] text-white">
-                    <th className="py-3 px-4 text-left text-xs font-black uppercase tracking-widest">Mês de Referência</th>
-                    <th className="py-3 px-4 text-right text-xs font-black uppercase tracking-widest">Valor Pago</th>
-                    <th className="py-3 px-4 text-center text-xs font-black uppercase tracking-widest">Data Pagamento</th>
-                    <th className="py-3 px-4 text-left text-xs font-black uppercase tracking-widest">Observações</th>
+                  <tr className="bg-slate-50">
+                    <th className="py-5 px-8 text-left text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Competência</th>
+                    <th className="py-5 px-8 text-right text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Valor Nominal</th>
+                    <th className="py-5 px-8 text-center text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Pagamento</th>
+                    <th className="py-5 px-8 text-left text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 border-x border-b border-slate-100">
+                <tbody className="divide-y-2 divide-slate-50">
                   {MONTHS.map((month, idx) => {
                     const contrib = contributions.find(c => c.reference_month === idx + 1);
                     return (
-                      <tr key={month} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3 px-4 text-sm font-bold text-slate-700">{month.toUpperCase()}</td>
-                        <td className="py-3 px-4 text-sm font-black text-[#00174b] text-right">{contrib ? formatCurrency(contrib.amount) : '---'}</td>
-                        <td className="py-3 px-4 text-sm font-medium text-slate-500 text-center">{contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : 'PENDENTE'}</td>
-                        <td className="py-3 px-4 text-xs font-medium text-slate-400">{contrib?.observations || ''}</td>
+                      <tr key={month} className="hover:bg-slate-50/30 transition-all group">
+                        <td className="py-4 px-8">
+                           <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{month}</p>
+                           <p className="text-[10px] font-bold text-slate-400">{selectedYear}</p>
+                        </td>
+                        <td className="py-4 px-8 text-right">
+                           <span className={cn(
+                             "text-base font-black tracking-tighter",
+                             contrib ? "text-[#00174b]" : "text-slate-300"
+                           )}>
+                             {contrib ? formatCurrency(contrib.amount) : formatCurrency(0)}
+                           </span>
+                        </td>
+                        <td className="py-4 px-8 text-center">
+                           {contrib ? (
+                             <span className="text-sm font-bold text-slate-600">{safeFormat(contrib.payment_date, 'dd/MM/yyyy')}</span>
+                           ) : (
+                             <span className="text-[10px] font-black text-slate-300 uppercase italic">Não Identificado</span>
+                           )}
+                        </td>
+                        <td className="py-4 px-8">
+                           {contrib ? (
+                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                               <span className="text-[9px] font-black uppercase tracking-widest">Liquidado</span>
+                             </div>
+                           ) : (
+                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-full">
+                               <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                               <span className="text-[9px] font-black uppercase tracking-widest">Pendente</span>
+                             </div>
+                           )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -2199,17 +2234,31 @@ export function Contributions() {
               </table>
             </div>
 
-            <div className="mt-12 flex justify-between items-end border-t-2 border-slate-900 pt-8">
-               <div className="space-y-1">
-                  <p className="text-sm font-black text-slate-900">Total Acumulado no Ano</p>
-                  <p className="text-3xl font-black text-blue-600 leading-none">
+            <div className="mt-auto grid grid-cols-2 gap-12 items-end">
+               <div className="bg-[#00174b] text-white p-10 rounded-[40px] shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.3em] opacity-60 mb-2">Total Consolidado</p>
+                  <p className="text-5xl font-black tracking-tighter leading-none mb-1">
                     {formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}
                   </p>
+                  <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Soma de todos os meses liquidados</p>
                </div>
-               <div className="text-right">
-                  <div className="w-64 border-b border-slate-900 mb-2 mx-auto"></div>
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest center font-bold">Assinatura / Carimbo Escolar</p>
-                  <p className="text-[10px] text-slate-300 font-bold mt-4 uppercase tracking-tighter">Emitido via ESCMIN em {new Date().toLocaleString('pt-BR')}</p>
+               
+               <div className="space-y-12 pb-2">
+                  <div className="text-center">
+                     <div className="w-full border-b-2 border-slate-200 mb-4 scale-x-90"></div>
+                     <p className="text-[11px] font-black text-[#00174b] uppercase tracking-[0.3em] mb-1">Assinatura Responsável</p>
+                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Controle de Tesouraria Escolar</p>
+                  </div>
+                  
+                  <div className="flex justify-between items-center px-4">
+                     <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                       Relatório Gerado via ESCMIN
+                     </div>
+                     <div className="text-[9px] font-black text-slate-400 uppercase">
+                       {new Date().toLocaleDateString('pt-BR')} • {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                     </div>
+                  </div>
                </div>
             </div>
           </div>
