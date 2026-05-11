@@ -803,8 +803,13 @@ export function Students() {
           <div className="border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight mb-2">
             <div className="flex-1 space-y-1">
               <p className="leading-none text-[9pt]">
-                {institution?.address} {institution?.cep ? ` - CEP: ${institution.cep}` : ''} {institution?.city_uf ? ` - ${institution.city_uf}` : ''}
+                {institution?.address}
               </p>
+              {(institution?.cep || institution?.city_uf) && (
+                <p className="leading-none text-[9pt]">
+                  {institution?.cep ? `CEP: ${institution.cep}` : ''} {institution?.city_uf ? ` - ${institution.city_uf}` : ''}
+                </p>
+              )}
               <div className="flex items-center gap-4 leading-none font-bold text-[9pt]">
                 {institution?.phone && (
                   <span className="flex items-center gap-1.5">
