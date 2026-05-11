@@ -615,7 +615,7 @@ export function Contributions() {
       // Footer
       doc.setFontSize(5.5);
       doc.setTextColor(180);
-      const footerText = (institution?.footer_text || 'Documento emitido via INTELLIGENCE ESCMIN').toUpperCase();
+      const footerText = (institution?.footer_text || `Documento emitido via ${institution?.name || 'Sistema de Gestão'}`).toUpperCase();
       doc.text(footerText, pageWidth / 2, sigY + 8, { align: 'center' });
     };
 
@@ -774,7 +774,7 @@ export function Contributions() {
       // Footer Metadata
       doc.setFontSize(5);
       doc.setTextColor(200);
-      doc.text(`SISTEMA INTELLIGENCE ESCMIN - EMISSAO: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, sigY + 8);
+      doc.text(`SISTEMA ${institution?.name?.toUpperCase() || 'ESCMIN'} - EMISSAO: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, sigY + 8);
     };
 
     // First copy
@@ -894,7 +894,7 @@ export function Contributions() {
         const splitNote = doc.splitTextToSize(footerNote, pageWidth - margin * 2);
         doc.text(splitNote, centerX, finalY + 5, { align: 'center' });
         
-        const sysInfo = institution?.footer_text || `Documento oficial gerado via INTELLIGENCE ESCMIN em ${new Date().toLocaleString('pt-BR')}`;
+        const sysInfo = institution?.footer_text || `Documento oficial gerado via ${institution?.name || 'Sistema de Gestão'} em ${new Date().toLocaleString('pt-BR')}`;
         doc.text(sysInfo.toUpperCase(), centerX, finalY + 15, { align: 'center' });
       }
 
@@ -2214,8 +2214,8 @@ export function Contributions() {
             <div className="mt-auto pt-8 border-t-2 border-slate-900/10">
                <div className="flex justify-between items-end text-[8px] font-bold text-slate-500 uppercase tracking-[0.1em]">
                   <div className="space-y-1">
-                     <p className="text-slate-900">{institution?.footer_text || 'Documento oficial gerado via INTELLIGENCE ESCMIN'}</p>
-                     <p className="opacity-50">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} • {institution?.cnpj || 'CNPJ NÃO INFORMADO'}</p>
+                     <p className="text-slate-900">{institution?.footer_text || institution?.name || 'Documento Oficial de Registro'}</p>
+                     <p className="opacity-50">{institution?.name || 'INSTITUIÇÃO'} • {institution?.cnpj || 'CNPJ NÃO INFORMADO'}</p>
                   </div>
                   <div className="text-right space-y-1">
                      <p className="text-slate-900">Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
