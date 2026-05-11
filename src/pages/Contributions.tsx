@@ -2211,9 +2211,17 @@ export function Contributions() {
               </table>
             </div>
 
-            <div className="mt-8 flex justify-between items-center text-[8px] font-medium text-slate-400 uppercase tracking-widest border-t border-slate-100 pt-4">
-               <span>Documento gerado automaticamente pelo Sistema ESCMIN</span>
-               <span>Data de Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+            <div className="mt-auto pt-8 border-t-2 border-slate-900/10">
+               <div className="flex justify-between items-end text-[8px] font-bold text-slate-500 uppercase tracking-[0.1em]">
+                  <div className="space-y-1">
+                     <p className="text-slate-900">{institution?.footer_text || 'Documento oficial gerado via INTELLIGENCE ESCMIN'}</p>
+                     <p className="opacity-50">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} • {institution?.cnpj || 'CNPJ NÃO INFORMADO'}</p>
+                  </div>
+                  <div className="text-right space-y-1">
+                     <p className="text-slate-900">Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                     <p className="opacity-50">Código de Autenticidade: {Math.random().toString(36).substring(2, 10).toUpperCase()}</p>
+                  </div>
+               </div>
             </div>
           </div>
         </div>
