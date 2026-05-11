@@ -13,8 +13,12 @@ import {
   Loader2,
   Plus,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Printer,
+  Filter
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
@@ -144,9 +148,11 @@ const ClassItem = React.memo(({
 export function Classes() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [inst, setInst] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [sortBy, setSortBy] = useState<'name' | 'code' | 'year' | 'period'>('name');
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -170,9 +176,10 @@ export function Classes() {
   const fetchClasses = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [classesData, subjectsData] = await Promise.all([
+      const [classesData, subjectsData, instData] = await Promise.all([
         fetchAll('classes', '*', 'name', true),
-        fetchAll('subjects', 'id, name, code, year, semester, program_content', 'name', true)
+        fetchAll('subjects', 'id, name, code, year, semester, program_content', 'name', true),
+        fetchAll('institution_settings')
       ]);
       
       const normalizedSubjects = (subjectsData || []).map((s: any) => {
@@ -227,6 +234,7 @@ export function Classes() {
 
       setClasses(normalizedClasses);
       setSubjects(normalizedSubjects);
+      if (instData && instData.length > 0) setInst(instData[0]);
     } catch (error) {
       console.error('Error fetching classes:', error);
     } finally {
@@ -246,6 +254,83 @@ export function Classes() {
     });
     setIsEditing(false);
   }, []);
+
+  const generateClassListPDF = async () => {
+    try {
+      const doc = new jsPDF();
+      const margin = 15;
+      const pageWidth = doc.internal.pageSize.width;
+
+      if (inst?.logo_url) {
+        try {
+          doc.addImage(inst.logo_url, 'PNG', margin, 10, 20, 20);
+        } catch (e) { console.error('Error adding logo', e); }
+      }
+      
+      doc.setFontSize(14);
+      doc.setTextColor(0, 23, 75);
+      doc.setFont('helvetica', 'bold');
+      doc.text(inst?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 38, 18);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`RELAÇÃO DE TURMAS • FILTRO: ${statusFilter.toUpperCase()}`, 38, 24);
+      doc.text(`${inst?.city_uf || ''} • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, 38, 29);
+
+      doc.setDrawColor(0, 23, 75);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 35, pageWidth - margin, 35);
+
+      const tableData = filteredClasses.map(c => [
+        c.code,
+        c.name.toUpperCase(),
+        c.year || '---',
+        c.period,
+        (c.days_of_week || []).join(', '),
+        c.status || 'Ativo'
+      ]);
+
+      autoTable(doc, {
+        startY: 40,
+        head: [['CÓD.', 'NOME DA TURMA', 'ANO', 'PERÍODO', 'DIAS', 'STATUS']],
+        body: tableData,
+        headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 6.5, cellPadding: 2, font: 'helvetica' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        margin: { left: margin, right: margin }
+      });
+
+      const pages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        const footerText = `SISTEMA ESCMIN • Documento emitido em ${new Date().toLocaleString('pt-BR')} • Página ${i} de ${pages}`;
+        doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      }
+
+      doc.autoPrint();
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            URL.revokeObjectURL(url);
+          }, 1000);
+        }, 300);
+      };
+    } catch (error) {
+      console.error('Error generating class list PDF:', error);
+      alert('Erro ao gerar relatório de turmas');
+    }
+  };
 
   const handleNew = () => {
     setSelectedClass(null);
@@ -354,7 +439,7 @@ export function Classes() {
   };
 
   const filteredClasses = React.useMemo(() => {
-    return classes.filter(c => {
+    let result = classes.filter(c => {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.code.toLowerCase().includes(searchTerm.toLowerCase());
       
@@ -362,7 +447,14 @@ export function Classes() {
       
       return matchesSearch && matchesStatus;
     });
-  }, [classes, searchTerm, statusFilter]);
+
+    return [...result].sort((a, b) => {
+      if (sortBy === 'code') return a.code.localeCompare(b.code);
+      if (sortBy === 'year') return (a.year || '').localeCompare(b.year || '');
+      if (sortBy === 'period') return a.period.localeCompare(b.period);
+      return a.name.localeCompare(b.name);
+    });
+  }, [classes, searchTerm, statusFilter, sortBy]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-2">
@@ -372,9 +464,17 @@ export function Classes() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Turmas</h2>
             <div className="flex gap-2">
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100">
+              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100 flex items-center">
                 {filteredClasses.length}
               </div>
+              <button 
+                onClick={generateClassListPDF}
+                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm"
+                title="Imprimir Listagem Completa"
+              >
+                <Printer size={16} />
+                <span className="text-[10px] font-black uppercase tracking-tight">Listagem</span>
+              </button>
               <button 
                 onClick={handleNew}
                 className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
@@ -394,21 +494,33 @@ export function Classes() {
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-          <div className="flex bg-slate-50 p-1 rounded-xl">
-            {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={cn(
-                  "flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all",
-                  statusFilter === status 
-                    ? "bg-white text-blue-600 shadow-sm" 
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {status}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+            >
+              <option value="name">Ordenar por Nome</option>
+              <option value="code">Ordenar por Código</option>
+              <option value="year">Ordenar por Ano</option>
+              <option value="period">Ordenar por Período</option>
+            </select>
+            <div className="flex bg-slate-50 p-1 rounded-lg">
+              {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={cn(
+                    "flex-1 py-1 text-[8px] font-black uppercase rounded transition-all",
+                    statusFilter === status 
+                      ? "bg-white text-blue-600 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -487,6 +599,13 @@ export function Classes() {
                   </>
                 ) : (
                   <div className="flex gap-2">
+                    <button 
+                      onClick={() => window.print()}
+                      className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
+                    >
+                      <Printer size={16} />
+                      Imprimir Ficha
+                    </button>
                     <button 
                       onClick={() => setIsEditing(true)}
                       className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
@@ -769,6 +888,154 @@ export function Classes() {
               >
                 {loading ? 'Excluindo...' : 'Sim, Excluir'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Class Record */}
+      {selectedClass && (
+        <div id="printable-class-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[285mm] mx-auto">
+          <div className="w-full max-w-[210mm] mx-auto bg-white p-8 flex flex-col h-full">
+            {/* Institutional Header */}
+            <div className="flex items-center gap-6 mb-6 pb-2 border-b-2 border-black">
+              <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+                {inst?.logo_url ? (
+                  <img src={inst.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
+                ) : (
+                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                    <span className="leading-none">SEM</span>
+                    <span className="leading-none">LOGO</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col">
+                <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
+                <h1 className="text-[19pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
+                  {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                </h1>
+                <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
+                  {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
+                </p>
+              </div>
+            </div>
+
+            {/* Document Title */}
+            <div className="bg-black text-white py-2 px-4 mb-6 flex justify-between items-center">
+              <h2 className="text-[14pt] font-black uppercase tracking-widest">FICHA DA TURMA</h2>
+              <span className="text-[10pt] font-bold">Turma: {selectedClass.code}</span>
+            </div>
+
+            {/* Content Section */}
+            <div className="space-y-6 flex-1">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="border-b border-black/10 pb-2">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Nome do Curso / Turma</p>
+                  <p className="text-[12pt] font-black uppercase text-[#00174b]">{selectedClass.name}</p>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="border-b border-black/10 pb-2">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Ano Letivo</p>
+                    <p className="text-[11pt] font-bold">{selectedClass.year || '---'}</p>
+                  </div>
+                  <div className="border-b border-black/10 pb-2">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Semestre</p>
+                    <p className="text-[11pt] font-bold uppercase">{selectedClass.semester || '---'}</p>
+                  </div>
+                  <div className="border-b border-black/10 pb-2">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Período</p>
+                    <p className="text-[11pt] font-bold uppercase">{selectedClass.period || '---'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="border-b border-black/10 pb-2">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Sala</p>
+                    <p className="text-[11pt] font-bold uppercase">{selectedClass.room || '---'}</p>
+                  </div>
+                  <div className="border-b border-black/10 pb-2">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Duração</p>
+                    <p className="text-[11pt] font-bold uppercase">Início em: {selectedClass.start_date || '---'}</p>
+                  </div>
+                </div>
+
+                <div className="border-b border-black/10 pb-2">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Dias da Semana</p>
+                  <p className="text-[11pt] font-bold uppercase">{(selectedClass.days_of_week || []).join(', ') || 'Não definidos'}</p>
+                </div>
+
+                <div className="border-b border-black/10 pb-2">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Disciplinas Vinculadas</p>
+                  <div className="space-y-1 mt-2">
+                    {selectedClass.subject_ids?.map(sid => (
+                      <p key={sid} className="text-[10pt] font-bold text-[#00174b] uppercase flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        {subjects.find(s => s.id === sid)?.name || '---'}
+                      </p>
+                    ))}
+                    {!selectedClass.subject_ids?.length && <p className="text-[10pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>}
+                  </div>
+                </div>
+
+                <div className="border-b border-black/10 pb-2">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Observações da Turma</p>
+                  <div className="text-[10pt] leading-relaxed text-justify whitespace-pre-line min-h-[100px]">
+                    {(selectedClass.observations || '').replace(/\[METADATA:.+?\]/, '').trim() || 'Sem observações adicionais.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Signature Area */}
+              <div className="mt-12 flex justify-between items-end px-4">
+                <div className="space-y-1">
+                  <p className="text-[10pt] font-bold text-slate-800">
+                    Guarulhos, {new Date().toLocaleDateString('pt-BR')}
+                  </p>
+                  <p className="text-[8pt] text-slate-400 font-medium">Local e Data</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-[85mm] border-t-2 border-black mb-1"></div>
+                  <p className="text-[10pt] font-black uppercase tracking-widest text-[#00174b]">Assinatura da Secretaria</p>
+                  <p className="text-[7pt] text-slate-400 font-bold mt-1 tracking-tighter">Escola Diocesana de Ministérios - ESMIN</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Institutional Footer */}
+            <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight mb-2">
+              <div className="flex-1 space-y-1">
+                <p className="leading-none text-[9pt]">
+                  {inst?.address}
+                </p>
+                {(inst?.cep || inst?.city_uf) && (
+                  <p className="leading-none text-[9pt]">
+                    {inst?.cep ? `CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
+                  </p>
+                )}
+                <div className="flex items-center gap-4 leading-none font-bold text-[9pt]">
+                  {inst?.phone && (
+                    <span className="flex items-center gap-1.5">
+                      TEL: {inst.phone}
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="#25D366" className="shrink-0">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                      </svg>
+                    </span>
+                  )}
+                  {inst?.phone && inst?.email && <span className="opacity-30">|</span>}
+                  {inst?.email && (
+                    <span className="flex items-center gap-1">
+                      EMAIL: <span className="lowercase font-bold">{inst.email}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+              {inst?.secretary && (
+                <div className="text-right max-w-[450px] leading-tight text-black font-black uppercase text-[8pt]">
+                  <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{inst.secretary}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
