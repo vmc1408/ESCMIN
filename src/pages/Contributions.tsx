@@ -2089,7 +2089,7 @@ export function Contributions() {
         </div>
       )}
 
-      {/* Printable Area - Statement (Refined) */}
+      {/* Printable Area - Statement (Professional & Minimalist) */}
       {isPrintingStatement && selectedStudent && (
         <div 
           id="printable-statement"
@@ -2100,158 +2100,131 @@ export function Contributions() {
           )}
         >
           {/* Control Bar */}
-          <div className="print:hidden sticky top-0 left-0 w-full bg-slate-900/95 backdrop-blur text-white p-4 flex flex-col sm:flex-row items-center justify-between z-[200] shadow-2xl gap-4">
+          <div className="print:hidden sticky top-0 left-0 w-full bg-slate-900 text-white p-4 flex flex-col sm:flex-row items-center justify-between z-[200] gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
-                <FileText className="text-blue-400" size={24} />
+              <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                <FileText className="text-slate-300" size={20} />
               </div>
               <div>
-                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none mb-1">Extrato Anual</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{selectedStudent.name}</p>
+                <h3 className="text-sm font-bold uppercase tracking-wider leading-none mb-1">Extrato de Contribuinte</h3>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest">{selectedStudent.name}</p>
               </div>
             </div>
             
             <div className="flex items-center flex-wrap justify-center gap-3">
               <button 
                 onMouseDown={() => window.print()}
-                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl hover:shadow-blue-500/20 flex items-center gap-3 active:scale-95"
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-2 active:scale-95"
               >
-                <Printer size={18} /> Imprimir Extrato
+                <Printer size={16} /> Imprimir
               </button>
 
               <button 
                 onClick={generateStatement}
-                className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-3 active:scale-95"
+                className="px-6 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-2 active:scale-95"
               >
-                <FileDown size={18} /> Salvar PDF
+                <FileDown size={16} /> PDF
               </button>
 
               <button 
                 onClick={() => setIsPrintingStatement(false)}
-                className="px-8 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-3 active:scale-95 ml-4"
+                className="px-6 py-2 bg-red-600/10 hover:bg-red-600 text-red-600 hover:text-white rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-2 active:scale-95"
               >
-                <X size={18} /> Sair
+                <X size={16} /> Sair
               </button>
             </div>
           </div>
 
-          <div className="max-w-[800px] mx-auto p-12 print:p-6 bg-white flex flex-col min-h-screen">
+          <div className="max-w-[800px] mx-auto p-12 print:p-0 bg-white flex flex-col min-h-screen font-sans">
             {/* Header */}
-            <div className="flex items-start gap-8 mb-6 pb-6 border-b-4 border-[#00174b]">
+            <div className="flex items-center gap-6 mb-8 pt-8 pb-6 border-b border-black">
                {institution?.logo_url && (
-                  <img src={institution.logo_url} className="w-20 h-20 rounded-2xl object-contain shadow-sm border border-slate-50" referrerPolicy="no-referrer" />
+                  <img src={institution.logo_url} className="w-16 h-16 object-contain" referrerPolicy="no-referrer" />
                )}
-               <div className="flex-1 pt-1">
-                  <h1 className="text-3xl font-black text-[#00174b] uppercase tracking-tighter leading-none mb-1">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
-                  <h2 className="text-lg font-bold text-slate-400 tracking-wide mb-3">{institution?.subtitle || 'TESOURARIA E CONFERÊNCIA'}</h2>
-                  
-                  <div className="grid grid-cols-2 gap-y-1 gap-x-6 max-w-2xl">
-                    <p className="text-[10px] text-slate-500 font-bold flex items-center gap-2">
-                       <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                       {institution?.address}
-                    </p>
-                    <div className="flex gap-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.1em]">
-                      {institution?.phone && <span className="flex items-center gap-1.5"><span className="text-slate-300">TEL:</span> {institution.phone}</span>}
-                      {institution?.email && <span className="flex items-center gap-1.5"><span className="text-slate-300">EMAIL:</span> {institution.email.toLowerCase()}</span>}
-                    </div>
+               <div className="flex-1">
+                  <h1 className="text-xl font-bold text-black uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
+                  <p className="text-sm font-medium text-slate-600">{institution?.subtitle || 'TESOURARIA E CONFERÊNCIA'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">{institution?.address}</p>
+                  <div className="flex gap-4 mt-1 text-[9px] font-bold text-slate-600 uppercase tracking-wider">
+                    {institution?.phone && <span>TEL: {institution.phone}</span>}
+                    {institution?.email && <span className="lowercase">EMAIL: {institution.email.toLowerCase()}</span>}
                   </div>
                </div>
             </div>
 
-            <div className="flex justify-between items-end mb-8">
-              <div className="space-y-3">
-                <h3 className="text-2xl font-black text-[#00174b] uppercase tracking-[0.2em] inline-block border-b-4 border-blue-100 pb-1">Extrato de Contribuições</h3>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-[#00174b] text-white text-[9px] font-black rounded-md uppercase tracking-widest">Ano Base</span>
-                  <span className="text-2xl font-black text-slate-900 tracking-tighter">{selectedYear}</span>
-                </div>
-              </div>
-              
-              <div className="text-right p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm min-w-[240px]">
-                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-0.5 block">Aluno em Referência</span>
-                 <p className="text-lg font-black text-[#00174b] uppercase leading-tight mb-0.5">{selectedStudent.name}</p>
-                 <p className="text-[11px] font-bold text-blue-600">Matrícula: {selectedStudent.registration_number || 'N/A'}</p>
-              </div>
+            <div className="mb-8">
+               <h2 className="text-lg font-bold text-center uppercase tracking-[0.1em] border-b border-black/10 pb-4 mb-6">Extrato Anual de Contribuições - {selectedYear}</h2>
+               
+               <div className="grid grid-cols-2 gap-8 bg-slate-50 p-5 rounded border border-slate-200">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dados do Aluno</span>
+                    <p className="text-sm font-bold text-black uppercase">{selectedStudent.name}</p>
+                    <p className="text-[11px] text-slate-600 font-medium">Matrícula: {selectedStudent.registration_number || 'Não Informada'}</p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Período de Referência</span>
+                    <p className="text-sm font-bold text-black">Janeiro a Dezembro de {selectedYear}</p>
+                    <p className="text-[11px] text-slate-600 font-medium">Situação: {contributions.length === 12 ? 'Ano Completo' : 'Em Aberto'}</p>
+                  </div>
+               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden rounded-2xl border-2 border-slate-100 shadow-sm mb-8">
-              <table className="w-full border-collapse">
+            <div className="flex-1">
+              <table className="w-full border-collapse border border-slate-300">
                 <thead>
-                  <tr className="bg-slate-50">
-                    <th className="py-3 px-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Competência</th>
-                    <th className="py-3 px-6 text-right text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Valor</th>
-                    <th className="py-3 px-6 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Pagamento</th>
-                    <th className="py-3 px-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">Status</th>
+                  <tr className="bg-slate-100 border-b border-slate-300">
+                    <th className="py-2 px-4 text-left text-[10px] font-bold text-black uppercase tracking-wider">Mes de Referência</th>
+                    <th className="py-2 px-4 text-right text-[10px] font-bold text-black uppercase tracking-wider">Valor Recebido</th>
+                    <th className="py-2 px-4 text-center text-[10px] font-bold text-black uppercase tracking-wider">Data do Pagamento</th>
+                    <th className="py-2 px-4 text-left text-[10px] font-bold text-black uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-200">
                   {MONTHS.map((month, idx) => {
                     const contrib = contributions.find(c => c.reference_month === idx + 1);
                     return (
-                      <tr key={month} className="hover:bg-slate-50/30 transition-all group">
-                        <td className="py-2.5 px-6">
-                           <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{month}</p>
-                        </td>
-                        <td className="py-2.5 px-6 text-right">
-                           <span className={cn(
-                             "text-sm font-black tracking-tighter",
-                             contrib ? "text-[#00174b]" : "text-slate-300"
-                           )}>
-                             {contrib ? formatCurrency(contrib.amount) : formatCurrency(0)}
-                           </span>
-                        </td>
-                        <td className="py-2.5 px-6 text-center">
-                           {contrib ? (
-                             <span className="text-xs font-bold text-slate-600">{safeFormat(contrib.payment_date, 'dd/MM/yyyy')}</span>
-                           ) : (
-                             <span className="text-[9px] font-black text-slate-300 uppercase italic">---</span>
-                           )}
-                        </td>
-                        <td className="py-2.5 px-6">
-                           {contrib ? (
-                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full">
-                               <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                               <span className="text-[8px] font-black uppercase tracking-widest">Liquidado</span>
-                             </div>
-                           ) : (
-                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full">
-                               <div className="w-1 h-1 rounded-full bg-amber-500"></div>
-                               <span className="text-[8px] font-black uppercase tracking-widest">Pendente</span>
-                             </div>
-                           )}
+                      <tr key={month} className="even:bg-slate-50/50">
+                        <td className="py-2 px-4 text-[11px] font-bold text-slate-700 uppercase">{month}</td>
+                        <td className="py-2 px-4 text-[11px] font-bold text-black text-right">{contrib ? formatCurrency(contrib.amount) : '---'}</td>
+                        <td className="py-2 px-4 text-[11px] font-medium text-slate-600 text-center">{contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : '---'}</td>
+                        <td className="py-2 px-4 text-[9px] font-bold uppercase text-center">
+                          {contrib ? (
+                            <span className="text-emerald-700">Pago / Liquidado</span>
+                          ) : (
+                            <span className="text-slate-300">Pendente</span>
+                          )}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-slate-100 border-t border-black font-bold">
+                    <td className="py-3 px-4 text-[10px] text-black uppercase">Total Geral do Período</td>
+                    <td className="py-3 px-4 text-sm text-black text-right">
+                      {formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}
+                    </td>
+                    <td colSpan={2}></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
-            <div className="mt-auto grid grid-cols-2 gap-8 items-end">
-               <div className="bg-[#00174b] text-white p-8 rounded-[30px] shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Total Consolidado</p>
-                  <p className="text-4xl font-black tracking-tighter leading-none mb-1">
-                    {formatCurrency(contributions.reduce((acc, c) => acc + c.amount, 0))}
-                  </p>
-                  <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Registros de {selectedYear}</p>
+            <div className="mt-12 pt-12 border-t border-slate-200">
+               <div className="grid grid-cols-2 gap-16">
+                  <div className="text-center pt-8 border-t border-black max-w-[240px] mx-auto">
+                    <p className="text-[10px] font-bold text-black uppercase tracking-wider mb-1">Tesouraria Escolar</p>
+                    <p className="text-[8px] text-slate-400 font-medium italic">Assinatura e Carimbo</p>
+                  </div>
+                  <div className="text-center pt-8 border-t border-black max-w-[240px] mx-auto">
+                    <p className="text-[10px] font-bold text-black uppercase tracking-wider mb-1">Responsável / Aluno</p>
+                    <p className="text-[8px] text-slate-400 font-medium italic">Assinatura</p>
+                  </div>
                </div>
                
-               <div className="space-y-8 pb-1">
-                  <div className="text-center">
-                     <div className="w-full border-b-2 border-slate-200 mb-3 ml-auto mr-auto max-w-[200px]"></div>
-                     <p className="text-[10px] font-black text-[#00174b] uppercase tracking-[0.2em] mb-0.5">Assinatura Responsável</p>
-                     <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Controle de Tesouraria</p>
-                  </div>
-                  
-                  <div className="flex justify-between items-center px-2">
-                     <div className="text-[8px] font-black text-slate-300 uppercase tracking-widest">
-                       Gerado via ESCMIN
-                     </div>
-                     <div className="text-[8px] font-black text-slate-400 uppercase">
-                       {new Date().toLocaleDateString('pt-BR')} • {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                     </div>
-                  </div>
+               <div className="mt-12 flex justify-between items-center text-[8px] font-medium text-slate-400 uppercase tracking-widest border-t border-slate-100 pt-4">
+                  <span>Documento gerado automaticamente pelo Sistema ESCMIN</span>
+                  <span>Data de Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                </div>
             </div>
           </div>
