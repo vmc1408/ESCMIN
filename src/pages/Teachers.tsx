@@ -131,6 +131,8 @@ export function Teachers() {
   const [inst, setInst] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'code' | 'subject'>('name');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Teacher>>({});
@@ -666,16 +668,28 @@ export function Teachers() {
   };
 
   const filteredTeachers = React.useMemo(() => {
-    return teachers.filter(t => {
+    let result = teachers.filter(t => {
       const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.code.includes(searchTerm) ||
         t.cpf?.includes(searchTerm);
       
       const matchesStatus = statusFilter === 'Todos' || (t.status || 'Ativo') === statusFilter;
       
-      return matchesSearch && matchesStatus;
+      const matchesSubject = subjectFilter === 'all' || (t.subject_ids || []).includes(subjectFilter);
+      
+      return matchesSearch && matchesStatus && matchesSubject;
     });
-  }, [teachers, searchTerm, statusFilter]);
+
+    return [...result].sort((a, b) => {
+      if (sortBy === 'code') return a.code.localeCompare(b.code);
+      if (sortBy === 'subject') {
+        const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
+        const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
+        return subA.localeCompare(subB);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [teachers, searchTerm, statusFilter, subjectFilter, sortBy, subjects]);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-2">
@@ -690,10 +704,11 @@ export function Teachers() {
               </div>
               <button 
                 onClick={generateTeacherListPDF}
-                className="p-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-                title="Imprimir Listagem"
+                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm"
+                title="Imprimir Listagem Completa"
               >
-                <Printer size={18} />
+                <Printer size={16} />
+                <span className="text-[10px] font-black uppercase tracking-tight">Listagem</span>
               </button>
               <button 
                 onClick={handleNew}
@@ -729,6 +744,28 @@ export function Teachers() {
                 {status}
               </button>
             ))}
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+            >
+              <option value="all">Filtrar Disciplina</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+            >
+              <option value="name">Ordenar por Nome</option>
+              <option value="code">Ordenar por Código</option>
+              <option value="subject">Ordenar por Disciplina</option>
+            </select>
           </div>
         </div>
 

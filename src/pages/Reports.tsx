@@ -93,6 +93,7 @@ export function Reports() {
   // Filter States
   const [teacherStatusFilter, setTeacherStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
   const [teacherSubjectFilter, setTeacherSubjectFilter] = useState<string>('all');
+  const [teacherSortBy, setTeacherSortBy] = useState<'name' | 'code' | 'subject'>('name');
   
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -368,6 +369,14 @@ export function Reports() {
           const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
           const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
           return statusMatch && subjectMatch;
+        }).sort((a, b) => {
+          if (teacherSortBy === 'code') return a.code.localeCompare(b.code);
+          if (teacherSortBy === 'subject') {
+            const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
+            const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
+            return subA.localeCompare(subB);
+          }
+          return a.name.localeCompare(b.name);
         });
 
         autoTable(doc, {
@@ -602,7 +611,7 @@ export function Reports() {
                       : "text-slate-500 hover:text-slate-700"
                   )}
                 >
-                  {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : 'Docente'}
+                  {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : 'Professores'}
                 </button>
               ))}
             </div>
@@ -1100,10 +1109,25 @@ export function Reports() {
                     onChange={(e) => setTeacherSubjectFilter(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500/20 appearance-none"
                   >
-                    <option value="all">Todas as Disciplinas</option>
+                    <option value="all">Filtrar Disciplina</option>
                     {subjects.map(s => (
                       <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
                     ))}
+                  </select>
+                </div>
+                
+                <div className="hidden md:block h-8 w-[1px] bg-slate-100"></div>
+
+                <div className="flex-1 w-full relative">
+                  <Filter size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <select
+                    value={teacherSortBy}
+                    onChange={(e) => setTeacherSortBy(e.target.value as any)}
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500/20 appearance-none"
+                  >
+                    <option value="name">Ordenar por Nome</option>
+                    <option value="code">Ordenar por Código</option>
+                    <option value="subject">Ordenar por Disciplina</option>
                   </select>
                 </div>
                 
@@ -1127,6 +1151,14 @@ export function Reports() {
                           const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
                           const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
                           return statusMatch && subjectMatch;
+                       }).sort((a, b) => {
+                          if (teacherSortBy === 'code') return a.code.localeCompare(b.code);
+                          if (teacherSortBy === 'subject') {
+                            const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
+                            const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
+                            return subA.localeCompare(subB);
+                          }
+                          return a.name.localeCompare(b.name);
                        }).map(t => {
                          const teacherSubjects = subjects
                            .filter(s => t.subject_ids?.includes(s.id))
