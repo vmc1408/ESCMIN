@@ -373,7 +373,7 @@ export function Classes() {
             <h2 className="text-lg font-bold text-[#131b2e]">Turmas</h2>
             <div className="flex gap-2">
               <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100">
-                {classes.length}
+                {filteredClasses.length}
               </div>
               <button 
                 onClick={handleNew}
