@@ -89,6 +89,10 @@ export function Reports() {
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [totalClassDays, setTotalClassDays] = useState(0);
+
+  // Filter States
+  const [teacherStatusFilter, setTeacherStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
+  const [teacherSubjectFilter, setTeacherSubjectFilter] = useState<string>('all');
   
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -358,21 +362,41 @@ export function Reports() {
 
       if (type === 'operational') {
         doc.setFontSize(12);
-        doc.text('1. CADASTRO DOCENTE', margin, y);
+        doc.text('1. RELATÓRIO DE CORPO DOCENTE', margin, y);
+
+        const filteredTeachersReport = teachers.filter(t => {
+          const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
+          const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
+          return statusMatch && subjectMatch;
+        });
+
         autoTable(doc, {
           startY: y + 5,
-          head: [['Código', 'Nome do Professor', 'E-mail', 'Status']],
-          body: teachers.map(t => [t.code, t.name.toUpperCase(), t.email, (t as any).status || 'Ativo']),
+          head: [['Código', 'Nome do Professor', 'E-mail', 'Disciplinas', 'Status']],
+          body: filteredTeachersReport.map(t => {
+            const teacherSubjects = subjects
+              .filter(s => t.subject_ids?.includes(s.id))
+              .map(s => s.name)
+              .join(', ');
+
+            return [
+              t.code, 
+              t.name.toUpperCase(), 
+              t.email, 
+              teacherSubjects || '---',
+              (t as any).status || 'Ativo'
+            ];
+          }),
           headStyles: { fillColor: [124, 58, 237] },
-          styles: { fontSize: 9 }
+          styles: { fontSize: 8 }
         });
 
         y = (doc as any).lastAutoTable.finalY + 15;
         doc.text('2. GRADE DE DISCIPLINAS', margin, y);
         autoTable(doc, {
           startY: y + 5,
-          head: [['Código', 'Disciplina', 'Carga Horária (Estimada)']],
-          body: subjects.map(s => [s.code, s.name.toUpperCase(), '40h/sem']),
+          head: [['Código', 'Disciplina', 'Status']],
+          body: subjects.map(s => [s.code, s.name.toUpperCase(), s.status || 'Ativo']),
           headStyles: { fillColor: [124, 58, 237] },
           styles: { fontSize: 9 }
         });
@@ -1049,45 +1073,120 @@ export function Reports() {
         )}
 
         {activeCategory === 'operational' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-50 flex items-center gap-4">
-                   <Briefcase className="text-indigo-600" size={24} />
-                   <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Quadro de Professores</h3>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+             {/* Dynamic Filter Section for Teachers */}
+             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-4">
+                <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-2xl border border-slate-100 w-full md:w-auto">
+                  {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setTeacherStatusFilter(status)}
+                      className={cn(
+                        "flex-1 md:flex-none px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                        teacherStatusFilter === status 
+                          ? "bg-white text-indigo-600 shadow-sm border border-slate-100" 
+                          : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      {status}
+                    </button>
+                  ))}
                 </div>
-                <div className="p-6 space-y-3">
-                   {teachers.map(t => (
-                     <div key={t.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-indigo-600 text-xs">{t.code}</div>
-                           <div>
-                             <p className="text-sm font-black text-[#00174b] uppercase">{t.name}</p>
-                             <p className="text-[10px] font-bold text-slate-400">{t.email}</p>
-                           </div>
-                        </div>
-                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded-lg uppercase tracking-widest">Efetivo</span>
-                     </div>
-                   ))}
+
+                <div className="flex-1 w-full relative">
+                  <BookOpen size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <select
+                    value={teacherSubjectFilter}
+                    onChange={(e) => setTeacherSubjectFilter(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500/20 appearance-none"
+                  >
+                    <option value="all">Todas as Disciplinas</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="px-4 py-3 bg-blue-50 text-blue-700 text-[10px] font-black rounded-2xl border border-blue-100 whitespace-nowrap">
+                   {teachers.filter(t => {
+                      const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
+                      const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
+                      return statusMatch && subjectMatch;
+                   }).length} RESULTADOS
                 </div>
              </div>
 
-             <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-50 flex items-center gap-4">
-                   <BookOpen className="text-amber-600" size={24} />
-                   <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Matriz Curricular</h3>
-                </div>
-                <div className="p-6 space-y-3">
-                   {subjects.map(s => (
-                     <div key={s.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-amber-600 text-xs">{s.code}</div>
-                           <div>
-                             <p className="text-sm font-black text-[#00174b] uppercase">{s.name}</p>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-slate-50 flex items-center gap-4">
+                       <Briefcase className="text-indigo-600" size={24} />
+                       <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Quadro de Professores</h3>
+                    </div>
+                    <div className="p-6 space-y-3">
+                       {teachers.filter(t => {
+                          const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
+                          const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
+                          return statusMatch && subjectMatch;
+                       }).map(t => {
+                         const teacherSubjects = subjects
+                           .filter(s => t.subject_ids?.includes(s.id))
+                           .map(s => s.name)
+                           .join(', ');
+
+                         return (
+                           <div key={t.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex flex-col gap-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                   <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-indigo-600 text-xs">{t.code}</div>
+                                   <div>
+                                     <p className="text-sm font-black text-[#00174b] uppercase">{t.name}</p>
+                                     <p className="text-[10px] font-bold text-slate-400">{t.email}</p>
+                                   </div>
+                                </div>
+                                <span className={cn(
+                                  "px-3 py-1 text-[9px] font-black rounded-lg uppercase tracking-widest",
+                                  ((t as any).status === 'Inativo') ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600"
+                                )}>
+                                  {(t as any).status || 'Ativo'}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-200/50">
+                                 {subjects.filter(s => t.subject_ids?.includes(s.id)).map(s => (
+                                   <span key={s.id} className="px-2 py-0.5 bg-white border border-slate-200 text-[8px] font-black text-indigo-500 uppercase rounded-md tracking-tighter">
+                                     {s.name}
+                                   </span>
+                                 ))}
+                                 {!t.subject_ids?.length && <span className="text-[9px] font-bold text-slate-300 uppercase">Sem disciplina vinculada</span>}
+                              </div>
                            </div>
-                        </div>
-                        <span className="px-3 py-1 bg-slate-200 text-slate-500 text-[9px] font-black rounded-lg uppercase tracking-widest">Standard</span>
-                     </div>
-                   ))}
+                         );
+                       })}
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-slate-50 flex items-center gap-4">
+                       <BookOpen className="text-amber-600" size={24} />
+                       <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Matriz Curricular</h3>
+                    </div>
+                    <div className="p-6 space-y-3">
+                       {subjects.map(s => (
+                         <div key={s.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-amber-600 text-xs">{s.code}</div>
+                               <div>
+                                 <p className="text-sm font-black text-[#00174b] uppercase">{s.name}</p>
+                               </div>
+                            </div>
+                            <span className={cn(
+                               "px-3 py-1 text-[9px] font-black rounded-lg uppercase tracking-widest",
+                               s.status === 'Inativo' ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
+                            )}>
+                               {s.status || 'Ativo'}
+                            </span>
+                         </div>
+                       ))}
+                    </div>
                 </div>
              </div>
           </div>
