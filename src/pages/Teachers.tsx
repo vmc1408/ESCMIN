@@ -278,7 +278,8 @@ export function Teachers() {
         doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
       }
 
-      doc.save(`Relatorio_Professores_${statusFilter}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
     } catch (error) {
       console.error('Error generating teacher list PDF:', error);
       alert('Erro ao gerar relatório de professores');
