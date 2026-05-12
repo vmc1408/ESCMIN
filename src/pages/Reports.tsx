@@ -340,11 +340,7 @@ export function Reports() {
       if (type === 'academic') {
         // Group by class
         const rows: any[] = [];
-        const filteredClassesReport = classes.filter(c => {
-          const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
-          const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
-          return statusMatch && yearMatch;
-        });
+        const filteredClassesReport = filteredClasses;
 
         filteredClassesReport.forEach(c => {
           const classStudents = students.filter(s => s.class_id === c.id);
@@ -403,19 +399,7 @@ export function Reports() {
         doc.setFontSize(12);
         doc.text('1. RELATÓRIO DE CORPO DOCENTE', margin, y);
 
-        const filteredTeachersReport = teachers.filter(t => {
-          const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
-          const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
-          return statusMatch && subjectMatch;
-        }).sort((a, b) => {
-          if (teacherSortBy === 'code') return a.code.localeCompare(b.code);
-          if (teacherSortBy === 'subject') {
-            const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
-            const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
-            return subA.localeCompare(subB);
-          }
-          return a.name.localeCompare(b.name);
-        });
+        const filteredTeachersReport = filteredTeachers;
 
         autoTable(doc, {
           startY: y + 5,
@@ -441,11 +425,7 @@ export function Reports() {
         y = (doc as any).lastAutoTable.finalY + 15;
         doc.text('2. GRADE DE DISCIPLINAS', margin, y);
         
-        const filteredSubjectsReport = subjects.filter(s => {
-          const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
-          const semesterMatch = subjectSemesterFilter === 'Todos' || (s.semester && s.semester === subjectSemesterFilter);
-          return statusMatch && semesterMatch;
-        });
+        const filteredSubjectsReport = filteredSubjects;
 
         autoTable(doc, {
           startY: y + 5,
@@ -553,7 +533,39 @@ export function Reports() {
     }
   };
 
-  // Professional Data Memos
+  // Filtered Data Memos for Operational Report
+  const filteredTeachers = useMemo(() => {
+    return teachers.filter(t => {
+      const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
+      const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
+      return statusMatch && subjectMatch;
+    }).sort((a, b) => {
+      if (teacherSortBy === 'code') return a.code.localeCompare(b.code);
+      if (teacherSortBy === 'subject') {
+        const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
+        const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
+        return subA.localeCompare(subB);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [teachers, teacherStatusFilter, teacherSubjectFilter, teacherSortBy, subjects]);
+
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter(s => {
+      const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
+      const semesterMatch = subjectSemesterFilter === 'Todos' || s.semester === subjectSemesterFilter;
+      return statusMatch && semesterMatch;
+    });
+  }, [subjects, subjectStatusFilter, subjectSemesterFilter]);
+
+  const filteredClasses = useMemo(() => {
+    return classes.filter(c => {
+      const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
+      const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
+      return statusMatch && yearMatch;
+    });
+  }, [classes, classStatusFilter, academicYearFilter]);
+
   const statusData = useMemo(() => [
     { name: 'Ativos', value: stats.activeStudents, color: '#10b981' },
     { name: 'Inativos', value: stats.inactiveStudents, color: '#f59e0b' },
@@ -1025,21 +1037,13 @@ export function Reports() {
                     ))}
                   </div>
                   <div className="px-4 py-3 bg-blue-50 text-blue-700 text-[10px] font-black rounded-2xl border border-blue-100 whitespace-nowrap">
-                    {classes.filter(c => {
-                      const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
-                      const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
-                      return statusMatch && yearMatch;
-                    }).length} TURMAS
+                    {filteredClasses.length} TURMAS
                   </div>
                 </div>
              </div>
 
              <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden p-6 space-y-8">
-               {classes.filter(c => {
-                 const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
-                 const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
-                 return statusMatch && yearMatch;
-               }).map(c => (
+               {filteredClasses.map(c => (
                  <div key={c.id} className="space-y-6">
                    <div className="flex items-center gap-4 border-l-4 border-blue-600 pl-6">
                       <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">{c.code}</div>
@@ -1243,18 +1247,10 @@ export function Reports() {
                 
                 <div className="flex items-center gap-2">
                   <div className="px-4 py-3 bg-blue-50 text-blue-700 text-[10px] font-black rounded-2xl border border-blue-100 whitespace-nowrap">
-                    {teachers.filter(t => {
-                      const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
-                      const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
-                      return statusMatch && subjectMatch;
-                    }).length} PROFESSORES
+                    {filteredTeachers.length} PROFESSORES
                   </div>
                   <div className="px-4 py-3 bg-amber-50 text-amber-700 text-[10px] font-black rounded-2xl border border-amber-100 whitespace-nowrap">
-                    {subjects.filter(s => {
-                      const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
-                      const semesterMatch = subjectSemesterFilter === 'Todos' || (s.semester && s.semester === subjectSemesterFilter);
-                      return statusMatch && semesterMatch;
-                    }).length} DISCIPLINAS
+                    {filteredSubjects.length} DISCIPLINAS
                   </div>
                 </div>
              </div>
@@ -1266,19 +1262,7 @@ export function Reports() {
                        <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Quadro de Professores</h3>
                     </div>
                     <div className="p-6 space-y-3">
-                       {teachers.filter(t => {
-                          const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
-                          const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
-                          return statusMatch && subjectMatch;
-                       }).sort((a, b) => {
-                          if (teacherSortBy === 'code') return a.code.localeCompare(b.code);
-                          if (teacherSortBy === 'subject') {
-                            const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
-                            const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
-                            return subA.localeCompare(subB);
-                          }
-                          return a.name.localeCompare(b.name);
-                       }).map(t => {
+                       {filteredTeachers.map(t => {
                          const teacherSubjects = subjects
                            .filter(s => t.subject_ids?.includes(s.id))
                            .map(s => s.name)
@@ -1352,11 +1336,7 @@ export function Reports() {
                     </div>
                     </div>
                     <div className="p-6 space-y-3">
-                       {subjects.filter(s => {
-                         const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
-                         const semesterMatch = subjectSemesterFilter === 'Todos' || (s.semester && s.semester === subjectSemesterFilter);
-                         return statusMatch && semesterMatch;
-                       }).map(s => (
+                       {filteredSubjects.map(s => (
                          <div key={s.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-amber-600 text-xs">{s.code}</div>
