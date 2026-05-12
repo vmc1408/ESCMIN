@@ -637,7 +637,18 @@ export function Classes() {
                               key={year}
                               type="button"
                               disabled={!isEditing}
-                              onClick={() => setFormData({...formData, year})}
+                              onClick={() => {
+                                const newYear = year;
+                                const validSubjects = (formData.subject_ids || []).filter(sid => {
+                                  const s = subjects.find(sub => sub.id === sid);
+                                  if (!s) return false;
+                                  const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                                  const matchesYear = !newYear || !s.year || s.year === newYear;
+                                  const matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
+                                  return matchesYear && matchesSemester;
+                                });
+                                setFormData({...formData, year: newYear, subject_ids: validSubjects});
+                              }}
                               className={cn(
                                 "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-lg transition-all",
                                 formData.year === year 
@@ -658,7 +669,18 @@ export function Classes() {
                               key={sem}
                               type="button"
                               disabled={!isEditing}
-                              onClick={() => setFormData({...formData, semester: sem})}
+                              onClick={() => {
+                                const newSemester = sem;
+                                const validSubjects = (formData.subject_ids || []).filter(sid => {
+                                  const s = subjects.find(sub => sub.id === sid);
+                                  if (!s) return false;
+                                  const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                                  const matchesYear = !formData.year || !s.year || s.year === formData.year;
+                                  const matchesSemester = !newSemester || !sSem || sSem === newSemester;
+                                  return matchesYear && matchesSemester;
+                                });
+                                setFormData({...formData, semester: newSemester, subject_ids: validSubjects});
+                              }}
                               className={cn(
                                 "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
                                 formData.semester === sem 
