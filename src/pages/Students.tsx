@@ -888,6 +888,12 @@ export function Students() {
       <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#131b2e]">Alunos</h2>
+              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100 flex items-center">
+                {filteredStudents.length}
+              </div>
+            </div>
             <button 
               onClick={handleNew}
               className="flex-1 h-10 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-2"

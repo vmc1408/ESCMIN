@@ -631,15 +631,15 @@ export function Classes() {
                     <div className="col-span-12 grid grid-cols-12 gap-3 pb-2">
                        <div className="col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Ano Letivo</label>
-                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
-                          {['1º Ano', '2º Ano', '3º Ano', '4º Ano'].map((year) => (
+                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1 flex-wrap">
+                          {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
                             <button
                               key={year}
                               type="button"
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, year})}
                               className={cn(
-                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-lg transition-all",
                                 formData.year === year 
                                   ? "bg-white text-blue-600 shadow-sm" 
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"

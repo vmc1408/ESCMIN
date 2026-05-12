@@ -80,6 +80,7 @@ export interface Class {
   status: 'Ativo' | 'Inativo';
   period: 'Manhã' | 'Tarde' | 'Noite';
   days_of_week: string[];
+  year?: string;
   semester: string;
   start_date?: string;
   observations?: string;
@@ -91,6 +92,7 @@ export interface Subject {
   id: string;
   code: string;
   name: string;
+  year?: string;
   status?: 'Ativo' | 'Inativo';
   program_content?: string;
   user_id: string;

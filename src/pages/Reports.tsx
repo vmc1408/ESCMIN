@@ -94,6 +94,10 @@ export function Reports() {
   const [teacherStatusFilter, setTeacherStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
   const [teacherSubjectFilter, setTeacherSubjectFilter] = useState<string>('all');
   const [teacherSortBy, setTeacherSortBy] = useState<'name' | 'code' | 'subject'>('name');
+  const [classStatusFilter, setClassStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
+  const [subjectStatusFilter, setSubjectStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
+  
+  const [academicYearFilter, setAcademicYearFilter] = useState<string>('Todos');
   
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -236,7 +240,7 @@ export function Reports() {
     }
   };
 
-  const generateReport = (type: ReportCategory) => {
+  const generateReport = (type: ReportCategory, printOnly: boolean = false) => {
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
@@ -335,7 +339,13 @@ export function Reports() {
       if (type === 'academic') {
         // Group by class
         const rows: any[] = [];
-        classes.forEach(c => {
+        const filteredClassesReport = classes.filter(c => {
+          const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
+          const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
+          return statusMatch && yearMatch;
+        });
+
+        filteredClassesReport.forEach(c => {
           const classStudents = students.filter(s => s.class_id === c.id);
           classStudents.forEach((s, idx) => {
             rows.push([
@@ -357,6 +367,33 @@ export function Reports() {
           head: [['Turma', 'Matrícula', 'Nome do Aluno', 'Status']],
           body: rows,
           headStyles: { fillColor: [59, 130, 246] },
+          styles: { fontSize: 8 }
+        });
+      }
+
+      if (type === 'attendance') {
+        doc.setFontSize(12);
+        doc.text('1. MONITORAMENTO DE FREQUÊNCIA ESCOLAR', margin, y);
+        
+        const attendanceRows = students.filter(s => s.status === 'Ativo' || !s.status).map(student => {
+          const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
+          const studentPresence = totalClassDays > 0 ? ((totalClassDays - studentAbsences) / totalClassDays) * 100 : 100;
+          const studentClass = classes.find(c => c.id === student.class_id);
+          
+          return [
+            student.name.toUpperCase(),
+            studentClass?.name || 'SEM TURMA',
+            studentAbsences,
+            `${studentPresence.toFixed(1)}%`,
+            studentPresence < (100 - (academicParams.absence_limit_percentage || 25)) ? 'RISCO' : 'REGULAR'
+          ];
+        });
+
+        autoTable(doc, {
+          startY: y + 5,
+          head: [['Estudante', 'Turma', 'Faltas', 'Freq. %', 'Status']],
+          body: attendanceRows,
+          headStyles: { fillColor: [245, 158, 11] },
           styles: { fontSize: 8 }
         });
       }
@@ -402,10 +439,15 @@ export function Reports() {
 
         y = (doc as any).lastAutoTable.finalY + 15;
         doc.text('2. GRADE DE DISCIPLINAS', margin, y);
+        
+        const filteredSubjectsReport = subjects.filter(s => 
+          subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter
+        );
+
         autoTable(doc, {
           startY: y + 5,
           head: [['Código', 'Disciplina', 'Status']],
-          body: subjects.map(s => [s.code, s.name.toUpperCase(), s.status || 'Ativo']),
+          body: filteredSubjectsReport.map(s => [s.code, s.name.toUpperCase(), s.status || 'Ativo']),
           headStyles: { fillColor: [124, 58, 237] },
           styles: { fontSize: 9 }
         });
@@ -481,8 +523,27 @@ export function Reports() {
         doc.text(`Página ${i} de ${pageCount} | Intelligence ESCMIN`, centerX, doc.internal.pageSize.height - 8, { align: 'center' });
       }
 
-      doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);
-      setNotification({ type: 'success', message: 'Expedição do relatório concluída.' });
+      if (printOnly) {
+        doc.autoPrint();
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          setTimeout(() => {
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+              URL.revokeObjectURL(url);
+              document.body.removeChild(iframe);
+            }, 1000);
+          }, 500);
+        };
+      } else {
+        doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+      }
+      setNotification({ type: 'success', message: printOnly ? 'Janela de impressão aberta.' : 'Expedição do relatório concluída.' });
     } catch (e) {
       console.error(e);
       setNotification({ type: 'error', message: 'Erro ao processar o relatório PDF.' });
@@ -563,7 +624,7 @@ export function Reports() {
   }
 
   const handlePrint = () => {
-    window.print();
+    generateReport(activeCategory, true);
   };
 
   return (
@@ -923,13 +984,59 @@ export function Reports() {
         )}
 
         {activeCategory === 'academic' && (
-          <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-             <div className="px-6 py-6 border-b border-slate-50">
-               <h3 className="text-xl font-black text-[#00174b] tracking-tight">Mapa Mestre de Matrículas</h3>
-               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Listagem consolidada por unidade e turma</p>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between">
+                <div>
+                   <h3 className="text-xl font-black text-[#00174b] tracking-tight">Mapa Mestre de Matrículas</h3>
+                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Listagem consolidada por unidade e turma</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-100">
+                    <select
+                      value={academicYearFilter}
+                      onChange={(e) => setAcademicYearFilter(e.target.value)}
+                      className="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 text-slate-500"
+                    >
+                      <option value="Todos">Todos os Anos</option>
+                      <option value="1º Ano">1º Ano</option>
+                      <option value="2º Ano">2º Ano</option>
+                      <option value="3º Ano">3º Ano</option>
+                      <option value="4º Ano">4º Ano</option>
+                      <option value="Curso Extra">Curso Extra</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-3 bg-slate-50 p-1 rounded-2xl border border-slate-100">
+                    {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => setClassStatusFilter(status)}
+                        className={cn(
+                          "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                          classStatusFilter === status 
+                            ? "bg-white text-blue-600 shadow-sm border border-slate-100" 
+                            : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="px-4 py-3 bg-blue-50 text-blue-700 text-[10px] font-black rounded-2xl border border-blue-100 whitespace-nowrap">
+                    {classes.filter(c => {
+                      const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
+                      const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
+                      return statusMatch && yearMatch;
+                    }).length} TURMAS
+                  </div>
+                </div>
              </div>
-             <div className="p-6 space-y-8">
-               {classes.map(c => (
+
+             <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden p-6 space-y-8">
+               {classes.filter(c => {
+                 const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
+                 const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
+                 return statusMatch && yearMatch;
+               }).map(c => (
                  <div key={c.id} className="space-y-6">
                    <div className="flex items-center gap-4 border-l-4 border-blue-600 pl-6">
                       <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">{c.code}</div>
@@ -1131,12 +1238,17 @@ export function Reports() {
                   </select>
                 </div>
                 
-                <div className="px-4 py-3 bg-blue-50 text-blue-700 text-[10px] font-black rounded-2xl border border-blue-100 whitespace-nowrap">
-                   {teachers.filter(t => {
+                <div className="flex items-center gap-2">
+                  <div className="px-4 py-3 bg-blue-50 text-blue-700 text-[10px] font-black rounded-2xl border border-blue-100 whitespace-nowrap">
+                    {teachers.filter(t => {
                       const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
                       const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
                       return statusMatch && subjectMatch;
-                   }).length} RESULTADOS
+                    }).length} PROFESSORES
+                  </div>
+                  <div className="px-4 py-3 bg-amber-50 text-amber-700 text-[10px] font-black rounded-2xl border border-amber-100 whitespace-nowrap">
+                    {subjects.filter(s => subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter).length} DISCIPLINAS
+                  </div>
                 </div>
              </div>
 
@@ -1197,12 +1309,30 @@ export function Reports() {
                 </div>
 
                 <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-slate-50 flex items-center gap-4">
-                       <BookOpen className="text-amber-600" size={24} />
-                       <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Matriz Curricular</h3>
+                    <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                        <BookOpen className="text-amber-600" size={24} />
+                        <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Matriz Curricular</h3>
+                       </div>
+                       <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+                          {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
+                            <button
+                              key={status}
+                              onClick={() => setSubjectStatusFilter(status)}
+                              className={cn(
+                                "px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all",
+                                subjectStatusFilter === status 
+                                  ? "bg-white text-amber-600 shadow-sm border border-slate-100" 
+                                  : "text-slate-400 hover:text-slate-600"
+                              )}
+                            >
+                              {status}
+                            </button>
+                          ))}
+                       </div>
                     </div>
                     <div className="p-6 space-y-3">
-                       {subjects.map(s => (
+                       {subjects.filter(s => subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter).map(s => (
                          <div key={s.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-amber-600 text-xs">{s.code}</div>
