@@ -34,7 +34,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Parish, Foraria, ClergyLeity, ClergyRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
-type TabType = 'foranias' | 'parishes' | 'clergy';
+type TabType = 'dashboard' | 'foranias' | 'parishes' | 'clergy';
 
 const DetailField = ({ label, value, icon, fullWidth = false }: { label: string, value: any, icon: React.ReactNode, fullWidth?: boolean }) => (
   <div className={cn("space-y-1.5", fullWidth ? "md:col-span-2" : "")}>
@@ -48,14 +48,28 @@ const DetailField = ({ label, value, icon, fullWidth = false }: { label: string,
   </div>
 );
 
+const SummaryCard = ({ label, value, icon, color }: { label: string, value: number, icon: React.ReactNode, color: string }) => (
+  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5 group hover:shadow-xl transition-all duration-300">
+    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", color)}>
+      {icon}
+    </div>
+    <div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+      <p className="text-3xl font-black text-slate-800 tracking-tight">{value}</p>
+    </div>
+  </div>
+);
+
 export function Diocese() {
   const { user: userAuth } = useAuth();
-  const [activeTab, setActiveTab ] = useState<TabType>('parishes');
+  const [activeTab, setActiveTab ] = useState<TabType>('dashboard');
   const [parishes, setParishes] = useState<Parish[]>([]);
   const [foraries, setForaries] = useState<Foraria[]>([]);
   const [clergy, setClergy] = useState<ClergyLeity[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filterForania, setFilterForania] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string>('');
   const [sortBy, setSortBy] = useState<'code' | 'name' | 'date'>('code');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [isEditing, setIsEditing] = useState(false);
@@ -121,50 +135,102 @@ export function Diocese() {
         const wb = XLSX.read(bstr, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws) as any[];
-        console.log('[Diocese Import] Registros encontrados:', data.length);
         
-        if (data.length === 0) {
-          setNotification({ type: 'error', message: 'Planilha vazia ou formato inválido.' });
+        // Use header: 1 to get an array of arrays (AOA) which is more robust for manual mapping
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+        console.log('[Diocese Import] Total de linhas lidas (incluindo cabeçalhos):', rows.length);
+        
+        if (rows.length === 0) {
+          setNotification({ type: 'error', message: 'Planilha vazia.' });
           setLoading(false);
           return;
         }
+
+        // Find the header row (more robust detection)
+        let headerRowIdx = -1;
+        for (let i = 0; i < Math.min(rows.length, 20); i++) {
+          const row = rows[i];
+          if (row && row.some(cell => {
+            const val = String(cell || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return val.includes('paroquia') || val.includes('forania') || val.includes('padre') || val.includes('cnpj');
+          })) {
+            headerRowIdx = i;
+            break;
+          }
+        }
+
+        if (headerRowIdx === -1) {
+          console.error('[Diocese Import] Não foi possível encontrar a linha de cabeçalho.');
+          setNotification({ type: 'error', message: 'Não foi possível identificar as colunas da planilha (Paróquia, Forania, etc.).' });
+          setLoading(false);
+          return;
+        }
+
+        const headers = rows[headerRowIdx].map(h => String(h || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+        console.log('[Diocese Import] Cabeçalhos encontrados na linha', headerRowIdx + 1, ':', headers);
+
+        const findCol = (keywords: string[]) => {
+          // Try exact match first
+          let idx = headers.findIndex(h => keywords.some(k => h === k.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+          if (idx === -1) {
+            // Fallback to partial match (> 2 chars to avoid "Nº")
+            idx = headers.findIndex(h => h.length > 2 && keywords.some(k => h.includes(k.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))));
+          }
+          return idx;
+        };
+
+        const colIdx = {
+          forania: findCol(['forania', 'regiao', 'setor']),
+          paroquia: findCol(['paroquia', 'comunidade', 'parish']),
+          membro: findCol(['padre', 'clero', 'membro', 'nome', 'priest']),
+          cargo: findCol(['cargo', 'funcao', 'oficio', 'titulo', 'role']),
+          cnpj: findCol(['cnpj'])
+        };
+
+        console.log('[Diocese Import] Mapeamento de colunas:', colIdx);
 
         let currentForaries = [...foraries];
         let currentParishes = [...parishes];
         let currentClergy = [...clergy];
 
+        const cleanupValue = (val: any) => {
+          let str = String(val || '').trim();
+          // Remove prefixos como "Paróquia: " ou "Forania: "
+          str = str.replace(/^(paroquia|paróquia|forania|padre):?\s*/i, '');
+          return str.trim();
+        };
+
         const normalizeRole = (role: string): ClergyRole => {
-          const r = String(role || '').toLowerCase();
-          if (r.includes('paroco') || r.includes('pároco')) return 'pároco';
-          if (r.includes('vigario') || r.includes('vigário')) return 'vigário';
-          if (r.includes('diacono') || r.includes('diácono')) return 'diácono';
+          const r = String(role || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (r.includes('paroco')) return 'pároco';
+          if (r.includes('vigario')) return 'vigário';
+          if (r.includes('diacono')) return 'diácono';
           if (r.includes('seminarista')) return 'seminarista';
           return 'leigo formado';
         };
 
-        const getRowValue = (row: any, searchKeys: string[]) => {
-          const key = Object.keys(row).find(k => 
-            searchKeys.some(s => k.trim().toLowerCase() === s.toLowerCase())
-          );
-          return key ? String(row[key]).trim() : '';
-        };
-
         let importedCount = 0;
+        let lastForaniaObj: Foraria | null = null;
+        let lastParishObj: Parish | null = null;
 
-        for (const row of data) {
-          const forName = getRowValue(row, ['forania', 'freguesia']);
-          const parName = getRowValue(row, ['paroquia', 'paróquia', 'parish']);
-          const priestName = getRowValue(row, ['padre', 'clero', 'priest', 'membro']);
-          const roleRaw = getRowValue(row, ['cargo', 'função', 'funcao', 'role']);
-          const cnpj = getRowValue(row, ['cnpj']);
+        // Process data rows starting after the header row
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.length === 0) continue;
 
-          if (!forName && !parName) {
-            console.log('[Diocese Import] Pulando linha sem Forania/Paróquia:', row);
-            continue;
-          }
+          const rawForName = colIdx.forania >= 0 ? cleanupValue(row[colIdx.forania]) : '';
+          const rawParName = colIdx.paroquia >= 0 ? cleanupValue(row[colIdx.paroquia]) : '';
+          const priestName = colIdx.membro >= 0 ? cleanupValue(row[colIdx.membro]) : '';
+          const roleRaw = colIdx.cargo >= 0 ? String(row[colIdx.cargo] || '').trim() : '';
+          const cnpj = colIdx.cnpj >= 0 ? String(row[colIdx.cnpj] || '').trim() : '';
 
-          // Ensure Forania exists
+          // Persist context: use last known values if current are blank
+          const forName = rawForName || (lastForaniaObj ? lastForaniaObj.name : '');
+          const parName = rawParName || (lastParishObj ? lastParishObj.name : '');
+
+          if (!forName && !parName && !priestName) continue;
+
+          // Forania
           let forania: Foraria | undefined;
           if (forName) {
             forania = currentForaries.find(f => f.name.toLowerCase() === forName.toLowerCase());
@@ -178,24 +244,33 @@ export function Diocese() {
                 user_id: userAuth.uid,
                 created_at: new Date().toISOString()
               };
-              console.log('[Diocese Import] Criando Forania:', forName);
               await saveData('foraries', newForania.id, newForania);
               currentForaries.push(newForania);
               forania = newForania;
             }
+            lastForaniaObj = forania;
+          } else {
+            forania = lastForaniaObj || undefined;
           }
 
-          // Ensure Parish exists
+          // Parish
           let parish: Parish | undefined;
           if (parName) {
             parish = currentParishes.find(p => p.name.toLowerCase() === parName.toLowerCase());
             if (!parish) {
+              // We need a forania ID (from current or context) due to FK constraint
+              const forId = forania?.id || lastForaniaObj?.id;
+              if (!forId) {
+                console.warn(`[Diocese Import] Linha ${i + 1} ignorada: Paróquia "${parName}" sem Forania vinculada.`);
+                continue;
+              }
+
               const newCode = getNextCode(currentParishes);
               const newParish: Partial<Parish> = {
                 id: newCode,
                 code: newCode,
                 name: parName,
-                forania_id: forania?.id || '',
+                forania_id: forId,
                 priest_id: '',
                 priest_name: '',
                 address_city: 'Guarulhos',
@@ -205,19 +280,27 @@ export function Diocese() {
               };
               if (cnpj) (newParish as any).cnpj = cnpj;
               
-              console.log('[Diocese Import] Criando Paróquia:', parName);
               await saveData('parishes', newCode, newParish);
               currentParishes.push(newParish as Parish);
               parish = newParish as Parish;
-            } else if (cnpj && !(parish as any).cnpj) {
-              // Update CNPJ if existing parish doesn't have it
-              await saveData('parishes', parish.id, { ...parish, cnpj });
-              (parish as any).cnpj = cnpj;
+            } else {
+              let updated = false;
+              if (cnpj && !(parish as any).cnpj) { (parish as any).cnpj = cnpj; updated = true; }
+              const forId = forania?.id || lastForaniaObj?.id;
+              if (!parish.forania_id && forId) {
+                parish.forania_id = forId;
+                updated = true;
+              }
+              if (updated) await saveData('parishes', parish.id, parish);
             }
+            lastParishObj = parish || null;
+          } else {
+            parish = lastParishObj || undefined;
           }
 
           // Process Clergy
-          if (priestName && parish) {
+          const targetParish = parish || lastParishObj;
+          if (priestName && targetParish) {
             let member = currentClergy.find(c => c.name.toLowerCase() === priestName.toLowerCase());
             const role = normalizeRole(roleRaw);
 
@@ -228,29 +311,24 @@ export function Diocese() {
                 code: newCode,
                 name: priestName,
                 role: role,
-                parish_id: parish.id,
-                forania_id: parish.forania_id,
+                parish_id: targetParish.id,
+                forania_id: targetParish.forania_id,
                 user_id: userAuth.uid,
                 created_at: new Date().toISOString()
               };
-              console.log('[Diocese Import] Criando Membro do Clero:', priestName);
               await saveData('clergy_leity', newMember.id, newMember);
               currentClergy.push(newMember);
               member = newMember;
             }
 
-            // Update Parish Paroco if found
-            if (role === 'pároco' && parish.priest_id !== member.id) {
-              console.log('[Diocese Import] Vinculando Pároco à Paróquia:', member.name, '->', parish.name);
-              const updatedParish = {
-                ...parish,
+            if (member && role === 'pároco' && targetParish.priest_id !== member.id) {
+              targetParish.priest_id = member.id;
+              targetParish.priest_name = member.name;
+              await saveData('parishes', targetParish.id, {
+                ...targetParish,
                 priest_id: member.id,
                 priest_name: member.name
-              };
-              await saveData('parishes', parish.id, updatedParish);
-              // Update in local lists
-              parish.priest_id = member.id;
-              parish.priest_name = member.name;
+              });
             }
           }
           importedCount++;
@@ -463,46 +541,50 @@ export function Diocese() {
     window.print();
   };
 
-  const filteredItems = (activeTab === 'foranias' ? foraries : activeTab === 'parishes' ? parishes : clergy)
-    .filter(item => 
-      Object.values(item).some(val => 
-        String(val).toLowerCase().includes(search.toLowerCase())
-      )
-    )
+  const filteredItems = (activeTab === 'foranias' ? foraries : (activeTab === 'parishes' || activeTab === 'dashboard') ? parishes : clergy)
+    .filter(item => {
+      const query = search.toLowerCase();
+      const matchesSearch = Object.values(item).some(val => String(val).toLowerCase().includes(query));
+      
+      if (activeTab === 'parishes' || activeTab === 'dashboard') {
+        const matchesForania = !filterForania || (item as Parish).forania_id === filterForania;
+        return matchesSearch && matchesForania;
+      }
+      
+      if (activeTab === 'clergy') {
+        const matchesForania = !filterForania || (item as ClergyLeity).forania_id === filterForania;
+        const matchesRole = !filterRole || (item as ClergyLeity).role === filterRole;
+        return matchesSearch && matchesForania && matchesRole;
+      }
+      
+      return matchesSearch;
+    })
     .sort((a: any, b: any) => {
-      if (activeTab === 'parishes') {
+      if (activeTab === 'parishes' || activeTab === 'dashboard') {
         let valA: any, valB: any;
-        
-        if (sortBy === 'code') {
-          valA = parseInt(a.code) || 0;
-          valB = parseInt(b.code) || 0;
-        } else if (sortBy === 'name') {
-          valA = a.name.toLowerCase();
-          valB = b.name.toLowerCase();
-        } else if (sortBy === 'date') {
-          // Use foundation_date if exists, otherwise created_at
-          valA = a.foundation_date || a.created_at || '';
-          valB = b.foundation_date || b.created_at || '';
-        }
-
+        if (sortBy === 'code') { valA = parseInt(a.code) || 0; valB = parseInt(b.code) || 0; }
+        else if (sortBy === 'name') { valA = a.name.toLowerCase(); valB = b.name.toLowerCase(); }
+        else if (sortBy === 'date') { valA = a.foundation_date || a.created_at || ''; valB = b.foundation_date || b.created_at || ''; }
         if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
       }
-      return 0; // Default order for other tabs (already set by fetchAll)
+      return 0;
     });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-20">
+    <div className="max-w-7xl mx-auto space-y-6 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
-          <h2 className="text-3xl font-black text-[#131b2e] tracking-tight flex items-center gap-3">
-            <Building2 className="text-blue-600" size={32} />
+          <h2 className="text-4xl font-black text-[#131b2e] tracking-tight flex items-center gap-4">
+            <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-200">
+              <Scroll size={32} />
+            </div>
             Gestão da Diocese
           </h2>
-          <p className="text-slate-500 font-medium">Gerenciamento completo de Foranias, Paróquias e Clero.</p>
+          <p className="text-slate-500 font-bold mt-1 pl-1">Painel Central de Paróquias, Foranias e Clero.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -512,242 +594,362 @@ export function Diocese() {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+            className="px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
           >
-            <Upload size={18} />
-            Importar
+            <Upload size={18} className="text-blue-600" />
+            Importar Excel
           </button>
           <button
             onClick={handlePrint}
-            className="px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+            className="px-5 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-xl shadow-emerald-200"
           >
             <Printer size={18} />
-            Imprimir
-          </button>
-          <button
-            onClick={handleAddNew}
-            className="px-6 py-2.5 bg-[#00174b] text-white rounded-xl text-sm font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-blue-900/10 flex items-center gap-2"
-          >
-            <Plus size={18} />
-            Novo Registro
+            Gerar Relatório
           </button>
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200 w-fit print:hidden">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
+        <SummaryCard label="Total de Foranias" value={foraries.length} icon={<MapIcon size={24} />} color="bg-indigo-500" />
+        <SummaryCard label="Paróquias Ativas" value={parishes.length} icon={<Church size={24} />} color="bg-blue-600" />
+        <SummaryCard label="Clero e Membros" value={clergy.length} icon={<Users size={24} />} color="bg-amber-500" />
+      </div>
+
+      {/* Nav Tabs */}
+      <div className="flex flex-col md:flex-row items-center gap-6 print:hidden">
+        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 w-full md:w-fit">
+          <button
+            onClick={() => { setActiveTab('dashboard'); setIsEditing(false); setSearch(''); }}
+            className={cn(
+              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
+              activeTab === 'dashboard' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Layers size={14} />
+            Geral
+          </button>
+          <button
+            onClick={() => { setActiveTab('parishes'); setIsEditing(false); setSearch(''); }}
+            className={cn(
+              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
+              activeTab === 'parishes' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Church size={14} />
+            Paróquias
+          </button>
+          <button
+            onClick={() => { setActiveTab('foranias'); setIsEditing(false); setSearch(''); }}
+            className={cn(
+              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
+              activeTab === 'foranias' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <MapIcon size={14} />
+            Foranias
+          </button>
+          <button
+            onClick={() => { setActiveTab('clergy'); setIsEditing(false); setSearch(''); }}
+            className={cn(
+              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
+              activeTab === 'clergy' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Shield size={14} />
+            Clero
+          </button>
+        </div>
+
         <button
-          onClick={() => { setActiveTab('parishes'); setIsEditing(false); setSearch(''); }}
-          className={cn(
-            "px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-            activeTab === 'parishes' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
-          )}
+          onClick={handleAddNew}
+          className="w-full md:w-auto px-8 py-3 bg-[#00174b] text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-blue-900/15 flex items-center justify-center gap-3"
         >
-          Paróquias
-        </button>
-        <button
-          onClick={() => { setActiveTab('foranias'); setIsEditing(false); setSearch(''); }}
-          className={cn(
-            "px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-            activeTab === 'foranias' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
-          )}
-        >
-          Foranias
-        </button>
-        <button
-          onClick={() => { setActiveTab('clergy'); setIsEditing(false); setSearch(''); }}
-          className={cn(
-            "px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-            activeTab === 'clergy' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
-          )}
-        >
-          Clero & Leigos
+          <Plus size={18} />
+          Novo Cadastro
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className={cn("lg:col-span-2 space-y-3", isEditing && "hidden lg:block")}>
-          <div className="flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-3xl shadow-sm border border-slate-100 print:hidden">
-            <div className="flex-1 flex items-center gap-4 w-full">
-              <Search className="text-slate-400" size={20} />
-              <input 
-                type="text"
-                placeholder="Pesquisar em registros..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-medium"
-              />
-            </div>
-            
-            {activeTab === 'parishes' && (
-              <div className="flex items-center gap-2 border-l border-slate-100 pl-4 w-full md:w-auto">
-                <Layers size={16} className="text-slate-400" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="bg-transparent border-none text-xs font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer"
-                >
-                  <option value="code">Código</option>
-                  <option value="name">Nome</option>
-                  <option value="date">Data</option>
-                </select>
-                <button
-                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                  className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400"
-                  title="Inverter Ordem"
-                >
-                  <Scroll size={14} className={cn("transition-transform", sortOrder === 'desc' && "rotate-180")} />
-                </button>
-              </div>
-            )}
+      {/* Filters Hub */}
+      <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-6 print:hidden">
+        <div className="flex-1 flex items-center gap-4 w-full bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/5 transition-all">
+          <Search className="text-slate-400" size={20} />
+          <input 
+            type="text"
+            placeholder="Qualquer informação (Nome, Padre, CNPJ, Cidade...)"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 placeholder:text-slate-300"
+          />
+        </div>
 
-            <div className="px-3 py-1 bg-slate-50 text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-tighter shrink-0">
-              {filteredItems.length} Registros
-            </div>
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
+          <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+            <MapIcon size={14} className="text-slate-400" />
+            <select
+              value={filterForania}
+              onChange={(e) => setFilterForania(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
+            >
+              <option value="">Todas Foranias</option>
+              {foraries.map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="grid gap-4 print:block">
-            {loading ? (
-              <div className="p-12 text-center animate-pulse">
-                <Loader2 className="mx-auto text-blue-500 animate-spin mb-4" size={32} />
-                <p className="text-slate-400 font-medium">Sincronizando dados...</p>
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="p-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200 text-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                  <Search size={32} />
-                </div>
-                <p className="text-slate-400 font-bold">Nenhum registro encontrado nesta categoria.</p>
-              </div>
-            ) : (
-              filteredItems.map((item: any) => (
-                <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all group relative overflow-hidden print:border-slate-300 print:mb-4 print:shadow-none">
-                  <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 opacity-20 group-hover:opacity-100 transition-opacity" />
-                  
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-start gap-5 flex-1">
-                      <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-[1.5rem] flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-all shrink-0 shadow-inner group-hover:scale-110 duration-300">
-                        {activeTab === 'foranias' ? <MapIcon size={32} /> : activeTab === 'parishes' ? <Church size={32} /> : <User size={32} />}
-                      </div>
-                      <div className="space-y-2 flex-1">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-1">
-                              <Hash size={10} />
-                              {item.code}
-                            </span>
-                            {activeTab === 'clergy' && (
-                              <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-black uppercase tracking-widest border border-amber-100">
-                                {item.role}
-                              </span>
-                            )}
-                            {activeTab === 'parishes' && item.foundation_date && (
-                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-1">
-                                <Scroll size={10} />
-                                Fundada em: {new Date(item.foundation_date).toLocaleDateString('pt-BR')}
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="text-xl font-black text-[#131b2e] group-hover:text-blue-700 transition-colors leading-tight">{item.name}</h4>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 mt-3">
-                            {activeTab === 'foranias' ? (
-                              <p className="text-sm font-bold text-slate-500 flex items-center gap-2 italic">
-                                <User size={14} className="text-blue-500" />
-                                Pe. Forâneo: {item.priest_name || 'Não informado'}
-                              </p>
-                            ) : activeTab === 'parishes' ? (
-                              <>
-                                <p className="text-sm font-bold text-slate-500 flex items-center gap-2 italic">
-                                  <User size={14} className="text-blue-500" />
-                                  Pároco: {item.priest_name || 'Não informado'}
-                                </p>
-                                <p className="text-xs font-medium text-slate-400 flex items-center gap-2">
-                                  <MapIcon size={12} />
-                                  {foraries.find(f => f.id === item.forania_id)?.name || 'Forania não vinculada'}
-                                </p>
-                                {item.cnpj && (
-                                  <p className="text-[10px] font-black text-slate-400 flex items-center gap-2 uppercase tracking-tighter">
-                                    <Building2 size={12} className="text-blue-400" />
-                                    CNPJ: {item.cnpj}
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-sm font-bold text-slate-500 flex items-center gap-2 italic">
-                                <Church size={14} className="text-blue-500" />
-                                Nomeado em: {parishes.find(p => p.id === item.parish_id)?.name || 'Nenhuma paróquia'}
-                              </p>
-                            )}
-                          </div>
-                        </div>
+          {activeTab === 'clergy' && (
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+              <Shield size={14} className="text-slate-400" />
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
+              >
+                <option value="">Todos Cargos</option>
+                <option value="pároco">Pároco</option>
+                <option value="vigário">Vigário</option>
+                <option value="diácono">Diácono</option>
+                <option value="seminarista">Seminarista</option>
+              </select>
+            </div>
+          )}
 
-                        {(item.phone || item.email || item.phone_mobile) && (
-                          <div className="flex flex-wrap gap-4 pt-3 border-t border-slate-50">
-                            {item.phone && (
-                              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
-                                <Phone size={14} className="text-blue-400" />
-                                {item.phone}
-                              </div>
-                            )}
-                            {item.email && (
-                              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
-                                <Mail size={14} className="text-blue-400" />
-                                {item.email}
-                              </div>
-                            )}
-                            {item.phone_mobile && (
-                              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
-                                <PhoneCall size={14} className="text-blue-400" />
-                                {item.phone_mobile}
-                                {item.phone_mobile_is_whatsapp && (
-                                  <MessageCircle size={14} className="text-emerald-500" />
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
+          {(activeTab === 'parishes' || activeTab === 'dashboard') && (
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+              <Layers size={14} className="text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
+              >
+                <option value="code">Código</option>
+                <option value="name">Nome</option>
+                <option value="date">Data</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="text-slate-400 hover:text-blue-600 transition-colors"
+                title="Inverter Ordem"
+              >
+                <Scroll size={14} className={cn("transition-transform", sortOrder === 'desc' && "rotate-180")} />
+              </button>
+            </div>
+          )}
 
-                        {(item.address_street || item.address) && (
-                          <p className="text-xs font-bold text-slate-400 flex items-center gap-2 pt-2">
-                            <MapPin size={14} className="text-red-400 shrink-0" />
-                            <span className="truncate max-w-md">
-                              {item.address || `${item.address_street}, ${item.address_number} - ${item.address_neighborhood}`}
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-4 md:mt-0">
-                      <button 
-                         onClick={() => handleView(item)}
-                         className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
-                         title="Visualizar Detalhes"
-                      >
-                        <Eye size={20} />
-                      </button>
-                      <button 
-                        onClick={() => handleEdit(item)}
-                        className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"
-                        title="Editar Registro"
-                      >
-                        <Edit2 size={20} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteClick(item)}
-                        className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
-                        title="Excluir Registro"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="px-5 py-3 bg-blue-50 text-blue-600 rounded-2xl text-[11px] font-black uppercase tracking-tighter shrink-0 border border-blue-100">
+            {filteredItems.length} registros encontrados
           </div>
         </div>
+      </div>
+
+      {/* Main Content View */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="bg-white p-20 rounded-[3rem] shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center gap-6">
+            <div className="relative">
+              <div className="w-20 h-20 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
+              <Scroll className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-600" size={32} />
+            </div>
+            <div>
+              <p className="text-xl font-black text-slate-800">Organizando Hub Diocese</p>
+              <p className="text-slate-400 font-bold uppercase text-xs tracking-widest mt-2">Sincronizando dados eclesiásticos...</p>
+            </div>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-200 text-center">
+            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+              <Search size={48} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 mb-2">Sem resultados para seu filtro</h3>
+            <p className="text-slate-400 font-bold max-w-md mx-auto">Tente ajustar sua busca ou limpar os filtros de Forania e Cargos.</p>
+            <button 
+              onClick={() => { setSearch(''); setFilterForania(''); setFilterRole(''); }}
+              className="mt-8 px-8 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
+            >
+              Limpar Filtros
+            </button>
+          </div>
+        ) : activeTab === 'dashboard' ? (
+          /* INTEGRATED VIEW - THE "MASTER TABLE" */
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cód / Paróquia</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">Forania</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:table-cell">Contato / Local</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right print:hidden">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredItems.map((item: any) => (
+                    <motion.tr 
+                      key={item.id} 
+                      className="group hover:bg-blue-50/30 transition-colors"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-inner">
+                            {item.code}
+                          </div>
+                          <div>
+                            <h5 className="font-black text-slate-800 leading-tight group-hover:text-blue-700 transition-colors uppercase tracking-tight">{item.name}</h5>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CNPJ: {item.cnpj || '---'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 hidden md:table-cell">
+                        <div className="flex items-center gap-2">
+                          <MapIcon size={14} className="text-blue-400" />
+                          <span className="text-sm font-bold text-slate-600">
+                            {foraries.find(f => f.id === item.forania_id)?.name || 'S/ Forania'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                           <div className="flex items-center gap-2">
+                            <User size={14} className="text-amber-500" />
+                            <span className="text-sm font-bold text-slate-700 leading-none">{item.priest_name || 'A definir'}</span>
+                           </div>
+                           <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1 pl-5">Pároco Titular</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 hidden lg:table-cell max-w-xs">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                            <Phone size={12} className="text-slate-300" /> {item.phone || '---'}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 truncate">
+                            <MapPin size={12} className="text-red-300" /> {item.address_street || item.address_city}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right print:hidden">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleView(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all shadow-sm">
+                            <Eye size={18} />
+                          </button>
+                          <button onClick={() => handleEdit(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all shadow-sm">
+                            <Edit2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          /* PREVIOUS LIST VIEWS (for other categories like Clergy directly) */
+          <div className="grid gap-4 print:block">
+            {filteredItems.map((item: any) => (
+              <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all group relative overflow-hidden print:border-slate-300 print:mb-4 print:shadow-none">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 opacity-20 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-start gap-5 flex-1">
+                    <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-[1.5rem] flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-all shrink-0 shadow-inner group-hover:scale-110 duration-300">
+                      {activeTab === 'foranias' ? <MapIcon size={32} /> : activeTab === 'parishes' ? <Church size={32} /> : <User size={32} />}
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-1">
+                            <Hash size={10} />
+                            {item.code}
+                          </span>
+                          {activeTab === 'clergy' && (
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-black uppercase tracking-widest border border-amber-100">
+                              {item.role}
+                            </span>
+                          )}
+                          {activeTab === 'parishes' && item.foundation_date && (
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-1">
+                              <Scroll size={10} />
+                              Fundada em: {new Date(item.foundation_date).toLocaleDateString('pt-BR')}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-xl font-black text-[#131b2e] group-hover:text-blue-700 transition-colors leading-tight">{item.name}</h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 mt-3">
+                          {activeTab === 'foranias' ? (
+                            <p className="text-sm font-bold text-slate-500 flex items-center gap-2 italic">
+                              <User size={14} className="text-blue-500" />
+                              Pe. Forâneo: {item.priest_name || 'Não informado'}
+                            </p>
+                          ) : activeTab === 'parishes' ? (
+                            <>
+                              <p className="text-sm font-bold text-slate-500 flex items-center gap-2 italic">
+                                <User size={14} className="text-blue-500" />
+                                Pároco: {item.priest_name || 'Não informado'}
+                              </p>
+                              <p className="text-xs font-medium text-slate-400 flex items-center gap-2">
+                                <MapIcon size={12} />
+                                {foraries.find(f => f.id === item.forania_id)?.name || 'Forania não vinculada'}
+                              </p>
+                              {item.cnpj && (
+                                <p className="text-[10px] font-black text-slate-400 flex items-center gap-2 uppercase tracking-tighter">
+                                  <Building2 size={12} className="text-blue-400" />
+                                  CNPJ: {item.cnpj}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm font-bold text-slate-500 flex items-center gap-2 italic">
+                              <Church size={14} className="text-blue-500" />
+                              Paróquia: {parishes.find(p => p.id === item.parish_id)?.name || 'Nenhuma paróquia'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {(item.phone || item.email || item.phone_mobile) && (
+                        <div className="flex flex-wrap gap-4 pt-3 border-t border-slate-50">
+                          {item.phone && (
+                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
+                              <Phone size={14} className="text-blue-400" />
+                              {item.phone}
+                            </div>
+                          )}
+                          {item.email && (
+                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
+                              <Mail size={14} className="text-blue-400" />
+                              {item.email}
+                            </div>
+                          )}
+                          {item.phone_mobile && (
+                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded-lg">
+                              <PhoneCall size={14} className="text-blue-400" />
+                              {item.phone_mobile}
+                              {item.phone_mobile_is_whatsapp && (
+                                <MessageCircle size={14} className="text-emerald-500" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-4 md:mt-0">
+                    <button onClick={() => handleView(item)} className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"><Eye size={20} /></button>
+                    <button onClick={() => handleEdit(item)} className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all"><Edit2 size={20} /></button>
+                    <button onClick={() => handleDeleteClick(item)} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"><Trash2 size={20} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
         {/* Modal Form */}
         <AnimatePresence>
@@ -1255,9 +1457,78 @@ export function Diocese() {
             </div>
           )}
         </AnimatePresence>
-      </div>
 
-      {/* Detail View Modal */}
+      {/* PRINT REPORT - THE HIGH CONCENTRATED INFO */}
+      <div className="hidden print:block bg-white p-12" ref={printRef}>
+        <div className="text-center space-y-4 mb-12 border-b-4 border-slate-800 pb-8">
+          <div className="flex items-center justify-center gap-6">
+             <Church size={48} className="text-slate-800" />
+             <div>
+               <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">DIOCESE DE GUARULHOS</h1>
+               <p className="text-lg font-bold text-slate-500 uppercase tracking-widest italic">Hub de Relatório e Gestão Unificada</p>
+             </div>
+          </div>
+          <div className="flex items-center justify-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest pt-2">
+            <span>Emitido em: {new Date().toLocaleDateString('pt-BR')}</span>
+            <span>•</span>
+            <span>Unidade Administrativa: Chancelaria</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-8 mb-12">
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Foranias</p>
+            <p className="text-3xl font-black text-slate-800">{foraries.length}</p>
+          </div>
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Paróquias</p>
+            <p className="text-3xl font-black text-slate-800">{parishes.length}</p>
+          </div>
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Efetivo de Clero</p>
+            <p className="text-3xl font-black text-slate-800">{clergy.length}</p>
+          </div>
+        </div>
+
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b-2 border-slate-300">
+              <th className="py-4 text-left font-black text-sm uppercase">Paróquia / Forania</th>
+              <th className="py-4 text-left font-black text-sm uppercase">Pároco / Responsável</th>
+              <th className="py-4 text-left font-black text-sm uppercase">Contato Principal</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredItems.map((item: any) => (
+              <tr key={item.id} className="page-break-inside-avoid">
+                <td className="py-4">
+                  <p className="font-black text-slate-800 uppercase text-sm leading-none mb-1">{item.name}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {foraries.find(f => f.id === item.forania_id)?.name || '---'}
+                  </p>
+                </td>
+                <td className="py-4">
+                  <p className="font-bold text-slate-700 text-sm">Pe. {item.priest_name || 'A definir'}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Responsável Administrativo</p>
+                </td>
+                <td className="py-4">
+                  <p className="text-sm font-bold text-slate-600">{item.phone || '---'}</p>
+                  <p className="text-[10px] text-slate-400">{item.email || '---'}</p>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        <div className="mt-20 flex justify-between items-end border-t border-slate-100 pt-8 opacity-50">
+          <div className="text-[10px] font-bold text-slate-400">
+            © 2026 Sistema de Gestão Eclesial - ERP Diocese
+          </div>
+          <div className="w-48 border-t-2 border-slate-300 pt-2 text-center text-[10px] font-black uppercase">
+            Chancelaria / Diocese
+          </div>
+        </div>
+      </div>
       <AnimatePresence>
         {isViewing && selectedItem && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm print:hidden">
