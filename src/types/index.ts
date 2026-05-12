@@ -206,6 +206,7 @@ export interface Parish {
   email?: string;
   phone?: string;
   phone_mobile?: string;
+  cnpj?: string;
   foundation_date?: string;
   user_id: string;
   created_at: string;

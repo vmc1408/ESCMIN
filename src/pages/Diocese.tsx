@@ -125,10 +125,23 @@ export function Diocese() {
 
         let currentForaries = [...foraries];
         let currentParishes = [...parishes];
+        let currentClergy = [...clergy];
+
+        const normalizeRole = (role: string): ClergyRole => {
+          const r = String(role || '').toLowerCase();
+          if (r.includes('paroco') || r.includes('pároco')) return 'pároco';
+          if (r.includes('vigario') || r.includes('vigário')) return 'vigário';
+          if (r.includes('diacono') || r.includes('diácono')) return 'diácono';
+          if (r.includes('seminarista')) return 'seminarista';
+          return 'leigo formado';
+        };
 
         for (const row of data) {
           const forName = String(row['forania'] || row['Forania'] || '').trim();
           const parName = String(row['paroquia'] || row['paróquia'] || row['Paroquia'] || row['Paróquia'] || '').trim();
+          const priestName = String(row['padre'] || row['Padre'] || '').trim();
+          const roleRaw = String(row['cargo'] || row['Cargo'] || '').trim();
+          const cnpj = String(row['cnpj'] || row['CNPJ'] || '').trim();
 
           if (!forName || !parName) continue;
 
@@ -150,9 +163,9 @@ export function Diocese() {
             forania = newForania;
           }
 
-          // Create Parish if not exists
-          const parishExists = currentParishes.some(p => p.name.toLowerCase() === String(parName).toLowerCase());
-          if (!parishExists) {
+          // Find or create Parish
+          let parish = currentParishes.find(p => p.name.toLowerCase() === String(parName).toLowerCase());
+          if (!parish) {
             const newCode = getNextCode(currentParishes);
             const newId = newCode;
             const newParish: Partial<Parish> = {
@@ -166,8 +179,48 @@ export function Diocese() {
               user_id: userAuth.uid,
               created_at: new Date().toISOString()
             };
+            // Add cnpj if available (saveData handles fallback if column missing)
+            if (cnpj) (newParish as any).cnpj = cnpj;
+            
             await saveData('parishes', newId, newParish);
             currentParishes.push(newParish as Parish);
+            parish = newParish as Parish;
+          }
+
+          // Create Clergy if name is present
+          if (priestName) {
+            let member = currentClergy.find(c => c.name.toLowerCase() === priestName.toLowerCase());
+            const role = normalizeRole(roleRaw);
+
+            if (!member) {
+              const newCode = getNextCode(currentClergy);
+              const newId = newCode;
+              const newMember: ClergyLeity = {
+                id: newId,
+                code: newCode,
+                name: priestName,
+                role: role,
+                parish_id: parish.id,
+                forania_id: forania.id,
+                user_id: userAuth.uid,
+                created_at: new Date().toISOString()
+              };
+              await saveData('clergy_leity', newId, newMember);
+              currentClergy.push(newMember);
+              member = newMember;
+            }
+
+            // If this priest is the paroco, update parish record
+            if (role === 'pároco' && parish.priest_id !== member.id) {
+              await saveData('parishes', parish.id, {
+                ...parish,
+                priest_id: member.id,
+                priest_name: member.name
+              });
+              // Update local state record
+              parish.priest_id = member.id;
+              parish.priest_name = member.name;
+            }
           }
         }
 
@@ -580,6 +633,12 @@ export function Diocese() {
                                   <MapIcon size={12} />
                                   {foraries.find(f => f.id === item.forania_id)?.name || 'Forania não vinculada'}
                                 </p>
+                                {item.cnpj && (
+                                  <p className="text-[10px] font-black text-slate-400 flex items-center gap-2 uppercase tracking-tighter">
+                                    <Building2 size={12} className="text-blue-400" />
+                                    CNPJ: {item.cnpj}
+                                  </p>
+                                )}
                               </>
                             ) : (
                               <p className="text-sm font-bold text-slate-500 flex items-center gap-2 italic">
@@ -863,6 +922,16 @@ export function Diocese() {
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">CNPJ</label>
+                            <input 
+                              type="text"
+                              value={parishForm.cnpj || ''}
+                              onChange={e => setParishForm({...parishForm, cnpj: e.target.value})}
+                              placeholder="00.000.000/0000-00"
+                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Data de Fundação</label>
                             <input 
                               type="text"
@@ -872,6 +941,8 @@ export function Diocese() {
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
                             />
                           </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Telefone Fixo</label>
                             <input 
@@ -882,16 +953,16 @@ export function Diocese() {
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
                             />
                           </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">E-mail Institucional</label>
-                          <input 
-                            type="email"
-                            value={parishForm.email || ''}
-                            onChange={e => setParishForm({...parishForm, email: e.target.value})}
-                            placeholder="paroquia@diocese.org.br"
-                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
-                          />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">E-mail Institucional</label>
+                            <input 
+                              type="email"
+                              value={parishForm.email || ''}
+                              onChange={e => setParishForm({...parishForm, email: e.target.value})}
+                              placeholder="paroquia@diocese.org.br"
+                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -1197,6 +1268,7 @@ export function Diocese() {
                       <DetailField label="Cidade/UF" value={`${selectedItem.address_city || ''} - ${selectedItem.address_state || ''}`} icon={<MapPin size={14} />} />
                           <DetailField label="E-mail" value={selectedItem.email} icon={<Mail size={14} />} />
                       <DetailField label="Telefone" value={selectedItem.phone} icon={<Phone size={14} />} />
+                      <DetailField label="CNPJ" value={selectedItem.cnpj} icon={<Building2 size={14} />} />
                       <DetailField label="Data de Fundação" value={selectedItem.foundation_date ? new Date(selectedItem.foundation_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'} icon={<Scroll size={14} />} />
                     </>
                   )}
