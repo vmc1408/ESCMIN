@@ -413,7 +413,11 @@ export function Subjects() {
               <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 ml-1">Período</label>
               <select
                 value={semesterFilter}
-                onChange={(e) => setSemesterFilter(e.target.value)}
+                onChange={(e) => {
+                  setSemesterFilter(e.target.value);
+                  setStatusFilter('');
+                  setSearchTerm('');
+                }}
                 className="w-full px-3 py-2 bg-slate-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="Todos">Todos Semestres</option>
