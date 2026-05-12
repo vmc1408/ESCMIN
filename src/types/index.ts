@@ -94,6 +94,7 @@ export interface Subject {
   name: string;
   year?: string;
   semester?: string;
+  teacher_id?: string;
   status?: 'Ativo' | 'Inativo';
   program_content?: string;
   user_id: string;

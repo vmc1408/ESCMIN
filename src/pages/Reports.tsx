@@ -161,10 +161,46 @@ export function Reports() {
         ])
       ]);
 
+      const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
+        let normalized = { ...s };
+        if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
+          const match = normalized.program_content.match(/\[METADATA:(.+?)\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.semester) normalized.semester = meta.semester;
+              if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
+              if (!normalized.year) normalized.year = meta.year;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+        return normalized;
+      });
+
+      const normalizedTeachers = (teachersData || []).map((t: Teacher) => {
+        let normalized = { ...t };
+        let sIds = normalized.subject_ids || [];
+        
+        if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
+          sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+        }
+        
+        if ((!sIds || sIds.length === 0) && normalized.observations) {
+          const match = normalized.observations.match(/\[SUBJECTS:(.+?)\]/);
+          if (match && match[1]) {
+            try { sIds = JSON.parse(match[1]); } catch (e) {}
+          }
+        }
+        normalized.subject_ids = Array.isArray(sIds) ? sIds : [];
+        return normalized;
+      });
+
       setStudents(studentsData || []);
-      setTeachers(teachersData || []);
+      setTeachers(normalizedTeachers);
       setClasses(classesData || []);
-      setSubjects(subjectsData || []);
+      setSubjects(normalizedSubjects);
       setPixTransactions(pixData || []);
       setAttendanceData(attendancesData || []);
       setTotalClassDays(calendarData?.length || 0);
@@ -173,7 +209,8 @@ export function Reports() {
       const sData = studentsData || [];
       const pData = pixData || [];
       const cData = classesData || [];
-      const tData = teachersData || [];
+      const tData = normalizedTeachers;
+      const subData = normalizedSubjects;
 
       const activeTotal = sData.filter(s => s.status === 'Ativo' || !s.status).length;
       const totalAmount = pData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
@@ -553,7 +590,17 @@ export function Reports() {
   const filteredSubjects = useMemo(() => {
     return subjects.filter(s => {
       const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
-      const semesterMatch = subjectSemesterFilter === 'Todos' || s.semester === subjectSemesterFilter;
+      
+      const sem = s.semester?.trim();
+      const filterSem = subjectSemesterFilter.trim();
+
+      const semesterMatch = subjectSemesterFilter === 'Todos' || 
+        sem === filterSem ||
+        (sem === '1º Semestre' && filterSem === '1º Sem.') ||
+        (sem === '2º Semestre' && filterSem === '2º Sem.') ||
+        (sem === '1º Sem.' && filterSem === '1º Semestre') ||
+        (sem === '2º Sem.' && filterSem === '2º Semestre');
+        
       return statusMatch && semesterMatch;
     });
   }, [subjects, subjectStatusFilter, subjectSemesterFilter]);
