@@ -102,7 +102,7 @@ export function Subjects() {
   const [inst, setInst] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos' | ''>('');
   const [semesterFilter, setSemesterFilter] = useState<string>('Todos');
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'year'>('year');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -353,7 +353,7 @@ export function Subjects() {
       const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.code.includes(searchTerm);
       
-      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
+      const matchesStatus = !statusFilter || statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
       const matchesSemester = semesterFilter === 'Todos' || (s.semester && s.semester === semesterFilter);
       
       return matchesSearch && matchesStatus && matchesSemester;
@@ -408,42 +408,51 @@ export function Subjects() {
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
-              >
-                <option value="name">Ordenar por Nome</option>
-                <option value="code">Ordenar por Código</option>
-                <option value="year">Ordenar por Ano</option>
-              </select>
+          <div className="flex flex-col gap-4">
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 ml-1">Período</label>
               <select
                 value={semesterFilter}
                 onChange={(e) => setSemesterFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="Todos">Todos Semestres</option>
                 <option value="1º Sem.">1º Semestre</option>
                 <option value="2º Sem.">2º Semestre</option>
               </select>
             </div>
-            <div className="flex bg-slate-50 p-1 rounded-lg">
-              {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={cn(
-                    "flex-1 py-1 text-[8px] font-black uppercase rounded transition-all",
-                    statusFilter === status 
-                      ? "bg-white text-blue-600 shadow-sm" 
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  {status}
-                </button>
-              ))}
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 ml-1">Situação</label>
+              <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
+                {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
+                    className={cn(
+                      "flex-1 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all",
+                      statusFilter === status 
+                        ? "bg-white text-blue-600 shadow-sm" 
+                        : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 ml-1">Ordenação</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="w-full px-3 py-2 bg-slate-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="year">Ordenar por Ano</option>
+                <option value="name">Ordenar por Nome</option>
+                <option value="code">Ordenar por Código</option>
+              </select>
             </div>
           </div>
         </div>
