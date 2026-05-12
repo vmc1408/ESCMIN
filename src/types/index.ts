@@ -93,6 +93,7 @@ export interface Subject {
   code: string;
   name: string;
   year?: string;
+  semester?: string;
   status?: 'Ativo' | 'Inativo';
   program_content?: string;
   user_id: string;

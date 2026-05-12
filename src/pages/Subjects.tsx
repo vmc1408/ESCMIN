@@ -354,7 +354,7 @@ export function Subjects() {
         s.code.includes(searchTerm);
       
       const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
-      const matchesSemester = semesterFilter === 'Todos' || s.semester === semesterFilter;
+      const matchesSemester = semesterFilter === 'Todos' || (s.semester && s.semester === semesterFilter);
       
       return matchesSearch && matchesStatus && matchesSemester;
     });

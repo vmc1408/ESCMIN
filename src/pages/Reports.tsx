@@ -96,6 +96,7 @@ export function Reports() {
   const [teacherSortBy, setTeacherSortBy] = useState<'name' | 'code' | 'subject'>('name');
   const [classStatusFilter, setClassStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
   const [subjectStatusFilter, setSubjectStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
+  const [subjectSemesterFilter, setSubjectSemesterFilter] = useState<string>('Todos');
   
   const [academicYearFilter, setAcademicYearFilter] = useState<string>('Todos');
   
@@ -440,9 +441,11 @@ export function Reports() {
         y = (doc as any).lastAutoTable.finalY + 15;
         doc.text('2. GRADE DE DISCIPLINAS', margin, y);
         
-        const filteredSubjectsReport = subjects.filter(s => 
-          subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter
-        );
+        const filteredSubjectsReport = subjects.filter(s => {
+          const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
+          const semesterMatch = subjectSemesterFilter === 'Todos' || (s.semester && s.semester === subjectSemesterFilter);
+          return statusMatch && semesterMatch;
+        });
 
         autoTable(doc, {
           startY: y + 5,
@@ -1247,7 +1250,11 @@ export function Reports() {
                     }).length} PROFESSORES
                   </div>
                   <div className="px-4 py-3 bg-amber-50 text-amber-700 text-[10px] font-black rounded-2xl border border-amber-100 whitespace-nowrap">
-                    {subjects.filter(s => subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter).length} DISCIPLINAS
+                    {subjects.filter(s => {
+                      const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
+                      const semesterMatch = subjectSemesterFilter === 'Todos' || (s.semester && s.semester === subjectSemesterFilter);
+                      return statusMatch && semesterMatch;
+                    }).length} DISCIPLINAS
                   </div>
                 </div>
              </div>
@@ -1314,9 +1321,21 @@ export function Reports() {
                         <BookOpen className="text-amber-600" size={24} />
                         <h3 className="text-sm font-black uppercase tracking-widest text-[#00174b]">Matriz Curricular</h3>
                        </div>
-                       <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
-                          {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
-                            <button
+                       <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+                            <select
+                              value={subjectSemesterFilter}
+                              onChange={(e) => setSubjectSemesterFilter(e.target.value)}
+                              className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest bg-transparent border-none focus:ring-0 text-slate-500"
+                            >
+                              <option value="Todos">Todos Semestres</option>
+                              <option value="1º Sem.">1º Semestre</option>
+                              <option value="2º Sem.">2º Semestre</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+                             {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
+                               <button
                               key={status}
                               onClick={() => setSubjectStatusFilter(status)}
                               className={cn(
@@ -1331,8 +1350,13 @@ export function Reports() {
                           ))}
                        </div>
                     </div>
+                    </div>
                     <div className="p-6 space-y-3">
-                       {subjects.filter(s => subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter).map(s => (
+                       {subjects.filter(s => {
+                         const statusMatch = subjectStatusFilter === 'Todos' || (s.status || 'Ativo') === subjectStatusFilter;
+                         const semesterMatch = subjectSemesterFilter === 'Todos' || (s.semester && s.semester === subjectSemesterFilter);
+                         return statusMatch && semesterMatch;
+                       }).map(s => (
                          <div key={s.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-amber-600 text-xs">{s.code}</div>
