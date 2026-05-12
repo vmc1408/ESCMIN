@@ -118,10 +118,17 @@ export function Diocese() {
       const reader = new FileReader();
       reader.onload = async (evt) => {
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(bstr, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws) as any[];
+        console.log('[Diocese Import] Registros encontrados:', data.length);
+        
+        if (data.length === 0) {
+          setNotification({ type: 'error', message: 'Planilha vazia ou formato inválido.' });
+          setLoading(false);
+          return;
+        }
 
         let currentForaries = [...foraries];
         let currentParishes = [...parishes];
@@ -136,98 +143,124 @@ export function Diocese() {
           return 'leigo formado';
         };
 
+        const getRowValue = (row: any, searchKeys: string[]) => {
+          const key = Object.keys(row).find(k => 
+            searchKeys.some(s => k.trim().toLowerCase() === s.toLowerCase())
+          );
+          return key ? String(row[key]).trim() : '';
+        };
+
+        let importedCount = 0;
+
         for (const row of data) {
-          const forName = String(row['forania'] || row['Forania'] || '').trim();
-          const parName = String(row['paroquia'] || row['paróquia'] || row['Paroquia'] || row['Paróquia'] || '').trim();
-          const priestName = String(row['padre'] || row['Padre'] || '').trim();
-          const roleRaw = String(row['cargo'] || row['Cargo'] || '').trim();
-          const cnpj = String(row['cnpj'] || row['CNPJ'] || '').trim();
+          const forName = getRowValue(row, ['forania', 'freguesia']);
+          const parName = getRowValue(row, ['paroquia', 'paróquia', 'parish']);
+          const priestName = getRowValue(row, ['padre', 'clero', 'priest', 'membro']);
+          const roleRaw = getRowValue(row, ['cargo', 'função', 'funcao', 'role']);
+          const cnpj = getRowValue(row, ['cnpj']);
 
-          if (!forName || !parName) continue;
-
-          // Find or create Forania
-          let forania = currentForaries.find(f => f.name.toLowerCase() === String(forName).toLowerCase());
-          if (!forania) {
-            const newCode = getNextCode(currentForaries);
-            const newId = newCode;
-            const newForania: Foraria = {
-              id: newId,
-              code: newCode,
-              name: String(forName),
-              priest_name: '',
-              user_id: userAuth.uid,
-              created_at: new Date().toISOString()
-            };
-            await saveData('foraries', newId, newForania);
-            currentForaries.push(newForania);
-            forania = newForania;
+          if (!forName && !parName) {
+            console.log('[Diocese Import] Pulando linha sem Forania/Paróquia:', row);
+            continue;
           }
 
-          // Find or create Parish
-          let parish = currentParishes.find(p => p.name.toLowerCase() === String(parName).toLowerCase());
-          if (!parish) {
-            const newCode = getNextCode(currentParishes);
-            const newId = newCode;
-            const newParish: Partial<Parish> = {
-              code: newCode,
-              name: String(parName),
-              forania_id: forania.id,
-              priest_id: '',
-              priest_name: '',
-              address_city: 'Guarulhos',
-              address_state: 'SP',
-              user_id: userAuth.uid,
-              created_at: new Date().toISOString()
-            };
-            // Add cnpj if available (saveData handles fallback if column missing)
-            if (cnpj) (newParish as any).cnpj = cnpj;
-            
-            await saveData('parishes', newId, newParish);
-            currentParishes.push(newParish as Parish);
-            parish = newParish as Parish;
+          // Ensure Forania exists
+          let forania: Foraria | undefined;
+          if (forName) {
+            forania = currentForaries.find(f => f.name.toLowerCase() === forName.toLowerCase());
+            if (!forania) {
+              const newCode = getNextCode(currentForaries);
+              const newForania: Foraria = {
+                id: newCode,
+                code: newCode,
+                name: forName,
+                priest_name: '',
+                user_id: userAuth.uid,
+                created_at: new Date().toISOString()
+              };
+              console.log('[Diocese Import] Criando Forania:', forName);
+              await saveData('foraries', newForania.id, newForania);
+              currentForaries.push(newForania);
+              forania = newForania;
+            }
           }
 
-          // Create Clergy if name is present
-          if (priestName) {
+          // Ensure Parish exists
+          let parish: Parish | undefined;
+          if (parName) {
+            parish = currentParishes.find(p => p.name.toLowerCase() === parName.toLowerCase());
+            if (!parish) {
+              const newCode = getNextCode(currentParishes);
+              const newParish: Partial<Parish> = {
+                id: newCode,
+                code: newCode,
+                name: parName,
+                forania_id: forania?.id || '',
+                priest_id: '',
+                priest_name: '',
+                address_city: 'Guarulhos',
+                address_state: 'SP',
+                user_id: userAuth.uid,
+                created_at: new Date().toISOString()
+              };
+              if (cnpj) (newParish as any).cnpj = cnpj;
+              
+              console.log('[Diocese Import] Criando Paróquia:', parName);
+              await saveData('parishes', newCode, newParish);
+              currentParishes.push(newParish as Parish);
+              parish = newParish as Parish;
+            } else if (cnpj && !(parish as any).cnpj) {
+              // Update CNPJ if existing parish doesn't have it
+              await saveData('parishes', parish.id, { ...parish, cnpj });
+              (parish as any).cnpj = cnpj;
+            }
+          }
+
+          // Process Clergy
+          if (priestName && parish) {
             let member = currentClergy.find(c => c.name.toLowerCase() === priestName.toLowerCase());
             const role = normalizeRole(roleRaw);
 
             if (!member) {
               const newCode = getNextCode(currentClergy);
-              const newId = newCode;
               const newMember: ClergyLeity = {
-                id: newId,
+                id: newCode,
                 code: newCode,
                 name: priestName,
                 role: role,
                 parish_id: parish.id,
-                forania_id: forania.id,
+                forania_id: parish.forania_id,
                 user_id: userAuth.uid,
                 created_at: new Date().toISOString()
               };
-              await saveData('clergy_leity', newId, newMember);
+              console.log('[Diocese Import] Criando Membro do Clero:', priestName);
+              await saveData('clergy_leity', newMember.id, newMember);
               currentClergy.push(newMember);
               member = newMember;
             }
 
-            // If this priest is the paroco, update parish record
+            // Update Parish Paroco if found
             if (role === 'pároco' && parish.priest_id !== member.id) {
-              await saveData('parishes', parish.id, {
+              console.log('[Diocese Import] Vinculando Pároco à Paróquia:', member.name, '->', parish.name);
+              const updatedParish = {
                 ...parish,
                 priest_id: member.id,
                 priest_name: member.name
-              });
-              // Update local state record
+              };
+              await saveData('parishes', parish.id, updatedParish);
+              // Update in local lists
               parish.priest_id = member.id;
               parish.priest_name = member.name;
             }
           }
+          importedCount++;
         }
 
-        setNotification({ type: 'success', message: 'Importação concluída com sucesso!' });
+        console.log('[Diocese Import] Importação finalizada. Registros processados:', importedCount);
+        setNotification({ type: 'success', message: `${importedCount} registros processados com sucesso!` });
         fetchData();
       };
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     } catch (error) {
       console.error('Error importing excel:', error);
       setNotification({ type: 'error', message: 'Erro ao importar planilha.' });
