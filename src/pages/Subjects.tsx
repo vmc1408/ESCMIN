@@ -103,6 +103,7 @@ export function Subjects() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [semesterFilter, setSemesterFilter] = useState<string>('Todos');
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'year'>('year');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -202,7 +203,7 @@ export function Subjects() {
       doc.setFontSize(9);
       doc.setTextColor(100);
       doc.setFont('helvetica', 'normal');
-      doc.text(`RELAÇÃO DE DISCIPLINAS • FILTRO: ${statusFilter.toUpperCase()}`, 38, 24);
+      doc.text(`RELAÇÃO DE DISCIPLINAS • FILTRO: ${statusFilter.toUpperCase()}${semesterFilter !== 'Todos' ? ` • ${semesterFilter.toUpperCase()}` : ''}`, 38, 24);
       doc.text(`${inst?.city_uf || ''} • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, 38, 29);
 
       doc.setDrawColor(0, 23, 75);
@@ -353,8 +354,9 @@ export function Subjects() {
         s.code.includes(searchTerm);
       
       const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
+      const matchesSemester = semesterFilter === 'Todos' || s.semester === semesterFilter;
       
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesSemester;
     });
 
     return [...result].sort((a, b) => {
@@ -406,16 +408,27 @@ export function Subjects() {
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
-            >
-              <option value="name">Ordenar por Nome</option>
-              <option value="code">Ordenar por Código</option>
-              <option value="year">Ordenar por Ano</option>
-            </select>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+              >
+                <option value="name">Ordenar por Nome</option>
+                <option value="code">Ordenar por Código</option>
+                <option value="year">Ordenar por Ano</option>
+              </select>
+              <select
+                value={semesterFilter}
+                onChange={(e) => setSemesterFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+              >
+                <option value="Todos">Todos Semestres</option>
+                <option value="1º Sem.">1º Semestre</option>
+                <option value="2º Sem.">2º Semestre</option>
+              </select>
+            </div>
             <div className="flex bg-slate-50 p-1 rounded-lg">
               {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                 <button
