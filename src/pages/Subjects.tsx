@@ -103,7 +103,7 @@ export function Subjects() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
-  const [sortBy, setSortBy] = useState<'name' | 'code' | 'year'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'code' | 'year'>('year');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Subject>>({});
@@ -359,7 +359,11 @@ export function Subjects() {
 
     return [...result].sort((a, b) => {
       if (sortBy === 'code') return a.code.localeCompare(b.code);
-      if (sortBy === 'year') return (a.year || '').localeCompare(b.year || '');
+      if (sortBy === 'year') {
+        const yearComp = (a.year || '').localeCompare(b.year || '');
+        if (yearComp !== 0) return yearComp;
+        return (a.semester || '').localeCompare(b.semester || '');
+      }
       return a.name.localeCompare(b.name);
     });
   }, [subjects, searchTerm, statusFilter, sortBy]);

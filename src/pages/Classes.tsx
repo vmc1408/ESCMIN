@@ -152,7 +152,7 @@ export function Classes() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
-  const [sortBy, setSortBy] = useState<'name' | 'code' | 'year' | 'period'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'code' | 'year' | 'period'>('year');
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
