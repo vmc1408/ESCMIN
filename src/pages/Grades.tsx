@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   RefreshCw
 } from 'lucide-react';
-import { Student, Class, Subject, AcademicParameters } from '../types';
+import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
 import { cn } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,6 +37,7 @@ export function Grades() {
   const { userAuth, isAdmin, isDirector } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [grades, setGrades] = useState<Record<string, GradeRecord>>({});
   const [academicParams, setAcademicParams] = useState<AcademicParameters>({
@@ -50,8 +51,19 @@ export function Grades() {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('Avaliação 1');
+
+  const basePeriods = ['Avaliação 1', 'Avaliação 2', 'Avaliação 3', 'Avaliação 4', 'Resultado Final'];
+
+  const availablePeriods = React.useMemo(() => {
+    if (assessments.length === 0) return basePeriods;
+
+    const assessmentTitles = assessments.map(a => a.title);
+    const combined = Array.from(new Set([...basePeriods.slice(0, 4), ...assessmentTitles, 'Resultado Final']));
+    return combined as string[];
+  }, [assessments]);
   
   const [loading, setLoading] = useState(false);
+  const [loadingAssessments, setLoadingAssessments] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
@@ -99,8 +111,9 @@ export function Grades() {
     if (!selectedClass || !selectedSubject || !selectedPeriod) return;
     
     setLoading(true);
+    setLoadingAssessments(true);
     try {
-      const [studentsList, gradesList] = await Promise.all([
+      const [studentsList, gradesList, assessmentsList] = await Promise.all([
         fetchQuery('students', [
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'status', operator: '==', value: 'Ativo' }
@@ -109,10 +122,15 @@ export function Grades() {
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'subject_id', operator: '==', value: selectedSubject },
           { field: 'period', operator: '==', value: selectedPeriod }
+        ]),
+        fetchQuery('assessments', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject }
         ])
       ]);
 
       setStudents((studentsList || []).sort((a, b) => a.name.localeCompare(b.name)));
+      setAssessments(assessmentsList as Assessment[] || []);
 
       const gradesMap: Record<string, GradeRecord> = {};
       (gradesList || []).forEach(data => {
@@ -127,6 +145,7 @@ export function Grades() {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+      setLoadingAssessments(false);
     }
   }, [selectedClass, selectedSubject, selectedPeriod]);
 
@@ -140,6 +159,12 @@ export function Grades() {
       }
     }
   }, [fetchStudentsAndGrades]);
+
+  useEffect(() => {
+    if (availablePeriods.length > 0 && !availablePeriods.includes(selectedPeriod)) {
+      setSelectedPeriod(availablePeriods[0]);
+    }
+  }, [availablePeriods, selectedPeriod]);
 
   const filteredSubjects = React.useMemo(() => {
     if (!selectedClass) return [];
@@ -349,7 +374,14 @@ export function Grades() {
                 onChange={e => setSelectedPeriod(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 appearance-none"
               >
-                {periods.map(p => <option key={p} value={p}>{p}</option>)}
+                {availablePeriods.map(p => {
+                  const assessment = assessments.find(a => a.title === p);
+                  return (
+                    <option key={p} value={p}>
+                      {p} {assessment ? `(${new Date(assessment.date).toLocaleDateString('pt-BR')} - Peso: ${assessment.weight})` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>
