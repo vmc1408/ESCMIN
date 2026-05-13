@@ -50,16 +50,12 @@ export function Grades() {
   
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('Avaliação 1');
-
-  const basePeriods = ['Avaliação 1', 'Avaliação 2', 'Avaliação 3', 'Avaliação 4', 'Resultado Final'];
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('Resultado Final');
 
   const availablePeriods = React.useMemo(() => {
-    if (assessments.length === 0) return basePeriods;
-
     const assessmentTitles = assessments.map(a => a.title);
-    const combined = Array.from(new Set([...basePeriods.slice(0, 4), ...assessmentTitles, 'Resultado Final']));
-    return combined as string[];
+    // Removemos os períodos base e mantemos apenas os cadastrados + Resultado Final
+    return Array.from(new Set([...assessmentTitles, 'Resultado Final'])) as string[];
   }, [assessments]);
   
   const [loading, setLoading] = useState(false);
