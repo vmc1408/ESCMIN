@@ -106,7 +106,7 @@ export const schemaService = {
       const getColType = (col: string) => {
         let type = 'TEXT';
         if (col === 'metadata') return 'JSONB DEFAULT \'{}\'::jsonb';
-        if (col.includes('amount') || col.includes('price')) type = 'NUMERIC(10,2)';
+        if (col.includes('amount') || col.includes('price') || col === 'weight' || col === 'value' || col.includes('grade')) type = 'NUMERIC(10,2)';
         if (col.includes('is_') || col === 'pastoral_participates_bool') type = 'BOOLEAN';
         if (col === 'registration_number' || col === 'code') type = 'TEXT UNIQUE';
         if (col === 'days_of_week' || col === 'subject_ids') return 'TEXT[]';

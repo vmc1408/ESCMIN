@@ -360,6 +360,24 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "student_id", "class_id", "status"]
+    },
+    "Assessment": {
+      "title": "Assessment",
+      "description": "Academic assessment/test record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "weight": { "type": "number" },
+        "period": { "type": "string" },
+        "class_id": { "type": "string" },
+        "subject_id": { "type": "string" },
+        "description": { "type": "string" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "date", "class_id", "subject_id"]
     }
   },
   "firestore": {
@@ -381,6 +399,7 @@
     "academic_parameters": { "schema": "AcademicParameters", "description": "Global academic parameters" },
     "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" },
     "enrollments": { "schema": "Enrollment", "description": "Student enrollments in classes" },
+    "assessments": { "schema": "Assessment", "description": "Academic assessments collection" },
     "archived_students": { "schema": "Student", "description": "Archived student records" },
     "archived_teachers": { "schema": "Teacher", "description": "Archived teacher records" },
     "archived_classes": { "schema": "Class", "description": "Archived class records" },

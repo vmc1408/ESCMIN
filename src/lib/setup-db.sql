@@ -98,6 +98,20 @@ CREATE TABLE IF NOT EXISTS archived_classes (LIKE classes INCLUDING ALL);
 CREATE TABLE IF NOT EXISTS archived_subjects (LIKE subjects INCLUDING ALL);
 CREATE TABLE IF NOT EXISTS archived_teachers (LIKE teachers INCLUDING ALL);
 
+-- 8. Avaliações
+CREATE TABLE IF NOT EXISTS assessments (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    weight NUMERIC(4,2) DEFAULT 10.0,
+    period TEXT,
+    class_id TEXT,
+    subject_id TEXT,
+    description TEXT,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 6. Recriar políticas de acesso (RLS) - Permite leitura/escrita para todos no modo dev
 DO $$ 
 DECLARE 

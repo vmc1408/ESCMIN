@@ -72,6 +72,19 @@ export interface Enrollment {
   created_at: string;
 }
 
+export interface Assessment {
+  id: string;
+  title: string;
+  date: string;
+  weight: number;
+  period: string;
+  class_id: string;
+  subject_id: string;
+  description?: string;
+  user_id?: string;
+  created_at: string;
+}
+
 export interface Class {
   id: string;
   code: string;

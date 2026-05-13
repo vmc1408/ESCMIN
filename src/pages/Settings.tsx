@@ -271,7 +271,8 @@ export function Settings() {
         'calendar_events',     
         'contributions',       
         'pix_reconciliations', 
-        'certificates'         
+        'certificates',
+        'assessments'         
       ];
 
       setSyncProgress({
@@ -317,7 +318,8 @@ export function Settings() {
                     calendar_events: ['id', 'title', 'description', 'start_date', 'end_date', 'type', 'class_id', 'subject_id', 'user_id', 'created_at'],
                     contributions: ['id', 'student_id', 'amount', 'reference_month', 'reference_year', 'payment_date', 'payment_method', 'origin', 'pix_id', 'observations', 'user_id', 'created_at'],
                     pix_reconciliations: ['id', 'date', 'payer_name', 'origin_bank', 'amount', 'transaction_id', 'batch_id', 'status', 'matched_student_id', 'is_manual', 'created_at'],
-                    certificates: ['id', 'student_id', 'type', 'issuance_date', 'course', 'verification_code', 'user_id', 'created_at']
+                    certificates: ['id', 'student_id', 'type', 'issuance_date', 'course', 'verification_code', 'user_id', 'created_at'],
+                    assessments: ['id', 'title', 'date', 'weight', 'period', 'class_id', 'subject_id', 'description', 'user_id', 'created_at']
                   };
 
                   const allowedFields = whitelist[col] || null;
@@ -767,7 +769,7 @@ export function Settings() {
     'institution_settings', 'users', 'email_registry', 'foraries', 'parishes', 
     'clergy_leity', 'subjects', 'teachers', 'classes', 
     'students', 'attendances', 'grades', 'calendar_events', 
-    'contributions', 'pix_reconciliations', 'certificates'
+    'contributions', 'pix_reconciliations', 'certificates', 'assessments'
   ];
 
   const handleClearModule = async (module: string, label: string) => {
@@ -1568,7 +1570,7 @@ export function Settings() {
                   'institution_settings', 'users', 'email_registry', 'foraries', 'parishes', 
                   'clergy_leity', 'subjects', 'teachers', 'classes', 
                   'students', 'attendances', 'grades', 'calendar_events', 
-                  'contributions', 'pix_reconciliations', 'certificates'
+                  'contributions', 'pix_reconciliations', 'certificates', 'assessments'
                 ].map(col => {
                   const isMigrated = MIGRATED_COLLECTIONS.includes(col);
                   return (
@@ -1794,7 +1796,8 @@ export function Settings() {
                   { id: 'students', label: 'Alunos' },
                   { id: 'teachers', label: 'Professores' },
                   { id: 'classes', label: 'Turmas' },
-                  { id: 'subjects', label: 'Disciplinas' }
+                  { id: 'subjects', label: 'Disciplinas' },
+                  { id: 'assessments', label: 'Avaliações' }
                 ].map((mod) => (
                   <button
                     key={mod.id}

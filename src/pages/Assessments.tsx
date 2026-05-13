@@ -12,31 +12,11 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
-
-interface Assessment {
-  id: string;
-  title: string;
-  date: string;
-  weight: number;
-  class_id: string;
-  subject_id: string;
-  period: string; // 1º Bimestre, etc
-  description?: string;
-  created_at: string;
-}
-
-interface Class {
-  id: string;
-  name: string;
-  subject_ids?: string[];
-}
-
-interface Subject {
-  id: string;
-  name: string;
-}
+import { Assessment, Class, Subject } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Assessments: React.FC = () => {
+  const { user } = useAuth();
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -91,8 +71,11 @@ export const Assessments: React.FC = () => {
       setAssessments(assessData as Assessment[] || []);
       setClasses(normalizedClasses as Class[] || []);
       setSubjects(subjectsData as Subject[] || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
+      if (error.message?.includes('42P01') || error.message?.includes('does not exist')) {
+        alert('A tabela de Avaliações ainda não foi criada no banco de dados. Vá em Configurações > Manutenção e execute o Checkup de Schema.');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,6 +91,7 @@ export const Assessments: React.FC = () => {
     try {
       const dataToSave = {
         ...formData,
+        user_id: formData.user_id || user?.uid || null,
         created_at: formData.created_at || new Date().toISOString()
       };
       await saveRecord('assessments', editingId || undefined, dataToSave as any);
@@ -123,8 +107,15 @@ export const Assessments: React.FC = () => {
         description: ''
       });
       loadData();
-    } catch (error) {
+      alert('Avaliação salva com sucesso!');
+    } catch (error: any) {
       console.error('Erro ao salvar:', error);
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('42P01') || errorMsg.includes('does not exist')) {
+        alert('Erro: A tabela de Avaliações não existe no banco de dados. \n\nSOLUÇÃO: Vá em Configurações > Manutenção, execute o "Checkup de Schema", copie o SQL gerado e execute-o no seu painel Supabase.');
+      } else {
+        alert('Erro ao salvar avaliação: ' + (errorMsg || 'Verifique sua conexão ou permissões.'));
+      }
     }
   };
 

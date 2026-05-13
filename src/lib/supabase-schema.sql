@@ -271,6 +271,20 @@ CREATE TABLE IF NOT EXISTS academic_parameters (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 18. Avaliações
+CREATE TABLE IF NOT EXISTS assessments (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    weight NUMERIC(4,2) DEFAULT 10.0,
+    period TEXT,
+    class_id TEXT REFERENCES classes(id),
+    subject_id TEXT REFERENCES subjects(id),
+    description TEXT,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Habilitar RLS para todas as tabelas
 DO $$ 
 DECLARE 
