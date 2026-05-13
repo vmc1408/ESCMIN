@@ -160,7 +160,10 @@ CREATE TABLE IF NOT EXISTS public.parishes (
     code TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     forania TEXT,
+    forania_id TEXT,
+    priest_id TEXT,
     priest_name TEXT,
+    address TEXT,
     address_street TEXT,
     address_number TEXT,
     address_neighborhood TEXT,
@@ -169,6 +172,10 @@ CREATE TABLE IF NOT EXISTS public.parishes (
     address_zip TEXT,
     email TEXT,
     phone TEXT,
+    phone_mobile TEXT,
+    cnpj TEXT,
+    foundation_date TEXT,
+    user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -244,10 +251,13 @@ CREATE TABLE IF NOT EXISTS public.clergy_leity (
     name TEXT NOT NULL,
     role TEXT NOT NULL,
     parish_id TEXT,
+    forania_id TEXT,
     email TEXT,
     phone_mobile TEXT,
     phone_whatsapp TEXT,
     address TEXT,
+    address_city TEXT,
+    address_state TEXT,
     status TEXT DEFAULT 'active',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

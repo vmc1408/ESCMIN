@@ -208,6 +208,10 @@ export interface Parish {
   phone_mobile?: string;
   cnpj?: string;
   foundation_date?: string;
+  patron_saint?: string;
+  vicariate?: string;
+  status?: string;
+  notes?: string;
   user_id: string;
   created_at: string;
 }

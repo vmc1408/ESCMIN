@@ -211,6 +211,7 @@
         "phone_whatsapp": { "type": "string" },
         "email": { "type": "string" },
         "parish_id": { "type": "string" },
+        "forania_id": { "type": "string" },
         "role": { "type": "string", "enum": ["pároco", "vigário", "diácono", "seminarista", "leigo formado"] },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
@@ -251,6 +252,13 @@
         "address_zip": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
+        "phone_mobile": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "foundation_date": { "type": "string" },
+        "patron_saint": { "type": "string" },
+        "vicariate": { "type": "string" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },

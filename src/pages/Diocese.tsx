@@ -22,6 +22,7 @@ import {
   Users,
   Building2,
   PhoneCall,
+  PlusCircle,
   MessageCircle,
   Layers,
   Eye,
@@ -69,6 +70,8 @@ export function Diocese() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterForania, setFilterForania] = useState<string>('');
+  const [filterParish, setFilterParish] = useState<string>('');
+  const [filterClergyMember, setFilterClergyMember] = useState<string>('');
   const [filterRole, setFilterRole] = useState<string>('');
   const [sortBy, setSortBy] = useState<'code' | 'name' | 'date'>('code');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -123,6 +126,35 @@ export function Diocese() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Import Mapping States
+  const [isImportMapping, setIsImportMapping] = useState(false);
+  const [importRows, setImportRows] = useState<any[][]>([]);
+  const [importHeaders, setImportHeaders] = useState<string[]>([]);
+  const [importHeaderIdx, setImportHeaderIdx] = useState(-1);
+  const [importMapping, setImportMapping] = useState<Record<string, number>>({
+    forania: -1,
+    paroquia: -1,
+    membro: -1,
+    cargo: -1,
+    cnpj: -1,
+    telefone: -1,
+    email: -1,
+    endereco: -1,
+    cidade: -1
+  });
+
+  const TARGET_FIELDS = [
+    { key: 'forania', label: 'Forania / Região', keywords: ['forania', 'regiao', 'setor', 'area pastoral'] },
+    { key: 'paroquia', label: 'Paróquia / Comunidade', keywords: ['paroquia', 'comunidade', 'parish', 'igreja'] },
+    { key: 'membro', label: 'Padre / Membro', keywords: ['padre', 'clero', 'membro', 'nome', 'priest', 'presbítero'] },
+    { key: 'cargo', label: 'Cargo / Função', keywords: ['cargo', 'funcao', 'oficio', 'titulo', 'role', 'posicao'] },
+    { key: 'cnpj', label: 'CNPJ', keywords: ['cnpj', 'inscricao federal', 'c.n.p.j.'] },
+    { key: 'telefone', label: 'Telefone / Contato', keywords: ['telefone', 'celular', 'fone', 'phone', 'contato', 'tel'] },
+    { key: 'email', label: 'E-mail', keywords: ['email', 'e-mail', 'correio', 'mail', 'endereço eletrônico'] },
+    { key: 'endereco', label: 'Endereço / Rua', keywords: ['endereco', 'rua', 'address', 'logradouro', 'localizacao'] },
+    { key: 'cidade', label: 'Cidade / Município', keywords: ['cidade', 'municipio', 'city', 'localidade'] }
+  ];
+
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userAuth) return;
@@ -136,217 +168,254 @@ export function Diocese() {
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         
-        // Use header: 1 to get an array of arrays (AOA) which is more robust for manual mapping
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-        console.log('[Diocese Import] Total de linhas lidas (incluindo cabeçalhos):', rows.length);
-        
         if (rows.length === 0) {
           setNotification({ type: 'error', message: 'Planilha vazia.' });
           setLoading(false);
           return;
         }
 
-        // Find the header row (more robust detection)
-        let headerRowIdx = -1;
+        // Find header row
+        let hIdx = -1;
         for (let i = 0; i < Math.min(rows.length, 20); i++) {
           const row = rows[i];
           if (row && row.some(cell => {
             const val = String(cell || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            return val.includes('paroquia') || val.includes('forania') || val.includes('padre') || val.includes('cnpj');
+            return val.includes('paroquia') || val.includes('forania') || val.includes('padre') || val.includes('cnpj') || val.includes('membro');
           })) {
-            headerRowIdx = i;
+            hIdx = i;
             break;
           }
         }
 
-        if (headerRowIdx === -1) {
-          console.error('[Diocese Import] Não foi possível encontrar a linha de cabeçalho.');
-          setNotification({ type: 'error', message: 'Não foi possível identificar as colunas da planilha (Paróquia, Forania, etc.).' });
-          setLoading(false);
-          return;
-        }
+        if (hIdx === -1) hIdx = 0; // Fallback to first row
 
-        const headers = rows[headerRowIdx].map(h => String(h || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-        console.log('[Diocese Import] Cabeçalhos encontrados na linha', headerRowIdx + 1, ':', headers);
+        const headers = rows[hIdx].map(h => String(h || '').trim());
+        const normalizedHeaders = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 
-        const findCol = (keywords: string[]) => {
-          // Try exact match first
-          let idx = headers.findIndex(h => keywords.some(k => h === k.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
-          if (idx === -1) {
-            // Fallback to partial match (> 2 chars to avoid "Nº")
-            idx = headers.findIndex(h => h.length > 2 && keywords.some(k => h.includes(k.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))));
+        // Initial Auto-Mapping
+        const initialMapping: Record<string, number> = {};
+        TARGET_FIELDS.forEach(field => {
+          let foundIdx = normalizedHeaders.findIndex(h => field.keywords.some(k => h === k));
+          if (foundIdx === -1) {
+            foundIdx = normalizedHeaders.findIndex(h => h.length > 2 && field.keywords.some(k => h.includes(k)));
           }
-          return idx;
-        };
+          initialMapping[field.key] = foundIdx;
+        });
 
-        const colIdx = {
-          forania: findCol(['forania', 'regiao', 'setor']),
-          paroquia: findCol(['paroquia', 'comunidade', 'parish']),
-          membro: findCol(['padre', 'clero', 'membro', 'nome', 'priest']),
-          cargo: findCol(['cargo', 'funcao', 'oficio', 'titulo', 'role']),
-          cnpj: findCol(['cnpj'])
-        };
-
-        console.log('[Diocese Import] Mapeamento de colunas:', colIdx);
-
-        let currentForaries = [...foraries];
-        let currentParishes = [...parishes];
-        let currentClergy = [...clergy];
-
-        const cleanupValue = (val: any) => {
-          let str = String(val || '').trim();
-          // Remove prefixos como "Paróquia: " ou "Forania: "
-          str = str.replace(/^(paroquia|paróquia|forania|padre):?\s*/i, '');
-          return str.trim();
-        };
-
-        const normalizeRole = (role: string): ClergyRole => {
-          const r = String(role || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          if (r.includes('paroco')) return 'pároco';
-          if (r.includes('vigario')) return 'vigário';
-          if (r.includes('diacono')) return 'diácono';
-          if (r.includes('seminarista')) return 'seminarista';
-          return 'leigo formado';
-        };
-
-        let importedCount = 0;
-        let lastForaniaObj: Foraria | null = null;
-        let lastParishObj: Parish | null = null;
-
-        // Process data rows starting after the header row
-        for (let i = headerRowIdx + 1; i < rows.length; i++) {
-          const row = rows[i];
-          if (!row || row.length === 0) continue;
-
-          const rawForName = colIdx.forania >= 0 ? cleanupValue(row[colIdx.forania]) : '';
-          const rawParName = colIdx.paroquia >= 0 ? cleanupValue(row[colIdx.paroquia]) : '';
-          const priestName = colIdx.membro >= 0 ? cleanupValue(row[colIdx.membro]) : '';
-          const roleRaw = colIdx.cargo >= 0 ? String(row[colIdx.cargo] || '').trim() : '';
-          const cnpj = colIdx.cnpj >= 0 ? String(row[colIdx.cnpj] || '').trim() : '';
-
-          // Persist context: use last known values if current are blank
-          const forName = rawForName || (lastForaniaObj ? lastForaniaObj.name : '');
-          const parName = rawParName || (lastParishObj ? lastParishObj.name : '');
-
-          if (!forName && !parName && !priestName) continue;
-
-          // Forania
-          let forania: Foraria | undefined;
-          if (forName) {
-            forania = currentForaries.find(f => f.name.toLowerCase() === forName.toLowerCase());
-            if (!forania) {
-              const newCode = getNextCode(currentForaries);
-              const newForania: Foraria = {
-                id: newCode,
-                code: newCode,
-                name: forName,
-                priest_name: '',
-                user_id: userAuth.uid,
-                created_at: new Date().toISOString()
-              };
-              await saveData('foraries', newForania.id, newForania);
-              currentForaries.push(newForania);
-              forania = newForania;
-            }
-            lastForaniaObj = forania;
-          } else {
-            forania = lastForaniaObj || undefined;
-          }
-
-          // Parish
-          let parish: Parish | undefined;
-          if (parName) {
-            parish = currentParishes.find(p => p.name.toLowerCase() === parName.toLowerCase());
-            if (!parish) {
-              // We need a forania ID (from current or context) due to FK constraint
-              const forId = forania?.id || lastForaniaObj?.id;
-              if (!forId) {
-                console.warn(`[Diocese Import] Linha ${i + 1} ignorada: Paróquia "${parName}" sem Forania vinculada.`);
-                continue;
-              }
-
-              const newCode = getNextCode(currentParishes);
-              const newParish: Partial<Parish> = {
-                id: newCode,
-                code: newCode,
-                name: parName,
-                forania_id: forId,
-                priest_id: '',
-                priest_name: '',
-                address_city: 'Guarulhos',
-                address_state: 'SP',
-                user_id: userAuth.uid,
-                created_at: new Date().toISOString()
-              };
-              if (cnpj) (newParish as any).cnpj = cnpj;
-              
-              await saveData('parishes', newCode, newParish);
-              currentParishes.push(newParish as Parish);
-              parish = newParish as Parish;
-            } else {
-              let updated = false;
-              if (cnpj && !(parish as any).cnpj) { (parish as any).cnpj = cnpj; updated = true; }
-              const forId = forania?.id || lastForaniaObj?.id;
-              if (!parish.forania_id && forId) {
-                parish.forania_id = forId;
-                updated = true;
-              }
-              if (updated) await saveData('parishes', parish.id, parish);
-            }
-            lastParishObj = parish || null;
-          } else {
-            parish = lastParishObj || undefined;
-          }
-
-          // Process Clergy
-          const targetParish = parish || lastParishObj;
-          if (priestName && targetParish) {
-            let member = currentClergy.find(c => c.name.toLowerCase() === priestName.toLowerCase());
-            const role = normalizeRole(roleRaw);
-
-            if (!member) {
-              const newCode = getNextCode(currentClergy);
-              const newMember: ClergyLeity = {
-                id: newCode,
-                code: newCode,
-                name: priestName,
-                role: role,
-                parish_id: targetParish.id,
-                forania_id: targetParish.forania_id,
-                user_id: userAuth.uid,
-                created_at: new Date().toISOString()
-              };
-              await saveData('clergy_leity', newMember.id, newMember);
-              currentClergy.push(newMember);
-              member = newMember;
-            }
-
-            if (member && role === 'pároco' && targetParish.priest_id !== member.id) {
-              targetParish.priest_id = member.id;
-              targetParish.priest_name = member.name;
-              await saveData('parishes', targetParish.id, {
-                ...targetParish,
-                priest_id: member.id,
-                priest_name: member.name
-              });
-            }
-          }
-          importedCount++;
-        }
-
-        console.log('[Diocese Import] Importação finalizada. Registros processados:', importedCount);
-        setNotification({ type: 'success', message: `${importedCount} registros processados com sucesso!` });
-        fetchData();
+        setImportRows(rows);
+        setImportHeaders(headers);
+        setImportHeaderIdx(hIdx);
+        setImportMapping(initialMapping);
+        setIsImportMapping(true);
+        setLoading(false);
       };
       reader.readAsArrayBuffer(file);
     } catch (error) {
-      console.error('Error importing excel:', error);
-      setNotification({ type: 'error', message: 'Erro ao importar planilha.' });
+      console.error('Error reading excel:', error);
+      setNotification({ type: 'error', message: 'Erro ao ler planilha.' });
+      setLoading(false);
+    }
+  };
+
+  const executeImport = async () => {
+    if (!userAuth || importRows.length === 0) return;
+
+    try {
+      setLoading(true);
+      setIsImportMapping(false);
+
+      const colIdx = importMapping;
+      const rows = importRows;
+      const headerRowIdx = importHeaderIdx;
+
+      let currentForaries = [...foraries];
+      let currentParishes = [...parishes];
+      let currentClergy = [...clergy];
+
+      const cleanupValue = (val: any) => {
+        let str = String(val || '').trim();
+        str = str.replace(/^(paroquia|paróquia|forania|padre):?\s*/i, '');
+        return str.trim();
+      };
+
+      const normalizeRole = (role: string): ClergyRole => {
+        const r = String(role || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (r.includes('paroco')) return 'pároco';
+        if (r.includes('vigario')) return 'vigário';
+        if (r.includes('diacono')) return 'diácono';
+        if (r.includes('seminarista')) return 'seminarista';
+        return 'leigo formado';
+      };
+
+      let importedCount = 0;
+      let parishesCreated = 0;
+      let clergyCreated = 0;
+      let foraniasCreated = 0;
+      let lastForaniaObj: Foraria | null = null;
+      let lastParishObj: Parish | null = null;
+
+      for (let i = headerRowIdx + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+
+        const rawForName = colIdx.forania >= 0 ? cleanupValue(row[colIdx.forania]) : '';
+        const rawParName = colIdx.paroquia >= 0 ? cleanupValue(row[colIdx.paroquia]) : '';
+        const priestName = colIdx.membro >= 0 ? cleanupValue(row[colIdx.membro]) : '';
+        const roleRaw = colIdx.cargo >= 0 ? String(row[colIdx.cargo] || '').trim() : '';
+        const cnpj = colIdx.cnpj >= 0 ? String(row[colIdx.cnpj] || '').trim() : '';
+        const phone = colIdx.telefone >= 0 ? String(row[colIdx.telefone] || '').trim() : '';
+        const email = colIdx.email >= 0 ? String(row[colIdx.email] || '').trim() : '';
+        const address = colIdx.endereco >= 0 ? String(row[colIdx.endereco] || '').trim() : '';
+        const city = colIdx.cidade >= 0 ? String(row[colIdx.cidade] || '').trim() : '';
+
+        const forName = rawForName || (lastForaniaObj ? lastForaniaObj.name : '');
+        const parName = rawParName || (lastParishObj ? lastParishObj.name : '');
+
+        if (!forName && !parName && !priestName) continue;
+
+        // Forania Logic
+        let forania: Foraria | undefined;
+        if (forName) {
+          forania = currentForaries.find(f => f.name.toLowerCase() === forName.toLowerCase());
+          if (!forania) {
+            const newCode = getNextCode(currentForaries);
+            const newForania: Foraria = {
+              id: newCode,
+              code: newCode,
+              name: forName,
+              priest_name: '',
+              user_id: userAuth.uid,
+              created_at: new Date().toISOString()
+            };
+            await saveData('foraries', newForania.id, newForania);
+            currentForaries.push(newForania);
+            forania = newForania;
+            foraniasCreated++;
+          }
+          lastForaniaObj = forania;
+        } else {
+          forania = lastForaniaObj || undefined;
+        }
+
+        // Parish Logic
+        let parish: Parish | undefined;
+        if (parName) {
+          parish = currentParishes.find(p => p.name.toLowerCase() === parName.toLowerCase());
+          if (!parish) {
+            const forId = forania?.id || lastForaniaObj?.id;
+            if (!forId) continue;
+
+            const newCode = getNextCode(currentParishes);
+            const newParish: Partial<Parish> = {
+              id: newCode,
+              code: newCode,
+              name: parName,
+              forania_id: forId,
+              priest_id: '',
+              priest_name: '',
+              address_city: city || 'Guarulhos',
+              address_state: 'SP',
+              address_street: address,
+              phone: phone,
+              email: email,
+              user_id: userAuth.uid,
+              created_at: new Date().toISOString()
+            };
+            if (cnpj) (newParish as any).cnpj = cnpj;
+            
+            await saveData('parishes', newCode, newParish);
+            currentParishes.push(newParish as Parish);
+            parish = newParish as Parish;
+            parishesCreated++;
+          } else {
+            let updated = false;
+            if (cnpj && (parish as any).cnpj !== cnpj) { (parish as any).cnpj = cnpj; updated = true; }
+            if (phone && parish.phone !== phone) { parish.phone = phone; updated = true; }
+            if (email && parish.email !== email) { parish.email = email; updated = true; }
+            if (address && parish.address_street !== address) { parish.address_street = address; updated = true; }
+            if (city && parish.address_city !== city) { parish.address_city = city; updated = true; }
+            
+            const forId = forania?.id || lastForaniaObj?.id;
+            if (!parish.forania_id && forId) {
+              parish.forania_id = forId;
+              updated = true;
+            }
+            if (updated) await saveData('parishes', parish.id, parish);
+          }
+          lastParishObj = parish || null;
+        } else {
+          parish = lastParishObj || undefined;
+        }
+
+        // Clergy Logic
+        const targetParish = parish || lastParishObj;
+        if (priestName && targetParish) {
+          let member = currentClergy.find(c => c.name.toLowerCase() === priestName.toLowerCase());
+          const role = normalizeRole(roleRaw);
+
+          if (!member) {
+            const newCode = getNextCode(currentClergy);
+            const newMember: ClergyLeity = {
+              id: newCode,
+              code: newCode,
+              name: priestName,
+              role: role,
+              parish_id: targetParish.id,
+              forania_id: targetParish.forania_id,
+              phone_mobile: phone,
+              email: email,
+              address: address,
+              address_city: city || 'Guarulhos',
+              address_state: 'SP',
+              user_id: userAuth.uid,
+              created_at: new Date().toISOString()
+            };
+            await saveData('clergy_leity', newMember.id, newMember);
+            currentClergy.push(newMember);
+            member = newMember;
+            clergyCreated++;
+          } else {
+            let memberUpdated = false;
+            if (role && member.role !== role) { member.role = role; memberUpdated = true; }
+            if (targetParish.id && member.parish_id !== targetParish.id) { 
+              member.parish_id = targetParish.id; 
+              member.forania_id = targetParish.forania_id;
+              memberUpdated = true; 
+            }
+            if (phone && member.phone_mobile !== phone) { member.phone_mobile = phone; memberUpdated = true; }
+            if (email && member.email !== email) { member.email = email; memberUpdated = true; }
+            
+            if (memberUpdated) await saveData('clergy_leity', member.id, member);
+          }
+
+          if (member && role === 'pároco' && targetParish.priest_id !== member.id) {
+            targetParish.priest_id = member.id;
+            targetParish.priest_name = member.name;
+            await saveData('parishes', targetParish.id, {
+              ...targetParish,
+              priest_id: member.id,
+              priest_name: member.name
+            });
+          }
+        }
+        importedCount++;
+      }
+
+      setNotification({ 
+        type: 'success', 
+        message: `Importação concluída! Processados: ${importedCount} linhas. Criados: ${foraniasCreated} foranias, ${parishesCreated} paróquias, ${clergyCreated} membros do clero.` 
+      });
+      fetchData();
+    } catch (error) {
+      console.error('Error executing import:', error);
+      setNotification({ type: 'error', message: 'Erro ao processar importação.' });
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
 
   const fetchData = async () => {
     try {
@@ -398,7 +467,7 @@ export function Diocese() {
         name: '',
         priest_name: ''
       });
-    } else if (activeTab === 'parishes') {
+    } else if (activeTab === 'parishes' || activeTab === 'dashboard') {
       setParishForm({
         code: getNextCode(parishes),
         name: '',
@@ -413,6 +482,7 @@ export function Diocese() {
         address_zip: '',
         email: '',
         phone: '',
+        cnpj: '',
         foundation_date: ''
       });
     } else {
@@ -428,6 +498,7 @@ export function Diocese() {
         phone_whatsapp: '',
         email: '',
         parish_id: '',
+        forania_id: '',
         role: 'pároco'
       });
     }
@@ -438,10 +509,11 @@ export function Diocese() {
     setSelectedItem(item);
     if (activeTab === 'foranias') {
       setForariaForm({ ...item });
-    } else if (activeTab === 'parishes') {
+    } else if (activeTab === 'parishes' || activeTab === 'dashboard') {
       setParishForm({
         address_city: 'Guarulhos',
         address_state: 'SP',
+        cnpj: '',
         ...item,
         foundation_date: formatDateForDisplay(item.foundation_date)
       });
@@ -449,6 +521,7 @@ export function Diocese() {
       setClergyForm({
         address_city: 'Guarulhos',
         address_state: 'SP',
+        forania_id: '',
         ...item
       });
     }
@@ -461,49 +534,40 @@ export function Diocese() {
 
     try {
       setLoading(true);
-      const collection = activeTab === 'foranias' ? 'foraries' : activeTab === 'parishes' ? 'parishes' : 'clergy_leity';
-      let data = { ...(activeTab === 'foranias' ? forariaForm : activeTab === 'parishes' ? parishForm : clergyForm) };
+      const collection = activeTab === 'foranias' ? 'foraries' : (activeTab === 'parishes' || activeTab === 'dashboard') ? 'parishes' : 'clergy_leity';
+      let data = { ...(activeTab === 'foranias' ? forariaForm : (activeTab === 'parishes' || activeTab === 'dashboard') ? parishForm : clergyForm) };
       
       // Prepare data for DB
       const dataForDB = { ...data };
       
-      if (activeTab === 'parishes') {
+      if (activeTab === 'parishes' || activeTab === 'dashboard') {
         const foundationDate = (dataForDB as any).foundation_date;
         if (foundationDate) {
           (dataForDB as any).foundation_date = parseDateToDB(foundationDate);
         }
-        // Strip foundation_date as it is not in the current SQL schema
-        delete (dataForDB as any).foundation_date;
+      }
+      
+      if (activeTab === 'clergy') {
+        // Automatically sync forania_id from parish if missing but parish is present
+        if (!(dataForDB as any).forania_id && (dataForDB as any).parish_id) {
+          const p = parishes.find(par => par.id === (dataForDB as any).parish_id);
+          if (p) (dataForDB as any).forania_id = p.forania_id;
+        }
       }
       
       const docId = selectedItem?.id || (dataForDB as any).code;
 
-      // Try saving with all fields, fallback if column missing
-      try {
-        await saveData(collection, docId as string, {
-          ...dataForDB,
-          user_id: userAuth.uid,
-          created_at: selectedItem?.created_at || new Date().toISOString()
-        });
-      } catch (err: any) {
-        if (err.message?.includes('phone_mobile_is_whatsapp')) {
-          console.warn(`[Supabase] Coluna phone_mobile_is_whatsapp ausente em ${collection}, salvando sem ela.`);
-          const fallbackData = { ...dataForDB };
-          delete (fallbackData as any).phone_mobile_is_whatsapp;
-          await saveData(collection, docId as string, {
-            ...fallbackData,
-            user_id: userAuth.uid,
-            created_at: selectedItem?.created_at || new Date().toISOString()
-          });
-        } else {
-          throw err;
-        }
-      }
+      await saveData(collection, docId as string, {
+        ...dataForDB,
+        user_id: userAuth.uid,
+        created_at: selectedItem?.created_at || new Date().toISOString()
+      });
 
       setNotification({ type: 'success', message: 'Registro salvo com sucesso!' });
       setIsEditing(false);
       fetchData();
     } catch (error) {
+      console.error('Save error:', error);
       setNotification({ type: 'error', message: 'Erro ao salvar registro.' });
     } finally {
       setLoading(false);
@@ -541,34 +605,109 @@ export function Diocese() {
     window.print();
   };
 
-  const filteredItems = (activeTab === 'foranias' ? foraries : (activeTab === 'parishes' || activeTab === 'dashboard') ? parishes : clergy)
-    .filter(item => {
-      const query = search.toLowerCase();
-      const matchesSearch = Object.values(item).some(val => String(val).toLowerCase().includes(query));
+  const filteredItems = (() => {
+    let baseItems: any[] = [];
+    if (activeTab === 'dashboard') {
+      baseItems = [
+        ...foraries.map(f => ({ ...f, _type: 'forania' })),
+        ...parishes.map(p => ({ ...p, _type: 'parish' })),
+        ...clergy.map(c => ({ ...c, _type: 'clergy' }))
+      ];
+    } else if (activeTab === 'foranias') {
+      baseItems = foraries.map(f => ({ ...f, _type: 'forania' }));
+    } else if (activeTab === 'parishes') {
+      baseItems = parishes.map(p => ({ ...p, _type: 'parish' }));
+    } else {
+      baseItems = clergy.map(c => ({ ...c, _type: 'clergy' }));
+    }
+
+    return baseItems.filter(item => {
+      const query = search.toLowerCase().trim();
       
-      if (activeTab === 'parishes' || activeTab === 'dashboard') {
-        const matchesForania = !filterForania || (item as Parish).forania_id === filterForania;
-        return matchesSearch && matchesForania;
+      // Robust search: checks own fields
+      const matchesSearchOwn = !query || Object.entries(item).some(([key, val]) => {
+        if (['_type', 'id', 'forania_id', 'parish_id', 'priest_id', 'user_id', 'created_at', 'updated_at'].includes(key)) return false;
+        return String(val || '').toLowerCase().includes(query);
+      });
+
+      // Robust search: checks linked fields (Cross-reference search)
+      let matchesSearchLinked = false;
+      if (query) {
+        if (item._type === 'parish') {
+          // Search parish by forania name or priest name
+          const fName = foraries.find(f => f.id === item.forania_id)?.name.toLowerCase() || '';
+          const pName = item.priest_name?.toLowerCase() || '';
+          if (fName.includes(query) || pName.includes(query)) matchesSearchLinked = true;
+        } else if (item._type === 'clergy') {
+          // Search clergy by parish name or forania name
+          const pName = parishes.find(p => p.id === item.parish_id)?.name.toLowerCase() || '';
+          const fName = foraries.find(f => f.id === item.forania_id)?.name.toLowerCase() || '';
+          if (pName.includes(query) || fName.includes(query)) matchesSearchLinked = true;
+        } else if (item._type === 'forania') {
+          // Search forania by its priest name (already covered by own fields, but good for clarity)
+          const pName = item.priest_name?.toLowerCase() || '';
+          if (pName.includes(query)) matchesSearchLinked = true;
+        }
       }
+
+      const matchesSearch = matchesSearchOwn || matchesSearchLinked;
       
-      if (activeTab === 'clergy') {
-        const matchesForania = !filterForania || (item as ClergyLeity).forania_id === filterForania;
-        const matchesRole = !filterRole || (item as ClergyLeity).role === filterRole;
-        return matchesSearch && matchesForania && matchesRole;
-      }
+      // Secondary Filters (Forania / Parish / Clergy / Role)
+      const matchesForania = !filterForania || (
+        item._type === 'forania' ? item.id === filterForania :
+        item._type === 'parish' ? item.forania_id === filterForania :
+        item._type === 'clergy' ? (
+          item.forania_id === filterForania || 
+          (item.parish_id && parishes.find(p => p.id === item.parish_id)?.forania_id === filterForania)
+        ) : false
+      );
+
+      const matchesParish = !filterParish || (
+        item._type === 'parish' ? item.id === filterParish :
+        item._type === 'clergy' ? item.parish_id === filterParish :
+        item._type === 'forania' ? parishes.some(p => p.id === filterParish && p.forania_id === item.id) : false
+      );
+
+      const matchesClergyMember = !filterClergyMember || (
+        item._type === 'clergy' ? item.id === filterClergyMember :
+        item._type === 'parish' ? (
+          item.priest_id === filterClergyMember ||
+          clergy.some(c => c.id === filterClergyMember && c.parish_id === item.id)
+        ) :
+        item._type === 'forania' ? (
+          clergy.some(c => c.id === filterClergyMember && (
+            c.forania_id === item.id || 
+            (c.parish_id && parishes.find(p => p.id === c.parish_id)?.forania_id === item.id)
+          ))
+        ) : false
+      );
+
+      const matchesRole = !filterRole || (
+        item._type === 'clergy' ? item.role === filterRole : false
+      );
       
-      return matchesSearch;
-    })
+      return matchesSearch && matchesForania && matchesParish && matchesClergyMember && (activeTab === 'clergy' || activeTab === 'dashboard' ? matchesRole : true);
+    });
+  })()
     .sort((a: any, b: any) => {
-      if (activeTab === 'parishes' || activeTab === 'dashboard') {
-        let valA: any, valB: any;
-        if (sortBy === 'code') { valA = parseInt(a.code) || 0; valB = parseInt(b.code) || 0; }
-        else if (sortBy === 'name') { valA = a.name.toLowerCase(); valB = b.name.toLowerCase(); }
-        else if (sortBy === 'date') { valA = a.foundation_date || a.created_at || ''; valB = b.foundation_date || b.created_at || ''; }
-        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
+      let valA: any, valB: any;
+      
+      if (sortBy === 'code') {
+        valA = parseInt(a.code) || 0;
+        valB = parseInt(b.code) || 0;
+      } else if (sortBy === 'name') {
+        valA = String(a.name || '').toLowerCase();
+        valB = String(b.name || '').toLowerCase();
+      } else if (sortBy === 'date') {
+        valA = a.foundation_date || a.created_at || '';
+        valB = b.foundation_date || b.created_at || '';
+      } else {
+        valA = String(a.name || '').toLowerCase();
+        valB = String(b.name || '').toLowerCase();
       }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
       return 0;
     });
 
@@ -620,7 +759,7 @@ export function Diocese() {
       <div className="flex flex-col md:flex-row items-center gap-6 print:hidden">
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 w-full md:w-fit">
           <button
-            onClick={() => { setActiveTab('dashboard'); setIsEditing(false); setSearch(''); }}
+            onClick={() => { setActiveTab('dashboard'); setIsEditing(false); }}
             className={cn(
               "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
               activeTab === 'dashboard' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
@@ -630,7 +769,7 @@ export function Diocese() {
             Geral
           </button>
           <button
-            onClick={() => { setActiveTab('parishes'); setIsEditing(false); setSearch(''); }}
+            onClick={() => { setActiveTab('parishes'); setIsEditing(false); setFilterParish(''); }}
             className={cn(
               "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
               activeTab === 'parishes' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
@@ -640,7 +779,7 @@ export function Diocese() {
             Paróquias
           </button>
           <button
-            onClick={() => { setActiveTab('foranias'); setIsEditing(false); setSearch(''); }}
+            onClick={() => { setActiveTab('foranias'); setIsEditing(false); setFilterForania(''); }}
             className={cn(
               "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
               activeTab === 'foranias' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
@@ -650,7 +789,7 @@ export function Diocese() {
             Foranias
           </button>
           <button
-            onClick={() => { setActiveTab('clergy'); setIsEditing(false); setSearch(''); }}
+            onClick={() => { setActiveTab('clergy'); setIsEditing(false); setFilterClergyMember(''); }}
             className={cn(
               "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
               activeTab === 'clergy' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
@@ -684,19 +823,56 @@ export function Diocese() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
-          <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
-            <MapIcon size={14} className="text-slate-400" />
-            <select
-              value={filterForania}
-              onChange={(e) => setFilterForania(e.target.value)}
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
-            >
-              <option value="">Todas Foranias</option>
-              {foraries.map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
-          </div>
+          {/* Forania Filter - Hidden only if we are in Foranias tab and user considers search box as "auto-busca" */}
+          {activeTab !== 'foranias' && (
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+              <MapIcon size={14} className="text-indigo-400" />
+              <select
+                value={filterForania}
+                onChange={(e) => setFilterForania(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
+              >
+                <option value="">Todas Foranias</option>
+                {foraries.map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Parish Filter - Hidden if in Parishes tab */}
+          {activeTab !== 'parishes' && (
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+              <Church size={14} className="text-blue-400" />
+              <select
+                value={filterParish}
+                onChange={(e) => setFilterParish(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
+              >
+                <option value="">Todas Paróquias</option>
+                {parishes.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Clergy Filter - Hidden if in Clergy tab */}
+          {activeTab !== 'clergy' && (
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+              <User size={14} className="text-amber-400" />
+              <select
+                value={filterClergyMember}
+                onChange={(e) => setFilterClergyMember(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
+              >
+                <option value="">Todo Clero</option>
+                {clergy.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {activeTab === 'clergy' && (
             <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
@@ -771,72 +947,112 @@ export function Diocese() {
             </button>
           </div>
         ) : activeTab === 'dashboard' ? (
-          /* INTEGRATED VIEW - THE "MASTER TABLE" */
+          /* INTEGRATED VIEW - THE "MASTER TABLE" - SHOWS ALL CATEGORIES */
           <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cód / Paróquia</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">Forania</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:table-cell">Contato / Local</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo / Cadastro</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">Região / Forania</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável / Cargo</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:table-cell">Contato / Localização</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right print:hidden">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {filteredItems.map((item: any) => (
                     <motion.tr 
-                      key={item.id} 
+                      key={`${item._type}-${item.id}`} 
                       className="group hover:bg-blue-50/30 transition-colors"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                     >
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-inner">
-                            {item.code}
+                          <div className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-inner",
+                            item._type === 'parish' ? "bg-blue-50 text-blue-600" : 
+                            item._type === 'forania' ? "bg-indigo-50 text-indigo-600" : "bg-amber-50 text-amber-600"
+                          )}>
+                            {item._type === 'parish' ? <Church size={18} /> : 
+                             item._type === 'forania' ? <MapIcon size={18} /> : <User size={18} />}
                           </div>
                           <div>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">#{item.code}</span>
+                              <span className={cn(
+                                "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
+                                item._type === 'parish' ? "bg-blue-100 text-blue-700" : 
+                                item._type === 'forania' ? "bg-indigo-100 text-indigo-700" : "bg-amber-100 text-amber-700"
+                              )}>
+                                {item._type === 'parish' ? 'Paróquia' : item._type === 'forania' ? 'Forania' : 'Clero/Membro'}
+                              </span>
+                            </div>
                             <h5 className="font-black text-slate-800 leading-tight group-hover:text-blue-700 transition-colors uppercase tracking-tight">{item.name}</h5>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CNPJ: {item.cnpj || '---'}</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-6 hidden md:table-cell">
-                        <div className="flex items-center gap-2">
-                          <MapIcon size={14} className="text-blue-400" />
-                          <span className="text-sm font-bold text-slate-600">
-                            {foraries.find(f => f.id === item.forania_id)?.name || 'S/ Forania'}
-                          </span>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <MapIcon size={14} className="text-blue-400" />
+                            <span className="text-sm font-bold text-slate-600 truncate max-w-[150px]">
+                              {item._type === 'forania' ? 'Própria Forania' : 
+                               (foraries.find(f => f.id === item.forania_id)?.name || 'S/ Forania')}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex flex-col">
                            <div className="flex items-center gap-2">
                             <User size={14} className="text-amber-500" />
-                            <span className="text-sm font-bold text-slate-700 leading-none">{item.priest_name || 'A definir'}</span>
+                            <span className="text-sm font-bold text-slate-700 leading-none">
+                              {item._type === 'clergy' ? item.role : (item.priest_name || 'A definir')}
+                            </span>
                            </div>
-                           <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1 pl-5">Pároco Titular</span>
+                           {item._type === 'parish' && (
+                             <div className="flex items-center gap-2 mt-2">
+                               <Users size={12} className="text-blue-400" />
+                               <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                                 {clergy.filter(c => c.parish_id === item.id).length} Membros
+                               </span>
+                             </div>
+                           )}
+                           {item._type === 'clergy' && (
+                             <div className="flex items-center gap-2 mt-2">
+                               <Church size={12} className="text-amber-400" />
+                               <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest truncate max-w-[150px]">
+                                 {parishes.find(p => p.id === item.parish_id)?.name || 'Avulso'}
+                               </span>
+                             </div>
+                           )}
                         </div>
                       </td>
                       <td className="px-8 py-6 hidden lg:table-cell max-w-xs">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                            <Phone size={12} className="text-slate-300" /> {item.phone || '---'}
+                            <Phone size={12} className="text-slate-300" /> {item.phone || item.phone_mobile || '---'}
                           </div>
                           <div className="flex items-center gap-2 text-xs font-bold text-slate-400 truncate">
-                            <MapPin size={12} className="text-red-300" /> {item.address_street || item.address_city}
+                            <MapPin size={12} className="text-red-300" /> {item.address_street || item.address_city || '---'}
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right print:hidden">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button onClick={() => handleView(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all shadow-sm">
-                            <Eye size={18} />
-                          </button>
-                          <button onClick={() => handleEdit(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all shadow-sm">
-                            <Edit2 size={18} />
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                          <button 
+                            onClick={() => {
+                              // Ensure activeTab is set correctly for the item in view/edit
+                              if (item._type === 'parish') { setActiveTab('parishes'); handleView(item); }
+                              else if (item._type === 'forania') { setActiveTab('foranias'); handleView(item); }
+                              else { setActiveTab('clergy'); handleView(item); }
+                            }} 
+                            className="flex items-center gap-2 px-3 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all shadow-sm border border-blue-100 text-[10px] font-black uppercase tracking-widest"
+                          >
+                            <Eye size={14} />
+                            Ficha
                           </button>
                         </div>
                       </td>
@@ -1021,7 +1237,7 @@ export function Diocese() {
                   )}
 
                   {/* PARISHES FORM */}
-                  {activeTab === 'parishes' && (
+                  {(activeTab === 'parishes' || activeTab === 'dashboard') && (
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-1 col-span-1">
@@ -1041,6 +1257,7 @@ export function Diocese() {
                             value={parishForm.name || ''}
                             onChange={e => setParishForm({...parishForm, name: e.target.value})}
                             className="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                            placeholder="Nome Completo da Unidade"
                           />
                         </div>
                       </div>
@@ -1061,7 +1278,7 @@ export function Diocese() {
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Padre Responsável</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Padre Responsável (Pároco)</label>
                           <select 
                             value={parishForm.priest_id || ''}
                             onChange={e => {
@@ -1084,67 +1301,65 @@ export function Diocese() {
 
                       {selectedItem && (
                         <div className="p-6 bg-blue-50/50 rounded-3xl border-2 border-blue-100 space-y-4">
-                          <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
-                            <Users size={14} />
-                            Membros e Equipe Paroquial
-                          </h4>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                              <Users size={14} />
+                              Equipe de Clero e Membros
+                            </h4>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">
+                              {clergy.filter(c => c.parish_id === selectedItem.id).length} Vinculados
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClergyForm({
+                                  ...clergyForm,
+                                  parish_id: selectedItem.id,
+                                  forania_id: selectedItem.forania_id,
+                                  code: getNextCode(clergy)
+                                });
+                                setActiveTab('clergy');
+                                setIsEditing(true);
+                                setSelectedItem(null);
+                              }}
+                              className="text-[10px] font-black text-blue-600 hover:underline uppercase flex items-center gap-1"
+                            >
+                              <PlusCircle size={12} />
+                              Vincular Novo Membro
+                            </button>
+                          </div>
+                          
                           <div className="space-y-2">
                             {(() => {
                               const members = clergy.filter(c => c.parish_id === selectedItem.id);
-                              const roleOrder: Record<string, number> = {
-                                'pároco': 1,
-                                'vigário': 2,
-                                'diácono': 3,
-                                'seminarista': 4,
-                                'leigo formado': 5
-                              };
-                              const sortedMembers = [...members].sort((a, b) => 
-                                (roleOrder[a.role] || 99) - (roleOrder[b.role] || 99)
-                              );
+                              if (members.length === 0) return <p className="text-xs text-slate-400 italic bg-white/50 p-4 rounded-xl border border-dashed border-blue-100 text-center">Nenhum membro cadastrado nesta unidade.</p>;
+                              
+                              const roleOrder: Record<string, number> = { 'pároco': 1, 'vigário': 2, 'diácono': 3, 'seminarista': 4, 'leigo formado': 5 };
+                              const sorted = [...members].sort((a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9));
 
-                              if (sortedMembers.length === 0) {
-                                return <p className="text-xs text-slate-400 italic">Nenhum membro vinculado a esta paróquia.</p>;
-                              }
-
-                              return sortedMembers.map(member => {
-                                const isParoco = member.role === 'pároco';
-                                return (
-                                  <div key={member.id} className={cn(
-                                    "flex items-center justify-between p-2 rounded-xl border transition-all",
-                                    isParoco 
-                                      ? "bg-blue-600 text-white border-blue-700 shadow-md transform scale-[1.02]" 
-                                      : "bg-white text-slate-700 border-blue-100"
-                                  )}>
-                                    <div className="flex items-center gap-3">
-                                      <div className={cn(
-                                        "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",
-                                        isParoco ? "bg-white text-blue-600" : "bg-blue-100 text-blue-600"
-                                      )}>
-                                        {member.name.charAt(0)}
-                                      </div>
-                                      <div>
-                                        <p className={cn("text-sm font-bold", isParoco ? "text-white" : "text-slate-700")}>{member.name}</p>
-                                        <p className={cn("text-[10px] font-medium uppercase tracking-wider", isParoco ? "text-blue-100" : "text-slate-400")}>
-                                          {member.role} {isParoco && "(Responsável)"}
-                                        </p>
-                                      </div>
+                              return sorted.map(m => (
+                                <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-blue-50 group/item hover:border-blue-400 transition-all">
+                                  <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                      "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black",
+                                      m.role === 'pároco' ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"
+                                    )}>
+                                      {m.name.charAt(0)}
                                     </div>
-                                    <button 
-                                      type="button"
-                                      onClick={() => {
-                                        setActiveTab('clergy');
-                                        handleEdit(member);
-                                      }}
-                                      className={cn(
-                                        "p-2 rounded-lg transition-all",
-                                        isParoco ? "text-white hover:bg-blue-500" : "text-blue-600 hover:bg-blue-50"
-                                      )}
-                                    >
-                                      <Edit2 size={14} />
-                                    </button>
+                                    <div>
+                                      <p className="text-sm font-bold text-slate-700">{m.name}</p>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.role}</p>
+                                    </div>
                                   </div>
-                                );
-                              });
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveTab('clergy'); handleEdit(m); }}
+                                    className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg opacity-0 group-hover/item:opacity-100 transition-all"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                </div>
+                              ));
                             })()}
                           </div>
                         </div>
@@ -1163,7 +1378,7 @@ export function Diocese() {
                               value={parishForm.cnpj || ''}
                               onChange={e => setParishForm({...parishForm, cnpj: e.target.value})}
                               placeholder="00.000.000/0000-00"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
                           <div className="space-y-1">
@@ -1173,11 +1388,11 @@ export function Diocese() {
                               placeholder="DD/MM/AAAA"
                               value={parishForm.foundation_date || ''}
                               onChange={e => setParishForm({...parishForm, foundation_date: maskDate(e.target.value)})}
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Telefone Fixo</label>
                             <input 
@@ -1185,19 +1400,39 @@ export function Diocese() {
                               value={parishForm.phone || ''}
                               onChange={e => setParishForm({...parishForm, phone: maskPhone(e.target.value)})}
                               placeholder="(00) 0000-0000"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">E-mail Institucional</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Telefone Celular</label>
+                            <input 
+                              type="text"
+                              value={parishForm.phone_mobile || ''}
+                              onChange={e => setParishForm({...parishForm, phone_mobile: maskPhone(e.target.value)})}
+                              placeholder="(00) 00000-0000"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
                             <input 
                               type="email"
                               value={parishForm.email || ''}
                               onChange={e => setParishForm({...parishForm, email: e.target.value})}
                               placeholder="paroquia@diocese.org.br"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Observações Gerais</label>
+                          <textarea 
+                            value={parishForm.notes || ''}
+                            onChange={e => setParishForm({...parishForm, notes: e.target.value})}
+                            rows={3}
+                            placeholder="Informações adicionais sobre a paróquia..."
+                            className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold resize-none"
+                          />
                         </div>
                       </div>
 
@@ -1206,71 +1441,72 @@ export function Diocese() {
                           <MapPin size={14} />
                           Localização
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="md:col-span-3">
+                        <div className="grid grid-cols-4 gap-4">
+                          <div className="col-span-3 space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Logradouro (Rua, Av...)</label>
                             <input 
                               type="text"
                               value={parishForm.address_street || ''}
                               onChange={e => setParishForm({...parishForm, address_street: e.target.value})}
-                              placeholder="Endereço (Rua, Av...)"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              placeholder="Ex: Rua das Flores"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
-                          <div className="md:col-span-1">
+                          <div className="col-span-1 space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Número</label>
                             <input 
                               type="text"
                               value={parishForm.address_number || ''}
                               onChange={e => setParishForm({...parishForm, address_number: e.target.value})}
-                              placeholder="Nº"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              placeholder="SN"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="md:col-span-2">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Bairro</label>
                             <input 
                               type="text"
                               value={parishForm.address_neighborhood || ''}
                               onChange={e => setParishForm({...parishForm, address_neighborhood: e.target.value})}
                               placeholder="Bairro"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
-                          <div className="md:col-span-1">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">CEP</label>
+                            <input 
+                              type="text"
+                              value={parishForm.address_zip || ''}
+                              onChange={e => setParishForm({...parishForm, address_zip: maskCEP(e.target.value)})}
+                              placeholder="00000-000"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="col-span-2 space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Cidade</label>
                             <input 
                               type="text"
                               value={parishForm.address_city || ''}
                               onChange={e => setParishForm({...parishForm, address_city: e.target.value})}
                               placeholder="Cidade"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>
-                          <div className="md:col-span-1">
+                          <div className="col-span-1 space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">UF</label>
                             <input 
                               type="text"
                               value={parishForm.address_state || ''}
                               onChange={e => setParishForm({...parishForm, address_state: e.target.value.toUpperCase()})}
                               placeholder="UF"
                               maxLength={2}
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm uppercase"
+                              className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold uppercase"
                             />
                           </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <input 
-                            type="text"
-                            value={parishForm.phone || ''}
-                            onChange={e => setParishForm({...parishForm, phone: maskPhone(e.target.value)})}
-                            placeholder="Telefone Fixo"
-                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
-                          />
-                          <input 
-                            type="email"
-                            value={parishForm.email || ''}
-                            onChange={e => setParishForm({...parishForm, email: e.target.value})}
-                            placeholder="E-mail da Paróquia"
-                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm"
-                          />
                         </div>
                       </div>
                     </>
@@ -1458,6 +1694,135 @@ export function Diocese() {
           )}
         </AnimatePresence>
 
+        {/* IMPORT MAPPING MODAL */}
+        <AnimatePresence>
+          {isImportMapping && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              >
+                <div className="p-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-3xl font-black text-slate-800 tracking-tight">Mapeamento de Importação</h3>
+                    <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-1">Associe as colunas da sua planilha aos campos do sistema</p>
+                  </div>
+                  <button onClick={() => setIsImportMapping(false)} className="p-3 text-slate-400 hover:text-slate-600 hover:bg-white rounded-2xl transition-all shadow-sm">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 mb-4">
+                        <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">1</div>
+                        Configuração de Campos
+                      </h4>
+
+                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl mb-6">
+                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Relatório de Descoberta</p>
+                        <ul className="text-xs font-bold text-blue-800 space-y-1">
+                          <li>• Detectamos <span className="underline">{importHeaders.length} colunas</span> na sua planilha.</li>
+                          <li>• <span className="underline">{Object.values(importMapping).filter(v => v !== -1).length} campos</span> foram mapeados automaticamente.</li>
+                          <li>• <span className="text-blue-600 bg-blue-100/50 px-1 rounded">Dica:</span> Para paróquias com múltiplos membros (Pároco, Vigário, etc), utilize uma linha para cada membro repetindo o nome da paróquia.</li>
+                        </ul>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {TARGET_FIELDS.map((field) => {
+                          const isMapped = importMapping[field.key] !== -1;
+                          return (
+                            <div key={field.key} className={cn(
+                              "flex flex-col gap-2 p-4 rounded-2xl border transition-all",
+                              isMapped ? "bg-white border-blue-100 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60"
+                            )}>
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{field.label}</label>
+                                {isMapped && (
+                                  <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 uppercase tracking-tight animate-pulse">Auto-detectado</span>
+                                )}
+                              </div>
+                              <select
+                                value={importMapping[field.key] ?? -1}
+                                onChange={(e) => setImportMapping({ ...importMapping, [field.key]: parseInt(e.target.value) })}
+                                className="w-full bg-transparent border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500"
+                              >
+                                <option value="-1">-- Ignorar esta coluna --</option>
+                                {importHeaders.map((header, idx) => (
+                                  <option key={idx} value={idx}>{header || `Coluna ${idx + 1}`}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 mb-4">
+                        <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">2</div>
+                        Prévia dos Dados (Primeiras 5 linhas)
+                      </h4>
+                      
+                      <div className="bg-slate-900 rounded-[2rem] p-6 overflow-x-auto shadow-inner h-[500px] border-4 border-slate-800">
+                        <table className="w-full text-xs text-left">
+                          <thead>
+                            <tr className="border-b border-slate-700">
+                              {importHeaders.map((h, i) => (
+                                <th key={i} className="px-3 py-2 text-slate-500 font-bold uppercase tracking-tighter whitespace-nowrap">{h || `Col ${i+1}`}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800">
+                            {importRows.slice(importHeaderIdx + 1, importHeaderIdx + 6).map((row, rIdx) => (
+                              <tr key={rIdx}>
+                                {row.map((cell, cIdx) => (
+                                  <td key={cIdx} className="px-3 py-2 text-slate-300 font-medium whitespace-nowrap opacity-80">{String(cell || '')}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {importRows.length > 6 && (
+                          <div className="p-4 text-center text-slate-500 font-black italic text-[10px] uppercase">
+                            + {importRows.length - (importHeaderIdx + 6)} linhas restantes...
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-white border-t border-slate-100 flex items-center justify-between gap-6">
+                  <div className="flex items-center gap-4 text-slate-400">
+                    <AlertCircle size={20} className="text-amber-500" />
+                    <p className="text-xs font-bold leading-tight">Certifique-se de que os nomes das Foranias e Paróquias estão idênticos aos cadastrados para evitar duplicidade.</p>
+                  </div>
+                  <div className="flex gap-4 shrink-0">
+                    <button
+                      onClick={() => setIsImportMapping(false)}
+                      className="px-8 py-4 bg-slate-100 text-slate-600 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={executeImport}
+                      className="px-12 py-4 bg-blue-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 flex items-center gap-3"
+                    >
+                      <Upload size={20} />
+                      Iniciar Importação Real
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+
       {/* PRINT REPORT - THE HIGH CONCENTRATED INFO */}
       <div className="hidden print:block bg-white p-12" ref={printRef}>
         <div className="text-center space-y-4 mb-12 border-b-4 border-slate-800 pb-8">
@@ -1538,22 +1903,25 @@ export function Diocese() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-                    {activeTab === 'foranias' ? <MapIcon size={24} /> : activeTab === 'parishes' ? <Church size={24} /> : <User size={24} />}
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16" />
+                <div className="flex items-center gap-5 relative z-10">
+                  <div className="w-16 h-16 bg-[#00174b] text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-blue-900/20">
+                    {activeTab === 'foranias' ? <MapIcon size={28} /> : (activeTab === 'parishes' || activeTab === 'dashboard') ? <Church size={28} /> : <User size={28} />}
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">Visualizar Registro</h3>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">CÓDIGO: #{selectedItem.code}</p>
+                    <h3 className="text-2xl font-black text-[#131b2e] tracking-tight">Ficha Detalhada</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">Código: #{selectedItem.code}</span>
+                    </div>
                   </div>
                 </div>
-                <button onClick={() => setIsViewing(false)} className="p-3 text-slate-400 hover:text-slate-600 hover:bg-white rounded-2xl transition-all shadow-sm">
+                <button onClick={() => setIsViewing(false)} className="p-3 text-slate-400 hover:text-[#00174b] hover:bg-white rounded-2xl transition-all shadow-sm border border-slate-100 relative z-10">
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="p-6 max-h-[60vh] overflow-y-auto space-y-6 custom-scrollbar">
+              <div className="p-8 max-h-[70vh] overflow-y-auto space-y-8 custom-scrollbar">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {activeTab === 'foranias' && (
                     <>
@@ -1562,18 +1930,69 @@ export function Diocese() {
                     </>
                   )}
 
-                  {activeTab === 'parishes' && (
+                  {(activeTab === 'parishes' || activeTab === 'dashboard') && (
                     <>
-                      <DetailField label="Nome da Paróquia" value={selectedItem.name} icon={<Church size={14} />} fullWidth />
+                      <DetailField label="Nome da Unidade" value={selectedItem.name} icon={<Church size={14} />} fullWidth />
                       <DetailField label="Forania" value={foraries.find(f => f.id === selectedItem.forania_id)?.name} icon={<MapIcon size={14} />} />
                       <DetailField label="Padre Responsável" value={selectedItem.priest_name} icon={<User size={14} />} />
+                      <DetailField label="CNPJ" value={selectedItem.cnpj} icon={<Building2 size={14} />} />
                       <DetailField label="Endereço" value={`${selectedItem.address_street || ''}, ${selectedItem.address_number || ''}`} icon={<MapPin size={14} />} fullWidth />
                       <DetailField label="Bairro" value={selectedItem.address_neighborhood} icon={<MapPin size={14} />} />
                       <DetailField label="Cidade/UF" value={`${selectedItem.address_city || ''} - ${selectedItem.address_state || ''}`} icon={<MapPin size={14} />} />
-                          <DetailField label="E-mail" value={selectedItem.email} icon={<Mail size={14} />} />
-                      <DetailField label="Telefone" value={selectedItem.phone} icon={<Phone size={14} />} />
-                      <DetailField label="CNPJ" value={selectedItem.cnpj} icon={<Building2 size={14} />} />
+                      <DetailField label="E-mail Institucional" value={selectedItem.email} icon={<Mail size={14} />} />
+                      <DetailField label="Telefone Fixo" value={selectedItem.phone} icon={<Phone size={14} />} />
+                      <DetailField label="Telefone Celular" value={selectedItem.phone_mobile} icon={<PhoneCall size={14} />} />
                       <DetailField label="Data de Fundação" value={selectedItem.foundation_date ? new Date(selectedItem.foundation_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'} icon={<Scroll size={14} />} />
+                      
+                      {selectedItem.notes && (
+                        <div className="md:col-span-2 space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 border-l-2 border-amber-500/20">Observações</label>
+                          <div className="p-4 bg-amber-50/30 rounded-2xl border border-amber-100/50 text-sm font-medium text-slate-600 italic">
+                            {selectedItem.notes}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="md:col-span-2 pt-4 border-t border-slate-100">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                            <Users size={14} />
+                            Equipe / Membros do Clero
+                          </h4>
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">
+                            {clergy.filter(c => c.parish_id === selectedItem.id).length} Vinculados
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {(() => {
+                            const members = clergy.filter(c => c.parish_id === selectedItem.id);
+                            if (members.length === 0) return <p className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center">Nenhum membro cadastrado nesta unidade.</p>;
+                            
+                            const roleOrder: Record<string, number> = { 'pároco': 1, 'vigário': 2, 'diácono': 3, 'seminarista': 4, 'leigo formado': 5 };
+                            const sorted = [...members].sort((a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9));
+
+                            return sorted.map(m => (
+                              <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
+                                <div className="flex items-center gap-3">
+                                  <div className={cn(
+                                    "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black",
+                                    m.role === 'pároco' ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"
+                                  )}>
+                                    {m.name.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-slate-700">{m.name}</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.role}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  {m.phone_mobile && <span className="text-[10px] font-bold text-slate-400">{m.phone_mobile}</span>}
+                                </div>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
                     </>
                   )}
 

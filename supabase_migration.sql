@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS public.parishes (
     address_zip TEXT,
     email TEXT,
     phone TEXT,
+    phone_mobile TEXT,
+    cnpj TEXT,
+    foundation_date TEXT,
     user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -86,6 +89,7 @@ CREATE TABLE IF NOT EXISTS public.clergy_leity (
     phone_whatsapp TEXT,
     email TEXT,
     parish_id UUID REFERENCES public.parishes(id),
+    forania_id UUID REFERENCES public.foraries(id),
     role TEXT CHECK (role IN ('pároco', 'vigário', 'diácono', 'seminarista', 'leigo formado')),
     user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()

@@ -111,7 +111,7 @@ export const schemaService = {
         if (col === 'registration_number' || col === 'code') type = 'TEXT UNIQUE';
         if (col === 'days_of_week' || col === 'subject_ids') return 'TEXT[]';
         
-        if (col === 'birth_date' || col === 'start_date' || col === 'payment_date' || (col.endsWith('_date') && !col.includes('created') && !col.includes('updated'))) {
+        if (col === 'birth_date' || col === 'start_date' || col === 'payment_date' || col === 'foundation_date' || (col.endsWith('_date') && !col.includes('created') && !col.includes('updated'))) {
           type = 'DATE';
         } 
         else if (col.includes('timestamp') || col === 'created_at' || col === 'updated_at' || col.endsWith('_at')) {
