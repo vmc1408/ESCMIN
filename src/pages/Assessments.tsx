@@ -69,8 +69,27 @@ export const Assessments: React.FC = () => {
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }])
       ]);
+      const normalizedClasses = (classesData || []).map((cls: any) => {
+        let sIds: string[] = [];
+        if (Array.isArray(cls.subject_ids)) {
+          sIds = cls.subject_ids;
+        } else if (typeof cls.subject_ids === 'string' && cls.subject_ids.startsWith('{')) {
+          sIds = cls.subject_ids.replace(/[{}]/g, '').split(',').filter(Boolean);
+        } else if (typeof cls.subject_ids === 'string') {
+          try {
+            const parsed = JSON.parse(cls.subject_ids);
+            sIds = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            sIds = cls.subject_ids ? [cls.subject_ids] : [];
+          }
+        } else if (cls.subject_id) {
+          sIds = [cls.subject_id];
+        }
+        return { ...cls, subject_ids: sIds };
+      });
+
       setAssessments(assessData as Assessment[] || []);
-      setClasses(classesData as Class[] || []);
+      setClasses(normalizedClasses as Class[] || []);
       setSubjects(subjectsData as Subject[] || []);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -91,7 +110,7 @@ export const Assessments: React.FC = () => {
         ...formData,
         created_at: formData.created_at || new Date().toISOString()
       };
-      await saveRecord('assessments', dataToSave as any, editingId || undefined);
+      await saveRecord('assessments', editingId || undefined, dataToSave as any);
       setShowForm(false);
       setEditingId(null);
       setFormData({
@@ -169,7 +188,10 @@ export const Assessments: React.FC = () => {
           <Users size={18} className="absolute left-4 top-3.5 text-slate-400" />
           <select 
             value={filterClass}
-            onChange={(e) => setFilterClass(e.target.value)}
+            onChange={(e) => {
+              setFilterClass(e.target.value);
+              setFilterSubject('');
+            }}
             className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 appearance-none"
           >
             <option value="">Todas as Turmas</option>
@@ -286,7 +308,7 @@ export const Assessments: React.FC = () => {
                   <select 
                     required
                     value={formData.class_id}
-                    onChange={e => setFormData({...formData, class_id: e.target.value})}
+                    onChange={e => setFormData({...formData, class_id: e.target.value, subject_id: ''})}
                     className="w-full px-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold"
                   >
                     <option value="">Selecione...</option>
