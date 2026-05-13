@@ -82,6 +82,7 @@ export interface Class {
   days_of_week: string[];
   year?: string;
   semester: string;
+  subject_ids?: string[];
   start_date?: string;
   observations?: string;
   user_id: string;
@@ -182,6 +183,7 @@ export interface Foraria {
   id: string;
   code: string; // Sequential code
   name: string;
+  priest_id?: string; // ID of the clergyman responsible
   priest_name?: string; // Padre Forâneo
   address?: string;
   foundation_date?: string;

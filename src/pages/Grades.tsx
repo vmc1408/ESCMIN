@@ -28,7 +28,7 @@ interface GradeRecord {
   class_id: string;
   subject_id: string;
   period: string;
-  value: number;
+  value: number | string;
   status: 'Aprovado' | 'Reprovado' | 'Recuperação';
   observations?: string;
 }
@@ -67,7 +67,27 @@ export function Grades() {
     if (params && params.length > 0) {
       setAcademicParams(params[0] as AcademicParameters);
     }
-    setClasses(classesData || []);
+
+    const normalizedClasses = (classesData || []).map((cls: any) => {
+      let normalized = { ...cls };
+      let sIds: string[] = [];
+      if (Array.isArray(normalized.subject_ids)) {
+        sIds = normalized.subject_ids;
+      } else if (typeof normalized.subject_ids === 'string') {
+        try {
+          const parsed = JSON.parse(normalized.subject_ids);
+          sIds = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          sIds = normalized.subject_ids ? [normalized.subject_ids] : [];
+        }
+      } else if (normalized.subject_id) {
+        sIds = [normalized.subject_id];
+      }
+      normalized.subject_ids = sIds;
+      return normalized;
+    });
+
+    setClasses(normalizedClasses);
     setSubjects(subjectsData || []);
   }, []);
 
@@ -96,7 +116,11 @@ export function Grades() {
 
       const gradesMap: Record<string, GradeRecord> = {};
       (gradesList || []).forEach(data => {
-        gradesMap[data.student_id] = data as GradeRecord;
+        const record = data as GradeRecord;
+        if (typeof record.value === 'number') {
+          record.value = record.value.toString().replace('.', ',');
+        }
+        gradesMap[data.student_id] = record;
       });
       setGrades(gradesMap);
     } catch (error) {
@@ -108,27 +132,37 @@ export function Grades() {
 
   useEffect(() => {
     fetchStudentsAndGrades();
+    // Reset selected subject if it's not in the filtered list
+    if (selectedClass && selectedSubject) {
+      const cls = classes.find(c => c.id === selectedClass);
+      if (cls && cls.subject_ids && !cls.subject_ids.includes(selectedSubject)) {
+        setSelectedSubject('');
+      }
+    }
   }, [fetchStudentsAndGrades]);
 
+  const filteredSubjects = React.useMemo(() => {
+    if (!selectedClass) return [];
+    const cls = classes.find(c => c.id === selectedClass);
+    if (!cls) return [];
+    if (!cls.subject_ids || cls.subject_ids.length === 0) return subjects; // Fallback
+    return subjects.filter(s => cls.subject_ids?.includes(s.id));
+  }, [selectedClass, classes, subjects]);
+
   const handleGradeChange = (studentId: string, value: string) => {
-    let rawValue = value.replace(',', '.');
-    // Allow empty or partial decimal
-    if (value === '' || value === ',') {
-      rawValue = '0';
-    }
+    // Basic validation: allow numbers, comma and dot
+    if (value !== '' && !/^[0-9,.]*$/.test(value)) return;
 
-    let numValue = parseFloat(rawValue);
-    if (isNaN(numValue)) return;
+    const rawValue = value.replace(',', '.');
+    const numValue = parseFloat(rawValue);
     
-    // Limit to 10
-    if (numValue > 10) numValue = 10;
-    if (numValue < 0) numValue = 0;
-
-    const calculateStatus = (val: number) => {
-      if (val >= academicParams.approval_grade) return 'Aprovado';
-      if (val >= academicParams.recovery_grade) return 'Recuperação';
-      return 'Reprovado';
-    };
+    // Calculate status only if it's a valid number
+    let status: GradeRecord['status'] = 'Reprovado';
+    if (!isNaN(numValue)) {
+      if (numValue >= academicParams.approval_grade) status = 'Aprovado';
+      else if (numValue >= academicParams.recovery_grade) status = 'Recuperação';
+      else status = 'Reprovado';
+    }
 
     setGrades(prev => ({
       ...prev,
@@ -138,8 +172,8 @@ export function Grades() {
         class_id: selectedClass,
         subject_id: selectedSubject,
         period: selectedPeriod,
-        value: parseFloat(numValue.toFixed(2)),
-        status: calculateStatus(numValue)
+        value: value, // Store as string to allow typing decimals
+        status: status
       }
     }));
   };
@@ -162,7 +196,10 @@ export function Grades() {
         );
         
         if (studentGrades.length > 0) {
-          const sum = studentGrades.reduce((acc, curr) => acc + (curr.value || 0), 0);
+          const sum = studentGrades.reduce((acc, curr) => {
+            const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
+            return acc + (v || 0);
+          }, 0);
           const avg = sum / 4; // Dividing by 4 evaluations as requested
           
           const status = avg >= academicParams.approval_grade ? 'Aprovado' : 
@@ -174,7 +211,7 @@ export function Grades() {
             class_id: selectedClass,
             subject_id: selectedSubject,
             period: 'Resultado Final',
-            value: parseFloat(avg.toFixed(2)),
+            value: avg.toFixed(2).replace('.', ','),
             status: status as any
           };
         }
@@ -196,13 +233,18 @@ export function Grades() {
     try {
       const recordsToSave = Object.values(grades) as GradeRecord[];
       for (const record of recordsToSave) {
-        if (record.value === undefined || isNaN(record.value as number)) continue;
+        let numericValue = typeof record.value === 'string' 
+          ? parseFloat(record.value.replace(',', '.')) 
+          : record.value;
+
+        if (isNaN(numericValue as number)) continue;
         
         const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedPeriod}_${record.student_id}`;
         
         const data = {
           ...record,
           id: docId,
+          value: numericValue,
           user_id: userAuth.uid,
           updated_at: new Date().toISOString()
         };
@@ -293,7 +335,7 @@ export function Grades() {
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 appearance-none"
               >
                 <option value="">Selecione uma disciplina...</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
           </div>
@@ -365,7 +407,7 @@ export function Grades() {
                           <input
                             type="text"
                             placeholder="0,00"
-                            value={grades[student.id]?.value?.toString().replace('.', ',') || ''}
+                            value={grades[student.id]?.value ?? ''}
                             onChange={e => handleGradeChange(student.id, e.target.value)}
                             className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />

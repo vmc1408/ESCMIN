@@ -159,7 +159,7 @@ export function Contributions() {
     setLoading(true);
     try {
       const [classesData, instData] = await Promise.all([
-        fetchAll('classes', '*', 'code'),
+        fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }], 'code'),
         financialService.getInstitutionSettings()
       ]);
 
@@ -191,7 +191,8 @@ export function Contributions() {
     setIsSearching(true);
     try {
       const data = await fetchQuery('students', [
-        { field: 'name', operator: 'ilike', value: `%${val}%` }
+        { field: 'name', operator: 'ilike', value: `%${val}%` },
+        { field: 'status', operator: '==', value: 'Ativo' }
       ], 'name');
       setStudents((data || []) as Student[]);
     } catch (error) {
@@ -225,14 +226,19 @@ export function Contributions() {
       const studentMap = new Map();
       
       if (uniqueStudentIds.length > 0) {
-        const sData = await fetchQuery('students', [{ field: 'id', operator: 'in', value: uniqueStudentIds }]);
+        const sData = await fetchQuery('students', [
+          { field: 'id', operator: 'in', value: uniqueStudentIds },
+          { field: 'status', operator: '==', value: 'Ativo' }
+        ]);
         (sData || []).forEach(s => studentMap.set(s.id, s));
       }
 
-      let data = docsData.map(c => ({
-        ...c,
-        student: studentMap.get(c.student_id) || null
-      }));
+      let data = docsData
+        .map(c => ({
+          ...c,
+          student: studentMap.get(c.student_id) || null
+        }))
+        .filter(c => c.student !== null);
 
       if (searchByName.trim()) {
         const term = searchByName.toLowerCase();

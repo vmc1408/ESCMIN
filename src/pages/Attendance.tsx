@@ -30,6 +30,7 @@ interface Class {
   id: string;
   name: string;
   code: string;
+  subject_ids?: string[];
 }
 
 interface Subject {
@@ -73,7 +74,27 @@ export function Attendance() {
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchAll('academic_parameters')
       ]);
-      setClasses(classesData || []);
+
+      const normalizedClasses = (classesData || []).map((cls: any) => {
+        let normalized = { ...cls };
+        let sIds: string[] = [];
+        if (Array.isArray(normalized.subject_ids)) {
+          sIds = normalized.subject_ids;
+        } else if (typeof normalized.subject_ids === 'string') {
+          try {
+            const parsed = JSON.parse(normalized.subject_ids);
+            sIds = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            sIds = normalized.subject_ids ? [normalized.subject_ids] : [];
+          }
+        } else if (normalized.subject_id) {
+          sIds = [normalized.subject_id];
+        }
+        normalized.subject_ids = sIds;
+        return normalized;
+      });
+
+      setClasses(normalizedClasses);
       setSubjects(subjectsData || []);
       if (paramsData && paramsData.length > 0) {
         setAcademicParams(paramsData[0]);
@@ -167,7 +188,22 @@ export function Attendance() {
 
   useEffect(() => {
     fetchStudentsAndAttendance();
+    // Reset selected subject if it's not in the filtered list
+    if (selectedClass && selectedSubject) {
+      const cls = classes.find(c => c.id === selectedClass);
+      if (cls && cls.subject_ids && !cls.subject_ids.includes(selectedSubject)) {
+        setSelectedSubject('');
+      }
+    }
   }, [fetchStudentsAndAttendance]);
+
+  const filteredSubjects = React.useMemo(() => {
+    if (!selectedClass) return [];
+    const cls = classes.find(c => c.id === selectedClass);
+    if (!cls) return [];
+    if (!cls.subject_ids || cls.subject_ids.length === 0) return subjects; // Fallback
+    return subjects.filter(s => cls.subject_ids?.includes(s.id));
+  }, [selectedClass, classes, subjects]);
 
   const handleStatusChange = (studentId: string, status: 'P' | 'F' | 'J') => {
     if (!selectedSubject) {
@@ -318,7 +354,7 @@ export function Attendance() {
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 appearance-none"
                 >
                   <option value="">Selecione uma disciplina...</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             </div>

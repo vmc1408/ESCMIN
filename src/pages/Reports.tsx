@@ -91,11 +91,11 @@ export function Reports() {
   const [totalClassDays, setTotalClassDays] = useState(0);
 
   // Filter States
-  const [teacherStatusFilter, setTeacherStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
+  const [teacherStatusFilter, setTeacherStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [teacherSubjectFilter, setTeacherSubjectFilter] = useState<string>('all');
   const [teacherSortBy, setTeacherSortBy] = useState<'name' | 'code' | 'subject'>('name');
-  const [classStatusFilter, setClassStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
-  const [subjectStatusFilter, setSubjectStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Todos');
+  const [classStatusFilter, setClassStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [subjectStatusFilter, setSubjectStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [subjectSemesterFilter, setSubjectSemesterFilter] = useState<string>('Todos');
   
   const [academicYearFilter, setAcademicYearFilter] = useState<string>('Todos');
@@ -380,7 +380,7 @@ export function Reports() {
         const filteredClassesReport = filteredClasses;
 
         filteredClassesReport.forEach(c => {
-          const classStudents = students.filter(s => s.class_id === c.id);
+          const classStudents = students.filter(s => s.class_id === c.id && (s.status === 'Ativo' || !s.status));
           classStudents.forEach((s, idx) => {
             rows.push([
               idx === 0 ? `${c.name} (${c.code})` : '',

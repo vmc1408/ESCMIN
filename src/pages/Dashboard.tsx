@@ -338,10 +338,10 @@ export function Dashboard() {
             </div>
 
             <div className="space-y-0.5">
-              <p className="text-[10px] font-black text-blue-600/80 uppercase tracking-widest mb-1">{stat.label} Ativos</p>
+              <p className="text-[10px] font-black text-blue-600/80 uppercase tracking-widest mb-1">{stat.label} Operacionais</p>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-4xl font-black text-[#131b2e] tracking-tighter transition-all duration-500">
-                  {isRefreshing && stat.stats.total === 0 ? "..." : stat.stats.active}
+                  {isRefreshing ? "..." : stat.stats.active}
                 </h3>
                 <div className="flex items-center gap-2 group/status relative">
                   <div className={cn(

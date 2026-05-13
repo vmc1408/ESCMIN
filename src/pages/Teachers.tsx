@@ -752,8 +752,8 @@ export function Teachers() {
               onChange={(e) => setSubjectFilter(e.target.value)}
               className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
             >
-              <option value="all">Filtrar Disciplina</option>
-              {subjects.map(s => (
+              <option value="all">Filtrar Disciplina (Ativas)</option>
+              {subjects.filter(s => s.status === 'Ativo').map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>

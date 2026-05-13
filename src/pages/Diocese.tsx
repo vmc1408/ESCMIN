@@ -27,7 +27,8 @@ import {
   Layers,
   Eye,
   Shield,
-  Upload
+  Upload,
+  Filter
 } from 'lucide-react';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { cn, maskCEP, maskPhone, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
@@ -73,7 +74,7 @@ export function Diocese() {
   const [filterParish, setFilterParish] = useState<string>('');
   const [filterClergyMember, setFilterClergyMember] = useState<string>('');
   const [filterRole, setFilterRole] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'code' | 'name' | 'date'>('code');
+  const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [isEditing, setIsEditing] = useState(false);
   const [isViewing, setIsViewing] = useState(false);
@@ -87,6 +88,7 @@ export function Diocese() {
   const [forariaForm, setForariaForm] = useState<Partial<Foraria>>({
     code: '',
     name: '',
+    priest_id: '',
     priest_name: ''
   });
 
@@ -465,6 +467,7 @@ export function Diocese() {
       setForariaForm({
         code: getNextCode(foraries),
         name: '',
+        priest_id: '',
         priest_name: ''
       });
     } else if (activeTab === 'parishes' || activeTab === 'dashboard') {
@@ -508,7 +511,12 @@ export function Diocese() {
   const handleEdit = (item: any) => {
     setSelectedItem(item);
     if (activeTab === 'foranias') {
-      setForariaForm({ ...item });
+      const foraniaData = { ...item };
+      if (!foraniaData.priest_id && foraniaData.priest_name) {
+        const priest = clergy.find(c => c.name === foraniaData.priest_name);
+        if (priest) foraniaData.priest_id = priest.id;
+      }
+      setForariaForm(foraniaData);
     } else if (activeTab === 'parishes' || activeTab === 'dashboard') {
       setParishForm({
         address_city: 'Guarulhos',
@@ -608,11 +616,32 @@ export function Diocese() {
   const filteredItems = (() => {
     let baseItems: any[] = [];
     if (activeTab === 'dashboard') {
-      baseItems = [
-        ...foraries.map(f => ({ ...f, _type: 'forania' })),
-        ...parishes.map(p => ({ ...p, _type: 'parish' })),
-        ...clergy.map(c => ({ ...c, _type: 'clergy' }))
-      ];
+      const anyFilter = search.trim() || filterForania || filterParish || filterClergyMember || filterRole;
+      if (!anyFilter) return [];
+
+      let typesToShow = new Set(['forania', 'parish', 'clergy']);
+      
+      if (!search.trim()) {
+        if (filterClergyMember) {
+          typesToShow = new Set(['clergy']);
+        } else if (filterParish) {
+          if (filterParish === 'all') {
+            typesToShow = new Set(['parish']);
+          } else {
+            typesToShow = new Set(['parish', 'clergy']);
+          }
+        } else if (filterForania) {
+          if (filterForania === 'all') {
+            typesToShow = new Set(['parish']);
+          } else {
+            typesToShow = new Set(['forania', 'parish', 'clergy']);
+          }
+        }
+      }
+      
+      if (typesToShow.has('forania')) baseItems.push(...foraries.map(f => ({ ...f, _type: 'forania' })));
+      if (typesToShow.has('parish')) baseItems.push(...parishes.map(p => ({ ...p, _type: 'parish' })));
+      if (typesToShow.has('clergy')) baseItems.push(...clergy.map(c => ({ ...c, _type: 'clergy' })));
     } else if (activeTab === 'foranias') {
       baseItems = foraries.map(f => ({ ...f, _type: 'forania' }));
     } else if (activeTab === 'parishes') {
@@ -653,7 +682,7 @@ export function Diocese() {
       const matchesSearch = matchesSearchOwn || matchesSearchLinked;
       
       // Secondary Filters (Forania / Parish / Clergy / Role)
-      const matchesForania = !filterForania || (
+      const matchesForania = !filterForania || filterForania === 'all' || (
         item._type === 'forania' ? item.id === filterForania :
         item._type === 'parish' ? item.forania_id === filterForania :
         item._type === 'clergy' ? (
@@ -662,13 +691,13 @@ export function Diocese() {
         ) : false
       );
 
-      const matchesParish = !filterParish || (
+      const matchesParish = !filterParish || filterParish === 'all' || (
         item._type === 'parish' ? item.id === filterParish :
         item._type === 'clergy' ? item.parish_id === filterParish :
         item._type === 'forania' ? parishes.some(p => p.id === filterParish && p.forania_id === item.id) : false
       );
 
-      const matchesClergyMember = !filterClergyMember || (
+      const matchesClergyMember = !filterClergyMember || filterClergyMember === 'all' || (
         item._type === 'clergy' ? item.id === filterClergyMember :
         item._type === 'parish' ? (
           item.priest_id === filterClergyMember ||
@@ -692,10 +721,7 @@ export function Diocese() {
     .sort((a: any, b: any) => {
       let valA: any, valB: any;
       
-      if (sortBy === 'code') {
-        valA = parseInt(a.code) || 0;
-        valB = parseInt(b.code) || 0;
-      } else if (sortBy === 'name') {
+      if (sortBy === 'name') {
         valA = String(a.name || '').toLowerCase();
         valB = String(b.name || '').toLowerCase();
       } else if (sortBy === 'date') {
@@ -759,7 +785,15 @@ export function Diocese() {
       <div className="flex flex-col md:flex-row items-center gap-6 print:hidden">
         <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 w-full md:w-fit">
           <button
-            onClick={() => { setActiveTab('dashboard'); setIsEditing(false); }}
+            onClick={() => { 
+              setActiveTab('dashboard'); 
+              setIsEditing(false); 
+              setSearch('');
+              setFilterForania('');
+              setFilterParish('');
+              setFilterClergyMember('');
+              setFilterRole('');
+            }}
             className={cn(
               "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
               activeTab === 'dashboard' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
@@ -829,10 +863,15 @@ export function Diocese() {
               <MapIcon size={14} className="text-indigo-400" />
               <select
                 value={filterForania}
-                onChange={(e) => setFilterForania(e.target.value)}
+                onChange={(e) => {
+                  setFilterForania(e.target.value);
+                  setFilterParish('');
+                  setFilterClergyMember('');
+                }}
                 className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
               >
-                <option value="">Todas Foranias</option>
+                <option value="">Selecionar Forania...</option>
+                <option value="all">Todas as Foranias</option>
                 {foraries.map(f => (
                   <option key={f.id} value={f.id}>{f.name}</option>
                 ))}
@@ -846,13 +885,23 @@ export function Diocese() {
               <Church size={14} className="text-blue-400" />
               <select
                 value={filterParish}
-                onChange={(e) => setFilterParish(e.target.value)}
+                onChange={(e) => {
+                  setFilterParish(e.target.value);
+                  if (e.target.value !== 'all' && e.target.value !== '') {
+                    const p = parishes.find(par => par.id === e.target.value);
+                    if (p && !filterForania) setFilterForania(p.forania_id);
+                  }
+                  setFilterClergyMember('');
+                }}
                 className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
               >
-                <option value="">Todas Paróquias</option>
-                {parishes.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
+                <option value="">Selecionar Paróquia...</option>
+                <option value="all">Todas as Paróquias</option>
+                {parishes
+                  .filter(p => !filterForania || filterForania === 'all' || p.forania_id === filterForania)
+                  .map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
               </select>
             </div>
           )}
@@ -863,13 +912,30 @@ export function Diocese() {
               <User size={14} className="text-amber-400" />
               <select
                 value={filterClergyMember}
-                onChange={(e) => setFilterClergyMember(e.target.value)}
+                onChange={(e) => {
+                  setFilterClergyMember(e.target.value);
+                  if (e.target.value !== 'all' && e.target.value !== '') {
+                    const c = clergy.find(cle => cle.id === e.target.value);
+                    if (c) {
+                      if (c.forania_id && (!filterForania || filterForania === 'all')) setFilterForania(c.forania_id);
+                      if (c.parish_id && (!filterParish || filterParish === 'all')) setFilterParish(c.parish_id);
+                    }
+                  }
+                }}
                 className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
               >
-                <option value="">Todo Clero</option>
-                {clergy.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
+                <option value="">Selecionar Clero...</option>
+                <option value="all">Todo o Clero</option>
+                {clergy
+                  .filter(c => {
+                    if ((!filterForania || filterForania === 'all') && (!filterParish || filterParish === 'all')) return true;
+                    const matchesForania = !filterForania || filterForania === 'all' || c.forania_id === filterForania || parishes.find(p => p.id === c.parish_id)?.forania_id === filterForania;
+                    const matchesParish = !filterParish || filterParish === 'all' || c.parish_id === filterParish;
+                    return matchesForania && matchesParish;
+                  })
+                  .map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
               </select>
             </div>
           )}
@@ -888,28 +954,6 @@ export function Diocese() {
                 <option value="diácono">Diácono</option>
                 <option value="seminarista">Seminarista</option>
               </select>
-            </div>
-          )}
-
-          {(activeTab === 'parishes' || activeTab === 'dashboard') && (
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
-              <Layers size={14} className="text-slate-400" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
-              >
-                <option value="code">Código</option>
-                <option value="name">Nome</option>
-                <option value="date">Data</option>
-              </select>
-              <button
-                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                className="text-slate-400 hover:text-blue-600 transition-colors"
-                title="Inverter Ordem"
-              >
-                <Scroll size={14} className={cn("transition-transform", sortOrder === 'desc' && "rotate-180")} />
-              </button>
             </div>
           )}
 
@@ -935,12 +979,24 @@ export function Diocese() {
         ) : filteredItems.length === 0 ? (
           <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-200 text-center">
             <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
-              <Search size={48} />
+              {activeTab === 'dashboard' && !(search || filterForania || filterParish || filterClergyMember) ? (
+                <Filter size={48} />
+              ) : (
+                <Search size={48} />
+              )}
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Sem resultados para seu filtro</h3>
-            <p className="text-slate-400 font-bold max-w-md mx-auto">Tente ajustar sua busca ou limpar os filtros de Forania e Cargos.</p>
+            <h3 className="text-2xl font-black text-slate-800 mb-2">
+              {activeTab === 'dashboard' && !(search || filterForania || filterParish || filterClergyMember) 
+                ? 'Selecione um filtro para começar' 
+                : 'Sem resultados para seu filtro'}
+            </h3>
+            <p className="text-slate-400 font-bold max-w-md mx-auto">
+              {activeTab === 'dashboard' && !(search || filterForania || filterParish || filterClergyMember)
+                ? 'Utilize os campos de busca ou os filtros de Forania, Paróquia e Clero para visualizar os dados.'
+                : 'Tente ajustar sua busca ou limpar os filtros aplicados.'}
+            </p>
             <button 
-              onClick={() => { setSearch(''); setFilterForania(''); setFilterRole(''); }}
+              onClick={() => { setSearch(''); setFilterForania(''); setFilterParish(''); setFilterClergyMember(''); setFilterRole(''); }}
               className="mt-8 px-8 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
             >
               Limpar Filtros
@@ -980,7 +1036,6 @@ export function Diocese() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2 mb-0.5">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">#{item.code}</span>
                               <span className={cn(
                                 "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
                                 item._type === 'parish' ? "bg-blue-100 text-blue-700" : 
@@ -1066,7 +1121,7 @@ export function Diocese() {
           /* PREVIOUS LIST VIEWS (for other categories like Clergy directly) */
           <div className="grid gap-4 print:block">
             {filteredItems.map((item: any) => (
-              <div key={item.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all group relative overflow-hidden print:border-slate-300 print:mb-4 print:shadow-none">
+              <div key={`${item._type}-${item.id}`} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all group relative overflow-hidden print:border-slate-300 print:mb-4 print:shadow-none">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 opacity-20 group-hover:opacity-100 transition-opacity" />
                 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -1077,10 +1132,6 @@ export function Diocese() {
                     <div className="space-y-2 flex-1">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-1">
-                            <Hash size={10} />
-                            {item.code}
-                          </span>
                           {activeTab === 'clergy' && (
                             <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-black uppercase tracking-widest border border-amber-100">
                               {item.role}
@@ -1223,14 +1274,27 @@ export function Diocese() {
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Padre Forâneo</label>
                         <div className="relative">
-                          <User size={18} className="absolute left-4 top-3.5 text-slate-400" />
-                          <input 
-                            type="text"
-                            value={forariaForm.priest_name || ''}
-                            onChange={e => setForariaForm({...forariaForm, priest_name: e.target.value})}
-                            className="w-full pl-12 pr-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-                            placeholder="Nome do Padre Responsável por esta Forania"
-                          />
+                          <User size={18} className="absolute left-4 top-3.5 text-slate-400 pointer-events-none" />
+                          <select 
+                            value={forariaForm.priest_id || ''}
+                            onChange={e => {
+                              const priest = clergy.find(c => c.id === e.target.value);
+                              setForariaForm({
+                                ...forariaForm, 
+                                priest_id: e.target.value,
+                                priest_name: priest ? priest.name : ''
+                              });
+                            }}
+                            className="w-full pl-12 pr-5 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
+                          >
+                            <option value="">Selecione um Padre...</option>
+                            {clergy
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))
+                            }
+                          </select>
                         </div>
                       </div>
                     </>
@@ -1865,7 +1929,7 @@ export function Diocese() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredItems.map((item: any) => (
-              <tr key={item.id} className="page-break-inside-avoid">
+              <tr key={`${item._type}-${item.id}`} className="page-break-inside-avoid">
                 <td className="py-4">
                   <p className="font-black text-slate-800 uppercase text-sm leading-none mb-1">{item.name}</p>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -1911,9 +1975,6 @@ export function Diocese() {
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-[#131b2e] tracking-tight">Ficha Detalhada</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">Código: #{selectedItem.code}</span>
-                    </div>
                   </div>
                 </div>
                 <button onClick={() => setIsViewing(false)} className="p-3 text-slate-400 hover:text-[#00174b] hover:bg-white rounded-2xl transition-all shadow-sm border border-slate-100 relative z-10">

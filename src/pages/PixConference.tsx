@@ -474,14 +474,20 @@ export function PixConference() {
   };
 
   const fetchClasses = async () => {
-    const data = await fetchAll('classes', '*', 'name', true);
+    // Filter for active classes as per global policy
+    const data = await fetchQuery('classes', [
+      { field: 'status', operator: '==', value: 'Ativo' }
+    ]);
     if (data) setClasses(data);
   };
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const data = await fetchAll('students', '*', 'name', true);
+      // Filter for active students as per global policy
+      const data = await fetchQuery('students', [
+        { field: 'status', operator: '==', value: 'Ativo' }
+      ]);
       setStudents(data);
     } catch (error) {
       console.error('Error fetching students:', error);

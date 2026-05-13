@@ -8,7 +8,6 @@ import {
   BookOpen as SubjectsIcon,
   BarChart3 as ReportsIcon, 
   Settings as SettingsIcon, 
-  HelpCircle as SupportIcon,
   CreditCard as PixIcon,
   Activity as StatusIcon,
   CheckCircle2 as OnlineIcon,
@@ -25,7 +24,8 @@ import {
   GraduationCap,
   Wallet,
   Church,
-  XCircle
+  XCircle,
+  FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
@@ -40,7 +40,6 @@ const navItems = [
     label: 'Gestão Escolar',
     icon: ClassesIcon,
     children: [
-      { icon: ImportIcon, label: 'Importação', path: '/import' },
       { icon: Church, label: 'Diocese', path: '/parishes' },
       {
         label: 'Acadêmico',
@@ -52,7 +51,14 @@ const navItems = [
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
           { icon: CalendarIcon, label: 'Calendário', path: '/calendar' },
           { icon: AttendanceIcon, label: 'Presença', path: '/attendance' },
-          { icon: GradesIcon, label: 'Notas', path: '/grades' },
+          { 
+            label: 'Notas',
+            icon: GradesIcon,
+            children: [
+              { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
+              { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
+            ]
+          },
           { icon: CertificateIcon, label: 'Documentos', path: '/documents' },
         ]
       },
@@ -68,7 +74,14 @@ const navItems = [
     ]
   },
   { icon: UserManagementIcon, label: 'Usuários', path: '/users' },
-  { icon: SettingsIcon, label: 'Configurações', path: '/settings' },
+  { 
+    label: 'Configurações', 
+    icon: SettingsIcon,
+    children: [
+      { icon: SettingsIcon, label: 'Geral', path: '/settings' },
+      { icon: ImportIcon, label: 'Importação', path: '/import' },
+    ]
+  },
 ];
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -296,10 +309,6 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       </nav>
 
       <div className="p-2 mt-auto space-y-1 border-t border-white/5 bg-[#00174b]">
-        <Link to="/support" className="flex items-center gap-3 text-slate-400 hover:text-white px-3.5 py-1.5 transition-colors text-xs font-bold uppercase tracking-widest text-center">
-          <SupportIcon size={16} />
-          <span>Suporte</span>
-        </Link>
 
         {/* Database Connection Indicator */}
         <div className="mx-3 mt-1 px-3 py-2 bg-black/20 rounded-xl border border-white/5 flex items-center justify-between group">

@@ -10,6 +10,7 @@ import { Subjects } from './pages/Subjects';
 import { AcademicCalendar } from './pages/AcademicCalendar';
 import { Attendance } from './pages/Attendance';
 import { Grades } from './pages/Grades';
+import { Assessments } from './pages/Assessments';
 import { Documents } from './pages/Documents';
 import { Diocese } from './pages/Diocese';
 import { Import } from './pages/Import';
@@ -158,6 +159,7 @@ function AppContent() {
               <Route path="calendar" element={<ProtectedRoute requiredModule="/calendar"><AcademicCalendar /></ProtectedRoute>} />
               <Route path="attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance /></ProtectedRoute>} />
               <Route path="grades" element={<ProtectedRoute requiredModule="/grades"><Grades /></ProtectedRoute>} />
+              <Route path="assessments" element={<ProtectedRoute requiredModule="/assessments"><Assessments /></ProtectedRoute>} />
               <Route path="documents" element={<ProtectedRoute requiredModule="/documents"><Documents /></ProtectedRoute>} />
               <Route path="parishes" element={<ProtectedRoute requiredModule="/parishes"><Diocese /></ProtectedRoute>} />
               <Route path="import" element={<ProtectedRoute requiredModule="/import"><Import /></ProtectedRoute>} />

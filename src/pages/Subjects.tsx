@@ -102,7 +102,7 @@ export function Subjects() {
   const [inst, setInst] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos' | ''>('');
+  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos' | ''>('Ativo');
   const [semesterFilter, setSemesterFilter] = useState<string>('Todos');
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'year'>('year');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);

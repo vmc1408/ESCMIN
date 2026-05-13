@@ -713,10 +713,11 @@ export function Classes() {
                             <option value="">{index === 0 ? '1ª Disciplina...' : '2ª Disciplina (Opcional)...'}</option>
                             {subjects
                               .filter(s => {
-                                const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
-                                const matchesYear = !formData.year || !s.year || s.year === formData.year;
+                                const sSem = (s as any).semester?.includes('1º') ? '1º Semestre' : (s as any).semester?.includes('2º') ? '2º Semestre' : (s as any).semester;
+                                const matchesYear = !formData.year || !(s as any).year || (s as any).year === formData.year;
                                 const matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
-                                return matchesYear && matchesSemester;
+                                const isActiveOrSelected = (s as any).status === 'Ativo' || formData.subject_ids?.includes(s.id);
+                                return matchesYear && matchesSemester && isActiveOrSelected;
                               })
                               .map(subject => (
                                 <option 
