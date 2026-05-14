@@ -58,16 +58,16 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
-          <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-2xl border border-red-100 text-center">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-200 text-center">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-xl flex items-center justify-center mx-auto mb-6 border border-red-100">
               <AlertCircle size={32} />
             </div>
-            <h1 className="text-xl font-black text-[#00174b] mb-4 uppercase">Erro Crítico</h1>
+            <h1 className="text-xl font-bold text-slate-900 mb-4 uppercase">Erro Crítico</h1>
             <p className="text-slate-500 text-sm mb-8">
               Ocorreu um erro inesperado ao carregar o sistema. Isso pode ser causado por falha na conexão ou erro de renderização.
             </p>
-            <div className="bg-slate-50 p-4 rounded-xl mb-8 text-left overflow-auto max-h-40 border border-slate-100">
-              <code className="text-[10px] text-red-600 font-mono font-bold block whitespace-pre-wrap">
+            <div className="bg-slate-50 p-4 rounded-lg mb-8 text-left overflow-auto max-h-40 border border-slate-200">
+              <code className="text-[10px] text-red-600 font-mono font-semibold block whitespace-pre-wrap">
                 {this.state.error?.name}: {this.state.error?.message}
               </code>
             </div>
@@ -77,7 +77,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 sessionStorage.clear();
                 window.location.reload();
               }}
-              className="w-full py-4 bg-[#00174b] text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-900 transition-all shadow-lg active:scale-95"
+              className="w-full py-4 bg-slate-900 text-white rounded-lg font-semibold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg active:scale-95"
             >
               <RefreshCw size={18} />
               Resetar e Recarregar
@@ -120,17 +120,17 @@ function AppContent() {
   if (!isSupabaseConfigured) {
     return (
       <div className="min-h-screen bg-[#00174b] flex items-center justify-center p-6 text-center font-sans">
-        <div className="max-w-md w-full bg-white p-10 rounded-[32px] shadow-2xl">
-          <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-8">
+        <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl">
+          <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-8 border border-amber-100">
             <Unplug size={40} />
           </div>
-          <h1 className="text-2xl font-black text-[#00174b] mb-4 uppercase tracking-tight">Configurações Pendentes</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-4 uppercase tracking-tight">Configurações Pendentes</h1>
           <p className="text-slate-500 text-sm mb-10 leading-relaxed font-medium">
-            O sistema ainda não foi configurado com o banco de dados. Por favor, adicione as chaves <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-500 font-bold">VITE_SUPABASE_URL</code> e <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-500 font-bold">VITE_SUPABASE_ANON_KEY</code> no painel de Segredos (Settings) do AI Studio.
+            O sistema ainda não foi configurado com o banco de dados. Por favor, adicione as chaves <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-600 font-bold">VITE_SUPABASE_URL</code> e <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-600 font-bold">VITE_SUPABASE_ANON_KEY</code> no painel de Segredos (Settings) do AI Studio.
           </p>
           <button 
             onClick={() => window.location.reload()}
-            className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-900 transition-all shadow-lg"
+            className="w-full py-4 bg-indigo-600 text-white rounded-lg font-semibold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
           >
             Tentar Novamente
           </button>

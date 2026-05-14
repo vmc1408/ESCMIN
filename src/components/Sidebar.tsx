@@ -206,14 +206,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <button
               onClick={() => toggleGroup(item.label)}
               className={cn(
-                "w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl transition-all duration-200",
+                "w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-lg transition-all duration-200",
                 isActive && !isOpen ? "bg-white/5 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
               <div className="flex items-center gap-3">
-                {item.icon && <item.icon size={16} className={cn(isActive ? "text-blue-400" : "text-slate-500")} />}
+                {item.icon && <item.icon size={16} className={cn(isActive ? "text-indigo-400" : "text-slate-500")} />}
                 <span className={cn(
-                  "text-sm font-bold uppercase tracking-wider",
+                  "text-sm font-semibold uppercase tracking-wider",
                   depth > 0 ? "text-[10px]" : "text-[11px]",
                   isActive ? "text-white" : "text-slate-400"
                 )}>
@@ -250,9 +250,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           key={item.path}
           to={item.path}
           className={cn(
-            "flex items-center gap-3 px-3.5 py-2 rounded-xl transition-all duration-200 active:scale-95",
+            "flex items-center gap-3 px-3.5 py-2 rounded-lg transition-all duration-200 active:scale-95",
             isActive 
-              ? "bg-[#497cff] text-white shadow-lg shadow-blue-500/20" 
+              ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20" 
               : "text-slate-300 hover:text-white hover:bg-white/10"
           )}
         >
@@ -264,10 +264,10 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <aside className="h-full w-60 bg-[#00174b] text-white flex flex-col border-r border-white/5 print:hidden overflow-hidden shrink-0">
-      <div className="p-3 mb-1 bg-white/5 border-b border-white/5 relative">
+    <aside className="h-full w-64 bg-[#00174b] text-white flex flex-col border-r border-white/5 print:hidden overflow-hidden shrink-0 shadow-xl">
+      <div className="p-4 mb-1 bg-white/5 border-b border-white/5 relative">
         <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center overflow-hidden border border-white/20 shadow-2xl">
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
             {logoUrl && !imageError ? (
               <img 
                 src={logoUrl} 
@@ -278,17 +278,17 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-white/30">
-                <ClassesIcon size={18} />
+                <ClassesIcon size={20} />
               </div>
             )}
           </div>
-          <div className="flex-1 min-w-0 py-0.5">
-            <h1 className="text-sm font-black tracking-tight leading-tight text-white break-words">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-sm font-bold tracking-tight leading-tight text-white break-words">
               {instName}
             </h1>
-            <div className="flex items-center gap-1 mt-0.5">
-              <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse"></div>
-              <p className="text-[8px] font-black text-blue-400/80 uppercase tracking-widest">Painel Gestor</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Gestão Administrativa</p>
             </div>
           </div>
 
@@ -311,7 +311,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="p-2 mt-auto space-y-1 border-t border-white/5 bg-[#00174b]">
 
         {/* Database Connection Indicator */}
-        <div className="mx-3 mt-1 px-3 py-2 bg-black/20 rounded-xl border border-white/5 flex items-center justify-between group">
+        <div className="mx-3 mt-1 px-3 py-2 bg-black/20 rounded-lg border border-white/5 flex items-center justify-between group">
           <div className="flex items-center gap-2">
             {dbStatus === 'online' ? (
               <div className="relative">
@@ -324,7 +324,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               <StatusIcon size={14} className="text-slate-500 animate-pulse" />
             )}
             <span className={cn(
-              "text-[9px] font-black uppercase tracking-wider",
+              "text-[9px] font-semibold uppercase tracking-wider",
               dbStatus === 'online' ? "text-emerald-400/80" : dbStatus === 'offline' ? "text-red-400/80" : "text-slate-500"
             )}>
               {dbStatus === 'online' ? 'Sistema Online' : dbStatus === 'offline' ? 'Banco Offline' : 'Verificando...'}

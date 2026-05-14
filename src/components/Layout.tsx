@@ -24,11 +24,11 @@ export function Layout() {
   }, [isSidebarOpen]);
 
   return (
-    <div className="min-h-screen bg-[#faf8ff] flex overflow-hidden print:overflow-visible print:h-auto">
+    <div className="min-h-screen bg-slate-50 flex overflow-hidden print:overflow-visible print:h-auto font-sans">
       {/* Botão de Menu Mobile */}
       <button
         onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-[#00174b] text-white rounded-lg shadow-lg active:scale-90 transition-transform print:hidden"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-600 text-white rounded shadow-lg active:scale-90 transition-transform print:hidden"
       >
         <Menu size={20} />
       </button>

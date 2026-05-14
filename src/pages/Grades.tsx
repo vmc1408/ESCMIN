@@ -466,11 +466,11 @@ export function Grades() {
 
   const getStatusColor = (status: GradeRecord['status']) => {
     switch (status) {
-      case 'Aprovado': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-      case 'Recuperação': return 'bg-amber-50 text-amber-600 border-amber-100';
-      case 'Reprovado': return 'bg-red-50 text-red-600 border-red-100';
-      case 'Pendente': return 'bg-slate-50 text-slate-400 border-slate-100';
-      default: return 'bg-slate-50 text-slate-400 border-slate-100';
+      case 'Aprovado': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'Recuperação': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'Reprovado': return 'bg-red-50 text-red-700 border-red-200';
+      case 'Pendente': return 'bg-slate-50 text-slate-500 border-slate-200';
+      default: return 'bg-slate-50 text-slate-500 border-slate-200';
     }
   };
 
@@ -478,13 +478,13 @@ export function Grades() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+          <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm">
               <FileSpreadsheet size={20} />
             </div>
             Apontamento de Notas
           </h2>
-          <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest pl-13">Registro de Desempenho Acadêmico</p>
+          <p className="text-xs text-slate-500 mt-1 pl-13">Registro de desempenho acadêmico e resultados finais</p>
         </div>
 
         {students.length > 0 && (
@@ -492,7 +492,7 @@ export function Grades() {
             {selectedPeriod === 'Resultado Final' && (
               <button 
                 onClick={calculateFinalResults}
-                className="flex items-center gap-2 px-6 py-4 bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 shadow-xl shadow-amber-200 transition-all active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
               >
                 <RefreshCw size={16} />
                 Calcular Médias
@@ -500,14 +500,14 @@ export function Grades() {
             )}
             <button 
               onClick={handleClearAll}
-              className="flex items-center gap-2 px-6 py-4 bg-red-50 text-red-600 border border-red-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
             >
               <Eraser size={16} />
               Limpar Tudo
             </button>
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 px-6 py-4 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-slate-200 transition-all active:scale-95"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors"
             >
               <Printer size={16} />
               Imprimir
@@ -515,7 +515,7 @@ export function Grades() {
             <button 
               disabled={saving}
               onClick={saveGrades}
-              className="flex items-center gap-2 px-8 py-4 bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-800 shadow-xl shadow-blue-200 transition-all active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               Salvar Notas
@@ -524,16 +524,16 @@ export function Grades() {
         )}
       </div>
 
-      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Turma</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-700 ml-1">Turma</label>
             <div className="relative">
-              <School className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <School className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <select
                 value={selectedClass}
                 onChange={e => setSelectedClass(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 appearance-none"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">Selecione uma turma...</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
@@ -541,14 +541,14 @@ export function Grades() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Disciplina</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-700 ml-1">Disciplina</label>
             <div className="relative">
-              <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <select
                 value={selectedSubject}
                 onChange={e => setSelectedSubject(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 appearance-none"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">Selecione uma disciplina...</option>
                 {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -556,14 +556,14 @@ export function Grades() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Período/Avaliação</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-700 ml-1">Período/Avaliação</label>
             <div className="relative">
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <select
                 value={selectedPeriod}
                 onChange={e => setSelectedPeriod(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-500 appearance-none"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 {availablePeriods.map(p => {
                   const assessment = assessments.find(a => a.title === p);
@@ -583,11 +583,11 @@ export function Grades() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className={cn(
-              "p-4 rounded-2xl text-xs font-bold uppercase tracking-widest flex items-center gap-3",
-              notification.type === 'success' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
+              "p-3 rounded-lg text-xs font-medium flex items-center gap-3",
+              notification.type === 'success' ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"
             )}
           >
-            {notification.type === 'success' ? <Check size={18} /> : <X size={18} />}
+            {notification.type === 'success' ? <Check size={16} /> : <X size={16} />}
             {notification.message}
           </motion.div>
         )}
@@ -599,30 +599,30 @@ export function Grades() {
           </div>
         ) : selectedClass && selectedSubject ? (
           <div className="space-y-6">
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-4">
-              <Info size={16} className="text-blue-500 shrink-0" />
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                As notas variam de 1 a 10. <span className="text-emerald-600">{academicParams.approval_grade}+ (Aprovado)</span> | <span className="text-amber-600">{academicParams.recovery_grade}-{academicParams.approval_grade - 0.1} (Recuperação)</span> | <span className="text-red-600">Sub {academicParams.recovery_grade} (Reprovado)</span>
+            <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 flex items-center gap-4">
+              <Info size={16} className="text-indigo-600 shrink-0" />
+              <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+                As notas variam de 1 a 10. <span className="text-emerald-700 font-bold">{academicParams.approval_grade}+ (Aprovado)</span> | <span className="text-amber-700 font-bold">{academicParams.recovery_grade}-{academicParams.approval_grade - 0.1} (Recuperação)</span> | <span className="text-red-700 font-bold">Sub {academicParams.failure_grade} (Reprovado)</span>
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-2">
+            <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
               {students.length > 0 ? (
                 students.map((student, idx) => (
                   <div key={student.id} className={cn(
-                    "flex flex-col md:flex-row md:items-center justify-between p-6 rounded-[2rem] transition-all border border-transparent hover:bg-slate-50/50 hover:border-slate-100",
+                    "flex flex-col md:flex-row md:items-center justify-between p-4 transition-all hover:bg-slate-50",
                     idx % 2 === 0 ? "bg-white" : "bg-slate-50/30"
                   )}>
                     <div className="flex items-center gap-4 mb-4 md:mb-0">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center text-sm font-black">
+                      <div className="w-8 h-8 rounded bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-semibold">
                         {idx + 1}
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-900 leading-tight uppercase tracking-tight">{student.name}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">RA: {student.registration_number}</p>
+                        <p className="text-sm font-semibold text-slate-900 leading-tight">{student.name}</p>
+                        <p className="text-[11px] text-slate-500">RA: {student.registration_number}</p>
                         {grades[student.id]?.observations && (
-                          <p className="text-[9px] font-black text-red-500 uppercase tracking-tight mt-1 flex items-center gap-1">
-                            <AlertTriangle size={10} />
+                          <p className="text-[10px] font-medium text-red-600 flex items-center gap-1 mt-0.5">
+                            <AlertTriangle size={12} />
                             {grades[student.id].observations}
                           </p>
                         )}
@@ -630,32 +630,32 @@ export function Grades() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                      <div className="flex items-center gap-4 w-full sm:w-auto">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest sm:hidden">Nota:</label>
-                        <div className="relative w-full sm:w-32 group">
+                      <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <label className="text-[11px] font-medium text-slate-500 sm:hidden">Nota:</label>
+                        <div className="relative w-full sm:w-24 group">
                           <input
                             type="text"
                             placeholder="0,00"
                             value={grades[student.id]?.value ?? ''}
                             onChange={e => handleGradeChange(student.id, e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-8"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-center text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pr-7"
                           />
                           {grades[student.id]?.value && (
                             <button 
                               onClick={() => clearStudentGrade(student.id)}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 transition-colors"
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 transition-colors"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={12} />
                             </button>
                           )}
                         </div>
                       </div>
 
                       <div className={cn(
-                        "w-full sm:w-32 px-4 py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest text-center transition-all",
-                        grades[student.id] ? getStatusColor(grades[student.id].status) : "bg-slate-50 text-slate-300 border-slate-100"
+                        "w-full sm:w-28 px-3 py-1.5 rounded border text-[11px] font-semibold text-center whitespace-nowrap",
+                        grades[student.id] ? getStatusColor(grades[student.id].status) : "bg-slate-50 text-slate-400 border-slate-200"
                       )}>
-                        {grades[student.id]?.status || 'N/A'}
+                        {grades[student.id]?.status || '---'}
                       </div>
                     </div>
                   </div>

@@ -179,12 +179,12 @@ export function Login() {
         
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-16">
-            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-900/40">
-              <Shield className="text-[#00174b]" size={32} />
+            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-xl">
+              <Shield className="text-indigo-900" size={28} />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#b4941d]">Diocese de Guarulhos</p>
-              <h1 className="text-2xl font-black text-white tracking-tight leading-none">EDM Portal</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">Diocese de Guarulhos</p>
+              <h1 className="text-2xl font-bold text-white tracking-tight leading-none">EDM Portal</h1>
             </div>
           </div>
 
@@ -199,13 +199,13 @@ export function Login() {
             <motion.div 
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
-              className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4"
+              className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-4"
             >
-              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
                 <AlertCircle size={24} />
               </div>
               <div className="flex-1">
-                <p className="text-amber-900 font-black text-[10px] uppercase tracking-wider mb-1">Erro de Conexão</p>
+                <p className="text-amber-900 font-bold text-[10px] uppercase tracking-wider mb-1">Erro de Conexão</p>
                 <p className="text-amber-700 text-[11px] leading-relaxed font-medium">
                   Não foi possível conectar ao banco de dados. {connError || 'Verifique sua internet ou se o Supabase está ativo.'}
                 </p>
@@ -214,10 +214,10 @@ export function Login() {
           )}
 
           <div className="space-y-4">
-              <h2 className="text-4xl lg:text-5xl font-black text-white leading-[1.1]">
-                Formação para o <span className="text-[#b4941d]">Serviço</span> e Missão
+              <h2 className="text-4xl lg:text-5xl font-bold text-white leading-[1.1]">
+                Formação para o <span className="text-amber-500">Serviço</span> e Missão
               </h2>
-              <p className="text-blue-100/60 font-medium text-lg max-w-md">
+              <p className="text-white/60 font-medium text-lg max-w-md">
                 Espaço de crescimento teológico e pastoral para leigos e leigas da Diocese de Guarulhos.
               </p>
             </div>
@@ -233,8 +233,8 @@ export function Login() {
 
         <div className="relative z-10 pt-12 border-t border-white/5">
            <div className="flex items-center gap-2">
-              <CheckCircle className="text-[#b4941d]" size={16} />
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-100/40">Sistema de Gestão Acadêmica v2.0</span>
+              <CheckCircle className="text-amber-500" size={14} />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Sistema de Gestão Acadêmica v2.0</span>
            </div>
         </div>
       </div>
@@ -276,22 +276,22 @@ export function Login() {
           ) : (
             <>
               <div className="text-center mb-10">
-                <h2 className="text-3xl font-black text-[#00174b] mb-2 uppercase tracking-tight">
-                  {isRegistering ? 'Primeiro Acesso' : isForgotPassword ? 'Recuperar Acesso' : 'Bem-vindo de volta'}
+                <h2 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">
+                  {isRegistering ? 'Primeiro Acesso' : isForgotPassword ? 'Recuperar Acesso' : 'Bem-vindo'}
                 </h2>
-                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">
-                  {isRegistering ? 'Crie sua senha de estudante' : isForgotPassword ? 'Redefina sua senha por e-mail' : 'Portal do Aluno e Secretaria'}
+                <p className="text-slate-400 font-semibold text-[10px] uppercase tracking-[0.2em]">
+                  {isRegistering ? 'Crie sua senha de estudante' : isForgotPassword ? 'Redefina sua senha por e-mail' : 'Portal Administrativo e Acadêmico'}
                 </p>
               </div>
 
               {/* Tabs for Login/Register */}
               {!isForgotPassword && (
-                <div className="flex bg-slate-100/80 p-1 rounded-2xl mb-8 border border-slate-200/50">
+                <div className="flex bg-slate-100 p-1 rounded-xl mb-8 border border-slate-200">
                   <button 
                     onClick={() => { setIsRegistering(false); setError(null); }}
                     className={cn(
-                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      !isRegistering ? "bg-white text-[#00174b] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      "flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                      !isRegistering ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     )}
                   >
                     Entrar
@@ -299,8 +299,8 @@ export function Login() {
                   <button 
                     onClick={() => { setIsRegistering(true); setError(null); }}
                     className={cn(
-                      "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      isRegistering ? "bg-white text-[#00174b] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      "flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                      isRegistering ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     )}
                   >
                     Primeiro Acesso
@@ -334,15 +334,15 @@ export function Login() {
 
               <form onSubmit={isForgotPassword ? () => {} : isRegistering ? handleRegister : handleLogin} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail Institucional</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail Institucional</label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
                     <input 
                       type="email"
                       required
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
+                      className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
                       placeholder="aluno@diocese.com"
                     />
                   </div>
@@ -350,15 +350,15 @@ export function Login() {
 
                 {!isForgotPassword && (
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
                     <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
                       <input 
                         type="password"
                         required={!isForgotPassword}
                         value={password}
                         onChange={e => setPassword(e.target.value)}
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
+                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
                         placeholder="••••••••"
                       />
                     </div>
@@ -402,7 +402,7 @@ export function Login() {
                   <button 
                     type="submit"
                     disabled={loading}
-                    className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-900/20 hover:bg-blue-900 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                    className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                   >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
                     {isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}
@@ -412,7 +412,7 @@ export function Login() {
                     <button 
                       type="button"
                       onClick={() => { setIsForgotPassword(false); setIsRegistering(false); setError(null); }}
-                      className="w-full text-center text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+                      className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
                     >
                       Voltar para o Login
                     </button>

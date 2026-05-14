@@ -290,27 +290,27 @@ export function Dashboard() {
       >
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-black text-[#131b2e] tracking-tight">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
             {isRefreshing && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold border border-emerald-100/50 animate-pulse">
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-semibold border border-indigo-100/50 animate-pulse">
                 <RefreshCw size={10} className="animate-spin" />
                 Sincronizando...
               </div>
             )}
           </div>
-          <p className="text-sm font-medium text-slate-500">Visão geral do sistema de gestão ESCMIN.</p>
+          <p className="text-sm font-medium text-slate-500">Visão geral do sistema de gestão.</p>
         </div>
         
         <div className="flex items-center gap-4">
           <div className="text-right hidden md:block">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Última Sincronização</p>
-            <p className="text-xs font-bold text-slate-500">{lastUpdated.toLocaleTimeString('pt-BR')}</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider leading-none mb-1">Última Sincronização</p>
+            <p className="text-xs font-medium text-slate-500">{lastUpdated.toLocaleTimeString('pt-BR')}</p>
           </div>
           <button 
             onClick={fetchStats}
             disabled={isRefreshing}
             className={cn(
-              "p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-[#131b2e] hover:border-slate-300 transition-all shadow-sm active:scale-95",
+              "p-2.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95",
               isRefreshing && "opacity-50 cursor-wait"
             )}
           >
@@ -323,24 +323,24 @@ export function Dashboard() {
         {statCards.map((stat, idx) => (
           <motion.div 
             key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="group relative bg-white p-5 rounded-[1.5rem] shadow-sm border border-slate-100 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300"
+            className="group relative bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-300"
           >
             <div className="flex items-start justify-between mb-4">
-              <div className={`${stat.bg} ${stat.color} p-2.5 rounded-xl border ${stat.border} transition-transform group-hover:scale-110 duration-300`}>
+              <div className={`${stat.bg} ${stat.color} p-2.5 rounded-lg border ${stat.border} transition-transform group-hover:scale-105 duration-300`}>
                 <stat.icon size={22} />
               </div>
-              <button className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all">
+              <button className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
                 <ArrowUpRight size={16} />
               </button>
             </div>
 
             <div className="space-y-0.5">
-              <p className="text-[10px] font-black text-blue-600/80 uppercase tracking-widest mb-1">{stat.label} Operacionais</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{stat.label}</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-4xl font-black text-[#131b2e] tracking-tighter transition-all duration-500">
+                <h3 className="text-3xl font-bold text-slate-900 tracking-tight transition-all duration-500">
                   {isRefreshing ? "..." : stat.stats.active}
                 </h3>
                 <div className="flex items-center gap-2 group/status relative">
@@ -369,98 +369,95 @@ export function Dashboard() {
 
       {/* Ocupação Acadêmica Section moved from Reports */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.5 }}
-        className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
+        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
       >
-        <div className="px-7 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-blue-600 border border-slate-100">
-              <GraduationCap size={20} />
+            <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-indigo-600 border border-slate-200">
+              <GraduationCap size={18} />
             </div>
             <div>
-              <h3 className="text-xs font-black uppercase tracking-widest text-[#00174b]">Ocupação Acadêmica</h3>
-              <p className="text-[9px] font-bold text-slate-400">Análise por Turma e Período</p>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">Ocupação Acadêmica</h3>
+              <p className="text-[10px] font-medium text-slate-500">Análise por turma</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Activity size={12} className="text-emerald-500 animate-pulse" />
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Live</span>
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Live</span>
           </div>
         </div>
-        <div className="p-7 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {studentsByClass.length > 0 ? (
             studentsByClass.map((c, i) => (
               <motion.div 
                 key={i} 
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
                 className={cn(
-                  "p-5 rounded-[1.5rem] border transition-all duration-300 group hover:scale-[1.01] hover:shadow-xl",
+                  "p-4 rounded-xl border transition-all duration-300 group hover:shadow-md",
                   c.bgClass,
-                  c.borderClass,
-                  c.glowClass
+                  c.borderClass
                 )}
               >
-                <div className="flex justify-between items-start mb-4">
+                <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
                     <div className={cn(
-                      "w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-[10px] shadow-lg shadow-current/20",
+                      "w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm",
                       "bg-gradient-to-br",
                       c.color
                     )}>
                       {c.code}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-xs font-black text-[#00174b] uppercase truncate max-w-[120px] leading-tight">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-slate-900 truncate max-w-[100px]">
                           {c.name}
                         </p>
                         {c.count > 0 && (
                           <button 
                             onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
                             className={cn(
-                              "px-2 py-0.5 rounded-lg text-[8px] font-black border transition-all active:scale-95 shadow-sm whitespace-nowrap",
+                              "px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all active:scale-95 whitespace-nowrap",
                               c.unallocated 
-                                ? "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-500 hover:text-white" 
-                                : "bg-white text-slate-500 border-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+                                ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-600 hover:text-white hover:border-amber-600" 
+                                : "bg-white text-slate-600 border-slate-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600"
                             )}
                           >
-                            VER ALUNOS
+                            VER
                           </button>
                         )}
                       </div>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 opacity-70">
+                      <p className="text-[10px] font-medium text-slate-500 uppercase mt-0.5 opacity-70">
                         {c.period}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-base font-black text-[#00174b] tabular-nums tracking-tighter leading-none">
+                    <p className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">
                       {c.count}
                     </p>
-                    <p className={cn("text-[8px] font-black uppercase tracking-tighter mt-1", c.textClass)}>
+                    <p className={cn("text-[10px] font-semibold uppercase tracking-tight", c.textClass)}>
                       Alunos
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex justify-between items-center px-0.5">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest opacity-60">Ocupação</span>
-                    <span className={cn("text-[9px] font-black tabular-nums", c.textClass)}>{c.percentage}%</span>
+                    <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Ocupação</span>
+                    <span className={cn("text-[10px] font-bold tabular-nums", c.textClass)}>{c.percentage}%</span>
                   </div>
-                  <div className="h-2.5 w-full bg-white/40 rounded-full overflow-hidden border border-white/50 p-[2px] shadow-inner ring-1 ring-slate-100/20">
+                  <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden border border-slate-100">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(c.percentage, 100)}%` }}
-                      transition={{ duration: 1.2, ease: "easeOut", delay: i * 0.1 }}
-                      className={cn("h-full bg-gradient-to-r rounded-full shadow-sm relative group-hover:brightness-110 transition-all", c.color)} 
-                    >
-                      <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>
-                    </motion.div>
+                      transition={{ duration: 1, ease: "easeOut", delay: i * 0.1 }}
+                      className={cn("h-full rounded-full shadow-sm relative", c.color)} 
+                    />
                   </div>
                 </div>
               </motion.div>
@@ -477,72 +474,58 @@ export function Dashboard() {
       {showStudentsModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[999]">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-[2rem] w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200"
+            className="bg-white rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200"
           >
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div>
-                <h3 className="text-xl font-black text-[#00174b]">{selectedClassLabel}</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">
+                <h3 className="text-lg font-bold text-slate-900">{selectedClassLabel}</h3>
+                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mt-1">
                   {isUnallocatedContext 
-                    ? "Alunos ativos mas não vinculados a uma turma vigente"
-                    : `Lista de alunos matriculados na turma ${selectedClassLabel}`
+                    ? "Alunos ativos sem turma vinculada"
+                    : `Alunos matriculados`
                   }
                 </p>
               </div>
               <button 
                 onClick={() => setShowStudentsModal(false)}
-                className="w-10 h-10 rounded-xl hover:bg-white flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all active:scale-95 shadow-sm border border-slate-100"
+                className="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all border border-slate-200 shadow-sm"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             
-            <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              <div className="space-y-4">
+            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="space-y-3">
                 {selectedClassStudents.length > 0 ? (
                   selectedClassStudents.map((student) => (
-                    <div key={student.id} className="p-5 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-blue-200 hover:shadow-lg hover:shadow-blue-50 transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-[#00174b] font-black text-lg border border-slate-200 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
+                    <div key={student.id} className="p-3 bg-white border border-slate-100 rounded-lg flex items-center justify-between hover:border-indigo-200 hover:shadow-sm transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded bg-slate-50 flex items-center justify-center text-slate-600 font-bold text-sm border border-slate-200 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
                           {student.name.charAt(0)}
                         </div>
                         <div>
-                          <h5 className="font-black text-[#00174b] group-hover:text-blue-700 transition-colors">{student.name}</h5>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter mt-0.5">CPF: {student.cpf || 'Não informado'}</p>
+                          <h5 className="text-sm font-bold text-slate-900">{student.name}</h5>
+                          <p className="text-[10px] text-slate-500 uppercase mt-0.5">CPF: {student.cpf || '---'}</p>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <button 
-                            onClick={() => {
-                              setShowStudentsModal(false);
-                              navigate('/students', { state: { studentId: student.id } });
-                            }}
-                            className="p-1.5 bg-slate-50 hover:bg-blue-600 text-slate-400 hover:text-white rounded-lg transition-all shadow-sm border border-slate-100"
-                            title="Ver Ficha do Aluno"
-                          >
-                            <UserCircle size={14} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setShowStudentsModal(false);
-                              navigate('/contributions', { state: { studentId: student.id } });
-                            }}
-                            className="p-1.5 bg-slate-50 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-lg transition-all shadow-sm border border-slate-100"
-                            title="Ver Financeiro"
-                          >
-                            <Wallet size={14} />
-                          </button>
-                          <span className={cn(
-                            "px-3 py-1 text-[10px] font-black uppercase rounded-lg tracking-widest leading-none",
-                            isUnallocatedContext ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
-                          )}>
-                            {isUnallocatedContext ? "Requer Enturmação" : "Regular"}
-                          </span>
-                        </div>
-                        <p className="text-[10px] font-bold text-slate-300 uppercase mt-1">ID: {student.registration_number}</p>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            setShowStudentsModal(false);
+                            navigate('/students', { state: { studentId: student.id } });
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all border border-transparent hover:border-indigo-100"
+                        >
+                          <UserCircle size={16} />
+                        </button>
+                        <span className={cn(
+                          "px-2 py-0.5 text-[9px] font-bold uppercase rounded border",
+                          isUnallocatedContext ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        )}>
+                          {isUnallocatedContext ? "Pendente" : "OK"}
+                        </span>
                       </div>
                     </div>
                   ))
