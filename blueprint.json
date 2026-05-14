@@ -310,13 +310,13 @@
         "subject_id": { "type": "string" },
         "period": { "type": "string" },
         "value": { "type": "number" },
-        "status": { "type": "string", "enum": ["Aprovado", "Reprovado", "Recuperação"] },
+        "status": { "type": "string", "enum": ["Aprovado", "Reprovado", "Recuperação", "Pendente"] },
         "observations": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "student_id", "class_id", "subject_id", "value"]
+      "required": ["id", "student_id", "class_id", "subject_id"]
     },
     "AcademicParameters": {
       "title": "AcademicParameters",

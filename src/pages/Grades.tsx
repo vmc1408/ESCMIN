@@ -32,7 +32,7 @@ interface GradeRecord {
   subject_id: string;
   period: string;
   value: number | string;
-  status: 'Aprovado' | 'Reprovado' | 'Recuperação';
+  status: 'Aprovado' | 'Reprovado' | 'Recuperação' | 'Pendente';
   observations?: string;
 }
 
@@ -188,8 +188,8 @@ export function Grades() {
     const numValue = parseFloat(rawValue);
     
     // Calculate status only if it's a valid number
-    let status: GradeRecord['status'] = 'Reprovado';
-    if (!isNaN(numValue)) {
+    let status: GradeRecord['status'] = 'Pendente';
+    if (value !== '' && !isNaN(numValue)) {
       if (numValue >= academicParams.approval_grade) status = 'Aprovado';
       else if (numValue >= academicParams.recovery_grade) status = 'Recuperação';
       else status = 'Reprovado';
@@ -259,13 +259,15 @@ export function Grades() {
         const isAttendanceApproved = presencePercentage >= 60;
         
         // Status Determination
-        let status: GradeRecord['status'] = 'Reprovado';
-        if (avg >= academicParams.approval_grade && isAttendanceApproved) {
-          status = 'Aprovado';
-        } else if (avg >= academicParams.recovery_grade && isAttendanceApproved) {
-          status = 'Recuperação';
-        } else {
-          status = 'Reprovado';
+        let status: GradeRecord['status'] = 'Pendente';
+        if (numAssessments > 0) {
+          if (avg >= academicParams.approval_grade && isAttendanceApproved) {
+            status = 'Aprovado';
+          } else if (avg >= academicParams.recovery_grade && isAttendanceApproved) {
+            status = 'Recuperação';
+          } else {
+            status = 'Reprovado';
+          }
         }
         
         newGradesMap[student.id] = {
@@ -298,27 +300,42 @@ export function Grades() {
     if (!userAuth || !selectedClass || !selectedSubject || !selectedPeriod) return;
     setSaving(true);
     try {
-      const recordsToSave = Object.values(grades).map(record => {
+      const recordsToSave: any[] = [];
+      const recordsToToDelete: string[] = [];
+
+      Object.values(grades).forEach(record => {
         let numericValue = typeof record.value === 'string' 
           ? (record.value.trim() === '' ? null : parseFloat(record.value.replace(',', '.')))
           : record.value;
-
-        const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedPeriod}_${record.student_id}`;
         
-        return {
-          ...record,
-          id: docId,
-          value: numericValue,
-          class_id: selectedClass,
-          subject_id: selectedSubject,
-          period: selectedPeriod,
-          user_id: userAuth.uid,
-          updated_at: new Date().toISOString()
-        };
+        const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedPeriod}_${record.student_id}`;
+
+        if (numericValue === null) {
+          if (record.id) {
+            recordsToToDelete.push(record.id);
+          }
+        } else {
+          recordsToSave.push({
+            ...record,
+            id: docId,
+            value: numericValue,
+            class_id: selectedClass,
+            subject_id: selectedSubject,
+            period: selectedPeriod,
+            user_id: userAuth.uid,
+            updated_at: new Date().toISOString()
+          });
+        }
       });
 
+      // Execute saves
       if (recordsToSave.length > 0) {
         await saveBatch('grades', recordsToSave);
+      }
+
+      // Execute deletions
+      if (recordsToToDelete.length > 0) {
+        await Promise.all(recordsToToDelete.map(id => deleteData('grades', id)));
       }
 
       setNotification({ type: 'success', message: 'Notas salvas com sucesso!' });
@@ -427,7 +444,7 @@ export function Grades() {
           subject_id: selectedSubject,
           period: selectedPeriod,
           value: '',
-          status: 'Reprovado'
+          status: 'Pendente'
         };
       });
       setGrades(clearedGrades);
@@ -442,7 +459,7 @@ export function Grades() {
       [studentId]: {
         ...prev[studentId],
         value: '',
-        status: 'Reprovado'
+        status: 'Pendente'
       }
     }));
   };
@@ -452,6 +469,7 @@ export function Grades() {
       case 'Aprovado': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
       case 'Recuperação': return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'Reprovado': return 'bg-red-50 text-red-600 border-red-100';
+      case 'Pendente': return 'bg-slate-50 text-slate-400 border-slate-100';
       default: return 'bg-slate-50 text-slate-400 border-slate-100';
     }
   };
