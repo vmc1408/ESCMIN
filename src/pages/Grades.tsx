@@ -244,17 +244,21 @@ export function Grades() {
       const totalSchoolDays = calendarEvents?.length || 20; // Fallback to 20 if none defined, or handle gracefully
       const numAssessments = assessmentsList?.length || 0;
       
+      const assessmentTitles = (assessmentsList || []).map(a => a.title);
+      
       students.forEach(student => {
         // Filter grades specifically for assessments (title matching)
-        const assessmentTitles = (assessmentsList || []).map(a => a.title);
         const studentGrades = (allGrades || []).filter(g => 
           g.student_id === student.id && 
           assessmentTitles.includes(g.period)
         );
         
         // Final Grade Calculation: Average of registered assessments
-        let avg = 0;
-        if (numAssessments > 0) {
+        let avg: number | null = null;
+        let hasGrades = false;
+        
+        if (numAssessments > 0 && studentGrades.length > 0) {
+          hasGrades = true;
           const sum = studentGrades.reduce((acc, curr) => {
             const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
             return acc + (v || 0);
@@ -269,7 +273,7 @@ export function Grades() {
         
         // Status Determination
         let status: GradeRecord['status'] = 'Pendente';
-        if (numAssessments > 0) {
+        if (hasGrades && avg !== null) {
           if (avg >= academicParams.approval_grade && isAttendanceApproved) {
             status = 'Aprovado';
           } else if (avg >= academicParams.recovery_grade && isAttendanceApproved) {
@@ -285,8 +289,8 @@ export function Grades() {
           class_id: selectedClass,
           subject_id: selectedSubject,
           period: 'Resultado Final',
-          value: avg.toFixed(2).replace('.', ','),
-          status: status as any,
+          value: avg !== null ? avg.toFixed(2).replace('.', ',') : '',
+          status: status,
           observations: !isAttendanceApproved ? `Reprovado por Falta (${presencePercentage.toFixed(1)}% pres.)` : ''
         };
       });
