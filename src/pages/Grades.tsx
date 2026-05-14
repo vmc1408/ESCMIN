@@ -44,10 +44,10 @@ export function Grades() {
   const [students, setStudents] = useState<Student[]>([]);
   const [grades, setGrades] = useState<Record<string, GradeRecord>>({});
   const [academicParams, setAcademicParams] = useState<AcademicParameters>({
-    approval_grade: 7.0,
+    approval_grade: 5.0,
     recovery_grade: 5.0,
     failure_grade: 4.9,
-    absence_limit_percentage: 25,
+    absence_limit_percentage: 40, // Match 60% requirement mentioned in calculateFinalResults
     updated_at: ''
   });
   
@@ -199,8 +199,7 @@ export function Grades() {
     // Calculate status only if it's a valid number
     let status: GradeRecord['status'] = 'Pendente';
     if (value !== '' && !isNaN(numValue)) {
-      if (numValue >= academicParams.approval_grade) status = 'Aprovado';
-      else if (numValue >= academicParams.recovery_grade) status = 'Recuperação';
+      if (numValue >= 5.0) status = 'Aprovado';
       else status = 'Reprovado';
     }
 
@@ -250,7 +249,8 @@ export function Grades() {
         // Filter grades specifically for assessments (title matching)
         const studentGrades = (allGrades || []).filter(g => 
           g.student_id === student.id && 
-          assessmentTitles.includes(g.period)
+          assessmentTitles.includes(g.period) &&
+          g.value !== null && g.value !== undefined && g.value !== ''
         );
         
         // Final Grade Calculation: Average of registered assessments
@@ -274,10 +274,8 @@ export function Grades() {
         // Status Determination
         let status: GradeRecord['status'] = 'Pendente';
         if (hasGrades && avg !== null) {
-          if (avg >= academicParams.approval_grade && isAttendanceApproved) {
+          if (avg >= 5.0 && isAttendanceApproved) {
             status = 'Aprovado';
-          } else if (avg >= academicParams.recovery_grade && isAttendanceApproved) {
-            status = 'Recuperação';
           } else {
             status = 'Reprovado';
           }
@@ -632,7 +630,7 @@ export function Grades() {
             <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 flex items-center gap-4">
               <Info size={16} className="text-indigo-600 shrink-0" />
               <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
-                As notas variam de 1 a 10. <span className="text-emerald-700 font-bold">{academicParams.approval_grade}+ (Aprovado)</span> | <span className="text-amber-700 font-bold">{academicParams.recovery_grade}-{academicParams.approval_grade - 0.1} (Recuperação)</span> | <span className="text-red-700 font-bold">Sub {academicParams.failure_grade} (Reprovado)</span>
+                Média igual ou superior a <span className="text-emerald-700 font-bold">5,00 para Aprovação</span>. Média inferior a <span className="text-red-700 font-bold">5,00 para Reprovação</span>. Presença mínima de 60% requerida.
               </p>
             </div>
 
