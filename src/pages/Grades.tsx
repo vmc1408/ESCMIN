@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
 import { cn } from '../lib/utils';
-import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
+import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -140,8 +140,15 @@ export function Grades() {
         gradesMap[data.student_id] = record;
       });
       setGrades(gradesMap);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching data:", error);
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('42P01') || errorMsg.includes('does not exist')) {
+        setNotification({ 
+          type: 'err', 
+          message: 'A tabela de Notas não existe. Use o Checkup de Schema em Configurações para criá-la.' 
+        });
+      }
     } finally {
       setLoading(false);
       setLoadingAssessments(false);
@@ -288,36 +295,41 @@ export function Grades() {
   };
 
   const saveGrades = async () => {
-    if (!userAuth) return;
+    if (!userAuth || !selectedClass || !selectedSubject || !selectedPeriod) return;
     setSaving(true);
     try {
-      const recordsToSave = Object.values(grades) as GradeRecord[];
-      for (const record of recordsToSave) {
+      const recordsToSave = Object.values(grades).map(record => {
         let numericValue = typeof record.value === 'string' 
-          ? parseFloat(record.value.replace(',', '.')) 
+          ? (record.value.trim() === '' ? null : parseFloat(record.value.replace(',', '.')))
           : record.value;
 
-        if (isNaN(numericValue as number)) continue;
-        
         const docId = record.id || `${selectedClass}_${selectedSubject}_${selectedPeriod}_${record.student_id}`;
         
-        const data = {
+        return {
           ...record,
           id: docId,
           value: numericValue,
+          class_id: selectedClass,
+          subject_id: selectedSubject,
+          period: selectedPeriod,
           user_id: userAuth.uid,
           updated_at: new Date().toISOString()
         };
-        
-        await saveData('grades', docId, data);
+      });
+
+      if (recordsToSave.length > 0) {
+        await saveBatch('grades', recordsToSave);
       }
 
       setNotification({ type: 'success', message: 'Notas salvas com sucesso!' });
       setTimeout(() => setNotification(null), 3000);
-      fetchStudentsAndGrades();
-    } catch (error) {
+      await fetchStudentsAndGrades();
+    } catch (error: any) {
       console.error("Error saving grades:", error);
-      setNotification({ type: 'err', message: 'Erro ao salvar notas.' });
+      setNotification({ 
+        type: 'err', 
+        message: 'Erro ao salvar notas: ' + (error.message || 'Verifique sua conexão.') 
+      });
     } finally {
       setSaving(false);
     }

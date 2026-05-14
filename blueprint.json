@@ -311,6 +311,7 @@
         "period": { "type": "string" },
         "value": { "type": "number" },
         "status": { "type": "string", "enum": ["Aprovado", "Reprovado", "Recuperação"] },
+        "observations": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
