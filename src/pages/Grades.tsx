@@ -14,7 +14,8 @@ import {
   Loader2,
   Trophy,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Printer
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
 import { cn } from '../lib/utils';
@@ -284,6 +285,85 @@ export function Grades() {
     }
   };
 
+  const handlePrint = () => {
+    const className = classes.find(c => c.id === selectedClass)?.name || '';
+    const subjectName = subjects.find(s => s.id === selectedSubject)?.name || '';
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const html = `
+      <html>
+        <head>
+          <title>Relatório de Notas - ${className}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+            h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+            .info { display: flex; justify-content: space-between; margin-top: 15px; font-weight: bold; text-transform: uppercase; font-size: 12px; color: #64748b; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background: #f8fafc; text-align: left; padding: 12px; border: 1px solid #e2e8f0; font-size: 10px; text-transform: uppercase; }
+            td { padding: 12px; border: 1px solid #e2e8f0; font-size: 12px; }
+            .status { font-weight: bold; text-transform: uppercase; font-size: 10px; }
+            .aprovado { color: #059669; }
+            .recuperacao { color: #d97706; }
+            .reprovado { color: #dc2626; }
+            .footer { margin-top: 50px; text-align: right; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; color: #94a3b8; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Relatório de Desempenho Escolar</h1>
+            <div class="info">
+              <span>Turma: ${className}</span>
+              <span>Disciplina: ${subjectName}</span>
+              <span>Período: ${selectedPeriod}</span>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px">Nº</th>
+                <th>Nome do Aluno</th>
+                <th style="width: 120px">RA</th>
+                <th style="width: 80px; text-align: center;">Nota</th>
+                <th style="width: 120px; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${students.map((student, idx) => `
+                <tr>
+                  <td>${idx + 1}</td>
+                  <td style="font-weight: bold">${student.name}</td>
+                  <td>${student.registration_number || '---'}</td>
+                  <td style="text-align: center; font-weight: bold">${grades[student.id]?.value || '---'}</td>
+                  <td style="text-align: center;">
+                    <span class="status ${grades[student.id]?.status.toLowerCase() || ''}">
+                      ${grades[student.id]?.status || 'Pendente'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+          </div>
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   const getStatusColor = (status: GradeRecord['status']) => {
     switch (status) {
       case 'Aprovado': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
@@ -317,6 +397,13 @@ export function Grades() {
                 Calcular Médias
               </button>
             )}
+            <button 
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-6 py-4 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-slate-200 transition-all active:scale-95"
+            >
+              <Printer size={16} />
+              Imprimir
+            </button>
             <button 
               disabled={saving}
               onClick={saveGrades}
