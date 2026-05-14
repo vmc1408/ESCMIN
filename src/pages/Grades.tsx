@@ -181,6 +181,15 @@ export function Grades() {
   }, [selectedClass, classes, subjects]);
 
   const handleGradeChange = (studentId: string, value: string) => {
+    if (selectedPeriod === 'Resultado Final') {
+      setNotification({ 
+        type: 'err', 
+        message: 'O Resultado Final é calculado automaticamente. Para alterar a nota, edite as avaliações individuais.' 
+      });
+      setTimeout(() => setNotification(null), 5000);
+      return;
+    }
+
     // Basic validation: allow numbers, comma and dot
     if (value !== '' && !/^[0-9,.]*$/.test(value)) return;
 
@@ -352,6 +361,11 @@ export function Grades() {
     }
   };
 
+  const handleFinalPrint = () => {
+    // We can reuse the existing handlePrint as it already uses current grades map
+    handlePrint();
+  };
+
   const handlePrint = () => {
     const className = classes.find(c => c.id === selectedClass)?.name || '';
     const subjectName = subjects.find(s => s.id === selectedSubject)?.name || '';
@@ -498,28 +512,40 @@ export function Grades() {
                 Calcular Médias
               </button>
             )}
+          {selectedPeriod === 'Resultado Final' ? (
             <button 
-              onClick={handleClearAll}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-            >
-              <Eraser size={16} />
-              Limpar Tudo
-            </button>
-            <button 
-              onClick={handlePrint}
+              onClick={handleFinalPrint}
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors"
             >
               <Printer size={16} />
-              Imprimir
+              Imprimir Resultado Final
             </button>
-            <button 
-              disabled={saving}
-              onClick={saveGrades}
-              className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-            >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Salvar Notas
-            </button>
+          ) : (
+            <>
+              <button 
+                onClick={handleClearAll}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+              >
+                <Eraser size={16} />
+                Limpar Tudo
+              </button>
+              <button 
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors"
+              >
+                <Printer size={16} />
+                Imprimir
+              </button>
+              <button 
+                disabled={saving}
+                onClick={saveGrades}
+                className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                Salvar Notas
+              </button>
+            </>
+          )}
           </div>
         )}
       </div>
@@ -637,10 +663,23 @@ export function Grades() {
                             type="text"
                             placeholder="0,00"
                             value={grades[student.id]?.value ?? ''}
+                            readOnly={selectedPeriod === 'Resultado Final'}
+                            onClick={() => {
+                              if (selectedPeriod === 'Resultado Final') {
+                                setNotification({ 
+                                  type: 'err', 
+                                  message: 'Para alterar o Resultado Final, você deve editar as avaliações deste aluno.' 
+                                });
+                                setTimeout(() => setNotification(null), 4000);
+                              }
+                            }}
                             onChange={e => handleGradeChange(student.id, e.target.value)}
-                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-center text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pr-7"
+                            className={cn(
+                              "w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-center text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pr-7",
+                              selectedPeriod === 'Resultado Final' && "bg-slate-100 cursor-not-allowed opacity-80"
+                            )}
                           />
-                          {grades[student.id]?.value && (
+                          {grades[student.id]?.value && selectedPeriod !== 'Resultado Final' && (
                             <button 
                               onClick={() => clearStudentGrade(student.id)}
                               className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 transition-colors"
