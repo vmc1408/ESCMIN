@@ -204,46 +204,82 @@ export function Grades() {
     if (selectedPeriod !== 'Resultado Final') return;
     setLoading(true);
     try {
-      const allGrades = await fetchQuery('grades', [
-        { field: 'class_id', operator: '==', value: selectedClass },
-        { field: 'subject_id', operator: '==', value: selectedSubject }
+      // 1. Fetch all academic components necessary for calculation
+      const [allGrades, assessmentsList, attendances, calendarEvents] = await Promise.all([
+        fetchQuery('grades', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject }
+        ]),
+        fetchQuery('assessments', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject }
+        ]),
+        fetchQuery('attendances', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject },
+          { field: 'status', operator: '==', value: 'F' } // Just focus on absences
+        ]),
+        fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'Dia de Aula' }])
       ]);
       
       const newGradesMap = { ...grades };
+      const totalSchoolDays = calendarEvents?.length || 20; // Fallback to 20 if none defined, or handle gracefully
+      const numAssessments = assessmentsList?.length || 0;
       
       students.forEach(student => {
+        // Filter grades specifically for assessments (title matching)
+        const assessmentTitles = (assessmentsList || []).map(a => a.title);
         const studentGrades = (allGrades || []).filter(g => 
           g.student_id === student.id && 
-          g.period !== 'Resultado Final'
+          assessmentTitles.includes(g.period)
         );
         
-        if (studentGrades.length > 0) {
+        // Final Grade Calculation: Average of registered assessments
+        let avg = 0;
+        if (numAssessments > 0) {
           const sum = studentGrades.reduce((acc, curr) => {
             const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
             return acc + (v || 0);
           }, 0);
-          const avg = sum / 4; // Dividing by 4 evaluations as requested
-          
-          const status = avg >= academicParams.approval_grade ? 'Aprovado' : 
-                         avg >= academicParams.recovery_grade ? 'Recuperação' : 'Reprovado';
-          
-          newGradesMap[student.id] = {
-            ...newGradesMap[student.id],
-            student_id: student.id,
-            class_id: selectedClass,
-            subject_id: selectedSubject,
-            period: 'Resultado Final',
-            value: avg.toFixed(2).replace('.', ','),
-            status: status as any
-          };
+          avg = sum / numAssessments;
         }
+
+        // Attendance Calculation: Present days >= 60% of school days
+        const absences = (attendances || []).filter(a => a.student_id === student.id).length;
+        const presencePercentage = totalSchoolDays > 0 ? ((totalSchoolDays - absences) / totalSchoolDays) * 100 : 100;
+        const isAttendanceApproved = presencePercentage >= 60;
+        
+        // Status Determination
+        let status: GradeRecord['status'] = 'Reprovado';
+        if (avg >= academicParams.approval_grade && isAttendanceApproved) {
+          status = 'Aprovado';
+        } else if (avg >= academicParams.recovery_grade && isAttendanceApproved) {
+          status = 'Recuperação';
+        } else {
+          status = 'Reprovado';
+        }
+        
+        newGradesMap[student.id] = {
+          ...newGradesMap[student.id],
+          student_id: student.id,
+          class_id: selectedClass,
+          subject_id: selectedSubject,
+          period: 'Resultado Final',
+          value: avg.toFixed(2).replace('.', ','),
+          status: status as any,
+          observations: !isAttendanceApproved ? `Reprovado por Falta (${presencePercentage.toFixed(1)}% pres.)` : ''
+        };
       });
       
       setGrades(newGradesMap);
-      setNotification({ type: 'success', message: 'Médias calculadas automaticamente (Soma das 4 avaliações / 4)!' });
-      setTimeout(() => setNotification(null), 3000);
+      setNotification({ 
+        type: 'success', 
+        message: `Médias calculadas: Média das ${numAssessments} avaliações + Mínimo 60% de presença!` 
+      });
+      setTimeout(() => setNotification(null), 5000);
     } catch (error) {
       console.error("Error calculating results:", error);
+      setNotification({ type: 'err', message: 'Erro ao calcular resultados finais.' });
     } finally {
       setLoading(false);
     }
@@ -329,6 +365,7 @@ export function Grades() {
                 <th style="width: 120px">RA</th>
                 <th style="width: 80px; text-align: center;">Nota</th>
                 <th style="width: 120px; text-align: center;">Status</th>
+                <th>Observações</th>
               </tr>
             </thead>
             <tbody>
@@ -343,6 +380,7 @@ export function Grades() {
                       ${grades[student.id]?.status || 'Pendente'}
                     </span>
                   </td>
+                  <td style="font-size: 10px; color: #64748b;">${grades[student.id]?.observations || ''}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -512,6 +550,12 @@ export function Grades() {
                       <div>
                         <p className="text-sm font-black text-slate-900 leading-tight uppercase tracking-tight">{student.name}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">RA: {student.registration_number}</p>
+                        {grades[student.id]?.observations && (
+                          <p className="text-[9px] font-black text-red-500 uppercase tracking-tight mt-1 flex items-center gap-1">
+                            <AlertTriangle size={10} />
+                            {grades[student.id].observations}
+                          </p>
+                        )}
                       </div>
                     </div>
 
