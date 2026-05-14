@@ -15,7 +15,9 @@ import {
   Trophy,
   AlertTriangle,
   RefreshCw,
-  Printer
+  Printer,
+  Eraser,
+  Trash2
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
 import { cn } from '../lib/utils';
@@ -402,6 +404,37 @@ export function Grades() {
     printWindow.document.close();
   };
 
+  const handleClearAll = () => {
+    if (window.confirm('Deseja realmente limpar TODAS as notas desta pauta?')) {
+      const clearedGrades: Record<string, GradeRecord> = {};
+      students.forEach(student => {
+        clearedGrades[student.id] = {
+          ...grades[student.id],
+          student_id: student.id,
+          class_id: selectedClass,
+          subject_id: selectedSubject,
+          period: selectedPeriod,
+          value: '',
+          status: 'Reprovado'
+        };
+      });
+      setGrades(clearedGrades);
+      setNotification({ type: 'success', message: 'Campos de notas limpos!' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const clearStudentGrade = (studentId: string) => {
+    setGrades(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        value: '',
+        status: 'Reprovado'
+      }
+    }));
+  };
+
   const getStatusColor = (status: GradeRecord['status']) => {
     switch (status) {
       case 'Aprovado': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
@@ -435,6 +468,13 @@ export function Grades() {
                 Calcular Médias
               </button>
             )}
+            <button 
+              onClick={handleClearAll}
+              className="flex items-center gap-2 px-6 py-4 bg-red-50 text-red-600 border border-red-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95"
+            >
+              <Eraser size={16} />
+              Limpar Tudo
+            </button>
             <button 
               onClick={handlePrint}
               className="flex items-center gap-2 px-6 py-4 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-slate-200 transition-all active:scale-95"
@@ -562,14 +602,22 @@ export function Grades() {
                     <div className="flex flex-col sm:flex-row items-center gap-6">
                       <div className="flex items-center gap-4 w-full sm:w-auto">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest sm:hidden">Nota:</label>
-                        <div className="relative w-full sm:w-32">
+                        <div className="relative w-full sm:w-32 group">
                           <input
                             type="text"
                             placeholder="0,00"
                             value={grades[student.id]?.value ?? ''}
                             onChange={e => handleGradeChange(student.id, e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-center font-black text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-8"
                           />
+                          {grades[student.id]?.value && (
+                            <button 
+                              onClick={() => clearStudentGrade(student.id)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
 
