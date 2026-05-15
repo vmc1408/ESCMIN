@@ -35,6 +35,7 @@ export function Login() {
   const [resetSent, setResetSent] = useState(false);
   const [institution, setInstitution] = useState<any>(null);
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0 });
+  const [rememberMe, setRememberMe] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -90,6 +91,15 @@ export function Login() {
     checkInitialization();
   }, []);
 
+  // Load remembered email
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('remembered_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
@@ -97,8 +107,16 @@ export function Login() {
     setError(null);
 
     try {
+      const emailNormalized = email.toLowerCase().trim();
+      
+      if (rememberMe) {
+        localStorage.setItem('remembered_email', emailNormalized);
+      } else {
+        localStorage.removeItem('remembered_email');
+      }
+
       const result = await fetchWithTimeout(supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
+        email: emailNormalized,
         password
       }), 20000);
       
@@ -542,11 +560,27 @@ export function Login() {
                 )}
 
                 {!isRegistering && !isForgotPassword && (
-                   <div className="flex justify-end pr-1">
+                   <div className="flex items-center justify-between px-1">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                          rememberMe ? "bg-indigo-600 border-indigo-600" : "bg-slate-50 border-slate-300 group-hover:border-slate-400"
+                        )}>
+                          <input 
+                            type="checkbox"
+                            className="hidden"
+                            checked={rememberMe}
+                            onChange={e => setRememberMe(e.target.checked)}
+                          />
+                          {rememberMe && <CheckCircle size={10} className="text-white" />}
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lembrar-me</span>
+                      </label>
+
                       <button 
                         type="button" 
                         onClick={() => setIsForgotPassword(true)}
-                        className="text-[10px] font-black text-blue-600 hover:text-blue-800 transition-colors uppercase tracking-widest"
+                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-widest"
                       >
                          Esqueceu a senha?
                       </button>
