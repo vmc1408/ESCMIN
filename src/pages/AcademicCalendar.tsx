@@ -124,11 +124,26 @@ export function AcademicCalendar() {
 
   // Lista de feriados fixos para sincronização automática
   const FIXED_HOLIDAYS = [
+    // 2025
+    { title: "Confraternização Universal", date: "2025-01-01", category: 'nacional' },
+    { title: "Carnaval", date: "2025-03-04", category: 'nacional' },
+    { title: "Sexta-feira Santa", date: "2025-04-18", category: 'municipal' },
+    { title: "Páscoa", date: "2025-04-20", category: 'nacional' },
+    { title: "Tiradentes", date: "2025-04-21", category: 'nacional' },
+    { title: "Dia do Trabalho", date: "2025-05-01", category: 'nacional' },
+    { title: "Corpus Christi", date: "2025-06-19", category: 'municipal' },
+    { title: "Revolução Constitucionalista", date: "2025-07-09", category: 'estadual' },
+    { title: "Independência do Brasil", date: "2025-09-07", category: 'nacional' },
+    { title: "Nossa Sra Aparecida", date: "2025-10-12", category: 'nacional' },
+    { title: "Finados", date: "2025-11-02", category: 'nacional' },
+    { title: "Proclamação da República", date: "2025-11-15", category: 'nacional' },
+    { title: "Consciência Negra", date: "2025-11-20", category: 'nacional' },
+    { title: "Aniv. Guarulhos / N. Sra. Conceição", date: "2025-12-08", category: 'municipal' },
+    { title: "Natal", date: "2025-12-25", category: 'nacional' },
     // 2026
     { title: "Confraternização Universal", date: "2026-01-01", category: 'nacional' },
-    { title: "Aniversário de São Paulo", date: "2026-01-25", category: 'municipal' },
     { title: "Carnaval", date: "2026-02-17", category: 'nacional' },
-    { title: "Sexta-feira Santa", date: "2026-04-03", category: 'nacional' },
+    { title: "Sexta-feira Santa", date: "2026-04-03", category: 'municipal' },
     { title: "Páscoa", date: "2026-04-05", category: 'nacional' },
     { title: "Tiradentes", date: "2026-04-21", category: 'nacional' },
     { title: "Dia do Trabalho", date: "2026-05-01", category: 'nacional' },
@@ -138,14 +153,13 @@ export function AcademicCalendar() {
     { title: "Nossa Sra Aparecida", date: "2026-10-12", category: 'nacional' },
     { title: "Finados", date: "2026-11-02", category: 'nacional' },
     { title: "Proclamação da República", date: "2026-11-15", category: 'nacional' },
-    { title: "Consciência Negra", date: "2026-11-20", category: 'estadual' },
-    { title: "Imaculada Conceição / Aniv. Guarulhos", date: "2026-12-08", category: 'municipal' },
+    { title: "Consciência Negra", date: "2026-11-20", category: 'nacional' },
+    { title: "Aniv. Guarulhos / N. Sra. Conceição", date: "2026-12-08", category: 'municipal' },
     { title: "Natal", date: "2026-12-25", category: 'nacional' },
     // 2027
     { title: "Confraternização Universal", date: "2027-01-01", category: 'nacional' },
-    { title: "Aniversário de São Paulo", date: "2027-01-25", category: 'municipal' },
     { title: "Carnaval", date: "2027-02-09", category: 'nacional' },
-    { title: "Sexta-feira Santa", date: "2027-03-26", category: 'nacional' },
+    { title: "Sexta-feira Santa", date: "2027-03-26", category: 'municipal' },
     { title: "Páscoa", date: "2027-03-28", category: 'nacional' },
     { title: "Tiradentes", date: "2027-04-21", category: 'nacional' },
     { title: "Dia do Trabalho", date: "2027-05-01", category: 'nacional' },
@@ -155,8 +169,8 @@ export function AcademicCalendar() {
     { title: "Nossa Sra Aparecida", date: "2027-10-12", category: 'nacional' },
     { title: "Finados", date: "2027-11-02", category: 'nacional' },
     { title: "Proclamação da República", date: "2027-11-15", category: 'nacional' },
-    { title: "Consciência Negra", date: "2027-11-20", category: 'estadual' },
-    { title: "Imaculada Conceição / Aniv. Guarulhos", date: "2027-12-08", category: 'municipal' },
+    { title: "Consciência Negra", date: "2027-11-20", category: 'nacional' },
+    { title: "Aniv. Guarulhos / N. Sra. Conceição", date: "2027-12-08", category: 'municipal' },
     { title: "Natal", date: "2027-12-25", category: 'nacional' },
   ];
 
@@ -168,8 +182,10 @@ export function AcademicCalendar() {
   }, [notification]);
 
   // Auto-sync feriados quando o administrador entra na página ou muda o ano
+  const syncInProgress = React.useRef(false);
+
   useEffect(() => {
-    if (isAdmin && !loading) {
+    if (isAdmin && !loading && !syncInProgress.current) {
       const currentYear = currentDate.getFullYear();
       const hasHolidaysForYear = events.some(e => {
         const d = new Date(e.start_date + 'T00:00:00');
@@ -185,7 +201,8 @@ export function AcademicCalendar() {
   }, [isAdmin, loading, events.length, currentDate.getFullYear()]);
 
   const syncHolidays = async (silent = false) => {
-    if (!userAuth) return;
+    if (!userAuth || syncInProgress.current) return;
+    syncInProgress.current = true;
     if (!silent) setIsSyncing(true);
     try {
       const itemsToUpdate: any[] = [];
@@ -193,6 +210,9 @@ export function AcademicCalendar() {
       let updatedCount = 0;
 
       for (const h of FIXED_HOLIDAYS) {
+        const hYear = new Date(h.date + 'T00:00:00').getFullYear();
+        if (hYear !== currentDate.getFullYear()) continue;
+
         let description = 'Feriado Nacional';
         let type: CalendarEvent['type'] = 'holiday_nac';
         
@@ -205,7 +225,11 @@ export function AcademicCalendar() {
           type = 'holiday_mun';
         }
 
-        const existingEvent = events.find(e => e.start_date === h.date && (e.type === 'holiday' || e.type === 'holiday_nac' || e.type === 'holiday_est' || e.type === 'holiday_mun'));
+        // Check for existing holiday on this date OR with this title
+        const existingEvent = events.find(e => 
+          e.start_date === h.date && 
+          (e.type === 'holiday' || e.type === 'holiday_nac' || e.type === 'holiday_est' || e.type === 'holiday_mun' || e.title === h.title)
+        );
 
         if (!existingEvent) {
           itemsToUpdate.push({
@@ -231,17 +255,21 @@ export function AcademicCalendar() {
 
       if (itemsToUpdate.length > 0) {
         await saveBatch('calendar_events', itemsToUpdate, 45000); // 45s timeout for batch
+        await fetchData(); // Refresh events after sync
       }
 
-      if (!silent) setNotification({ 
-        type: 'success', 
-        message: `Sincronização concluída! ${newCount} novos e ${updatedCount} atualizados.` 
-      });
+      if (!silent && itemsToUpdate.length > 0) {
+        setNotification({ 
+          type: 'success', 
+          message: `Sincronização concluída! ${newCount} novos e ${updatedCount} atualizados.` 
+        });
+      }
     } catch (error) {
       console.error("Error syncing holidays:", error);
       if (!silent) setNotification({ type: 'err', message: 'Erro ao sincronizar feriados.' });
     } finally {
       if (!silent) setIsSyncing(false);
+      syncInProgress.current = false;
     }
   };
 
@@ -474,7 +502,12 @@ export function AcademicCalendar() {
     const matchesType = typeFilter === 'all' || 
                        (typeFilter === 'term' ? (event.type === 'start_term' || event.type === 'end_term') : event.type === typeFilter);
     return matchesYear && matchesSearch && matchesType;
-  });
+  }).reduce((acc, current) => {
+    // Unique by title and date
+    const x = acc.find(item => item.title === current.title && item.start_date === current.start_date);
+    if (!x) return acc.concat([current]);
+    else return acc;
+  }, [] as CalendarEvent[]);
 
   // Group events by month
   const groupedEvents = filteredEvents.reduce((acc, event) => {
@@ -655,7 +688,8 @@ export function AcademicCalendar() {
                   {Array.from({ length: daysInMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => {
                     const day = i + 1;
                     const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                    const dayEvents = events.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
+                    // Use filteredEvents which is already deduplicated
+                    const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                     const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
                     return (
@@ -790,7 +824,7 @@ export function AcademicCalendar() {
                                 {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
                                   const day = i + 1;
                                   const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                                  const dayEvents = events.filter(e => e.start_date === dateStr);
+                                  const dayEvents = filteredEvents.filter(e => e.start_date === dateStr);
                                   const holiday = dayEvents.find(e => e.type === 'holiday' || e.type === 'holiday_nac' || e.type === 'holiday_est' || e.type === 'holiday_mun');
                                   const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
@@ -853,7 +887,7 @@ export function AcademicCalendar() {
                             {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
                               const day = i + 1;
                               const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                              const dayEvents = events.filter(e => e.start_date === dateStr);
+                              const dayEvents = filteredEvents.filter(e => e.start_date === dateStr);
                               const holiday = dayEvents.find(e => e.type === 'holiday' || e.type === 'holiday_nac' || e.type === 'holiday_est' || e.type === 'holiday_mun');
                               const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
