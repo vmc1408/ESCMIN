@@ -15,7 +15,9 @@ import {
   Check,
   X,
   School,
-  BookOpen
+  BookOpen,
+  Star,
+  FileText
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError } from '../lib/database';
@@ -126,6 +128,7 @@ export function AcademicCalendar() {
   const FIXED_HOLIDAYS = [
     // 2025
     { title: "Confraternização Universal", date: "2025-01-01", category: 'nacional' },
+    { title: "Aniversário de São Paulo", date: "2025-01-25", category: 'municipal' },
     { title: "Carnaval", date: "2025-03-04", category: 'nacional' },
     { title: "Sexta-feira Santa", date: "2025-04-18", category: 'municipal' },
     { title: "Páscoa", date: "2025-04-20", category: 'nacional' },
@@ -135,6 +138,7 @@ export function AcademicCalendar() {
     { title: "Revolução Constitucionalista", date: "2025-07-09", category: 'estadual' },
     { title: "Independência do Brasil", date: "2025-09-07", category: 'nacional' },
     { title: "Nossa Sra Aparecida", date: "2025-10-12", category: 'nacional' },
+    { title: "Dia do Servidor Público", date: "2025-10-28", category: 'estadual' },
     { title: "Finados", date: "2025-11-02", category: 'nacional' },
     { title: "Proclamação da República", date: "2025-11-15", category: 'nacional' },
     { title: "Consciência Negra", date: "2025-11-20", category: 'nacional' },
@@ -142,6 +146,7 @@ export function AcademicCalendar() {
     { title: "Natal", date: "2025-12-25", category: 'nacional' },
     // 2026
     { title: "Confraternização Universal", date: "2026-01-01", category: 'nacional' },
+    { title: "Aniversário de São Paulo", date: "2026-01-25", category: 'municipal' },
     { title: "Carnaval", date: "2026-02-17", category: 'nacional' },
     { title: "Sexta-feira Santa", date: "2026-04-03", category: 'municipal' },
     { title: "Páscoa", date: "2026-04-05", category: 'nacional' },
@@ -151,6 +156,7 @@ export function AcademicCalendar() {
     { title: "Revolução Constitucionalista", date: "2026-07-09", category: 'estadual' },
     { title: "Independência do Brasil", date: "2026-09-07", category: 'nacional' },
     { title: "Nossa Sra Aparecida", date: "2026-10-12", category: 'nacional' },
+    { title: "Dia do Servidor Público", date: "2026-10-28", category: 'estadual' },
     { title: "Finados", date: "2026-11-02", category: 'nacional' },
     { title: "Proclamação da República", date: "2026-11-15", category: 'nacional' },
     { title: "Consciência Negra", date: "2026-11-20", category: 'nacional' },
@@ -158,6 +164,7 @@ export function AcademicCalendar() {
     { title: "Natal", date: "2026-12-25", category: 'nacional' },
     // 2027
     { title: "Confraternização Universal", date: "2027-01-01", category: 'nacional' },
+    { title: "Aniversário de São Paulo", date: "2027-01-25", category: 'municipal' },
     { title: "Carnaval", date: "2027-02-09", category: 'nacional' },
     { title: "Sexta-feira Santa", date: "2027-03-26", category: 'municipal' },
     { title: "Páscoa", date: "2027-03-28", category: 'nacional' },
@@ -167,6 +174,7 @@ export function AcademicCalendar() {
     { title: "Revolução Constitucionalista", date: "2027-07-09", category: 'estadual' },
     { title: "Independência do Brasil", date: "2027-09-07", category: 'nacional' },
     { title: "Nossa Sra Aparecida", date: "2027-10-12", category: 'nacional' },
+    { title: "Dia do Servidor Público", date: "2027-10-28", category: 'estadual' },
     { title: "Finados", date: "2027-11-02", category: 'nacional' },
     { title: "Proclamação da República", date: "2027-11-15", category: 'nacional' },
     { title: "Consciência Negra", date: "2027-11-20", category: 'nacional' },
@@ -280,17 +288,18 @@ export function AcademicCalendar() {
     setNotification({ type: 'success', message: 'Sincronizando holidays e gerando dias de aula...' });
     
     try {
-      // First, ensure holidays are up to date
+      // First, ensure holidays are up to date for the current year
       await syncHolidays(true);
 
-      const term1Start = new Date('2026-03-04T00:00:00');
-      const term1End = new Date('2026-06-24T00:00:00');
-      const term2Start = new Date('2026-08-05T00:00:00');
-      const term2End = new Date('2026-11-25T00:00:00');
+      const year = currentDate.getFullYear();
+      const term1StartStr = `${year}-02-03`; // Início em Fevereiro
+      const term1EndStr = `${year}-06-25`;
+      const term2StartStr = `${year}-08-04`; 
+      const term2EndStr = `${year}-11-28`;
 
       const ranges = [
-        { start: term1Start, end: term1End },
-        { start: term2Start, end: term2End }
+        { start: new Date(term1StartStr + 'T00:00:00'), end: new Date(term1EndStr + 'T00:00:00') },
+        { start: new Date(term2StartStr + 'T00:00:00'), end: new Date(term2EndStr + 'T00:00:00') }
       ];
 
       // Get holidays to check successors/predecessors
@@ -301,15 +310,18 @@ export function AcademicCalendar() {
 
       // Add Term Start/End
       const termEvents = [
-        { date: '2026-03-04', title: 'Início do 1º Semestre', type: 'start_term' },
-        { date: '2026-06-24', title: 'Término do 1º Semestre', type: 'end_term' },
-        { date: '2026-08-05', title: 'Início do 2º Semestre', type: 'start_term' },
-        { date: '2026-11-25', title: 'Término do Ano Letivo', type: 'end_term' }
+        { date: term1StartStr, title: 'Início do 1º Semestre', type: 'start_term' },
+        { date: term1EndStr, title: 'Término do 1º Semestre', type: 'end_term' },
+        { date: term2StartStr, title: 'Início do 2º Semestre', type: 'start_term' },
+        { date: term2EndStr, title: 'Término do Ano Letivo', type: 'end_term' }
       ];
 
       for (const te of termEvents) {
-        const exists = events.some(e => e.start_date === te.date && e.type === te.type);
-        if (!exists) {
+        // Only add if it's NOT a holiday and NOT already present
+        const isHoliday = holidayDates.has(te.date);
+        const exists = events.some(e => e.start_date === te.date && (e.type === te.type || e.type === 'holiday_nac' || e.type === 'holiday_mun' || e.type === 'holiday_est'));
+        
+        if (!exists && !isHoliday) {
           newEvents.push({
             title: te.title,
             start_date: te.date,
@@ -325,11 +337,11 @@ export function AcademicCalendar() {
       for (const range of ranges) {
         let current = new Date(range.start);
         while (current <= range.end) {
-          // Check if Wednesday (3)
+          // Check if Wednesday (3) - Exemplo: Aulas às Quartas
           if (current.getDay() === 3) {
             const dateStr = current.toISOString().split('T')[0];
             
-            // Checks for neighbors
+            // Checks for neighbors (pontes de feriado)
             const yesterday = new Date(current);
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toISOString().split('T')[0];
@@ -342,9 +354,10 @@ export function AcademicCalendar() {
             const prevIsHoliday = holidayDates.has(yesterdayStr);
             const nextIsHoliday = holidayDates.has(tomorrowStr);
 
+            // Não gera aula se for feriado, ou se houver feriado um dia antes/depois (opcional, para evitar pontes)
             if (!isHoliday && !prevIsHoliday && !nextIsHoliday) {
-              const exists = events.some(e => e.start_date === dateStr && e.type === 'class_day');
-              if (!exists) {
+              const alreadyHasEvent = events.some(e => e.start_date === dateStr && (e.type === 'class_day' || e.type === 'holiday_nac' || e.type === 'holiday_mun' || e.type === 'holiday_est' || e.type === 'start_term' || e.type === 'end_term'));
+              if (!alreadyHasEvent) {
                 newEvents.push({
                   title: 'Dia de Aula',
                   start_date: dateStr,
@@ -500,7 +513,7 @@ export function AcademicCalendar() {
     const matchesSearch = event.title.toLowerCase().includes(search.toLowerCase()) ||
                          event.description.toLowerCase().includes(search.toLowerCase());
     const matchesType = typeFilter === 'all' || 
-                       (typeFilter === 'term' ? (event.type === 'start_term' || event.type === 'end_term') : event.type === typeFilter);
+                       (typeFilter === 'term' ? (event.type === 'start_term' || event.type === 'end_term' || event.type === 'class_day') : event.type === typeFilter);
     return matchesYear && matchesSearch && matchesType;
   }).reduce((acc, current) => {
     // Unique by title and date
@@ -518,6 +531,38 @@ export function AcademicCalendar() {
     acc[monthYear].push(event);
     return acc;
   }, {} as Record<string, CalendarEvent[]>);
+
+  // Improved Stats for the filters with deduplication
+  const getEventCount = (type: string) => {
+    const currentYearEvents = events.filter(e => new Date(e.start_date + 'T00:00:00').getFullYear() === currentDate.getFullYear());
+    
+    // Deduplicate by title and date for accurate counting
+    const uniqueEvents = currentYearEvents.reduce((acc, current) => {
+      const x = acc.find(item => item.title === current.title && item.start_date === current.start_date);
+      if (!x) return acc.concat([current]);
+      else return acc;
+    }, [] as CalendarEvent[]);
+
+    if (type === 'all') return uniqueEvents.length;
+    
+    if (type === 'term') {
+      return uniqueEvents.filter(e => e.type === 'start_term' || e.type === 'end_term' || e.type === 'class_day').length;
+    }
+
+    if (type === 'holiday_nac') {
+      return uniqueEvents.filter(e => e.type === 'holiday_nac' || (e.type === 'holiday' && !e.description.toLowerCase().includes('estadual') && !e.description.toLowerCase().includes('municipal'))).length;
+    }
+
+    if (type === 'holiday_est') {
+      return uniqueEvents.filter(e => e.type === 'holiday_est' || (e.type === 'holiday' && e.description.toLowerCase().includes('estadual'))).length;
+    }
+
+    if (type === 'holiday_mun') {
+      return uniqueEvents.filter(e => e.type === 'holiday_mun' || (e.type === 'holiday' && e.description.toLowerCase().includes('municipal'))).length;
+    }
+
+    return uniqueEvents.filter(e => e.type === type).length;
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -616,50 +661,240 @@ export function AcademicCalendar() {
           </div>
       </div>
 
+      {/* Resumo de Feriados e Eventos do Ano */}
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Painel Informativo de {currentDate.getFullYear()}</h3>
+        {isAdmin && (
+          <button 
+            onClick={() => syncHolidays(false)}
+            disabled={isSyncing}
+            className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase hover:underline disabled:opacity-50"
+          >
+            {isSyncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            Sincronizar Dados
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { id: 'holiday_nac', label: 'Feriados Nacionais', count: getEventCount('holiday_nac'), color: 'bg-red-500', text: 'text-red-500', bg: 'bg-red-50', icon: <div className="w-2 h-2 rounded-full bg-red-600" /> },
+          { id: 'holiday_est', label: 'Feriados Estaduais', count: getEventCount('holiday_est'), color: 'bg-indigo-500', text: 'text-indigo-500', bg: 'bg-indigo-50', icon: <div className="w-2 h-2 rounded-full bg-indigo-600" /> },
+          { id: 'holiday_mun', label: 'Feriados Municipais', count: getEventCount('holiday_mun'), color: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-50', icon: <div className="w-2 h-2 rounded-full bg-amber-600" /> },
+          { id: 'class_day', label: 'Aulas Programadas', count: getEventCount('class_day'), color: 'bg-blue-500', text: 'text-blue-500', bg: 'bg-blue-50', icon: <BookOpen size={14} /> },
+        ].map((stat) => (
+          <motion.div 
+            key={stat.id}
+            whileHover={{ y: -4 }}
+            onClick={() => {
+              setTypeFilter(stat.id === 'class_day' ? 'term' : stat.id);
+              setViewMode('list');
+            }}
+            className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-xl hover:shadow-blue-900/5 transition-all group relative overflow-hidden"
+          >
+            <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity", stat.bg)} />
+            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-105 z-10", stat.color)}>
+              <span className="text-base font-black">{stat.count}</span>
+            </div>
+            <div className="flex flex-col z-10">
+              <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none mb-1">{stat.label}</span>
+              <div className="flex items-center gap-2">
+                <span className={cn("text-[9px] font-bold uppercase", stat.text)}>Ver listagem</span>
+              </div>
+            </div>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1">
+              <ChevronRight size={16} className={stat.text} />
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-8">
             <div className="space-y-4">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Pesquisar</label>
+              <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] flex items-center gap-2">
+                <Search size={12} className="text-blue-600" />
+                Busca Rápida
+              </h4>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input 
+                <input
                   type="text"
                   placeholder="Título ou descrição..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-xs font-medium focus:ring-2 focus:ring-blue-600/20 transition-all"
                 />
               </div>
             </div>
 
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Filtrar por Tipo</label>
-              <div className="space-y-2">
-                {[
-                  { id: 'all', label: 'Todos' },
-                  { id: 'holiday_nac', label: 'Feriado Nacional' },
-                  { id: 'holiday_est', label: 'Feriado Estadual' },
-                  { id: 'holiday_mun', label: 'Feriado Municipal' },
-                  { id: 'exam', label: 'Avaliação' },
-                  { id: 'term', label: 'Período Letivo' },
-                  { id: 'class_day', label: 'Dia de Aula' },
-                  { id: 'event', label: 'Evento' }
-                ].map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => setTypeFilter(item.id)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs font-bold transition-all",
-                      typeFilter === item.id ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-50"
-                    )}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">Dashboard</h4>
+                {(typeFilter !== 'all' || search) && (
+                  <button 
+                    onClick={() => {
+                      setTypeFilter('all');
+                      setSearch('');
+                    }}
+                    className="text-[9px] font-black text-blue-600 uppercase hover:underline"
                   >
-                    {item.label}
-                    {typeFilter === item.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                    Resetar
                   </button>
-                ))}
+                )}
+              </div>
+              
+              <div className="space-y-1.5">
+                {[
+                  { id: 'all', label: 'Calendário Global', icon: <Filter size={14} />, desc: 'Visão completa' },
+                  { id: 'holiday_nac', label: 'Feriados Nacionais', icon: <div className="w-2 h-2 rounded-full bg-red-600" />, desc: 'Leis federais' },
+                  { id: 'term', label: 'Cronograma Escolar', icon: <Clock size={14} />, desc: 'Aulas e períodos' },
+                  { id: 'event', label: 'Eventos & Datas', icon: <CalendarIcon size={14} />, desc: 'Atividades extras' }
+                ].map(item => {
+                  const count = getEventCount(item.id);
+                  const isActive = typeFilter === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setTypeFilter(item.id)}
+                      className={cn(
+                        "w-full flex items-center justify-between px-4 py-3 rounded-2xl text-left transition-all group",
+                        isActive 
+                          ? "bg-slate-900 text-white shadow-xl shadow-slate-200" 
+                          : "text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-8 h-8 rounded-xl flex items-center justify-center transition-colors",
+                          isActive ? "bg-white/10 text-white" : "bg-slate-100 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600"
+                        )}>
+                          {item.icon}
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold leading-none mb-1">{item.label}</p>
+                          <p className={cn("text-[9px] font-medium leading-none", isActive ? "text-slate-400" : "text-slate-400")}>{item.desc}</p>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "px-2 py-0.5 rounded-lg text-[9px] font-black",
+                        isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                      )}>
+                        {count}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+
+            {/* Destaque informativo - Próximo Evento */}
+            {(() => {
+              const today = new Date().toISOString().split('T')[0];
+              const nextEvent = events
+                .filter(e => e.start_date >= today && (e.type.includes('holiday') || e.type === 'start_term'))
+                .sort((a,b) => a.start_date.localeCompare(b.start_date))[0];
+              
+              if (!nextEvent) return null;
+
+              return (
+                <div className="bg-amber-50 p-5 rounded-[2rem] border border-amber-100 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-amber-500 rounded-lg flex items-center justify-center text-white">
+                      <Star size={12} fill="currentColor" />
+                    </div>
+                    <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Próximo Marco</span>
+                  </div>
+                  <div>
+                    <h5 className="text-[11px] font-black text-amber-900 leading-none mb-1">{nextEvent.title}</h5>
+                    <p className="text-[10px] font-bold text-amber-600 uppercase">
+                      {new Date(nextEvent.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {typeFilter === 'term' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-blue-600 p-6 rounded-[2rem] text-white space-y-4 shadow-xl shadow-blue-200"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h5 className="text-xs font-black uppercase tracking-widest mb-1">Planilha de Aulas</h5>
+                  <p className="text-[10px] text-blue-100 font-medium leading-relaxed">Gere um documento formatado com todas as datas letivas para impressão.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    const classEvents = events.filter(e => e.type === 'class_day' && new Date(e.start_date).getFullYear() === currentDate.getFullYear())
+                      .sort((a,b) => a.start_date.localeCompare(b.start_date));
+                    
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      const html = `
+                        <html>
+                          <head>
+                            <title>Cronograma de Aulas - ${currentDate.getFullYear()}</title>
+                            <style>
+                              body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
+                              header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+                              h1 { font-size: 18px; margin: 0; text-transform: uppercase; letter-spacing: 2px; }
+                              table { width: 100%; border-collapse: collapse; }
+                              th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+                              td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 11px; }
+                              .footer { margin-top: 30px; font-size: 9px; color: #64748b; text-align: center; }
+                            </style>
+                          </head>
+                          <body>
+                            <header>
+                              <div>
+                                <h1>Cronograma Letivo ${currentDate.getFullYear()}</h1>
+                                <p style="font-size: 10px; margin: 5px 0 0;">Relatório de Aulas Programadas</p>
+                              </div>
+                              <div style="font-size: 10px; text-align: right;">
+                                Emitido em: ${new Date().toLocaleDateString('pt-BR')}<br>
+                                Total de Aulas: ${classEvents.length}
+                              </div>
+                            </header>
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th width="80">Data</th>
+                                  <th width="100">Dia</th>
+                                  <th>Título da Atividade</th>
+                                  <th>Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${classEvents.map(e => `
+                                  <tr>
+                                    <td>${new Date(e.start_date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                                    <td>${new Date(e.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</td>
+                                    <td>${e.title}</td>
+                                    <td>PROGRAMADA</td>
+                                  </tr>
+                                `).join('')}
+                              </tbody>
+                            </table>
+                            <div class="footer">Este documento foi gerado pelo Sistema de Gestão Acadêmica UniLife.</div>
+                          </body>
+                        </html>
+                      `;
+                      printWindow.document.write(html);
+                      printWindow.document.close();
+                      printWindow.print();
+                    }
+                  }}
+                  className="w-full bg-white text-blue-600 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-colors shadow-lg"
+                >
+                  Gerar Impressão
+                </button>
+              </motion.div>
+            )}
           </div>
         </div>
 
