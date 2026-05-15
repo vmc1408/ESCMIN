@@ -59,39 +59,61 @@ export function Navbar() {
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 z-30 print:hidden shrink-0">
-      <div className="flex items-center gap-6 flex-1 min-w-0">
-        <div className="lg:hidden w-10" /> 
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="lg:hidden w-8" />
         
-        <div className="flex flex-col">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm md:text-base font-semibold text-slate-900 truncate">
-              {institution?.name || 'Gestão Escolar'}
-            </h2>
-            
-            <button 
-              onClick={handleRetry}
-              disabled={isRetrying || dbStatus === 'connected'}
-              className={cn(
-                "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
-                dbStatus === 'connected' ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default" :
-                dbStatus === 'error' ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 animate-pulse cursor-pointer" :
-                dbStatus === 'checking' ? "bg-amber-50 text-amber-700 border border-amber-200 animate-pulse cursor-wait" :
-                "bg-slate-50 text-slate-500 border border-slate-200"
-              )}
-              title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
-            >
-              {dbStatus === 'connected' && <CheckCircle2 size={10} />}
-              {dbStatus === 'error' && <WifiOff size={10} />}
-              {dbStatus === 'checking' && <Database size={10} />}
-              {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
-              <span className="hidden xs:inline">
-                {dbStatus === 'connected' ? (
-                  <>Online {latency ? `(${latency}ms)` : ''}</>
-                ) :
-                 dbStatus === 'error' ? (isRetrying ? 'Tentando...' : 'Erro - Tentar Reconc.') :
-                 dbStatus === 'checking' ? 'Conectando...' : 'Não Configurado'}
-              </span>
-            </button>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-200 shadow-sm transition-all hover:shadow-md">
+            {institution?.logo_url ? (
+              <img 
+                src={institution.logo_url} 
+                alt="Logo"
+                className="w-full h-full object-contain p-1"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                <Database size={20} />
+              </div>
+            )}
+          </div>
+          
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 truncate tracking-tight leading-tight">
+                {institution?.name || 'Gestão Escolar'}
+              </h2>
+              
+              <button 
+                onClick={handleRetry}
+                disabled={isRetrying || dbStatus === 'connected'}
+                className={cn(
+                  "hidden xs:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all uppercase tracking-widest",
+                  dbStatus === 'connected' ? "bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-default" :
+                  dbStatus === 'error' ? "bg-red-50 text-red-700 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer shadow-sm" :
+                  dbStatus === 'checking' ? "bg-amber-50 text-amber-700 border border-amber-100 animate-pulse cursor-wait" :
+                  "bg-slate-50 text-slate-500 border border-slate-200"
+                )}
+                title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
+              >
+                {dbStatus === 'connected' && <CheckCircle2 size={10} />}
+                {dbStatus === 'error' && <WifiOff size={10} />}
+                {dbStatus === 'checking' && <Database size={10} />}
+                {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
+                <span>
+                  {dbStatus === 'connected' ? (
+                    <>Online {latency ? `(${latency}ms)` : ''}</>
+                  ) :
+                   dbStatus === 'error' ? (isRetrying ? '...' : 'Reconc.') :
+                   dbStatus === 'checking' ? '...' : 'Off'}
+                </span>
+              </button>
+            </div>
+            {institution?.city && (
+              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest truncate leading-tight mt-0.5">
+                {institution.city}
+              </p>
+            )}
           </div>
         </div>
       </div>

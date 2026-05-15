@@ -50,7 +50,7 @@ export function Layout() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:overflow-visible print:h-auto">
-        <div className="print:hidden">
+        <div className="print:hidden sticky top-0 z-30 bg-white">
           <Navbar />
         </div>
         <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-4 custom-scrollbar print:overflow-visible print:p-0">

@@ -92,9 +92,6 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
   const { profile, logout, canAccess, isAdmin, lock } = useAuth();
 
-  const [logoUrl, setLogoUrl] = useState('');
-  const [instName, setInstName] = useState('ESCMIN');
-  const [imageError, setImageError] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
   // Filter items based on access without modifying original objects
@@ -141,25 +138,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     }
   };
 
-  const fetchInst = async () => {
-    try {
-      const instData = await getInstitutionSettings();
-      if (instData) {
-        if (instData.name) setInstName(instData.name);
-        if (instData.logo_url) {
-          setLogoUrl(instData.logo_url);
-          setImageError(false);
-        } else {
-          setLogoUrl('');
-        }
-      }
-    } catch (e: any) {
-      console.error('Error fetching sidebar info:', e);
-    }
-  };
-
   useEffect(() => {
-    fetchInst();
     checkConnection();
 
     // Regular status check - increased interval to preserve quota
@@ -168,11 +147,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       checkConnection();
     }, 300000); // 5 minutes instead of 30 seconds
 
-    // Listen for updates from Settings page
-    const handleUpdate = () => fetchInst();
-    window.addEventListener('institution-updated', handleUpdate);
     return () => {
-      window.removeEventListener('institution-updated', handleUpdate);
       clearInterval(interval);
     };
   }, []);
@@ -266,43 +241,16 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
   return (
     <aside className="h-full w-64 bg-[#00174b] text-white flex flex-col border-r border-white/5 print:hidden overflow-hidden shrink-0 shadow-xl">
-      <div className="p-4 mb-1 bg-white/5 border-b border-white/5 relative">
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
-            {logoUrl && !imageError ? (
-              <img 
-                src={logoUrl} 
-                alt="Logo"
-                className="w-full h-full object-contain p-1"
-                referrerPolicy="no-referrer"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white/30">
-                <ClassesIcon size={20} />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold tracking-tight leading-tight text-white break-words">
-              {instName}
-            </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
-              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Gestão Administrativa</p>
-            </div>
-          </div>
-
-          {/* Botão de Fechar Mobile */}
-          {onClose && (
-            <button 
-              onClick={onClose}
-              className="lg:hidden p-1 text-white/40 hover:text-white transition-colors"
-            >
-              <XCircle size={20} />
-            </button>
-          )}
-        </div>
+      <div className="p-6 border-b border-white/5 flex items-center justify-between">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80">Menu Principal</h2>
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="lg:hidden p-1 text-white/40 hover:text-white transition-colors"
+          >
+            <XCircle size={20} />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto custom-scrollbar">
