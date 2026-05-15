@@ -125,7 +125,7 @@ export function Reports() {
 
   const fetchAcademicParams = async () => {
     try {
-      const data = await fetchAll('academic_parameters');
+      const data = await fetchAll('academic_parameters', '*', '');
       if (data && data.length > 0) {
         setAcademicParams(data[0] as AcademicParameters);
       }

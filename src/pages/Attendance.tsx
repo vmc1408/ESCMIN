@@ -72,7 +72,7 @@ export function Attendance() {
       const [classesData, subjectsData, paramsData] = await Promise.all([
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchAll('academic_parameters')
+        fetchAll('academic_parameters', '*', '')
       ]);
 
       const normalizedClasses = (classesData || []).map((cls: any) => {

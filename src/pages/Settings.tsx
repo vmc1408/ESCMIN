@@ -383,7 +383,7 @@ export function Settings() {
 
   const fetchAcademicParams = async () => {
     try {
-      const data = await fetchAll('academic_parameters');
+      const data = await fetchAll('academic_parameters', '*', '');
       if (data && data.length > 0) {
         setAcademicParams(data[0] as AcademicParameters);
       }
@@ -403,7 +403,7 @@ export function Settings() {
       
       let docId = academicParams.id;
       if (!docId) {
-        const existing = await fetchAll('academic_parameters');
+        const existing = await fetchAll('academic_parameters', '*', '');
         if (existing && existing.length > 0) docId = existing[0].id;
         else docId = crypto.randomUUID();
       }

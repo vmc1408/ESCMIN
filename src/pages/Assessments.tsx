@@ -125,13 +125,27 @@ export const Assessments: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Deseja excluir esta avaliação?')) {
+  const handleDelete = async (assessment: Assessment) => {
+    if (window.confirm(`Deseja excluir a avaliação "${assessment.title}"? Todas as notas lançadas para esta avaliação também serão excluídas.`)) {
       try {
-        await deleteRecord('assessments', id);
+        // 1. Delete the assessment itself
+        await deleteRecord('assessments', assessment.id);
+        
+        // 2. Delete related grades (linked by class, subject and period/title)
+        const relatedGrades = await fetchQuery('grades', [
+          { field: 'class_id', operator: '==', value: assessment.class_id },
+          { field: 'subject_id', operator: '==', value: assessment.subject_id },
+          { field: 'period', operator: '==', value: assessment.title }
+        ]);
+
+        if (relatedGrades && relatedGrades.length > 0) {
+          await Promise.all(relatedGrades.map(g => deleteRecord('grades', g.id)));
+        }
+
         loadData();
       } catch (error) {
         console.error('Erro ao excluir:', error);
+        alert('Erro ao excluir avaliação e suas notas.');
       }
     }
   };
@@ -230,7 +244,7 @@ export const Assessments: React.FC = () => {
                   <button onClick={() => handleEdit(a)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors">
                     <Edit3 size={18} />
                   </button>
-                  <button onClick={() => handleDelete(a.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
+                  <button onClick={() => handleDelete(a)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
                     <Trash2 size={18} />
                   </button>
                 </div>

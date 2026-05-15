@@ -70,7 +70,7 @@ export function Grades() {
 
   const fetchData = React.useCallback(async () => {
     const [params, classesData, subjectsData] = await Promise.all([
-      fetchAll('academic_parameters'),
+      fetchAll('academic_parameters', '*', ''), // Passing empty string to avoid ordering by created_at
       fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
       fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }])
     ]);
@@ -131,15 +131,17 @@ export function Grades() {
       setStudents((studentsList || []).sort((a, b) => a.name.localeCompare(b.name)));
       setAssessments(assessmentsList as Assessment[] || []);
 
-      const gradesMap: Record<string, GradeRecord> = {};
-      (gradesList || []).forEach(data => {
-        const record = data as GradeRecord;
-        if (typeof record.value === 'number') {
-          record.value = record.value.toString().replace('.', ',');
-        }
-        gradesMap[data.student_id] = record;
-      });
-      setGrades(gradesMap);
+        const gradesListFiltered = (gradesList || []).filter(g => g.value !== null && g.value !== undefined && g.value !== '');
+        
+        const gradesMap: Record<string, GradeRecord> = {};
+        gradesListFiltered.forEach(data => {
+          const record = data as GradeRecord;
+          if (typeof record.value === 'number') {
+            record.value = record.value.toString().replace('.', ',');
+          }
+          gradesMap[data.student_id] = record;
+        });
+        setGrades(gradesMap);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       const errorMsg = error.message || '';
@@ -199,7 +201,7 @@ export function Grades() {
     // Calculate status only if it's a valid number
     let status: GradeRecord['status'] = 'Pendente';
     if (value !== '' && !isNaN(numValue)) {
-      if (numValue >= 5.0) status = 'Aprovado';
+      if (numValue >= (academicParams.approval_grade || 5.0)) status = 'Aprovado';
       else status = 'Reprovado';
     }
 
@@ -273,8 +275,13 @@ export function Grades() {
         
         // Status Determination
         let status: GradeRecord['status'] = 'Pendente';
-        if (hasGrades && avg !== null) {
-          if (avg >= 5.0 && isAttendanceApproved) {
+        
+        // Only determine final status if ALL assessments are launched and there's at least one assessment
+        const hasAssessments = numAssessments > 0;
+        const allGradesLaunched = hasAssessments && studentGrades.length === numAssessments;
+
+        if (allGradesLaunched && avg !== null) {
+          if (avg >= (academicParams.approval_grade || 5.0) && isAttendanceApproved) {
             status = 'Aprovado';
           } else {
             status = 'Reprovado';
@@ -627,11 +634,18 @@ export function Grades() {
           </div>
         ) : selectedClass && selectedSubject ? (
           <div className="space-y-6">
-            <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 flex items-center gap-4">
-              <Info size={16} className="text-indigo-600 shrink-0" />
-              <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
-                Média igual ou superior a <span className="text-emerald-700 font-bold">5,00 para Aprovação</span>. Média inferior a <span className="text-red-700 font-bold">5,00 para Reprovação</span>. Presença mínima de 60% requerida.
-              </p>
+            <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100 flex items-start gap-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
+                <Info size={18} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Critérios Acadêmicos</p>
+                <p className="text-[11px] font-medium text-slate-600 leading-relaxed">
+                  Para aprovação, é necessária uma média igual ou superior a <span className="text-emerald-700 font-bold underline decoration-emerald-200 decoration-2 underline-offset-2">{(academicParams.approval_grade || 5.0).toFixed(2).replace('.', ',')}</span>. 
+                  Resultados inferiores a <span className="text-red-700 font-bold">{(academicParams.approval_grade || 5.0).toFixed(2).replace('.', ',')}</span> configuram reprovação. 
+                  O aluno deve manter uma presença mínima de <span className="text-slate-900 font-bold underline decoration-slate-200 decoration-2 underline-offset-2">{100 - (academicParams.absence_limit_percentage || 40)}%</span> das aulas.
+                </p>
+              </div>
             </div>
 
             <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">

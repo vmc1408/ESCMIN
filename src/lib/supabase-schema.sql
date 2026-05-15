@@ -268,7 +268,8 @@ CREATE TABLE IF NOT EXISTS academic_parameters (
     recovery_grade NUMERIC(4,2) DEFAULT 5.0,
     failure_grade NUMERIC(4,2) DEFAULT 4.9,
     absence_limit_percentage INTEGER DEFAULT 25,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 18. Avaliações
