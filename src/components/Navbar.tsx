@@ -120,17 +120,30 @@ export function Navbar() {
 
       <div className="flex items-center gap-2 md:gap-5">
         {profile?.pin && !isLocked && (
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg group hover:border-indigo-200 transition-colors cursor-pointer" onClick={lock}>
-            <div className="relative">
-              <Clock size={14} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
-              <div 
-                className="absolute inset-0 border-2 border-indigo-500 rounded-full border-t-transparent animate-spin opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ clipPath: 'polygon(50% 50%, -50% -50%, 150% -50%)' }}
-              />
+          <div className="hidden md:flex items-center gap-1">
+            <div 
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg group hover:border-indigo-200 transition-colors cursor-pointer" 
+              onClick={lock}
+              title="Bloquear Sistema"
+            >
+              <div className="relative">
+                <Clock size={14} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <div 
+                  className="absolute inset-0 border-2 border-indigo-500 rounded-full border-t-transparent animate-spin opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ clipPath: 'polygon(50% 50%, -50% -50%, 150% -50%)' }}
+                />
+              </div>
+              <span className="text-[10px] font-black tabular-nums text-slate-500 group-hover:text-indigo-600 transition-colors uppercase tracking-widest whitespace-nowrap">
+                {Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')}
+              </span>
             </div>
-            <span className="text-[10px] font-black tabular-nums text-slate-500 group-hover:text-indigo-600 transition-colors uppercase tracking-widest">
-              {Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')}
-            </span>
+            <button
+              onClick={lock}
+              className="p-1.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg hover:bg-amber-100 transition-all active:scale-90"
+              title="Bloquear Agora"
+            >
+              <Lock size={14} />
+            </button>
           </div>
         )}
 

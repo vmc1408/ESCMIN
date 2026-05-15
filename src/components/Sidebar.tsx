@@ -257,46 +257,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         {renderNavItems(filteredNavItems)}
       </nav>
 
-      <div className="p-4 space-y-4 border-t border-white/5 bg-[#001440]">
-        {profile && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3 px-1">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-400/20 flex items-center justify-center overflow-hidden">
-                {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <UserIcon size={20} className="text-indigo-400" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-white truncate">{profile.full_name || profile.name}</p>
-                <p className="text-[10px] font-medium text-indigo-400/80 uppercase tracking-wider truncate">{profile.role}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {profile.pin && (
-                <button
-                  onClick={lock}
-                  className="flex items-center justify-center gap-2 px-3 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-500 rounded-lg border border-amber-600/20 transition-all text-[10px] font-black uppercase tracking-widest active:scale-95"
-                >
-                  <Lock size={12} />
-                  Bloquear
-                </button>
-              )}
-              <button
-                onClick={logout}
-                className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-lg border border-red-600/20 transition-all text-[10px] font-black uppercase tracking-widest active:scale-95"
-              >
-                <LogoutIcon size={12} />
-                Sair
-              </button>
-            </div>
-          </div>
-        )}
-
+      <div className="p-4 bg-[#001440] border-t border-white/5 space-y-4">
         {/* Database Connection Indicator */}
-        <div className="mx-3 mt-1 px-3 py-2 bg-black/20 rounded-lg border border-white/5 flex items-center justify-between group">
+        <div className="px-3 py-2 bg-black/20 rounded-lg border border-white/5 flex items-center justify-between group">
           <div className="flex items-center gap-2">
             {dbStatus === 'online' ? (
               <div className="relative">
