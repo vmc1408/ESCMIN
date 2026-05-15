@@ -32,24 +32,22 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
     
-    // fetchRecursive internally calls supabase, but let's wrap it in a timeout conceptually if possible
-    // Since fetchRecursive is complex, we just set a large timeout or rely on its internal parts
-    const sbData = await fetchRecursive(collectionName, { select, orderCol, ascending });
+    const sbData = await fetchRecursive(collectionName, { select, orderCol, ascending, timeoutMs: 90000 });
     return sbData || [];
   } catch (err: any) {
     if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
-      console.warn(`[Supabase] Erro de rede ou timeout ao listar em ${collectionName}`);
+      console.warn(`[Supabase] Timeout/Rede ao listar ${collectionName}.`);
       return [];
     }
     console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err.message);
-    return []; // Return empty instead of throwing to prevent app crash
+    return [];
   }
 };
 
 /**
  * Utility to fetch a single document from Supabase
  */
-export const fetchById = async (collectionName: string, id: string) => {
+export const fetchById = async (collectionName: string, id: string, timeoutMs = 20000) => {
   if (!id) return null;
 
   try {
@@ -60,7 +58,8 @@ export const fetchById = async (collectionName: string, id: string) => {
         .from(collectionName)
         .select('*')
         .eq('id', id)
-        .maybeSingle()
+        .maybeSingle(),
+      timeoutMs
     );
 
     const data = result?.data;
@@ -70,7 +69,7 @@ export const fetchById = async (collectionName: string, id: string) => {
     return data;
   } catch (err: any) {
     if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
-      console.warn(`[Supabase] Erro de rede ou timeout ao buscar em ${collectionName} ID ${id}`);
+      console.warn(`[Supabase] Timeout/Rede ao buscar ${collectionName} ID ${id}.`);
       return null;
     }
     console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err.message);
@@ -153,67 +152,78 @@ export const fetchCount = async (collectionName: string, status?: string) => {
 };
 
 /**
- * Save data using Supabase Upsert
+ * Wait utility
  */
-export const saveData = async (collectionName: string, id: string | undefined, data: any) => {
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Save data using Supabase Upsert with Retry
+ */
+export const saveData = async (collectionName: string, id: string | undefined, data: any, timeoutMs = 30000) => {
   const finalId = id || data.id || crypto.randomUUID();
   let payload = { ...data, id: finalId };
 
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
     
-    // Use a loop to handle multiple potentially missing columns recursively
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 5;
     
     while (attempts < maxAttempts) {
-      const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payload));
-      
-      if (result?.error) {
-        // Check if it's a missing column error
-        const errorVal = result.error;
-        const errorMsg = (typeof errorVal === 'object' && errorVal !== null) 
-          ? (errorVal.message || String(errorVal)) 
-          : String(errorVal);
+      try {
+        const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payload), timeoutMs);
+        
+        if (result?.error) {
+          const errorVal = result.error;
+          const errorMsg = (typeof errorVal === 'object' && errorVal !== null) 
+            ? (errorVal.message || String(errorVal)) 
+            : String(errorVal);
 
-        const isMissingCol = errorMsg.includes('column') && 
-                             (errorMsg.includes('not found') || 
-                              errorMsg.includes('schema cache') || 
-                              errorMsg.includes('does not exist') ||
-                              errorMsg.includes('missing'));
+          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT')) {
+            console.warn(`[Supabase Retry] Timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
+            attempts++;
+            await wait(1000 * attempts);
+            continue;
+          }
 
-        if (isMissingCol) {
-          // Robust regex to find column name in common Supabase/PostgREST error messages
-          const match = errorMsg.match(/['"](.+?)['"] column/) || 
-                        errorMsg.match(/column ['"](.+?)['"]/) ||
-                        errorMsg.match(/column (.+?) of/) ||
-                        errorMsg.match(/column (.+?) not found/) ||
-                        errorMsg.match(/property ['"](.+?)['"] not found/);
-          
+          // Missing column fallback
+          const isMissingCol = errorMsg.includes('column') && 
+                               (errorMsg.includes('not found') || 
+                                errorMsg.includes('schema cache') || 
+                                errorMsg.includes('does not exist') ||
+                                errorMsg.includes('missing'));
+
+          if (isMissingCol) {
+            const match = errorMsg.match(/['"](.+?)['"] column/) || 
+                          errorMsg.match(/column ['"](.+?)['"]/) ||
+                          errorMsg.match(/column (.+?) of/) ||
+                          errorMsg.match(/column (.+?) not found/) ||
+                          errorMsg.match(/property ['"](.+?)['"] not found/);
+            
             if (match && match[1]) {
               const missingCol = match[1].replace(/['"]/g, '').trim();
-              
-              console.warn(`[Supabase Fallback] Removendo coluna inexistente "${missingCol}" da tabela "${collectionName}" e tentando novamente (Tentativa ${attempts + 1}).`);
-              
+              console.warn(`[Supabase Fallback] Removendo coluna inexistente "${missingCol}" de "${collectionName}".`);
               delete (payload as any)[missingCol];
-              attempts++;
-              continue; // Try again with cleaned payload
+              continue; // Internal retry same attempt count essentially
             }
+          }
+          
+          throw errorVal;
         }
         
-        console.error(`[saveData] Erro real em "${collectionName}" (Tentativa ${attempts + 1}):`, errorMsg);
-        // If not a missing column error or we couldn't identify the column, throw
-        throw errorVal;
+        return finalId;
+      } catch (innerErr: any) {
+        if (innerErr.message?.includes('TIMEOUT')) {
+          attempts++;
+          await wait(1000 * attempts);
+          continue;
+        }
+        throw innerErr;
       }
-      
-      return finalId;
     }
 
-    throw new Error(`Excedeu o limite de tentativas de fallback para a tabela ${collectionName}.`);
+    throw new Error(`Falha ao salvar dados em ${collectionName} após várias tentativas.`);
   } catch (err: any) {
-    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
-       throw new Error(`Tempo esgotado ao salvar em ${collectionName}.`);
-    }
     console.error(`[saveData] Erro fatal em "${collectionName}":`, err.message);
     throw err;
   }
@@ -222,7 +232,7 @@ export const saveData = async (collectionName: string, id: string | undefined, d
 /**
  * Save multiple records using Supabase Upsert
  */
-export const saveBatch = async (collectionName: string, items: any[], timeoutMs = 60000) => {
+export const saveBatch = async (collectionName: string, items: any[], timeoutMs = 30000) => {
   if (!items || items.length === 0) return [];
 
   const payloads = items.map(item => ({

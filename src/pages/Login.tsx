@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured, fetchWithTimeout } from '../lib/supabase';
-import { saveData } from '../lib/database';
+import { saveData, deleteData, fetchCount, getInstitutionSettings } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -33,6 +33,8 @@ export function Login() {
   const [needsBootstrap, setNeedsBootstrap] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [institution, setInstitution] = useState<any>(null);
+  const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0 });
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,13 +58,31 @@ export function Login() {
     }
   }, [stateError, navigate, location.pathname]);
 
-  // Check for first time setup
+  // Check for first time setup and load info
   useEffect(() => {
     const checkInitialization = async () => {
       try {
         if (!isSupabaseConfigured) return;
-        const { data, error: sbErr } = await supabase.from('institution_settings').select('id').limit(1).maybeSingle();
-        setNeedsBootstrap(!data && !sbErr);
+        
+        const [settings, cCount, sCount, subCount] = await Promise.all([
+          getInstitutionSettings(),
+          fetchCount('classes'),
+          fetchCount('students'),
+          fetchCount('subjects')
+        ]);
+
+        if (settings) {
+          setInstitution(settings);
+          setNeedsBootstrap(false);
+        } else {
+          setNeedsBootstrap(true);
+        }
+
+        setStats({ 
+          classes: cCount || 0, 
+          students: sCount || 0,
+          subjects: subCount || 0
+        });
       } catch (err) {
         console.error("Init check error:", err);
       }
@@ -94,8 +114,18 @@ export function Login() {
     e.preventDefault();
     if (!email || !password || !confirmPassword) return;
 
+    if (!email.includes('@') || !email.includes('.')) {
+      setError("Por favor, informe um e-mail válido.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("As senhas não coincidem.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
 
@@ -105,25 +135,118 @@ export function Login() {
     try {
       const emailLower = email.toLowerCase().trim();
       
-      // Check authorization
-      const [preRegRes, existingUserRes] = await Promise.all([
+      // Verifica se o e-mail está pré-autorizado ou se já existe no banco de perfil
+      const [preRegRes, existingUserRes, countRes] = await Promise.all([
         supabase.from('email_registry').select('*').ilike('email', emailLower).maybeSingle(),
-        supabase.from('users').select('*').ilike('email', emailLower).maybeSingle()
+        supabase.from('users').select('*').ilike('email', emailLower).maybeSingle(),
+        supabase.from('email_registry').select('id', { count: 'exact', head: true })
       ]);
       
-      if (!preRegRes.data && !existingUserRes.data) {
-        throw new Error("Este e-mail não está autorizado para primeiro acesso. Fale com a secretaria.");
+      const isSystemEmpty = (countRes.count === 0);
+      
+      // Se o perfil já existir no banco de dados 'users', verificamos se é um pré-cadastro
+      if (existingUserRes.data) {
+        // Um usuário é considerado ativo se is_pre_registered for explicitamente false
+        // OU se o ID for um UUID (o que indica que já passou pelo Auth do Supabase)
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingUserRes.data.id);
+        const isActuallyActive = existingUserRes.data.is_pre_registered === false || (isUuid && existingUserRes.data.is_pre_registered !== true);
+        
+        if (isActuallyActive) {
+          throw new Error("Este e-mail já possui uma conta ativa. Por favor, use a tela de login.");
+        }
+        // Se is_pre_registered === true ou ID for e-mail, permitimos continuar para que o usuário crie sua senha
       }
 
-      const { error: sbErr } = await supabase.auth.signUp({
+      // Se o sistema NÃO estiver vazio e o e-mail não estiver pré-autorizado
+      if (!isSystemEmpty && !preRegRes.data) {
+        throw new Error("Este e-mail não está autorizado para primeiro acesso. Entre em contato com a secretaria acadêmica.");
+      }
+
+      // Dados para o perfil
+      const userData = preRegRes.data || existingUserRes.data || {
+        name: emailLower.split('@')[0],
+        role: isSystemEmpty ? 'admin' : 'secretario' // Default para primeiro é admin, senão secretario/aluno
+      };
+
+      // Tenta registrar no Supabase Auth
+      const { data: authData, error: sbErr } = await supabase.auth.signUp({
         email: emailLower,
         password,
-        options: { data: { full_name: preRegRes.data?.name || emailLower.split('@')[0] } }
+        options: { 
+          data: { 
+            full_name: userData.name
+          } 
+        }
       });
-      if (sbErr) throw sbErr;
+
+      let finalUserId: string | null = null;
+
+      if (sbErr) {
+        // Se já estiver registrado no Auth mas verificamos antes que NÃO tem perfil no banco de dados 'users'
+        if (sbErr.message.includes('already registered')) {
+          // Tentamos fazer login para obter o ID do usuário e criar o perfil faltante
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+            email: emailLower,
+            password
+          });
+          
+          if (signInErr) {
+             throw new Error("Este e-mail já está registrado em nosso sistema de autenticação, mas sua senha parece incorreta. Tente recuperá-la.");
+          }
+          finalUserId = signInData.user?.id || null;
+        } else {
+          throw sbErr;
+        }
+      } else {
+        finalUserId = authData.user?.id || null;
+      }
+      
+      if (finalUserId) {
+        // Se existia um perfil pré-criado com o ID sendo o e-mail, removemos para evitar duplicidade
+        if (existingUserRes.data && existingUserRes.data.id === emailLower) {
+          try {
+            await deleteData('users', emailLower);
+          } catch (delErr) {
+            console.warn("Aviso: Falha ao limpar registro temporário, mas prosseguindo:", delErr);
+          }
+        }
+
+        // Criação do perfil do usuário na tabela 'users'
+        await saveData('users', finalUserId, {
+          id: finalUserId,
+          email: emailLower,
+          name: userData.name,
+          role: userData.role,
+          status: 'active',
+          is_pre_registered: false, // Agora é um usuário real
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, 120000); // 2 minutes timeout for this critical operation
+        
+        // Se for o primeiro usuário, garante o registro na pré-autorização também
+        if (isSystemEmpty) {
+          await saveData('email_registry', emailLower, {
+            id: emailLower,
+            email: emailLower,
+            role: 'admin',
+            status: 'active',
+            registered_at: new Date().toISOString()
+          }, 60000);
+        }
+        
+        // Se não houver sessão ativa (e-mail de confirmação pendente), informa o usuário
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setError("Conta ativada! Verifique seu e-mail para confirmar o cadastro antes de entrar.");
+          setIsRegistering(false);
+        } else {
+          // Força refresh do contexto se já logou
+          await refreshProfile();
+        }
+      }
       
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Ocorreu um erro ao tentar registrar. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -169,6 +292,29 @@ export function Login() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError("Por favor, digite seu e-mail.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setResetSent(false);
+
+    try {
+      const { error: sbErr } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+        redirectTo: `${window.location.origin}/#/?type=recovery`,
+      });
+      if (sbErr) throw sbErr;
+      setResetSent(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row overflow-hidden font-sans">
       {/* Left side: Information (Decorative/Branding) */}
@@ -179,12 +325,21 @@ export function Login() {
         
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-16">
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-xl">
-              <Shield className="text-indigo-900" size={28} />
+            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-xl overflow-hidden border border-white/10">
+              {institution?.logo_url ? (
+                <img 
+                  src={institution.logo_url} 
+                  alt="Logo" 
+                  className="w-full h-full object-contain p-1"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Shield className="text-indigo-900" size={28} />
+              )}
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">Diocese de Guarulhos</p>
-              <h1 className="text-2xl font-bold text-white tracking-tight leading-none">EDM Portal</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">{institution?.city || 'Diocese de Guarulhos'}</p>
+              <h1 className="text-2xl font-bold text-white tracking-tight leading-none">{institution?.name || 'EDM Portal'}</h1>
             </div>
           </div>
 
@@ -218,15 +373,15 @@ export function Login() {
                 Formação para o <span className="text-amber-500">Serviço</span> e Missão
               </h2>
               <p className="text-white/60 font-medium text-lg max-w-md">
-                Espaço de crescimento teológico e pastoral para leigos e leigas da Diocese de Guarulhos.
+                Espaço de crescimento teológico e pastoral para leigos e leigas. {institution?.city ? `Atuando em ${institution.city}.` : ''}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8">
-              <InfoFeature icon={<GraduationCap size={18} />} title="Cursos" text="+20 cursos ativos" />
-              <InfoFeature icon={<Users size={18} />} title="Alunos" text="+1200 formados" />
-              <InfoFeature icon={<BookOpen size={18} />} title="Material" text="100% digital" />
-              <InfoFeature icon={<Calendar size={18} />} title="Encontros" text="Aulas presenciais" />
+              <InfoFeature icon={<GraduationCap size={18} />} title="Disciplinas" text={`${stats.subjects > 0 ? stats.subjects : '---'} disciplinas`} />
+              <InfoFeature icon={<Users size={18} />} title="Alunos" text={`Mais de ${stats.students} alunos`} />
+              <InfoFeature icon={<Shield size={18} />} title="Sede" text="Sede Própria" />
+              <InfoFeature icon={<BookOpen size={18} />} title="Ensino" text="Formação Integral" />
             </div>
           </motion.div>
         </div>
@@ -332,7 +487,7 @@ export function Login() {
                 )}
               </AnimatePresence>
 
-              <form onSubmit={isForgotPassword ? () => {} : isRegistering ? handleRegister : handleLogin} className="space-y-4">
+              <form onSubmit={isForgotPassword ? handleForgotPassword : (isRegistering ? handleRegister : handleLogin)} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail Institucional</label>
                   <div className="relative group">
@@ -426,13 +581,26 @@ export function Login() {
           {user && !profile && !authLoading && (
             <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col items-center gap-3">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sessão Ativa: {user.email}</p>
-              <p className="text-[10px] font-medium text-red-500 uppercase text-center">Usuário sem perfil habilitado</p>
-              <button 
-                onClick={() => logout()}
-                className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-100"
-              >
-                Encerrar Sessão e Tentar outro
-              </button>
+              <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl mb-2">
+                <p className="text-[10px] font-bold text-amber-700 uppercase mb-1">Perfil em Sincronização</p>
+                <p className="text-[11px] text-amber-600 leading-tight"> Detectamos seu login, mas seu perfil ainda não foi carregado. Isso pode ocorrer no primeiro acesso ou devido a instabilidades na rede.</p>
+              </div>
+              <div className="flex gap-2 w-full">
+                <button 
+                  onClick={() => refreshProfile()}
+                  disabled={loading}
+                  className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle size={14} />}
+                  Tentar Sincronizar
+                </button>
+                <button 
+                  onClick={() => logout()}
+                  className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-100"
+                >
+                  Sair
+                </button>
+              </div>
             </div>
           )}
         </motion.div>

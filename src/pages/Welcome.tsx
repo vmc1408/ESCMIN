@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchCount, fetchAll, getInstitutionSettings } from '../lib/database';
 import { 
   Shield, 
   BookOpen, 
@@ -26,6 +27,40 @@ export function Welcome() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const isLoggedIn = user && profile;
+  
+  const [institution, setInstitution] = useState<any>(null);
+  const [counts, setCounts] = useState({
+    students: 0,
+    classes: 0,
+    parishes: 0,
+    subjects: 0
+  });
+
+  useEffect(() => {
+    async function loadCounts() {
+      try {
+        const [settings, sCount, cCount, pCount, subCount] = await Promise.all([
+          getInstitutionSettings(),
+          fetchCount('students'),
+          fetchCount('classes'),
+          fetchCount('parishes'),
+          fetchCount('subjects')
+        ]);
+        
+        if (settings) setInstitution(settings);
+        
+        setCounts({
+          students: sCount || 0,
+          classes: cCount || 0,
+          parishes: pCount || 0,
+          subjects: subCount || 0
+        });
+      } catch (e) {
+        console.warn('Error loading welcome stats:', e);
+      }
+    }
+    loadCounts();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#fcfbf9] text-[#00174b] overflow-x-hidden font-sans">
@@ -33,12 +68,21 @@ export function Welcome() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#00174b]/10 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#00174b] rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
-              <Shield className="text-white" size={28} />
+            <div className="w-12 h-12 bg-[#00174b] rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 overflow-hidden border border-[#00174b]/10">
+              {institution?.logo_url ? (
+                <img 
+                  src={institution.logo_url} 
+                  alt="Logo" 
+                  className="w-full h-full object-contain p-2"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Shield className="text-white" size={28} />
+              )}
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b4941d]">Diocese de Guarulhos</span>
-              <span className="text-xl font-black tracking-tight leading-none">Escola Diocesana de Ministérios</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b4941d]">{institution?.city || 'Diocese de Guarulhos'}</span>
+              <span className="text-xl font-black tracking-tight leading-none">{institution?.name || 'Escola Diocesana de Ministérios'}</span>
             </div>
           </div>
           
@@ -80,7 +124,7 @@ export function Welcome() {
               Formando <span className="text-[#b4941d]">Discípulos</span> para o Serviço da Igreja
             </h1>
             <p className="text-lg text-slate-500 font-medium leading-relaxed mb-12 max-w-lg">
-              A Escola Diocesana de Ministérios (EDM) tem como missão a formação integral dos leigos e leigas, capacitando-os para os diversos ministérios e serviços na vida da nossa Diocese.
+              A {institution?.name || 'Escola Diocesana de Ministérios'} tem como missão a formação integral dos leigos e leigas, capacitando-os para os diversos ministérios e serviços na vida da nossa Igreja.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-5">
@@ -116,8 +160,8 @@ export function Welcome() {
                       <BookOpen size={32} />
                     </div>
                     <div className="space-y-2">
-                       <h3 className="text-2xl font-black">Grade Curricular 2024</h3>
-                       <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Matrículas Abertas até Março</p>
+                       <h3 className="text-2xl font-black">Grade Curricular {new Date().getFullYear()}</h3>
+                       <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Matrículas Abertas</p>
                     </div>
                  </div>
 
@@ -125,9 +169,9 @@ export function Welcome() {
                     <div className="p-4 bg-slate-50/80 backdrop-blur-sm rounded-2xl border border-white">
                        <div className="flex items-center justify-between mb-2">
                           <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Próxima Aula</span>
-                          <span className="text-[10px] font-black text-[#b4941d]">Sexta, 19:30</span>
+                          <span className="text-[10px] font-black text-[#b4941d]">Em breve</span>
                        </div>
-                       <p className="font-bold text-sm">História da Igreja e Patrística</p>
+                       <p className="font-bold text-sm">Consulte seu cronograma no portal</p>
                     </div>
                     <div className="p-4 bg-slate-50/80 backdrop-blur-sm rounded-2xl border border-white">
                        <div className="flex items-center justify-between mb-2">
@@ -147,20 +191,20 @@ export function Welcome() {
       <section className="bg-white py-16 border-y border-slate-100">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="text-center lg:border-r border-slate-100 last:border-0 p-4">
-             <p className="text-4xl font-black text-[#00174b] mb-1">20+</p>
-             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Cursos Ativos</p>
+             <p className="text-4xl font-black text-[#00174b] mb-1">{counts.subjects === 0 ? '---' : counts.subjects}</p>
+             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Disciplinas</p>
           </div>
           <div className="text-center lg:border-r border-slate-100 last:border-0 p-4">
-             <p className="text-4xl font-black text-[#00174b] mb-1">1.2k</p>
-             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Alunos Formados</p>
+             <p className="text-4xl font-black text-[#00174b] mb-1">{counts.students === 0 ? '---' : `+${counts.students}`}</p>
+             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Alunos</p>
           </div>
           <div className="text-center lg:border-r border-slate-100 last:border-0 p-4">
-             <p className="text-4xl font-black text-[#00174b] mb-1">45</p>
-             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Paróquias</p>
+             <p className="text-4xl font-black text-[#00174b] mb-1">Ensino</p>
+             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Formação Integral</p>
           </div>
           <div className="text-center lg:border-r border-slate-100 last:border-0 p-4">
-             <p className="text-4xl font-black text-[#00174b] mb-1">100%</p>
-             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Presencial</p>
+             <p className="text-4xl font-black text-[#00174b] mb-1">Sede</p>
+             <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Própria</p>
           </div>
         </div>
       </section>
@@ -170,9 +214,9 @@ export function Welcome() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-16">
             <div className="lg:w-1/3">
-               <h2 className="text-4xl font-black mb-6 leading-tight uppercase">A Escola de Ministérios</h2>
+               <h2 className="text-4xl font-black mb-6 leading-tight uppercase">A {institution?.name || 'Escola de Ministérios'}</h2>
                <p className="text-slate-500 font-medium leading-relaxed">
-                 A EDM é o espaço privilegiado de formação da Diocese de Guarulhos. Aqui os fiéis aprofundam sua fé e se preparam tecnicamente e espiritualmente para servir às comunidades em diversos âmbitos pastorais.
+                 A nossa instituição é o espaço privilegiado de formação. Aqui os fiéis aprofundam sua fé e se preparam tecnicamente e espiritualmente para servir às comunidades em diversos âmbitos pastorais.
                </p>
             </div>
             
@@ -300,10 +344,19 @@ export function Welcome() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 text-center md:text-left">
             <div className="space-y-6 flex flex-col items-center md:items-start text-center md:text-left">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#00174b]">
-                  <Shield size={24} />
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#00174b] overflow-hidden">
+                  {institution?.logo_url ? (
+                    <img 
+                      src={institution.logo_url} 
+                      alt="Logo" 
+                      className="w-full h-full object-contain p-1"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <Shield size={24} />
+                  )}
                 </div>
-                <span className="text-xl font-black leading-none uppercase">Portal EDM</span>
+                <span className="text-xl font-black leading-none uppercase">Portal {institution?.name || 'EDM'}</span>
               </div>
               <p className="text-blue-200/60 text-sm leading-relaxed font-medium">
                 Escola Diocesana de Ministérios da Diocese de Guarulhos. Formação para o serviço e missão.

@@ -244,6 +244,17 @@ export function Reports() {
       const prevMonthRev = months.find(m => isSameMonth(m.date, lastMonth))?.amount || 0;
       const growth = prevMonthRev > 0 ? ((curMonthRev - prevMonthRev) / prevMonthRev) * 100 : 0;
 
+      // Real Student Growth
+      const studentsNow = sData.filter(s => {
+        const d = parseISO(s.created_at);
+        return isSameMonth(d, now);
+      }).length;
+      const studentsPrev = sData.filter(s => {
+        const d = parseISO(s.created_at);
+        return isSameMonth(d, lastMonth);
+      }).length;
+      const studentGrowthRate = studentsPrev > 0 ? ((studentsNow - studentsPrev) / studentsPrev) * 100 : 0;
+
       const activeClasses = cData.filter(c => c.status === 'Ativo');
       const studentsInActiveClasses = sData.filter(s => 
         (s.status === 'Ativo' || !s.status) && 
@@ -264,7 +275,7 @@ export function Reports() {
         totalPixAmount: totalAmount,
         matchedPix: matchedCount,
         revenueGrowth: Number(growth.toFixed(1)),
-        studentGrowth: 5.2,
+        studentGrowth: Number(studentGrowthRate.toFixed(1)),
         occupancyRate: Math.min(occupancyRate, 100),
         pixCount: pData.length,
         efficiency: pData.length > 0 ? Math.round((matchedCount / pData.length) * 100) : 0
@@ -649,23 +660,23 @@ export function Reports() {
       });
     }
 
-    const sortOrder = ['teo-26', 'teo-25', 'teo-24', 'teo-23', 'ds-2026'];
-    
+    // Sort dynamically by student count (descending) and name (alphabetical)
     return [...classStats].sort((a, b) => {
-      const indexA = sortOrder.findIndex(pattern => 
-        a.code?.toLowerCase().includes(pattern.toLowerCase()) || 
-        a.name?.toLowerCase().includes(pattern.toLowerCase())
-      );
-      const indexB = sortOrder.findIndex(pattern => 
-        b.code?.toLowerCase().includes(pattern.toLowerCase()) || 
-        b.name?.toLowerCase().includes(pattern.toLowerCase())
-      );
+      // First sort by unallocated status (move to end)
+      const isUnallocatedA = a.id === 'unallocated';
+      const isUnallocatedB = b.id === 'unallocated';
+      if (isUnallocatedA && !isUnallocatedB) return 1;
+      if (!isUnallocatedA && isUnallocatedB) return -1;
 
-      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-      if (indexA !== -1) return -1;
-      if (indexB !== -1) return 1;
+      // Then sort by student count (descending)
+      if (b.count !== a.count) {
+        return b.count - a.count;
+      }
       
-      return b.count - a.count;
+      // Finally by name/code
+      const nameA = (a.code || a.name || '').toLowerCase();
+      const nameB = (b.code || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
     });
   }, [classes, students, stats.activeStudents]);
 
@@ -794,7 +805,7 @@ export function Reports() {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Receita Acumulada</p>
             <p className="mt-4 text-[10px] text-slate-500 font-bold flex items-center gap-2">
               <Target size={12} className="text-emerald-500" />
-              Meta Mensal: {formatCurrency(50000)}
+              Projeção de Arrecadação: {formatCurrency(stats.activeStudents * 100)}
             </p>
           </div>
 
@@ -867,7 +878,7 @@ export function Reports() {
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }}
-                    tickFormatter={(value) => `R$ ${value/1000}k`}
+                    tickFormatter={(value) => value >= 1000 ? `R$ ${(value/1000).toFixed(1)}k` : `R$ ${value}`}
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '15px' }}

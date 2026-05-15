@@ -145,7 +145,7 @@ function AppContent() {
       <ImportProvider>
         <Router>
           <Routes>
-            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout />

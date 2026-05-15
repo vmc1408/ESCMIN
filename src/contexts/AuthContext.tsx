@@ -34,32 +34,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Usuário Master Permanente para ignorar o sistema de login
-  const [user, setUser] = useState<AppUser | null>({
-    uid: 'master-admin',
-    email: 'admin@sistema.com',
-    displayName: 'Administrador Master'
-  });
-  
-  const [profile, setProfile] = useState<UserProfile | null>(() => {
-    const saved = localStorage.getItem('master_profile');
-    if (saved) return JSON.parse(saved);
-    return {
-      id: 'master-admin',
-      email: 'admin@sistema.com',
-      name: 'Administrador Master',
-      role: 'admin',
-      status: 'active',
-      updated_at: new Date().toISOString()
-    } as any;
-  });
-
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [connError, setConnError] = useState<string | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
 
+  // Monitora status do banco de dados
   useEffect(() => {
     const handleStatusChange = (e: any) => {
       setIsConnected(e.detail.connected);
@@ -71,39 +54,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('supabase-status-change', handleStatusChange);
   }, []);
 
-  useEffect(() => {
-    if (profile) {
-      localStorage.setItem('master_profile', JSON.stringify(profile));
+  // Busca perfil do usuário do banco de dados
+  const refreshProfile = useCallback(async (uid?: string, isRetry = false) => {
+    const targetUid = uid || user?.uid;
+    if (!targetUid) {
+      setProfile(null);
+      setLoading(false);
+      return;
     }
-  }, [profile]);
 
-  const refreshProfile = useCallback(async () => {
-    // No modo Master, tentamos buscar do banco se existir, senão mantemos o local
     try {
-      const data = await fetchById('users', 'master-admin');
+      // Primeira tentativa rápida (5s) para não travar a UI
+      const data = await fetchById('users', targetUid, isRetry ? 15000 : 5000); 
+      
       if (data) {
         setProfile(data as UserProfile);
+        setLoading(false);
+      } else if (!isRetry) {
+        console.warn("[AuthContext] Perfil não encontrado na primeira tentativa. Tentando em segundo plano...");
+        // Se não encontrou, libera a UI (setLoading false) mas continua tentando em background
+        setLoading(false); 
+        
+        const retryData = await fetchById('users', targetUid, 15000);
+        if (retryData) {
+          setProfile(retryData as UserProfile);
+        } else {
+          console.warn("[AuthContext] Perfil realmente não encontrado.");
+          setProfile(null);
+        }
       } else {
-        // Tenta criar o perfil no banco para que outras partes do sistema funcionem (ex: Logs, Auditoria)
-        const initialProfile = {
-          id: 'master-admin',
-          email: 'admin@sistema.com',
-          name: 'Administrador Master',
-          role: 'admin',
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        await saveData('users', 'master-admin', initialProfile);
-        setProfile(initialProfile as any);
+        setProfile(null);
+        setLoading(false);
       }
     } catch (e) {
-      console.log("[AuthContext] Usando perfil local (Master) - Erro banco:", e);
+      console.error("[AuthContext] Erro ao buscar perfil:", e);
+      setLoading(false);
     }
-  }, []);
+  }, [user?.uid]);
 
+  // Sincroniza estado de autenticação do Supabase
   useEffect(() => {
-    refreshProfile();
+    let mounted = true;
+
+    // 1. Pega sessão inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
+      if (session?.user) {
+        setUser({
+          uid: session.user.id,
+          email: session.user.email || null,
+          displayName: session.user.user_metadata?.full_name || null
+        });
+        refreshProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    // 2. Escuta mudanças na autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      if (session?.user) {
+        setUser({
+          uid: session.user.id,
+          email: session.user.email || null,
+          displayName: session.user.user_metadata?.full_name || null
+        });
+        refreshProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [refreshProfile]);
 
   const unlock = useCallback((pin: string): boolean => {
@@ -115,54 +147,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [profile]);
 
   const switchUser = useCallback((newProfile: UserProfile) => {
-    setUser({
-      uid: newProfile.id,
-      email: newProfile.email,
-      displayName: newProfile.name
-    });
+    // Apenas muda o contexto visual/de permissão atual se o admin quiser "simular" outro usuário
+    // ou se o sistema permitir troca rápida. Para autenticação real, usamos switch real.
     setProfile(newProfile);
-    localStorage.setItem('master_profile', JSON.stringify(newProfile));
-    
-    // Recarrega a página ou redireciona para o dashboard para aplicar novos contextos
     window.location.hash = '#/';
   }, []);
 
-  const resetToMaster = useCallback(() => {
-    const master = {
-      id: 'master-admin',
-      email: 'admin@sistema.com',
-      name: 'Administrador Master',
-      role: 'admin',
-      status: 'active',
-      updated_at: new Date().toISOString()
-    } as any;
-    
-    setUser({
-      uid: 'master-admin',
-      email: 'admin@sistema.com',
-      displayName: 'Administrador Master'
-    });
-    setProfile(master);
-    localStorage.setItem('master_profile', JSON.stringify(master));
-    window.location.hash = '#/';
-  }, []);
+  const resetToMaster = useCallback(async () => {
+    // Busca o perfil real do usuário autenticado para resetar qualquer switch visual
+    if (user) {
+      await refreshProfile(user.uid);
+      window.location.hash = '#/';
+    }
+  }, [user, refreshProfile]);
 
   const logout = useCallback(async () => {
-    // Logout desativado por solicitação do usuário
-    console.log("Logout chamado, mas ignorado.");
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const isAdmin = profile?.role === 'admin';
   const isDirector = profile?.role === 'diretor' || isAdmin;
   const isSecretary = profile?.role === 'secretario' || isDirector;
 
-  const canAccess = useCallback((path: string): boolean => true, []);
+  const canAccess = useCallback((path: string): boolean => {
+    if (!profile) return false;
+    if (profile.role === 'admin') return true;
+    
+    // Lista de módulos restritos para não-admins
+    const adminOnlyModules = ['/import', '/settings', '/users', '/diocese'];
+    if (adminOnlyModules.some(module => path.startsWith(module))) {
+      return false;
+    }
+
+    return true;
+  }, [profile]);
 
   const contextValue = React.useMemo(() => ({
     user,
     userAuth: user,
     profile,
-    loading: false,
+    loading,
     isAdmin,
     isDirector,
     isSecretary,

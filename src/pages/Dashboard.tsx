@@ -150,24 +150,21 @@ export function Dashboard() {
       });
     }
 
-    // Sort as requested: teo-26, 25, 24, 23 e ds-2026
-    const sortOrder = ['teo-26', 'teo-25', 'teo-24', 'teo-23', 'ds-2026'];
-    
+    // Sort dynamically by student count (descending) and name (alphabetical)
     const sorted = [...classStats].sort((a, b) => {
-      const indexA = sortOrder.findIndex(pattern => 
-        a.code?.toLowerCase().includes(pattern.toLowerCase()) || 
-        a.name?.toLowerCase().includes(pattern.toLowerCase())
-      );
-      const indexB = sortOrder.findIndex(pattern => 
-        b.code?.toLowerCase().includes(pattern.toLowerCase()) || 
-        b.name?.toLowerCase().includes(pattern.toLowerCase())
-      );
+      // First sort by unallocated status (move to end)
+      if (a.unallocated && !b.unallocated) return 1;
+      if (!a.unallocated && b.unallocated) return -1;
 
-      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-      if (indexA !== -1) return -1;
-      if (indexB !== -1) return 1;
+      // Then sort by student count (descending)
+      if (b.count !== a.count) {
+        return b.count - a.count;
+      }
       
-      return b.count - a.count;
+      // Finally by name/code
+      const nameA = (a.code || a.name || '').toLowerCase();
+      const nameB = (b.code || b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
     });
 
     // Assign refined color schemes

@@ -288,7 +288,9 @@ export function Users() {
 
         // Sync name/full_name
         const updatePayload = {
+          ...selectedUser,
           ...formData,
+          is_pre_registered: selectedUser.is_pre_registered,
           full_name: formData.name,
           last_login: selectedUser.last_login || null,
           created_at: selectedUser.created_at,

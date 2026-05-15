@@ -20,7 +20,7 @@ const setDbConnected = (val: boolean, latency: number | null = null, error: stri
 /**
  * Utility to fetch with timeout
  */
-export const fetchWithTimeout = async (promise: any, timeoutMs = 60000): Promise<any> => {
+export const fetchWithTimeout = async (promise: any, timeoutMs = 20000): Promise<any> => {
   if (typeof window !== 'undefined' && !window.navigator.onLine) {
     return { data: null, error: { message: 'Dispositivo Offline', isOffline: true } };
   }
@@ -122,15 +122,14 @@ export const testConnection = async () => {
 
   try {
     const startTime = Date.now();
-    // Timeout maior para o pulso de status inicial
+    // Timeout curto para pulso de status (não queremos que o app pare esperando isso)
     const response = await fetchWithTimeout(
       supabase.from('users').select('id', { count: 'exact', head: true }).limit(1),
-      15000
+      10000 
     );
     const latency = Date.now() - startTime;
     
     // Se o servidor respondeu com qualquer status (mesmo erro 400, 401, 403), ele está alcançável.
-    // Falha de rede geralmente resulta em response sendo null ou sem status.
     if (response && response.status !== undefined) {
       setDbConnected(true, latency, null);
     } else if (response && response.error) {
@@ -141,14 +140,14 @@ export const testConnection = async () => {
       if (isAuthError) {
         setDbConnected(true, latency, null);
       } else {
-        setDbConnected(false, latency, msg || 'Erro de configuração do cliente');
+        // Reduzimos o ruído: só marca offline se não houver resposta nenhuma ou for timeout
+        if (response.error.isTimeout || msg.includes('Failed to fetch')) {
+          setDbConnected(false, latency, msg || 'Tempo de resposta excedido');
+        }
       }
-    } else {
-      // Caso estranho sem resposta nem erro, mantemos o status anterior por precaução
-      console.warn('[Supabase] Resposta vazia no heartbeat');
     }
   } catch (err: any) {
-    setDbConnected(false, null, err.message || 'Falha na conexão física');
+    // Falha silenciosa no teste de conexão automática
   }
 };
 
@@ -160,11 +159,11 @@ if (isSupabaseConfigured) {
   window.addEventListener('offline', () => setDbConnected(false));
 
   setInterval(() => {
-    // Só faz heartbeat se estiver em foco ou se estiver offline para tentar reconectar
+    // Heartbeat mais espaçado: 5 minutos se ok, 1 minuto se erro
     if (document.visibilityState === 'visible' || !isDbConnected) {
       testConnection();
     }
-  }, isDbConnected ? 120000 : 30000); // 2 minutos se ok, 30 segundos se erro
+  }, isDbConnected ? 300000 : 60000); 
 }
 
 /**

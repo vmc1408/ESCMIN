@@ -7,7 +7,7 @@ import { isSupabaseConfigured, isDbConnected, testConnection } from '../lib/supa
 import { cn } from '../lib/utils';
 
 export function Navbar() {
-  const { profile, isMaster, resetToMaster } = useAuth();
+  const { profile, logout } = useAuth();
   const [institution, setInstitution] = useState<any>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -97,16 +97,6 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-5">
-        {!isMaster && (
-          <button 
-            onClick={resetToMaster}
-            className="flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold border border-indigo-200 hover:bg-indigo-100 transition-all active:scale-95"
-            title="Voltar ao Perfil Administrador Master"
-          >
-            <ShieldCheck size={14} />
-            <span className="hidden sm:inline">Modo Master</span>
-          </button>
-        )}
         <div className="flex items-center gap-2 md:gap-4 text-slate-400 border-l border-slate-200 pl-3 md:pl-5">
           <div className="relative cursor-pointer hover:text-indigo-600 transition-colors hidden xs:block">
             <Bell size={18} />
@@ -133,6 +123,13 @@ export function Navbar() {
                 </div>
               )}
             </div>
+            <button 
+              onClick={logout}
+              className="ml-2 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-90"
+              title="Sair do Sistema"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </div>
