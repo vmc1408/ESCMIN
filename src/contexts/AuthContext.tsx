@@ -19,6 +19,7 @@ interface AuthContextType {
   isSecretary: boolean;
   isMaster: boolean;
   isLocked: boolean;
+  lock: () => void;
   isConnected: boolean;
   connError: string | null;
   latency: number | null;
@@ -146,6 +147,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [profile]);
 
+  const lock = useCallback(() => {
+    if (profile?.pin) {
+      setIsLocked(true);
+    }
+  }, [profile]);
+
+  // Bloqueio por inatividade
+  useEffect(() => {
+    if (!profile?.pin || isLocked) return;
+
+    let timeoutId: any;
+    const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutos
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsLocked(true);
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [profile, isLocked]);
+
   const switchUser = useCallback((newProfile: UserProfile) => {
     // Apenas muda o contexto visual/de permissão atual se o admin quiser "simular" outro usuário
     // ou se o sistema permitir troca rápida. Para autenticação real, usamos switch real.
@@ -201,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isSecretary,
     isMaster: profile?.id === 'master-admin' || profile?.email === 'admin@sistema.com',
     isLocked,
+    lock,
     isConnected,
     connError,
     latency,
@@ -210,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     switchUser,
     resetToMaster
-  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, isConnected, connError, latency, unlock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
+  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
 
   return (
     <AuthContext.Provider value={contextValue}>
