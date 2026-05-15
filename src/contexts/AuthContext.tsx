@@ -19,6 +19,7 @@ interface AuthContextType {
   isSecretary: boolean;
   isMaster: boolean;
   isLocked: boolean;
+  lockTimer: number;
   lock: () => void;
   isConnected: boolean;
   connError: string | null;
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
+  const [lockTimer, setLockTimer] = useState(300); // 5 minutes in seconds
   const [isConnected, setIsConnected] = useState(true);
   const [connError, setConnError] = useState<string | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
@@ -155,28 +157,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Bloqueio por inatividade
   useEffect(() => {
-    if (!profile?.pin || isLocked) return;
+    if (!profile?.pin || isLocked) {
+      setLockTimer(300);
+      return;
+    }
 
-    let timeoutId: any;
-    const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutos
+    const INACTIVITY_TIMEOUT = 300; // 5 minutos em segundos
+    let countdownInterval: any;
 
     const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        setIsLocked(true);
-      }, INACTIVITY_TIMEOUT);
+      setLockTimer(INACTIVITY_TIMEOUT);
     };
 
-    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+    // Events to reset the timer
+    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(event => window.addEventListener(event, resetTimer));
 
-    resetTimer();
+    // Countdown interval
+    countdownInterval = setInterval(() => {
+      setLockTimer(prev => {
+        if (prev <= 1) {
+          setIsLocked(true);
+          return INACTIVITY_TIMEOUT;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
       events.forEach(event => window.removeEventListener(event, resetTimer));
+      if (countdownInterval) clearInterval(countdownInterval);
     };
-  }, [profile, isLocked]);
+  }, [profile?.pin, isLocked]);
 
   const switchUser = useCallback((newProfile: UserProfile) => {
     // Apenas muda o contexto visual/de permissão atual se o admin quiser "simular" outro usuário
@@ -233,6 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isSecretary,
     isMaster: profile?.id === 'master-admin' || profile?.email === 'admin@sistema.com',
     isLocked,
+    lockTimer,
     lock,
     isConnected,
     connError,
@@ -243,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     switchUser,
     resetToMaster
-  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
+  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, lockTimer, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
 
   return (
     <AuthContext.Provider value={contextValue}>

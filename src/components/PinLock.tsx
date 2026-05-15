@@ -86,33 +86,48 @@ export const PinLock: React.FC = () => {
 
         {/* Keyboard */}
         <div className="grid grid-cols-3 gap-4 w-full max-w-xs">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-            <button
-              key={num}
-              onClick={() => handleKeyPress(num.toString())}
-              className="w-full aspect-square rounded-2xl bg-slate-800/50 hover:bg-slate-700/50 active:bg-blue-600/30 text-white text-2xl font-semibold border border-slate-700/50 transition-all active:scale-90 flex items-center justify-center"
-            >
-              {num}
-            </button>
-          ))}
-          <button
-            onClick={() => setPin('')}
-            className="w-full aspect-square rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-          >
-            Limpar
-          </button>
-          <button
-            onClick={() => handleKeyPress('0')}
-            className="w-full aspect-square rounded-2xl bg-slate-800/50 hover:bg-slate-700/50 active:bg-blue-600/30 text-white text-2xl font-semibold border border-slate-700/50 transition-all active:scale-90 flex items-center justify-center"
-          >
-            0
-          </button>
-          <button
-            onClick={handleDelete}
-            className="w-full aspect-square rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors active:scale-90"
-          >
-            <Delete size={24} />
-          </button>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'Limpar', 0, 'delete'].map((item, index) => {
+            if (item === 'Limpar') {
+              return (
+                <motion.button
+                  key="clear"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => setPin('')}
+                  className="w-full aspect-square rounded-2xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors active:scale-95"
+                >
+                  Limpar
+                </motion.button>
+              );
+            }
+            if (item === 'delete') {
+              return (
+                <motion.button
+                  key="delete"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={handleDelete}
+                  className="w-full aspect-square rounded-2xl flex items-center justify-center text-slate-500 hover:text-white transition-colors active:scale-95"
+                >
+                  <Delete size={24} />
+                </motion.button>
+              );
+            }
+            return (
+              <motion.button
+                key={item}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => handleKeyPress(item.toString())}
+                className="w-full aspect-square rounded-2xl bg-white/5 hover:bg-white/10 active:bg-blue-600/40 text-white text-3xl font-light border border-white/5 transition-all active:scale-90 flex items-center justify-center shadow-lg"
+              >
+                {item}
+              </motion.button>
+            );
+          })}
         </div>
 
         {attempts > 0 && (
