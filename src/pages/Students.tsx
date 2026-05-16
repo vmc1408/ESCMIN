@@ -432,7 +432,8 @@ export function Students() {
       const dataToSave: any = { 
         ...formData,
         birth_date: parseDateToDB(formData.birth_date),
-        start_date: parseDateToDB(formData.start_date)
+        start_date: parseDateToDB(formData.start_date),
+        class_id: formData.class_id || null
       };
 
       // Set created_at only if it's the first time saving (no id)

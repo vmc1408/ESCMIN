@@ -65,7 +65,18 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
     const data = result?.data;
     const error = result?.error;
 
-    if (error) throw error;
+    if (error) {
+       // If table is missing or schema cache is stale, return null quietly instead of crashing
+       const isMissingTable = error.code === '42P01' || 
+                             error.message?.includes('Could not find the table') || 
+                             error.message?.includes('schema cache');
+       
+       if (isMissingTable) {
+         console.warn(`[Supabase] Tabela "${collectionName}" não encontrada ou em cache desatualizado. Verifique o schema SQL.`);
+         return null;
+       }
+       throw error;
+    }
     return data;
   } catch (err: any) {
     if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
@@ -152,6 +163,34 @@ export const fetchCount = async (collectionName: string, status?: string) => {
 };
 
 /**
+ * Delete multiple records using a query
+ */
+export const deleteQuery = async (collectionName: string, filters: { field: string; operator: string; value: any }[]) => {
+  try {
+    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
+    
+    let queryBuilder = supabase.from(collectionName).delete();
+    
+    filters.forEach(filter => {
+      const op = filter.operator === '==' ? 'eq' : filter.operator;
+      if (op === 'eq') queryBuilder = queryBuilder.eq(filter.field, filter.value);
+      else if (op === '>=') queryBuilder = queryBuilder.gte(filter.field, filter.value);
+      else if (op === '<=') queryBuilder = queryBuilder.lte(filter.field, filter.value);
+      else if (op === 'in') queryBuilder = queryBuilder.in(filter.field, filter.value);
+      else if (op === 'like') queryBuilder = queryBuilder.like(filter.field, filter.value);
+      else if (op === 'ilike') queryBuilder = queryBuilder.ilike(filter.field, filter.value);
+      else if (op === 'is') queryBuilder = queryBuilder.is(filter.field, filter.value);
+    });
+    
+    const { error } = await queryBuilder;
+    if (error) throw error;
+  } catch (err: any) {
+    console.error(`[deleteQuery] Erro em "${collectionName}":`, err.message);
+    throw err;
+  }
+};
+
+/**
  * Wait utility
  */
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -187,24 +226,34 @@ export const saveData = async (collectionName: string, id: string | undefined, d
           }
 
           // Missing column fallback
-          const isMissingCol = errorMsg.includes('column') && 
-                               (errorMsg.includes('not found') || 
-                                errorMsg.includes('schema cache') || 
-                                errorMsg.includes('does not exist') ||
-                                errorMsg.includes('missing'));
+          const errorMsgLower = errorMsg.toLowerCase();
+          const isMissingCol = 
+            errorMsgLower.includes('column') && 
+            (errorMsgLower.includes('not found') || 
+             errorMsgLower.includes('schema cache') || 
+             errorMsgLower.includes('does not exist') ||
+             errorMsgLower.includes('missing') ||
+             errorMsgLower.includes('pgrst204')); // PGRST204 is Supabase schema cache error
 
           if (isMissingCol) {
+            // Comprehensive regex to find column name in various error formats
             const match = errorMsg.match(/['"](.+?)['"] column/) || 
                           errorMsg.match(/column ['"](.+?)['"]/) ||
                           errorMsg.match(/column (.+?) of/) ||
                           errorMsg.match(/column (.+?) not found/) ||
-                          errorMsg.match(/property ['"](.+?)['"] not found/);
+                          errorMsg.match(/property ['"](.+?)['"] not found/) ||
+                          errorMsg.match(/column (.+?) in the schema cache/);
             
             if (match && match[1]) {
               const missingCol = match[1].replace(/['"]/g, '').trim();
               console.warn(`[Supabase Fallback] Removendo coluna inexistente "${missingCol}" de "${collectionName}".`);
               delete (payload as any)[missingCol];
-              continue; // Internal retry same attempt count essentially
+              continue; 
+            } else if (errorMsgLower.includes('updated_at')) {
+              // Forced fallback for common updated_at error if regex fails
+              console.warn(`[Supabase Fallback] Forçando remoção de "updated_at" de "${collectionName}" devido a erro de schema cache.`);
+              delete (payload as any).updated_at;
+              continue;
             }
           }
           
@@ -235,7 +284,7 @@ export const saveData = async (collectionName: string, id: string | undefined, d
 export const saveBatch = async (collectionName: string, items: any[], timeoutMs = 30000) => {
   if (!items || items.length === 0) return [];
 
-  const payloads = items.map(item => ({
+  let payloads = items.map(item => ({
     ...item,
     id: item.id || crypto.randomUUID()
   }));
@@ -243,14 +292,78 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
     
-    const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payloads), timeoutMs);
-    if (result?.error) throw result.error;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    return payloads.map(p => p.id);
-  } catch (err: any) {
-    if (err.isTimeout || err.message?.includes('TIMEOUT')) {
-       throw new Error(`Tempo esgotado ao salvar lote em ${collectionName}.`);
+    while (attempts < maxAttempts) {
+      try {
+        const result = await fetchWithTimeout(supabase.from(collectionName).upsert(payloads), timeoutMs);
+        
+        if (result?.error) {
+          const errorVal = result.error;
+          const errorMsg = (typeof errorVal === 'object' && errorVal !== null) 
+            ? (errorVal.message || String(errorVal)) 
+            : String(errorVal);
+
+          // Retry logic for timeouts
+          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT')) {
+            console.warn(`[Supabase Batch Retry] Timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
+            attempts++;
+            await wait(1000 * attempts);
+            continue;
+          }
+
+          // Missing column fallback
+          const errorMsgLower = errorMsg.toLowerCase();
+          const isMissingCol = errorMsgLower.includes('column') && 
+                              (errorMsg.includes('not found') || 
+                               errorMsg.includes('schema cache') || 
+                               errorMsg.includes('does not exist') ||
+                               errorMsg.includes('missing'));
+
+          if (isMissingCol) {
+            const match = errorMsg.match(/['"](.+?)['"] column/) || 
+                          errorMsg.match(/column ['"](.+?)['"]/) ||
+                          errorMsg.match(/column (.+?) of/) ||
+                          errorMsg.match(/column (.+?) not found/) ||
+                          errorMsg.match(/property ['"](.+?)['"] not found/);
+            
+            if (match && match[1]) {
+              const missingCol = match[1].replace(/['"]/g, '').trim();
+              console.warn(`[Supabase Batch Fallback] Removendo coluna inexistente "${missingCol}" de lote em "${collectionName}".`);
+              payloads = payloads.map((p: any) => {
+                const newP = { ...p };
+                delete newP[missingCol];
+                return newP;
+              });
+              continue; 
+            } else if (errorMsgLower.includes('updated_at')) {
+              console.warn(`[Supabase Batch Fallback] Forçando remoção de "updated_at" de lote em "${collectionName}" devido a erro de schema cache.`);
+              payloads = payloads.map((p: any) => {
+                const newP = { ...p };
+                delete newP.updated_at;
+                return newP;
+              });
+              continue;
+            }
+          }
+          
+          throw errorVal;
+        }
+        
+        return payloads.map(p => p.id);
+      } catch (innerErr: any) {
+        if (innerErr.message?.includes('TIMEOUT')) {
+          attempts++;
+          await wait(1000 * attempts);
+          continue;
+        }
+        throw innerErr;
+      }
     }
+
+    throw new Error(`Falha ao salvar lote em ${collectionName} após várias tentativas.`);
+  } catch (err: any) {
     console.error(`[saveBatch] Erro fatal em "${collectionName}":`, err.message);
     throw err;
   }

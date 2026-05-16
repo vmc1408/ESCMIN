@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS public.students (
     guardian_cpf TEXT,
     photo_url TEXT,
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 4. Turmas
@@ -75,7 +76,8 @@ CREATE TABLE IF NOT EXISTS public.classes (
     subject_ids TEXT[],
     observations TEXT,
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 5. Disciplinas
@@ -89,7 +91,8 @@ CREATE TABLE IF NOT EXISTS public.subjects (
     teacher_id TEXT,
     program_content TEXT,
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 6. Professores
@@ -110,7 +113,8 @@ CREATE TABLE IF NOT EXISTS public.teachers (
     observations TEXT,
     subject_ids TEXT[],
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 7. Reconciliações PIX
@@ -140,7 +144,8 @@ CREATE TABLE IF NOT EXISTS public.contributions (
     pix_id TEXT,
     observations TEXT,
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 9. Forarias
@@ -207,7 +212,8 @@ CREATE TABLE IF NOT EXISTS public.attendances (
     date DATE NOT NULL,
     status TEXT NOT NULL, -- 'P' (presente), 'F' (falta), 'J' (justificada)
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 13. Notas
@@ -219,18 +225,23 @@ CREATE TABLE IF NOT EXISTS public.grades (
     period TEXT NOT NULL, -- 'B1', 'B2', etc.
     value NUMERIC(4,2) NOT NULL,
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 14. Eventos do Calendário
 CREATE TABLE IF NOT EXISTS public.calendar_events (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
-    date DATE NOT NULL,
-    type TEXT NOT NULL, -- 'academic', 'holiday', etc.
+    start_date DATE NOT NULL,
+    end_date DATE,
+    type TEXT NOT NULL, -- 'holiday', 'exam', 'class_day', etc.
     description TEXT,
+    class_id TEXT,
+    subject_id TEXT,
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 15. Certificados
@@ -280,10 +291,36 @@ CREATE TABLE IF NOT EXISTS public.archived_teachers (LIKE public.teachers INCLUD
 CREATE TABLE IF NOT EXISTS public.archived_classes (LIKE public.classes INCLUDING ALL);
 CREATE TABLE IF NOT EXISTS public.archived_subjects (LIKE public.subjects INCLUDING ALL);
 
+-- 19. Configurações Acadêmicas
+CREATE TABLE IF NOT EXISTS public.academic_settings (
+    id TEXT PRIMARY KEY,
+    term1_start TEXT,
+    term1_end TEXT,
+    term2_start TEXT,
+    term2_end TEXT,
+    class_weekday INTEGER,
+    skip_holiday_neighbors BOOLEAN,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 20. Avaliações
+CREATE TABLE IF NOT EXISTS public.assessments (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    weight NUMERIC(5,2) DEFAULT 10.0,
+    class_id TEXT REFERENCES public.classes(id) ON DELETE SET NULL,
+    subject_id TEXT REFERENCES public.subjects(id) ON DELETE SET NULL,
+    period TEXT,
+    description TEXT,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Habilitar RLS e criar políticas de acesso público para todas as tabelas
 DO $$
 DECLARE
-    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments', 'archived_students', 'archived_teachers', 'archived_classes', 'archived_subjects'];
+    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments', 'archived_students', 'archived_teachers', 'archived_classes', 'archived_subjects', 'academic_settings', 'assessments'];
     t text;
 BEGIN
     FOREACH t IN ARRAY tables LOOP

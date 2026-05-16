@@ -250,6 +250,18 @@ export interface InstitutionSettings {
   subtitle?: string;
 }
 
+export interface AcademicSettings {
+  id: string;
+  term1_start: string;
+  term1_end: string;
+  term2_start: string;
+  term2_end: string;
+  class_weekday: number;
+  skip_holiday_neighbors: boolean;
+  target_class_id?: string;
+  updated_at?: string;
+}
+
 export interface AcademicParameters {
   id?: string;
   approval_grade: number;

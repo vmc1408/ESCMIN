@@ -332,6 +332,22 @@
       },
       "required": ["approval_grade", "recovery_grade", "failure_grade", "absence_limit_percentage"]
     },
+    "AcademicSettings": {
+      "title": "AcademicSettings",
+      "description": "Calendar and term synchronization parameters",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "term1_start": { "type": "string" },
+        "term1_end": { "type": "string" },
+        "term2_start": { "type": "string" },
+        "term2_end": { "type": "string" },
+        "class_weekday": { "type": "integer" },
+        "skip_holiday_neighbors": { "type": "boolean" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id"]
+    },
     "Certificate": {
       "title": "Certificate",
       "description": "Academic certificate or diploma",
@@ -399,6 +415,7 @@
     "attendances": { "schema": "Attendance", "description": "Attendance tracking" },
     "grades": { "schema": "Grade", "description": "Student grades" },
     "academic_parameters": { "schema": "AcademicParameters", "description": "Global academic parameters" },
+    "academic_settings": { "schema": "AcademicSettings", "description": "Academic synchronization settings" },
     "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" },
     "enrollments": { "schema": "Enrollment", "description": "Student enrollments in classes" },
     "assessments": { "schema": "Assessment", "description": "Academic assessments collection" },

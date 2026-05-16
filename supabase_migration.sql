@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS public.classes (
     subject_ids TEXT[], -- Array of strings
     observations TEXT,
     user_id UUID REFERENCES public.users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 8. students
@@ -142,7 +143,8 @@ CREATE TABLE IF NOT EXISTS public.students (
     guardian_cpf TEXT,
     photo_url TEXT,
     user_id UUID REFERENCES public.users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 9. subjects
@@ -152,7 +154,8 @@ CREATE TABLE IF NOT EXISTS public.subjects (
     name TEXT NOT NULL,
     program_content TEXT,
     user_id UUID REFERENCES public.users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Ensure subjects table has new columns
@@ -218,7 +221,8 @@ CREATE TABLE IF NOT EXISTS public.teachers (
     observations TEXT,
     subject_ids TEXT[],
     user_id UUID REFERENCES public.users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Ensure subject_ids exists for existing databases and is of correct type
@@ -276,11 +280,12 @@ CREATE TABLE IF NOT EXISTS public.calendar_events (
     description TEXT,
     start_date DATE NOT NULL,
     end_date DATE,
-    type TEXT CHECK (type IN ('holiday', 'exam', 'start_term', 'end_term', 'class_day', 'event')),
+    type TEXT CHECK (type IN ('holiday', 'holiday_nac', 'holiday_est', 'holiday_mun', 'exam', 'start_term', 'end_term', 'class_day', 'event')),
     class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
     subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
     user_id UUID REFERENCES public.users(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 14. attendances
@@ -337,6 +342,33 @@ CREATE TABLE IF NOT EXISTS public.archived_students (LIKE public.students INCLUD
 CREATE TABLE IF NOT EXISTS public.archived_teachers (LIKE public.teachers INCLUDING ALL);
 CREATE TABLE IF NOT EXISTS public.archived_classes (LIKE public.classes INCLUDING ALL);
 CREATE TABLE IF NOT EXISTS public.archived_subjects (LIKE public.subjects INCLUDING ALL);
+
+-- 19. academic_settings
+CREATE TABLE IF NOT EXISTS public.academic_settings (
+    id TEXT PRIMARY KEY,
+    term1_start TEXT,
+    term1_end TEXT,
+    term2_start TEXT,
+    term2_end TEXT,
+    class_weekday INTEGER,
+    skip_holiday_neighbors BOOLEAN,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 20. assessments
+CREATE TABLE IF NOT EXISTS public.assessments (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    weight NUMERIC(5,2) DEFAULT 10.0,
+    class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
+    subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
+    period TEXT,
+    description TEXT,
+    user_id UUID REFERENCES public.users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- RLS POLICIES (Simplified)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
