@@ -26,7 +26,15 @@ import {
   Map,
   ArrowUpAZ,
   ArrowDownZA,
-  ListFilter
+  ListFilter,
+  CalendarPlus,
+  GraduationCap,
+  Settings2,
+  Calendar,
+  Target,
+  CheckCircle2,
+  ArrowRight,
+  Globe
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery } from '../lib/database';
@@ -84,6 +92,14 @@ export function AcademicCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'year' | 'list' | 'month'>('month');
   const [showSettings, setShowSettings] = useState(false);
+  const [editingDayIndex, setEditingDayIndex] = useState<number>(1);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    action: () => Promise<void>;
+    type: 'danger' | 'info';
+  } | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
@@ -155,6 +171,8 @@ export function AcademicCalendar() {
     target_class_ids: [] as string[]
   });
 
+  const [activeStep, setActiveStep] = useState(1);
+
   const [academicSettings, setAcademicSettings] = useState<AcademicSettings>({
     term1_start: `${new Date().getFullYear()}-02-03`,
     term1_end: `${new Date().getFullYear()}-06-25`,
@@ -205,6 +223,22 @@ export function AcademicCalendar() {
     const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
     return `${d.getFullYear()}-W${weekNo}`;
   };
+
+  // Initialize settingsForm when opening settings
+  useEffect(() => {
+    if (showSettings && academicSettings) {
+      setSettingsForm({
+        term1_start: formatDateForDisplay(academicSettings.term1_start),
+        term1_end: formatDateForDisplay(academicSettings.term1_end),
+        term2_start: formatDateForDisplay(academicSettings.term2_start),
+        term2_end: formatDateForDisplay(academicSettings.term2_end),
+        class_weekdays: academicSettings.class_weekdays || [],
+        weekday_titles: academicSettings.weekday_titles || {},
+        target_class_ids: academicSettings.target_class_ids || []
+      });
+      setActiveStep(1); // Reset to first step when opening
+    }
+  }, [showSettings, academicSettings]);
 
   // Memoize settings loading to prevent loops
   const [lastLoadedKey, setLastLoadedKey] = useState('');
@@ -327,7 +361,7 @@ export function AcademicCalendar() {
       if (viewMode === 'month') {
         if (e.key === 'ArrowLeft') prevMonth();
         if (e.key === 'ArrowRight') nextMonth();
-      } else if (viewMode === 'grid') {
+      } else if (viewMode === 'year') {
         if (e.key === 'ArrowLeft') prevYear();
         if (e.key === 'ArrowRight') nextYear();
       }
@@ -338,6 +372,8 @@ export function AcademicCalendar() {
   }, [viewMode]);
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncMessage, setSyncMessage] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
   useEffect(() => {
@@ -369,7 +405,11 @@ export function AcademicCalendar() {
   const syncHolidays = async (silent = false) => {
     if (!userAuth || syncInProgress.current) return;
     syncInProgress.current = true;
-    if (!silent) setIsSyncing(true);
+    if (!silent) {
+      setIsSyncing(true);
+      setSyncProgress(20);
+      setSyncMessage('Sincronizando feriados nacionais...');
+    }
     try {
       const itemsToUpdate: any[] = [];
       let newCount = 0;
@@ -377,7 +417,13 @@ export function AcademicCalendar() {
       const currentYear = currentDate.getFullYear();
       const dynamicHolidays = getHolidaysForYear(currentYear);
 
-      for (const h of dynamicHolidays) {
+      const totalH = dynamicHolidays.length;
+      for (let i = 0; i < totalH; i++) {
+        const h = dynamicHolidays[i];
+        if (!silent) {
+          setSyncProgress(20 + Math.floor((i / totalH) * 40));
+          setSyncMessage(`Verificando: ${h.title}`);
+        }
         let description = 'Feriado Nacional';
         let type: CalendarEvent['type'] = 'holiday_nac';
         
@@ -422,56 +468,139 @@ export function AcademicCalendar() {
       }
 
       if (itemsToUpdate.length > 0) {
+        if (!silent) setSyncMessage('Salvando alterações...');
         await saveBatch('calendar_events', itemsToUpdate, 45000); // 45s timeout for batch
+        if (!silent) setSyncProgress(90);
         await fetchData(); // Refresh events after sync
       }
 
-      if (!silent && itemsToUpdate.length > 0) {
-        setNotification({ 
-          type: 'success', 
-          message: `Sincronização concluída! ${newCount} novos e ${updatedCount} atualizados.` 
-        });
+      if (!silent) {
+        setSyncProgress(100);
+        if (itemsToUpdate.length > 0) {
+          setNotification({ 
+            type: 'success', 
+            message: `Sincronização concluída! ${newCount} novos e ${updatedCount} atualizados.` 
+          });
+        }
       }
     } catch (error) {
       console.error("Error syncing holidays:", error);
       if (!silent) setNotification({ type: 'err', message: 'Erro ao sincronizar feriados.' });
     } finally {
-      if (!silent) setIsSyncing(false);
       syncInProgress.current = false;
+      if (!silent) {
+        setTimeout(() => {
+          setIsSyncing(false);
+          setSyncProgress(0);
+        }, 500);
+      }
     }
   };
 
 
   const clearClassDays = async () => {
     if (!isAdmin && !isDirector) return;
-    if (!window.confirm("Deseja realmente EXCLUIR TODO o cronograma de aulas gerado? Esta ação não afetará feriados ou eventos manuais.")) return;
     
-    setIsSyncing(true);
-    try {
-      const clearFilters: any[] = [
-        { field: 'description', operator: 'ilike', value: 'Cronograma automático%' }
-      ];
-      
-      await deleteQuery('calendar_events', clearFilters);
-      await new Promise(r => setTimeout(r, 500));
-      await fetchData();
-      setNotification({ type: 'success', message: 'Cronograma de aulas excluído com sucesso!' });
-    } catch (error) {
-      console.error("Error clearing class days:", error);
-      setNotification({ type: 'err', message: 'Erro ao excluir cronograma.' });
-    } finally {
-      setIsSyncing(false);
-    }
+    setConfirmModalConfig({
+      title: "Confirmar Limpeza Total",
+      message: "ATENÇÃO: Deseja realmente EXCLUIR TODOS os cronogramas de aulas gerados? Feriados e eventos manuais serão preservados. Esta ação não pode ser desfeita.",
+      type: 'danger',
+      action: async () => {
+        setShowConfirmModal(false);
+        setIsSyncing(true);
+        setSyncProgress(5);
+        setSyncMessage('Iniciando limpeza total...');
+
+        try {
+          // STEP 1: Attempt broad deletion patterns via server-side deleteQuery
+          setSyncProgress(15);
+          setSyncMessage('Removendo por padrões (Passo 1/3)...');
+          
+          const patterns = [
+            { field: 'description', operator: 'ilike', value: '%Cronograma automático%' },
+            { field: 'title', operator: 'ilike', value: 'Dia de Aula%' },
+            { field: 'title', operator: 'ilike', value: 'Início do % Semestre%' },
+            { field: 'title', operator: 'ilike', value: 'Término do % Semestre%' },
+            { field: 'title', operator: 'ilike', value: 'Término do Ano Letivo%' }
+          ];
+
+          for (let i = 0; i < patterns.length; i++) {
+            await deleteQuery('calendar_events', [patterns[i]]);
+            setSyncProgress(15 + Math.floor((i / patterns.length) * 25));
+          }
+
+          // STEP 2: Surgical fetch and local filter for high-reliability cleanup
+          setSyncProgress(40);
+          setSyncMessage('Verificando remanescentes (Passo 2/3)...');
+          
+          const freshData = await fetchData();
+          const allCurrentEvents = freshData?.events || [];
+          
+          // Identify leftovers using local string matching (very reliable)
+          const leftOver = allCurrentEvents.filter(e => {
+            const desc = (e.description || '').toLowerCase();
+            const title = (e.title || '').toLowerCase();
+            const type = e.type;
+            
+            const isAutoGenerated = 
+              desc.includes('cronograma automático') || 
+              title.includes('dia de aula') || 
+              title.includes('semestre') ||
+              title.includes('letivo') ||
+              ['class_day', 'start_term', 'end_term'].includes(type);
+              
+            // NEVER delete holidays here
+            const isHoliday = type.includes('holiday');
+            
+            return isAutoGenerated && !isHoliday;
+          });
+
+          if (leftOver.length > 0) {
+            setSyncProgress(60);
+            setSyncMessage(`Limpando ${leftOver.length} registros remanescentes via ID...`);
+            
+            // Delete in surgical batches by ID
+            const batchSize = 25;
+            for (let i = 0; i < leftOver.length; i += batchSize) {
+              const chunk = leftOver.slice(i, i + batchSize);
+              const ids = chunk.map(item => item.id);
+              await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: ids }]);
+              setSyncProgress(60 + Math.floor((i / leftOver.length) * 30));
+            }
+          }
+
+          setSyncProgress(95);
+          setSyncMessage('Limpando cache e atualizando...');
+          await fetchData();
+          
+          setSyncProgress(100);
+          setNotification({ type: 'success', message: 'Limpeza concluída! Todo o cronograma automático foi removido.' });
+        } catch (error) {
+          console.error("Erro na limpeza:", error);
+          setNotification({ type: 'err', message: 'Houve um problema na exclusão. Tente uma atualização forçada (F5).' });
+        } finally {
+          setTimeout(() => {
+            setIsSyncing(false);
+            setSyncProgress(0);
+            setSyncMessage('');
+          }, 1000);
+        }
+      }
+    });
+    setShowConfirmModal(true);
   };
 
   const generateClassDays = async (customSettings?: any) => {
     if (!userAuth) return;
     setIsSyncing(true);
-    setNotification({ type: 'success', message: 'Sincronizando feriados e gerando cronograma...' });
+    setSyncProgress(5);
+    setSyncMessage('Preparando geração do cronograma...');
     
     const settings = customSettings || academicSettings;
     
     try {
+      setSyncProgress(15);
+      setSyncMessage('Sincronizando base de feriados...');
       // First, ensure holidays are up to date for the current year
       await syncHolidays(true);
 
@@ -479,10 +608,14 @@ export function AcademicCalendar() {
         ? settings.target_class_ids 
         : [null];
 
+      setSyncProgress(25);
+      setSyncMessage('Limpando registros anteriores...');
       // --- SURGICAL CLEAR: Only delete events for the classes being updated ---
-      for (const tid of targetIds) {
+      for (let i = 0; i < targetIds.length; i++) {
+        const tid = targetIds[i];
+        setSyncMessage(`Limpando histórico: ${i+1}/${targetIds.length}`);
         const filters: any[] = [
-          { field: 'description', operator: 'ilike', value: 'Cronograma automático%' }
+          { field: 'description', operator: 'ilike', value: '%Cronograma automático%' }
         ];
         
         if (tid) {
@@ -492,8 +625,11 @@ export function AcademicCalendar() {
         }
         
         await deleteQuery('calendar_events', filters);
+        setSyncProgress(25 + Math.floor((i / targetIds.length) * 15));
       }
 
+      setSyncProgress(40);
+      setSyncMessage('Preparando novos eventos...');
       await new Promise(r => setTimeout(r, 800));
       const freshData = await fetchData();
       const currentEvents = freshData?.events || [];
@@ -505,10 +641,13 @@ export function AcademicCalendar() {
 
       const newEvents: any[] = [];
 
-      for (const tid of targetIds) {
+      for (let i = 0; i < targetIds.length; i++) {
+        const tid = targetIds[i];
         const targetClass = tid ? classes.find(c => c.id === tid) : null;
         const classLabel = targetClass ? ` - ${targetClass.name}` : '';
         const eventSignature = `Cronograma automático${classLabel}`;
+        setSyncMessage(`Calculando aulas: ${targetClass?.name || 'Geral'}`);
+        setSyncProgress(45 + Math.floor((i / targetIds.length) * 30));
 
         // Add Term Start/End
         const termEvents = [
@@ -561,14 +700,24 @@ export function AcademicCalendar() {
         }
       }
 
+      setSyncProgress(85);
+      setSyncMessage(`Gravando ${newEvents.length} registros...`);
       if (newEvents.length > 0) await saveBatch('calendar_events', newEvents);
+      
+      setSyncProgress(95);
+      setSyncMessage('Finalizando...');
       await fetchData();
+      setSyncProgress(100);
       setNotification({ type: 'success', message: 'Cronograma gerado com sucesso!' });
     } catch (error) {
       console.error("Error generating class days:", error);
       setNotification({ type: 'err', message: 'Erro ao gerar cronograma.' });
     } finally {
-      setIsSyncing(false);
+      setTimeout(() => {
+        setIsSyncing(false);
+        setSyncProgress(0);
+        setSyncMessage('');
+      }, 500);
     }
   };
 
@@ -823,9 +972,15 @@ export function AcademicCalendar() {
       const classEvents = uniqueYearEvents.filter(e => e.type === 'class_day');
       if (weekday !== undefined) {
         const filtered = classEvents.filter(e => new Date(e.start_date + 'T00:00:00').getDay() === weekday);
-        return new Set(filtered.map(e => getWeekId(e.start_date))).size;
+        return {
+          weeks: new Set(filtered.map(e => getWeekId(e.start_date))).size,
+          days: filtered.length
+        };
       }
-      return new Set(classEvents.map(e => getWeekId(e.start_date))).size;
+      return {
+        weeks: new Set(classEvents.map(e => getWeekId(e.start_date))).size,
+        days: classEvents.length
+      };
     }
 
     if (type === 'term') {
@@ -851,205 +1006,267 @@ export function AcademicCalendar() {
     return uniqueYearEvents.filter(e => e.type === type).length;
   };
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Gestão Institucional</span>
-          </div>
-          <h1 className="text-4xl font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-            Cronograma <span className="text-blue-600">Acadêmico</span>
-          </h1>
-          <p className="text-slate-500 text-sm font-medium">Controle centralizado de ciclos letivos, feriados e atividades escolares.</p>
-        </div>
+  // Função para calcular progresso de aulas passadas vs total
+  const getClassProgress = (weekday: number) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const classEvents = uniqueYearEvents.filter(e => 
+      e.type === 'class_day' && 
+      new Date(e.start_date + 'T00:00:00').getDay() === weekday
+    );
+    
+    const total = classEvents.length;
+    const completed = classEvents.filter(e => new Date(e.start_date + 'T00:00:00') < today).length;
+    const remaining = total - completed;
+    
+    return { total, completed, remaining };
+  };
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Visualização e Navegação */}
-          <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex bg-slate-50 rounded-xl p-1">
-              <button 
-                onClick={() => setViewMode('month')}
-                className={cn(
-                  "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                  viewMode === 'month' ? "bg-white text-slate-900 shadow-md border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                Mês
-              </button>
-              <button 
-                onClick={() => setViewMode('year')}
-                className={cn(
-                  "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                  viewMode === 'year' ? "bg-white text-slate-900 shadow-md border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                Ano
-              </button>
-              <button 
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  "px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                  viewMode === 'list' ? "bg-white text-slate-900 shadow-md border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                Lista
-              </button>
+  const renderIntegratedToolbar = () => {
+    if (!academicSettings) return null;
+    
+    return (
+      <div className="flex flex-col xl:flex-row xl:items-center gap-6">
+        {/* Lado Esquerdo: Controles de Navegação e Visão */}
+        <div className="flex items-center gap-3">
+          {/* Seletor de Visão */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 shadow-inner">
+            <button 
+              onClick={() => setViewMode('month')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                viewMode === 'month' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Mês
+            </button>
+            <button 
+              onClick={() => setViewMode('year')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                viewMode === 'year' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Ano
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                viewMode === 'list' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Lista
+            </button>
+          </div>
+
+          {/* Navegação de Data Contextual */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 shadow-sm">
+            <button 
+              onClick={viewMode === 'month' ? prevMonth : prevYear}
+              className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-blue-600 active:scale-90"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            <div className="px-3 min-w-[100px] text-center border-x border-slate-100">
+              <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                {viewMode === 'month' 
+                  ? currentDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+                  : currentDate.getFullYear()
+                }
+              </span>
+              {viewMode === 'month' && (
+                <span className="text-[8px] font-bold text-slate-400 ml-1">
+                  {currentDate.getFullYear()}
+                </span>
+              )}
             </div>
 
-            <div className="flex items-center gap-1 ml-2 pr-2">
-              <button onClick={viewMode === 'month' ? prevMonth : prevYear} className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-900">
-                <ChevronLeft size={18} />
-              </button>
-              
-              <div className="px-2">
-                <select 
-                  value={currentDate.getFullYear()}
-                  onChange={(e) => setCurrentDate(new Date(parseInt(e.target.value), currentDate.getMonth()))}
-                  className="bg-transparent text-[11px] font-bold text-slate-700 cursor-pointer focus:outline-none"
-                >
-                  {Array.from({ length: 31 }, (_, i) => 2024 + i).map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
+            <button 
+              onClick={viewMode === 'month' ? nextMonth : nextYear}
+              className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-blue-600 active:scale-90"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
 
-              <button onClick={viewMode === 'month' ? nextMonth : nextYear} className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-900">
-                <ChevronRight size={18} />
-              </button>
+        {/* Lado Direito: Status e Progresso (Antigo AcademicStatus) */}
+        <div className="flex-1 flex flex-col md:flex-row items-center gap-6 min-w-0">
+          {/* Progresso e Datas */}
+          <div className="flex-1 w-full max-w-sm space-y-1.5 overflow-hidden">
+            <div className="flex justify-between items-end px-1 gap-4">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-tight border border-emerald-100 truncate">
+                  {new Date() < new Date(academicSettings.term1_start) ? 'Preparação' : 
+                   new Date() > new Date(academicSettings.term2_end) ? 'Encerrado' : 'Em curso'}
+                </span>
+              </div>
+              <span className="text-[8px] font-bold text-slate-400 uppercase shrink-0">Ciclo: {formatDateForDisplay(academicSettings.term1_start)} - {formatDateForDisplay(academicSettings.term2_end)}</span>
+            </div>
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-50">
+              {(() => {
+                const start = new Date(academicSettings.term1_start).getTime();
+                const end = new Date(academicSettings.term2_end).getTime();
+                const now = new Date().getTime();
+                const total = end - start;
+                const elapsed = now - start;
+                const progress = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+                return (
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    className="h-full bg-blue-600 rounded-full"
+                  />
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Contagem Quarta/Quinta Staked */}
+          <div className="flex flex-col gap-2 shrink-0 border-l border-slate-100 pl-6 min-w-[180px]">
+            <div className="flex items-center justify-end gap-3">
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Quarta</span>
+              <div className="flex items-baseline gap-1 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100/50">
+                {(() => {
+                  const count = getEventCount('class_day', 3);
+                  const days = typeof count === 'object' ? count.days : 0;
+                  return <span className="text-sm font-black text-blue-600">{days}</span>;
+                })()}
+                <span className="text-[7px] font-bold text-blue-300 uppercase">Aulas</span>
+              </div>
+              {(() => {
+                const progress = getClassProgress(3);
+                return (
+                  <div className="flex flex-col items-end min-w-[40px]">
+                    <span className="text-[7px] font-bold text-orange-500 uppercase leading-none">-{progress.remaining}</span>
+                    <span className="text-[6px] font-bold text-slate-300 uppercase">Restam</span>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="flex items-center justify-end gap-3">
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Quinta</span>
+              <div className="flex items-baseline gap-1 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100/50">
+                {(() => {
+                  const count = getEventCount('class_day', 4);
+                  const days = typeof count === 'object' ? count.days : 0;
+                  return <span className="text-sm font-black text-indigo-600">{days}</span>;
+                })()}
+                <span className="text-[7px] font-bold text-indigo-300 uppercase">Aulas</span>
+              </div>
+              {(() => {
+                const progress = getClassProgress(4);
+                return (
+                  <div className="flex flex-col items-end min-w-[40px]">
+                    <span className="text-[7px] font-bold text-orange-500 uppercase leading-none">-{progress.remaining}</span>
+                    <span className="text-[6px] font-bold text-slate-300 uppercase">Restam</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
           {(isAdmin || isDirector) && (
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowSettings(true)}
-                className="p-3 bg-white text-slate-600 rounded-2xl border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm group"
-                title="Configurações Acadêmicas"
-              >
-                <Settings size={20} className="group-hover:rotate-45 transition-transform" />
-              </button>
-              <button 
-                onClick={() => {
-                  setSelectedEvent(null);
-                  setFormData({
-                    title: '',
-                    description: '',
-                    start_date: '',
-                    end_date: '',
-                    type: 'event',
-                    class_id: '',
-                    subject_id: ''
-                  });
-                  setIsEditing(true);
-                }}
-                className="flex items-center gap-2 px-6 py-3.5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95"
-              >
-                <Plus size={16} />
-                Novo Registro
-              </button>
-            </div>
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-xl border border-slate-100 ml-2 shadow-sm active:scale-95"
+            >
+              <Settings size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-blue-600" size={20} />
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cronograma Acadêmico</h1>
+          </div>
+          <p className="text-slate-500 text-xs font-medium">Gestão de ciclos letivos e atividades escolares.</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {(isAdmin || isDirector) && (
+            <button 
+              onClick={() => {
+                setSelectedEvent(null);
+                setFormData({
+                  title: '',
+                  description: '',
+                  start_date: '',
+                  end_date: '',
+                  type: 'event',
+                  class_id: '',
+                  subject_id: ''
+                });
+                setIsEditing(true);
+              }}
+              className="flex items-center gap-2 px-6 py-3.5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95"
+            >
+              <Plus size={16} />
+              Novo Registro
+            </button>
           )}
         </div>
       </div>
 
-      {/* Resumo de Feriados e Eventos do Ano */}
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Painel Informativo de {currentDate.getFullYear()}</h3>
-        {isAdmin && (
-          <button 
-            onClick={() => syncHolidays(false)}
-            disabled={isSyncing}
-            className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase hover:underline disabled:opacity-50"
+
+
+
+
+      {/* Overlay de Sincronização e Progresso */}
+      <AnimatePresence>
+        {isSyncing && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6"
           >
-            {isSyncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            Sincronizar Dados
-          </button>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center"
+            >
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 relative">
+                <RefreshCw size={24} className="text-blue-600 animate-spin" />
+                <div className="absolute inset-0 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" style={{ animationDuration: '3s' }} />
+              </div>
+              
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-2">Processando...</h3>
+              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-6 h-4">
+                {syncMessage || 'Sincronizando dados...'}
+              </p>
+
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
+                <motion.div 
+                  className="h-full bg-blue-600"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${syncProgress}%` }}
+                  transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
+                />
+              </div>
+              <div className="flex justify-between w-full">
+                <span className="text-[10px] font-bold text-blue-600">{syncProgress}%</span>
+                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Aguarde</span>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start relative z-30">
-        {(() => {
-          const stats = [
-            { 
-              id: 'holidays_all', 
-              label: 'Feriados & Atividades', 
-              count: getEventCount('holidays_all'), 
-              color: 'bg-red-600', 
-              text: 'text-red-700', 
-              bg: 'bg-red-50/50', 
-              icon: <Flag size={18} /> 
-            },
-          ];
+      </AnimatePresence>
 
-          // Encontra todos os dias da semana que tem aulas programadas
-          const classWeekdays = academicSettings.class_weekdays || [3];
-          classWeekdays.forEach(wd => {
-            const label = (academicSettings.weekday_titles?.[wd] || 'Dia de Aula').replace(/^Dia de Aula - /, '');
-            stats.push({
-              id: `class_day_${wd}`,
-              label: label,
-              count: getEventCount('class_day', wd),
-              color: wd === 3 ? 'bg-blue-600' : wd === 4 ? 'bg-amber-500' : 'bg-slate-700',
-              text: wd === 3 ? 'text-blue-700' : wd === 4 ? 'text-amber-700' : 'text-slate-700',
-              bg: wd === 3 ? 'bg-blue-50/50' : wd === 4 ? 'bg-amber-50/50' : 'bg-slate-50/50',
-              icon: <BookOpen size={18} />
-            });
-          });
-
-          return stats.map((stat) => {
-            const cardEvents = events.filter(e => {
-              if (stat.id.startsWith('class_day')) {
-                const wd = stat.id.includes('_') ? parseInt(stat.id.split('_')[2]) : -1;
-                return e.type === 'class_day' && (wd === -1 || new Date(e.start_date + 'T00:00:00').getDay() === wd);
-              }
-              if (stat.id === 'holidays_all') return e.type.includes('holiday');
-              return false;
-            }).sort((a,b) => a.start_date.localeCompare(b.start_date));
-
-            return (
-              <motion.div 
-                key={stat.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="group relative"
-              >
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className={cn("p-3 rounded-xl", stat.bg, stat.text)}>
-                      {stat.icon}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                      <p className="text-2xl font-semibold text-slate-900">{stat.count}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                    {cardEvents.length > 0 ? cardEvents.map(e => (
-                      <div key={e.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50/50 hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", stat.color)} />
-                          <p className="text-[11px] font-medium text-slate-700 truncate">{e.title}</p>
-                        </div>
-                        <span className="text-[10px] font-sans font-medium text-slate-400 whitespace-nowrap ml-2">
-                          {new Date(e.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                        </span>
-                      </div>
-                    )) : (
-                      <p className="text-[10px] text-slate-400 font-medium italic text-center py-4">Nenhum evento registrado</p>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          });
-        })()}
-      </div>
-
-
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {notification && (
           <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100]">
             <motion.div 
@@ -1073,38 +1290,12 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'month' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-white p-8 rounded-3xl shadow-sm overflow-hidden space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center bg-slate-50 border border-slate-100 rounded-2xl p-1 shadow-inner">
-                    <button 
-                      onClick={prevMonth}
-                      className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-blue-600 active:scale-90"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <div className="px-6 min-w-[200px] text-center">
-                      <span className="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">
-                        {currentDate.toLocaleDateString('pt-BR', { month: 'long' })}
-                      </span>
-                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-2 opacity-60">
-                        {currentDate.getFullYear()}
-                      </span>
-                    </div>
-                    <button 
-                      onClick={nextMonth}
-                      className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-blue-600 active:scale-90"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
+              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm overflow-hidden border border-slate-100">
+              <div className="pb-8 border-b border-slate-50 mb-8">
+                {renderIntegratedToolbar()}
+              </div>
 
-                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visualização Mensal</span>
-                  </div>
-                </div>
-
-                {/* Calendário Mensal Estilizado */}
+              {/* Calendário Mensal Estilizado */}
                 <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-2xl overflow-hidden shadow-inner">
                   {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
                     <div key={day} className="bg-slate-50 py-3 text-center border-b border-slate-100">
@@ -1227,13 +1418,11 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'year' ? (
             <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-                <div className="text-center pb-8 border-b border-slate-50 mb-8">
-                  <h3 className="text-2xl font-semibold text-slate-800 tracking-tight">
-                    Calendário Anual {currentDate.getFullYear()}
-                  </h3>
-                </div>
+              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                {renderIntegratedToolbar()}
+              </div>
 
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                 <div className="space-y-12">
                       {/* Primeiro Semestre */}
                   <div className="space-y-6">
@@ -1352,14 +1541,17 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'list' && Object.keys(groupedEvents).length > 0 ? (
             <div className="space-y-12 animate-in fade-in duration-500">
+              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                {renderIntegratedToolbar()}
+              </div>
+
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100/50">
                     <ListFilter size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest leading-none">Ordenação</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Visualização em Lista</p>
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest leading-none">Ordenação da Lista</h3>
                   </div>
                 </div>
                 
@@ -1595,13 +1787,13 @@ export function AcademicCalendar() {
               )}
             </div>
           ) : (
-            <div className="bg-white p-12 rounded-[3rem] border-2 border-dashed border-slate-200 text-center flex flex-col items-center gap-4">
-              <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center">
-                <CalendarIcon size={32} />
+            <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 bg-slate-50 text-slate-300 rounded-xl flex items-center justify-center">
+                <CalendarIcon size={24} />
               </div>
               <div>
-                <p className="text-lg font-black text-slate-400">Nenhum evento encontrado</p>
-                <p className="text-sm font-bold text-slate-300">Tente ajustar seus filtros ou pesquisar por outro termo.</p>
+                <p className="text-base font-bold text-slate-400">Nenhum evento encontrado</p>
+                <p className="text-xs text-slate-300">Tente ajustar seus filtros ou pesquisar por outro termo.</p>
               </div>
             </div>
           )}
@@ -1610,147 +1802,142 @@ export function AcademicCalendar() {
 
       <AnimatePresence>
         {isEditing && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white max-w-2xl w-full rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-200/50"
+              className="bg-white max-w-lg w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
             >
-              <form onSubmit={handleSubmit} className="flex flex-col max-h-[90vh]">
-                {/* Header do Modal */}
-                <div className="px-8 py-10 bg-[#00174b] text-white relative">
-                  <button 
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="absolute top-8 right-8 p-2 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white"
-                  >
-                    <X size={20} />
-                  </button>
-                  <div className="flex items-center gap-5">
-                    <div className={cn(
-                      "w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl ring-4 ring-white/10",
-                      getTypeColor(formData.type)
-                    )}>
-                      {['holiday', 'holiday_nac', 'holiday_est', 'holiday_mun'].includes(formData.type) ? <CalendarIcon size={28} /> : 
-                       formData.type === 'exam' ? <Info size={28} /> : 
-                       formData.type === 'class_day' ? <BookOpen size={28} /> : <CalendarIcon size={28} />}
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black uppercase tracking-tight leading-tight">
-                        {formData.title || (selectedEvent ? 'Editar Registro' : 'Novo Registro')}
-                      </h3>
-                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em] mt-1">
-                        {selectedEvent ? 'Gestão de Conteúdo Existente' : 'Inclusão no Calendário Acadêmico'}
-                      </p>
-                    </div>
+              <div className="px-8 py-8 border-b border-slate-100 relative">
+                <button 
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="absolute top-6 right-6 p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+                >
+                  <X size={20} />
+                </button>
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border",
+                    getTypeStyle(formData.type)
+                  )}>
+                    <CalendarPlus size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 tracking-tight">
+                      {selectedEvent ? 'Editar Registro' : 'Novo Registro'}
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão de Calendário</p>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex-1 overflow-y-auto p-10 space-y-10">
-                  {!(isAdmin || isDirector) && (
-                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3">
-                      <div className="p-1 px-2.5 bg-amber-200 text-amber-800 rounded-lg text-[10px] font-black uppercase">Aviso</div>
-                      <p className="text-[11px] font-bold text-amber-800">Você está em modo de visualização. Apenas Administradores podem alterar o calendário acadêmico.</p>
-                    </div>
-                  )}
+              <form onSubmit={handleSubmit} className="p-8 space-y-8">
+                {!(isAdmin || isDirector) && (
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
+                    <Info size={16} className="text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-[11px] font-bold text-amber-800 leading-relaxed text-left">Somente leitura. Apenas administradores podem fazer alterações.</p>
+                  </div>
+                )}
 
-                  {/* Tipo de Evento (Grid Elegante) */}
+                <div className="space-y-6">
+                  {/* Tipo de Evento */}
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Natureza do Evento</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {[
-                        { id: 'event', label: 'Geral', icon: <CalendarIcon size={14} /> },
-                        { id: 'holiday_nac', label: 'Feriado Nac.', icon: <CalendarIcon size={14} /> },
-                        { id: 'holiday_est', label: 'Feriado Est.', icon: <CalendarIcon size={14} /> },
-                        { id: 'holiday_mun', label: 'Feriado Mun.', icon: <CalendarIcon size={14} /> },
-                        { id: 'start_term', label: 'Início', icon: <Plus size={14} /> },
-                        { id: 'end_term', label: 'Final', icon: <X size={14} /> },
-                        { id: 'class_day', label: 'Aula', icon: <BookOpen size={14} /> },
-                        { id: 'exam', label: 'Avaliação', icon: <Info size={14} /> }
-                      ].map(type => (
-                        <button
-                          key={type.id}
-                          type="button"
-                          disabled={!(isAdmin || isDirector)}
-                          onClick={() => setFormData({...formData, type: type.id as any})}
-                          className={cn(
-                            "py-4 px-4 rounded-[1.25rem] text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-3 border-2 disabled:opacity-50 disabled:cursor-not-allowed",
-                            formData.type === type.id 
-                              ? "bg-blue-50 border-blue-600 text-blue-600 shadow-sm scale-[1.02]" 
-                              : "bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100 hover:border-slate-200"
-                          )}
-                        >
-                          <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            formData.type === type.id ? "bg-blue-600 scale-125" : getTypeColor(type.id as any)
-                          )} />
-                          {type.label}
-                        </button>
-                      ))}
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Natureza do Registro</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { id: 'holiday_nac', label: 'Nacional', icon: <Globe size={14} />, color: 'rose', desc: 'Feriado Federal' },
+                          { id: 'holiday_est', label: 'Estadual', icon: <Flag size={14} />, color: 'indigo', desc: 'Data Estadual' },
+                          { id: 'holiday_mun', label: 'Municipal', icon: <MapPin size={14} />, color: 'amber', desc: 'Padroeiro/Local' },
+                          { id: 'exam', label: 'Avaliação', icon: <GraduationCap size={14} />, color: 'orange', desc: 'Provas/Testes' },
+                          { id: 'class_day', label: 'Aula Extra', icon: <BookOpen size={14} />, color: 'blue', desc: 'Dia Letivo' },
+                          { id: 'event', label: 'Evento', icon: <CalendarDays size={14} />, color: 'emerald', desc: 'Geral/Festivo' }
+                        ].map(type => (
+                          <button
+                            key={type.id}
+                            type="button"
+                            disabled={!(isAdmin || isDirector)}
+                            onClick={() => setFormData({...formData, type: type.id as any})}
+                            className={cn(
+                              "relative flex flex-col p-3 rounded-2xl border-2 transition-all text-left group",
+                              formData.type === type.id 
+                                ? `bg-${type.color}-50 border-${type.color}-600 ring-4 ring-${type.color}-50` 
+                                : "bg-white border-slate-100 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:border-slate-200"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-8 h-8 rounded-xl flex items-center justify-center mb-2 transition-transform group-hover:scale-110",
+                              formData.type === type.id ? `bg-${type.color}-600 text-white` : "bg-slate-100 text-slate-400"
+                            )}>
+                              {type.icon}
+                            </div>
+                            <p className={cn(
+                              "text-[10px] font-black uppercase tracking-tight",
+                              formData.type === type.id ? `text-${type.color}-700` : "text-slate-500"
+                            )}>{type.label}</p>
+                            <p className="text-[8px] font-medium text-slate-400 leading-none mt-0.5">{type.desc}</p>
+                            
+                            {formData.type === type.id && (
+                              <div className={cn(`absolute top-2 right-2 w-4 h-4 flex items-center justify-center rounded-full bg-${type.color}-600 shadow-sm shadow-${type.color}-200`)}>
+                                <Check size={8} className="text-white" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
                     </div>
                   </div>
 
                   {/* Datas */}
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Período Selecionado</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="group">
-                         <div className="relative">
-                          <input 
-                            required
-                            readOnly={!(isAdmin || isDirector)}
-                            type="text"
-                            placeholder="DD/MM/AAAA"
-                            value={formData.start_date}
-                            onChange={e => {
-                              const date = maskDate(e.target.value);
-                              setFormData({...formData, start_date: date, end_date: formData.end_date || date});
-                            }}
-                            className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all shadow-inner disabled:opacity-70"
-                          />
-                          <span className="absolute -top-2.5 left-6 px-2 bg-white text-[9px] font-black text-slate-400 uppercase rounded-full border border-slate-100">Início</span>
-                        </div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Período</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="relative">
+                        <input 
+                          required
+                          readOnly={!(isAdmin || isDirector)}
+                          type="text"
+                          placeholder="DD/MM/AAAA"
+                          value={formData.start_date}
+                          onChange={e => {
+                            const date = maskDate(e.target.value);
+                            setFormData({...formData, start_date: date, end_date: formData.end_date || date});
+                          }}
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                        />
+                        <span className="absolute -top-2 left-4 px-1.5 bg-white text-[8px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Início</span>
                       </div>
-                      <div className="group">
-                        <div className="relative">
-                          <input 
-                            readOnly={!(isAdmin || isDirector)}
-                            type="text"
-                            placeholder="DD/MM/AAAA"
-                            value={formData.end_date}
-                            onChange={e => setFormData({...formData, end_date: maskDate(e.target.value)})}
-                            className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[1.5rem] text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all shadow-inner disabled:opacity-70"
-                          />
-                          <span className="absolute -top-2.5 left-6 px-2 bg-white text-[9px] font-black text-slate-400 uppercase rounded-full border border-slate-100">Término (Opcional)</span>
-                        </div>
+                      <div className="relative">
+                        <input 
+                          readOnly={!(isAdmin || isDirector)}
+                          type="text"
+                          placeholder="DD/MM/AAAA"
+                          value={formData.end_date}
+                          onChange={e => setFormData({...formData, end_date: maskDate(e.target.value)})}
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                        />
+                        <span className="absolute -top-2 left-4 px-1.5 bg-white text-[8px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Término</span>
                       </div>
                     </div>
-                    <p className="text-[10px] font-bold text-slate-400 mt-2 pl-2 flex items-center gap-2 italic">
-                      <Info size={12} className="text-blue-500" />
-                      Para eventos de um único dia, utilize apenas a primeira data.
-                    </p>
                   </div>
 
-                  {/* Título e Descrição */}
-                  <div className="space-y-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 text-[10px]">Título do Evento</label>
-                      <input 
-                        required
-                        readOnly={!(isAdmin || isDirector)}
-                        type="text"
-                        placeholder="Ex: Reunião de Planejamento, Feriado..."
-                        value={formData.title}
-                        onChange={e => setFormData({...formData, title: e.target.value})}
-                        className="w-full px-6 py-5 bg-slate-50 border-none rounded-[1.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-300 focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all shadow-inner disabled:opacity-70"
-                      />
-                    </div>
+                  {/* Título */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Identificação</label>
+                    <input 
+                      required
+                      readOnly={!(isAdmin || isDirector)}
+                      type="text"
+                      placeholder="Título do evento ou atividade..."
+                      value={formData.title}
+                      onChange={e => setFormData({...formData, title: e.target.value})}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                    />
                   </div>
                 </div>
 
-                {/* Footer Fixo */}
-                <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+                {/* Footer */}
+                <div className="flex gap-3 pt-4">
                   {selectedEvent && (isAdmin || isDirector) && (
                     <button 
                       type="button"
@@ -1763,26 +1950,26 @@ export function AcademicCalendar() {
                         }
                       }}
                       className={cn(
-                        "px-8 py-5 border-2 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98]",
+                        "px-6 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border",
                         confirmDeleteId === selectedEvent.id 
-                          ? "bg-red-600 text-white border-red-600 animate-pulse" 
-                          : "bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white"
+                          ? "bg-red-600 text-white border-red-700 shadow-lg shadow-red-100" 
+                          : "bg-white text-red-500 border-red-100 hover:bg-red-50"
                       )}
                     >
-                      {confirmDeleteId === selectedEvent.id ? 'Confirmar Exclusão?' : 'Excluir'}
+                      {confirmDeleteId === selectedEvent.id ? 'Confirmar?' : <Trash2 size={18} />}
                     </button>
                   )}
                   <button 
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 py-5 bg-white border-2 border-slate-200 text-slate-500 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 hover:border-slate-300 transition-all active:scale-[0.98]"
+                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all"
                   >
-                    {isAdmin || isDirector ? 'Descartar' : 'Fechar'}
+                    Fechar
                   </button>
                   {(isAdmin || isDirector) && (
                     <button 
                       type="submit"
-                      className="flex-2 py-5 bg-blue-600 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all active:scale-[0.98]"
+                      className="flex-[2] py-4 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all"
                     >
                       {selectedEvent ? 'Salvar Alterações' : 'Criar Registro'}
                     </button>
@@ -1796,180 +1983,75 @@ export function AcademicCalendar() {
 
       <AnimatePresence>
         {showSettings && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white max-w-xl w-full rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-200/50"
+              initial={{ scale: 0.99, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.99, opacity: 0 }}
+              className="bg-white max-w-xl w-full h-[85vh] md:h-[80vh] rounded-lg shadow-2xl overflow-hidden border border-slate-200 flex flex-col"
             >
-              <div className="px-8 py-10 bg-[#00174b] text-white relative">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 relative bg-white">
                 <button 
                   type="button"
                   onClick={() => setShowSettings(false)}
-                  className="absolute top-8 right-8 p-2 hover:bg-white/10 rounded-full transition-all text-white/50 hover:text-white"
+                  className="absolute top-4 right-5 p-2 hover:bg-slate-50 rounded transition-all text-slate-400"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center shadow-2xl ring-4 ring-white/10">
-                    <CalendarDays size={28} />
+                
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-slate-50 text-slate-600 rounded flex items-center justify-center border border-slate-100">
+                    <CalendarDays size={18} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black uppercase tracking-tight leading-tight">Configurações</h3>
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em] mt-1">Cronograma Automático</p>
+                    <h3 className="text-base font-bold text-slate-900 tracking-tight">Novo Cronograma</h3>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between px-2">
+                  {[
+                    { s: 1, label: 'Turmas' },
+                    { s: 2, label: 'Datas' },
+                    { s: 3, label: 'Aula' }
+                  ].map((item, idx) => (
+                    <React.Fragment key={item.s}>
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className={cn(
+                          "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all",
+                          activeStep === item.s ? "bg-blue-600 text-white shadow-sm" : 
+                          activeStep > item.s ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400"
+                        )}>
+                          {activeStep > item.s ? <Check size={12} /> : item.s}
+                        </div>
+                        <span className={cn(
+                          "text-[9px] font-bold uppercase tracking-wider",
+                          activeStep === item.s ? "text-blue-600" : "text-slate-400"
+                        )}>
+                          {item.label}
+                        </span>
+                      </div>
+                      {idx < 2 && (
+                        <div className="flex-1 h-[1px] mx-4 bg-slate-100">
+                          <div className={cn("h-full bg-blue-600 transition-all", activeStep > item.s ? "w-full" : "w-0")} />
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
               </div>
-
-              <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                {/* 1. Dia da Semana */}
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                    <CalendarIcon size={12} /> Dias da Semana e Atividades
-                  </h4>
-                  <div className="grid grid-cols-1 gap-3">
-                    {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'].map((day, i) => {
-                      const isSelected = settingsForm.class_weekdays.includes(i);
-                      return (
-                        <div key={day} className={cn(
-                          "flex items-center gap-3 p-3 rounded-2xl transition-all border-2",
-                          isSelected ? "bg-white border-blue-100 shadow-sm" : "bg-slate-50 border-transparent opacity-60"
-                        )}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSettingsForm({
-                                  ...settingsForm,
-                                  class_weekdays: settingsForm.class_weekdays.filter(d => d !== i)
-                                });
-                              } else {
-                                setSettingsForm({
-                                  ...settingsForm,
-                                  class_weekdays: [...settingsForm.class_weekdays, i],
-                                  weekday_titles: {
-                                    ...settingsForm.weekday_titles,
-                                    [i]: settingsForm.weekday_titles[i] || 'Dia de Aula'
-                                  }
-                                });
-                              }
-                            }}
-                            className={cn(
-                              "w-10 h-10 rounded-xl text-[10px] font-black uppercase transition-all shrink-0",
-                              isSelected ? dayActiveColors[i] : "bg-slate-200 text-slate-400"
-                            )}
-                          >
-                            {day.substring(0, 3)}
-                          </button>
-                          
-                          {isSelected ? (
-                            <div className="flex-1 relative">
-                              <input 
-                                type="text"
-                                placeholder="Nome da Atividade (ex: Aula de Math)"
-                                value={settingsForm.weekday_titles[i] || 'Dia de Aula'}
-                                onChange={(e) => setSettingsForm({
-                                  ...settingsForm,
-                                  weekday_titles: { ...settingsForm.weekday_titles, [i]: e.target.value }
-                                })}
-                                className="w-full bg-slate-50 border-none rounded-xl py-2 px-3 text-[11px] font-bold text-slate-700 focus:bg-white transition-all shadow-inner"
-                              />
-                            </div>
-                          ) : (
-                            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">{day} (Inativo)</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 2. Datas dos Semestres */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2 px-1">
-                      <Star size={12} /> 1º Semestre
-                    </h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="relative group">
-                        <input 
-                          type="text" 
-                          placeholder="DD/MM/AAAA"
-                          value={settingsForm.term1_start}
-                          onChange={e => setSettingsForm({...settingsForm, term1_start: maskDate(e.target.value)})}
-                          className="w-full bg-slate-50 border-2 border-transparent rounded-[1.25rem] py-4 px-5 text-sm font-bold text-slate-700 focus:border-blue-500 focus:bg-white transition-all shadow-inner"
-                        />
-                        <span className="absolute -top-2 left-4 px-2 bg-white text-[8px] font-black text-slate-400 uppercase border border-slate-100 rounded-full">Início</span>
-                      </div>
-                      <div className="relative group">
-                        <input 
-                          type="text" 
-                          placeholder="DD/MM/AAAA"
-                          value={settingsForm.term1_end}
-                          onChange={e => setSettingsForm({...settingsForm, term1_end: maskDate(e.target.value)})}
-                          className="w-full bg-slate-50 border-2 border-transparent rounded-[1.25rem] py-4 px-5 text-sm font-bold text-slate-700 focus:border-blue-500 focus:bg-white transition-all shadow-inner"
-                        />
-                         <span className="absolute -top-2 left-4 px-2 bg-white text-[8px] font-black text-slate-400 uppercase border border-slate-100 rounded-full">Fim</span>
-                      </div>
+              
+              <div className="flex-1 overflow-y-auto px-8 py-8 bg-slate-50/30">
+                {activeStep === 1 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="space-y-1">
+                      <h4 className="text-base font-bold text-slate-900">Selecione as Turmas</h4>
+                      <p className="text-[11px] text-slate-500">O cronograma será gerado para as turmas selecionadas.</p>
                     </div>
-                  </div>
 
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2 px-1">
-                      <Star size={12} /> 2º Semestre
-                    </h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="relative group">
-                        <input 
-                          type="text" 
-                          placeholder="DD/MM/AAAA"
-                          value={settingsForm.term2_start}
-                          onChange={e => setSettingsForm({...settingsForm, term2_start: maskDate(e.target.value)})}
-                          className="w-full bg-slate-50 border-2 border-transparent rounded-[1.25rem] py-4 px-5 text-sm font-bold text-slate-700 focus:border-emerald-500 focus:bg-white transition-all shadow-inner"
-                        />
-                        <span className="absolute -top-2 left-4 px-2 bg-white text-[8px] font-black text-slate-400 uppercase border border-slate-100 rounded-full">Início</span>
-                      </div>
-                      <div className="relative group">
-                        <input 
-                          type="text" 
-                          placeholder="DD/MM/AAAA"
-                          value={settingsForm.term2_end}
-                          onChange={e => setSettingsForm({...settingsForm, term2_end: maskDate(e.target.value)})}
-                          className="w-full bg-slate-50 border-2 border-transparent rounded-[1.25rem] py-4 px-5 text-sm font-bold text-slate-700 focus:border-emerald-500 focus:bg-white transition-all shadow-inner"
-                        />
-                         <span className="absolute -top-2 left-4 px-2 bg-white text-[8px] font-black text-slate-400 uppercase border border-slate-100 rounded-full">Fim</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Turmas Alvo (Minimizado) */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between px-1">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <BookOpen size={12} /> Turmas Alvo
-                    </h4>
-                    <button 
-                      onClick={() => {
-                        const allIds = classes.map(c => c.id);
-                        const isAllSelected = settingsForm.target_class_ids.length === classes.length;
-                        setSettingsForm({
-                          ...settingsForm,
-                          target_class_ids: isAllSelected ? [] : allIds
-                        });
-                      }}
-                      className="text-[9px] font-bold text-blue-600 hover:underline"
-                    >
-                      {settingsForm.target_class_ids.length === classes.length ? 'Limpar Seleção' : 'Selecionar Todas'}
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100 shadow-inner max-h-32 overflow-y-auto custom-scrollbar">
-                    {classes.map((c, idx) => {
+                    <div className="grid grid-cols-2 gap-2">
+                    {classes.map((c) => {
                       const isSelected = settingsForm.target_class_ids.includes(c.id);
-                      const classHighlight = dayActiveColors[idx % dayActiveColors.length].split(' ')[0];
-                      const classText = dayColors[idx % dayColors.length];
-                      
                       return (
                         <button
                           key={c.id}
@@ -1987,96 +2069,366 @@ export function AcademicCalendar() {
                             }
                           }}
                           className={cn(
-                            "px-3 py-2 rounded-xl text-[10px] font-bold transition-all border flex items-center gap-2",
+                            "flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
                             isSelected 
-                              ? `bg-white border-blue-100 ${classText} shadow-sm ring-1 ring-blue-50` 
-                              : "bg-transparent border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-100/50"
+                              ? "bg-blue-50 border-blue-200 text-blue-700" 
+                              : "bg-white border-slate-100 text-slate-600 hover:border-slate-200"
                           )}
                         >
                           <div className={cn(
-                            "w-2.5 h-2.5 rounded-full transition-all",
-                            isSelected ? classHighlight : "bg-slate-200"
-                          )} />
-                          {c.code}
+                            "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                            isSelected ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200"
+                          )}>
+                            {isSelected && <Check size={10} />}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold block truncate">{c.code}</span>
+                            <span className="text-[9px] font-medium text-slate-400 block truncate">{c.name}</span>
+                          </div>
                         </button>
                       );
                     })}
-                  </div>
-                </div>
+                    </div>
 
-                {/* 4. Ações Adicionais (NOVO) */}
-                {(isAdmin || isDirector) && (
-                  <div className="pt-6 border-t border-slate-100 flex flex-col gap-3">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Ações de Manutenção</h4>
-                    <button
-                      type="button"
-                      onClick={clearClassDays}
-                      className="w-full py-4 px-6 bg-red-50 text-red-600 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-100 transition-all border border-red-100"
-                    >
-                      <Trash2 size={16} />
-                      Zerar Cronograma de Aulas (Limpar Testes)
-                    </button>
-                    <p className="text-[9px] font-bold text-slate-400 text-center px-4 leading-relaxed">
-                      Esta ação remove permanentemente todos os registros automáticos do cronograma. Use para reiniciar testes ou corrigir erros em lote.
-                    </p>
+                    <div className="flex justify-center">
+                      <button 
+                        onClick={() => {
+                          const allIds = classes.map(c => c.id);
+                          const isAllSelected = settingsForm.target_class_ids.length === classes.length;
+                          setSettingsForm({
+                            ...settingsForm,
+                            target_class_ids: isAllSelected ? [] : allIds
+                          });
+                        }}
+                        className="text-[9px] font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest px-4 py-2"
+                      >
+                        {settingsForm.target_class_ids.length === classes.length ? 'Desmarcar Todas' : 'Selecionar Todas'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 2 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                    <div className="space-y-1">
+                      <h4 className="text-base font-bold text-slate-900">Períodos Letivos</h4>
+                      <p className="text-[11px] text-slate-500">Intervalos para geração das aulas.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                       {[
+                         { term: 1, label: '1º Semestre' },
+                         { term: 2, label: '2º Semestre' }
+                       ].map((t) => (
+                        <div key={t.term} className="bg-white p-5 rounded-xl border border-slate-100 space-y-4">
+                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.label}</span>
+                           <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                 <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Início</label>
+                                 <input 
+                                    type="text" 
+                                    placeholder="DD/MM/AAAA"
+                                    value={t.term === 1 ? settingsForm.term1_start : settingsForm.term2_start}
+                                    onChange={e => setSettingsForm({
+                                      ...settingsForm, 
+                                      [t.term === 1 ? 'term1_start' : 'term2_start']: maskDate(e.target.value)
+                                    })}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2 px-3 text-[11px] font-bold text-slate-600 focus:bg-white focus:border-blue-300 outline-none"
+                                 />
+                              </div>
+                              <div className="space-y-1">
+                                 <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Término</label>
+                                 <input 
+                                    type="text" 
+                                    placeholder="DD/MM/AAAA"
+                                    value={t.term === 1 ? settingsForm.term1_end : settingsForm.term2_end}
+                                    onChange={e => setSettingsForm({
+                                      ...settingsForm, 
+                                      [t.term === 1 ? 'term1_end' : 'term2_end']: maskDate(e.target.value)
+                                    })}
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2 px-3 text-[11px] font-bold text-slate-600 focus:bg-white focus:border-blue-300 outline-none"
+                                 />
+                              </div>
+                           </div>
+                        </div>
+                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeStep === 3 && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                    <div className="space-y-1">
+                      <h4 className="text-base font-bold text-slate-900">Configuração de Aula</h4>
+                      <p className="text-[11px] text-slate-500">Defina o título padrão para cada dia de aula selecionado.</p>
+                    </div>
+
+                    <div className="space-y-8">
+                      {/* Seletor Horizontal de Dias */}
+                      <div className="flex justify-between items-center bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm">
+                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((day, i) => {
+                          const isSelected = settingsForm.class_weekdays.includes(i);
+                          const isActive = editingDayIndex === i;
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => {
+                                setEditingDayIndex(i);
+                                // Se o dia for clicado e não estiver selecionado no cronograma geral, 
+                                // podemos decidir se o ativamos automaticamente ou apenas deixamos o usuário ver as configs.
+                                // Vamos manter a seleção explícita para evitar erros.
+                              }}
+                              className={cn(
+                                "flex-1 py-3 rounded-xl flex flex-col items-center gap-1 transition-all relative",
+                                isActive ? "bg-slate-900 text-white shadow-lg scale-105 z-10" : 
+                                isSelected ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-transparent text-slate-300 hover:bg-slate-50"
+                              )}
+                            >
+                              <span className="text-[10px] font-black uppercase tracking-tight">{day}</span>
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                isSelected ? (isActive ? "bg-blue-400" : "bg-blue-600") : "bg-transparent"
+                              )} />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Painel de Edição do Dia Ativo */}
+                      <motion.div 
+                        key={editingDayIndex}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-xs">
+                              {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'][editingDayIndex]}
+                            </div>
+                            <div>
+                              <h5 className="text-[11px] font-black text-slate-900 uppercase">Configuração Diária</h5>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                {settingsForm.class_weekdays.includes(editingDayIndex) ? 'Dia Letivo Ativo' : 'Dia Não Letivo'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const current = settingsForm.class_weekdays;
+                              let next;
+                              if (settingsForm.class_weekdays.includes(editingDayIndex)) {
+                                next = current.filter(d => d !== editingDayIndex);
+                              } else {
+                                next = [...current, editingDayIndex];
+                              }
+                              setSettingsForm({ ...settingsForm, class_weekdays: next });
+                            }}
+                            className={cn(
+                              "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                              settingsForm.class_weekdays.includes(editingDayIndex)
+                                ? "bg-red-50 text-red-600 hover:bg-red-100"
+                                : "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-100"
+                            )}
+                          >
+                            {settingsForm.class_weekdays.includes(editingDayIndex) ? 'Remover do Ciclo' : 'Incluir no Ciclo'}
+                          </button>
+                        </div>
+
+                        {settingsForm.class_weekdays.includes(editingDayIndex) && (
+                          <div className="space-y-2 pt-2 border-t border-slate-50">
+                            <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Título do Evento p/ este Dia</label>
+                            <input 
+                              type="text"
+                              autoFocus
+                              placeholder="Ex: Dia de Aula, Aula Teórica, etc..."
+                              value={settingsForm.weekday_titles[editingDayIndex] || ''}
+                              onChange={(e) => setSettingsForm({
+                                ...settingsForm,
+                                weekday_titles: { ...settingsForm.weekday_titles, [editingDayIndex]: e.target.value }
+                              })}
+                              className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all"
+                            />
+                            <p className="text-[9px] font-medium text-slate-400 italic px-1">
+                              * Este título será usado para todas as ocorrências deste dia no semestre.
+                            </p>
+                          </div>
+                        )}
+                        
+                        {!settingsForm.class_weekdays.includes(editingDayIndex) && (
+                          <div className="py-8 text-center flex flex-col items-center gap-3 opacity-40">
+                            <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                              <Calendar size={24} />
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-tight uppercase">Dia livre no cronograma</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
-                <button 
-                  onClick={async () => {
-                    const t1Start = parseDateToDB(settingsForm.term1_start);
-                    const t1End = parseDateToDB(settingsForm.term1_end);
-                    const t2Start = parseDateToDB(settingsForm.term2_start);
-                    const t2End = parseDateToDB(settingsForm.term2_end);
+              {/* Botões */}
+              <div className="px-6 py-4 bg-white border-t border-slate-100">
+                <div className="flex items-center justify-between gap-3">
+                  {activeStep > 1 ? (
+                    <button 
+                      onClick={() => setActiveStep(prev => prev - 1)}
+                      className="px-4 py-2 text-slate-400 hover:text-slate-600 text-[10px] font-bold uppercase transition-all"
+                    >
+                      Voltar
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+                  
+                  {activeStep < 3 ? (
+                    <button 
+                      onClick={() => {
+                        if (activeStep === 1 && settingsForm.target_class_ids.length === 0) {
+                          setNotification({ type: 'err', message: 'Selecione pelo menos uma turma.' });
+                          return;
+                        }
+                        setActiveStep(prev => prev + 1);
+                      }}
+                      className="px-6 py-2.5 bg-slate-900 text-white rounded text-[10px] font-bold uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center gap-2"
+                    >
+                      Continuar
+                      <ArrowRight size={14} />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={async () => {
+                        const t1Start = parseDateToDB(settingsForm.term1_start);
+                        const t1End = parseDateToDB(settingsForm.term1_end);
+                        const t2Start = parseDateToDB(settingsForm.term2_start);
+                        const t2End = parseDateToDB(settingsForm.term2_end);
 
-                    if (!t1Start || !t1End || !t2Start || !t2End) {
-                      setNotification({ type: 'err', message: 'Preencha todas as datas corretamente (DD/MM/AAAA).' });
-                      return;
-                    }
+                        if (!t1Start || !t1End || !t2Start || !t2End) {
+                          setNotification({ type: 'err', message: 'Preencha as datas.' });
+                          return;
+                        }
 
-                    setIsSyncing(true);
-                    try {
-                      const updatedSettings: AcademicSettings = {
-                        id: 'current',
-                        term1_start: t1Start,
-                        term1_end: t1End,
-                        term2_start: t2Start,
-                        term2_end: t2End,
-                        class_weekdays: settingsForm.class_weekdays,
-                        weekday_titles: settingsForm.weekday_titles,
-                        target_class_ids: settingsForm.target_class_ids
-                      };
-                      
-                      await saveData('academic_settings', 'current', updatedSettings);
-                      setAcademicSettings(updatedSettings);
+                        setIsSyncing(true);
+                        try {
+                          const updatedSettings: AcademicSettings = {
+                            id: 'current',
+                            term1_start: t1Start,
+                            term1_end: t1End,
+                            term2_start: t2Start,
+                            term2_end: t2End,
+                            class_weekdays: settingsForm.class_weekdays,
+                            weekday_titles: settingsForm.weekday_titles,
+                            target_class_ids: settingsForm.target_class_ids
+                          };
+                          
+                          await saveData('academic_settings', 'current', updatedSettings);
+                          setAcademicSettings(updatedSettings);
+                          await generateClassDays(updatedSettings);
 
-                      // Generate days using current settings
-                      await generateClassDays(updatedSettings);
+                          setShowSettings(false);
+                          setActiveStep(1);
+                          setNotification({ type: 'success', message: 'Cronograma gerado!' });
+                        } catch (error) {
+                          console.error("Error saving:", error);
+                          setNotification({ type: 'err', message: 'Erro ao processar.' });
+                        } finally {
+                          setIsSyncing(false);
+                        }
+                      }}
+                      disabled={isSyncing}
+                      className="px-6 py-2.5 bg-slate-900 text-white rounded text-[10px] font-bold uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                      Gerar Cronograma
+                    </button>
+                  )}
+                </div>
 
-                      setShowSettings(false);
-                      setNotification({ type: 'success', message: 'Cronograma escolar atualizado e calendários gerados!' });
-                    } catch (error) {
-                      console.error("Error saving and generating:", error);
-                      setNotification({ type: 'err', message: 'Erro no processo de salvamento.' });
-                    } finally {
-                      setIsSyncing(false);
-                    }
-                  }}
-                  disabled={isSyncing}
-                  className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-                >
-                  {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                  Salvar Alterações e Atualizar Calendário
-                </button>
+                {activeStep === 1 && (isAdmin || isDirector) && (
+                  <div className="flex gap-2 mt-3">
+                    {(isAdmin || isDirector) && (
+                      <button 
+                        onClick={clearClassDays}
+                        disabled={isSyncing}
+                        className="flex-1 py-2 text-red-500 hover:bg-red-50 rounded border border-transparent hover:border-red-100 text-[9px] font-bold uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        <Trash2 size={12} />
+                        Excluir Aulas
+                      </button>
+                    )}
+                    <button 
+                      onClick={async () => {
+                        setIsSyncing(true);
+                        setSyncMessage('Sincronizando feriados...');
+                        setSyncProgress(30);
+                        await syncHolidays();
+                        setSyncProgress(80);
+                        await fetchData();
+                        setSyncProgress(100);
+                        setTimeout(() => {
+                          setIsSyncing(false);
+                          setSyncProgress(0);
+                        }, 500);
+                      }}
+                      disabled={isSyncing}
+                      className="flex-1 py-2 text-slate-400 hover:bg-slate-50 rounded border border-transparent hover:border-slate-100 text-[9px] font-bold uppercase transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <RefreshCw size={12} />
+                      Sincronizar Feriados
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showConfirmModal && confirmModalConfig && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white max-w-sm w-full rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+            >
+              <div className="p-8 text-center space-y-6">
+                <div className={cn(
+                  "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-2 shadow-inner",
+                  confirmModalConfig.type === 'danger' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                )}>
+                  {confirmModalConfig.type === 'danger' ? <Trash2 size={32} /> : <Info size={32} />}
+                </div>
                 
-                <button 
-                  onClick={() => setShowSettings(false)}
-                  className="w-full py-3 text-slate-400 text-[9px] font-black uppercase tracking-widest hover:text-slate-600"
-                >
-                  Cancelar sem salvar
-                </button>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">{confirmModalConfig.title}</h3>
+                  <p className="text-xs font-medium text-slate-500 leading-relaxed">
+                    {confirmModalConfig.message}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button 
+                    onClick={() => setShowConfirmModal(false)}
+                    className="py-4 bg-slate-50 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={() => confirmModalConfig.action()}
+                    className={cn(
+                      "py-4 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95",
+                      confirmModalConfig.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-100" : "bg-blue-600 hover:bg-blue-700 shadow-blue-100"
+                    )}
+                  >
+                    Confirmar
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

@@ -11,7 +11,9 @@ import {
   Eye, 
   X,
   UserCircle,
-  Wallet
+  Wallet,
+  ShieldCheck,
+  TrendingUp
 } from 'lucide-react';
 import { fetchCount, fetchAll, saveBatch } from '../lib/database';
 import { isDbConnected, isSupabaseConfigured, lastLatency } from '../lib/supabase';
@@ -279,194 +281,216 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="space-y-8 p-1">
+    <div className="space-y-10 p-2 pb-20">
       <motion.div 
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
-        <div className="flex flex-col gap-1">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-black text-[#00174b] tracking-tighter">Painel de Controle</h1>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-            {isRefreshing && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-semibold border border-indigo-100/50 animate-pulse">
-                <RefreshCw size={10} className="animate-spin" />
-                Sincronizando...
-              </div>
-            )}
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Panorama da Instituição</p>
+            <div className="w-1 h-1 rounded-full bg-slate-300" />
+            <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+               <ShieldCheck size={12} /> Sistema Seguro
+            </div>
           </div>
-          <p className="text-sm font-medium text-slate-500">Visão geral do sistema de gestão.</p>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden md:block">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider leading-none mb-1">Última Sincronização</p>
-            <p className="text-xs font-medium text-slate-500">{lastUpdated.toLocaleTimeString('pt-BR')}</p>
-          </div>
+        <div className="flex items-center gap-3">
           <button 
             onClick={fetchStats}
             disabled={isRefreshing}
-            className={cn(
-              "p-2.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95",
-              isRefreshing && "opacity-50 cursor-wait"
-            )}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white border border-slate-100 text-[#00174b] text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-md hover:border-blue-100 transition-all active:scale-95"
           >
-            <RefreshCw size={18} className={cn(isRefreshing && "animate-spin")} />
+            <RefreshCw size={14} className={cn(isRefreshing && "animate-spin")} />
+            Sync Agora
           </button>
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, idx) => (
           <motion.div 
             key={stat.label}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="group relative bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all duration-300"
+            className="group relative bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-100/50 border border-slate-50 hover:shadow-2xl transition-all duration-500 overflow-hidden"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`${stat.bg} ${stat.color} p-2.5 rounded-lg border ${stat.border} transition-transform group-hover:scale-105 duration-300`}>
-                <stat.icon size={22} />
+            <div className="flex items-start justify-between mb-8 relative z-10">
+              <div className={`${stat.bg} ${stat.color} w-14 h-14 rounded-[1.25rem] flex items-center justify-center transition-transform group-hover:scale-110 duration-500`}>
+                <stat.icon size={26} />
               </div>
-              <button className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
-                <ArrowUpRight size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-0.5">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{stat.label}</p>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-bold text-slate-900 tracking-tight transition-all duration-500">
+              <div className="text-right">
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{stat.label}</p>
+                <h3 className="text-4xl font-black text-[#00174b] tracking-tighter mt-1 tabular-nums">
                   {isRefreshing ? "..." : stat.stats.active}
                 </h3>
-                <div className="flex items-center gap-2 group/status relative">
-                  <div className={cn(
-                    "h-2.5 w-2.5 rounded-full transition-all duration-500",
-                    dbStatus === 'connected' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-amber-400"
-                  )}></div>
-                  
-                  {/* Tooltip de Latência Precision */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[#131b2e] text-[10px] text-white rounded opacity-0 group-hover/status:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-bold z-20 shadow-xl border border-slate-700">
-                    {dbInfo.connected ? `${dbInfo.latency || '?'}ms (Estável)` : 'Reconectando...'}
-                  </div>
-                </div>
               </div>
             </div>
-            
 
-            
-            {/* Background Accent Gradient */}
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <div className={`w-24 h-24 blur-3xl opacity-20 rounded-full ${stat.bg.replace('bg-', 'bg-')}`}></div>
+            <div className="flex items-center justify-between relative z-10">
+               <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Rede</span>
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "h-2 w-2 rounded-full",
+                      dbStatus === 'connected' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-amber-400"
+                    )}></div>
+                    <span className="text-[10px] font-bold text-slate-400">{dbInfo.latency || '?'}ms</span>
+                  </div>
+               </div>
+               <div className="px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                  Ativos
+               </div>
             </div>
+
+            <div className={`absolute -bottom-6 -right-6 w-32 h-32 blur-[60px] opacity-10 rounded-full transition-all group-hover:opacity-20 ${stat.bg.replace('bg-', 'bg-')}`} />
           </motion.div>
         ))}
-      </div>
-
-      {/* Ocupação Acadêmica Section moved from Reports */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.5 }}
-        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
-      >
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-indigo-600 border border-slate-200">
-              <GraduationCap size={18} />
+      </div>      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4 }}
+          className="lg:col-span-8 bg-white rounded-[3rem] border border-slate-50 shadow-2xl shadow-slate-200/50 overflow-hidden"
+        >
+          <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-white relative overflow-hidden">
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
+                <Activity size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-[#00174b] tracking-tight">Ocupação Acadêmica</h3>
+                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Análise por Turma</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">Ocupação Acadêmica</h3>
-              <p className="text-[10px] font-medium text-slate-500">Análise por turma</p>
+            <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 relative z-10 font-black text-[9px] uppercase tracking-widest">
+              <TrendingUp size={14} className="fill-emerald-600" />
+              Live
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Activity size={12} className="text-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Live</span>
-          </div>
-        </div>
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {studentsByClass.length > 0 ? (
-            studentsByClass.map((c, i) => (
-              <motion.div 
-                key={i} 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={cn(
-                  "p-4 rounded-xl border transition-all duration-300 group hover:shadow-md",
-                  c.bgClass,
-                  c.borderClass
-                )}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-sm",
-                      "bg-gradient-to-br",
-                      c.color
-                    )}>
-                      {c.code}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-slate-900 truncate max-w-[100px]">
-                          {c.name}
-                        </p>
-                        {c.count > 0 && (
-                          <button 
-                            onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
-                            className={cn(
-                              "px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all active:scale-95 whitespace-nowrap",
-                              c.unallocated 
-                                ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-600 hover:text-white hover:border-amber-600" 
-                                : "bg-white text-slate-600 border-slate-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600"
-                            )}
-                          >
-                            VER
-                          </button>
-                        )}
+          
+          <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#fafbfc]">
+            {studentsByClass.length > 0 ? (
+              studentsByClass.map((c, i) => (
+                <motion.div 
+                  key={i} 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className={cn(
+                    "p-6 rounded-[2rem] border transition-all duration-500 group bg-white shadow-sm hover:shadow-xl hover:scale-[1.02]",
+                    c.borderClass
+                  )}
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-xl",
+                        "bg-gradient-to-br",
+                        c.color
+                      )}>
+                        {c.code}
                       </div>
-                      <p className="text-[10px] font-medium text-slate-500 uppercase mt-0.5 opacity-70">
-                        {c.period}
-                      </p>
+                      <div className="min-w-0">
+                        <h5 className="text-sm font-black text-[#00174b] tracking-tight truncate">{c.name}</h5>
+                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-0.5">{c.period}</p>
+                      </div>
+                    </div>
+                    {c.count > 0 && (
+                      <button 
+                        onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
+                        className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-end px-1">
+                       <div className="flex flex-col">
+                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Ocupação</span>
+                          <span className="text-lg font-black text-[#00174b] tabular-nums leading-none">{c.percentage}%</span>
+                       </div>
+                       <div className="text-right">
+                          <span className="text-lg font-black text-[#00174b] tabular-nums leading-none">{c.count}</span>
+                          <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Alunos</p>
+                       </div>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(c.percentage, 100)}%` }}
+                        transition={{ duration: 1.5, ease: "easeOut", delay: i * 0.1 }}
+                        className={cn("h-full rounded-full shadow-lg", c.color)} 
+                      />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-slate-900 tabular-nums tracking-tight">
-                      {c.count}
-                    </p>
-                    <p className={cn("text-[10px] font-semibold uppercase tracking-tight", c.textClass)}>
-                      Alunos
-                    </p>
-                  </div>
-                </div>
+                </motion.div>
+              ))
+            ) : (
+               <div className="col-span-full py-20 flex flex-col items-center gap-4 text-slate-300">
+                  <RefreshCw size={32} className="animate-spin opacity-20" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Atualizando Dados Acadêmicos...</span>
+               </div>
+            )}
+          </div>
+        </motion.div>
 
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center px-0.5">
-                    <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Ocupação</span>
-                    <span className={cn("text-[10px] font-bold tabular-nums", c.textClass)}>{c.percentage}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden border border-slate-100">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(c.percentage, 100)}%` }}
-                      transition={{ duration: 1, ease: "easeOut", delay: i * 0.1 }}
-                      className={cn("h-full rounded-full shadow-sm relative", c.color)} 
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          ) : (
-            <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
-              <RefreshCw size={24} className="animate-spin opacity-20" />
-              <p className="text-xs font-black uppercase tracking-widest">Carregando dados ocupacionais...</p>
-            </div>
-          )}
-        </div>
-      </motion.div>
+        <motion.div
+           initial={{ opacity: 0, x: 20 }}
+           animate={{ opacity: 1, x: 0 }}
+           transition={{ delay: 0.6 }}
+           className="lg:col-span-4 space-y-6"
+        >
+           <div className="bg-[#00174b] p-8 rounded-[3rem] shadow-2xl shadow-blue-900/20 text-white relative overflow-hidden group">
+              <div className="relative z-10 space-y-6">
+                 <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center">
+                    <TrendingUp size={24} className="text-blue-400" />
+                 </div>
+                 <div className="space-y-1">
+                    <h4 className="text-xl font-black tracking-tight">Estatísticas</h4>
+                    <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">Métricas Anuais</p>
+                 </div>
+                 <div className="pt-4">
+                    <div className="flex items-baseline gap-2">
+                       <span className="text-5xl font-black tabular-nums">+8%</span>
+                       <span className="text-xs font-bold text-emerald-400">ativos</span>
+                    </div>
+                 </div>
+                 <button className="w-full py-4 bg-white/10 hover:bg-white text-white hover:text-[#00174b] rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10">
+                    Ver Relatório
+                 </button>
+              </div>
+              <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-blue-600/30 rounded-full blur-[80px] group-hover:scale-125 transition-transform duration-700" />
+           </div>
+
+           <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-50 space-y-6">
+              <h4 className="text-xs font-black text-[#00174b] uppercase tracking-widest px-2">Acesso Rápido</h4>
+              <div className="grid grid-cols-2 gap-3">
+                 {[
+                   { label: 'Novo Aluno', icon: Users, path: '/students' },
+                   { label: 'Calendário', icon: Activity, path: '/calendar' },
+                   { label: 'Turmas', icon: GraduationCap, path: '/classes' },
+                   { label: 'Docentes', icon: UserCheck, path: '/teachers' }
+                 ].map((item, i) => (
+                    <button 
+                      key={i}
+                      onClick={() => item.path !== '#' && navigate(item.path)}
+                      className="flex flex-col items-center justify-center p-6 bg-[#fafbfc] border border-slate-50 rounded-[2rem] hover:bg-blue-50 hover:border-blue-100 hover:shadow-lg transition-all group"
+                    >
+                       <item.icon size={22} className="text-slate-300 group-hover:text-blue-600 mb-3" />
+                       <span className="text-[9px] font-black text-slate-400 group-hover:text-blue-700 uppercase tracking-widest">{item.label}</span>
+                    </button>
+                 ))}
+              </div>
+           </div>
+        </motion.div>
+      </div>
       {/* Students Modal */}
       {showStudentsModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[999]">
