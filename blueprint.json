@@ -342,7 +342,7 @@
         "term1_end": { "type": "string" },
         "term2_start": { "type": "string" },
         "term2_end": { "type": "string" },
-        "class_weekday": { "type": "integer" },
+        "class_weekdays": { "type": "array", "items": { "type": "integer" } },
         "skip_holiday_neighbors": { "type": "boolean" },
         "updated_at": { "type": "string", "format": "date-time" }
       },
