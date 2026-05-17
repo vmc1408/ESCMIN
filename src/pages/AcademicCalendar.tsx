@@ -1027,16 +1027,16 @@ export function AcademicCalendar() {
     if (!academicSettings) return null;
     
     return (
-      <div className="flex flex-col xl:flex-row xl:items-center gap-6">
+      <div className="flex flex-col xl:flex-row xl:items-center gap-8">
         {/* Lado Esquerdo: Controles de Navegação e Visão */}
-        <div className="flex items-center gap-3">
-          {/* Seletor de Visão */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 shadow-inner">
+        <div className="flex flex-col gap-3 shrink-0">
+          {/* Seletor de Visão - Aumentado */}
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner w-fit">
             <button 
               onClick={() => setViewMode('month')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'month' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                viewMode === 'month' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
               )}
             >
               Mês
@@ -1044,8 +1044,8 @@ export function AcademicCalendar() {
             <button 
               onClick={() => setViewMode('year')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'year' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                viewMode === 'year' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
               )}
             >
               Ano
@@ -1053,32 +1053,32 @@ export function AcademicCalendar() {
             <button 
               onClick={() => setViewMode('list')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'list' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                viewMode === 'list' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
               )}
             >
               Lista
             </button>
           </div>
 
-          {/* Navegação de Data Contextual */}
-          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 shadow-sm">
+          {/* Navegação de Data Contextual - Aumentado */}
+          <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-sm w-fit self-start">
             <button 
               onClick={viewMode === 'month' ? prevMonth : prevYear}
-              className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-blue-600 active:scale-90"
+              className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-blue-600 active:scale-90"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={20} />
             </button>
             
-            <div className="px-3 min-w-[100px] text-center border-x border-slate-100">
-              <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+            <div className="px-5 min-w-[120px] text-center border-x border-slate-100">
+              <span className="text-xs font-black text-slate-800 uppercase tracking-[0.1em]">
                 {viewMode === 'month' 
-                  ? currentDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+                  ? currentDate.toLocaleDateString('pt-BR', { month: 'long' }).replace('.', '')
                   : currentDate.getFullYear()
                 }
               </span>
               {viewMode === 'month' && (
-                <span className="text-[8px] font-bold text-slate-400 ml-1">
+                <span className="text-[10px] font-bold text-slate-400 ml-2">
                   {currentDate.getFullYear()}
                 </span>
               )}
@@ -1086,27 +1086,26 @@ export function AcademicCalendar() {
 
             <button 
               onClick={viewMode === 'month' ? nextMonth : nextYear}
-              className="p-1.5 hover:bg-slate-50 rounded-lg transition-all text-slate-400 hover:text-blue-600 active:scale-90"
+              className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-blue-600 active:scale-90"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={20} />
             </button>
           </div>
         </div>
 
         {/* Lado Direito: Status e Progresso (Antigo AcademicStatus) */}
-        <div className="flex-1 flex flex-col md:flex-row items-center gap-6 min-w-0">
-          {/* Progresso e Datas */}
-          <div className="flex-1 w-full max-w-sm space-y-1.5 overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row items-center gap-8 min-w-0">
+          {/* Progresso e Datas - Tamanho Reduzido */}
+          <div className="w-full max-w-[240px] space-y-2 overflow-hidden bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
             <div className="flex justify-between items-end px-1 gap-4">
               <div className="flex items-center gap-2 overflow-hidden">
-                <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[8px] font-black uppercase tracking-tight border border-emerald-100 truncate">
+                <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-tight border border-emerald-200 truncate">
                   {new Date() < new Date(academicSettings.term1_start) ? 'Preparação' : 
                    new Date() > new Date(academicSettings.term2_end) ? 'Encerrado' : 'Em curso'}
                 </span>
               </div>
-              <span className="text-[8px] font-bold text-slate-400 uppercase shrink-0">Ciclo: {formatDateForDisplay(academicSettings.term1_start)} - {formatDateForDisplay(academicSettings.term2_end)}</span>
             </div>
-            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-50">
+            <div className="h-2 bg-white rounded-full overflow-hidden p-0.5 border border-slate-200 shadow-inner">
               {(() => {
                 const start = new Date(academicSettings.term1_start).getTime();
                 const end = new Date(academicSettings.term2_end).getTime();
@@ -1123,47 +1122,51 @@ export function AcademicCalendar() {
                 );
               })()}
             </div>
+            <div className="flex justify-between px-1">
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Início: {formatDateForDisplay(academicSettings.term1_start)}</span>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Fim: {formatDateForDisplay(academicSettings.term2_end)}</span>
+            </div>
           </div>
 
-          {/* Contagem Quarta/Quinta Staked */}
-          <div className="flex flex-col gap-2 shrink-0 border-l border-slate-100 pl-6 min-w-[180px]">
-            <div className="flex items-center justify-end gap-3">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Quarta</span>
-              <div className="flex items-baseline gap-1 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100/50">
+          {/* Contagem Quarta/Quinta Staked - Aumentado e Estilizado */}
+          <div className="flex flex-col gap-3 shrink-0 border-l border-slate-100 pl-8 min-w-[220px]">
+            <div className="flex items-center justify-end gap-4">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quarta</span>
+              <div className="flex items-baseline gap-1.5 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
                 {(() => {
                   const count = getEventCount('class_day', 3);
                   const days = typeof count === 'object' ? count.days : 0;
-                  return <span className="text-sm font-black text-blue-600">{days}</span>;
+                  return <span className="text-xl font-black text-blue-600 leading-none">{days}</span>;
                 })()}
-                <span className="text-[7px] font-bold text-blue-300 uppercase">Aulas</span>
+                <span className="text-[9px] font-bold text-blue-400 uppercase">Aulas</span>
               </div>
               {(() => {
                 const progress = getClassProgress(3);
                 return (
-                  <div className="flex flex-col items-end min-w-[40px]">
-                    <span className="text-[7px] font-bold text-orange-500 uppercase leading-none">-{progress.remaining}</span>
-                    <span className="text-[6px] font-bold text-slate-300 uppercase">Restam</span>
+                  <div className="flex flex-col items-end min-w-[50px]">
+                    <span className="text-[10px] font-black text-orange-600 leading-none">-{progress.remaining}</span>
+                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Restam</span>
                   </div>
                 );
               })()}
             </div>
 
-            <div className="flex items-center justify-end gap-3">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Quinta</span>
-              <div className="flex items-baseline gap-1 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100/50">
+            <div className="flex items-center justify-end gap-4">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quinta</span>
+              <div className="flex items-baseline gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
                 {(() => {
                   const count = getEventCount('class_day', 4);
                   const days = typeof count === 'object' ? count.days : 0;
-                  return <span className="text-sm font-black text-indigo-600">{days}</span>;
+                  return <span className="text-xl font-black text-indigo-600 leading-none">{days}</span>;
                 })()}
-                <span className="text-[7px] font-bold text-indigo-300 uppercase">Aulas</span>
+                <span className="text-[9px] font-bold text-indigo-400 uppercase">Aulas</span>
               </div>
               {(() => {
                 const progress = getClassProgress(4);
                 return (
-                  <div className="flex flex-col items-end min-w-[40px]">
-                    <span className="text-[7px] font-bold text-orange-500 uppercase leading-none">-{progress.remaining}</span>
-                    <span className="text-[6px] font-bold text-slate-300 uppercase">Restam</span>
+                  <div className="flex flex-col items-end min-w-[50px]">
+                    <span className="text-[10px] font-black text-orange-600 leading-none">-{progress.remaining}</span>
+                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Restam</span>
                   </div>
                 );
               })()}
@@ -1171,12 +1174,34 @@ export function AcademicCalendar() {
           </div>
 
           {(isAdmin || isDirector) && (
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-xl border border-slate-100 ml-2 shadow-sm active:scale-95"
-            >
-              <Settings size={16} />
-            </button>
+            <div className="flex flex-col gap-1.5 ml-2">
+              <button 
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setFormData({
+                    title: '',
+                    description: '',
+                    start_date: '',
+                    end_date: '',
+                    type: 'event',
+                    class_id: '',
+                    subject_id: ''
+                  });
+                  setIsEditing(true);
+                }}
+                className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 transition-all rounded-xl shadow-lg shadow-blue-100 active:scale-95"
+                title="Novo Registro"
+              >
+                <Plus size={18} />
+              </button>
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-xl border border-slate-100 shadow-sm active:scale-95"
+                title="Configurações Acadêmicas"
+              >
+                <Settings size={16} />
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1196,27 +1221,6 @@ export function AcademicCalendar() {
         </div>
 
         <div className="flex items-center gap-2">
-          {(isAdmin || isDirector) && (
-            <button 
-              onClick={() => {
-                setSelectedEvent(null);
-                setFormData({
-                  title: '',
-                  description: '',
-                  start_date: '',
-                  end_date: '',
-                  type: 'event',
-                  class_id: '',
-                  subject_id: ''
-                });
-                setIsEditing(true);
-              }}
-              className="flex items-center gap-2 px-6 py-3.5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all active:scale-95"
-            >
-              <Plus size={16} />
-              Novo Registro
-            </button>
-          )}
         </div>
       </div>
 
@@ -1604,11 +1608,10 @@ export function AcademicCalendar() {
 
               {/* Seção 1: Eventos e Feriados Manuais */}
               {(Object.entries(groupedEvents) as [string, CalendarEvent[]][]).some(([_, events]) => events.some(e => e.type !== 'class_day' && !e.description?.includes('Cronograma automático'))) && (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div className="flex items-center gap-4 px-2">
-                    <div className="h-px flex-1 bg-slate-200" />
-                    <h2 className="text-xs font-bold text-blue-500/80 uppercase tracking-[0.3em] whitespace-nowrap">Eventos de Referência</h2>
-                    <div className="h-px flex-1 bg-slate-200" />
+                    <h2 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">Eventos de Referência</h2>
+                    <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   
                   {(Object.entries(groupedEvents) as [string, CalendarEvent[]][]).map(([month, monthEvents]) => {
@@ -1616,93 +1619,103 @@ export function AcademicCalendar() {
                     if (manualEvents.length === 0) return null;
 
                     return (
-                      <div key={`manual-${month}`} className="space-y-4">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2 flex items-center gap-2">
-                          <div className="w-1 h-3 bg-blue-600 rounded-full" />
-                          {month}
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div key={`manual-${month}`} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="bg-slate-50/50 px-6 py-3 border-b border-slate-100">
+                          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <CalendarIcon size={12} className="text-blue-500" />
+                            {month}
+                          </h3>
+                        </div>
+                        <div className="divide-y divide-slate-50">
                           {manualEvents.map(event => (
                             <motion.div 
                               layout
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
                               key={event.id} 
-                              className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all group cursor-pointer relative"
+                              className="px-6 py-4 hover:bg-blue-50/30 transition-all group cursor-pointer flex items-center justify-between gap-6"
                               onClick={() => handleEdit(event)}
                             >
-                              <div className="flex items-start justify-between">
-                                <div className="space-y-3">
-                                  <span className={cn(
-                                    "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                                    getTypeStyle(event.type, event.description)
-                                  )}>
-                                    {getTypeText(event.type, event.description)}
+                              <div className="flex items-center gap-6 flex-1 min-w-0">
+                                {/* Data Compacta */}
+                                <div className="flex flex-col items-center justify-center min-w-[50px] py-1 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-white group-hover:border-blue-200 transition-colors">
+                                  <span className="text-[14px] font-black text-slate-800 leading-none">
+                                    {new Date(event.start_date + 'T00:00:00').getDate()}
                                   </span>
-                                  <h4 className="text-lg font-black text-slate-800 leading-tight">
-                                    {event.title.replace(/^Dia de Aula - /, '')}
-                                  </h4>
-                                  <div className="flex flex-col gap-1">
-                                    <p className="text-xs font-bold text-blue-600 flex items-center gap-2">
-                                      <CalendarIcon size={14} />
-                                      {new Date(event.start_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                      {event.end_date && event.end_date !== event.start_date && (
-                                        <>
-                                          <ChevronRight size={12} />
-                                          {new Date(event.end_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                        </>
-                                      )}
-                                    </p>
+                                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                                    {new Date(event.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                                  <div className="flex items-center gap-3">
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border shrink-0",
+                                      getTypeStyle(event.type, event.description)
+                                    )}>
+                                      {getTypeText(event.type, event.description)}
+                                    </span>
+                                    <h4 className="text-sm font-bold text-slate-800 truncate">
+                                      {event.title.replace(/^Dia de Aula - /, '')}
+                                    </h4>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-4">
+                                    {event.end_date && event.end_date !== event.start_date && (
+                                      <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                        Até {new Date(event.end_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                      </span>
+                                    )}
                                     {(event.class_id || event.subject_id) && (
-                                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                      <div className="flex items-center gap-3">
                                         {event.class_id && (
-                                          <span className="flex items-center gap-1">
-                                            <School size={12} />
-                                            {classes.find(c => c.id === event.class_id)?.name || 'Turma não encontrada'}
+                                          <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tight">
+                                            <School size={10} />
+                                            {classes.find(c => c.id === event.class_id)?.name}
                                           </span>
                                         )}
                                         {event.subject_id && (
-                                          <span className="flex items-center gap-1">
-                                            <BookOpen size={12} />
-                                            {subjects.find(s => s.id === event.subject_id)?.name || 'Disciplina não encontrada'}
+                                          <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tight">
+                                            <BookOpen size={10} />
+                                            {subjects.find(s => s.id === event.subject_id)?.name}
                                           </span>
                                         )}
-                                      </p>
+                                      </div>
+                                    )}
+                                    {event.description && !event.description.includes('Cronograma automático') && (
+                                      <span className="text-[10px] font-medium text-slate-400 truncate opacity-60 italic">— {event.description}</span>
                                     )}
                                   </div>
-                                  {event.description && !event.description.includes('Cronograma automático') && (
-                                    <p className="text-xs font-medium text-slate-400 line-clamp-2">{event.description}</p>
-                                  )}
                                 </div>
-                                
-                                {(isAdmin || isDirector) && (
-                                  <div className="flex flex-col gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEdit(event);
-                                      }}
-                                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                    >
-                                      <Edit2 size={16} />
-                                    </button>
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(event.id, confirmDeleteId === event.id);
-                                      }}
-                                      className={cn(
-                                        "p-2 rounded-xl transition-all",
-                                        confirmDeleteId === event.id 
-                                          ? "bg-red-600 text-white animate-pulse shadow-lg shadow-red-100" 
-                                          : "text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                      )}
-                                    >
-                                      {confirmDeleteId === event.id ? <Check size={16} /> : <Trash2 size={16} />}
-                                    </button>
-                                  </div>
-                                )}
                               </div>
+                              
+                              {(isAdmin || isDirector) && (
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEdit(event);
+                                    }}
+                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-blue-100 shadow-sm hover:shadow-md"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(event.id, confirmDeleteId === event.id);
+                                    }}
+                                    className={cn(
+                                      "p-2 rounded-lg transition-all border border-transparent",
+                                      confirmDeleteId === event.id 
+                                        ? "bg-red-600 text-white animate-pulse shadow-lg" 
+                                        : "text-slate-400 hover:text-red-600 hover:bg-white hover:border-red-100 hover:shadow-md"
+                                    )}
+                                  >
+                                    {confirmDeleteId === event.id ? <Check size={14} /> : <Trash2 size={14} />}
+                                  </button>
+                                </div>
+                              )}
                             </motion.div>
                           ))}
                         </div>
@@ -1714,11 +1727,10 @@ export function AcademicCalendar() {
 
               {/* Seção 2: Cronograma Automático */}
               {(Object.entries(groupedEvents) as [string, CalendarEvent[]][]).some(([_, events]) => events.some(e => e.type === 'class_day' || e.description?.includes('Cronograma automático'))) && (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div className="flex items-center gap-4 px-2">
-                    <div className="h-px flex-1 bg-slate-200" />
-                    <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] whitespace-nowrap">Cronograma Automático</h2>
-                    <div className="h-px flex-1 bg-slate-200" />
+                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200">Cronograma de Aulas</h2>
+                    <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   
                   {(Object.entries(groupedEvents) as [string, CalendarEvent[]][]).map(([month, monthEvents]) => {
@@ -1726,56 +1738,42 @@ export function AcademicCalendar() {
                     if (autoEvents.length === 0) return null;
 
                     return (
-                      <div key={`auto-${month}`} className="space-y-4">
-                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-2 flex items-center gap-2">
-                          <div className="w-1 h-3 bg-blue-500/50 rounded-full" />
-                          {month}
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div key={`auto-${month}`} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="bg-slate-50/50 px-6 py-3 border-b border-slate-100">
+                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <BookOpen size={12} />
+                            {month}
+                          </h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-50">
                           {autoEvents.map(event => (
                             <motion.div 
                               layout
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
                               key={event.id} 
-                              className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 hover:bg-white hover:border-blue-200 hover:shadow-md transition-all group cursor-pointer relative"
+                              className="p-4 hover:bg-slate-50 transition-all group cursor-pointer flex items-center gap-4"
                               onClick={() => handleEdit(event)}
                             >
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className={cn(
-                                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-110",
-                                    dayActiveColors[new Date(event.start_date + 'T00:00:00').getDay()].split(' ')[0],
-                                    "text-white"
-                                  )}>
-                                    <BookOpen size={18} />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <h4 className="text-[13px] font-black text-slate-800 leading-tight truncate">
-                                      {event.title.replace(/^Dia de Aula - /, '')}
-                                    </h4>
-                                    <p className="text-[10px] font-bold text-slate-500 mt-1">
-                                      {new Date(event.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
-                                    </p>
-                                  </div>
+                              <div className="w-10 h-10 flex flex-col items-center justify-center bg-slate-100 border border-slate-200 p-0.5 rounded-xl group-hover:bg-white group-hover:border-blue-200 transition-all">
+                                <span className="text-[13px] font-black text-slate-700 leading-none">
+                                  {new Date(event.start_date + 'T00:00:00').getDate()}
+                                </span>
+                                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">
+                                  {new Date(event.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-[11px] font-black text-slate-800 truncate uppercase tracking-tight">
+                                  {event.title.replace(/^Dia de Aula - /, '')}
+                                </h4>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[8px] font-bold text-blue-500 uppercase tracking-widest">Aula Presencial</span>
+                                  <div className="w-1 h-1 bg-slate-300 rounded-full" />
+                                  <span className="text-[8px] font-bold text-slate-400 uppercase truncate">
+                                    {classes.find(c => c.id === event.class_id)?.name}
+                                  </span>
                                 </div>
-                                
-                                {(isAdmin || isDirector) && (
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(event.id, confirmDeleteId === event.id);
-                                    }}
-                                    className={cn(
-                                      "p-2 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100",
-                                      confirmDeleteId === event.id 
-                                        ? "bg-red-600 text-white animate-pulse" 
-                                        : "text-slate-300 hover:text-red-500 hover:bg-red-50"
-                                    )}
-                                  >
-                                    {confirmDeleteId === event.id ? <Check size={14} /> : <Trash2 size={14} />}
-                                  </button>
-                                )}
                               </div>
                             </motion.div>
                           ))}
