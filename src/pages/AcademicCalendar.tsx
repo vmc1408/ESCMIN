@@ -31,10 +31,14 @@ import {
   GraduationCap,
   Settings2,
   Calendar,
+  Globe,
   Target,
   CheckCircle2,
   ArrowRight,
-  Globe
+  Printer,
+  FileDown,
+  LayoutGrid,
+  Divide
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery } from '../lib/database';
@@ -102,6 +106,12 @@ export function AcademicCalendar() {
   } | null>(null);
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [printType, setPrintType] = useState<'class_schedule' | 'annual_poster' | 'monthly_grid' | null>(null);
+  const [printFilters, setPrintFilters] = useState({
+    class_id: 'all',
+    weekday: 'all' as number | 'all'
+  });
   
   // Helper para calcular a Páscoa (Algoritmo de Meeus/Jones/Butcher)
   const getEaster = (year: number) => {
@@ -1221,6 +1231,13 @@ export function AcademicCalendar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowPrintOptions(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all active:scale-95 border border-slate-200"
+          >
+            <Printer size={16} />
+            Imprimir Relatórios
+          </button>
         </div>
       </div>
 
@@ -1786,17 +1803,18 @@ export function AcademicCalendar() {
             </div>
           ) : (
             <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center gap-4">
-              <div className="w-12 h-12 bg-slate-50 text-slate-300 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center">
                 <CalendarIcon size={24} />
               </div>
               <div>
-                <p className="text-base font-bold text-slate-400">Nenhum evento encontrado</p>
-                <p className="text-xs text-slate-300">Tente ajustar seus filtros ou pesquisar por outro termo.</p>
+                <p className="text-base font-bold text-slate-600">Nenhum evento encontrado</p>
+                <p className="text-xs text-slate-400">Tente ajustar seus filtros ou pesquisar por outro termo.</p>
               </div>
             </div>
           )}
         </div>
       </div>
+
 
       <AnimatePresence>
         {isEditing && (
@@ -2432,6 +2450,313 @@ export function AcademicCalendar() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal de Opções de Impressão */}
+      <AnimatePresence>
+        {showPrintOptions && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[250] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-2xl w-full shadow-2xl border border-slate-100"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                    <Printer size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter leading-none">Centro de Impressão</h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Selecione o formato de relatório desejado</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowPrintOptions(false);
+                    setPrintType(null);
+                  }}
+                  className="p-2 hover:bg-slate-50 rounded-xl transition-all"
+                >
+                  <X size={20} className="text-slate-400" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                {[
+                  { id: 'class_schedule', title: 'Relatório de Aulas', icon: FileDown, desc: 'Lista mensal filtrável por turma e dia.' },
+                  { id: 'annual_poster', title: 'Pôster Anual', icon: Target, desc: 'Grade compacta de 12 meses em página única.' },
+                  { id: 'monthly_grid', title: 'Grade Mensal', icon: LayoutGrid, desc: 'Visualização clássica do mês selecionado.' }
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setPrintType(option.id as any)}
+                    className={cn(
+                      "p-6 rounded-3xl border-2 transition-all text-left flex flex-col gap-3 group",
+                      printType === option.id 
+                        ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-100 scale-105" 
+                        : "bg-slate-50 border-slate-100 hover:border-blue-300 text-slate-600"
+                    )}
+                  >
+                    <option.icon size={24} className={printType === option.id ? "text-white" : "text-blue-500"} />
+                    <div>
+                      <h3 className="text-[11px] font-black uppercase tracking-widest leading-tight">{option.title}</h3>
+                      <p className={cn("text-[8.5px] mt-2 font-medium leading-relaxed", printType === option.id ? "text-blue-100" : "text-slate-400")}>
+                        {option.desc}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {printType === 'class_schedule' && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-4 p-6 bg-slate-50 rounded-3xl border border-slate-100 mb-8"
+                >
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <Filter size={14} /> Filtros de Relatório
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
+                      <select 
+                        value={printFilters.class_id}
+                        onChange={(e) => setPrintFilters(prev => ({ ...prev, class_id: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="all">Todas as Turmas Ativas</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Dia da Semana</label>
+                      <select 
+                        value={printFilters.weekday}
+                        onChange={(e) => setPrintFilters(prev => ({ ...prev, weekday: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="all">Todos os Dias de Aula</option>
+                        <option value="1">Segunda-feira</option>
+                        <option value="2">Terça-feira</option>
+                        <option value="3">Quarta-feira</option>
+                        <option value="4">Quinta-feira</option>
+                        <option value="5">Sexta-feira</option>
+                      </select>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    setShowPrintOptions(false);
+                    setPrintType(null);
+                  }}
+                  className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  disabled={!printType}
+                  onClick={() => window.print()}
+                  className="flex-3 py-4 px-6 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
+                >
+                  Gerar Impressão Agora
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Relatórios para Impressão (Apenas via @media print) */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999] overflow-auto p-0 m-0">
+        <style>
+          {`
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 1cm;
+              }
+              body * {
+                visibility: hidden;
+              }
+              .print-container, .print-container * {
+                visibility: visible;
+              }
+              .print-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                color: black;
+              }
+              .no-print { display: none !important; }
+              .page-break { page-break-after: always; }
+              .avoid-break { page-break-inside: avoid; }
+            }
+          `}
+        </style>
+        
+        <div className="print-container p-8 font-sans">
+          {/* Header do Relatório */}
+          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-6 mb-8">
+            <div>
+              <h1 className="text-2xl font-black uppercase tracking-tighter">Cronograma Acadêmico {currentDate.getFullYear()}</h1>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                {printType === 'class_schedule' ? 'Relatório de Aulas por Ciclo' : 
+                 printType === 'annual_poster' ? 'Pôster Calendário Anual' : 'Grade Mensal de Eventos'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">Emitido em: {new Date().toLocaleDateString('pt-BR')}</p>
+              <div className="bg-slate-900 text-white px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest">
+                DOC. OFICIAL
+              </div>
+            </div>
+          </div>
+
+          {/* Relatório 1: Cronograma de Aulas */}
+          {printType === 'class_schedule' && (
+            <div className="space-y-10">
+              {Object.entries(groupedEvents).map(([month, monthEvents]) => {
+                const autoEvents = monthEvents.filter(e => {
+                  const isAuto = e.type === 'class_day' || e.description?.includes('Cronograma automático');
+                  const matchesClass = printFilters.class_id === 'all' || e.class_id === printFilters.class_id;
+                  const matchesWeekday = printFilters.weekday === 'all' || new Date(e.start_date + 'T00:00:00').getDay() === printFilters.weekday;
+                  return isAuto && matchesClass && matchesWeekday;
+                });
+
+                if (autoEvents.length === 0) return null;
+
+                return (
+                  <div key={`print-auto-${month}`} className="avoid-break mb-8">
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4 pb-2 border-b border-slate-200 flex items-center justify-between">
+                      <span>{month}</span>
+                      <span className="text-[9px] text-slate-400">{autoEvents.length} Aulas</span>
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {autoEvents.map(event => (
+                        <div key={`print-event-${event.id}`} className="flex items-center gap-4 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                          <div className="w-8 h-8 flex flex-col items-center justify-center border border-slate-200 bg-white rounded">
+                            <span className="text-xs font-black leading-none">{new Date(event.start_date + 'T00:00:00').getDate()}</span>
+                            <span className="text-[7px] font-bold text-slate-400 uppercase">{new Date(event.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-bold text-slate-800 truncate">{event.title.replace(/^Dia de Aula - /, '')}</p>
+                            <p className="text-[8px] font-medium text-slate-500 uppercase tracking-tighter">
+                              {classes.find(c => c.id === event.class_id)?.name || 'Geral'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Relatório 2: Pôster Anual */}
+          {printType === 'annual_poster' && (
+            <div className="grid grid-cols-3 gap-6">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(monthIndex => (
+                <div key={`poster-${monthIndex}`} className="avoid-break p-3 border border-slate-200 rounded-xl">
+                  <h4 className="text-[9px] font-black text-center uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">
+                    {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
+                  </h4>
+                  <div className="grid grid-cols-7 gap-1">
+                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => (
+                      <div key={`header-${monthIndex}-${d}`} className="text-center text-[7px] font-black text-slate-300">{d}</div>
+                    ))}
+                    {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
+                      <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
+                    ))}
+                    {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
+                      const day = i + 1;
+                      const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                      const dayEvents = uniqueYearEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
+                      const isActivity = dayEvents.length > 0;
+                      const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
+
+                      return (
+                        <div 
+                          key={`${monthIndex}-${day}`}
+                          className={cn(
+                            "aspect-square flex items-center justify-center rounded-sm text-[8.5px] font-bold border",
+                            isHoliday ? "bg-red-50 text-red-600 border-red-100" :
+                            isActivity ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-transparent text-slate-400 border-transparent"
+                          )}
+                        >
+                          {day}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Relatório 3: Grade Mensal */}
+          {printType === 'monthly_grid' && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-black text-center uppercase tracking-[0.3em] mb-4">
+                {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </h2>
+              <div className="grid grid-cols-7 gap-px bg-slate-400 border border-slate-400">
+                {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
+                  <div key={day} className="bg-slate-100 py-2 text-center text-[9px] font-black uppercase tracking-widest">{day}</div>
+                ))}
+                {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => (
+                  <div key={`grid-empty-${i}`} className="bg-white min-h-[100px]" />
+                ))}
+                {Array.from({ length: daysInMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => {
+                  const day = i + 1;
+                  const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                  const dayEvents = uniqueYearEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
+                  
+                  return (
+                    <div key={`grid-day-${day}`} className="bg-white min-h-[120px] p-1 border-r border-b border-slate-200 overflow-hidden">
+                      <span className="text-[10px] font-black text-slate-900">{day}</span>
+                      <div className="mt-1 space-y-1">
+                        {dayEvents.map(e => (
+                          <div 
+                            key={e.id} 
+                            className={cn(
+                              "text-[7px] font-bold p-0.5 rounded border leading-tight truncate",
+                              e.type.includes('holiday') ? "bg-red-50 text-red-700 border-red-100" : "bg-blue-50 text-blue-700 border-blue-100"
+                            )}
+                          >
+                            {e.title.replace(/^Dia de Aula - /, '')}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Assinatura no Rodapé */}
+          <div className="mt-16 flex justify-between items-end border-t border-slate-200 pt-8">
+            <div className="space-y-4">
+              <div className="w-48 h-px bg-slate-900" />
+              <p className="text-[9px] font-black uppercase tracking-widest">Diretoria Acadêmica</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[7.5px] font-bold text-slate-300 uppercase italic">Documento acadêmico de uso oficial - Sistema de Gestão Escolar</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
