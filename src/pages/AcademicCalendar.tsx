@@ -2753,6 +2753,18 @@ export function AcademicCalendar() {
 
                 if (autoEvents.length === 0) return null;
                 
+                // Cálculo de aulas únicas (agrupadas por evento/data) conforme solicitado
+                const groupedCount = (() => {
+                  const uniqueSet = new Set();
+                  autoEvents.forEach(e => {
+                    let baseTitle = e.title;
+                    classes.forEach(c => baseTitle = baseTitle.replace(` - ${c.name}`, '').trim());
+                    baseTitle = baseTitle.replace(/^Dia de Aula - /, '');
+                    uniqueSet.add(`${e.start_date}|${baseTitle}|${e.type}`);
+                  });
+                  return uniqueSet.size;
+                })();
+                
                 const showByDate = printFilters.class_id === 'all';
                 
                 if (showByDate) {
@@ -2766,7 +2778,7 @@ export function AcademicCalendar() {
                     <div key={`month-${month}`} className="page-break pb-4">
                       <div className="flex items-center justify-between border-b border-slate-300 pb-0.5 mb-3">
                         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest">{month}</h3>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase">{autoEvents.length} Ativ.</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase">{groupedCount} {groupedCount === 1 ? 'Aula' : 'Aulas'}</span>
                       </div>
                       
                       <div className="divide-y divide-slate-100">
@@ -2834,8 +2846,9 @@ export function AcademicCalendar() {
                 // Caso Turma Específica (Layout Vertical)
                 return (
                   <div key={`print-month-${month}`} className="page-break pb-4">
-                    <div className="border-b border-slate-300 pb-0.5 mb-4">
+                    <div className="flex items-center justify-between border-b border-slate-300 pb-0.5 mb-4">
                       <h2 className="text-sm font-bold text-slate-900 uppercase tracking-widest">{month}</h2>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">{autoEvents.length} {autoEvents.length === 1 ? 'Aula' : 'Aulas'}</span>
                     </div>
                     
                     <div className="divide-y divide-slate-100">
