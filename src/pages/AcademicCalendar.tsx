@@ -2951,16 +2951,6 @@ export function AcademicCalendar() {
             </div>
           )}
 
-          {/* Assinatura no Rodapé */}
-          <div className="mt-16 flex justify-between items-end border-t border-slate-200 pt-8">
-            <div className="space-y-4">
-              <div className="w-48 h-px bg-slate-900" />
-              <p className="text-[9px] font-black uppercase tracking-widest">Diretoria Acadêmica</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[7.5px] font-bold text-slate-300 uppercase italic">Documento acadêmico de uso oficial - Sistema de Gestão Escolar</p>
-            </div>
-          </div>
         </div>
       </div>
     </>
