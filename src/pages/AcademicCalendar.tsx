@@ -2745,7 +2745,7 @@ export function AcademicCalendar() {
 
               {Object.entries(printGroupedEvents).map(([month, monthEvents]) => {
                 const autoEvents = monthEvents.filter(e => {
-                  const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'event'].includes(e.type);
+                  const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'event', 'holiday'].includes(e.type);
                   const matchesClass = printFilters.class_id === 'all' || e.class_id === printFilters.class_id;
                   const matchesWeekday = printFilters.weekday === 'all' || new Date(e.start_date + 'T00:00:00').getDay() === printFilters.weekday;
                   return isAcademic && matchesClass && matchesWeekday;
@@ -2753,14 +2753,16 @@ export function AcademicCalendar() {
 
                 if (autoEvents.length === 0) return null;
                 
-                // Cálculo de aulas únicas (agrupadas por evento/data) conforme solicitado
+                // Calculation of unique lessons (Only class_day and exam)
                 const groupedCount = (() => {
                   const uniqueSet = new Set();
                   autoEvents.forEach(e => {
-                    let baseTitle = e.title;
-                    classes.forEach(c => baseTitle = baseTitle.replace(` - ${c.name}`, '').trim());
-                    baseTitle = baseTitle.replace(/^Dia de Aula - /, '');
-                    uniqueSet.add(`${e.start_date}|${baseTitle}|${e.type}`);
+                    if (e.type === 'class_day' || e.type === 'exam') {
+                      let baseTitle = e.title;
+                      classes.forEach(c => baseTitle = baseTitle.replace(` - ${c.name}`, '').trim());
+                      baseTitle = baseTitle.replace(/^Dia de Aula - /, '');
+                      uniqueSet.add(`${e.start_date}|${baseTitle}`);
+                    }
                   });
                   return uniqueSet.size;
                 })();
@@ -2805,14 +2807,16 @@ export function AcademicCalendar() {
 
                                   return Object.values(infoGroups).map(({ event, classNames }) => {
                                     const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
+                                    const isHoliday = event.type === 'holiday' || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
+                                    
                                     let displayTitle = event.title;
                                     classes.forEach(c => displayTitle = displayTitle.replace(` - ${c.name}`, '').trim());
                                     displayTitle = displayTitle.replace(/^Dia de Aula - /, '');
 
                                     return (
-                                      <div key={event.id} className="flex items-center justify-between gap-2">
+                                      <div key={event.id} className={cn("flex items-center justify-between gap-2 p-1 rounded", isHoliday && "bg-slate-50 border border-slate-200")}>
                                         <div className="flex-1 min-w-0">
-                                          <p className={cn("text-[10px] font-bold leading-tight", isImportant ? "text-amber-700" : "text-slate-800")}>
+                                          <p className={cn("text-[10px] font-bold leading-tight", isImportant ? "text-amber-700" : isHoliday ? "text-slate-500 italic" : "text-slate-800")}>
                                             {displayTitle}
                                           </p>
                                           <p className="text-[8px] font-medium text-slate-500 uppercase tracking-tight leading-normal">
@@ -2824,11 +2828,13 @@ export function AcademicCalendar() {
                                           event.type === 'class_day' ? "bg-blue-50 text-blue-600 border-blue-100" :
                                           event.type === 'exam' ? "bg-rose-50 text-rose-600 border-rose-100" :
                                           event.type === 'start_term' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                          isHoliday ? "bg-slate-200 text-slate-600 border-slate-300" :
                                           "bg-slate-50 text-slate-500 border-slate-200"
                                         )}>
                                           {event.type === 'class_day' ? 'Aula Regular' : 
                                            event.type === 'exam' ? 'Prova' : 
-                                           event.type === 'start_term' ? 'Início' : 'Ativ.'}
+                                           event.type === 'start_term' ? 'Início' : 
+                                           isHoliday ? 'Recesso' : 'Ativ.'}
                                         </div>
                                       </div>
                                     );
@@ -2843,32 +2849,37 @@ export function AcademicCalendar() {
                   );
                 }
 
-                // Caso Turma Específica (Layout Vertical)
+                // Calculation for Single Class View
+                const specificCount = autoEvents.filter(e => e.type === 'class_day' || e.type === 'exam').length;
+
                 return (
                   <div key={`print-month-${month}`} className="page-break pb-4">
                     <div className="flex items-center justify-between border-b border-slate-300 pb-0.5 mb-4">
                       <h2 className="text-sm font-bold text-slate-900 uppercase tracking-widest">{month}</h2>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase">{autoEvents.length} {autoEvents.length === 1 ? 'Aula' : 'Aulas'}</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">{specificCount} {specificCount === 1 ? 'Aula' : 'Aulas'}</span>
                     </div>
                     
                     <div className="divide-y divide-slate-100">
                       {autoEvents.map(event => {
                         const date = new Date(event.start_date + 'T00:00:00');
                         const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
+                        const isHoliday = event.type === 'holiday' || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
+                        
                         return (
-                          <div key={event.id} className="avoid-break grid grid-cols-[50px,1fr] gap-4 py-2 items-start">
+                          <div key={event.id} className={cn("avoid-break grid grid-cols-[50px,1fr] gap-4 py-2 items-start", isHoliday && "bg-slate-50 px-2 rounded")}>
                             <div className="flex flex-col items-center justify-center border-r border-slate-100 pr-2">
                               <span className="text-base font-bold text-slate-900 leading-none">{date.getDate()}</span>
                               <span className="text-[8px] font-bold text-slate-400 uppercase">{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <div className="min-w-0 flex-1">
-                                <p className={cn("text-[10px] font-bold truncate", isImportant ? "text-amber-800" : "text-slate-700")}>
+                                <p className={cn("text-[10px] font-bold truncate", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
                                   {event.title.replace(/^Dia de Aula - /, '')}
                                 </p>
                                 <p className="text-[8px] font-medium text-slate-400 uppercase">
                                   {event.type === 'class_day' ? 'Aula Regular' : 
-                                   event.type === 'exam' ? 'Avaliação' : 'Atividade Especial'}
+                                   event.type === 'exam' ? 'Avaliação' : 
+                                   isHoliday ? 'Recesso Escolar' : 'Atividade Especial'}
                                 </p>
                               </div>
                             </div>
