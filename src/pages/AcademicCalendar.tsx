@@ -2665,41 +2665,52 @@ export function AcademicCalendar() {
           `}
         </style>
         
-        <div className="print-container font-sans">
-          {/* Header do Relatório Estilo Sistema */}
-          <div className="flex items-center justify-between border-b-4 border-slate-900 pb-8 mb-12">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 bg-slate-50 flex items-center justify-center overflow-hidden border-2 border-slate-200">
+        <div className="print-container font-sans text-slate-800">
+          {/* Header do Relatório Estilo Simples e Institucional */}
+          <div className="flex items-center justify-between border-b-2 border-slate-200 pb-6 mb-10">
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-200 rounded-lg">
                 {institution?.logo_url ? (
                   <img src={institution.logo_url} className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
                 ) : (
-                  <School className="text-slate-300" size={40} />
+                  <School className="text-slate-300" size={32} />
                 )}
               </div>
-              <div className="space-y-1">
-                <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-tight">
+              <div className="space-y-0.5">
+                <h1 className="text-xl font-bold text-slate-900 leading-tight">
                   {institution?.name || 'Sistema de Gestão Escolar'}
                 </h1>
-                <div className="flex items-center gap-4 text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
                   <span>{institution?.city || 'Portal do Aluno'}</span>
                   <span>•</span>
-                  <span>Calendário Acadêmico {currentDate.getFullYear()}</span>
+                  <span>CNPJ: {institution?.document || 'N/A'}</span>
                 </div>
               </div>
             </div>
-            <div className="text-right flex flex-col items-end gap-3">
-              <div className="bg-slate-900 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest inline-block">
-                Documento de Uso Interno
-              </div>
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                Emitido: {new Date().toLocaleDateString('pt-BR')} • {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h
-              </div>
+            <div className="text-right">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
+                {printType === 'class_schedule' ? 'Cronograma de Atividades Acadêmicas' : 
+                 printType === 'annual_poster' ? 'Calendário Anual de Eventos' : 'Grade Mensal de Eventos'}
+              </h2>
+              <p className="text-[10px] font-medium text-slate-400 mt-1">
+                {currentDate.getFullYear()} • Emitido em {new Date().toLocaleDateString('pt-BR')}
+              </p>
             </div>
           </div>
 
           {/* Relatório 1: Cronograma de Aulas */}
           {printType === 'class_schedule' && (
-            <div className="space-y-16">
+            <div className="space-y-12">
+              {/* Resumo das turmas se for relatório geral */}
+              {printFilters.class_id === 'all' && (
+                <div className="mb-6 pb-4 border-b border-dashed border-slate-200">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Turmas selecionadas:</span>
+                  <p className="text-xs font-semibold text-slate-600 leading-relaxed">
+                    {classes.length > 0 ? classes.map(c => c.name).join(', ') : 'Todas as Turmas'}
+                  </p>
+                </div>
+              )}
+
               {Object.entries(printGroupedEvents).map(([month, monthEvents]) => {
                 const autoEvents = monthEvents.filter(e => {
                   const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'event'].includes(e.type);
@@ -2710,7 +2721,75 @@ export function AcademicCalendar() {
 
                 if (autoEvents.length === 0) return null;
 
-                // Agrupar por Turma para melhor organização (separação solicitada)
+                // Nova Lógica: Se for 'Todas as Turmas', agrupa por DATA primeiro.
+                // Se for 'Turma Específica', agrupa por TURMA (que será apenas uma).
+                
+                const showByDate = printFilters.class_id === 'all';
+                
+                if (showByDate) {
+                  // Agrupar por data
+                  const dateGroups: Record<string, CalendarEvent[]> = {};
+                  autoEvents.forEach(e => {
+                    if (!dateGroups[e.start_date]) dateGroups[e.start_date] = [];
+                    dateGroups[e.start_date].push(e);
+                  });
+
+                  return (
+                    <div key={`month-${month}`} className="page-break pb-6">
+                      <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1 mb-6">
+                        <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">{month}</h3>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{autoEvents.length} Atividades</span>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {Object.entries(dateGroups).sort().map(([dateStr, events]) => {
+                          const dateObj = new Date(dateStr + 'T00:00:00');
+                          return (
+                            <div key={dateStr} className="avoid-break grid grid-cols-[80px,1fr] gap-4 py-3 border-b border-slate-100 last:border-0 items-start">
+                              <div className="text-center">
+                                <span className="block text-xl font-bold text-slate-900 leading-none">{dateObj.getDate()}</span>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
+                                  {dateObj.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                                </span>
+                              </div>
+                              <div className="space-y-2">
+                                {events.map(event => {
+                                  const className = classes.find(c => c.id === event.class_id)?.name || 'Geral';
+                                  const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
+                                  return (
+                                    <div key={event.id} className="flex items-center justify-between gap-4">
+                                      <div className="flex-1 min-w-0">
+                                        <p className={cn("text-xs font-bold", isImportant ? "text-amber-700" : "text-slate-800")}>
+                                          {event.title.replace(/^Dia de Aula - /, '')}
+                                        </p>
+                                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-tight">
+                                          {className} {event.description && !event.description.includes('automático') && `• ${event.description}`}
+                                        </p>
+                                      </div>
+                                      <div className={cn(
+                                        "text-[8px] font-bold px-2 py-0.5 rounded border uppercase",
+                                        event.type === 'class_day' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                        event.type === 'exam' ? "bg-rose-50 text-rose-600 border-rose-100" :
+                                        event.type === 'start_term' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                        "bg-slate-50 text-slate-500 border-slate-200"
+                                      )}>
+                                        {event.type === 'class_day' ? 'Aula Regular' : 
+                                         event.type === 'exam' ? 'Prova' : 
+                                         event.type === 'start_term' ? 'Início' : 'Atividade'}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Caso Turma Específica (Lógica anterior mas simplificada visualmente)
                 const classGroups: Record<string, CalendarEvent[]> = {};
                 autoEvents.forEach(e => {
                   const className = classes.find(c => c.id === e.class_id)?.name || 'Geral';
@@ -2720,61 +2799,40 @@ export function AcademicCalendar() {
 
                 return (
                   <div key={`print-month-${month}`} className="page-break pb-8">
-                    <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-8">
-                      <h2 className="text-2xl font-black text-slate-900 uppercase tracking-[0.3em]">
+                    <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1 mb-8">
+                      <h2 className="text-lg font-bold text-slate-900 uppercase tracking-tight">
                         {month}
                       </h2>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{autoEvents.length} Atividades</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{autoEvents.length} Atividades</span>
                     </div>
                     
-                    <div className="space-y-10">
+                    <div className="space-y-8">
                       {Object.entries(classGroups).sort().map(([className, classEvents]) => (
                         <div key={`${month}-${className}`} className="avoid-break space-y-4">
-                          <h3 className="text-sm font-black text-indigo-700 uppercase tracking-[0.2em] pl-3 border-l-4 border-indigo-600 bg-indigo-50/30 py-2 rounded-r-lg">
+                          <h3 className="text-xs font-bold text-indigo-700 uppercase tracking-tight pl-3 border-l-4 border-indigo-600 py-0.5">
                             {className}
                           </h3>
-                          <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                             {classEvents.map(event => {
                                const date = new Date(event.start_date + 'T00:00:00');
                                const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
                                return (
                                 <div key={`print-ev-${event.id}`} className={cn(
-                                    "flex items-center gap-4 p-2.5 rounded-xl border transition-colors",
-                                    isImportant ? "bg-amber-50 border-amber-200" : "bg-slate-50/50 border-slate-100"
+                                    "flex items-center gap-3 py-1 border-b border-slate-100",
+                                    isImportant && "bg-amber-50/50 rounded-lg px-2 border-amber-100"
                                 )}>
-                                  <div className={cn(
-                                      "w-10 h-10 flex flex-col items-center justify-center border rounded-xl shadow-sm shrink-0",
-                                      isImportant ? "bg-white border-amber-300 text-amber-700" : "bg-white border-slate-200 text-slate-900"
-                                  )}>
-                                    <span className="text-xs font-black leading-none">{date.getDate()}</span>
-                                    <span className="text-[7px] font-black uppercase tracking-tighter">{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
+                                  <div className="text-center w-8">
+                                    <span className="block text-sm font-bold text-slate-900 leading-none">{date.getDate()}</span>
+                                    <span className="text-[7px] font-bold text-slate-400 uppercase">{date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={cn(
-                                        "text-[10px] font-black leading-tight truncate",
-                                        isImportant ? "text-amber-900" : "text-slate-800"
-                                    )}>
+                                    <p className={cn("text-xs font-semibold truncate", isImportant ? "text-amber-800" : "text-slate-700")}>
                                         {event.title.replace(/^Dia de Aula - /, '')}
                                     </p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className={cn(
-                                        "text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest",
-                                        event.type === 'class_day' ? "bg-blue-100 text-blue-700" :
-                                        event.type === 'exam' ? "bg-rose-100 text-rose-700" :
-                                        event.type === 'start_term' ? "bg-emerald-100 text-emerald-700" :
-                                        event.type === 'end_term' ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-700"
-                                      )}>
-                                        {event.type === 'class_day' ? 'Aula' : 
-                                         event.type === 'exam' ? 'Avaliação' : 
-                                         event.type === 'start_term' ? 'Início' :
-                                         event.type === 'end_term' ? 'Término' : 'Outro'}
-                                      </span>
-                                      {event.description && !event.description.includes('automático') && (
-                                        <span className="text-[7px] text-slate-400 font-medium italic truncate">
-                                          {event.description}
-                                        </span>
-                                      )}
-                                    </div>
+                                    <p className="text-[8px] font-medium text-slate-400 uppercase">
+                                      {event.type === 'class_day' ? 'Aula Regular' : 
+                                       event.type === 'exam' ? 'Avaliação' : 'Atividade Especial'}
+                                    </p>
                                   </div>
                                 </div>
                                );
