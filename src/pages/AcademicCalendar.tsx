@@ -2753,33 +2753,65 @@ export function AcademicCalendar() {
                                 </span>
                               </div>
                               <div className="space-y-2">
-                                {events.map(event => {
-                                  const className = classes.find(c => c.id === event.class_id)?.name || 'Geral';
-                                  const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
-                                  return (
-                                    <div key={event.id} className="flex items-center justify-between gap-4">
-                                      <div className="flex-1 min-w-0">
-                                        <p className={cn("text-xs font-bold", isImportant ? "text-amber-700" : "text-slate-800")}>
-                                          {event.title.replace(/^Dia de Aula - /, '')}
-                                        </p>
-                                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-tight">
-                                          {className} {event.description && !event.description.includes('automático') && `• ${event.description}`}
-                                        </p>
+                                {(() => {
+                                  // Agrupar eventos pela "Informação Central" (Título normalizado + Tipo)
+                                  // Isso evita repetir "Aula Normal" 4 vezes para 4 turmas no mesmo dia
+                                  const infoGroups: Record<string, { event: CalendarEvent, classNames: string[] }> = {};
+                                  
+                                  events.forEach(e => {
+                                    // Normaliza o título para agrupar (remove sufixos de turma se houver)
+                                    let baseTitle = e.title;
+                                    classes.forEach(c => {
+                                      baseTitle = baseTitle.replace(` - ${c.name}`, '').trim();
+                                    });
+                                    baseTitle = baseTitle.replace(/^Dia de Aula - /, '');
+
+                                    const groupKey = `${baseTitle}|${e.type}`;
+                                    const className = classes.find(c => c.id === e.class_id)?.name || 'Geral';
+                                    
+                                    if (!infoGroups[groupKey]) {
+                                      infoGroups[groupKey] = { event: e, classNames: [] };
+                                    }
+                                    if (!infoGroups[groupKey].classNames.includes(className)) {
+                                      infoGroups[groupKey].classNames.push(className);
+                                    }
+                                  });
+
+                                  return Object.values(infoGroups).map(({ event, classNames }) => {
+                                    const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
+                                    
+                                    // Título limpo para exibição
+                                    let displayTitle = event.title;
+                                    classes.forEach(c => {
+                                      displayTitle = displayTitle.replace(` - ${c.name}`, '').trim();
+                                    });
+                                    displayTitle = displayTitle.replace(/^Dia de Aula - /, '');
+
+                                    return (
+                                      <div key={event.id} className="flex items-center justify-between gap-4 py-1">
+                                        <div className="flex-1 min-w-0">
+                                          <p className={cn("text-[11px] font-bold", isImportant ? "text-amber-700" : "text-slate-800")}>
+                                            {displayTitle}
+                                          </p>
+                                          <p className="text-[9px] font-medium text-slate-500 uppercase tracking-tight leading-tight">
+                                            {classNames.join(', ')} {event.description && !event.description.includes('automático') && ` • ${event.description}`}
+                                          </p>
+                                        </div>
+                                        <div className={cn(
+                                          "text-[8px] font-bold px-2 py-0.5 rounded border uppercase shrink-0",
+                                          event.type === 'class_day' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                          event.type === 'exam' ? "bg-rose-50 text-rose-600 border-rose-100" :
+                                          event.type === 'start_term' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                          "bg-slate-50 text-slate-500 border-slate-200"
+                                        )}>
+                                          {event.type === 'class_day' ? 'Aula Regular' : 
+                                           event.type === 'exam' ? 'Prova' : 
+                                           event.type === 'start_term' ? 'Início' : 'Atividade'}
+                                        </div>
                                       </div>
-                                      <div className={cn(
-                                        "text-[8px] font-bold px-2 py-0.5 rounded border uppercase",
-                                        event.type === 'class_day' ? "bg-blue-50 text-blue-600 border-blue-100" :
-                                        event.type === 'exam' ? "bg-rose-50 text-rose-600 border-rose-100" :
-                                        event.type === 'start_term' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                                        "bg-slate-50 text-slate-500 border-slate-200"
-                                      )}>
-                                        {event.type === 'class_day' ? 'Aula Regular' : 
-                                         event.type === 'exam' ? 'Prova' : 
-                                         event.type === 'start_term' ? 'Início' : 'Atividade'}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                                    );
+                                  });
+                                })()}
                               </div>
                             </div>
                           );
