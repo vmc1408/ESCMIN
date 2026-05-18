@@ -2895,42 +2895,85 @@ export function AcademicCalendar() {
 
           {/* Relatório 2: Pôster Anual */}
           {printType === 'annual_poster' && (
-            <div className="grid grid-cols-3 gap-6">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(monthIndex => (
-                <div key={`poster-${monthIndex}`} className="avoid-break p-3 border border-slate-200 rounded-xl">
-                  <h4 className="text-[9px] font-black text-center uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">
-                    {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
-                  </h4>
-                  <div className="grid grid-cols-7 gap-1">
-                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => (
-                      <div key={`header-${monthIndex}-${d}`} className="text-center text-[7px] font-black text-slate-300">{d}</div>
-                    ))}
-                    {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
-                      <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
-                    ))}
-                    {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
-                      const day = i + 1;
-                      const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                      const dayEvents = printEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
-                      const isActivity = dayEvents.length > 0;
-                      const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
+            <div className="flex flex-col h-full">
+              <div className="grid grid-cols-4 gap-x-6 gap-y-4 mb-4">
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(monthIndex => (
+                  <div key={`poster-${monthIndex}`} className="avoid-break p-2 border border-slate-100 rounded-lg">
+                    <h4 className="text-[8px] font-black text-center uppercase tracking-widest mb-1 border-b border-slate-50 pb-1">
+                      {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
+                    </h4>
+                    <div className="grid grid-cols-7 gap-0.5">
+                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => (
+                        <div key={`header-${monthIndex}-${d}`} className="text-center text-[6px] font-black text-slate-300">{d}</div>
+                      ))}
+                      {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
+                        <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
+                      ))}
+                      {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
+                        const day = i + 1;
+                        const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                        const dayEvents = printEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
+                        
+                        const isHoliday = dayEvents.some(e => e.type === 'holiday' || e.title.toLowerCase().includes('feriado') || e.title.toLowerCase().includes('recesso'));
+                        const isExam = dayEvents.some(e => e.type === 'exam');
+                        const isStart = dayEvents.some(e => e.type === 'start_term');
+                        const isEnd = dayEvents.some(e => e.type === 'end_term');
+                        const isClass = dayEvents.some(e => e.type === 'class_day');
 
-                      return (
-                        <div 
-                          key={`${monthIndex}-${day}`}
-                          className={cn(
-                            "aspect-square flex items-center justify-center rounded-sm text-[8.5px] font-bold border",
-                            isHoliday ? "bg-red-50 text-red-600 border-red-100" :
-                            isActivity ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-transparent text-slate-400 border-transparent"
-                          )}
-                        >
-                          {day}
-                        </div>
-                      );
-                    })}
+                        return (
+                          <div 
+                            key={`${monthIndex}-${day}`}
+                            className={cn(
+                              "aspect-square flex items-center justify-center rounded-[2px] text-[7px] font-bold border",
+                              isHoliday ? "bg-red-500 text-white border-red-600" :
+                              isExam ? "bg-amber-500 text-white border-amber-600" :
+                              isStart ? "bg-blue-600 text-white border-blue-700" :
+                              isEnd ? "bg-slate-900 text-white border-slate-950" :
+                              isClass ? "bg-blue-400 text-white border-blue-500" : 
+                              dayEvents.length > 0 ? "bg-slate-100 text-slate-700 border-slate-200" :
+                              "bg-transparent text-slate-400 border-transparent text-[6px]"
+                            )}
+                          >
+                            {day}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+                ))}
+              </div>
+              
+              {/* Legenda Estilo Screenshot */}
+              <div className="mt-auto border-t border-slate-100 pt-4 flex flex-wrap justify-center gap-x-6 gap-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Feriado Nacional</span>
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Feriado Estadual</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Feriado Municipal</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Dia de Aula</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Avaliação</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Início</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Final</span>
+                </div>
+              </div>
             </div>
           )}
 
