@@ -1005,6 +1005,21 @@ export function AcademicCalendar() {
     });
   }, [events, currentDate.getFullYear()]);
 
+  const involvedClasses = React.useMemo(() => {
+    if (printFilters.class_id !== 'all') {
+      return classes.filter(c => c.id === printFilters.class_id);
+    }
+    const classIds = new Set<string>();
+    printEvents.forEach(e => {
+      const matchesWeekday = printFilters.weekday === 'all' || new Date(e.start_date + 'T00:00:00').getDay() === printFilters.weekday;
+      const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'event'].includes(e.type);
+      if (matchesWeekday && isAcademic && e.class_id) {
+        classIds.add(e.class_id);
+      }
+    });
+    return classes.filter(c => classIds.has(c.id));
+  }, [printEvents, printFilters, classes]);
+
   const printGroupedEvents = React.useMemo(() => {
     return printEvents.reduce((acc, event) => {
       const date = new Date(event.start_date + 'T00:00:00');
@@ -2666,50 +2681,51 @@ export function AcademicCalendar() {
         </style>
         
         <div className="print-container font-sans text-slate-800">
-          {/* Header do Relatório Estilo Simples e Institucional */}
-          <div className="flex items-center justify-between border-b-2 border-slate-200 pb-6 mb-10">
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-200 rounded-lg">
-                {institution?.logo_url ? (
-                  <img src={institution.logo_url} className="w-full h-full object-contain p-1" referrerPolicy="no-referrer" />
-                ) : (
-                  <School className="text-slate-300" size={32} />
-                )}
-              </div>
-              <div className="space-y-0.5">
-                <h1 className="text-xl font-bold text-slate-900 leading-tight">
-                  {institution?.name || 'Sistema de Gestão Escolar'}
-                </h1>
-                <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
-                  <span>{institution?.city || 'Portal do Aluno'}</span>
-                  <span>•</span>
-                  <span>CNPJ: {institution?.document || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
-                {printType === 'class_schedule' ? 'Cronograma de Atividades Acadêmicas' : 
-                 printType === 'annual_poster' ? 'Calendário Anual de Eventos' : 'Grade Mensal de Eventos'}
-              </h2>
-              <p className="text-[10px] font-medium text-slate-400 mt-1">
-                {currentDate.getFullYear()} • Emitido em {new Date().toLocaleDateString('pt-BR')}
+          {/* Header do Relatório Estilo Oficial Centrado */}
+          <div className="flex flex-col items-center text-center space-y-4 mb-10 pb-8 border-b-4 border-slate-900">
+            {institution?.logo_url ? (
+              <img src={institution.logo_url} className="h-20 w-auto object-contain mb-2" referrerPolicy="no-referrer" />
+            ) : (
+              <School className="text-slate-200 mb-2" size={48} />
+            )}
+            <div className="space-y-1">
+              <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900">
+                {institution?.name || 'Sistema de Gestão Escolar'}
+              </h1>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em]">
+                {institution?.city || ''} {institution?.document ? `• CNPJ: ${institution.document}` : ''}
               </p>
+            </div>
+            <div className="pt-4 border-t border-slate-100 w-full">
+              <h2 className="text-base font-black text-slate-800 uppercase tracking-[0.2em]">
+                {printType === 'class_schedule' ? 'Relatório de Cronograma Acadêmico' : 
+                 printType === 'annual_poster' ? 'Calendário Anual Consolidado' : 'Grade Mensal de Eventos'}
+              </h2>
+              <div className="flex items-center justify-center gap-6 mt-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                <span>Ano Letivo: {currentDate.getFullYear()}</span>
+                <span>•</span>
+                <span>Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
             </div>
           </div>
 
           {/* Relatório 1: Cronograma de Aulas */}
           {printType === 'class_schedule' && (
             <div className="space-y-12">
-              {/* Resumo das turmas se for relatório geral */}
-              {printFilters.class_id === 'all' && (
-                <div className="mb-6 pb-4 border-b border-dashed border-slate-200">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Turmas selecionadas:</span>
-                  <p className="text-xs font-semibold text-slate-600 leading-relaxed">
-                    {classes.length > 0 ? classes.map(c => c.name).join(', ') : 'Todas as Turmas'}
-                  </p>
-                </div>
-              )}
+              {/* Resumo das turmas filtradas de forma lógica */}
+              <div className="mb-10 pb-5 border-b-2 border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                  Turmas {printFilters.class_id === 'all' ? 'Envolvidas' : 'Selecionada'}:
+                </span>
+                <p className="text-[13px] font-bold text-slate-700 leading-relaxed">
+                  {involvedClasses.length > 0 ? involvedClasses.map(c => c.name).sort().join(' • ') : 'Nenhuma turma encontrada para os filtros selecionados'}
+                </p>
+                {printFilters.weekday !== 'all' && (
+                  <div className="mt-3 inline-block bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-blue-100">
+                    Filtro: {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][printFilters.weekday]}
+                  </div>
+                )}
+              </div>
 
               {Object.entries(printGroupedEvents).map(([month, monthEvents]) => {
                 const autoEvents = monthEvents.filter(e => {
