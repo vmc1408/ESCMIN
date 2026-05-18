@@ -964,6 +964,24 @@ export function AcademicCalendar() {
     });
   }, [uniqueYearEvents, search, typeFilter, weekdayFilter, sortBy, sortOrder]);
 
+  // Eventos para impressão: Ignoram filtros de UI e desduplicação agressiva
+  const printEvents = React.useMemo(() => {
+    return events.filter(e => {
+      const date = new Date(e.start_date + 'T00:00:00');
+      return date.getFullYear() === currentDate.getFullYear();
+    }).sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }, [events, currentDate.getFullYear()]);
+
+  const printGroupedEvents = React.useMemo(() => {
+    return printEvents.reduce((acc, event) => {
+      const date = new Date(event.start_date + 'T00:00:00');
+      const monthYear = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      if (!acc[monthYear]) acc[monthYear] = [];
+      acc[monthYear].push(event);
+      return acc;
+    }, {} as Record<string, CalendarEvent[]>);
+  }, [printEvents]);
+
   // Group events by month
   const groupedEvents = filteredEvents.reduce((acc, event) => {
     // Force local date interpretation
@@ -1220,7 +1238,8 @@ export function AcademicCalendar() {
 
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <>
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 no-print">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -2574,6 +2593,8 @@ export function AcademicCalendar() {
         )}
       </AnimatePresence>
 
+      </div>
+
       {/* Relatórios para Impressão (Apenas via @media print) */}
       <div className="hidden print:block fixed inset-0 bg-white z-[9999] overflow-auto p-0 m-0">
         <style>
@@ -2581,23 +2602,27 @@ export function AcademicCalendar() {
             @media print {
               @page {
                 size: A4 portrait;
-                margin: 1cm;
+                margin: 1.5cm;
               }
-              body * {
-                visibility: hidden;
+              html, body {
+                height: auto !important;
+                overflow: visible !important;
+                background: white !important;
               }
-              .print-container, .print-container * {
-                visibility: visible;
+              .no-print {
+                display: none !important;
               }
               .print-container {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                background: white;
-                color: black;
+                display: block !important;
+                visibility: visible !important;
+                position: static !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
               }
-              .no-print { display: none !important; }
+              .print-container * {
+                visibility: visible !important;
+              }
               .page-break { page-break-after: always; }
               .avoid-break { page-break-inside: avoid; }
             }
@@ -2624,8 +2649,8 @@ export function AcademicCalendar() {
 
           {/* Relatório 1: Cronograma de Aulas */}
           {printType === 'class_schedule' && (
-            <div className="space-y-10">
-              {Object.entries(groupedEvents).map(([month, monthEvents]) => {
+            <div className="space-y-12">
+              {Object.entries(printGroupedEvents).map(([month, monthEvents]) => {
                 const autoEvents = monthEvents.filter(e => {
                   const isAuto = e.type === 'class_day' || e.description?.includes('Cronograma automático');
                   const matchesClass = printFilters.class_id === 'all' || e.class_id === printFilters.class_id;
@@ -2635,24 +2660,42 @@ export function AcademicCalendar() {
 
                 if (autoEvents.length === 0) return null;
 
+                // Agrupar por dia da semana dentro do mês para melhor separação (conforme solicitado)
+                const weekdayGroups: Record<number, CalendarEvent[]> = {};
+                autoEvents.forEach(e => {
+                  const wd = new Date(e.start_date + 'T00:00:00').getDay();
+                  if (!weekdayGroups[wd]) weekdayGroups[wd] = [];
+                  weekdayGroups[wd].push(e);
+                });
+
                 return (
-                  <div key={`print-auto-${month}`} className="avoid-break mb-8">
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-4 pb-2 border-b border-slate-200 flex items-center justify-between">
+                  <div key={`print-auto-${month}`} className="avoid-break mb-12">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] mb-6 pb-2 border-b-2 border-slate-900 flex items-center justify-between">
                       <span>{month}</span>
-                      <span className="text-[9px] text-slate-400">{autoEvents.length} Aulas</span>
+                      <span className="text-[10px] text-slate-500 font-bold">{autoEvents.length} Aulas no total</span>
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {autoEvents.map(event => (
-                        <div key={`print-event-${event.id}`} className="flex items-center gap-4 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                          <div className="w-8 h-8 flex flex-col items-center justify-center border border-slate-200 bg-white rounded">
-                            <span className="text-xs font-black leading-none">{new Date(event.start_date + 'T00:00:00').getDate()}</span>
-                            <span className="text-[7px] font-bold text-slate-400 uppercase">{new Date(event.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-bold text-slate-800 truncate">{event.title.replace(/^Dia de Aula - /, '')}</p>
-                            <p className="text-[8px] font-medium text-slate-500 uppercase tracking-tighter">
-                              {classes.find(c => c.id === event.class_id)?.name || 'Geral'}
-                            </p>
+                    
+                    <div className="space-y-8">
+                      {Object.entries(weekdayGroups).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([wd, events]) => (
+                        <div key={`${month}-${wd}`} className="space-y-4">
+                          <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest pl-2 border-l-4 border-blue-600">
+                            {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][parseInt(wd)]}
+                          </h4>
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                            {events.map(event => (
+                              <div key={`print-event-${event.id}`} className="flex items-center gap-4 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                <div className="w-9 h-9 flex flex-col items-center justify-center border border-slate-200 bg-white rounded-lg shadow-sm">
+                                  <span className="text-xs font-black leading-none text-slate-900">{new Date(event.start_date + 'T00:00:00').getDate()}</span>
+                                  <span className="text-[7px] font-bold text-slate-400 uppercase">{new Date(event.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[10px] font-black text-slate-800 truncate">{event.title.replace(/^Dia de Aula - /, '')}</p>
+                                  <p className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">
+                                    {classes.find(c => c.id === event.class_id)?.name || 'Geral'}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
@@ -2681,7 +2724,7 @@ export function AcademicCalendar() {
                     {Array.from({ length: daysInMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => {
                       const day = i + 1;
                       const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                      const dayEvents = uniqueYearEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
+                      const dayEvents = printEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                       const isActivity = dayEvents.length > 0;
                       const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
 
@@ -2720,7 +2763,7 @@ export function AcademicCalendar() {
                 {Array.from({ length: daysInMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => {
                   const day = i + 1;
                   const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                  const dayEvents = uniqueYearEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
+                  const dayEvents = printEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                   
                   return (
                     <div key={`grid-day-${day}`} className="bg-white min-h-[120px] p-1 border-r border-b border-slate-200 overflow-hidden">
@@ -2757,6 +2800,6 @@ export function AcademicCalendar() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
