@@ -24,12 +24,12 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // Serve static files in production
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     
     // Handle SPA fallback - serve index.html for any unknown route
     app.get('*', (req, res) => {
-      const indexPath = path.resolve(distPath, 'index.html');
+      const indexPath = path.join(distPath, 'index.html');
       res.sendFile(indexPath, (err) => {
         if (err) {
           console.error(`Error sending index.html from ${indexPath}:`, err);

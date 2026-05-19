@@ -1496,7 +1496,7 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                               className={cn(
-                                "px-2 py-1 rounded-md text-[9px] font-bold truncate cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
+                                "px-2 py-0.5 rounded-md text-[8.5px] font-bold line-clamp-2 whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
                                 getTypeStyle(event.type, event.start_date)
                               )}
                               title={event.title.replace(/^Dia de Aula - /, '')}
@@ -3084,7 +3084,7 @@ export function AcademicCalendar() {
                                   <div 
                                     key={e.id} 
                                     className={cn(
-                                      "text-[7px] font-bold p-1 rounded border leading-tight truncate shadow-sm",
+                                      "text-[6.5px] font-bold p-1 rounded border leading-tight line-clamp-2 whitespace-normal break-words shadow-sm",
                                       isHoliday ? "bg-red-500 text-white border-red-600" : 
                                       isExam ? "bg-amber-400 text-white border-amber-500" :
                                       "bg-blue-400 text-white border-blue-500"
