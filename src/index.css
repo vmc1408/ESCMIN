@@ -23,6 +23,26 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.2);
   }
+
+  .bg-stripes-red {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(239, 68, 68, 0.05),
+      rgba(239, 68, 68, 0.05) 10px,
+      rgba(239, 68, 68, 0.15) 10px,
+      rgba(239, 68, 68, 0.15) 20px
+    );
+  }
+
+  .bg-stripes-slate {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(148, 163, 184, 0.05),
+      rgba(148, 163, 184, 0.05) 10px,
+      rgba(148, 163, 184, 0.1) 10px,
+      rgba(148, 163, 184, 0.1) 20px
+    );
+  }
 }
 
 @layer base {

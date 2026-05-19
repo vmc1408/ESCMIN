@@ -1487,6 +1487,8 @@ export function AcademicCalendar() {
                     // Use filteredEvents which is already deduplicated
                     const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                     const isToday = todayStr === dateStr;
+                    const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                    const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
 
                     return (
                       <motion.div 
@@ -1510,7 +1512,9 @@ export function AcademicCalendar() {
                         }}
                         className={cn(
                           "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-hidden cursor-pointer relative border-r border-b border-slate-100",
-                          isToday && "bg-blue-50/20"
+                          isToday && "bg-blue-50/20",
+                          isVacation && "bg-stripes-slate",
+                          isHoliday && "bg-stripes-red"
                         )}
                       >
                         <div className="flex justify-between items-start">
@@ -1620,6 +1624,7 @@ export function AcademicCalendar() {
                               const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                               const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                               const holiday = dayEvents.find(e => e.type.includes('holiday'));
+                              const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                               const isToday = todayStr === dateStr;
 
                               return (
@@ -1627,12 +1632,14 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full",
+                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-hidden",
                                     holiday 
-                                      ? "bg-red-50 text-red-600 border-red-100 cursor-pointer shadow-sm"
-                                      : dayEvents.length > 0 
-                                        ? "bg-blue-50 text-blue-600 border-blue-100 cursor-pointer shadow-sm"
-                                        : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
+                                      ? "bg-red-50 text-red-600 border-red-100 cursor-pointer shadow-sm bg-stripes-red"
+                                      : isVacation
+                                        ? "bg-slate-50 text-slate-600 border-slate-100 cursor-pointer shadow-sm bg-stripes-slate"
+                                        : dayEvents.length > 0 
+                                          ? "bg-blue-50 text-blue-600 border-blue-100 cursor-pointer shadow-sm"
+                                          : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
                                 >
                                   {day}
@@ -1669,6 +1676,7 @@ export function AcademicCalendar() {
                               const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                               const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                               const holiday = dayEvents.find(e => e.type.includes('holiday'));
+                              const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                               const isToday = todayStr === dateStr;
 
                               return (
@@ -1676,12 +1684,14 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full",
+                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-hidden",
                                     holiday 
-                                      ? "bg-red-50 text-red-600 border-red-100 cursor-pointer shadow-sm"
-                                      : dayEvents.length > 0 
-                                        ? "bg-blue-50 text-blue-600 border-blue-100 cursor-pointer shadow-sm"
-                                        : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
+                                      ? "bg-red-50 text-red-600 border-red-100 cursor-pointer shadow-sm bg-stripes-red"
+                                      : isVacation
+                                        ? "bg-slate-50 text-slate-600 border-slate-100 cursor-pointer shadow-sm bg-stripes-slate"
+                                        : dayEvents.length > 0 
+                                          ? "bg-blue-50 text-blue-600 border-blue-100 cursor-pointer shadow-sm"
+                                          : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
                                 >
                                   {day}
@@ -2998,6 +3008,7 @@ export function AcademicCalendar() {
                         const isHolidayGeneral = dayEvents.some(e => e.type === 'holiday' || title.includes('recesso') || title.includes('feriado'));
                         
                         const isExam = dayEvents.some(e => e.type === 'exam');
+                        const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                         const isStart = dayEvents.some(e => e.type === 'start_term');
                         const isEnd = dayEvents.some(e => e.type === 'end_term');
                         const isClass = dayEvents.some(e => e.type === 'class_day');
@@ -3005,11 +3016,13 @@ export function AcademicCalendar() {
                         let bgColor = "bg-transparent";
                         let textColor = "text-slate-400";
                         let borderColor = "border-transparent";
+                        let stripeStyle = "";
 
-                        if (isNational) { bgColor = "bg-red-600"; textColor = "text-white"; borderColor = "border-red-700"; }
-                        else if (isState) { bgColor = "bg-purple-600"; textColor = "text-white"; borderColor = "border-purple-700"; }
-                        else if (isMunicipal) { bgColor = "bg-orange-600"; textColor = "text-white"; borderColor = "border-orange-700"; }
-                        else if (isHolidayGeneral) { bgColor = "bg-red-500"; textColor = "text-white"; borderColor = "border-red-600"; }
+                        if (isNational) { bgColor = "bg-red-600"; textColor = "text-white"; borderColor = "border-red-700"; stripeStyle = "bg-stripes-red"; }
+                        else if (isState) { bgColor = "bg-purple-600"; textColor = "text-white"; borderColor = "border-purple-700"; stripeStyle = "bg-stripes-red"; }
+                        else if (isMunicipal) { bgColor = "bg-orange-600"; textColor = "text-white"; borderColor = "border-orange-700"; stripeStyle = "bg-stripes-red"; }
+                        else if (isHolidayGeneral) { bgColor = "bg-red-500"; textColor = "text-white"; borderColor = "border-red-600"; stripeStyle = "bg-stripes-red"; }
+                        else if (isVacation) { bgColor = "bg-slate-50"; textColor = "text-slate-600"; borderColor = "border-slate-100"; stripeStyle = "bg-stripes-slate"; }
                         else if (isExam) { bgColor = "bg-amber-400"; textColor = "text-white"; borderColor = "border-amber-500"; }
                         else if (isStart) { bgColor = "bg-blue-600"; textColor = "text-white"; borderColor = "border-blue-700"; }
                         else if (isEnd) { bgColor = "bg-slate-900"; textColor = "text-white"; borderColor = "border-slate-950"; }
@@ -3020,8 +3033,8 @@ export function AcademicCalendar() {
                           <div 
                             key={`${monthIndex}-${day}`}
                             className={cn(
-                              "aspect-square flex items-center justify-center rounded-sm text-[7.5px] font-black border transition-all",
-                              bgColor, textColor, borderColor
+                              "aspect-square flex items-center justify-center rounded-sm text-[7.5px] font-black border transition-all overflow-hidden",
+                              bgColor, textColor, borderColor, stripeStyle
                             )}
                           >
                             {day}
@@ -3100,8 +3113,18 @@ export function AcademicCalendar() {
                           return matchesDate && matchesClass;
                         });
                         
+                        const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                        const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
+                        
                         return (
-                          <div key={`grid-day-${monthIndex}-${day}`} className="bg-white min-h-[100px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors">
+                          <div 
+                            key={`grid-day-${monthIndex}-${day}`} 
+                            className={cn(
+                              "bg-white min-h-[100px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors",
+                              isVacation && "bg-stripes-slate",
+                              isHoliday && "bg-stripes-red"
+                            )}
+                          >
                             <span className="text-[11px] font-black text-slate-900">{day}</span>
                             <div className="mt-1.5 space-y-1">
                               {dayEvents.map(e => {
