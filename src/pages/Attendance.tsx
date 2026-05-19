@@ -288,17 +288,33 @@ export function Attendance() {
   };
 
   const isScheduledDay = React.useMemo(() => {
-    if (!selectedClass || !selectedDate || classEvents.length === 0) return true; // Default to true if no events loaded yet
+    if (!selectedClass || !selectedDate || classEvents.length === 0) return false;
     const dbDate = parseDateToDB(selectedDate);
     return classEvents.some(event => event.start_date === dbDate);
   }, [selectedDate, classEvents, selectedClass]);
+
+  const availableDates = React.useMemo(() => {
+    return [...classEvents]
+      .sort((a, b) => b.start_date.localeCompare(a.start_date)) // Most recent first
+      .map(event => {
+        const date = new Date(event.start_date + 'T12:00:00');
+        return {
+          dbValue: event.start_date,
+          displayValue: formatDateForDisplay(event.start_date),
+          label: date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+        };
+      });
+  }, [classEvents]);
 
   const saveAttendance = async () => {
     if (!userAuth || !selectedSubject) return;
     
     if (!isScheduledDay) {
-      const confirmSave = window.confirm("Atenção: Não há aula agendada para esta turma nesta data no calendário acadêmico. Deseja salvar mesmo assim?");
-      if (!confirmSave) return;
+      setNotification({
+        type: 'error',
+        message: 'Data de aula não agendada no calendário acadêmico para esta turma.'
+      });
+      return;
     }
 
     setSaving(true);
@@ -418,21 +434,21 @@ export function Attendance() {
           {activeTab === 'marking' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between pl-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Aula</label>
-                {selectedClass && selectedDate && selectedDate.length === 10 && (
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selecione a Data da Aula</label>
+                {selectedClass && (
                   <div className={cn(
                     "flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter",
-                    isScheduledDay ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                    availableDates.length > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
                   )}>
-                    {isScheduledDay ? (
+                    {availableDates.length > 0 ? (
                       <>
                         <Check size={8} />
-                        Aula Agendada
+                        {availableDates.length} Dias Agendados
                       </>
                     ) : (
                       <>
                         <X size={8} />
-                        Sem aula no Calendário
+                        Sem datas agendadas
                       </>
                     )}
                   </div>
@@ -440,32 +456,44 @@ export function Attendance() {
               </div>
               <div className="relative">
                 <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="DD/MM/AAAA"
-                  value={selectedDate}
-                  onChange={e => setSelectedDate(maskDate(e.target.value))}
+                <select
+                  disabled={!selectedClass || availableDates.length === 0}
+                  value={parseDateToDB(selectedDate)}
+                  onChange={e => {
+                    const dbDate = e.target.value;
+                    setSelectedDate(formatDateForDisplay(dbDate));
+                  }}
                   className={cn(
-                    "w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 appearance-none transition-all",
-                    selectedClass && selectedDate && selectedDate.length === 10 && !isScheduledDay ? "ring-2 ring-red-500/20" : "focus:ring-emerald-500"
+                    "w-full pl-12 pr-10 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 appearance-none transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                    availableDates.length > 0 ? "focus:ring-emerald-500" : "ring-1 ring-red-200"
                   )}
-                />
+                >
+                  <option value="">Selecione um dia de aula...</option>
+                  {availableDates.map(date => (
+                    <option key={date.dbValue} value={date.dbValue}>
+                      {date.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <ChevronDown size={16} />
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {selectedClass && selectedDate && selectedDate.length === 10 && !isScheduledDay && (
+        {selectedClass && availableDates.length === 0 && (
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3 text-amber-700"
+            className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-3 text-red-700"
           >
             <Info size={18} />
             <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-              Atenção: De acordo com o calendário acadêmico, esta turma <span className="underline">não possui aula</span> agendada para o dia {selectedDate}.
+              Erro: Esta turma não possui dias de aula configurados no <span className="font-black text-red-800">Calendário Acadêmico</span>.
               <br className="hidden sm:block" />
-              Verifique a data antes de prosseguir com o lançamento da frequência.
+              Você precisa gerar os dias de aula no calendário antes de lançar a frequência.
             </p>
           </motion.div>
         )}
