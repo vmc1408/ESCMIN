@@ -2706,7 +2706,7 @@ export function AcademicCalendar() {
             @media print {
               @page {
                 size: A4 portrait;
-                margin: 1.5cm;
+                margin: 0.8cm 1cm;
               }
               html, body {
                 height: auto !important;
@@ -2726,40 +2726,46 @@ export function AcademicCalendar() {
                 margin: 0 !important;
                 padding: 0 !important;
                 background: white !important;
+                transform-origin: top center;
               }
               .print-container * {
                 visibility: visible !important;
               }
               .page-break { page-break-after: always; }
               .avoid-break { page-break-inside: avoid; }
+              
+              /* Forçar ajuste em uma página se for grade mensal única */
+              .monthly-grid-print {
+                max-height: 100%;
+              }
             }
           `}
         </style>
         
         <div className="print-container font-sans text-slate-800">
           {/* Header do Relatório - Mais Compacto e Profissional */}
-          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-4">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1 mb-2">
+            <div className="flex items-center gap-3">
               {institution?.logo_url ? (
-                <img src={institution.logo_url} className="h-14 w-auto object-contain" referrerPolicy="no-referrer" />
+                <img src={institution.logo_url} className="h-10 w-auto object-contain" referrerPolicy="no-referrer" />
               ) : (
-                <School className="text-slate-200" size={32} />
+                <School className="text-slate-200" size={24} />
               )}
-              <div className="space-y-0.5">
-                <h1 className="text-lg font-bold uppercase tracking-tight text-slate-900">
+              <div className="space-y-0">
+                <h1 className="text-base font-bold uppercase tracking-tight text-slate-900">
                   {institution?.name || 'Sistema de Gestão Escolar'}
                 </h1>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">
                   {institution?.city || ''} {institution?.document ? `• CNPJ: ${institution.document}` : ''}
                 </p>
               </div>
             </div>
             <div className="text-right flex flex-col justify-center">
-              <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">
+              <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
                 {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
                  printType === 'annual_poster' ? 'Calendário Anual' : 'Grade de Eventos'}
               </h2>
-              <div className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">
+              <div className="text-[7.5px] font-bold text-slate-400 uppercase mt-0.5">
                 Ano Letivo: {currentDate.getFullYear()} • {new Date().toLocaleDateString('pt-BR')}
               </div>
             </div>
@@ -3028,7 +3034,7 @@ export function AcademicCalendar() {
 
           {/* Relatório 3: Grade Mensal */}
           {printType === 'monthly_grid' && (
-            <div className="space-y-12">
+            <div className="space-y-4 print:space-y-2">
               {(printFilters.month === 'all' 
                 ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] 
                 : [printFilters.month]
@@ -3039,25 +3045,53 @@ export function AcademicCalendar() {
                 const monthName = new Date(year, monthIndex).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
                 return (
-                  <div key={`grid-month-${monthIndex}`} className="page-break space-y-6">
-                    <h2 className="text-lg font-black text-center uppercase tracking-[0.3em] mb-4 text-slate-800">
+                  <div key={`grid-month-${monthIndex}`} className="page-break space-y-4 print:space-y-2">
+                    <h2 className="text-base font-black text-center uppercase tracking-[0.3em] mb-2 text-slate-800 print:text-sm">
                       {monthName}
                     </h2>
                     <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-lg overflow-hidden">
                       {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                        <div key={day} className="bg-slate-50 py-3 text-center text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
+                        <div key={day} className="bg-slate-50 py-2 text-center text-[8px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
                       ))}
                       {Array.from({ length: firstDay }).map((_, i) => (
-                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-white min-h-[80px]" />
+                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-white min-h-[60px] print:min-h-[50px]" />
                       ))}
                       {Array.from({ length: days }).map((_, i) => {
                         const day = i + 1;
                         const dateStr = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                        const dayEvents = printEvents.filter(e => {
+                        const rawDayEvents = printEvents.filter(e => {
                           const matchesDate = e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date);
                           const matchesClass = printFilters.class_id === 'all' || e.class_id === printFilters.class_id;
                           return matchesDate && matchesClass;
                         });
+
+                        // Deduplicate events for the grid view
+                        const dayEvents = rawDayEvents.reduce((acc, curr) => {
+                          // Normalize title by removing common prefixes and the " - Class Name" part if we want to deduplicate multi-class events
+                          let normalizedTitle = curr.title
+                            .replace(/^Dia de Aula - /, '')
+                            .replace(/^Aula - /, '')
+                            .replace(/^Aula Normal - /, '');
+                          
+                          // Also remove the " - [ClassName]" suffix to group identical events for different classes
+                          classes.forEach(cls => {
+                            normalizedTitle = normalizedTitle.replace(` - ${cls.name}`, '').replace(` - ${cls.code}`, '').trim();
+                          });
+
+                          if (!acc.some(item => {
+                            let itemNormalized = item.title
+                              .replace(/^Dia de Aula - /, '')
+                              .replace(/^Aula - /, '')
+                              .replace(/^Aula Normal - /, '');
+                            classes.forEach(cls => {
+                              itemNormalized = itemNormalized.replace(` - ${cls.name}`, '').replace(` - ${cls.code}`, '').trim();
+                            });
+                            return itemNormalized === normalizedTitle && item.type === curr.type;
+                          })) {
+                            acc.push(curr);
+                          }
+                          return acc;
+                        }, [] as CalendarEvent[]);
                         
                         const periodType = getPeriodType(dateStr, academicSettings);
                         const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
@@ -3067,13 +3101,13 @@ export function AcademicCalendar() {
                           <div 
                             key={`grid-day-${monthIndex}-${day}`} 
                             className={cn(
-                              "bg-white min-h-[100px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors",
+                              "bg-white min-h-[75px] print:min-h-[55px] p-1 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors",
                               isVacation && "bg-stripes-slate",
                               isHoliday && "bg-stripes-red"
                             )}
                           >
-                            <span className="text-[11px] font-black text-slate-900">{day}</span>
-                            <div className="mt-1.5 space-y-1">
+                            <span className="text-[9px] font-black text-slate-900">{day}</span>
+                            <div className="mt-0.5 space-y-0.5">
                               {dayEvents.map(e => {
                                 const isHoliday = e.type.includes('holiday') || e.title.toLowerCase().includes('feriado') || e.title.toLowerCase().includes('recesso');
                                 const isExam = e.type === 'exam';
@@ -3082,13 +3116,13 @@ export function AcademicCalendar() {
                                   <div 
                                     key={e.id} 
                                     className={cn(
-                                      "text-[6.5px] font-bold p-1 rounded border leading-tight line-clamp-2 whitespace-normal break-words shadow-sm",
+                                      "text-[5.5px] font-bold p-0.5 rounded border leading-tight line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis shadow-sm",
                                       isHoliday ? "bg-red-500 text-white border-red-600" : 
                                       isExam ? "bg-amber-400 text-white border-amber-500" :
                                       "bg-blue-400 text-white border-blue-500"
                                     )}
                                   >
-                                    {e.title.replace(/^Dia de Aula - /, '')}
+                                    {e.title.replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '')}
                                   </div>
                                 );
                               })}

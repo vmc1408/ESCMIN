@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -14,10 +15,13 @@
     "@google/genai": "^1.29.0",
     "@supabase/supabase-js": "^2.49.1",
     "@tailwindcss/vite": "^4.1.14",
+    "@types/express": "^5.0.6",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "esbuild": "^0.28.0",
+    "express": "^5.2.1",
     "fuzzysort": "^3.1.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
@@ -29,6 +33,7 @@
     "react-webcam": "^7.2.0",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
+    "tsx": "^4.22.2",
     "vite": "^6.2.0",
     "xlsx": "^0.18.5"
   },
