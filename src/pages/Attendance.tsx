@@ -32,6 +32,7 @@ interface Class {
   name: string;
   code: string;
   subject_ids?: string[];
+  days_of_week?: string[];
 }
 
 interface Subject {
@@ -79,6 +80,7 @@ export function Attendance() {
 
       const normalizedClasses = (classesData || []).map((cls: any) => {
         let normalized = { ...cls };
+        // Ensure subject_ids is always an array
         let sIds: string[] = [];
         if (Array.isArray(normalized.subject_ids)) {
           sIds = normalized.subject_ids;
@@ -93,6 +95,18 @@ export function Attendance() {
           sIds = [normalized.subject_id];
         }
         normalized.subject_ids = sIds;
+
+        // Ensure days_of_week is always an array
+        if (typeof normalized.days_of_week === 'string') {
+          try {
+            normalized.days_of_week = JSON.parse(normalized.days_of_week);
+          } catch (e) {
+            normalized.days_of_week = normalized.days_of_week ? [normalized.days_of_week] : [];
+          }
+        } else if (!Array.isArray(normalized.days_of_week)) {
+          normalized.days_of_week = [];
+        }
+
         return normalized;
       });
 
@@ -295,29 +309,35 @@ export function Attendance() {
   }, [selectedDate, classEvents, selectedClass]);
 
   const availableDates = React.useMemo(() => {
-    // Determine the scheduled weekday from the class name
+    // Determine the scheduled weekdays from the class data
     const classInfo = classes.find(c => c.id === selectedClass);
-    const className = classInfo?.name || '';
-    let targetDay = -1;
-    const lowerName = className.toLowerCase();
+    const targetDays = classInfo?.days_of_week || [];
+    const dayMap: Record<string, number> = {
+      'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6
+    };
     
-    if (lowerName.includes('segunda')) targetDay = 1;
-    else if (lowerName.includes('terça')) targetDay = 2;
-    else if (lowerName.includes('quarta')) targetDay = 3;
-    else if (lowerName.includes('quinta')) targetDay = 4;
-    else if (lowerName.includes('sexta')) targetDay = 5;
-    else if (lowerName.includes('sábado')) targetDay = 6;
-    else if (lowerName.includes('domingo')) targetDay = 0;
+    let targetDayIndices = targetDays.map(d => dayMap[d]).filter(d => d !== undefined);
 
-    // 1. Filter for unique dates and respect weekday if specified in class name
+    // Fallback to class name if days_of_week is empty
+    if (targetDayIndices.length === 0 && classInfo?.name) {
+      const lowerName = classInfo.name.toLowerCase();
+      if (lowerName.includes('segunda')) targetDayIndices = [1];
+      else if (lowerName.includes('terça')) targetDayIndices = [2];
+      else if (lowerName.includes('quarta')) targetDayIndices = [3];
+      else if (lowerName.includes('quinta')) targetDayIndices = [4];
+      else if (lowerName.includes('sexta')) targetDayIndices = [5];
+      else if (lowerName.includes('sábado')) targetDayIndices = [6];
+      else if (lowerName.includes('domingo')) targetDayIndices = [0];
+    }
+
+    // 1. Filter for unique dates and respect weekday
     const uniqueMap = new Map();
     classEvents.forEach(event => {
       if (!uniqueMap.has(event.start_date)) {
-        // If it's a global class day (not specifically linked to this class ID)
-        // and we have a target day, match the weekday
-        if (!event.class_id && targetDay !== -1) {
+        // If it's a global class day (no class_id), check if it matches target days
+        if (!event.class_id && targetDayIndices.length > 0) {
           const date = new Date(event.start_date + 'T12:00:00');
-          if (date.getDay() !== targetDay) return;
+          if (!targetDayIndices.includes(date.getDay())) return;
         }
         uniqueMap.set(event.start_date, event);
       }
