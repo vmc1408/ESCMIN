@@ -2704,7 +2704,7 @@ export function AcademicCalendar() {
         
         <div className="print-container font-sans text-slate-800">
           {/* Header do Relatório - Mais Compacto e Profissional */}
-          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4 mb-6">
+          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-4">
             <div className="flex items-center gap-4">
               {institution?.logo_url ? (
                 <img src={institution.logo_url} className="h-14 w-auto object-contain" referrerPolicy="no-referrer" />
@@ -2895,16 +2895,16 @@ export function AcademicCalendar() {
 
           {/* Relatório 2: Pôster Anual */}
           {printType === 'annual_poster' && (
-            <div className="flex flex-col flex-1 h-full max-h-[100vh]">
-              <div className="grid grid-cols-3 gap-x-6 gap-y-6 mb-4 flex-1">
+            <div className="flex flex-col h-full max-h-[85vh]">
+              <div className="grid grid-cols-3 gap-x-4 gap-y-2 mb-2">
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(monthIndex => (
-                  <div key={`poster-${monthIndex}`} className="avoid-break p-3 border-2 border-slate-100 rounded-xl bg-white">
-                    <h4 className="text-[10px] font-black text-center uppercase tracking-widest mb-2 border-b-2 border-slate-50 pb-1 text-slate-800">
+                  <div key={`poster-${monthIndex}`} className="avoid-break p-2 border-2 border-slate-100 rounded-lg bg-white shadow-sm">
+                    <h4 className="text-[9px] font-black text-center uppercase tracking-[0.15em] mb-1.5 border-b border-slate-50 pb-0.5 text-slate-900">
                       {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                     </h4>
-                    <div className="grid grid-cols-7 gap-1">
+                    <div className="grid grid-cols-7 gap-0.5">
                       {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => (
-                        <div key={`header-${monthIndex}-${d}`} className="text-center text-[7px] font-black text-slate-300">{d}</div>
+                        <div key={`header-${monthIndex}-${d}`} className="text-center text-[6px] font-black text-slate-300">{d}</div>
                       ))}
                       {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
                         <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
@@ -2943,7 +2943,7 @@ export function AcademicCalendar() {
                           <div 
                             key={`${monthIndex}-${day}`}
                             className={cn(
-                              "aspect-square flex items-center justify-center rounded-md text-[8px] font-black border transition-all",
+                              "aspect-square flex items-center justify-center rounded-sm text-[7.5px] font-black border transition-all",
                               bgColor, textColor, borderColor
                             )}
                           >
@@ -2956,35 +2956,35 @@ export function AcademicCalendar() {
                 ))}
               </div>
               
-              {/* Legenda Estilo Screenshot Detalhada */}
-              <div className="mt-2 border-t-2 border-slate-900 pt-4 flex flex-wrap justify-center gap-x-6 gap-y-2 pb-2">
+              {/* Legenda Estilo Screenshot Detalhada - Mais Compacta */}
+              <div className="mt-1 border-t-2 border-slate-900 pt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 pb-1">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-600 shadow-sm" />
-                  <span className="text-[7.5px] font-black text-slate-700 uppercase tracking-widest">Feriado Nacional</span>
+                  <div className="w-3 h-3 rounded-full bg-red-600 shadow-sm border border-red-700" />
+                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Feriado Nacional</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-purple-600 shadow-sm" />
-                  <span className="text-[7.5px] font-black text-slate-700 uppercase tracking-widest">Feriado Estadual</span>
+                  <div className="w-3 h-3 rounded-full bg-purple-600 shadow-sm border border-purple-700" />
+                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Feriado Estadual</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-orange-600 shadow-sm" />
-                  <span className="text-[7.5px] font-black text-slate-700 uppercase tracking-widest">Feriado Municipal</span>
+                  <div className="w-3 h-3 rounded-full bg-orange-600 shadow-sm border border-orange-700" />
+                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Feriado Municipal</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-sm" />
-                  <span className="text-[7.5px] font-black text-slate-700 uppercase tracking-widest">Dia de Aula</span>
+                  <div className="w-3 h-3 rounded-full bg-blue-400 shadow-sm border border-blue-500" />
+                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Dia de Aula</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm" />
-                  <span className="text-[7.5px] font-black text-slate-700 uppercase tracking-widest">Avaliação</span>
+                  <div className="w-3 h-3 rounded-full bg-amber-400 shadow-sm border border-amber-500" />
+                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Avaliação</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-sm" />
-                  <span className="text-[7.5px] font-black text-slate-700 uppercase tracking-widest">Início</span>
+                  <div className="w-3 h-3 rounded-full bg-blue-600 shadow-sm border border-blue-700" />
+                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Início</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-900 shadow-sm" />
-                  <span className="text-[7.5px] font-black text-slate-700 uppercase tracking-widest">Final</span>
+                  <div className="w-3 h-3 rounded-full bg-slate-900 shadow-sm border border-slate-950" />
+                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Final</span>
                 </div>
               </div>
             </div>
