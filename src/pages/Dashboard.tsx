@@ -389,7 +389,7 @@ export function Dashboard() {
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-4">
                       <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-xl",
+                        "h-10 px-3 w-auto flex items-center justify-center text-white font-black text-[11px] shadow-xl whitespace-nowrap rounded-xl",
                         "bg-gradient-to-br",
                         c.color
                       )}>
