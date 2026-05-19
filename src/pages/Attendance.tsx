@@ -295,10 +295,30 @@ export function Attendance() {
   }, [selectedDate, classEvents, selectedClass]);
 
   const availableDates = React.useMemo(() => {
-    // 1. Filter for unique dates only
+    // Determine the scheduled weekday from the class name
+    const classInfo = classes.find(c => c.id === selectedClass);
+    const className = classInfo?.name || '';
+    let targetDay = -1;
+    const lowerName = className.toLowerCase();
+    
+    if (lowerName.includes('segunda')) targetDay = 1;
+    else if (lowerName.includes('terça')) targetDay = 2;
+    else if (lowerName.includes('quarta')) targetDay = 3;
+    else if (lowerName.includes('quinta')) targetDay = 4;
+    else if (lowerName.includes('sexta')) targetDay = 5;
+    else if (lowerName.includes('sábado')) targetDay = 6;
+    else if (lowerName.includes('domingo')) targetDay = 0;
+
+    // 1. Filter for unique dates and respect weekday if specified in class name
     const uniqueMap = new Map();
     classEvents.forEach(event => {
       if (!uniqueMap.has(event.start_date)) {
+        // If it's a global class day (not specifically linked to this class ID)
+        // and we have a target day, match the weekday
+        if (!event.class_id && targetDay !== -1) {
+          const date = new Date(event.start_date + 'T12:00:00');
+          if (date.getDay() !== targetDay) return;
+        }
         uniqueMap.set(event.start_date, event);
       }
     });
@@ -314,7 +334,7 @@ export function Attendance() {
           label: date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
         };
       });
-  }, [classEvents]);
+  }, [classEvents, selectedClass, classes]);
 
   // Auto-select the next or current class day
   useEffect(() => {
