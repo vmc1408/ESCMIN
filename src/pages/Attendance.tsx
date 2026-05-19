@@ -8,6 +8,7 @@ import {
   Check,
   X,
   Info,
+  ChevronDown,
   Clock,
   BookOpen,
   School,
@@ -294,8 +295,17 @@ export function Attendance() {
   }, [selectedDate, classEvents, selectedClass]);
 
   const availableDates = React.useMemo(() => {
-    return [...classEvents]
-      .sort((a, b) => b.start_date.localeCompare(a.start_date)) // Most recent first
+    // 1. Filter for unique dates only
+    const uniqueMap = new Map();
+    classEvents.forEach(event => {
+      if (!uniqueMap.has(event.start_date)) {
+        uniqueMap.set(event.start_date, event);
+      }
+    });
+
+    // 2. Sort chronologically (Jan to Dec)
+    return Array.from(uniqueMap.values())
+      .sort((a, b) => a.start_date.localeCompare(b.start_date))
       .map(event => {
         const date = new Date(event.start_date + 'T12:00:00');
         return {
@@ -306,12 +316,26 @@ export function Attendance() {
       });
   }, [classEvents]);
 
+  // Auto-select the next or current class day
+  useEffect(() => {
+    if (availableDates.length > 0 && selectedClass) {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Try to find today's class or the first one in the future (Ascending order means first >= today is best)
+      const bestDate = availableDates.find(d => d.dbValue >= today) || availableDates[availableDates.length - 1];
+      
+      if (bestDate) {
+        setSelectedDate(bestDate.displayValue);
+      }
+    }
+  }, [availableDates, selectedClass]);
+
   const saveAttendance = async () => {
     if (!userAuth || !selectedSubject) return;
     
     if (!isScheduledDay) {
       setNotification({
-        type: 'error',
+        type: 'err',
         message: 'Data de aula não agendada no calendário acadêmico para esta turma.'
       });
       return;
