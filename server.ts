@@ -1,22 +1,18 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { createServer as createViteServer } from "vite";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Add a simple health check API
+  // API routes go here FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -29,13 +25,7 @@ async function startServer() {
     
     // Handle SPA fallback - serve index.html for any unknown route
     app.get('*', (req, res) => {
-      const indexPath = path.join(distPath, 'index.html');
-      res.sendFile(indexPath, (err) => {
-        if (err) {
-          console.error(`Error sending index.html from ${indexPath}:`, err);
-          res.status(500).send("Error loading index.html");
-        }
-      });
+      res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 

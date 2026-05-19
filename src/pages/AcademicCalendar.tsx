@@ -223,6 +223,16 @@ export function AcademicCalendar() {
     return null;
   };
 
+  const getEventDisplayTitle = (event: CalendarEvent) => {
+    if (event.type === 'class_day' && event.class_id) {
+      const cls = classes.find(c => c.id === event.class_id);
+      if (cls && cls.code) {
+        return `Aula - ${cls.code}`;
+      }
+    }
+    return event.title.replace(/^Dia de Aula - /, '');
+  };
+
   const dayBgColors = [
     'bg-slate-50',
     'bg-blue-50',
@@ -679,7 +689,7 @@ export function AcademicCalendar() {
       for (let i = 0; i < targetIds.length; i++) {
         const tid = targetIds[i];
         const targetClass = tid ? classes.find(c => c.id === tid) : null;
-        const classLabel = targetClass ? ` - ${targetClass.name}` : '';
+        const classLabel = targetClass ? ` - ${targetClass.code || targetClass.name}` : '';
         const eventSignature = `Cronograma automático${classLabel}`;
         setSyncMessage(`Calculando aulas: ${targetClass?.name || 'Geral'}`);
         setSyncProgress(45 + Math.floor((i / targetIds.length) * 30));
@@ -718,7 +728,10 @@ export function AcademicCalendar() {
             const weekday = currentDateObj.getDay();
             if (settings.class_weekdays?.includes(weekday)) {
               const dateStr = currentDateObj.toISOString().split('T')[0];
-              const dayTitle = settings.weekday_titles?.[weekday] || 'Dia de Aula';
+              let dayTitle = settings.weekday_titles?.[weekday] || 'Dia de Aula';
+              if (targetClass?.code) {
+                dayTitle = `Aula - ${targetClass.code}`;
+              }
               
               if (!holidayDates.has(dateStr)) {
                 newEvents.push({
@@ -1499,9 +1512,9 @@ export function AcademicCalendar() {
                                 "px-2 py-0.5 rounded-md text-[8.5px] font-bold line-clamp-2 whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
                                 getTypeStyle(event.type, event.start_date)
                               )}
-                              title={event.title.replace(/^Dia de Aula - /, '')}
+                              title={getEventDisplayTitle(event)}
                             >
-                              {event.title.replace(/^Dia de Aula - /, '')}
+                              {getEventDisplayTitle(event)}
                             </div>
                           ))}
                         </div>
@@ -1781,7 +1794,7 @@ export function AcademicCalendar() {
                                       {getTypeText(event.type, event.description)}
                                     </span>
                                     <h4 className="text-sm font-bold text-slate-800 truncate">
-                                      {event.title.replace(/^Dia de Aula - /, '')}
+                                      {getEventDisplayTitle(event)}
                                     </h4>
                                   </div>
                                   
@@ -1890,7 +1903,7 @@ export function AcademicCalendar() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-[11px] font-black text-slate-800 truncate uppercase tracking-tight">
-                                  {event.title.replace(/^Dia de Aula - /, '')}
+                                  {getEventDisplayTitle(event)}
                                 </h4>
                                 <div className="flex items-center gap-2">
                                   <span className="text-[8px] font-bold text-blue-500 uppercase tracking-widest">Aula Presencial</span>
@@ -2794,7 +2807,7 @@ export function AcademicCalendar() {
                     if (e.type === 'class_day' || e.type === 'exam') {
                       let baseTitle = e.title;
                       classes.forEach(c => baseTitle = baseTitle.replace(` - ${c.name}`, '').trim());
-                      baseTitle = baseTitle.replace(/^Dia de Aula - /, '');
+                      baseTitle = getEventDisplayTitle(e as any);
                       uniqueSet.add(`${e.start_date}|${baseTitle}`);
                     }
                   });
@@ -2832,7 +2845,7 @@ export function AcademicCalendar() {
                                   events.forEach(e => {
                                     let baseTitle = e.title;
                                     classes.forEach(c => baseTitle = baseTitle.replace(` - ${c.name}`, '').trim());
-                                    baseTitle = baseTitle.replace(/^Dia de Aula - /, '');
+                                    baseTitle = getEventDisplayTitle(e as any);
                                     const groupKey = `${baseTitle}|${e.type}`;
                                     const className = classes.find(c => c.id === e.class_id)?.name || 'Geral';
                                     if (!infoGroups[groupKey]) infoGroups[groupKey] = { event: e, classNames: [] };
@@ -2843,9 +2856,7 @@ export function AcademicCalendar() {
                                     const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
                                     const isHoliday = event.type === 'holiday' || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
                                     
-                                    let displayTitle = event.title;
-                                    classes.forEach(c => displayTitle = displayTitle.replace(` - ${c.name}`, '').trim());
-                                    displayTitle = displayTitle.replace(/^Dia de Aula - /, '');
+                                    let displayTitle = getEventDisplayTitle(event as any);
 
                                     return (
                                       <div key={event.id} className={cn("flex items-center justify-between gap-2 p-1 rounded", isHoliday && "bg-slate-50 border border-slate-200")}>
@@ -2908,7 +2919,7 @@ export function AcademicCalendar() {
                             <div className="flex items-center justify-between gap-4">
                               <div className="min-w-0 flex-1">
                                 <p className={cn("text-[10px] font-bold truncate", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
-                                  {event.title.replace(/^Dia de Aula - /, '')}
+                                  {getEventDisplayTitle(event)}
                                 </p>
                                 <p className="text-[8px] font-medium text-slate-400 uppercase">
                                   {event.type === 'class_day' ? 'Aula Regular' : 
@@ -3090,7 +3101,7 @@ export function AcademicCalendar() {
                                       "bg-blue-400 text-white border-blue-500"
                                     )}
                                   >
-                                    {e.title.replace(/^Dia de Aula - /, '')}
+                                    {getEventDisplayTitle(e)}
                                   </div>
                                 );
                               })}
