@@ -62,6 +62,7 @@ export function Attendance() {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
+  const [classEvents, setClassEvents] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -117,18 +118,47 @@ export function Attendance() {
     }
   }, []);
 
+  const fetchClassEvents = React.useCallback(async () => {
+    if (!selectedClass) {
+      setClassEvents([]);
+      return;
+    }
+    try {
+      // Fetch both global class days and class-specific class days
+      const [globalEvents, classSpecificEvents] = await Promise.all([
+        fetchQuery('calendar_events', [
+          { field: 'type', operator: '==', value: 'class_day' },
+          { field: 'class_id', operator: 'is', value: null }
+        ]),
+        fetchQuery('calendar_events', [
+          { field: 'type', operator: '==', value: 'class_day' },
+          { field: 'class_id', operator: '==', value: selectedClass }
+        ])
+      ]);
+      
+      setClassEvents([...(globalEvents || []), ...(classSpecificEvents || [])]);
+    } catch (error) {
+      console.error('Error fetching class events:', error);
+    }
+  }, [selectedClass]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    fetchClassEvents();
+  }, [fetchClassEvents]);
 
   const fetchAbsenceSummary = async () => {
     if (!selectedClass) return;
     setLoading(true);
     try {
       // 1. Fetch academic calendar to count school days
-      const events = await fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'Dia de Aula' }]);
-      // If we have class specific events, we can filter further, but let's assume global school days
-      setCalendarDays(events?.length || 0);
+      const events = await fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]);
+      // Filter for this class specifically if needed, but for total school days we might use all class_days
+      const classSpecific = events?.filter(e => !e.class_id || e.class_id === selectedClass) || [];
+      setCalendarDays(classSpecific.length);
 
       // 2. Fetch all students in class
       const studentList = await fetchQuery('students', [
@@ -257,8 +287,20 @@ export function Attendance() {
     setAttendance(newAttendance);
   };
 
+  const isScheduledDay = React.useMemo(() => {
+    if (!selectedClass || !selectedDate || classEvents.length === 0) return true; // Default to true if no events loaded yet
+    const dbDate = parseDateToDB(selectedDate);
+    return classEvents.some(event => event.start_date === dbDate);
+  }, [selectedDate, classEvents, selectedClass]);
+
   const saveAttendance = async () => {
     if (!userAuth || !selectedSubject) return;
+    
+    if (!isScheduledDay) {
+      const confirmSave = window.confirm("Atenção: Não há aula agendada para esta turma nesta data no calendário acadêmico. Deseja salvar mesmo assim?");
+      if (!confirmSave) return;
+    }
+
     setSaving(true);
     try {
       const recordsToSave = Object.values(attendance) as AttendanceRecord[];
@@ -375,7 +417,27 @@ export function Attendance() {
 
           {activeTab === 'marking' && (
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Data da Aula</label>
+              <div className="flex items-center justify-between pl-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Aula</label>
+                {selectedClass && selectedDate && selectedDate.length === 10 && (
+                  <div className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter",
+                    isScheduledDay ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                  )}>
+                    {isScheduledDay ? (
+                      <>
+                        <Check size={8} />
+                        Aula Agendada
+                      </>
+                    ) : (
+                      <>
+                        <X size={8} />
+                        Sem aula no Calendário
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="relative">
                 <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
@@ -383,12 +445,30 @@ export function Attendance() {
                   placeholder="DD/MM/AAAA"
                   value={selectedDate}
                   onChange={e => setSelectedDate(maskDate(e.target.value))}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500"
+                  className={cn(
+                    "w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 appearance-none transition-all",
+                    selectedClass && selectedDate && selectedDate.length === 10 && !isScheduledDay ? "ring-2 ring-red-500/20" : "focus:ring-emerald-500"
+                  )}
                 />
               </div>
             </div>
           )}
         </div>
+
+        {selectedClass && selectedDate && selectedDate.length === 10 && !isScheduledDay && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3 text-amber-700"
+          >
+            <Info size={18} />
+            <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+              Atenção: De acordo com o calendário acadêmico, esta turma <span className="underline">não possui aula</span> agendada para o dia {selectedDate}.
+              <br className="hidden sm:block" />
+              Verifique a data antes de prosseguir com o lançamento da frequência.
+            </p>
+          </motion.div>
+        )}
 
         {notification && (
           <motion.div 
