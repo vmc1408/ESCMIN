@@ -316,30 +316,58 @@ export function Attendance() {
       'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6
     };
     
-    let targetDayIndices = targetDays.map(d => dayMap[d]).filter(d => d !== undefined);
+    let targetDayIndices: number[] = targetDays.map(d => dayMap[d]).filter(d => d !== undefined);
 
-    // Fallback to class name if days_of_week is empty
+    // Fallback to name matching with more flexibility
     if (targetDayIndices.length === 0 && classInfo?.name) {
       const lowerName = classInfo.name.toLowerCase();
-      if (lowerName.includes('segunda')) targetDayIndices = [1];
-      else if (lowerName.includes('terça')) targetDayIndices = [2];
-      else if (lowerName.includes('quarta')) targetDayIndices = [3];
-      else if (lowerName.includes('quinta')) targetDayIndices = [4];
-      else if (lowerName.includes('sexta')) targetDayIndices = [5];
-      else if (lowerName.includes('sábado')) targetDayIndices = [6];
-      else if (lowerName.includes('domingo')) targetDayIndices = [0];
+      
+      const dayMatches = [
+        { keywords: ['segunda', '2ª', '2a', 'seg'], index: 1 },
+        { keywords: ['terça', '3ª', '3a', 'ter'], index: 2 },
+        { keywords: ['quarta', '4ª', '4a', 'qua'], index: 3 },
+        { keywords: ['quinta', '5ª', '5a', 'qui'], index: 4 },
+        { keywords: ['sexta', '6ª', '6a', 'sex'], index: 5 },
+        { keywords: ['sábado', 'sab', 'sáb'], index: 6 },
+        { keywords: ['domingo', 'dom'], index: 0 },
+      ];
+
+      dayMatches.forEach(match => {
+        if (match.keywords.some(k => lowerName.includes(k))) {
+          targetDayIndices.push(match.index);
+        }
+      });
+    }
+
+    // If still empty, check if any class-specific event already exists to deduce the day
+    if (targetDayIndices.length === 0) {
+      const classSpecific = classEvents.filter(e => e.class_id === selectedClass);
+      if (classSpecific.length > 0) {
+        const days = new Set(classSpecific.map(e => new Date(e.start_date + 'T12:00:00').getDay()));
+        targetDayIndices = Array.from(days);
+      }
     }
 
     // 1. Filter for unique dates and respect weekday
     const uniqueMap = new Map();
-    classEvents.forEach(event => {
-      if (!uniqueMap.has(event.start_date)) {
+    
+    // Sort classEvents so that class-specific events come later to override global ones in uniqueMap if needed
+    // However, since we check !has, we should put them first if we want to prefer them.
+    const sortedEvents = [...classEvents].sort((a, b) => {
+      if (a.class_id && !b.class_id) return -1;
+      if (!a.class_id && b.class_id) return 1;
+      return 0;
+    });
+
+    sortedEvents.forEach(event => {
+      const dateKey = event.start_date;
+      if (!uniqueMap.has(dateKey)) {
         // If it's a global class day (no class_id), check if it matches target days
         if (!event.class_id && targetDayIndices.length > 0) {
-          const date = new Date(event.start_date + 'T12:00:00');
+          const date = new Date(dateKey + 'T12:00:00');
           if (!targetDayIndices.includes(date.getDay())) return;
         }
-        uniqueMap.set(event.start_date, event);
+        uniqueMap.set(dateKey, event);
       }
     });
 
