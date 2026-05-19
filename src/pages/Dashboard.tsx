@@ -447,27 +447,7 @@ export function Dashboard() {
            transition={{ delay: 0.6 }}
            className="lg:col-span-4 space-y-6"
         >
-           <div className="bg-[#00174b] p-8 rounded-[3rem] shadow-2xl shadow-blue-900/20 text-white relative overflow-hidden group">
-              <div className="relative z-10 space-y-6">
-                 <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center">
-                    <TrendingUp size={24} className="text-blue-400" />
-                 </div>
-                 <div className="space-y-1">
-                    <h4 className="text-xl font-black tracking-tight">Estatísticas</h4>
-                    <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest">Métricas Anuais</p>
-                 </div>
-                 <div className="pt-4">
-                    <div className="flex items-baseline gap-2">
-                       <span className="text-5xl font-black tabular-nums">+8%</span>
-                       <span className="text-xs font-bold text-emerald-400">ativos</span>
-                    </div>
-                 </div>
-                 <button className="w-full py-4 bg-white/10 hover:bg-white text-white hover:text-[#00174b] rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10">
-                    Ver Relatório
-                 </button>
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-blue-600/30 rounded-full blur-[80px] group-hover:scale-125 transition-transform duration-700" />
-           </div>
+
 
            <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-50 space-y-6">
               <h4 className="text-xs font-black text-[#00174b] uppercase tracking-widest px-2">Acesso Rápido</h4>
