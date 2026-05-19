@@ -2583,7 +2583,7 @@ export function AcademicCalendar() {
                 ))}
               </div>
 
-              {printType === 'class_schedule' && (
+              {(printType === 'class_schedule' || printType === 'monthly_grid') && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -2992,42 +2992,67 @@ export function AcademicCalendar() {
 
           {/* Relatório 3: Grade Mensal */}
           {printType === 'monthly_grid' && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-black text-center uppercase tracking-[0.3em] mb-4">
-                {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-              </h2>
-              <div className="grid grid-cols-7 gap-px bg-slate-400 border border-slate-400">
-                {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                  <div key={day} className="bg-slate-100 py-2 text-center text-[9px] font-black uppercase tracking-widest">{day}</div>
-                ))}
-                {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => (
-                  <div key={`grid-empty-${i}`} className="bg-white min-h-[100px]" />
-                ))}
-                {Array.from({ length: daysInMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                  const dayEvents = printEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
-                  
-                  return (
-                    <div key={`grid-day-${day}`} className="bg-white min-h-[120px] p-1 border-r border-b border-slate-200 overflow-hidden">
-                      <span className="text-[10px] font-black text-slate-900">{day}</span>
-                      <div className="mt-1 space-y-1">
-                        {dayEvents.map(e => (
-                          <div 
-                            key={e.id} 
-                            className={cn(
-                              "text-[7px] font-bold p-0.5 rounded border leading-tight truncate",
-                              e.type.includes('holiday') ? "bg-red-50 text-red-700 border-red-100" : "bg-blue-50 text-blue-700 border-blue-100"
-                            )}
-                          >
-                            {e.title.replace(/^Dia de Aula - /, '')}
+            <div className="space-y-12">
+              {(printFilters.month === 'all' 
+                ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] 
+                : [printFilters.month]
+              ).map(monthIndex => {
+                const year = currentDate.getFullYear();
+                const firstDay = firstDayOfMonth(year, monthIndex);
+                const days = daysInMonth(year, monthIndex);
+                const monthName = new Date(year, monthIndex).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+                return (
+                  <div key={`grid-month-${monthIndex}`} className="page-break space-y-6">
+                    <h2 className="text-lg font-black text-center uppercase tracking-[0.3em] mb-4 text-slate-800">
+                      {monthName}
+                    </h2>
+                    <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-lg overflow-hidden">
+                      {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
+                        <div key={day} className="bg-slate-50 py-3 text-center text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
+                      ))}
+                      {Array.from({ length: firstDay }).map((_, i) => (
+                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-white min-h-[80px]" />
+                      ))}
+                      {Array.from({ length: days }).map((_, i) => {
+                        const day = i + 1;
+                        const dateStr = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                        const dayEvents = printEvents.filter(e => {
+                          const matchesDate = e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date);
+                          const matchesClass = printFilters.class_id === 'all' || e.class_id === printFilters.class_id;
+                          return matchesDate && matchesClass;
+                        });
+                        
+                        return (
+                          <div key={`grid-day-${monthIndex}-${day}`} className="bg-white min-h-[100px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors">
+                            <span className="text-[11px] font-black text-slate-900">{day}</span>
+                            <div className="mt-1.5 space-y-1">
+                              {dayEvents.map(e => {
+                                const isHoliday = e.type.includes('holiday') || e.title.toLowerCase().includes('feriado') || e.title.toLowerCase().includes('recesso');
+                                const isExam = e.type === 'exam';
+                                
+                                return (
+                                  <div 
+                                    key={e.id} 
+                                    className={cn(
+                                      "text-[7px] font-bold p-1 rounded border leading-tight truncate shadow-sm",
+                                      isHoliday ? "bg-red-500 text-white border-red-600" : 
+                                      isExam ? "bg-amber-400 text-white border-amber-500" :
+                                      "bg-blue-400 text-white border-blue-500"
+                                    )}
+                                  >
+                                    {e.title.replace(/^Dia de Aula - /, '')}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
