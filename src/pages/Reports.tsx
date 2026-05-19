@@ -617,10 +617,23 @@ export function Reports() {
   }, [subjects, subjectStatusFilter, subjectSemesterFilter]);
 
   const filteredClasses = useMemo(() => {
-    return classes.filter(c => {
+    const result = classes.filter(c => {
       const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
       const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
       return statusMatch && yearMatch;
+    });
+
+    return [...result].sort((a, b) => {
+      const extract = (s: string) => {
+        const match = s.match(/\d{4}/);
+        const yr = match ? parseInt(match[0]) : 0;
+        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        return { yr, name };
+      };
+      const infoA = extract(a.name || '');
+      const infoB = extract(b.name || '');
+      if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+      return infoB.yr - infoA.yr;
     });
   }, [classes, classStatusFilter, academicYearFilter]);
 
@@ -660,7 +673,7 @@ export function Reports() {
       });
     }
 
-    // Sort dynamically by student count (descending) and name (alphabetical)
+    // Sort by Name (A-Z) and Year (Desc)
     return [...classStats].sort((a, b) => {
       // First sort by unallocated status (move to end)
       const isUnallocatedA = a.id === 'unallocated';
@@ -668,15 +681,16 @@ export function Reports() {
       if (isUnallocatedA && !isUnallocatedB) return 1;
       if (!isUnallocatedA && isUnallocatedB) return -1;
 
-      // Then sort by student count (descending)
-      if (b.count !== a.count) {
-        return b.count - a.count;
-      }
-      
-      // Finally by name/code
-      const nameA = (a.code || a.name || '').toLowerCase();
-      const nameB = (b.code || b.name || '').toLowerCase();
-      return nameA.localeCompare(nameB);
+      const extract = (s: string) => {
+        const match = s.match(/\d{4}/);
+        const yr = match ? parseInt(match[0]) : 0;
+        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        return { yr, name };
+      };
+      const infoA = extract(a.name || '');
+      const infoB = extract(b.name || '');
+      if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+      return infoB.yr - infoA.yr;
     });
   }, [classes, students, stats.activeStudents]);
 

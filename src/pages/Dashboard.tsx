@@ -152,21 +152,35 @@ export function Dashboard() {
       });
     }
 
-    // Sort dynamically by student count (descending) and name (alphabetical)
+    // Sort by Name (A-Z) and Year (Desc)
     const sorted = [...classStats].sort((a, b) => {
       // First sort by unallocated status (move to end)
       if (a.unallocated && !b.unallocated) return 1;
       if (!a.unallocated && b.unallocated) return -1;
 
-      // Then sort by student count (descending)
-      if (b.count !== a.count) {
-        return b.count - a.count;
+      // Helper to extract year and base name
+      const extract = (s: string) => {
+        const match = s.match(/\d{4}/);
+        const yr = match ? parseInt(match[0]) : 0;
+        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        return { yr, name };
+      };
+
+      const infoA = extract(a.name || '');
+      const infoB = extract(b.name || '');
+
+      // 1. Base Name (Alphabetical A-Z)
+      if (infoA.name !== infoB.name) {
+        return infoA.name.localeCompare(infoB.name);
       }
-      
-      // Finally by name/code
-      const nameA = (a.code || a.name || '').toLowerCase();
-      const nameB = (b.code || b.name || '').toLowerCase();
-      return nameA.localeCompare(nameB);
+
+      // 2. Year (Descending)
+      if (infoA.yr !== infoB.yr) {
+        return infoB.yr - infoA.yr;
+      }
+
+      // 3. Fallback to Code
+      return (a.code || '').localeCompare(b.code || '');
     });
 
     // Assign refined color schemes

@@ -68,8 +68,21 @@ export const Assessments: React.FC = () => {
         return { ...cls, subject_ids: sIds };
       });
 
+      const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
+        const extract = (s: string) => {
+          const match = s.match(/\d{4}/);
+          const yr = match ? parseInt(match[0]) : 0;
+          const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+          return { yr, name };
+        };
+        const infoA = extract(a.name || '');
+        const infoB = extract(b.name || '');
+        if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+        return infoB.yr - infoA.yr;
+      });
+
       setAssessments(assessData as Assessment[] || []);
-      setClasses(normalizedClasses as Class[] || []);
+      setClasses(sortedClasses as Class[] || []);
       setSubjects(subjectsData as Subject[] || []);
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);

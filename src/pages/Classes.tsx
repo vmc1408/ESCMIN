@@ -152,7 +152,7 @@ export function Classes() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
-  const [sortBy, setSortBy] = useState<'name' | 'code' | 'year' | 'period'>('year');
+  const [sortBy, setSortBy] = useState<'name_year' | 'name' | 'code' | 'year' | 'period'>('name_year');
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -438,6 +438,13 @@ export function Classes() {
     }
   };
 
+  const extractYearInfo = (name: string, yearAttr?: string) => {
+    const match = name.match(/\d{4}/);
+    const yr = match ? parseInt(match[0]) : (yearAttr ? parseInt(yearAttr) : 0);
+    const baseName = name.replace(/\d{4}/, '').trim().toLowerCase();
+    return { yr, baseName };
+  };
+
   const filteredClasses = React.useMemo(() => {
     let result = classes.filter(c => {
       const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -449,6 +456,12 @@ export function Classes() {
     });
 
     return [...result].sort((a, b) => {
+      if (sortBy === 'name_year') {
+        const infoA = extractYearInfo(a.name, a.year);
+        const infoB = extractYearInfo(b.name, b.year);
+        if (infoA.baseName !== infoB.baseName) return infoA.baseName.localeCompare(infoB.baseName);
+        return infoB.yr - infoA.yr; // Year Descending
+      }
       if (sortBy === 'code') return a.code.localeCompare(b.code);
       if (sortBy === 'year') return (a.year || '').localeCompare(b.year || '');
       if (sortBy === 'period') return a.period.localeCompare(b.period);
@@ -500,6 +513,7 @@ export function Classes() {
               onChange={(e) => setSortBy(e.target.value as any)}
               className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
             >
+              <option value="name_year">Nome e Ano (Recente)</option>
               <option value="name">Ordenar por Nome</option>
               <option value="code">Ordenar por Código</option>
               <option value="year">Ordenar por Ano</option>

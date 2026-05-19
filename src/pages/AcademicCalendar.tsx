@@ -349,8 +349,21 @@ export function AcademicCalendar() {
       const subjectsData = fetchResults[2].status === 'fulfilled' ? fetchResults[2].value : [];
       const settingsData = fetchResults[3].status === 'fulfilled' ? fetchResults[3].value : null;
 
+      const sortedClasses = (classesData || []).sort((a: any, b: any) => {
+        const extract = (s: string) => {
+          const match = s.match(/\d{4}/);
+          const yr = match ? parseInt(match[0]) : 0;
+          const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+          return { yr, name };
+        };
+        const infoA = extract(a.name || '');
+        const infoB = extract(b.name || '');
+        if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+        return infoB.yr - infoA.yr;
+      });
+
       setEvents(eventsData || []);
-      setClasses(classesData || []);
+      setClasses(sortedClasses);
       setSubjects(subjectsData || []);
       
       if (settingsData) {

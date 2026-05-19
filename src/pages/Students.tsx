@@ -269,7 +269,19 @@ export function Students() {
   const fetchClasses = async () => {
     try {
       const data = await fetchAll('classes', '*', 'name', true);
-      setClasses(data || []);
+      const sorted = (data || []).sort((a: any, b: any) => {
+        const extract = (s: string) => {
+          const match = s.match(/\d{4}/);
+          const yr = match ? parseInt(match[0]) : 0;
+          const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+          return { yr, name };
+        };
+        const infoA = extract(a.name || '');
+        const infoB = extract(b.name || '');
+        if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+        return infoB.yr - infoA.yr;
+      });
+      setClasses(sorted);
     } catch (error) {
       console.error('Error fetching classes:', error);
     }

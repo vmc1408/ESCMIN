@@ -94,7 +94,20 @@ export function Attendance() {
         return normalized;
       });
 
-      setClasses(normalizedClasses);
+      const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
+        const extract = (s: string) => {
+          const match = s.match(/\d{4}/);
+          const yr = match ? parseInt(match[0]) : 0;
+          const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+          return { yr, name };
+        };
+        const infoA = extract(a.name || '');
+        const infoB = extract(b.name || '');
+        if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+        return infoB.yr - infoA.yr;
+      });
+
+      setClasses(sortedClasses);
       setSubjects(subjectsData || []);
       if (paramsData && paramsData.length > 0) {
         setAcademicParams(paramsData[0]);
