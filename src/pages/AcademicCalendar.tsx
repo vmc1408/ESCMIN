@@ -2777,20 +2777,20 @@ export function AcademicCalendar() {
                 <School className="text-slate-200" size={28} />
               )}
               <div className="space-y-0.5">
-                <h1 className="text-lg font-bold uppercase tracking-tight text-slate-900">
+                <h1 className="text-xl font-bold uppercase tracking-tight text-slate-900">
                   {institution?.name || 'Sistema de Gestão Escolar'}
                 </h1>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">
                   {institution?.city || ''} {institution?.document ? `• CNPJ: ${institution.document}` : ''}
                 </p>
               </div>
             </div>
             <div className="text-right flex flex-col justify-center">
-              <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">
+              <h2 className="text-[13px] font-black text-slate-800 uppercase tracking-widest">
                 {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
                  printType === 'annual_poster' ? 'Calendário Anual' : 'Grade de Eventos'}
               </h2>
-              <div className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">
+              <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
                 Ano Letivo: {currentDate.getFullYear()} • {new Date().toLocaleDateString('pt-BR')}
               </div>
             </div>
@@ -2801,8 +2801,8 @@ export function AcademicCalendar() {
             <div className="space-y-8">
               {/* Resumo das turmas filtradas */}
               <div className="mb-6 py-2 px-3 bg-slate-50 border border-slate-100 rounded-lg">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Turmas Envolvidas:</span>
-                <p className="text-[11px] font-bold text-slate-600">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Turmas Envolvidas:</span>
+                <p className="text-[13px] font-bold text-slate-600">
                   {involvedClasses.length > 0 ? involvedClasses.map(c => c.name).join(' • ') : 'Todas as Turmas'}
                   {printFilters.weekday !== 'all' && ` • Filtrado por ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][printFilters.weekday]}`}
                 </p>
@@ -3086,16 +3086,16 @@ export function AcademicCalendar() {
                 const monthName = new Date(year, monthIndex).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
                 return (
-                  <div key={`grid-month-${monthIndex}`} className="page-break space-y-6 print:space-y-4">
-                    <h2 className="text-lg font-black text-center uppercase tracking-[0.3em] mb-4 text-slate-800 print:text-base">
+                  <div key={`grid-month-${monthIndex}`} className="page-break space-y-8 print:space-y-6">
+                    <h2 className="text-2xl font-black text-center uppercase tracking-[0.3em] mb-6 text-slate-800 print:text-xl">
                       {monthName}
                     </h2>
                     <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-lg overflow-hidden">
                       {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                        <div key={day} className="bg-slate-50 py-3 text-center text-[9px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
+                        <div key={day} className="bg-slate-50 py-4 text-center text-[11px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
                       ))}
                       {Array.from({ length: firstDay }).map((_, i) => (
-                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-white min-h-[80px] print:min-h-[70px]" />
+                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-white min-h-[120px] print:min-h-[110px]" />
                       ))}
                       {Array.from({ length: days }).map((_, i) => {
                         const day = i + 1;
@@ -3131,22 +3131,22 @@ export function AcademicCalendar() {
                           <div 
                             key={`grid-day-${monthIndex}-${day}`} 
                             className={cn(
-                              "bg-white min-h-[85px] print:min-h-[75px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors",
+                              "bg-white min-h-[125px] print:min-h-[115px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors",
                               isVacation && "bg-stripes-slate",
                               isHoliday && "bg-stripes-red"
                             )}
                           >
-                            <span className="text-[11px] font-black text-slate-900">{day}</span>
+                            <span className="text-[14px] font-black text-slate-900">{day}</span>
                             <div className="mt-1 space-y-0.5">
                               {dayEvents.map(e => {
-                                const isHoliday = e.type.includes('holiday') || e.title.toLowerCase().includes('feriado') || e.title.toLowerCase().includes('recesso');
+                                const isHoliday = e.type.includes('holiday') || e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('feriado') || e.title.toLowerCase().includes('recesso');
                                 const isExam = e.type === 'exam';
                                 
                                 return (
                                   <div 
                                     key={e.id} 
                                     className={cn(
-                                      "text-[7px] font-bold p-0.5 rounded border leading-tight line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis shadow-sm",
+                                      "text-[8px] font-bold p-0.5 rounded border leading-tight line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis shadow-sm",
                                       isHoliday ? "bg-red-500 text-white border-red-600" : 
                                       isExam ? "bg-amber-400 text-white border-amber-500" :
                                       "bg-blue-400 text-white border-blue-500"
