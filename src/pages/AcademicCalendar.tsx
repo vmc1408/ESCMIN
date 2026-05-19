@@ -1052,7 +1052,19 @@ export function AcademicCalendar() {
         classIds.add(e.class_id);
       }
     });
-    return classes.filter(c => classIds.has(c.id));
+    const filtered = classes.filter(c => classIds.has(c.id));
+    return [...filtered].sort((a, b) => {
+      const extract = (s: string) => {
+        const match = s.match(/\d{4}/);
+        const yr = match ? parseInt(match[0]) : 0;
+        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        return { yr, name };
+      };
+      const infoA = extract(a.name || '');
+      const infoB = extract(b.name || '');
+      if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+      return infoB.yr - infoA.yr;
+    });
   }, [printEvents, printFilters, classes]);
 
   const printGroupedEvents = React.useMemo(() => {
@@ -2791,7 +2803,7 @@ export function AcademicCalendar() {
               <div className="mb-6 py-2 px-3 bg-slate-50 border border-slate-100 rounded-lg">
                 <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Turmas Envolvidas:</span>
                 <p className="text-[11px] font-bold text-slate-600">
-                  {involvedClasses.length > 0 ? involvedClasses.map(c => c.name).sort().join(' • ') : 'Todas as Turmas'}
+                  {involvedClasses.length > 0 ? involvedClasses.map(c => c.name).join(' • ') : 'Todas as Turmas'}
                   {printFilters.weekday !== 'all' && ` • Filtrado por ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][printFilters.weekday]}`}
                 </p>
               </div>
@@ -2858,8 +2870,24 @@ export function AcademicCalendar() {
                                     if (!infoGroups[groupKey].classNames.includes(className)) infoGroups[groupKey].classNames.push(className);
                                   });
 
+                                  const sortClassNames = (names: string[]) => {
+                                    return [...names].sort((a, b) => {
+                                      const extract = (s: string) => {
+                                        const match = s.match(/\d{4}/);
+                                        const yr = match ? parseInt(match[0]) : 0;
+                                        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+                                        return { yr, name };
+                                      };
+                                      const infoA = extract(a);
+                                      const infoB = extract(b);
+                                      if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
+                                      return infoB.yr - infoA.yr;
+                                    });
+                                  };
+
                                   return Object.values(infoGroups).map(({ event, classNames }) => {
                                     const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
+                                    const sortedClassNames = sortClassNames(classNames);
                                     const isHoliday = event.type === 'holiday' || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
                                     
                                     let displayTitle = event.title.replace(/^Dia de Aula - /, '');
@@ -2871,7 +2899,7 @@ export function AcademicCalendar() {
                                             {displayTitle}
                                           </p>
                                           <p className="text-[8px] font-medium text-slate-500 uppercase tracking-tight leading-normal">
-                                            {classNames.join(', ')} {event.description && !event.description.includes('automático') && ` • ${event.description}`}
+                                            {sortedClassNames.join(', ')} {event.description && !event.description.includes('automático') && ` • ${event.description}`}
                                           </p>
                                         </div>
                                         <div className={cn(
