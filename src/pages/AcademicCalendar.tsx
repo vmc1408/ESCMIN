@@ -205,6 +205,24 @@ export function AcademicCalendar() {
     'text-violet-600'  // Sáb
   ];
 
+  const getPeriodType = (dateStr: string, settings: AcademicSettings) => {
+    if (!settings.term1_start || !settings.term1_end || !settings.term2_start || !settings.term2_end) return null;
+    
+    const date = new Date(dateStr + 'T00:00:00');
+    const t1Start = new Date(settings.term1_start + 'T00:00:00');
+    const t1End = new Date(settings.term1_end + 'T00:00:00');
+    const t2Start = new Date(settings.term2_start + 'T00:00:00');
+    const t2End = new Date(settings.term2_end + 'T00:00:00');
+
+    // Férias: Entre término do 1º semestre e início do 2º semestre
+    if (date > t1End && date < t2Start) return 'vacation';
+
+    // Recesso: Antes do início das aulas ou após o término do ano letivo
+    if (date < t1Start || date > t2End) return 'recess';
+
+    return null;
+  };
+
   const dayBgColors = [
     'bg-slate-50',
     'bg-blue-50',
@@ -688,83 +706,9 @@ export function AcademicCalendar() {
           });
         }
 
-        // --- ADICIONAR FÉRIAS E RECESSO AUTOMÁTICOS ---
-        const year = new Date(settings.term1_start + 'T00:00:00').getFullYear();
+        // --- REMOVIDO GERAÇÃO DE EVENTOS DE FÉRIAS E RECESSO ---
+        // A visualização agora é feita via lógica no renderizador
         
-        // 1. Recesso Inicial (01/01 até o dia antes do Início do 1º Semestre)
-        if (settings.term1_start) {
-          const rStart = new Date(`${year}-01-01T00:00:00`);
-          const rEnd = new Date(settings.term1_start + 'T00:00:00');
-          rEnd.setDate(rEnd.getDate() - 1);
-          
-          if (rStart <= rEnd) {
-            let curr = new Date(rStart);
-            while (curr <= rEnd) {
-              newEvents.push({
-                title: 'Recesso',
-                start_date: curr.toISOString().split('T')[0],
-                end_date: curr.toISOString().split('T')[0],
-                type: 'holiday',
-                description: eventSignature,
-                class_id: tid,
-                user_id: userAuth.uid,
-                created_at: new Date().toISOString()
-              });
-              curr.setDate(curr.getDate() + 1);
-            }
-          }
-        }
-
-        // 2. Férias Meio de Ano (Dia após Término 1º Semestre até dia antes do Início 2º Semestre)
-        if (settings.term1_end && settings.term2_start) {
-          const vStart = new Date(settings.term1_end + 'T00:00:00');
-          vStart.setDate(vStart.getDate() + 1);
-          const vEnd = new Date(settings.term2_start + 'T00:00:00');
-          vEnd.setDate(vEnd.getDate() - 1);
-          
-          if (vStart <= vEnd) {
-            let curr = new Date(vStart);
-            while (curr <= vEnd) {
-              newEvents.push({
-                title: 'Férias',
-                start_date: curr.toISOString().split('T')[0],
-                end_date: curr.toISOString().split('T')[0],
-                type: 'holiday',
-                description: eventSignature,
-                class_id: tid,
-                user_id: userAuth.uid,
-                created_at: new Date().toISOString()
-              });
-              curr.setDate(curr.getDate() + 1);
-            }
-          }
-        }
-
-        // 3. Recesso Final (Dia após Término Ano Letivo até 31/12)
-        if (settings.term2_end) {
-          const fStart = new Date(settings.term2_end + 'T00:00:00');
-          fStart.setDate(fStart.getDate() + 1);
-          const fEnd = new Date(`${year}-12-31T00:00:00`);
-          
-          if (fStart <= fEnd) {
-            let curr = new Date(fStart);
-            while (curr <= fEnd) {
-              newEvents.push({
-                title: 'Recesso',
-                start_date: curr.toISOString().split('T')[0],
-                end_date: curr.toISOString().split('T')[0],
-                type: 'holiday',
-                description: eventSignature,
-                class_id: tid,
-                user_id: userAuth.uid,
-                created_at: new Date().toISOString()
-              });
-              curr.setDate(curr.getDate() + 1);
-            }
-          }
-        }
-        // ----------------------------------------------
-
         const holidayDates = new Set(currentEvents.filter(e => e.type.includes('holiday')).map(h => h.start_date));
 
         for (const range of ranges) {
@@ -1487,7 +1431,8 @@ export function AcademicCalendar() {
                     // Use filteredEvents which is already deduplicated
                     const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                     const isToday = todayStr === dateStr;
-                    const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                    const periodType = getPeriodType(dateStr, academicSettings);
+                    const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                     const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
 
                     return (
@@ -1624,7 +1569,8 @@ export function AcademicCalendar() {
                               const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                               const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                               const holiday = dayEvents.find(e => e.type.includes('holiday'));
-                              const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                              const periodType = getPeriodType(dateStr, academicSettings);
+                              const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                               const isToday = todayStr === dateStr;
 
                               return (
@@ -1676,7 +1622,8 @@ export function AcademicCalendar() {
                               const dateStr = `${currentDate.getFullYear()}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                               const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
                               const holiday = dayEvents.find(e => e.type.includes('holiday'));
-                              const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                              const periodType = getPeriodType(dateStr, academicSettings);
+                              const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                               const isToday = todayStr === dateStr;
 
                               return (
@@ -3008,7 +2955,8 @@ export function AcademicCalendar() {
                         const isHolidayGeneral = dayEvents.some(e => e.type === 'holiday' || title.includes('recesso') || title.includes('feriado'));
                         
                         const isExam = dayEvents.some(e => e.type === 'exam');
-                        const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                        const periodType = getPeriodType(dateStr, academicSettings);
+                        const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                         const isStart = dayEvents.some(e => e.type === 'start_term');
                         const isEnd = dayEvents.some(e => e.type === 'end_term');
                         const isClass = dayEvents.some(e => e.type === 'class_day');
@@ -3113,7 +3061,8 @@ export function AcademicCalendar() {
                           return matchesDate && matchesClass;
                         });
                         
-                        const isVacation = dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                        const periodType = getPeriodType(dateStr, academicSettings);
+                        const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                         const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
                         
                         return (
