@@ -1100,146 +1100,236 @@ export function Attendance() {
     </div>
 
       {/* Printable Area */}
-      <div id="printable-area" className="hidden print:block text-slate-800">
-        <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6">
-          <div className="flex items-center gap-4">
-            {institution?.logo && (
-              <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
-            )}
-            <div>
-              <h1 className="text-xl font-black uppercase">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Controle de Frequência e Assiduidade</p>
+      <div id="printable-area" className="hidden print:block text-slate-900 font-sans w-full">
+        {activeTab === 'monthly' ? (
+          /* Landscape Monthly Calling Sheet (Lista de Chamada matching k.pdf) */
+          <div className="w-full">
+            {/* Header Box (enclosed in border box) */}
+            <div className="border border-slate-900 p-4 rounded flex items-center justify-between mb-4 w-full">
+              <div className="flex items-center gap-4">
+                {institution?.logo ? (
+                  <img src={institution.logo} alt="Logo" className="w-14 h-14 object-contain rounded-full border border-slate-200" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black border border-slate-300">LOGO</div>
+                )}
+                <div className="text-left">
+                  <h1 className="text-base font-black uppercase tracking-tight text-slate-900">
+                    {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - Pe. José Fernando de Brito
+                  </h1>
+                  <p className="text-[10px] font-medium text-slate-500 mt-0.5 uppercase">
+                    {institution?.address || 'Av. Venus, 195 - Itapecica - Guarulhos - Cep 07044-170'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right text-[10px] font-bold text-slate-600 self-center">
+                <p>{new Date().toLocaleDateString('pt-BR')}</p>
+                <p className="mt-1">Página <span className="font-black text-slate-950">1</span></p>
+              </div>
             </div>
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-black uppercase">{new Date().toLocaleDateString('pt-BR')}</p>
-            <p className="text-[10px] font-bold text-slate-500 uppercase">Página 1 de 1</p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-3 gap-8 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="space-y-1">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Turma</p>
-            <p className="text-sm font-black uppercase leading-tight">{currentClass?.name || 'N/A'} ({currentClass?.code || 'N/A'})</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
-            <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || 'N/A'}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
-              {activeTab === 'marking' ? 'Data da Aula' : activeTab === 'summary' ? 'Encerramento' : 'Mês de Referência'}
-            </p>
-            <p className="text-sm font-black uppercase leading-tight">
-              {activeTab === 'marking' ? selectedDate : 
-               activeTab === 'summary' ? new Date().toLocaleDateString('pt-BR') : 
-               `${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / ${selectedYear}`}
-            </p>
-          </div>
-        </div>
+            {/* Title */}
+            <div className="text-center my-4">
+              <h2 className="text-base font-black tracking-widest text-slate-900 uppercase">LISTA DE CHAMADA</h2>
+            </div>
 
-        {activeTab === 'marking' ? (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-900 text-white">
-                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
-                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
-                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-32">RA</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Presença</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Assinatura</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student, idx) => {
-                const status = attendance[student.id]?.status;
-                const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : ''));
-                return (
-                  <tr key={student.id}>
-                    <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
-                    <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
-                    <td className="px-4 py-3 text-xs font-bold border border-slate-300">{student.registration_number}</td>
-                    <td className="px-4 py-3 text-xs font-black border border-slate-300 text-center uppercase">
-                      {statusLabel || '__________'}
-                    </td>
-                    <td className="px-4 py-3 border border-slate-300">
-                      <div className="w-full border-b border-slate-400 mt-4"></div>
-                    </td>
+            {/* Metadata Info lines */}
+            <div className="grid grid-cols-12 gap-y-2 text-[10px] font-bold text-slate-900 mb-4 px-1 pb-2 border-b border-slate-200">
+              <div className="col-span-8 flex items-baseline gap-1">
+                <span className="text-slate-500 uppercase font-black text-[9px]">Professor</span>
+                <span className="uppercase text-slate-900 font-bold">{userAuth?.displayName || 'XXX'}</span>
+              </div>
+              <div className="col-span-4 text-right">
+                <span className="font-black uppercase text-[10px] text-slate-900">
+                  {['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'][selectedMonth]} / {selectedYear}
+                </span>
+              </div>
+
+              <div className="col-span-5 flex items-baseline gap-1">
+                <span className="text-slate-500 uppercase font-black text-[9px]">Turma</span>
+                <span className="font-black text-slate-900 text-[10px]">{currentClass?.code || 'N/A'}</span>
+                <span className="text-slate-700 font-bold ml-1">{currentClass?.name || 'N/A'}</span>
+              </div>
+              <div className="col-span-5 flex items-baseline gap-1">
+                <span className="text-slate-500 uppercase font-black text-[9px]">Disciplina</span>
+                <span className="font-black text-slate-900 text-[10px]">{currentSubject?.id?.slice(0, 3) || '026'}</span>
+                <span className="text-slate-700 font-bold ml-1">{currentSubject?.name || 'N/A'}</span>
+              </div>
+              <div className="col-span-2 flex items-baseline gap-1">
+                <span className="text-slate-500 uppercase font-black text-[9px]">Sala</span>
+                <span className="font-black text-slate-900 text-[10px]">002</span>
+              </div>
+            </div>
+
+            {/* Custom high-contrast Table for Print */}
+            <div className="w-full">
+              <table className="w-full border-collapse table-fixed text-slate-900 border border-slate-900">
+                <colgroup>
+                  <col className="w-[4%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[34%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[5%]" />
+                  <col className="w-[5%]" />
+                </colgroup>
+                <thead>
+                  <tr className="bg-slate-50 text-slate-950 h-10">
+                    <th className="px-1 text-center font-black text-[8px] uppercase border border-slate-900">Nº</th>
+                    <th className="px-2 text-left font-black text-[8px] uppercase border border-slate-900">Código</th>
+                    <th className="px-3 text-left font-black text-[8px] uppercase border border-slate-900">Nome do Aluno</th>
+                    {/* Render exactly 5 signature date headers */}
+                    {Array.from({ length: 5 }).map((_, i) => {
+                      const day = monthlyClassDays[i];
+                      return (
+                        <th key={i} className="px-1 text-center font-black border border-slate-900 align-middle">
+                          {day ? (
+                            <div className="flex flex-col items-center justify-center">
+                              <span className="text-[10px] font-black border-b border-slate-400 px-1">
+                                {day.dayNumber.toString().padStart(2, '0')}
+                              </span>
+                              <span className="text-[7px] font-bold uppercase mt-0.5">{day.weekday}</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-400 py-1">
+                              <span className="text-[10px] font-black tracking-widest leading-none">___/___</span>
+                            </div>
+                          )}
+                        </th>
+                      );
+                    })}
+                    <th className="px-1 text-center font-black text-[8px] uppercase border border-slate-900">Mensalidade</th>
+                    <th className="px-1 text-center font-black text-[8px] uppercase border border-slate-900">Nota</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : activeTab === 'summary' ? (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-900 text-white">
-                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
-                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Faltas</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-32">Assiduidade</th>
-                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Situação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student, idx) => {
-                const absences = studentAbsences[student.id] || 0;
-                const limit = academicParams?.absence_limit_percentage || 25;
-                const totalDays = calendarDays || 200;
-                const percentage = ((absences / totalDays) * 100).toFixed(1);
-                const isOverLimit = parseFloat(percentage) > limit;
-
-                return (
-                  <tr key={student.id}>
-                    <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
-                    <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
-                    <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{absences}</td>
-                    <td className="px-4 py-3 text-sm font-black border border-slate-300 text-center">{percentage}%</td>
-                    <td className={cn(
-                      "px-4 py-3 text-[10px] font-black uppercase border border-slate-300 text-center",
-                      isOverLimit ? "text-red-600 bg-red-50" : "text-emerald-600 bg-emerald-50"
-                    )}>
-                      {isOverLimit ? 'Reprovado por Faltas' : 'Regular / Aprovado'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : (
-          <div>
-            <table className="w-full border-collapse table-fixed">
-              <thead>
-                <tr className="bg-slate-900 text-white">
-                  <th className="px-2 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-10">Nº</th>
-                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-72">Nome do Aluno</th>
-                  <th className="px-2 py-2 text-center text-[8px] font-black uppercase border border-slate-900 w-28">RA</th>
-                  {monthlyClassDays.map(day => (
-                    <th key={day.dbValue} className="px-1 py-2 text-center border border-slate-900 min-w-[50px]">
-                      <p className="text-[9px] font-black leading-none">{day.dayNumber}</p>
-                      <p className="text-[6px] font-bold uppercase leading-none mt-0.5">{day.weekday}</p>
-                    </th>
+                </thead>
+                <tbody>
+                  {students.map((student, idx) => (
+                    <tr key={student.id} className="h-11">
+                      <td className="px-1 text-center text-[10px] font-bold border border-slate-400">{idx + 1}</td>
+                      <td className="px-2 text-left text-[9px] font-mono font-medium border border-slate-400 text-slate-700">{student.registration_number}</td>
+                      <td className="px-3 text-left text-[10px] font-bold uppercase border border-slate-400 whitespace-nowrap overflow-hidden text-ellipsis">{student.name}</td>
+                      {/* exactly 5 date signature cells */}
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <td key={i} className="border border-slate-400 relative">
+                          <div className="w-full h-full"></div>
+                        </td>
+                      ))}
+                      <td className="border border-slate-400"></td>
+                      <td className="border border-slate-400"></td>
+                    </tr>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((student, idx) => (
-                  <tr key={student.id} className="h-10">
-                    <td className="px-2 py-1 text-center text-[10px] font-black border border-slate-300">{idx + 1}</td>
-                    <td className="px-4 py-1 text-[10px] font-black uppercase border border-slate-300 whitespace-nowrap overflow-hidden">{student.name}</td>
-                    <td className="px-2 py-1 text-[8px] font-bold border border-slate-300 text-center">{student.registration_number}</td>
-                    {monthlyClassDays.map(day => (
-                      <td key={day.dbValue} className="border border-slate-300 text-center h-full">
-                        <div className="w-full h-full border-b border-slate-100/30"></div>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            
-            <div className="mt-8 grid grid-cols-1 gap-4">
-              <p className="text-[8px] font-black uppercase text-slate-400 italic">* Legenda: (P) Presente | (F) Falta | (J) Justificado</p>
+                </tbody>
+              </table>
             </div>
+          </div>
+        ) : (
+          /* Normal Daily list or Attendance Summary */
+          <div className="w-full">
+            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6">
+              <div className="flex items-center gap-4">
+                {institution?.logo && (
+                  <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
+                )}
+                <div>
+                  <h1 className="text-xl font-black uppercase">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Controle de Frequência e Assiduidade</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-black uppercase">{new Date().toLocaleDateString('pt-BR')}</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase">Página 1 de 1</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-8 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Turma</p>
+                <p className="text-sm font-black uppercase leading-tight">{currentClass?.name || 'N/A'} ({currentClass?.code || 'N/A'})</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
+                <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  {activeTab === 'marking' ? 'Data da Aula' : 'Encerramento'}
+                </p>
+                <p className="text-sm font-black uppercase leading-tight">
+                  {activeTab === 'marking' ? selectedDate : new Date().toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+            </div>
+
+            {activeTab === 'marking' ? (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-900 text-white">
+                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
+                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
+                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-32">RA</th>
+                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Presença</th>
+                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Assinatura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student, idx) => {
+                    const status = attendance[student.id]?.status;
+                    const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : ''));
+                    return (
+                      <tr key={student.id}>
+                        <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
+                        <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
+                        <td className="px-4 py-3 text-xs font-bold border border-slate-300">{student.registration_number}</td>
+                        <td className="px-4 py-3 text-xs font-black border border-slate-300 text-center uppercase">
+                          {statusLabel || '__________'}
+                        </td>
+                        <td className="px-4 py-3 border border-slate-300">
+                          <div className="w-full border-b border-slate-400 mt-4"></div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-900 text-white">
+                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
+                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
+                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Faltas</th>
+                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-32">Assiduidade</th>
+                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student, idx) => {
+                    const absences = studentAbsences[student.id] || 0;
+                    const limit = academicParams?.absence_limit_percentage || 25;
+                    const totalDays = calendarDays || 200;
+                    const percentage = ((absences / totalDays) * 100).toFixed(1);
+                    const isOverLimit = parseFloat(percentage) > limit;
+
+                    return (
+                      <tr key={student.id}>
+                        <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
+                        <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
+                        <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{absences}</td>
+                        <td className="px-4 py-3 text-sm font-black border border-slate-300 text-center">{percentage}%</td>
+                        <td className={cn(
+                          "px-4 py-3 text-[10px] font-black uppercase border border-slate-300 text-center",
+                          isOverLimit ? "text-red-600 bg-red-50" : "text-emerald-600 bg-emerald-50"
+                        )}>
+                          {isOverLimit ? 'Reprovado por Faltas' : 'Regular / Aprovado'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
