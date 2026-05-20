@@ -1059,13 +1059,13 @@ export function Attendance() {
                     </div>
 
                     <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-x-auto">
-                      <table className="w-full border-collapse">
+                      <table className="w-full border-collapse table-fixed">
                         <thead>
                           <tr className="bg-slate-50/50">
-                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Nº</th>
-                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 min-w-[250px]">Nome do Aluno</th>
+                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-16">Nº</th>
+                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-80">Nome do Aluno</th>
                             {monthlyClassDays.map(day => (
-                              <th key={day.dbValue} className="px-2 py-5 text-center border-b border-slate-100 border-l border-slate-50 min-w-[40px]">
+                              <th key={day.dbValue} className="px-2 py-5 text-center border-b border-slate-100 border-l border-slate-50 min-w-[50px]">
                                 <p className="text-[9px] font-black text-slate-800 leading-none">{day.dayNumber}</p>
                                 <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">{day.weekday}</p>
                               </th>
@@ -1206,15 +1206,15 @@ export function Attendance() {
             </tbody>
           </table>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+          <div>
+            <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr className="bg-slate-900 text-white">
-                  <th className="px-2 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-8">Nº</th>
-                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 min-w-[250px]">Nome do Aluno</th>
+                  <th className="px-2 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-10">Nº</th>
+                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-72">Nome do Aluno</th>
                   <th className="px-2 py-2 text-center text-[8px] font-black uppercase border border-slate-900 w-28">RA</th>
                   {monthlyClassDays.map(day => (
-                    <th key={day.dbValue} className="px-1 py-2 text-center border border-slate-900 min-w-[45px]">
+                    <th key={day.dbValue} className="px-1 py-2 text-center border border-slate-900 min-w-[50px]">
                       <p className="text-[9px] font-black leading-none">{day.dayNumber}</p>
                       <p className="text-[6px] font-bold uppercase leading-none mt-0.5">{day.weekday}</p>
                     </th>
