@@ -26,7 +26,10 @@ import {
   RotateCcw,
   Plus,
   Trash2,
-  Database
+  Database,
+  SlidersHorizontal,
+  CalendarDays,
+  CalendarRange
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import fuzzysort from 'fuzzysort';
@@ -54,6 +57,11 @@ export function PixConference() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'matched' | 'unmatched' | 'multiple'>('all');
   const [extratoSearchQuery, setExtratoSearchQuery] = useState('');
   const [extratoFilter, setExtratoFilter] = useState<'all' | 'manual' | 'auto'>('all');
+  const [extratoBatchFilter, setExtratoBatchFilter] = useState<string>('all');
+  const [extratoStartDate, setExtratoStartDate] = useState<string>('');
+  const [extratoEndDate, setExtratoEndDate] = useState<string>('');
+  const [extratoMonth, setExtratoMonth] = useState<string>('all');
+  const [extratoYear, setExtratoYear] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'new' | 'history' | 'extrato'>('new');
   const [history, setHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -756,6 +764,7 @@ export function PixConference() {
         batch.transactions.forEach((t: any) => {
           list.push({
             ...t,
+            batch_id: batch.batch_id,
             batch_file_name: batch.file_name,
             batch_created_at: batch.created_at
           });
@@ -769,8 +778,33 @@ export function PixConference() {
     });
   }, [history]);
 
+  const availableBatches = useMemo(() => {
+    const map = new Map();
+    history.forEach(h => {
+      if (h.batch_id && !map.has(h.batch_id)) {
+        map.set(h.batch_id, h.file_name || `Lote ${String(h.batch_id).substring(0, 6)}`);
+      }
+    });
+    return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
+  }, [history]);
+
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set<string>();
+    allReconciledTransactions.forEach(t => {
+      const d = parseSafeDate(t.date || t.created_at || t.batch_created_at);
+      if (d && !isNaN(d.getTime())) {
+        yearsSet.add(d.getFullYear().toString());
+      }
+    });
+    if (yearsSet.size === 0) {
+      yearsSet.add(new Date().getFullYear().toString());
+    }
+    return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+  }, [allReconciledTransactions]);
+
   const filteredExtratoTransactions = useMemo(() => {
     return allReconciledTransactions.filter(t => {
+      // 1. Text Search query
       const searchLower = extratoSearchQuery.toLowerCase();
       const matchesSearch = 
         (t.payer_name || '').toLowerCase().includes(searchLower) ||
@@ -779,16 +813,62 @@ export function PixConference() {
         (t.student ? t.student.name.toLowerCase().includes(searchLower) : false) ||
         (t.student && t.student.registration_number ? t.student.registration_number.toLowerCase().includes(searchLower) : false);
 
-      let matchesFilter = true;
-      if (extratoFilter === 'manual') {
-        matchesFilter = !!t.is_manual;
-      } else if (extratoFilter === 'auto') {
-        matchesFilter = !t.is_manual;
+      if (!matchesSearch) return false;
+
+      // 2. Auto vs Manual filter
+      if (extratoFilter === 'manual' && !t.is_manual) return false;
+      if (extratoFilter === 'auto' && t.is_manual) return false;
+
+      // 3. Batch / File Filter
+      if (extratoBatchFilter !== 'all' && t.batch_id !== extratoBatchFilter) return false;
+
+      // 4. Parse transaction Date
+      const tDate = parseSafeDate(t.date || t.created_at || t.batch_created_at);
+      const isDateValid = tDate && !isNaN(tDate.getTime());
+
+      if (isDateValid) {
+        // 5. Month/Period Month Filter
+        if (extratoMonth !== 'all') {
+          const m = (tDate.getMonth() + 1).toString();
+          if (m !== extratoMonth) return false;
+        }
+
+        // 6. Year Filter
+        if (extratoYear !== 'all') {
+          const y = tDate.getFullYear().toString();
+          if (y !== extratoYear) return false;
+        }
+
+        // 7. Date Range - Start Date
+        if (extratoStartDate) {
+          const start = new Date(extratoStartDate + 'T00:00:00');
+          if (tDate < start) return false;
+        }
+
+        // 8. Date Range - End Date
+        if (extratoEndDate) {
+          const end = new Date(extratoEndDate + 'T23:59:59');
+          if (tDate > end) return false;
+        }
+      } else {
+        // If there's an invalid date, but the user is actively using date-based filters, reject the item
+        if (extratoMonth !== 'all' || extratoYear !== 'all' || extratoStartDate || extratoEndDate) {
+          return false;
+        }
       }
 
-      return matchesSearch && matchesFilter;
+      return true;
     });
-  }, [allReconciledTransactions, extratoSearchQuery, extratoFilter]);
+  }, [
+    allReconciledTransactions,
+    extratoSearchQuery,
+    extratoFilter,
+    extratoBatchFilter,
+    extratoMonth,
+    extratoYear,
+    extratoStartDate,
+    extratoEndDate
+  ]);
 
   const handleExportExtratoExcel = (filteredList: any[]) => {
     try {
@@ -2430,6 +2510,112 @@ export function PixConference() {
                   <Printer size={16} />
                   PDF
                 </button>
+              </div>
+            </div>
+
+            {/* Advanced Filtering Card */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100/50 pb-3">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={14} className="text-blue-600" />
+                  <h4 className="text-xs font-black text-[#00174b] uppercase tracking-wider">Filtros Avançados do Extrato</h4>
+                </div>
+                {(extratoBatchFilter !== 'all' || extratoStartDate || extratoEndDate || extratoMonth !== 'all' || extratoYear !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setExtratoBatchFilter('all');
+                      setExtratoStartDate('');
+                      setExtratoEndDate('');
+                      setExtratoMonth('all');
+                      setExtratoYear('all');
+                      setNotification({ type: 'success', message: 'Filtros avançados removidos!' });
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 hover:bg-red-600 hover:text-white rounded-lg text-[9px] font-black uppercase transition-all"
+                  >
+                    <X size={10} />
+                    Limpar Filtros
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 1. Origem / Arquivo Importado */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <FileSpreadsheet size={12} className="text-slate-400" /> Selecionar Arquivo Importado
+                  </label>
+                  <select
+                    value={extratoBatchFilter}
+                    onChange={(e) => setExtratoBatchFilter(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
+                  >
+                    <option value="all">📁 Todos os arquivos importados</option>
+                    {availableBatches.map((b) => (
+                      <option key={b.id} value={b.id}>📄 {b.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. Filtro de Período (Mês / Ano) */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <CalendarDays size={12} className="text-slate-400" /> Período (Mês / Ano)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={extratoMonth}
+                      onChange={(e) => setExtratoMonth(e.target.value)}
+                      className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
+                    >
+                      <option value="all">Mês: Todos</option>
+                      <option value="1">Janeiro</option>
+                      <option value="2">Fevereiro</option>
+                      <option value="3">Março</option>
+                      <option value="4">Abril</option>
+                      <option value="5">Maio</option>
+                      <option value="6">Junho</option>
+                      <option value="7">Julho</option>
+                      <option value="8">Agosto</option>
+                      <option value="9">Setembro</option>
+                      <option value="10">Outubro</option>
+                      <option value="11">Novembro</option>
+                      <option value="12">Dezembro</option>
+                    </select>
+
+                    <select
+                      value={extratoYear}
+                      onChange={(e) => setExtratoYear(e.target.value)}
+                      className="px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
+                    >
+                      <option value="all">Ano: Todos</option>
+                      {availableYears.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 3. Filtro por Intervalo de Data */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <CalendarRange size={12} className="text-slate-400" /> Intervalo de Data Específico
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={extratoStartDate}
+                      onChange={(e) => setExtratoStartDate(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
+                    />
+                    <span className="text-[10px] font-black text-slate-400 uppercase">a</span>
+                    <input
+                      type="date"
+                      value={extratoEndDate}
+                      onChange={(e) => setExtratoEndDate(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 text-slate-700 transition-all cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
