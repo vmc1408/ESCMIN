@@ -665,8 +665,17 @@ export function Classes() {
                                   const s = subjects.find(sub => sub.id === sid);
                                   if (!s) return false;
                                   const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                                  
+                                  // For "Curso Extra", we are more lenient with matching
+                                  const isCursoExtraClass = newYear === 'Curso Extra';
+                                  const isCursoExtraSubject = s.year === 'Curso Extra';
+
                                   const matchesYear = !newYear || !s.year || s.year === newYear;
-                                  const matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
+                                  
+                                  // For extra courses, we often don't want to filter strictly by semester
+                                  const matchesSemester = !formData.semester || !sSem || sSem === formData.semester || 
+                                                       (isCursoExtraClass && (isCursoExtraSubject || !sSem));
+                                  
                                   return matchesYear && matchesSemester;
                                 });
                                 setFormData({...formData, year: newYear, subject_ids: validSubjects});
@@ -697,8 +706,17 @@ export function Classes() {
                                   const s = subjects.find(sub => sub.id === sid);
                                   if (!s) return false;
                                   const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                                  
+                                  // For "Curso Extra", we are more lenient with matching
+                                  const isCursoExtraClass = formData.year === 'Curso Extra';
+                                  const isCursoExtraSubject = s.year === 'Curso Extra';
+
                                   const matchesYear = !formData.year || !s.year || s.year === formData.year;
-                                  const matchesSemester = !newSemester || !sSem || sSem === newSemester;
+                                  
+                                  // For extra courses, we often don't want to filter strictly by semester
+                                  const matchesSemester = !newSemester || !sSem || sSem === newSemester || 
+                                                       (isCursoExtraClass && (isCursoExtraSubject || !sSem));
+                                  
                                   return matchesYear && matchesSemester;
                                 });
                                 setFormData({...formData, semester: newSemester, subject_ids: validSubjects});
@@ -736,8 +754,16 @@ export function Classes() {
                             {subjects
                               .filter(s => {
                                 const sSem = (s as any).semester?.includes('1º') ? '1º Semestre' : (s as any).semester?.includes('2º') ? '2º Semestre' : (s as any).semester;
+
+                                const isCursoExtraClass = formData.year === 'Curso Extra';
+                                const isCursoExtraSubject = (s as any).year === 'Curso Extra';
+
                                 const matchesYear = !formData.year || !(s as any).year || (s as any).year === formData.year;
-                                const matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
+                                
+                                // Show subject if semester matches OR if it's a Curso Extra class and either subject is Curso Extra or has no semester
+                                const matchesSemester = !formData.semester || !sSem || sSem === formData.semester || 
+                                                       (isCursoExtraClass && (isCursoExtraSubject || !sSem));
+
                                 const isActiveOrSelected = (s as any).status === 'Ativo' || formData.subject_ids?.includes(s.id);
                                 return matchesYear && matchesSemester && isActiveOrSelected;
                               })
