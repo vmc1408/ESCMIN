@@ -53,7 +53,7 @@ interface AttendanceRecord {
 
 export function Attendance() {
   const { userAuth, isAdmin, isDirector } = useAuth();
-  const [activeTab, setActiveTab] = useState<'marking' | 'summary'>('marking');
+  const [activeTab, setActiveTab] = useState<'marking' | 'summary' | 'monthly'>('marking');
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -66,6 +66,8 @@ export function Attendance() {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [classEvents, setClassEvents] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
@@ -314,6 +316,31 @@ export function Attendance() {
     const dbDate = parseDateToDB(selectedDate);
     return classEvents.some(event => event.start_date === dbDate);
   }, [selectedDate, classEvents, selectedClass]);
+  
+  const monthlyClassDays = React.useMemo(() => {
+    if (!selectedClass || classEvents.length === 0) return [];
+    
+    // Sort all class events chronologically
+    const allDays = [...classEvents]
+      .filter(e => {
+        const date = new Date(e.start_date + 'T12:00:00');
+        return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+      })
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+    // Deduplicate dates
+    const uniqueDates = new Map();
+    allDays.forEach(day => uniqueDates.set(day.start_date, day));
+    
+    return Array.from(uniqueDates.values()).map(event => {
+      const date = new Date(event.start_date + 'T12:00:00');
+      return {
+        dbValue: event.start_date,
+        dayNumber: date.getDate(),
+        weekday: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
+      };
+    });
+  }, [selectedClass, classEvents, selectedMonth, selectedYear]);
 
   const availableDates = React.useMemo(() => {
     // Determine the scheduled weekdays from the class data
@@ -482,6 +509,29 @@ export function Attendance() {
             size: auto;
             margin: 0mm;
           }
+          .landscape-print {
+            display: none;
+          }
+        }
+        @media print {
+          .landscape-page {
+            size: landscape;
+          }
+          .portrait-page {
+            size: portrait;
+          }
+        }
+      `}} />
+
+      {/* Landscape Print Helper CSS */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          ${activeTab === 'monthly' ? `
+            @page {
+              size: landscape;
+              margin: 10mm;
+            }
+          ` : ''}
         }
       `}} />
 
@@ -531,6 +581,17 @@ export function Attendance() {
             >
               Resumo de Faltas
             </button>
+            <button 
+              onClick={() => setActiveTab('monthly')}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                activeTab === 'monthly' 
+                  ? "bg-white text-indigo-600 shadow-sm" 
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Lista Mensal
+            </button>
           </div>
 
           {selectedClass && (
@@ -539,7 +600,7 @@ export function Attendance() {
               className="flex items-center gap-2 px-6 py-3.5 bg-white text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all active:scale-95"
             >
               <Printer size={18} />
-              Imprimir {activeTab === 'marking' ? 'Lista' : 'Resumo'}
+              Imprimir {activeTab === 'marking' ? 'Lista' : activeTab === 'summary' ? 'Resumo' : 'Lista Mensal'}
             </button>
           )}
 
@@ -585,7 +646,39 @@ export function Attendance() {
               </div>
             </div>
 
-            {activeTab === 'marking' && (
+            {activeTab === 'monthly' && (
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mês de Referência</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative group">
+                    <select
+                      value={selectedMonth}
+                      onChange={e => setSelectedMonth(parseInt(e.target.value))}
+                      className="w-full pl-4 pr-10 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:border-emerald-500 appearance-none transition-all shadow-sm"
+                    >
+                      {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
+                        <option key={i} value={i}>{m}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                  </div>
+                  <div className="relative group">
+                    <select
+                      value={selectedYear}
+                      onChange={e => setSelectedYear(parseInt(e.target.value))}
+                      className="w-full pl-4 pr-10 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:border-emerald-500 appearance-none transition-all shadow-sm"
+                    >
+                      {[2024, 2025, 2026, 2027, 2028].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {(activeTab === 'marking' || activeTab === 'monthly') && (
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Disciplina</label>
                 <div className="relative group">
@@ -845,7 +938,7 @@ export function Attendance() {
                       ))}
                     </div>
                   </div>
-                ) : (
+                ) : activeTab === 'summary' ? (
                   <div className="space-y-10">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 flex items-center gap-6 shadow-sm">
@@ -940,6 +1033,64 @@ export function Attendance() {
                       })}
                     </div>
                   </div>
+                ) : (
+                  <div className="space-y-8">
+                    <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                      <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-lg shadow-indigo-100/50">
+                          <CalendarIcon size={28} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relatório Mensal de Presença</p>
+                          <h4 className="text-2xl font-black text-slate-800 tracking-tight">
+                            {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}
+                          </h4>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="px-5 py-2 bg-white rounded-xl border border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          {monthlyClassDays.length} Dias de Aula
+                        </div>
+                        <div className="px-5 py-2 bg-white rounded-xl border border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          {students.length} Alunos
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/50">
+                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Nº</th>
+                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 min-w-[250px]">Nome do Aluno</th>
+                            {monthlyClassDays.map(day => (
+                              <th key={day.dbValue} className="px-2 py-5 text-center border-b border-slate-100 border-l border-slate-50 min-w-[40px]">
+                                <p className="text-[9px] font-black text-slate-800 leading-none">{day.dayNumber}</p>
+                                <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">{day.weekday}</p>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {students.map((student, idx) => (
+                            <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-6 py-4 text-xs font-black text-slate-400 border-b border-slate-50">{idx + 1}</td>
+                              <td className="px-6 py-4 border-b border-slate-50">
+                                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{student.name}</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase">RA: {student.registration_number}</p>
+                              </td>
+                              {monthlyClassDays.map(day => (
+                                <td key={day.dbValue} className="px-2 py-4 border-b border-slate-50 border-l border-slate-50">
+                                  <div className="w-6 h-6 mx-auto border border-slate-200 rounded-md"></div>
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 )}
               </motion.div>
             )}
@@ -966,28 +1117,25 @@ export function Attendance() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div className="grid grid-cols-3 gap-8 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div className="space-y-1">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Turma</p>
             <p className="text-sm font-black uppercase leading-tight">{currentClass?.name || 'N/A'} ({currentClass?.code || 'N/A'})</p>
           </div>
-          {activeTab === 'marking' ? (
-            <>
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
-                <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Data da Aula</p>
-                <p className="text-sm font-black uppercase leading-tight">{selectedDate || 'N/A'}</p>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-1">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Tipo de Relatório</p>
-              <p className="text-sm font-black uppercase leading-tight">Resumo de Faltas e Assiduidade</p>
-            </div>
-          )}
+          <div className="space-y-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
+            <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || 'N/A'}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              {activeTab === 'marking' ? 'Data da Aula' : activeTab === 'summary' ? 'Encerramento' : 'Mês de Referência'}
+            </p>
+            <p className="text-sm font-black uppercase leading-tight">
+              {activeTab === 'marking' ? selectedDate : 
+               activeTab === 'summary' ? new Date().toLocaleDateString('pt-BR') : 
+               `${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / ${selectedYear}`}
+            </p>
+          </div>
         </div>
 
         {activeTab === 'marking' ? (
@@ -1004,8 +1152,7 @@ export function Attendance() {
             <tbody>
               {students.map((student, idx) => {
                 const status = attendance[student.id]?.status;
-                const statusLabel = status === 'P' ? 'PRESENTE' : status === 'F' ? 'FALTOU' : status === 'J' ? 'JUSTIFIC.' : '';
-                
+                const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : ''));
                 return (
                   <tr key={student.id}>
                     <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
@@ -1022,7 +1169,7 @@ export function Attendance() {
               })}
             </tbody>
           </table>
-        ) : (
+        ) : activeTab === 'summary' ? (
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-900 text-white">
@@ -1058,6 +1205,44 @@ export function Attendance() {
               })}
             </tbody>
           </table>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse table-fixed">
+              <thead>
+                <tr className="bg-slate-900 text-white">
+                  <th className="px-2 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-8">Nº</th>
+                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 min-w-[200px]">Nome do Aluno</th>
+                  <th className="px-2 py-2 text-center text-[8px] font-black uppercase border border-slate-900 w-24">RA</th>
+                  {monthlyClassDays.map(day => (
+                    <th key={day.dbValue} className="px-1 py-1 text-center border border-slate-900 w-8">
+                      <p className="text-[9px] font-black leading-none">{day.dayNumber}</p>
+                      <p className="text-[6px] font-bold uppercase leading-none mt-0.5">{day.weekday}</p>
+                    </th>
+                  ))}
+                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-32">Visto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((student, idx) => (
+                  <tr key={student.id} className="h-9">
+                    <td className="px-2 py-1 text-center text-[10px] font-black border border-slate-300">{idx + 1}</td>
+                    <td className="px-4 py-1 text-[10px] font-black uppercase border border-slate-300 whitespace-nowrap overflow-hidden">{student.name}</td>
+                    <td className="px-2 py-1 text-[8px] font-bold border border-slate-300 text-center">{student.registration_number}</td>
+                    {monthlyClassDays.map(day => (
+                      <td key={day.dbValue} className="border border-slate-300 text-center h-full">
+                        <div className="w-full h-full border-b border-slate-100/50"></div>
+                      </td>
+                    ))}
+                    <td className="px-4 py-1 border border-slate-300"></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <div className="mt-8 grid grid-cols-1 gap-4">
+              <p className="text-[8px] font-black uppercase text-slate-400 italic">* Legenda: (P) Presente | (F) Falta | (J) Justificado</p>
+            </div>
+          </div>
         )}
 
         <div className="mt-12 grid grid-cols-2 gap-12 pt-8">
