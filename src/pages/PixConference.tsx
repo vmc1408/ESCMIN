@@ -52,7 +52,9 @@ export function PixConference() {
   const [filter, setFilter] = useState<'all' | 'matched' | 'unmatched' | 'multiple'>('all');
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [historyFilter, setHistoryFilter] = useState<'all' | 'matched' | 'unmatched' | 'multiple'>('all');
-  const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
+  const [extratoSearchQuery, setExtratoSearchQuery] = useState('');
+  const [extratoFilter, setExtratoFilter] = useState<'all' | 'manual' | 'auto'>('all');
+  const [activeTab, setActiveTab] = useState<'new' | 'history' | 'extrato'>('new');
   const [history, setHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expandedBatches, setExpandedBatches] = useState<string[]>([]);
@@ -202,10 +204,10 @@ export function PixConference() {
     fetchStudents();
     fetchClasses();
     fetchInstitution();
-    if (activeTab === 'history') {
+    if (activeTab === 'history' || activeTab === 'extrato') {
       fetchHistory();
     }
-    if (activeTab === 'new') {
+    if (activeTab === 'new' || activeTab === 'extrato') {
       fetchRegisteredPixIds();
     }
   }, [activeTab]);
@@ -747,6 +749,175 @@ export function PixConference() {
     totalAmount: transactions.reduce((acc, t) => acc + t.amount, 0)
   }), [transactions, reconciliationMap, registeredPixIds]);
 
+  const allReconciledTransactions = useMemo(() => {
+    const list: any[] = [];
+    history.forEach(batch => {
+      if (batch.transactions && Array.isArray(batch.transactions)) {
+        batch.transactions.forEach((t: any) => {
+          list.push({
+            ...t,
+            batch_file_name: batch.file_name,
+            batch_created_at: batch.created_at
+          });
+        });
+      }
+    });
+    return list.sort((a, b) => {
+      const dateA = new Date(a.date || a.created_at || 0).getTime();
+      const dateB = new Date(b.date || b.created_at || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [history]);
+
+  const filteredExtratoTransactions = useMemo(() => {
+    return allReconciledTransactions.filter(t => {
+      const searchLower = extratoSearchQuery.toLowerCase();
+      const matchesSearch = 
+        (t.payer_name || '').toLowerCase().includes(searchLower) ||
+        (t.origin_bank || '').toLowerCase().includes(searchLower) ||
+        (t.transaction_id || '').toLowerCase().includes(searchLower) ||
+        (t.student ? t.student.name.toLowerCase().includes(searchLower) : false) ||
+        (t.student && t.student.registration_number ? t.student.registration_number.toLowerCase().includes(searchLower) : false);
+
+      let matchesFilter = true;
+      if (extratoFilter === 'manual') {
+        matchesFilter = !!t.is_manual;
+      } else if (extratoFilter === 'auto') {
+        matchesFilter = !t.is_manual;
+      }
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [allReconciledTransactions, extratoSearchQuery, extratoFilter]);
+
+  const handleExportExtratoExcel = (filteredList: any[]) => {
+    try {
+      const dataToExport = filteredList.map((item, idx) => {
+        const studentClass = item.student ? (classes.find(c => c.id === item.student.class_id)?.name || 'Sem Turma') : '';
+        return {
+          'Nº': idx + 1,
+          'ID Transação': item.transaction_id || '',
+          'Data': item.date || '',
+          'Pagador': item.payer_name ? item.payer_name.toUpperCase() : '',
+          'Banco Origem': item.origin_bank || 'Não informado',
+          'Valor': Number(item.amount) || 0,
+          'Aluno Vinculado': item.student?.name || 'Não identificado',
+          'Matrícula Aluno': item.student?.registration_number || '',
+          'Turma': studentClass,
+          'Tipo': item.is_manual ? 'Manual' : 'Automático'
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Extrato Pix Conciliado');
+      XLSX.writeFile(wb, `Extrato_Pix_Conciliado_${new Date().toISOString().split('T')[0]}.xlsx`);
+      setNotification({ type: 'success', message: 'Extrato Excel baixado com sucesso!' });
+    } catch (e: any) {
+      setNotification({ type: 'error', message: 'Erro ao exportar Excel: ' + e.message });
+    }
+  };
+
+  const handleExportExtratoPDF = (filteredList: any[]) => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 14;
+      const contentWidth = pageWidth - (margin * 2);
+
+      // Header
+      doc.setFontSize(16);
+      doc.setTextColor(0, 23, 75); // #00174b
+      doc.setFont('helvetica', 'bold');
+      doc.text('EXTRATO DE CONCILIAÇÃO PIX', margin, 18);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(120);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Instituição: ${institution?.name || 'Escola Diocesana de Ministérios'}`, margin, 24);
+      doc.text(`Endereço: ${institution?.address || 'Av. Venus, 195 - Guarulhos'}`, margin, 28);
+      doc.text(`Data de Emissão: ${new Date().toLocaleString('pt-BR')}`, margin, 32);
+
+      // Stats Box
+      doc.setDrawColor(240);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(margin, 36, contentWidth, 20, 2, 2, 'F');
+      
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RESUMO DO EXTRATO', margin + 4, 42);
+      
+      const totalAmount = filteredList.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Transações Filtradas: ${filteredList.length}`, margin + 4, 50);
+      doc.text(`Valor Total Conciliado: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}`, margin + 80, 50);
+
+      // Table Data
+      const tableData = filteredList.map((item) => {
+        const student = item.student;
+        const className = student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : '';
+        return [
+          item.date || '',
+          (item.payer_name || '').toUpperCase(),
+          item.origin_bank || 'N/I',
+          student ? `${student.name} (${student.registration_number})` : '-',
+          className,
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0)
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 60,
+        head: [['Data', 'Pagador Extrato', 'Banco', 'Aluno Vinculado', 'Turma', 'Valor']],
+        body: tableData,
+        headStyles: { 
+          fillColor: [0, 23, 75],
+          fontSize: 7.5,
+          halign: 'center',
+          valign: 'middle',
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 18, fontSize: 6.5 },
+          1: { cellWidth: 42, fontSize: 6.5 },
+          2: { cellWidth: 20, fontSize: 6.5 },
+          3: { cellWidth: 45, fontSize: 6.5 },
+          4: { cellWidth: 25, fontSize: 6.5 },
+          5: { cellWidth: 24, halign: 'right', fontSize: 7, fontStyle: 'bold' }
+        },
+        styles: { 
+          fontSize: 6.5,
+          cellPadding: 1.5,
+          lineColor: [240, 240, 240],
+          lineWidth: 0.1
+        },
+        alternateRowStyles: { fillColor: [252, 253, 254] },
+        margin: { top: 60, left: margin, right: margin },
+        didDrawPage: function(data) {
+          const str = "Página " + doc.getNumberOfPages();
+          doc.setFontSize(7);
+          doc.setTextColor(180);
+          doc.text(str, pageWidth / 2, pageHeight - 8, { align: 'center' });
+          doc.text('Relatório Histórico de Extrato Pix', margin, pageHeight - 8);
+        }
+      });
+
+      doc.save(`Extrato_Pix_Conciliado_${new Date().toISOString().split('T')[0]}.pdf`);
+      setNotification({ type: 'success', message: 'PDF do Extrato gerado com sucesso!' });
+    } catch (error: any) {
+      setNotification({ type: 'error', message: 'Erro ao gerar PDF: ' + error.message });
+    }
+  };
+
   const handleManualMatch = (studentId: string) => {
     if (matchingTransactionIndex === null) return;
     
@@ -1279,6 +1450,7 @@ export function PixConference() {
                 setActiveTab('new');
                 setTransactions([]);
                 setFile(null);
+                setSelectedIds(new Set());
               }}
               className={cn(
                 "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
@@ -1296,7 +1468,17 @@ export function PixConference() {
               )}
             >
               <RotateCcw size={18} />
-              Histórico
+              Histórico de Lotes
+            </button>
+            <button 
+              onClick={() => setActiveTab('extrato')}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'extrato' ? "bg-[#00174b] text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <FileSpreadsheet size={18} />
+              Extrato Pix
             </button>
           </div>
           
@@ -1430,7 +1612,7 @@ export function PixConference() {
           </div>
         )}
 
-        {activeTab === 'new' ? (
+        {activeTab === 'new' && (
           <>
             {transactions.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1769,7 +1951,9 @@ export function PixConference() {
               </div>
             )}
           </>
-        ) : (
+        )}
+
+        {activeTab === 'history' && (
           <div className="space-y-4">
             {historyLoading ? (
               <div className="bg-white rounded-2xl p-20 text-center border border-slate-100">
@@ -2128,6 +2312,243 @@ export function PixConference() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'extrato' && (
+          <div className="space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <p className="text-2xl font-black text-[#00174b]">{allReconciledTransactions.length}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Conciliado</p>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center">
+                  <UserCheck size={24} />
+                </div>
+                <div>
+                  <p className="text-2xl font-black text-green-600">
+                    {formatCurrencyLocal(allReconciledTransactions.reduce((acc, t) => acc + (Number(t.amount) || 0), 0))}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor Conciliado</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <p className="text-2xl font-black text-indigo-600">
+                    {allReconciledTransactions.filter(t => t.is_manual).length}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vínculos Manuais</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <CheckCircle2 size={24} />
+                </div>
+                <div>
+                  <p className="text-2xl font-black text-emerald-600">
+                    {allReconciledTransactions.filter(t => !t.is_manual).length}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vínculos Automáticos</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter and Actions Bar */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <h3 className="text-xl font-black text-[#00174b]">Extrato de Conciliação</h3>
+                <p className="text-sm font-bold text-slate-400">Listagem das transações conciliadas no sistema</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar aluno, pagador, banco..."
+                    value={extratoSearchQuery}
+                    onChange={(e) => setExtratoSearchQuery(e.target.value)}
+                    className="pl-12 pr-10 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 w-64 transition-all"
+                  />
+                  {extratoSearchQuery && (
+                    <button 
+                      onClick={() => setExtratoSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Type Filter Button Group */}
+                <div className="flex bg-slate-50 p-1 rounded-2xl">
+                  {(['all', 'auto', 'manual'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setExtratoFilter(mode)}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                        extratoFilter === mode ? "bg-white text-[#00174b] shadow-sm" : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      {mode === 'all' ? 'Ver Todos' : mode === 'auto' ? 'Automáticos' : 'Manuais'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Export Buttons */}
+                <button
+                  onClick={() => handleExportExtratoExcel(filteredExtratoTransactions)}
+                  className="px-5 py-3 bg-green-600 text-white hover:bg-green-700 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                  title="Exportar dados filtrados para planilha Excel"
+                >
+                  <FileSpreadsheet size={16} />
+                  Excel
+                </button>
+
+                <button
+                  onClick={() => handleExportExtratoPDF(filteredExtratoTransactions)}
+                  className="px-5 py-3 bg-[#00174b] text-white hover:bg-blue-900 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                  title="Imprimir relatório em PDF"
+                >
+                  <Printer size={16} />
+                  PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Main Table */}
+            {filteredExtratoTransactions.length === 0 ? (
+              <div className="bg-white rounded-2xl p-20 text-center border border-slate-100 shadow-sm">
+                <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-300">
+                  <Search size={40} />
+                </div>
+                <p className="text-slate-500 font-black text-xl">Nenhum registro conciliado correspondente.</p>
+                <p className="text-slate-400 text-sm mt-1">Experimente alterar os termos da busca ou filtros.</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/50">
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID / Data</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagador Extrato</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Banco Origem</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno Vinculado</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredExtratoTransactions.map((t: any, index: number) => {
+                        const studentClass = t.student ? (classes.find(c => c.id === t.student.class_id)?.name || 'Sem Turma') : '—';
+                        return (
+                          <tr key={t.id || index} className="hover:bg-slate-50/30 transition-colors">
+                            <td className="px-8 py-4">
+                              <p className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{t.transaction_id || '—'}</p>
+                              <p className="text-[11px] font-bold text-slate-500 mt-0.5">{t.date || '—'}</p>
+                            </td>
+                            <td className="px-8 py-4">
+                              <p className="font-black text-[#00174b] uppercase text-sm">{t.payer_name || '—'}</p>
+                            </td>
+                            <td className="px-8 py-4">
+                              <span className="px-2.5 py-1 bg-slate-100 border border-slate-200/50 text-[9px] font-black text-slate-600 rounded-lg uppercase tracking-wide">
+                                {t.origin_bank || '—'}
+                              </span>
+                            </td>
+                            <td className="px-8 py-4">
+                              {t.student ? (
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-xl bg-green-50 text-green-600 flex items-center justify-center border border-green-100">
+                                    <UserCheck size={16} />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-black text-[#00174b]">{t.student.name}</p>
+                                      {t.is_manual ? (
+                                        <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-600 text-[8px] font-black uppercase rounded-md tracking-wider">
+                                          Manual
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 text-[8px] font-black uppercase rounded-md tracking-wider">
+                                          Auto
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Nº Matrícula: {t.student.registration_number}</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 italic text-xs">Não encontrado</span>
+                              )}
+                            </td>
+                            <td className="px-8 py-4">
+                              <span className="text-xs font-bold text-slate-600">{studentClass}</span>
+                            </td>
+                            <td className="px-8 py-4 text-right">
+                              <p className="text-sm font-black text-[#00174b]">
+                                {formatCurrencyLocal(t.amount)}
+                              </p>
+                            </td>
+                            <td className="px-8 py-4">
+                              <div className="flex items-center justify-center gap-2">
+                                {t.student && (
+                                  <>
+                                    {/* Action to dispatch receipt directly! */}
+                                    <button
+                                      onClick={() => generateReceiptLocal([t], t.student)}
+                                      className="p-2.5 rounded-xl bg-white border border-blue-100 text-blue-500 hover:text-blue-700 hover:border-blue-200 hover:bg-blue-50/20 transition-all shadow-sm"
+                                      title="Gerar e baixar recibo em PDF"
+                                    >
+                                      <Printer size={16} />
+                                    </button>
+
+                                    {/* Link Contribution button */}
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); setRegisteringContribution(t); }}
+                                      className={cn(
+                                        "p-2.5 rounded-xl transition-all shadow-sm border relative group/btn",
+                                        registeredPixIds.has(String(t.transaction_id || t.id))
+                                          ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100 animate-pulse border-dashed"
+                                          : "bg-white border-blue-100 text-blue-400 hover:text-blue-600 hover:border-blue-200"
+                                      )}
+                                      title={registeredPixIds.has(String(t.transaction_id || t.id)) ? "Lançamento de contribuição já efetuado - Clique para lançar novamente" : "Registrar como contribuição financeira"}
+                                    >
+                                      <CreditCard size={16} />
+                                      {registeredPixIds.has(String(t.transaction_id || t.id)) && (
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full flex items-center justify-center">
+                                          <div className="w-1 h-1 bg-white rounded-full" />
+                                        </div>
+                                      )}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
