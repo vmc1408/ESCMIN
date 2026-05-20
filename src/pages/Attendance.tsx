@@ -455,12 +455,13 @@ export function Attendance() {
   const currentSubject = subjects.find(s => s.id === selectedSubject);
 
   return (
-    <div className="max-w-[1920px] mx-auto space-y-6">
-      {/* Styles for printing */}
+    <>
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           body * {
             visibility: hidden;
+            margin: 0;
+            padding: 0;
           }
           #printable-area, #printable-area * {
             visibility: visible;
@@ -470,379 +471,482 @@ export function Attendance() {
             left: 0;
             top: 0;
             width: 100%;
-            padding: 20px;
+            padding: 40px;
             visibility: visible !important;
+            background: white !important;
           }
           .no-print {
             display: none !important;
           }
+          @page {
+            size: auto;
+            margin: 0mm;
+          }
         }
       `}} />
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-              <ClipboardCheck size={20} />
+      <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8 no-print">
+      {/* Page Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          {institution?.logo && (
+            <div className="w-16 h-16 p-2 bg-white rounded-2xl shadow-lg border border-slate-100 no-print">
+              <img src={institution.logo} alt="Logo" className="w-full h-full object-contain" />
             </div>
-            Gestão de Frequência
-          </h2>
-          <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest pl-13">Controle e Resumo de Assiduidade</p>
+          )}
+          <div>
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight">Gestão de Frequência</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{institution?.name || 'Gestão Escolar'}</p>
+              </div>
+              <div className="hidden sm:block w-px h-3 bg-slate-200" />
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Controle e Resumo de Assiduidade</p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+            <button 
+              onClick={() => setActiveTab('marking')}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                activeTab === 'marking' 
+                  ? "bg-white text-emerald-600 shadow-sm" 
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Lançar Chamada
+            </button>
+            <button 
+              onClick={() => setActiveTab('summary')}
+              className={cn(
+                "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                activeTab === 'summary' 
+                  ? "bg-white text-amber-600 shadow-sm" 
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Resumo de Faltas
+            </button>
+          </div>
+
           {selectedClass && (
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 hover:bg-slate-50 shadow-sm transition-all active:scale-95 no-print"
+              className="flex items-center gap-2 px-6 py-3.5 bg-white text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all active:scale-95"
             >
-              <Printer size={16} />
+              <Printer size={18} />
               Imprimir {activeTab === 'marking' ? 'Lista' : 'Resumo'}
             </button>
           )}
 
-          <div className="flex bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
-          <button 
-            onClick={() => setActiveTab('marking')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-              activeTab === 'marking' ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            Lançar Chamada
-          </button>
-          <button 
-            onClick={() => setActiveTab('summary')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-              activeTab === 'summary' ? "bg-amber-600 text-white" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            Resumo de Faltas
-          </button>
+          {activeTab === 'marking' && students.length > 0 && (
+            <button 
+              disabled={saving || !selectedSubject || !isScheduledDay}
+              onClick={saveAttendance}
+              className="flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50 disabled:bg-slate-300 disabled:shadow-none"
+            >
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              Salvar Chamada
+            </button>
+          )}
         </div>
-
-        {activeTab === 'marking' && students.length > 0 && (
-          <button 
-            disabled={saving || !selectedSubject}
-            onClick={saveAttendance}
-            className="flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50 disabled:bg-slate-300 disabled:shadow-none"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Salvar Chamada
-          </button>
-        )}
       </div>
 
-      <div className="bg-white p-4 md:p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-        <div className={cn(
-          "grid grid-cols-1 gap-4",
-          activeTab === 'marking' ? "md:grid-cols-3" : "md:grid-cols-2"
-        )}>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Turma</label>
-            <div className="relative">
-              <School className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <select
-                value={selectedClass}
-                onChange={e => setSelectedClass(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 appearance-none"
-              >
-                <option value="">Selecione uma turma...</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
-              </select>
-            </div>
-          </div>
-
-          {activeTab === 'marking' && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Disciplina</label>
-              <div className="relative">
-                <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+      {/* Main Content Area */}
+      <div className="bg-white rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+        {/* Filter Bar */}
+        <div className="p-8 border-b border-slate-100 bg-slate-50/50">
+          <div className={cn(
+            "grid grid-cols-1 gap-6",
+            activeTab === 'marking' ? "md:grid-cols-3" : "md:grid-cols-2"
+          )}>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Turma Selecionada</label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-emerald-500 group-focus-within:border-emerald-100 transition-all shadow-sm">
+                  <School size={16} />
+                </div>
                 <select
-                  value={selectedSubject}
-                  onChange={e => setSelectedSubject(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 appearance-none"
+                  value={selectedClass}
+                  onChange={e => {
+                    setSelectedClass(e.target.value);
+                    setSelectedSubject('');
+                  }}
+                  className="w-full pl-16 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 appearance-none transition-all shadow-sm"
                 >
-                  <option value="">Selecione uma disciplina...</option>
-                  {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <option value="">Selecione uma turma...</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
               </div>
             </div>
-          )}
 
-          {activeTab === 'marking' && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between pl-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selecione a Data da Aula</label>
-                {selectedClass && (
-                  <div className={cn(
-                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter",
-                    availableDates.length > 0 ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-                  )}>
-                    {availableDates.length > 0 ? (
-                      <>
-                        <Check size={8} />
-                        {availableDates.length} Dias Agendados
-                      </>
-                    ) : (
-                      <>
-                        <X size={8} />
-                        Sem datas agendadas
-                      </>
+            {activeTab === 'marking' && (
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Disciplina</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-emerald-500 group-focus-within:border-emerald-100 transition-all shadow-sm">
+                    <BookOpen size={16} />
+                  </div>
+                  <select
+                    value={selectedSubject}
+                    onChange={e => setSelectedSubject(e.target.value)}
+                    disabled={!selectedClass}
+                    className="w-full pl-16 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 appearance-none transition-all shadow-sm disabled:bg-slate-100 disabled:opacity-60"
+                  >
+                    <option value="">Selecione uma disciplina...</option>
+                    {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'marking' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Aula</label>
+                  {selectedClass && (
+                    <div className={cn(
+                      "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                      availableDates.length > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                    )}>
+                      {availableDates.length > 0 ? `${availableDates.length} Agendados` : 'Sem agendamento'}
+                    </div>
+                  )}
+                </div>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-emerald-500 group-focus-within:border-emerald-100 transition-all shadow-sm">
+                    <CalendarIcon size={16} />
+                  </div>
+                  <select
+                    disabled={!selectedClass || availableDates.length === 0}
+                    value={parseDateToDB(selectedDate)}
+                    onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
+                    className={cn(
+                      "w-full pl-16 pr-10 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:border-emerald-500 appearance-none transition-all shadow-sm disabled:bg-slate-100 disabled:opacity-60",
+                      availableDates.length > 0 ? "focus:ring-emerald-500/10" : "ring-1 ring-red-200"
                     )}
+                  >
+                    <option value="">Selecione o dia...</option>
+                    {availableDates.map(date => (
+                      <option key={date.dbValue} value={date.dbValue}>
+                        {date.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Strip for Marking */}
+        {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
+          <div className="px-8 py-5 bg-white border-b border-slate-50 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-sm">
+                {students.length}
+              </div>
+              <div>
+                <p className="text-xs font-black text-slate-800 uppercase tracking-widest">Alunos Inscritos</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Aguardando lançamento de presença</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleMarkAll('P')}
+                className="flex items-center gap-2 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all"
+              >
+                <Check size={14} />
+                Presença Geral
+              </button>
+              <button
+                onClick={() => handleMarkAll('F')}
+                className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+              >
+                <X size={14} />
+                Falta Geral
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content Area */}
+        <div className="p-8">
+          <AnimatePresence mode="wait">
+            {!selectedClass ? (
+              <motion.div 
+                key="empty"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="py-32 flex flex-col items-center text-center space-y-6"
+              >
+                <div className="w-24 h-24 bg-slate-50 text-slate-200 rounded-[2.5rem] flex items-center justify-center shadow-inner">
+                  <ClipboardCheck size={48} />
+                </div>
+                <div className="max-w-md">
+                  <h3 className="text-xl font-black text-slate-800">Seleção Pendente</h3>
+                  <p className="text-sm font-bold text-slate-400 mt-2 leading-relaxed">
+                    Escolha uma turma para visualizar a lista de alunos e realizar a gestão de presença.
+                  </p>
+                </div>
+              </motion.div>
+            ) : loading ? (
+              <motion.div 
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="py-32 flex flex-col items-center justify-center gap-4"
+              >
+                <div className="w-16 h-16 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin shadow-lg" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Consultando Registros...</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-8"
+              >
+                {notification && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className={cn(
+                      "p-5 rounded-2xl flex items-center gap-4 border shadow-sm",
+                      notification.type === 'success' 
+                        ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
+                        : "bg-red-50 border-red-100 text-red-700"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-white shadow-sm",
+                      notification.type === 'success' ? "text-emerald-500" : "text-red-500"
+                    )}>
+                      {notification.type === 'success' ? <Check size={20} /> : <X size={20} />}
+                    </div>
+                    <p className="text-sm font-black uppercase tracking-widest">{notification.message}</p>
+                  </motion.div>
+                )}
+
+                {activeTab === 'marking' ? (
+                  <div className="space-y-4">
+                    {!selectedSubject && (
+                      <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl flex items-center gap-5 text-amber-800">
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-amber-500 shadow-sm">
+                          <Info size={24} />
+                        </div>
+                        <p className="text-sm font-black uppercase tracking-widest">Selecione uma disciplina para habilitar o lançamento da frequência.</p>
+                      </div>
+                    )}
+
+                    {!isScheduledDay && selectedClass && (
+                      <div className="bg-red-50 border border-red-100 p-6 rounded-3xl flex items-center gap-5 text-red-800">
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-500 shadow-sm">
+                          <Clock size={24} />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-black uppercase tracking-widest">Data não agendada</p>
+                          <p className="text-xs font-bold opacity-75">Esta data não consta como dia letivo para esta turma no calendário acadêmico.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 mt-8">
+                      {students.map((student, idx) => (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.03 }}
+                          key={student.id} 
+                          className={cn(
+                            "group flex flex-col lg:flex-row lg:items-center justify-between p-6 rounded-[2rem] border transition-all duration-300",
+                            attendance[student.id]?.status === 'P' ? "bg-emerald-50/30 border-emerald-100 shadow-emerald-100/20" :
+                            attendance[student.id]?.status === 'F' ? "bg-red-50/30 border-red-100 shadow-red-100/20" :
+                            attendance[student.id]?.status === 'J' ? "bg-amber-50/30 border-amber-100 shadow-amber-100/20" :
+                            "bg-white border-slate-100 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50"
+                          )}
+                        >
+                          <div className="flex items-center gap-6 mb-6 lg:mb-0">
+                            <div className={cn(
+                              "w-12 h-12 rounded-2xl flex items-center justify-center text-base font-black shadow-sm transition-all duration-300",
+                              attendance[student.id]?.status === 'P' ? "bg-emerald-600 text-white" :
+                              attendance[student.id]?.status === 'F' ? "bg-red-600 text-white" :
+                              attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white" :
+                              "bg-slate-50 text-slate-400 group-hover:bg-slate-800 group-hover:text-white"
+                            )}>
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <p className="text-lg font-black text-slate-800 tracking-tight uppercase group-hover:text-slate-900">{student.name}</p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100 group-hover:bg-white transition-colors">RA: {student.registration_number}</span>
+                                {attendance[student.id]?.status && (
+                                  <span className={cn(
+                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
+                                    attendance[student.id]?.status === 'P' ? "bg-emerald-100 text-emerald-700" :
+                                    attendance[student.id]?.status === 'F' ? "bg-red-100 text-red-700" :
+                                    "bg-amber-100 text-amber-700"
+                                  )}>
+                                    Status: {attendance[student.id]?.status === 'P' ? 'Presente' : attendance[student.id]?.status === 'F' ? 'Faltou' : 'Justificado'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              onClick={() => handleStatusChange(student.id, 'P')}
+                              className={cn(
+                                "flex-1 sm:flex-none lg:w-36 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 transform",
+                                attendance[student.id]?.status === 'P' 
+                                  ? "bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-105" 
+                                  : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-500 hover:shadow-lg active:scale-95"
+                              )}
+                            >
+                              <Check size={16} />
+                              Presente
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange(student.id, 'F')}
+                              className={cn(
+                                "flex-1 sm:flex-none lg:w-36 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 transform",
+                                attendance[student.id]?.status === 'F' 
+                                  ? "bg-red-600 text-white shadow-xl shadow-red-200 scale-105" 
+                                  : "bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 hover:shadow-lg active:scale-95"
+                              )}
+                            >
+                              <X size={16} />
+                              Faltou
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange(student.id, 'J')}
+                              className={cn(
+                                "flex-1 sm:flex-none lg:w-36 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 transform",
+                                attendance[student.id]?.status === 'J' 
+                                  ? "bg-amber-600 text-white shadow-xl shadow-amber-200 scale-105" 
+                                  : "bg-white border border-slate-200 text-slate-400 hover:border-amber-500 hover:text-amber-500 hover:shadow-lg active:scale-95"
+                              )}
+                            >
+                              <Info size={16} />
+                              Justific.
+                            </button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 flex items-center gap-6 shadow-sm">
+                        <div className="w-16 h-16 rounded-[1.25rem] bg-white text-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100/50">
+                          <CalendarIcon size={32} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Dias Letivos Totais</p>
+                          <p className="text-4xl font-black text-slate-800 tracking-tighter mt-1">{calendarDays}</p>
+                        </div>
+                      </div>
+                      <div className="bg-amber-50/50 p-8 rounded-[2.5rem] border border-amber-100 flex items-center gap-6 shadow-sm">
+                        <div className="w-16 h-16 rounded-[1.25rem] bg-white text-amber-600 flex items-center justify-center shadow-lg shadow-amber-100/50">
+                          <Filter size={32} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em]">Limite de Faltas</p>
+                          <p className="text-4xl font-black text-amber-800 tracking-tighter mt-1">{academicParams?.absence_limit_percentage || 25}%</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      {students.map((student, idx) => {
+                        const absences = studentAbsences[student.id] || 0;
+                        const limit = academicParams?.absence_limit_percentage || 25;
+                        const totalDays = calendarDays || 200;
+                        const percentage = ((absences / totalDays) * 100).toFixed(1);
+                        const isOverLimit = parseFloat(percentage) > limit;
+
+                        return (
+                          <motion.div 
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.03 }}
+                            key={student.id} 
+                            className="group flex flex-col lg:flex-row lg:items-center justify-between p-8 bg-white border border-slate-100 rounded-[2.5rem] hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300"
+                          >
+                            <div className="flex items-center gap-6 mb-8 lg:mb-0">
+                              <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center text-lg font-black group-hover:bg-slate-800 group-hover:text-white transition-colors duration-300">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <p className="text-lg font-black text-slate-800 uppercase tracking-tight group-hover:text-slate-900">{student.name}</p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">RA: {student.registration_number}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row items-center gap-12">
+                              <div className="text-center sm:text-right min-w-[100px]">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Faltas</p>
+                                <p className={cn(
+                                  "text-3xl font-black mt-2 leading-none",
+                                  absences > 0 ? (isOverLimit ? "text-red-600" : "text-amber-600") : "text-slate-800"
+                                )}>{absences}</p>
+                              </div>
+                              
+                              <div className="w-full sm:w-64">
+                                <div className="flex justify-between items-end mb-2 px-1">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Percentual de Faltas</p>
+                                  <span className={cn(
+                                    "text-sm font-black uppercase tracking-widest",
+                                    isOverLimit ? "text-red-600" : "text-emerald-600"
+                                  )}>
+                                    {percentage}%
+                                  </span>
+                                </div>
+                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                  <motion.div 
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${Math.min(parseFloat(percentage), 100)}%` }}
+                                    transition={{ duration: 1, ease: "easeOut" }}
+                                    className={cn(
+                                      "h-full rounded-full transition-all duration-500",
+                                      isOverLimit ? "bg-red-500 shadow-lg shadow-red-200" : "bg-emerald-500 shadow-lg shadow-emerald-200"
+                                    )}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className={cn(
+                                "px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center shadow-sm border",
+                                isOverLimit 
+                                  ? "bg-red-50 text-red-600 border-red-100" 
+                                  : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                              )}>
+                                {isOverLimit ? 'Risco de Reprovação' : 'Situação Regular'}
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
-              </div>
-              <div className="relative">
-                <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <select
-                  disabled={!selectedClass || availableDates.length === 0}
-                  value={parseDateToDB(selectedDate)}
-                  onChange={e => {
-                    const dbDate = e.target.value;
-                    setSelectedDate(formatDateForDisplay(dbDate));
-                  }}
-                  className={cn(
-                    "w-full pl-12 pr-10 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold focus:ring-2 appearance-none transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
-                    availableDates.length > 0 ? "focus:ring-emerald-500" : "ring-1 ring-red-200"
-                  )}
-                >
-                  <option value="">Selecione um dia de aula...</option>
-                  {availableDates.map(date => (
-                    <option key={date.dbValue} value={date.dbValue}>
-                      {date.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                  <ChevronDown size={16} />
-                </div>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-
-        {selectedClass && availableDates.length === 0 && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-3 text-red-700"
-          >
-            <Info size={18} />
-            <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-              Erro: Esta turma não possui dias de aula configurados no <span className="font-black text-red-800">Calendário Acadêmico</span>.
-              <br className="hidden sm:block" />
-              Você precisa gerar os dias de aula no calendário antes de lançar a frequência.
-            </p>
-          </motion.div>
-        )}
-
-        {notification && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              "p-4 rounded-2xl text-xs font-bold uppercase tracking-widest flex items-center gap-3",
-              notification.type === 'success' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
-            )}
-          >
-            {notification.type === 'success' ? <Check size={18} /> : <X size={18} />}
-            {notification.message}
-          </motion.div>
-        )}
-
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-4">
-            <div className="w-12 h-12 border-4 border-emerald-600/20 border-t-emerald-600 rounded-full animate-spin" />
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Aguarde...</p>
-          </div>
-        ) : activeTab === 'marking' && selectedClass ? (
-          <div className="space-y-6">
-            {!selectedSubject && (
-              <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3 text-amber-700">
-                <Info size={18} />
-                <p className="text-xs font-bold uppercase tracking-widest">Selecione a disciplina para habilitar o lançamento.</p>
-              </div>
-            )}
-            {/* Rest of the marking UI ... */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div className="flex items-center gap-4">
-                <div className="px-3 py-1 bg-white text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-tighter shadow-sm">
-                  {students.length} Alunos na Turma
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleMarkAll('P')}
-                  className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-200 transition-all"
-                >
-                  Marcar Todos Presentes
-                </button>
-                <button
-                  onClick={() => handleMarkAll('F')}
-                  className="px-4 py-2 bg-red-100 text-red-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-200 transition-all"
-                >
-                  Marcar Todos Faltaram
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-1">
-              {students.length > 0 ? (
-                students.map((student, idx) => (
-                  <div key={student.id} className={cn(
-                    "flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl transition-all border border-transparent hover:bg-slate-50",
-                    idx % 2 === 0 ? "bg-white" : "bg-slate-50/30"
-                  )}>
-                    <div className="flex items-center gap-4 mb-3 sm:mb-0">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-slate-800 leading-tight uppercase">{student.name}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">RA: {student.registration_number}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleStatusChange(student.id, 'P')}
-                        className={cn(
-                          "flex-1 sm:w-24 flex items-center justify-center gap-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                          attendance[student.id]?.status === 'P' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200" : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-200"
-                        )}
-                      >
-                        <Check size={14} />
-                        Presente
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(student.id, 'F')}
-                        className={cn(
-                          "flex-1 sm:w-24 flex items-center justify-center gap-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                          attendance[student.id]?.status === 'F' ? "bg-red-600 text-white shadow-lg shadow-red-200" : "bg-white border border-slate-200 text-slate-400 hover:border-red-200"
-                        )}
-                      >
-                        <X size={14} />
-                        Faltou
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(student.id, 'J')}
-                        className={cn(
-                          "flex-1 sm:w-24 flex items-center justify-center gap-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                          attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white shadow-lg shadow-amber-200" : "bg-white border border-slate-200 text-slate-400 hover:border-amber-200"
-                        )}
-                      >
-                        <Info size={14} />
-                        Justific.
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="py-20 text-center space-y-4">
-                  <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-2xl flex items-center justify-center mx-auto">
-                    <Search size={32} />
-                  </div>
-                  <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum aluno vinculado a esta turma.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : activeTab === 'summary' && selectedClass ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white text-blue-600 flex items-center justify-center shadow-sm">
-                  <CalendarIcon size={24} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dias Letivos</p>
-                  <p className="text-2xl font-black text-slate-800">{calendarDays}</p>
-                </div>
-              </div>
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white text-amber-600 flex items-center justify-center shadow-sm">
-                  <Info size={24} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Limite de Faltas</p>
-                  <p className="text-2xl font-black text-slate-800">{academicParams?.absence_limit_percentage || 25}%</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              {students.map((student, idx) => {
-                const absences = studentAbsences[student.id] || 0;
-                const limit = academicParams?.absence_limit_percentage || 25;
-                const totalDays = calendarDays || 200; // Fallback to 200 if calendar empty
-                const percentage = ((absences / totalDays) * 100).toFixed(1);
-                const isOverLimit = parseFloat(percentage) > limit;
-
-                return (
-                  <div key={student.id} className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-[2rem]">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center text-xs font-black">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-slate-800 uppercase leading-none">{student.name}</p>
-                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">RA: {student.registration_number}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-8">
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Faltas</p>
-                        <p className="text-lg font-black text-slate-800 leading-none">{absences}</p>
-                      </div>
-                      
-                      <div className="w-32">
-                        <div className="flex justify-between items-end mb-1">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assiduidade</p>
-                          <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest",
-                            isOverLimit ? "text-red-500" : "text-emerald-500"
-                          )}>
-                            {percentage}%
-                          </span>
-                        </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className={cn(
-                              "h-full transition-all duration-500",
-                              isOverLimit ? "bg-red-500" : "bg-emerald-500"
-                            )}
-                            style={{ width: `${Math.min(parseFloat(percentage), 100)}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className={cn(
-                        "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest w-24 text-center",
-                        isOverLimit ? "bg-red-50 text-red-600 border border-red-100" : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                      )}>
-                        {isOverLimit ? 'Reprovado' : 'Regular'}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="py-24 text-center space-y-6">
-            <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-[2rem] flex items-center justify-center mx-auto">
-              <ClipboardCheck size={40} />
-            </div>
-            <div>
-              <p className="text-lg font-black text-slate-400">Seleção Pendente</p>
-              <p className="text-sm font-bold text-slate-300">Escolha uma turma para visualizar os dados.</p>
-            </div>
-          </div>
-        )}
       </div>
+
       {/* Printable Area */}
       <div id="printable-area" className="hidden print:block text-slate-800">
         <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6">
@@ -967,6 +1071,6 @@ export function Attendance() {
         </div>
       </div>
       </div>
-    </div>
+    </>
   );
 }
