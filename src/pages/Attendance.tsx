@@ -946,6 +946,7 @@ export function Attendance() {
           </AnimatePresence>
         </div>
       </div>
+    </div>
 
       {/* Printable Area */}
       <div id="printable-area" className="hidden print:block text-slate-800">
@@ -1069,7 +1070,6 @@ export function Attendance() {
             <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Secretário</p>
           </div>
         </div>
-      </div>
       </div>
     </>
   );
