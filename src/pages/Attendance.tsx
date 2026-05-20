@@ -8,6 +8,7 @@ import {
   Check,
   X,
   Info,
+  Printer,
   ChevronDown,
   Clock,
   BookOpen,
@@ -61,6 +62,7 @@ export function Attendance() {
   const [calendarDays, setCalendarDays] = useState<number>(0);
   const [studentAbsences, setStudentAbsences] = useState<Record<string, number>>({});
   
+  const [institution, setInstitution] = useState<any>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
@@ -72,11 +74,16 @@ export function Attendance() {
 
   const fetchData = React.useCallback(async () => {
     try {
-      const [classesData, subjectsData, paramsData] = await Promise.all([
+      const [classesData, subjectsData, paramsData, instData] = await Promise.all([
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchAll('academic_parameters', '*', '')
+        fetchAll('academic_parameters', '*', ''),
+        fetchAll('institution_settings')
       ]);
+
+      if (instData && instData.length > 0) {
+        setInstitution(instData[0]);
+      }
 
       const normalizedClasses = (classesData || []).map((cls: any) => {
         let normalized = { ...cls };
@@ -440,9 +447,39 @@ export function Attendance() {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const currentClass = classes.find(c => c.id === selectedClass);
+  const currentSubject = subjects.find(s => s.id === selectedSubject);
+
   return (
     <div className="max-w-[1920px] mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Styles for printing */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-area, #printable-area * {
+            visibility: visible;
+          }
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 20px;
+            visibility: visible !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}} />
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
         <div>
           <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
@@ -453,7 +490,18 @@ export function Attendance() {
           <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest pl-13">Controle e Resumo de Assiduidade</p>
         </div>
 
-        <div className="flex bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-2">
+          {selectedClass && (
+            <button 
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 hover:bg-slate-50 shadow-sm transition-all active:scale-95 no-print"
+            >
+              <Printer size={16} />
+              Imprimir {activeTab === 'marking' ? 'Lista' : 'Resumo'}
+            </button>
+          )}
+
+          <div className="flex bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
           <button 
             onClick={() => setActiveTab('marking')}
             className={cn(
@@ -794,6 +842,130 @@ export function Attendance() {
             </div>
           </div>
         )}
+      </div>
+      {/* Printable Area */}
+      <div id="printable-area" className="hidden print:block text-slate-800">
+        <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6">
+          <div className="flex items-center gap-4">
+            {institution?.logo && (
+              <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
+            )}
+            <div>
+              <h1 className="text-xl font-black uppercase">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Controle de Frequência e Assiduidade</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-black uppercase">{new Date().toLocaleDateString('pt-BR')}</p>
+            <p className="text-[10px] font-bold text-slate-500 uppercase">Página 1 de 1</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div className="space-y-1">
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Turma</p>
+            <p className="text-sm font-black uppercase leading-tight">{currentClass?.name || 'N/A'} ({currentClass?.code || 'N/A'})</p>
+          </div>
+          {activeTab === 'marking' ? (
+            <>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
+                <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Data da Aula</p>
+                <p className="text-sm font-black uppercase leading-tight">{selectedDate || 'N/A'}</p>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Tipo de Relatório</p>
+              <p className="text-sm font-black uppercase leading-tight">Resumo de Faltas e Assiduidade</p>
+            </div>
+          )}
+        </div>
+
+        {activeTab === 'marking' ? (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-900 text-white">
+                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
+                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
+                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-32">RA</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Presença</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Assinatura</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student, idx) => {
+                const status = attendance[student.id]?.status;
+                const statusLabel = status === 'P' ? 'PRESENTE' : status === 'F' ? 'FALTOU' : status === 'J' ? 'JUSTIFIC.' : '';
+                
+                return (
+                  <tr key={student.id}>
+                    <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
+                    <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
+                    <td className="px-4 py-3 text-xs font-bold border border-slate-300">{student.registration_number}</td>
+                    <td className="px-4 py-3 text-xs font-black border border-slate-300 text-center uppercase">
+                      {statusLabel || '__________'}
+                    </td>
+                    <td className="px-4 py-3 border border-slate-300">
+                      <div className="w-full border-b border-slate-400 mt-4"></div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-900 text-white">
+                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
+                <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Faltas</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-32">Assiduidade</th>
+                <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student, idx) => {
+                const absences = studentAbsences[student.id] || 0;
+                const limit = academicParams?.absence_limit_percentage || 25;
+                const totalDays = calendarDays || 200;
+                const percentage = ((absences / totalDays) * 100).toFixed(1);
+                const isOverLimit = parseFloat(percentage) > limit;
+
+                return (
+                  <tr key={student.id}>
+                    <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
+                    <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
+                    <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{absences}</td>
+                    <td className="px-4 py-3 text-sm font-black border border-slate-300 text-center">{percentage}%</td>
+                    <td className={cn(
+                      "px-4 py-3 text-[10px] font-black uppercase border border-slate-300 text-center",
+                      isOverLimit ? "text-red-600 bg-red-50" : "text-emerald-600 bg-emerald-50"
+                    )}>
+                      {isOverLimit ? 'Reprovado por Faltas' : 'Regular / Aprovado'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+
+        <div className="mt-12 grid grid-cols-2 gap-12 pt-8">
+          <div className="text-center">
+            <div className="border-t-2 border-slate-900 w-full mb-2"></div>
+            <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Coordenador</p>
+          </div>
+          <div className="text-center">
+            <div className="border-t-2 border-slate-900 w-full mb-2"></div>
+            <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Secretário</p>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
   );
