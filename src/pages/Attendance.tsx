@@ -1207,14 +1207,14 @@ export function Attendance() {
           </table>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse table-fixed">
+            <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-slate-900 text-white">
                   <th className="px-2 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-8">Nº</th>
-                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 min-w-[200px]">Nome do Aluno</th>
-                  <th className="px-2 py-2 text-center text-[8px] font-black uppercase border border-slate-900 w-24">RA</th>
+                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 min-w-[250px]">Nome do Aluno</th>
+                  <th className="px-2 py-2 text-center text-[8px] font-black uppercase border border-slate-900 w-28">RA</th>
                   {monthlyClassDays.map(day => (
-                    <th key={day.dbValue} className="px-1 py-1 text-center border border-slate-900 w-12">
+                    <th key={day.dbValue} className="px-1 py-2 text-center border border-slate-900 min-w-[45px]">
                       <p className="text-[9px] font-black leading-none">{day.dayNumber}</p>
                       <p className="text-[6px] font-bold uppercase leading-none mt-0.5">{day.weekday}</p>
                     </th>
@@ -1223,13 +1223,13 @@ export function Attendance() {
               </thead>
               <tbody>
                 {students.map((student, idx) => (
-                  <tr key={student.id} className="h-11">
+                  <tr key={student.id} className="h-10">
                     <td className="px-2 py-1 text-center text-[10px] font-black border border-slate-300">{idx + 1}</td>
                     <td className="px-4 py-1 text-[10px] font-black uppercase border border-slate-300 whitespace-nowrap overflow-hidden">{student.name}</td>
                     <td className="px-2 py-1 text-[8px] font-bold border border-slate-300 text-center">{student.registration_number}</td>
                     {monthlyClassDays.map(day => (
                       <td key={day.dbValue} className="border border-slate-300 text-center h-full">
-                        <div className="w-full h-full border-b border-slate-100/50"></div>
+                        <div className="w-full h-full border-b border-slate-100/30"></div>
                       </td>
                     ))}
                   </tr>
