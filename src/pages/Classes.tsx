@@ -178,7 +178,7 @@ export function Classes() {
     try {
       const [classesData, subjectsData, instData] = await Promise.all([
         fetchAll('classes', '*', 'name', true),
-        fetchAll('subjects', 'id, name, code, year, semester, program_content', 'name', true),
+        fetchAll('subjects', 'id, name, code, year, semester, status, program_content', 'name', true),
         fetchAll('institution_settings')
       ]);
       
@@ -666,15 +666,10 @@ export function Classes() {
                                   if (!s) return false;
                                   const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
                                   
-                                  // For "Curso Extra", we are more lenient with matching
                                   const isCursoExtraClass = newYear === 'Curso Extra';
-                                  const isCursoExtraSubject = s.year === 'Curso Extra';
-
-                                  const matchesYear = !newYear || !s.year || s.year === newYear;
-                                  
-                                  // For extra courses, we often don't want to filter strictly by semester
-                                  const matchesSemester = !formData.semester || !sSem || sSem === formData.semester || 
-                                                       (isCursoExtraClass && (isCursoExtraSubject || !sSem));
+                                  const matchesYear = isCursoExtraClass || !newYear || !s.year || s.year === newYear;
+                                  // When Curso Extra, we allow any semester
+                                  const matchesSemester = isCursoExtraClass || !formData.semester || !sSem || sSem === formData.semester;
                                   
                                   return matchesYear && matchesSemester;
                                 });
@@ -695,7 +690,7 @@ export function Classes() {
                       <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Semestre</label>
                         <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
-                          {['1º Semestre', '2º Semestre'].map((sem) => (
+                          {(formData.year === 'Curso Extra' ? ['1º Semestre', '2º Semestre', 'Ano Inteiro'] : ['1º Semestre', '2º Semestre']).map((sem) => (
                             <button
                               key={sem}
                               type="button"
@@ -707,15 +702,15 @@ export function Classes() {
                                   if (!s) return false;
                                   const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
                                   
-                                  // For "Curso Extra", we are more lenient with matching
                                   const isCursoExtraClass = formData.year === 'Curso Extra';
-                                  const isCursoExtraSubject = s.year === 'Curso Extra';
-
-                                  const matchesYear = !formData.year || !s.year || s.year === formData.year;
+                                  const matchesYear = isCursoExtraClass || !formData.year || !s.year || s.year === formData.year;
                                   
-                                  // For extra courses, we often don't want to filter strictly by semester
-                                  const matchesSemester = !newSemester || !sSem || sSem === newSemester || 
-                                                       (isCursoExtraClass && (isCursoExtraSubject || !sSem));
+                                  let matchesSemester = !newSemester || !sSem || sSem === newSemester;
+                                  if (isCursoExtraClass && newSemester === 'Ano Inteiro') {
+                                    matchesSemester = true; // Show all for full year
+                                  } else if (isCursoExtraClass) {
+                                    matchesSemester = matchesSemester || isCursoExtraClass; // Keep current flexible behavior if preferred
+                                  }
                                   
                                   return matchesYear && matchesSemester;
                                 });
@@ -728,7 +723,7 @@ export function Classes() {
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
                               )}
                             >
-                              {sem === '1º Semestre' ? '1º Sem.' : '2º Sem.'}
+                              {sem === '1º Semestre' ? '1º Sem.' : sem === '2º Semestre' ? '2º Sem.' : 'Ambos'}
                             </button>
                           ))}
                         </div>
@@ -736,9 +731,9 @@ export function Classes() {
                     </div>
 
                     <div className="col-span-12 space-y-2">
-                      <label className="text-xs font-bold text-slate-700">Disciplinas (Até 2 por Semestre)</label>
+                      <label className="text-xs font-bold text-slate-700">Disciplinas {formData.year === 'Curso Extra' ? '(Até 4 por Ano)' : '(Até 2 por Semestre)'}</label>
                       <div className="grid grid-cols-2 gap-2">
-                        {[0, 1].map((index) => (
+                        {(formData.year === 'Curso Extra' ? [0, 1, 2, 3] : [0, 1]).map((index) => (
                           <select 
                             key={index}
                             disabled={!isEditing}
@@ -752,21 +747,28 @@ export function Classes() {
                           >
                             <option value="">{index === 0 ? '1ª Disciplina...' : '2ª Disciplina (Opcional)...'}</option>
                             {subjects
-                              .filter(s => {
-                                const sSem = (s as any).semester?.includes('1º') ? '1º Semestre' : (s as any).semester?.includes('2º') ? '2º Semestre' : (s as any).semester;
+                               .filter(s => {
+                                 const sSem = (s as any).semester?.includes('1º') ? '1º Semestre' : (s as any).semester?.includes('2º') ? '2º Semestre' : (s as any).semester;
 
-                                const isCursoExtraClass = formData.year === 'Curso Extra';
-                                const isCursoExtraSubject = (s as any).year === 'Curso Extra';
+                                 const isCursoExtraClass = formData.year === 'Curso Extra';
+                                 
+                                 const matchesYear = isCursoExtraClass || !formData.year || !(s as any).year || (s as any).year === formData.year;
+                                 let matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
 
-                                const matchesYear = !formData.year || !(s as any).year || (s as any).year === formData.year;
-                                
-                                // Show subject if semester matches OR if it's a Curso Extra class and either subject is Curso Extra or has no semester
-                                const matchesSemester = !formData.semester || !sSem || sSem === formData.semester || 
-                                                       (isCursoExtraClass && (isCursoExtraSubject || !sSem));
+                                 if (isCursoExtraClass) {
+                                   if (formData.semester === 'Ano Inteiro') {
+                                     matchesSemester = true;
+                                   } else {
+                                     // If a specific semester is chosen for extra course, maybe we still want to show all but prioritize?
+                                     // The user asked to permit selecting simultaneously.
+                                     // So if "Ano Inteiro" or "Ambos" is selected, it should work.
+                                     matchesSemester = true; // Let's make it always true for Curso Extra to be simple
+                                   }
+                                 }
 
-                                const isActiveOrSelected = (s as any).status === 'Ativo' || formData.subject_ids?.includes(s.id);
-                                return matchesYear && matchesSemester && isActiveOrSelected;
-                              })
+                                 const isActiveOrSelected = (s as any).status === 'Ativo' || formData.subject_ids?.includes(s.id);
+                                 return matchesYear && matchesSemester && isActiveOrSelected;
+                               })
                               .map(subject => (
                                 <option 
                                   key={subject.id} 
@@ -781,8 +783,9 @@ export function Classes() {
                       </div>
                       {subjects.filter(s => {
                         const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
-                        const matchesYear = !formData.year || !s.year || s.year === formData.year;
-                        const matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
+                        const isCursoExtraClass = formData.year === 'Curso Extra';
+                        const matchesYear = isCursoExtraClass || !formData.year || !s.year || s.year === formData.year;
+                        const matchesSemester = isCursoExtraClass || !formData.semester || !sSem || sSem === formData.semester;
                         return matchesYear && matchesSemester;
                       }).length === 0 && (
                         <p className="text-[10px] text-amber-600 font-medium mt-1">Nenhuma disciplina cadastrada para este Ano/Semestre.</p>
