@@ -901,7 +901,7 @@ export function PixConference() {
   const handleExportExtratoPDF = (filteredList: any[]) => {
     try {
       const doc = new jsPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
@@ -922,7 +922,7 @@ export function PixConference() {
       doc.setFont('helvetica', 'normal');
       doc.text(`Instituição: ${institution?.name || 'Escola Diocesana de Ministérios'}`, margin, 24);
       doc.text(`Endereço: ${institution?.address || 'Av. Venus, 195 - Guarulhos'}`, margin, 28);
-      doc.text(`Data de Emissão: ${new Date().toLocaleString('pt-BR')}`, margin, 32);
+      doc.text(`Data de Emissão: ${new Date().toLocaleString('pt-BR')} | Formato de Conferência (Paisagem)`, margin, 32);
 
       // Stats Box
       doc.setDrawColor(240);
@@ -939,7 +939,7 @@ export function PixConference() {
       doc.setTextColor(0);
       doc.setFont('helvetica', 'normal');
       doc.text(`Transações Filtradas: ${filteredList.length}`, margin + 4, 50);
-      doc.text(`Valor Total Conciliado: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}`, margin + 80, 50);
+      doc.text(`Valor Total Conciliado: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}`, margin + 120, 50);
 
       // Table Data
       const tableData = filteredList.map((item) => {
@@ -951,13 +951,14 @@ export function PixConference() {
           item.origin_bank || 'N/I',
           student ? `${student.name} (${student.registration_number})` : '-',
           className,
-          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0)
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0),
+          '' // empty column for manual handwriting annotations
         ];
       });
 
       autoTable(doc, {
         startY: 60,
-        head: [['Data', 'Pagador Extrato', 'Banco', 'Aluno Vinculado', 'Turma', 'Valor']],
+        head: [['Data', 'Pagador Extrato', 'Banco', 'Aluno Vinculado', 'Turma', 'Valor', 'Observações (Anotações Manuais)']],
         body: tableData,
         headStyles: { 
           fillColor: [0, 23, 75],
@@ -967,17 +968,18 @@ export function PixConference() {
           cellPadding: 2
         },
         columnStyles: {
-          0: { cellWidth: 18, fontSize: 6.5 },
-          1: { cellWidth: 42, fontSize: 6.5 },
-          2: { cellWidth: 20, fontSize: 6.5 },
-          3: { cellWidth: 45, fontSize: 6.5 },
-          4: { cellWidth: 25, fontSize: 6.5 },
-          5: { cellWidth: 24, halign: 'right', fontSize: 7, fontStyle: 'bold' }
+          0: { cellWidth: 20, fontSize: 6.5 },
+          1: { cellWidth: 55, fontSize: 6.5 },
+          2: { cellWidth: 22, fontSize: 6.5 },
+          3: { cellWidth: 55, fontSize: 6.5 },
+          4: { cellWidth: 32, fontSize: 6.5 },
+          5: { cellWidth: 25, halign: 'right', fontSize: 7, fontStyle: 'bold' },
+          6: { cellWidth: 60, fontSize: 6.5 } // wide blank column 
         },
         styles: { 
           fontSize: 6.5,
-          cellPadding: 1.5,
-          lineColor: [240, 240, 240],
+          cellPadding: 2,
+          lineColor: [200, 200, 200],
           lineWidth: 0.1
         },
         alternateRowStyles: { fillColor: [252, 253, 254] },
@@ -987,12 +989,12 @@ export function PixConference() {
           doc.setFontSize(7);
           doc.setTextColor(180);
           doc.text(str, pageWidth / 2, pageHeight - 8, { align: 'center' });
-          doc.text('Relatório Histórico de Extrato Pix', margin, pageHeight - 8);
+          doc.text('Relatório de Conferência Pix (Espaço reservado para canetada manual)', margin, pageHeight - 8);
         }
       });
 
-      doc.save(`Extrato_Pix_Conciliado_${new Date().toISOString().split('T')[0]}.pdf`);
-      setNotification({ type: 'success', message: 'PDF do Extrato gerado com sucesso!' });
+      doc.save(`Extrato_Conferencia_Pix_${new Date().toISOString().split('T')[0]}.pdf`);
+      setNotification({ type: 'success', message: 'PDF do Extrato (Conferência em Paisagem) gerado com sucesso!' });
     } catch (error: any) {
       setNotification({ type: 'error', message: 'Erro ao gerar PDF: ' + error.message });
     }
@@ -2640,6 +2642,7 @@ export function PixConference() {
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno Vinculado</th>
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Observação Manual</th>
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
                       </tr>
                     </thead>
@@ -2693,6 +2696,9 @@ export function PixConference() {
                               <p className="text-sm font-black text-[#00174b]">
                                 {formatCurrencyLocal(t.amount)}
                               </p>
+                            </td>
+                            <td className="px-8 py-4 text-center">
+                              <div className="mx-auto border-b border-dashed border-slate-200 w-28 h-5" title="Espaço para anotação manual ao imprimir" />
                             </td>
                             <td className="px-8 py-4">
                               <div className="flex items-center justify-center gap-2">
