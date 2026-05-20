@@ -877,7 +877,7 @@ export function PixConference() {
         return {
           'Nº': idx + 1,
           'ID Transação': item.transaction_id || '',
-          'Data': item.date || '',
+          'Data': formatDateForDisplay(item.date) || item.date || '',
           'Pagador': item.payer_name ? item.payer_name.toUpperCase() : '',
           'Banco Origem': item.origin_bank || 'Não informado',
           'Valor': Number(item.amount) || 0,
@@ -946,7 +946,7 @@ export function PixConference() {
         const student = item.student;
         const className = student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : '';
         return [
-          item.date || '',
+          formatDateForDisplay(item.date) || item.date || '',
           (item.payer_name || '').toUpperCase(),
           item.origin_bank || 'N/I',
           student ? `${student.name} (${student.registration_number})` : '-',
@@ -2653,7 +2653,7 @@ export function PixConference() {
                           <tr key={t.id || index} className="hover:bg-slate-50/30 transition-colors">
                             <td className="px-8 py-4">
                               <p className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{t.transaction_id || '—'}</p>
-                              <p className="text-[11px] font-bold text-slate-500 mt-0.5">{t.date || '—'}</p>
+                              <p className="text-[11px] font-bold text-slate-500 mt-0.5">{formatDateForDisplay(t.date) || t.date || '—'}</p>
                             </td>
                             <td className="px-8 py-4">
                               <p className="font-black text-[#00174b] uppercase text-sm">{t.payer_name || '—'}</p>
