@@ -1214,17 +1214,16 @@ export function Attendance() {
                   <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 min-w-[200px]">Nome do Aluno</th>
                   <th className="px-2 py-2 text-center text-[8px] font-black uppercase border border-slate-900 w-24">RA</th>
                   {monthlyClassDays.map(day => (
-                    <th key={day.dbValue} className="px-1 py-1 text-center border border-slate-900 w-8">
+                    <th key={day.dbValue} className="px-1 py-1 text-center border border-slate-900 w-12">
                       <p className="text-[9px] font-black leading-none">{day.dayNumber}</p>
                       <p className="text-[6px] font-bold uppercase leading-none mt-0.5">{day.weekday}</p>
                     </th>
                   ))}
-                  <th className="px-4 py-2 text-left text-[8px] font-black uppercase border border-slate-900 w-32">Visto</th>
                 </tr>
               </thead>
               <tbody>
                 {students.map((student, idx) => (
-                  <tr key={student.id} className="h-9">
+                  <tr key={student.id} className="h-11">
                     <td className="px-2 py-1 text-center text-[10px] font-black border border-slate-300">{idx + 1}</td>
                     <td className="px-4 py-1 text-[10px] font-black uppercase border border-slate-300 whitespace-nowrap overflow-hidden">{student.name}</td>
                     <td className="px-2 py-1 text-[8px] font-bold border border-slate-300 text-center">{student.registration_number}</td>
@@ -1233,7 +1232,6 @@ export function Attendance() {
                         <div className="w-full h-full border-b border-slate-100/50"></div>
                       </td>
                     ))}
-                    <td className="px-4 py-1 border border-slate-300"></td>
                   </tr>
                 ))}
               </tbody>
