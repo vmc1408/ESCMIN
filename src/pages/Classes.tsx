@@ -334,9 +334,17 @@ export function Classes() {
 
   const handleNew = () => {
     setSelectedClass(null);
+
+    // Suggest next numeric code
+    const maxCode = classes.reduce((max, c) => {
+      const num = parseInt(c.code, 10);
+      return !isNaN(num) ? Math.max(max, num) : max;
+    }, 0);
+    const nextCode = String(maxCode + 1).padStart(3, '0');
+
     setFormData({
       name: '',
-      code: '',
+      code: nextCode,
       status: 'Ativo',
       days_of_week: [],
       period: 'Tarde',

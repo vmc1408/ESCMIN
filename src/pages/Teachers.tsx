@@ -305,9 +305,17 @@ export function Teachers() {
 
   const handleNew = () => {
     setSelectedTeacher(null);
+    
+    // Suggest next numeric code
+    const maxCode = teachers.reduce((max, t) => {
+      const num = parseInt(t.code, 10);
+      return !isNaN(num) ? Math.max(max, num) : max;
+    }, 0);
+    const nextCode = String(maxCode + 1).padStart(3, '0');
+
     setFormData({
       name: '',
-      code: String(teachers.length + 1).padStart(3, '0'),
+      code: nextCode,
       status: 'Ativo',
       subject_ids: [],
     });

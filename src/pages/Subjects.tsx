@@ -265,9 +265,17 @@ export function Subjects() {
 
   const handleNew = () => {
     setSelectedSubject(null);
+    
+    // Suggest next numeric code
+    const maxCode = subjects.reduce((max, s) => {
+      const num = parseInt(s.code, 10);
+      return !isNaN(num) ? Math.max(max, num) : max;
+    }, 0);
+    const nextCode = String(maxCode + 1).padStart(3, '0');
+
     setFormData({
       name: '',
-      code: String(subjects.length + 1).padStart(3, '0'),
+      code: nextCode,
       status: 'Ativo',
       year: '',
       semester: '',
