@@ -73,6 +73,8 @@ export function PixConference() {
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [registeredPixIds, setRegisteredPixIds] = useState<Set<string>>(new Set());
   const [reconciliationMap, setReconciliationMap] = useState<Map<string, string>>(new Map());
+  const [extratoPdfBlobUrl, setExtratoPdfBlobUrl] = useState<string | null>(null);
+  const [showExtratoPreview, setShowExtratoPreview] = useState(false);
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
@@ -1155,36 +1157,20 @@ export function PixConference() {
         }
       });
 
-      // Use a hidden iframe to invoke print directly without popup-blocking
-      const blobUrl = doc.output('bloburl');
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.src = String(blobUrl);
-      document.body.appendChild(iframe);
+      // Convert to blob and URL for clean embedded previewing
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
       
-      iframe.onload = () => {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        }
-        // clean up the iframe after triggering the print window
-        setTimeout(() => {
-          try {
-            document.body.removeChild(iframe);
-          } catch (e) {
-            console.warn('Iframe cleanup warning:', e);
-          }
-        }, 3000);
-      };
-
-      setNotification({ type: 'success', message: 'Preparando impressão do extrato...' });
+      // Revoke older URL if exists
+      if (extratoPdfBlobUrl) {
+        URL.revokeObjectURL(extratoPdfBlobUrl);
+      }
+      
+      setExtratoPdfBlobUrl(blobUrl);
+      setShowExtratoPreview(true);
+      setNotification({ type: 'success', message: 'Visualização do extrato gerada!' });
     } catch (error: any) {
-      setNotification({ type: 'error', message: 'Erro ao imprimir extrato: ' + error.message });
+      setNotification({ type: 'error', message: 'Erro ao gerar extrato para visualização: ' + error.message });
     }
   };
 
@@ -3253,6 +3239,69 @@ export function PixConference() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Extrato Print Preview Modal */}
+        {showExtratoPreview && extratoPdfBlobUrl && (
+          <div className="fixed inset-0 bg-[#00174b]/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 md:p-8">
+            <div className="bg-white w-full max-w-6xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[90vh] animate-in fade-in zoom-in duration-300">
+              {/* Header */}
+              <div className="p-6 md:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/50 gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-green-600 text-white flex items-center justify-center shadow-lg shadow-green-200">
+                    <Printer size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-[#00174b]">Visualização do Extrato</h3>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Visualize o documento configurado e escolha a impressora</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button 
+                    onClick={() => {
+                      const iframe = document.getElementById('extrato-preview-iframe') as HTMLIFrameElement;
+                      if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                      }
+                    }}
+                    className="px-6 py-3.5 bg-green-600 text-white rounded-2xl font-black flex items-center gap-2 hover:bg-green-700 hover:scale-105 transition-all shadow-xl active:scale-95 text-xs uppercase tracking-wider"
+                  >
+                    <Printer size={18} />
+                    Imprimir / Escolher Impressora
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = extratoPdfBlobUrl;
+                      link.download = `Extrato_Conferencia_Pix_${new Date().toISOString().split('T')[0]}.pdf`;
+                      link.click();
+                    }}
+                    className="px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black flex items-center gap-2 hover:bg-blue-700 hover:scale-105 transition-all shadow-xl active:scale-95 text-xs uppercase tracking-wider"
+                  >
+                    <Download size={18} />
+                    Baixar PDF
+                  </button>
+                  <button 
+                    onClick={() => setShowExtratoPreview(false)}
+                    className="p-3.5 bg-white text-slate-400 hover:text-red-500 rounded-2xl transition-all border border-slate-100 hover:bg-slate-50"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* PDF Content Area */}
+              <div className="flex-1 bg-slate-100 p-4 md:p-6 flex items-center justify-center relative">
+                <iframe 
+                  id="extrato-preview-iframe" 
+                  src={extratoPdfBlobUrl} 
+                  className="w-full h-full rounded-2xl border border-slate-200/80 shadow-inner bg-white" 
+                  title="Extrato PDF Preview"
+                />
               </div>
             </div>
           </div>
