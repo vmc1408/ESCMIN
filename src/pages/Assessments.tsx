@@ -41,6 +41,11 @@ export const Assessments: React.FC = () => {
     loadData();
   }, []);
 
+  const parseDateToDB = (dateStr: string | undefined | null): string | null => {
+    if (!dateStr) return null;
+    return dateStr;
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -104,6 +109,7 @@ export const Assessments: React.FC = () => {
     try {
       const dataToSave = {
         ...formData,
+        date: parseDateToDB(formData.date),
         user_id: formData.user_id || user?.uid || null,
         created_at: formData.created_at || new Date().toISOString()
       };

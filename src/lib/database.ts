@@ -218,8 +218,8 @@ export const saveData = async (collectionName: string, id: string | undefined, d
             ? (errorVal.message || String(errorVal)) 
             : String(errorVal);
 
-          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT')) {
-            console.warn(`[Supabase Retry] Timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
+          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Failed to fetch') || errorMsg.includes('Network Error')) {
+            console.warn(`[Supabase Retry] Erro de rede ou timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
             attempts++;
             await wait(1000 * attempts);
             continue;
@@ -305,9 +305,9 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
             ? (errorVal.message || String(errorVal)) 
             : String(errorVal);
 
-          // Retry logic for timeouts
-          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT')) {
-            console.warn(`[Supabase Batch Retry] Timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
+          // Retry logic for timeouts or network errors
+          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Failed to fetch') || errorMsg.includes('Network Error')) {
+            console.warn(`[Supabase Batch Retry] Erro de rede ou timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
             attempts++;
             await wait(1000 * attempts);
             continue;

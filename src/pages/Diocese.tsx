@@ -550,9 +550,7 @@ export function Diocese() {
       
       if (activeTab === 'parishes' || activeTab === 'dashboard') {
         const foundationDate = (dataForDB as any).foundation_date;
-        if (foundationDate) {
-          (dataForDB as any).foundation_date = parseDateToDB(foundationDate);
-        }
+        (dataForDB as any).foundation_date = foundationDate ? parseDateToDB(foundationDate) : null;
       }
       
       if (activeTab === 'clergy') {
