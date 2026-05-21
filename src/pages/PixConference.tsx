@@ -29,7 +29,14 @@ import {
   Database,
   SlidersHorizontal,
   CalendarDays,
-  CalendarRange
+  CalendarRange,
+  History as HistoryIcon,
+  DownloadCloud,
+  Link as LinkIcon,
+  Clock,
+  Calendar,
+  UserPlus,
+  User
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import fuzzysort from 'fuzzysort';
@@ -499,6 +506,38 @@ export function PixConference() {
     } catch (error: any) {
       console.error('Erro na exclusão sincronizada:', error);
       setNotification({ type: 'error', message: 'Erro ao excluir sincronizadamente: ' + error.message });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteHistoryItem = async (reconciliationId: string) => {
+    if (!window.confirm("Deseja excluir permanentemente este registro e todos os seus vínculos financeiros?")) return;
+    setIsDeleting(true);
+    try {
+      const results = await fetchQuery('pix_reconciliations', [
+        { field: 'id', operator: '==', value: reconciliationId }
+      ]);
+      const transactionId = results && results.length > 0 ? results[0].transaction_id : null;
+
+      if (transactionId || reconciliationId) {
+        const [s1, s2] = await Promise.all([
+          fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: reconciliationId }]),
+          transactionId ? fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }]) : Promise.resolve([])
+        ]);
+        
+        const docsToDelete = [...(s1 || []), ...(s2 || [])];
+        for (const d of docsToDelete) {
+          await deleteData('contributions', d.id);
+        }
+      }
+
+      await deleteData('pix_reconciliations', reconciliationId);
+      await fetchHistory();
+      setNotification({ type: 'success', message: 'Registro excluído com sucesso.' });
+    } catch (e: any) {
+      console.error('Error deleting history item:', e);
+      setNotification({ type: 'error', message: 'Erro ao excluir registro.' });
     } finally {
       setIsDeleting(false);
     }
@@ -1667,13 +1706,13 @@ export function PixConference() {
     <>
       {/* Save Progress Overlay */}
       {isSaving && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-[#00174b]/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full text-center space-y-6">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white p-10 rounded-3xl shadow-2xl max-w-sm w-full text-center space-y-6 border border-slate-100">
             <div className="relative w-24 h-24 mx-auto">
               <svg className="w-full h-full" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" strokeWidth="8" />
                 <circle 
-                  cx="50" cy="50" r="45" fill="none" stroke="#2563eb" strokeWidth="8" 
+                  cx="50" cy="50" r="45" fill="none" stroke="#10b981" strokeWidth="8" 
                   strokeDasharray="282.7" 
                   strokeDashoffset={282.7 - (282.7 * saveProgress) / 100}
                   strokeLinecap="round"
@@ -1681,16 +1720,16 @@ export function PixConference() {
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-black text-[#00174b] transition-all">{saveProgress}%</span>
+                <span className="text-xl font-bold text-slate-900 transition-all">{saveProgress}%</span>
               </div>
             </div>
             <div>
-              <h3 className="text-xl font-black text-[#00174b]">Vinculando Registros</h3>
+              <h3 className="text-xl font-bold text-slate-900">Vinculando Registros</h3>
               <p className="text-slate-500 text-sm mt-2">Por favor, não feche esta página enquanto processamos a conciliação financeira.</p>
             </div>
             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div 
-                className="bg-blue-600 h-full transition-all duration-300"
+                className="bg-emerald-500 h-full transition-all duration-300"
                 style={{ width: `${saveProgress}%` }}
               />
             </div>
@@ -1701,24 +1740,25 @@ export function PixConference() {
       {/* Notification Toast */}
       {notification && (
         <div className={cn(
-          "fixed top-6 right-6 z-[200] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300",
-          notification.type === 'success' ? "bg-green-600 text-white" : "bg-red-600 text-white"
+          "fixed top-6 right-6 z-[200] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 border",
+          notification.type === 'success' ? "bg-emerald-600 border-emerald-500 text-white" : "bg-red-600 border-red-500 text-white"
         )}>
           {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-          <p className="font-bold text-sm">{notification.message}</p>
+          <p className="font-semibold text-sm">{notification.message}</p>
           <button onClick={() => setNotification(null)} className="ml-2 opacity-70 hover:opacity-100">
             <X size={16} />
           </button>
         </div>
       )}
 
-      <div className="max-w-[1920px] mx-auto space-y-6 print:hidden">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="max-w-[1920px] mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
           <div>
-            <h2 className="text-3xl font-black text-[#00174b] tracking-tight">Conferência de Pix</h2>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Conferência de Pix</h2>
+            <p className="text-slate-500 text-sm font-medium mt-1">Conciliação financeira e lançamento automático de contribuições.</p>
           </div>
 
-          <div className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
             <button 
               onClick={() => {
                 setActiveTab('new');
@@ -1727,32 +1767,32 @@ export function PixConference() {
                 setSelectedIds(new Set());
               }}
               className={cn(
-                "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-                activeTab === 'new' ? "bg-[#00174b] text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+                "px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'new' ? "bg-white text-slate-900 shadow-sm border border-slate-200/50" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              <Plus size={18} />
+              <Plus size={16} />
               Novo Arquivo
             </button>
             <button 
               onClick={() => setActiveTab('history')}
               className={cn(
-                "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-                activeTab === 'history' ? "bg-[#00174b] text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+                "px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'history' ? "bg-white text-slate-900 shadow-sm border border-slate-200/50" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              <RotateCcw size={18} />
-              Histórico de Lotes
+              <RotateCcw size={16} />
+              Histórico
             </button>
             <button 
               onClick={() => setActiveTab('extrato')}
               className={cn(
-                "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-                activeTab === 'extrato' ? "bg-[#00174b] text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+                "px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'extrato' ? "bg-white text-slate-900 shadow-sm border border-slate-200/50" : "text-slate-400 hover:text-slate-600"
               )}
             >
-              <FileSpreadsheet size={18} />
-              Extrato Pix
+              <FileSpreadsheet size={16} />
+              Extrato
             </button>
           </div>
           
@@ -1760,14 +1800,14 @@ export function PixConference() {
             <button 
               onClick={() => setIsSimulationMode(!isSimulationMode)}
               className={cn(
-                "px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 border",
+                "px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 border",
                 isSimulationMode 
                   ? "bg-amber-500 text-white border-amber-600 shadow-lg shadow-amber-100" 
-                  : "bg-white text-slate-400 border-slate-100"
+                  : "bg-slate-50 text-slate-400 border-slate-200"
               )}
             >
-              {isSimulationMode ? <Check size={16} /> : <Database size={16} />}
-              {isSimulationMode ? 'Modo Simulação ON' : 'Modo Simulação OFF'}
+              {isSimulationMode ? <Check size={14} /> : <Database size={14} />}
+              {isSimulationMode ? 'Simulação Ativa' : 'Modo Simulação'}
             </button>
 
             {activeTab === 'new' && transactions.length > 0 && (
@@ -1775,10 +1815,10 @@ export function PixConference() {
                 onClick={handleSave} 
                 disabled={isSaving || isSimulationMode} 
                 className={cn(
-                  "flex items-center gap-2 px-6 py-3 rounded-2xl font-bold hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 min-w-[200px] justify-center",
+                  "flex items-center gap-2 px-8 py-3 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50 shadow-lg",
                   selectedIds.size > 0 
-                    ? "bg-blue-600 text-white shadow-blue-100" 
-                    : "bg-[#00174b] text-white"
+                    ? "bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700" 
+                    : "bg-slate-900 text-white shadow-slate-200 hover:bg-slate-800"
                 )}
               >
                 {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
@@ -1787,7 +1827,7 @@ export function PixConference() {
                 ) : (
                   selectedIds.size > 0 
                     ? `Salvar Selecionados (${selectedIds.size})` 
-                    : 'Salvar Lote Completo'
+                    : 'Salvar Conciliação'
                 )}
               </button>
             )}
@@ -1795,89 +1835,92 @@ export function PixConference() {
         </header>
 
         {activeTab === 'new' && (
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden mb-6">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-6">
             <button 
               onClick={() => setShowMappingConfig(!showMappingConfig)}
-              className="w-full px-8 py-5 flex items-center justify-between hover:bg-slate-50 transition-colors"
+              className={cn(
+                "w-full px-8 py-6 flex items-center justify-between transition-colors",
+                showMappingConfig ? "bg-slate-50/50" : "hover:bg-slate-50/30"
+              )}
             >
               <div className="flex items-center gap-3">
-                <FileSpreadsheet className="text-blue-600" size={20} />
-                <span className="font-black text-[#00174b] uppercase tracking-wider text-sm">Configuração de Mapeamento (Colunas)</span>
+                <SlidersHorizontal className="text-indigo-600" size={20} />
+                <span className="font-bold text-slate-900 uppercase tracking-wider text-xs">Configuração de Mapeamento (Colunas)</span>
               </div>
-              {showMappingConfig ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              {showMappingConfig ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
             </button>
             
             {showMappingConfig && (
-              <div className="p-8 bt-1 border-t border-slate-50 bg-slate-50/30 animate-in slide-in-from-top-2 duration-300">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Selecione o seu banco ou informe o nome exato das colunas na sua planilha:</p>
+              <div className="p-8 border-t border-slate-100 bg-slate-50/30 animate-in slide-in-from-top-2 duration-300">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Selecione o seu banco ou informe o nome exato das colunas na sua planilha:</p>
                 
                 <div className="flex flex-wrap gap-2 mb-8">
                   {(Object.keys(BANK_PRESETS) as Array<keyof typeof BANK_PRESETS>).map(bank => (
                     <button 
                       key={bank}
                       onClick={() => handleApplyPreset(bank)}
-                      className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm"
+                      className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm"
                     >
                       {bank}
                     </button>
                   ))}
                   <button 
                     onClick={() => setCustomMapping({ date: '', payer: '', amount: '', id: '', bank: '' })}
-                    className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+                    className="px-5 py-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all"
                   >
-                    Limpar
+                    Limpar Mapeamento
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Data</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-widest uppercase ml-1">Coluna: Data</label>
                     <input 
                       type="text" 
                       value={customMapping.date} 
                       onChange={(e) => setCustomMapping({...customMapping, date: e.target.value})}
                       placeholder="Ex: Data Operação"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Pagador/Nome</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-widest uppercase ml-1">Coluna: Pagador/Nome</label>
                     <input 
                       type="text" 
                       value={customMapping.payer} 
                       onChange={(e) => setCustomMapping({...customMapping, payer: e.target.value})}
                       placeholder="Ex: Nome Cliente"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Valor</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-widest uppercase ml-1">Coluna: Valor</label>
                     <input 
                       type="text" 
                       value={customMapping.amount} 
                       onChange={(e) => setCustomMapping({...customMapping, amount: e.target.value})}
                       placeholder="Ex: Valor (R$)"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: ID Transação</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-widest uppercase ml-1">Coluna: ID Transação</label>
                     <input 
                       type="text" 
                       value={customMapping.id} 
                       onChange={(e) => setCustomMapping({...customMapping, id: e.target.value})}
                       placeholder="Ex: E2E ID"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 tracking-widest uppercase">Coluna: Banco Origem</label>
+                    <label className="text-[10px] font-bold text-slate-400 tracking-widest uppercase ml-1">Coluna: Banco</label>
                     <input 
                       type="text" 
                       value={customMapping.bank} 
                       onChange={(e) => setCustomMapping({...customMapping, bank: e.target.value})}
                       placeholder="Ex: Instituição"
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -1890,54 +1933,54 @@ export function PixConference() {
           <>
             {transactions.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <CreditCard size={24} />
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center border border-slate-100">
+                    <CreditCard size={22} />
                   </div>
                   <div>
-                    <p className="text-2xl font-black text-[#00174b]">{stats.total}</p>
+                    <p className="text-2xl font-bold text-slate-900 tracking-tight">{stats.total}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Arquivo</p>
                   </div>
                 </div>
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center">
-                    <UserCheck size={24} />
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                    <UserCheck size={22} />
                   </div>
                   <div>
-                    <p className="text-2xl font-black text-green-600">{stats.matched}</p>
+                    <p className="text-2xl font-bold text-emerald-600 tracking-tight">{stats.matched}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Conciliados</p>
                   </div>
                 </div>
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                    <Users size={24} />
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                    <Users size={22} />
                   </div>
                   <div>
-                    <p className="text-2xl font-black text-orange-600">{stats.multiple}</p>
+                    <p className="text-2xl font-bold text-amber-600 tracking-tight">{stats.multiple}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Conflitos</p>
                   </div>
                 </div>
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center">
-                    <UserX size={24} />
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center border border-red-100">
+                    <UserX size={22} />
                   </div>
                   <div>
-                    <p className="text-2xl font-black text-red-600">{stats.unmatched}</p>
+                    <p className="text-2xl font-bold text-red-600 tracking-tight">{stats.unmatched}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pendentes</p>
                   </div>
                 </div>
                 <div className={cn(
-                  "bg-white p-6 rounded-[2rem] border shadow-sm flex items-center gap-4 transition-all",
+                  "bg-white p-6 rounded-2xl border shadow-sm flex items-center gap-4 transition-all hover:shadow-md",
                   stats.duplicates > 0 ? "border-amber-200 bg-amber-50/30" : "border-slate-100"
                 )}>
                   <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors",
-                    stats.duplicates > 0 ? "bg-amber-100 text-amber-600" : "bg-amber-50 text-amber-600"
+                    "w-12 h-12 rounded-xl flex items-center justify-center transition-colors border",
+                    stats.duplicates > 0 ? "bg-amber-100 text-amber-600 border-amber-200" : "bg-slate-50 text-slate-400 border-slate-100"
                   )}>
-                    <Database size={24} />
+                    <Database size={22} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-2xl font-black text-amber-600">{stats.duplicates}</p>
+                    <p className="text-2xl font-bold text-amber-600 tracking-tight">{stats.duplicates}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No Sistema</p>
                   </div>
                   {stats.duplicates > 0 && (
@@ -1945,7 +1988,7 @@ export function PixConference() {
                       onClick={handleResetDatabase}
                       disabled={isDeleting}
                       title="Limpar todos os registros para re-importar"
-                      className="p-2 bg-amber-100 text-amber-600 rounded-lg hover:bg-amber-200 transition-colors"
+                      className="p-2.5 bg-white border border-amber-200 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-all shadow-sm"
                     >
                       <RotateCcw size={16} />
                     </button>
@@ -1960,68 +2003,69 @@ export function PixConference() {
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileUpload(e); }}
                 className={cn(
-                  "bg-white rounded-[2.5rem] border-2 border-dashed p-12 text-center transition-all duration-300 shadow-sm",
-                  isDragging ? "border-blue-500 bg-blue-50/50" : "border-slate-200 hover:border-blue-400/50"
+                  "bg-white rounded-[2.5rem] border-2 border-dashed p-16 text-center transition-all duration-300 shadow-sm",
+                  isDragging ? "border-indigo-500 bg-indigo-50/50" : "border-slate-200 hover:border-indigo-400/50"
                 )}
               >
                 <div className="flex flex-col items-center max-w-lg mx-auto">
-                  <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                    <CloudUpload size={32} className="text-blue-600" />
+                  <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mb-8 shadow-inner">
+                    <CloudUpload size={40} className="text-indigo-600" />
                   </div>
-                  <h3 className="text-2xl font-black text-[#00174b] mb-2 tracking-tight">Importar Extrato Pix</h3>
-                  <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">Arraste seu arquivo Excel para processamento automático ou selecione manualmente em seu computador.</p>
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Importar Extrato Pix</h3>
+                  <p className="text-slate-500 text-sm font-medium mb-10 leading-relaxed max-w-sm">Arraste seu arquivo Excel para processamento automático ou selecione manualmente em seu computador.</p>
                   
-                  <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
-                    <label className="flex-1 max-w-[240px] px-6 py-4 bg-[#00174b] text-white rounded-xl font-bold cursor-pointer hover:bg-blue-900 transition-all shadow-lg active:scale-95 text-sm flex items-center justify-center gap-2">
-                      <Plus size={18} />
-                      Selecionar Arquivo
+                  <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                    <label className="flex-1 max-w-[240px] px-8 py-4 bg-slate-900 text-white rounded-xl font-bold cursor-pointer hover:bg-slate-800 transition-all shadow-xl active:scale-95 text-sm flex items-center justify-center gap-2">
+                      <Plus size={20} />
+                      Escolher Arquivo
                       <input type="file" className="hidden" accept=".xlsx,.xls" onChange={handleFileUpload} />
                     </label>
-                    <button onClick={fetchStudents} className="flex-1 max-w-[240px] px-6 py-4 bg-white text-slate-600 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm">
-                      <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-                      Sincronizar Alunos
+                    <button onClick={fetchStudents} className="flex-1 max-w-[240px] px-8 py-4 bg-white text-slate-700 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2 text-sm shadow-sm group">
+                      <RefreshCw size={18} className={cn("text-slate-400 group-hover:text-slate-600 transition-colors", loading ? "animate-spin" : "")} />
+                      Sincronizar Dados
                     </button>
                   </div>
                   
-                  <div className="mt-8 pt-8 border-t border-slate-50 w-full flex items-center justify-center gap-6">
+                  <div className="mt-12 pt-8 border-t border-slate-100 w-full flex items-center justify-center gap-8 text-slate-400">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{students.length} Alunos Online</span>
+                       <CheckCircle2 size={16} className="text-emerald-500" />
+                       <span className="text-[10px] font-bold uppercase tracking-widest">{students.length} Alunos na Base</span>
                     </div>
                     <div className="flex items-center gap-2">
-                       <FileSpreadsheet size={14} className="text-slate-300" />
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suporta .XLSX e .XLS</span>
+                       <FileSpreadsheet size={16} />
+                       <span className="text-[10px] font-bold uppercase tracking-widest">Excel (.xlsx, .xls)</span>
+                    </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-xl overflow-hidden">
-                <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                      <FileSpreadsheet size={24} />
+              ) : (
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden border-t-4 border-t-indigo-600 animate-in slide-in-from-bottom-2 duration-500">
+                <div className="p-8 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-slate-50/30">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                      <FileSpreadsheet size={28} />
                     </div>
-                    <div className="flex-1 min-w-[280px]">
-                      <div className="flex items-center gap-2 group">
+                    <div className="flex-1 min-w-[320px]">
+                      <div className="flex items-center gap-2 group relative">
                         <input
                           type="text"
                           value={customFileName}
                           onChange={(e) => setCustomFileName(e.target.value)}
                           placeholder="Nome de identificação do lote (ex: Lote Maio 2026)"
-                          className="text-lg font-black text-[#00174b] bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-blue-500 focus:ring-0 px-0 py-0.5 focus:outline-none w-full transition-all"
-                          title="Clique para editar o nome do lote para controle e filtros futuros"
+                          className="text-xl font-bold text-slate-900 bg-transparent border-b-2 border-dashed border-slate-200 hover:border-indigo-400 focus:border-indigo-600 focus:ring-0 px-0 py-1 focus:outline-none w-full transition-all"
+                          title="Edite o nome para identificar este lote no histórico"
                         />
                       </div>
-                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                        <p className="text-xs font-bold text-slate-400">
-                          {transactions.length} transações • Total {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalAmount)} •
-                          <span className="text-blue-600 font-extrabold ml-1 uppercase text-[9px] tracking-wider bg-blue-50 px-1.5 py-0.5 rounded">
-                            ✏️ Nome de Controle do Lote (Edite se desejar)
-                          </span>
+                      <div className="flex items-center gap-4 mt-2 flex-wrap">
+                        <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                          {transactions.length} transações importadas
+                        </p>
+                        <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalAmount)}
                         </p>
                         {selectedIds.size > 0 && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase rounded tracking-wider animate-in fade-in zoom-in">
+                          <span className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-bold uppercase rounded-xl tracking-wider animate-in fade-in zoom-in shadow-md shadow-indigo-100">
                             {selectedIds.size} selecionados
                           </span>
                         )}
@@ -2029,32 +2073,36 @@ export function PixConference() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-4">
                     <div className="relative">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input 
                         type="text" 
-                        placeholder="Buscar pagador ou banco..."
+                        placeholder="Filtrar nesta lista..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-12 pr-6 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 w-64 transition-all"
+                        className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 w-full md:w-64 transition-all outline-none"
                       />
                     </div>
-                    <div className="flex bg-slate-50 p-1 rounded-2xl">
+                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 shadow-inner">
                       {(['all', 'matched', 'multiple', 'unmatched'] as const).map((f) => (
                         <button
                           key={f}
                           onClick={() => setFilter(f)}
                           className={cn(
-                            "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
-                            filter === f ? "bg-white text-[#00174b] shadow-sm" : "text-slate-400 hover:text-slate-600"
+                            "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                            filter === f ? "bg-white text-slate-900 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-700"
                           )}
                         >
-                          {f === 'all' ? 'Ver Todos' : f === 'matched' ? 'Conciliados' : f === 'multiple' ? 'Conflitos' : 'Pendentes'}
+                          {f === 'all' ? 'Ver Todos' : f === 'matched' ? 'Concluidos' : f === 'multiple' ? 'Conflitos' : 'Sem Match'}
                         </button>
                       ))}
                     </div>
-                    <button onClick={() => { setFile(null); setTransactions([]); }} className="p-3 text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                    <button 
+                      onClick={() => { setFile(null); setTransactions([]); }} 
+                      className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 rounded-xl transition-all shadow-sm"
+                      title="Cancelar importação"
+                    >
                       <X size={20} />
                     </button>
                   </div>
@@ -2072,128 +2120,124 @@ export function PixConference() {
                             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                           />
                         </th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data / ID</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Banco Origem</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagador</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno Identificado</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data / ID</th>
+                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Banco Origem</th>
+                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pagador</th>
+                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor</th>
+                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aluno Identificado</th>
+                        <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Ações</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-100">
                       {filteredTransactions.map((t) => (
                         <tr 
                           key={t.transaction_id} 
                           className={cn(
-                            "group transition-colors",
-                            selectedIds.has(String(t.transaction_id)) ? "bg-blue-50/50" : "hover:bg-slate-50/30"
+                            "group transition-all duration-200 border-b border-slate-50",
+                            selectedIds.has(String(t.transaction_id)) ? "bg-indigo-50/40" : "hover:bg-slate-50/50"
                           )}
                         >
-                          <td className="px-6 py-6 text-center">
+                          <td className="px-6 py-4 text-center">
                             <input 
                               type="checkbox"
                               checked={selectedIds.has(String(t.transaction_id))}
                               onChange={() => toggleSelect(String(t.transaction_id))}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              className="w-4 h-4 rounded-md border-slate-300 text-indigo-600 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer transition-all"
                             />
                           </td>
-                          <td className="px-4 py-6">
-                            <p className="text-sm font-bold text-[#00174b]">{formatDateForDisplay(t.date)}</p>
-                            <p className="text-[10px] font-mono text-slate-400 mt-1">{t.transaction_id}</p>
+                          <td className="px-4 py-4">
+                            <p className="text-[13px] font-bold text-slate-900 tracking-tight">{formatDateForDisplay(t.date)}</p>
+                            <p className="text-[10px] font-mono text-slate-400 mt-1 uppercase select-all">{t.transaction_id}</p>
                           </td>
-                          <td className="px-4 py-6">
-                            <span className="px-3 py-1 bg-slate-100 text-[11px] font-black text-slate-600 rounded-lg uppercase tracking-wider">
-                              {t.origin_bank}
+                          <td className="px-4 py-4">
+                            <span className="px-2.5 py-1 bg-white border border-slate-200 text-[10px] font-bold text-slate-500 rounded-lg uppercase tracking-wider inline-block">
+                              {t.origin_bank || '---'}
                             </span>
                           </td>
-                          <td className="px-4 py-6">
-                            <p className="text-base font-black text-[#00174b] uppercase">{t.payer_name}</p>
+                          <td className="px-4 py-4">
+                            <p className="text-sm font-bold text-slate-900 uppercase tracking-tight line-clamp-1">{t.payer_name}</p>
                           </td>
-                          <td className="px-4 py-6">
-                            <p className="text-lg font-black text-[#00174b]">
+                          <td className="px-4 py-4">
+                            <p className="text-base font-bold text-slate-900">
                               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
                             </p>
                           </td>
-                          <td className="px-4 py-6">
+                          <td className="px-4 py-4">
                             {t.status === 'matched' ? (
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
-                                  <UserCheck size={20} />
+                              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/50">
+                                  <UserCheck size={18} />
                                 </div>
-                                <div>
-                                  <p className="text-sm font-black text-green-700">
+                                <div className="max-w-[280px]">
+                                  <p className="text-xs font-bold text-slate-900 line-clamp-1">
                                     {(() => {
                                       const student = students.find(s => s.id === t.matched_student_id);
-                                      if (!student) return 'Aluno não encontrado';
+                                      if (!student) return 'Não identificado';
                                       const className = classes.find(c => c.id === student.class_id)?.name || 'Sem Turma';
-                                      return `${student.name} (${student.registration_number}) - ${className}`;
+                                      return `${student.name} (${student.registration_number})`;
                                     })()}
                                   </p>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 mt-0.5">
                                     {t.is_manual ? (
-                                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 uppercase tracking-tighter animate-pulse shadow-sm shadow-indigo-100">
+                                      <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 uppercase tracking-normal">
                                         Manual
                                       </span>
                                     ) : (
-                                      <span className="text-[10px] font-bold text-green-600/60 uppercase">Automático</span>
+                                      <span className="text-[9px] font-bold text-emerald-600/70 border border-emerald-200/30 bg-emerald-50/50 px-1.5 py-0.5 rounded-md uppercase">Auto</span>
                                     )}
-                                    <span className="w-1 h-1 rounded-full bg-green-200" />
-                                    <span className="text-[10px] font-bold text-green-600/60 uppercase">Conciliado</span>
+                                    <span className="text-[9px] font-bold text-emerald-600/70 uppercase">Conciliado</span>
                                     {registeredPixIds.has(String(t.transaction_id)) && (
-                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded tracking-wider ml-2">
+                                      <span className="px-1.5 py-0.5 bg-indigo-600 text-white text-[8px] font-bold uppercase rounded-md tracking-wider shadow-sm">
                                         Lançado
                                       </span>
                                     )}
                                     {reconciliationMap.has(String(t.transaction_id)) && (
-                                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black uppercase rounded tracking-wider ml-2">
-                                        Já Importado
+                                      <span className="px-1.5 py-0.5 bg-slate-200 text-slate-600 text-[8px] font-bold uppercase rounded-md tracking-wider">
+                                        DB Match
                                       </span>
                                     )}
                                   </div>
                                 </div>
                               </div>
                             ) : t.status === 'multiple' ? (
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                                  <Users size={20} />
+                              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+                                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100/50">
+                                  <Users size={18} />
                                 </div>
                                 <div>
-                                  <p className="text-sm font-black text-orange-700">Conflito de Nomes</p>
-                                  <p className="text-[10px] font-bold text-orange-600/60 uppercase">Verificar Candidatos</p>
+                                  <p className="text-xs font-bold text-amber-700">Duplicidade de Nome</p>
+                                  <p className="text-[9px] font-bold text-amber-600/60 uppercase">Manual Obrigatório</p>
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center">
-                                  <UserX size={20} />
+                              <div className="flex items-center gap-3 animate-in fade-in duration-300">
+                                <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-200/50">
+                                  <UserX size={18} />
                                 </div>
                                 <div>
-                                  <p className="text-sm font-bold text-slate-400 italic">Não Identificado</p>
-                                  <p className="text-[10px] font-bold text-slate-300 uppercase">Pendente</p>
+                                  <p className="text-xs font-bold text-slate-400 italic">Não vinculado</p>
+                                  <p className="text-[9px] font-bold text-slate-300 uppercase">Pendente</p>
                                 </div>
                               </div>
                             )}
                           </td>
-                          <td className="px-8 py-6 text-center">
+                          <td className="px-8 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              {t.status === 'matched' && (
+                              {t.status === 'matched' ? (
                                 <>
                                   <button 
                                     onClick={() => setRegisteringContribution(t)}
                                     className={cn(
-                                      "p-3 rounded-xl transition-all shadow-sm border relative group",
+                                      "p-2.5 rounded-xl transition-all shadow-sm border relative group focus:ring-4 focus:ring-indigo-500/10 outline-none",
                                       registeredPixIds.has(String(t.transaction_id))
-                                        ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
-                                        : "bg-white border-blue-100 text-blue-500 hover:text-blue-700 hover:border-blue-200"
+                                        ? "bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-700"
+                                        : "bg-white border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200"
                                     )}
-                                    title={registeredPixIds.has(String(t.transaction_id)) ? "Lançamento já efetuado - Clique para editar ou realizar novo lançamento" : "Lançar no Extrato do Aluno"}
                                   >
-                                    <CreditCard size={20} />
-                                    {registeredPixIds.has(String(t.transaction_id)) && (
-                                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full flex items-center justify-center">
-                                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                                      </div>
-                                    )}
+                                    <DownloadCloud size={18} />
+                                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 whitespace-nowrap pointer-events-none z-10 shadow-xl font-bold">
+                                      {registeredPixIds.has(String(t.transaction_id)) ? "Gerenciar Lançamento" : "Lançar no Extrato"}
+                                    </div>
                                   </button>
                                   <button 
                                     onClick={() => {
@@ -2202,33 +2246,28 @@ export function PixConference() {
                                     }}
                                     disabled={registeredPixIds.has(String(t.transaction_id))}
                                     className={cn(
-                                      "p-3 rounded-xl transition-all shadow-sm border",
+                                      "p-2.5 rounded-xl transition-all shadow-sm border focus:ring-4 focus:ring-red-500/10 outline-none",
                                       registeredPixIds.has(String(t.transaction_id))
                                         ? "bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed"
-                                        : "bg-white border-red-100 text-red-400 hover:text-red-600 hover:border-red-200"
+                                        : "bg-white border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200"
                                     )}
                                     title="Desfazer Conciliação"
                                   >
-                                    <RotateCcw size={20} />
+                                    <RotateCcw size={18} />
                                   </button>
                                 </>
+                              ) : (
+                                <button 
+                                  onClick={() => {
+                                    const originalIndex = transactions.findIndex(item => item.transaction_id === t.transaction_id);
+                                    if (originalIndex !== -1) setMatchingTransactionIndex(originalIndex);
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95 focus:ring-4 focus:ring-indigo-500/20 outline-none"
+                                >
+                                  <LinkIcon size={14} />
+                                  Vincular Aluno
+                                </button>
                               )}
-                              <button 
-                                onClick={() => {
-                                  const originalIndex = transactions.findIndex(item => item.transaction_id === t.transaction_id);
-                                  if (originalIndex !== -1) setMatchingTransactionIndex(originalIndex);
-                                }}
-                                disabled={registeredPixIds.has(String(t.transaction_id))}
-                                className={cn(
-                                  "p-3 rounded-xl transition-all shadow-sm border",
-                                  registeredPixIds.has(String(t.transaction_id))
-                                    ? "bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed"
-                                    : "bg-white border-slate-200 text-slate-400 hover:text-[#00174b] hover:border-[#00174b]"
-                                )}
-                                title="Vincular Manualmente"
-                              >
-                                <MoreHorizontal size={20} />
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -2249,30 +2288,36 @@ export function PixConference() {
                 <p className="text-slate-400 font-bold">Carregando histórico de arquivos...</p>
               </div>
             ) : history.length === 0 ? (
-              <div className="bg-white rounded-2xl p-20 text-center border border-slate-100">
-                <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 text-slate-300">
-                  <RotateCcw size={40} />
+              <div className="bg-white rounded-3xl p-24 text-center border border-slate-100 shadow-sm animate-in fade-in zoom-in duration-500">
+                <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 text-slate-200 border border-dashed border-slate-200">
+                  <RotateCcw size={48} />
                 </div>
-                <p className="text-slate-400 font-bold text-xl">Nenhum arquivo conciliado encontrado.</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">Sem histórico disponível</h3>
+                <p className="text-slate-500 max-w-sm mx-auto">Nenhuma importação ou conciliação foi realizada ainda. Importe um arquivo para começar.</p>
               </div>
             ) : (
-              <div className="space-y-12">
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div>
-                    <h3 className="text-xl font-black text-[#00174b]">Histórico de Conciliações</h3>
-                    <p className="text-sm font-bold text-slate-400">Gerencie e filtre importações passadas</p>
+              <div className="space-y-12 animate-in fade-in duration-500">
+                <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-8 bg-slate-50/20">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                      <HistoryIcon size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Histórico de Arquivos</h3>
+                      <p className="text-sm font-medium text-slate-500">Gerencie lotes importados e conciliações passadas</p>
+                    </div>
                   </div>
                   
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-4">
                     {selectedHistoryIds.size > 0 && (
-                      <div className="flex items-center gap-2 mr-2">
+                      <div className="flex items-center gap-3 pr-4 border-r border-slate-200 animate-in slide-in-from-left-4">
                         <button 
                           onClick={handleBulkDeleteHistory}
                           disabled={isDeleting}
-                          className="px-6 py-3 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-red-700 transition-all flex items-center gap-2 shadow-lg shadow-red-100"
+                          className="px-6 py-3 bg-red-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-red-700 transition-all flex items-center gap-2 shadow-lg shadow-red-100 active:scale-95 disabled:opacity-50"
                         >
                           {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                          Excluir Selecionados ({selectedHistoryIds.size})
+                          Excluir ({selectedHistoryIds.size})
                         </button>
                       </div>
                     )}
@@ -2280,167 +2325,151 @@ export function PixConference() {
                     <button 
                       onClick={handleResetDatabase}
                       disabled={isDeleting}
-                      className="px-6 py-3 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-amber-600 transition-all flex items-center gap-2 shadow-lg shadow-amber-100"
+                      className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold uppercase tracking-wider hover:text-red-600 hover:border-red-200 transition-all flex items-center gap-2 shadow-sm active:scale-95"
                     >
                       <RotateCcw size={16} />
-                      Limpar Base Total
+                      Limpar Tudo
                     </button>
+                    
                     <button 
                       onClick={toggleHistorySelectAll}
                       className={cn(
-                        "px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border",
+                        "px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border shadow-sm active:scale-95",
                         selectedHistoryIds.size > 0 && selectedHistoryIds.size === historyByMonth.flatMap(m => m.batches.flatMap((b: any) => b.transactions)).length
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-slate-500 border-slate-200 hover:border-blue-400 hover:text-blue-600"
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600"
                       )}
                     >
                       {selectedHistoryIds.size > 0 && selectedHistoryIds.size === historyByMonth.flatMap(m => m.batches.flatMap((b: any) => b.transactions)).length
                         ? "Desmarcar Todos" 
-                        : "Selecionar Todos"
+                        : "Selecionar Tudo"
                       }
                     </button>
 
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <div className="relative group">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
                       <input 
                         type="text" 
-                        placeholder="Buscar no histórico..."
+                        placeholder="Buscar lote ou ID..."
                         value={historySearchQuery}
                         onChange={(e) => setHistorySearchQuery(e.target.value)}
-                        className="pl-12 pr-6 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-blue-500 w-64 transition-all"
+                        className="pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 w-64 transition-all outline-none"
                       />
-                    </div>
-                    <div className="flex bg-slate-50 p-1 rounded-2xl">
-                      {(['all', 'matched', 'multiple', 'unmatched'] as const).map((f) => (
-                        <button
-                          key={f}
-                          onClick={() => setHistoryFilter(f)}
-                          className={cn(
-                            "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
-                            historyFilter === f ? "bg-white text-[#00174b] shadow-sm" : "text-slate-400 hover:text-slate-600"
-                          )}
-                        >
-                          {f === 'all' ? 'Ver Todos' : f === 'matched' ? 'Conciliados' : f === 'multiple' ? 'Conflitos' : 'Pendentes'}
-                        </button>
-                      ))}
                     </div>
                   </div>
                 </div>
 
+                <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50 w-fit">
+                  {(['all', 'matched', 'multiple', 'unmatched'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setHistoryFilter(f)}
+                      className={cn(
+                        "px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all",
+                        historyFilter === f ? "bg-white text-slate-900 shadow-sm border border-slate-200/50" : "text-slate-500 hover:text-slate-700 font-medium"
+                      )}
+                    >
+                      {f === 'all' ? 'Ver Todos' : f === 'matched' ? 'Conciliados' : f === 'multiple' ? 'Conflitos' : 'Pendentes'}
+                    </button>
+                  ))}
+                </div>
+
                 {historyByMonth.map((monthGroup) => (
-                  <div key={monthGroup.key} className="space-y-4">
-                    <div className="flex items-center gap-4 px-4">
-                      <div className="h-px flex-1 bg-slate-100" />
-                      <h4 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                        <Filter size={14} />
+                  <div key={monthGroup.key} className="space-y-6">
+                    <div className="flex items-center gap-6">
+                      <h4 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3 whitespace-nowrap">
+                        <Filter size={16} className="text-slate-300" />
                         {monthGroup.label}
                       </h4>
-                      <div className="h-px flex-1 bg-slate-100" />
+                      <div className="h-px w-full bg-slate-100" />
                     </div>
 
                     <div className="space-y-4">
                       {monthGroup.batches.map((batch: any) => (
-                        <div key={batch.batch_id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:border-blue-100 group/batch">
+                        <div key={batch.batch_id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:border-indigo-200 group/batch">
                           <div 
                             onClick={() => toggleBatch(batch.batch_id)}
-                            className="p-6 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 transition-colors"
+                            className="p-6 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-slate-50/50 transition-colors gap-6"
                           >
-                            <div className="flex items-center gap-5">
+                            <div className="flex items-center gap-6">
                               <div 
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleBatchSelect(batch.transactions);
                                 }}
-                                className="flex items-center justify-center p-2 hover:bg-slate-100 rounded-xl transition-all"
+                                className="flex items-center justify-center p-2.5 hover:bg-indigo-50 rounded-xl transition-all"
                               >
                                 <input 
                                   type="checkbox" 
                                   checked={batch.transactions.every((t: any) => selectedHistoryIds.has(String(t.id)))}
                                   onChange={() => {}} // Controlled by parent div click
-                                  className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                  className="w-5 h-5 rounded-md border-slate-300 text-indigo-600 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer transition-all"
                                 />
                               </div>
-                              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover/batch:scale-110 transition-transform">
+                              <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-100 group-hover/batch:bg-indigo-600 group-hover/batch:text-white transition-all shadow-sm">
                                 <FileSpreadsheet size={28} />
                               </div>
                               <div>
-                                <h3 className="text-lg font-black text-[#00174b] group-hover/batch:text-blue-600 transition-colors uppercase tracking-tight">
+                                <h3 className="text-xl font-bold text-slate-900 group-hover/batch:text-indigo-600 transition-colors uppercase tracking-tight">
                                   {batch.file_name} {batch.transactions.length === 1 && batch.payer_name !== 'N/A' && `(${batch.payer_name})`}
                                 </h3>
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                    {new Date(batch.created_at).toLocaleDateString('pt-BR')} • {new Date(batch.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5">
+                                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                                    <Clock size={12} />
+                                    {new Date(batch.created_at).toLocaleDateString('pt-BR')} às {new Date(batch.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
                                   <span className="w-1 h-1 rounded-full bg-slate-200" />
-                                  <span className="px-2 py-0.5 bg-blue-50 text-[9px] font-black text-blue-500 uppercase rounded-lg tracking-wider border border-blue-100">
-                                    {batch.transactions.length} {batch.transactions.length !== 1 ? 'Transações' : 'Transação'}
-                                  </span>
-                                  {batch.transactions.length > 1 ? (
-                                    <>
-                                      <span className="w-1 h-1 rounded-full bg-slate-200" />
-                                      {(() => {
-                                        const counts = batch.transactions.reduce((acc: any, t: any) => {
-                                          acc[t.status || 'unmatched'] = (acc[t.status || 'unmatched'] || 0) + 1;
-                                          return acc;
-                                        }, {} as any);
-                                        return (
-                                          <div className="flex gap-1.5">
-                                            {counts.matched > 0 && <span className="text-[9px] font-black text-green-600 bg-green-50 px-1.5 py-0.5 rounded-md border border-green-100 uppercase tracking-tighter">{counts.matched} Concil.</span>}
-                                            {counts.multiple > 0 && <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100 uppercase tracking-tighter">{counts.multiple} Confl.</span>}
-                                            {counts.unmatched > 0 && <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100 uppercase tracking-tighter">{counts.unmatched} Pend.</span>}
-                                          </div>
-                                        );
-                                      })()}
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span className="w-1 h-1 rounded-full bg-slate-200" />
-                                      <span className={cn(
-                                        "px-2 py-0.5 text-[9px] font-black uppercase rounded-lg tracking-wider border",
-                                        batch.status === 'matched' ? "bg-green-50 text-green-600 border-green-100" : 
-                                        batch.status === 'multiple' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-slate-50 text-slate-400 border-slate-100"
-                                      )}>
-                                        {batch.status === 'matched' ? 'Conciliado' : batch.status === 'multiple' ? 'Conflito' : 'Pendente'}
-                                      </span>
-                                    </>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-2.5 py-0.5 bg-indigo-50 text-[10px] font-bold text-indigo-600 uppercase rounded-lg tracking-wider border border-indigo-100">
+                                      {batch.transactions.length} Lançamentos
+                                    </span>
+                                    {batch.transactions.length > 1 && (() => {
+                                      const counts = batch.transactions.reduce((acc: any, t: any) => {
+                                        acc[t.status || 'unmatched'] = (acc[t.status || 'unmatched'] || 0) + 1;
+                                        return acc;
+                                      }, {} as any);
+                                      return (
+                                        <div className="flex gap-2">
+                                          {counts.matched > 0 && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100/50 uppercase">{counts.matched} OK</span>}
+                                          {counts.multiple > 0 && <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100/50 uppercase">{counts.multiple} Confl.</span>}
+                                          {counts.unmatched > 0 && <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/50 uppercase">{counts.unmatched} Pend.</span>}
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-8">
+                            
+                            <div className="flex items-center gap-10">
                               <div className="hidden sm:flex flex-col items-end">
-                                <p className="text-xl font-black text-[#00174b]">
+                                <p className="text-2xl font-bold text-slate-900 tracking-tight">
                                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(batch.filteredTotalAmount || batch.totalAmount)}
                                 </p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor Total</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Montante Total</p>
                               </div>
                               
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 {deleteConfirmId === batch.batch_id ? (
-                                  <div className="flex flex-col items-end gap-2 bg-red-50 p-2.5 rounded-2xl border border-red-100 animate-in fade-in slide-in-from-right-4 ring-4 ring-red-50/50">
-                                    <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 bg-red-50 p-2 rounded-2xl border border-red-100 animate-in fade-in slide-in-from-right-4 ring-4 ring-red-50/50">
+                                    <div className="flex items-center gap-1.5 px-2">
                                       <AlertCircle size={14} className="text-red-500" />
-                                      <p className="text-[9px] font-black text-red-600 uppercase">
-                                        Confirmar exclusão?
-                                      </p>
+                                      <p className="text-[9px] font-bold text-red-600 uppercase">Confirmar?</p>
                                     </div>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className="flex items-center gap-1.5">
                                       {isDeleting ? (
-                                        <div className="px-3 py-1 flex items-center gap-2">
-                                          <Loader2 size={12} className="animate-spin text-red-600" />
-                                          <span className="text-[8px] font-black text-red-600 uppercase">Limpando...</span>
-                                        </div>
+                                        <Loader2 size={16} className="animate-spin text-red-600 mx-4" />
                                       ) : (
                                         <>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); handleDeleteHistory(batch.batch_id); }}
-                                            className="px-3 py-1.5 bg-red-600 text-white text-[9px] font-black uppercase rounded-lg hover:bg-red-700 transition-all shadow-md active:scale-95"
+                                            className="px-4 py-2 bg-red-600 text-white text-[10px] font-bold uppercase rounded-xl hover:bg-red-700 transition-all shadow-md active:scale-95"
                                           >
-                                            Sim, Excluir
+                                            Sim
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                                            className="px-3 py-1.5 bg-white text-slate-400 text-[9px] font-black uppercase rounded-lg border border-slate-200 hover:bg-slate-50 transition-all"
+                                            className="px-4 py-2 bg-white text-slate-400 text-[10px] font-bold uppercase rounded-xl border border-slate-200 hover:bg-slate-50 transition-all"
                                           >
                                             Não
                                           </button>
@@ -2451,140 +2480,150 @@ export function PixConference() {
                                 ) : (
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(batch.batch_id); }}
-                                    className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                    title="Excluir Arquivo"
+                                    className="p-3 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all outline-none"
+                                    title="Remover este lote"
                                   >
                                     <Trash2 size={20} />
                                   </button>
                                 )}
-                                <div className="p-2 text-slate-300">
-                                  {expandedBatches.includes(batch.batch_id) ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                                <div className={cn(
+                                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all bg-slate-50 text-slate-300",
+                                  expandedBatches.includes(batch.batch_id) ? "bg-indigo-50 text-indigo-400 rotate-180" : "group-hover/batch:bg-indigo-50 group-hover/batch:text-indigo-300"
+                                )}>
+                                  <ChevronDown size={24} />
                                 </div>
                               </div>
                             </div>
-
                           </div>
 
                           {expandedBatches.includes(batch.batch_id) && (
-                            <div className="border-t border-slate-50 bg-slate-50/20">
+                            <div className="border-t border-slate-50 bg-slate-50/30 animate-in slide-in-from-top-4 duration-300">
                               <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                   <thead>
-                                    <tr className="bg-slate-100/30">
-                                      <th className="px-4 py-4 text-center">
+                                    <tr className="bg-slate-100/50">
+                                      <th className="px-5 py-4 text-center">
                                         <div 
                                           onClick={() => toggleBatchSelect(batch.transactions)}
-                                          className="flex items-center justify-center p-1 cursor-pointer"
+                                          className="flex items-center justify-center p-1.5 cursor-pointer hover:bg-slate-200 rounded-lg transition-all"
                                         >
                                           <input 
                                             type="checkbox" 
                                             checked={batch.transactions.every((t: any) => selectedHistoryIds.has(String(t.id)))}
                                             onChange={() => {}}
-                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                            className="w-4 h-4 rounded-md border-slate-300 text-indigo-600 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer transition-all"
                                           />
                                         </div>
                                       </th>
-                                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID Transação</th>
-                                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Banco Origem</th>
-                                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagador</th>
-                                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
-                                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Aluno Vinculado</th>
-                                      <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                                      <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID Transação</th>
+                                      <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Banco</th>
+                                      <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pagador</th>
+                                      <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                      <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aluno / Turma</th>
+                                      <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Ações</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-slate-50">
+                                  <tbody className="divide-y divide-slate-100">
                                     {batch.transactions.map((t: any) => (
                                       <tr 
                                         key={t.id} 
                                         className={cn(
-                                          "hover:bg-white transition-colors",
-                                          selectedHistoryIds.has(String(t.id)) ? "bg-blue-50/50" : ""
+                                          "group transition-all hover:bg-white",
+                                          selectedHistoryIds.has(String(t.id)) ? "bg-indigo-50/20" : ""
                                         )}
                                       >
-                                        <td className="px-4 py-4 text-center">
-                                          <div 
-                                            onClick={() => toggleHistorySelect(String(t.id))}
-                                            className="flex items-center justify-center p-1 cursor-pointer"
-                                          >
-                                            <input 
-                                              type="checkbox" 
-                                              checked={selectedHistoryIds.has(String(t.id))}
-                                              onChange={() => {}}
-                                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                            />
+                                        <td className="px-5 py-4 text-center">
+                                          <input 
+                                            type="checkbox" 
+                                            checked={selectedHistoryIds.has(String(t.id))}
+                                            onChange={() => toggleHistorySelect(String(t.id))}
+                                            className="w-4 h-4 rounded-md border-slate-300 text-indigo-600 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer transition-all"
+                                          />
+                                        </td>
+                                        <td className="px-8 py-4">
+                                          <p className="text-[11px] font-mono font-bold text-slate-500 tracking-tight uppercase select-all">{t.transaction_id}</p>
+                                          <div className="flex items-center gap-1.5 mt-1">
+                                            <Calendar size={10} className="text-slate-300" />
+                                            <p className="text-[10px] font-bold text-slate-400">{formatDateForDisplay(t.date || t.transaction_date)}</p>
                                           </div>
                                         </td>
                                         <td className="px-8 py-4">
-                                          <p className="text-[10px] font-mono text-slate-400">{t.transaction_id}</p>
-                                          <p className="text-[9px] text-slate-300">{t.date}</p>
-                                        </td>
-                                        <td className="px-8 py-4">
-                                          <span className="px-2 py-0.5 bg-white border border-slate-100 text-[9px] font-black text-slate-500 rounded uppercase tracking-wider italic">
-                                            {t.origin_bank}
+                                          <span className="px-2.5 py-1 bg-white border border-slate-200 text-[10px] font-bold text-slate-500 rounded-lg uppercase tracking-wider">
+                                            {t.origin_bank || '---'}
                                           </span>
                                         </td>
                                         <td className="px-8 py-4">
-                                          <p className="text-sm font-bold text-[#00174b] uppercase">{t.payer_name}</p>
+                                          <p className="text-sm font-bold text-slate-900 uppercase tracking-tight line-clamp-1">{t.payer_name}</p>
                                         </td>
                                         <td className="px-8 py-4 text-right">
-                                          <p className="text-sm font-black text-[#00174b]">
-                                            {formatCurrencyLocal(t.amount)}
+                                          <p className="text-base font-bold text-slate-900">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
                                           </p>
                                         </td>
                                         <td className="px-8 py-4">
-                                          {t.student ? (
-                                            <div className="flex items-center gap-2">
-                                              <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
-                                                <UserCheck size={16} />
+                                          {t.status === 'matched' ? (
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                                <UserCheck size={18} />
                                               </div>
                                               <div>
-                                                <div className="flex items-center gap-2">
-                                                  <p className="text-xs font-black text-green-700">{t.student.name}</p>
+                                                <p className="text-xs font-bold text-slate-900 tracking-tight">
+                                                  {(() => {
+                                                    const student = students.find(s => s.id === t.matched_student_id);
+                                                    return student ? student.name : `Aluno ID: ${t.matched_student_id}`;
+                                                  })()}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-0.5">
                                                   {t.is_manual && (
-                                                    <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-black uppercase rounded border border-indigo-100">
+                                                    <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100 uppercase tracking-normal">
                                                       Manual
                                                     </span>
                                                   )}
+                                                  <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                                    {(() => {
+                                                      const student = students.find(s => s.id === t.matched_student_id);
+                                                      return student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : 'N/I';
+                                                    })()}
+                                                  </span>
                                                 </div>
-                                                <p className="text-[9px] font-bold text-green-600/60 uppercase">Matrícula: {t.student.registration_number}</p>
                                               </div>
                                             </div>
                                           ) : (
-                                            <div className="flex items-center gap-2 opacity-40">
-                                              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center">
-                                                <UserX size={16} />
+                                            <div className="flex items-center gap-3 opacity-50">
+                                              <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center border border-slate-200/50">
+                                                <UserX size={18} />
                                               </div>
-                                              <span className="text-slate-400 italic text-[10px] font-bold uppercase">Não identificado</span>
+                                              <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Pendente</p>
                                             </div>
                                           )}
                                         </td>
                                         <td className="px-8 py-4">
                                           <div className="flex items-center justify-center gap-2">
-                                            {t.student && (
+                                            {t.status === 'matched' && (
                                               <button 
-                                                onClick={(e) => { e.stopPropagation(); setRegisteringContribution(t); }}
+                                                onClick={() => setRegisteringContribution(t)}
                                                 className={cn(
-                                                  "p-2.5 rounded-xl transition-all shadow-sm border relative group/btn",
-                                                  registeredPixIds.has(String(t.transaction_id || t.id))
-                                                    ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100"
-                                                    : "bg-white border-blue-100 text-blue-400 hover:text-blue-600 hover:border-blue-200"
+                                                  "p-2.5 rounded-xl transition-all shadow-sm border relative group focus:ring-4 focus:ring-indigo-500/10 outline-none",
+                                                  registeredPixIds.has(String(t.transaction_id))
+                                                    ? "bg-emerald-600 border-emerald-500 text-white hover:bg-emerald-700"
+                                                    : "bg-white border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200"
                                                 )}
-                                                title={registeredPixIds.has(String(t.transaction_id || t.id)) ? "Lançamento já efetuado - Clique para editar ou realizar novo lançamento" : "Registrar como Contribuição"}
                                               >
-                                                <CreditCard size={18} className="group-hover/btn:scale-110 transition-transform" />
-                                                {registeredPixIds.has(String(t.transaction_id || t.id)) && (
-                                                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full flex items-center justify-center">
-                                                    <div className="w-1 h-1 bg-white rounded-full" />
-                                                  </div>
-                                                )}
+                                                <DownloadCloud size={18} />
+                                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] py-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 whitespace-nowrap pointer-events-none z-10 shadow-xl font-bold">
+                                                  {registeredPixIds.has(String(t.transaction_id)) ? "Ver Lançamento" : "Lançar no Extrato"}
+                                                </div>
                                               </button>
                                             )}
                                             <button 
-                                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(batch.batch_id); }}
-                                              className="p-3 bg-white border border-red-100 text-red-400 hover:text-red-600 hover:border-red-300 rounded-xl transition-all shadow-sm group/btn-del"
-                                              title="Excluir este registro permanentemente"
+                                              onClick={() => {
+                                                if (window.confirm("Remover esta transação do histórico permanentemente?")) {
+                                                  handleDeleteHistoryItem(t.id);
+                                                }
+                                              }}
+                                              className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
                                             >
-                                              <Trash2 size={18} className="group-hover/btn-del:scale-110 transition-transform" />
+                                              <Trash2 size={18} />
                                             </button>
                                           </div>
                                         </td>
@@ -2966,57 +3005,68 @@ export function PixConference() {
 
         {/* Contribution Registration Modal */}
         {registeringContribution && (
-          <div className="fixed inset-0 bg-[#00174b]/60 backdrop-blur-md z-[110] flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
-                    <CreditCard size={24} />
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in slide-in-from-bottom-4 duration-500 border border-slate-100">
+              <div className="p-8 border-b border-slate-50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full -mr-12 -mt-12 opacity-50" />
+                <div className="relative flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                      <DownloadCloud size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 tracking-tight">Efetuar Lançamento</h3>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-widest mt-0.5">Registrar no Extrato</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-black text-[#00174b]">Registrar Contribuição</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Confirme os dados de referência</p>
-                  </div>
+                  <button 
+                    onClick={() => setRegisteringContribution(null)}
+                    className="p-2.5 bg-slate-100 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all outline-none"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setRegisteringContribution(null)}
-                  className="p-2 text-slate-400 hover:text-red-500 transition-all"
-                >
-                  <X size={24} />
-                </button>
               </div>
 
-              <div className="p-8 space-y-6">
-                <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
-                  <p className="text-[10px] font-bold text-blue-400 uppercase mb-2">Aluno Selecionado</p>
-                  <p className="text-lg font-black text-[#00174b]">
+              <div className="p-8 space-y-8">
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 relative group hover:bg-white hover:border-indigo-100 transition-all duration-300">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Aluno Selecionado</p>
+                  <p className="text-xl font-bold text-slate-900 tracking-tight">
                     {(registeringContribution.student || students.find((s: any) => s.id === registeringContribution.matched_student_id))?.name}
                   </p>
-                  <div className="flex items-center justify-between mt-4 text-sm">
-                    <span className="text-slate-500 font-bold">Valor do Pix:</span>
-                    <span className="text-blue-600 font-black">{formatCurrencyLocal(registeringContribution.amount)}</span>
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
+                    <span className="text-sm font-bold text-slate-500">Valor do Recebimento</span>
+                    <span className="text-2xl font-black text-indigo-600 italic">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(registeringContribution.amount)}
+                    </span>
+                  </div>
+                  <div className="absolute top-4 right-6">
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      <CreditCard size={10} />
+                      PIX
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between px-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meses de Referência</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Meses de Referência</label>
                     {selectedPeriods.length > 0 && (
-                      <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                        {selectedPeriods.length} Selecionado(s)
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100 animate-in fade-in zoom-in">
+                        {selectedPeriods.length} {selectedPeriods.length === 1 ? 'Mês' : 'Meses'}
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                  <div className="grid grid-cols-4 gap-2 bg-slate-50/50 p-4 rounded-3xl border border-slate-100">
                     {MONTHS.map((m, i) => (
                       <button
                         key={i}
                         onClick={() => toggleMonth(i + 1)}
                         className={cn(
-                          "py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2",
+                          "py-3 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all border-2 outline-none",
                           selectedPeriods.some(p => p.month === i + 1 && p.year === parseInt(contribYear))
-                            ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 scale-[1.02]"
-                            : "bg-white border-white text-slate-400 hover:border-blue-100 hover:text-blue-500"
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200 scale-[1.05]"
+                            : "bg-white border-transparent text-slate-400 hover:border-indigo-100 hover:text-indigo-600"
                         )}
                       >
                         {m.substring(0, 3)}
@@ -3026,10 +3076,10 @@ export function PixConference() {
                 </div>
 
                 {/* List of selected periods - More visual */}
-                {selectedPeriods.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 px-2">
+                {selectedPeriods.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 px-2">
                     {selectedPeriods.map((p, idx) => (
-                      <div key={idx} className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg text-[9px] font-black border border-blue-100 flex items-center gap-2 animate-in fade-in slide-in-from-left-2 shadow-sm">
+                      <div key={idx} className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl text-[10px] font-bold border border-indigo-100 flex items-center gap-2 animate-in fade-in slide-in-from-left-2 shadow-sm">
                         {MONTHS[p.month - 1].substring(0, 3)} / {p.year}
                         <button 
                           onClick={() => {
@@ -3037,59 +3087,61 @@ export function PixConference() {
                               setSelectedPeriods(prev => prev.filter((_, i) => i !== idx));
                             }
                           }}
-                          className="hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
+                          className="hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-white"
                         >
-                          <X size={10} />
+                          <X size={12} />
                         </button>
                       </div>
                     ))}
+                  </div>
+                ) : (
+                  <div className="px-2 py-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center gap-3">
+                    <AlertCircle size={18} className="text-amber-500" />
+                    <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Selecione ao menos um mês de referência</p>
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase px-2">Ano base</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Ano Base</label>
                     <input 
                       type="number"
                       value={contribYear}
                       onChange={(e) => setContribYear(e.target.value)}
-                      className="w-full h-14 px-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-[#00174b] focus:bg-white focus:border-blue-500 transition-all outline-none"
+                      className="w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase px-2">Tipo de Recebimento</label>
-                    <select 
-                      value="PIX"
-                      disabled
-                      className="w-full h-14 px-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-slate-500 transition-all outline-none cursor-not-allowed"
-                    >
-                      <option value="PIX">PIX</option>
-                      <option value="Cartão">Cartão</option>
-                      <option value="Dinheiro">Dinheiro</option>
-                    </select>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Forma</label>
+                    <div className="w-full h-14 px-6 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-400 flex items-center gap-2 italic">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      PIX
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase">
-                    <span>Divisão do Valor</span>
-                    <span className="text-blue-600">{selectedPeriods.length} períodos selecionados</span>
+                <div className="bg-slate-900 p-6 rounded-3xl shadow-xl shadow-slate-200 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+                  <div className="relative flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                    <span>Rateio Sugerido</span>
+                    <span className="text-white bg-indigo-600 px-2.5 py-1 rounded-lg border border-indigo-500 shadow-sm">{selectedPeriods.length} Parcelas</span>
                   </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs font-bold text-slate-600">Valor por mês:</span>
-                    <span className="text-sm font-black text-[#00174b]">
-                      {formatCurrencyLocal(registeringContribution.amount / selectedPeriods.length)}
+                  <div className="relative flex justify-between items-end mt-4">
+                    <span className="text-xs font-bold text-slate-500 mb-1">Valor por Período:</span>
+                    <span className="text-3xl font-black text-white italic tracking-tighter">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(registeringContribution.amount / selectedPeriods.length)}
                     </span>
                   </div>
                 </div>
 
                 <button 
                   onClick={handleFinalContributionRegistration}
-                  className="w-full py-5 bg-[#00174b] text-white rounded-[2rem] font-black text-lg hover:bg-blue-900 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                  className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-bold text-lg hover:bg-slate-900 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3 shadow-indigo-100 hover:shadow-slate-200"
                 >
                   <Check size={24} />
                   Confirmar Registro
                 </button>
+
               </div>
             </div>
           </div>
@@ -3097,122 +3149,141 @@ export function PixConference() {
 
         {/* Report Preview Modal */}
         {showReportPreview && (
-          <div className="fixed inset-0 bg-[#00174b]/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 md:p-8 overflow-y-auto">
-            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-full animate-in fade-in zoom-in duration-300">
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 print:hidden">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
-                    <Printer size={24} />
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 md:p-8 overflow-y-auto animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-full animate-in zoom-in slide-in-from-bottom-4 duration-500 border border-slate-100">
+              <div className="p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/50 gap-6 print:hidden">
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-100">
+                    <Printer size={28} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-[#00174b]">Visualização do Relatório</h3>
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Confira os dados antes de imprimir</p>
+                    <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Relatório de Conciliação</h3>
+                    <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Visualização oficial antes da impressão</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                   <button 
                     onClick={generatePDF}
-                    className="px-8 py-4 bg-blue-600 text-white rounded-2xl font-black flex items-center gap-2 hover:bg-blue-700 hover:scale-105 transition-all shadow-xl active:scale-95"
+                    className="flex-1 sm:flex-none px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-indigo-700 hover:scale-[1.02] transition-all shadow-xl shadow-indigo-200 active:scale-95"
                   >
                     <Download size={20} />
-                    Gerar Relatório (PDF)
+                    Exportar PDF
                   </button>
                   <button 
                     onClick={() => setShowReportPreview(false)}
-                    className="p-4 bg-white text-slate-400 hover:text-red-500 rounded-2xl transition-all border border-slate-100"
+                    className="p-4 bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all border border-slate-200 shadow-sm"
                   >
                     <X size={24} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-12 bg-white print:p-0" id="printable-report">
+              <div className="flex-1 overflow-y-auto p-8 md:p-16 bg-white print:p-0" id="printable-report">
                 {/* Report Content */}
-                <div className="max-w-4xl mx-auto space-y-12">
-                  <div className="flex justify-between items-start border-b-4 border-[#00174b] pb-8">
-                    <div>
-                      <h1 className="text-4xl font-black text-[#00174b] uppercase tracking-tighter mb-2">Relatório de Conciliação Pix</h1>
-                      <p className="text-slate-500 font-bold">Arquivo: {customFileName || file?.name || 'Importação Manual'}</p>
-                      <p className="text-slate-400 text-sm">Gerado em: {new Date().toLocaleString('pt-BR')}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2">Resumo Geral</p>
+                <div className="max-w-4xl mx-auto space-y-16">
+                  <div className="flex justify-between items-start border-b-8 border-slate-900 pb-10">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-slate-900 rounded-xl" />
+                        <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Relatório Pix</h1>
+                      </div>
                       <div className="space-y-1">
-                        <p className="text-lg font-black text-[#00174b]">{stats.total} Transações</p>
-                        <p className="text-green-600 font-bold">{stats.matched} Conciliados</p>
-                        <p className="text-orange-600 font-bold">{stats.multiple} Conflitos</p>
-                        <p className="text-red-600 font-bold">{stats.unmatched} Não Identificados</p>
+                        <p className="text-slate-600 font-bold text-sm uppercase tracking-wide">Arquivo: <span className="text-slate-400">{customFileName || file?.name || 'Importação Manual'}</span></p>
+                        <p className="text-slate-400 text-xs font-medium">Emissão: {new Date().toLocaleString('pt-BR')}</p>
+                      </div>
+                    </div>
+                    <div className="text-right space-y-3">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Painel de Controle</p>
+                      <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                        <p className="text-sm font-bold text-slate-400 uppercase">Volume:</p>
+                        <p className="text-sm font-black text-slate-900">{stats.total} Trans.</p>
+                        <p className="text-sm font-bold text-slate-400 uppercase">Status:</p>
+                        <p className="text-sm font-black text-emerald-600 italic">Oficial</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="bg-slate-50 p-6 rounded-3xl">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Valor Total Processado</p>
-                      <p className="text-3xl font-black text-[#00174b]">
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all duration-300">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Total Processado</p>
+                      <p className="text-2xl font-black text-slate-900">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                           transactions.reduce((acc, t) => acc + t.amount, 0)
                         )}
                       </p>
                     </div>
-                    <div className="bg-green-50 p-6 rounded-3xl">
-                      <p className="text-[10px] font-black text-green-600/60 uppercase tracking-widest mb-4">Valor Conciliado</p>
-                      <p className="text-3xl font-black text-green-700">
+                    <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100/50 group hover:bg-white hover:border-emerald-200 transition-all duration-300">
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-4">Conciliado (OK)</p>
+                      <p className="text-2xl font-black text-emerald-700">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                           transactions.filter(t => t.status === 'matched').reduce((acc, t) => acc + t.amount, 0)
                         )}
                       </p>
                     </div>
+                    <div className="bg-red-50/50 p-6 rounded-3xl border border-red-100/50 group hover:bg-white hover:border-red-200 transition-all duration-300">
+                      <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest mb-4">Pendente/Conflito</p>
+                      <p className="text-2xl font-black text-red-700">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                          transactions.filter(t => t.status !== 'matched').reduce((acc, t) => acc + t.amount, 0)
+                        )}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="space-y-6">
-                    <h4 className="text-xl font-black text-[#00174b] border-l-4 border-blue-600 pl-4">Detalhamento das Transações</h4>
-                    <div className="overflow-x-auto">
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-4">
+                      <div className="h-px flex-1 bg-slate-200" />
+                      <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Detalhamento das Transações</h4>
+                      <div className="h-px flex-1 bg-slate-200" />
+                    </div>
+                    <div className="overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
                       <table className="w-full border-collapse">
                         <thead>
-                          <tr className="border-b-2 border-slate-100">
-                            <th className="py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                            <th className="py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Banco</th>
-                            <th className="py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagador</th>
-                            <th className="py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor</th>
-                            <th className="py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">St</th>
-                            <th className="py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Aluno / Turma</th>
+                          <tr className="bg-slate-50 border-b border-slate-100">
+                            <th className="py-5 px-6 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Data</th>
+                            <th className="py-5 px-6 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Banco</th>
+                            <th className="py-5 px-6 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Pagador</th>
+                            <th className="py-5 px-6 text-right text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Valor</th>
+                            <th className="py-5 px-6 text-center text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Status</th>
+                            <th className="py-5 px-6 text-left text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Identificação</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-slate-100">
                           {transactions.map((t, i) => {
                             const student = students.find(s => s.id === t.matched_student_id);
                             const className = student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : '';
                             
                             return (
-                              <tr key={i} className="break-inside-avoid hover:bg-slate-50/50 transition-colors">
-                                <td className="py-3 text-xs font-bold text-slate-500">{formatDateForDisplay(t.date)}</td>
-                                <td className="py-3 text-xs font-medium text-slate-400 uppercase">{t.origin_bank || 'N/I'}</td>
-                                <td className="py-3">
-                                  <p className="text-xs font-black text-[#00174b] uppercase">{t.payer_name}</p>
+                              <tr key={i} className="break-inside-avoid hover:bg-slate-50 transition-colors">
+                                <td className="py-4 px-6 text-[11px] font-bold text-slate-500">{formatDateForDisplay(t.date)}</td>
+                                <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">{t.origin_bank || '---'}</td>
+                                <td className="py-4 px-6">
+                                  <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{t.payer_name}</p>
                                 </td>
-                                <td className="py-3 text-right text-xs font-black text-[#00174b]">
+                                <td className="py-4 px-6 text-right text-[11px] font-black text-slate-900 italic">
                                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount)}
                                 </td>
-                                <td className="py-3 text-center">
-                                  {t.status === 'matched' ? (
-                                    <span className="text-green-600 font-black" title="Conciliado">[V]</span>
-                                  ) : t.status === 'multiple' ? (
-                                    <span className="text-orange-600 font-black" title="Conflito">[!]</span>
-                                  ) : (
-                                    <span className="text-slate-300 font-black" title="Pendente">[-]</span>
-                                  )}
+                                <td className="py-4 px-6 text-center">
+                                  <div className="flex justify-center">
+                                    {t.status === 'matched' ? (
+                                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                    ) : t.status === 'multiple' ? (
+                                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                                    ) : (
+                                      <div className="w-2.5 h-2.5 rounded-full bg-slate-300 shadow-[0_0_8px_rgba(203,213,225,0.5)]" />
+                                    )}
+                                  </div>
                                 </td>
-                                <td className="py-3 pl-4">
+                                <td className="py-4 px-6">
                                   {student ? (
-                                    <div>
-                                      <p className="text-xs font-black text-[#00174b]">
-                                        {student.name} <span className="text-[10px] text-slate-400 font-normal">({student.registration_number})</span>
+                                    <div className="space-y-0.5">
+                                      <p className="text-[11px] font-bold text-slate-900 uppercase">
+                                        {student.name}
                                       </p>
-                                      <p className="text-[9px] font-bold text-blue-600/60 uppercase">{className}</p>
+                                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{className}</p>
                                     </div>
                                   ) : (
-                                    <span className="text-slate-300 italic text-[10px]">Não identificado</span>
+                                    <span className="text-slate-300 italic text-[10px] font-bold uppercase tracking-widest">---</span>
                                   )}
                                 </td>
                               </tr>
@@ -3309,70 +3380,107 @@ export function PixConference() {
 
         {/* Manual Match Modal */}
         {matchingTransactionIndex !== null && (
-          <div className="fixed inset-0 bg-[#00174b]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-              <div className="p-10 border-b border-slate-50">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="text-3xl font-black text-[#00174b]">Vincular Aluno</h3>
-                    <p className="text-slate-500 font-medium mt-1">Selecione o aluno correspondente para esta transação.</p>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in slide-in-from-bottom-4 duration-500 border border-slate-100">
+              <div className="p-8 border-b border-slate-50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50" />
+                <div className="relative flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                      <UserPlus size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Vincular Aluno</h3>
+                      <p className="text-sm font-medium text-slate-500 mt-0.5">Selecione o aluno para esta transação</p>
+                    </div>
                   </div>
-                  <button onClick={() => setMatchingTransactionIndex(null)} className="p-3 bg-slate-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
-                    <X size={24} />
+                  <button 
+                    onClick={() => setMatchingTransactionIndex(null)} 
+                    className="p-2.5 bg-slate-100 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-xl transition-all outline-none"
+                  >
+                    <X size={20} />
                   </button>
                 </div>
 
-                <div className="bg-slate-50 p-6 rounded-3xl mb-8 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pagador no Extrato</p>
-                    <p className="text-xl font-black text-[#00174b] uppercase">{transactions[matchingTransactionIndex].payer_name}</p>
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between relative group hover:bg-white hover:border-indigo-100 transition-all duration-300">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pagador Exportado</p>
+                    <p className="text-lg font-bold text-slate-900 uppercase tracking-tight line-clamp-1">{transactions[matchingTransactionIndex].payer_name}</p>
+                    <p className="text-[10px] font-mono text-slate-400">{transactions[matchingTransactionIndex].transaction_id}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor</p>
-                    <p className="text-xl font-black text-[#00174b]">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor Pix</p>
+                    <p className="text-2xl font-bold text-emerald-600">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(transactions[matchingTransactionIndex].amount)}
                     </p>
                   </div>
                 </div>
 
-                <div className="relative">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <div className="relative mt-8 group">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
                   <input 
                     type="text" 
-                    placeholder="Buscar aluno por nome..."
+                    placeholder="Comece a digitar o nome do aluno..."
                     value={manualSearch}
                     onChange={(e) => setManualSearch(e.target.value)}
-                    className="w-full pl-14 pr-6 py-5 bg-slate-50 border-none rounded-3xl text-lg font-bold text-[#00174b] focus:ring-4 focus:ring-blue-500/10 transition-all"
+                    className="w-full pl-14 pr-6 py-4.5 bg-slate-50 border-2 border-transparent rounded-2xl text-base font-bold text-slate-900 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none placeholder:text-slate-400 placeholder:font-medium"
                     autoFocus
                   />
+                  {manualSearch && (
+                    <button 
+                      onClick={() => setManualSearch('')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-slate-500 transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="max-h-[400px] overflow-y-auto p-4 space-y-2">
+              <div className="max-h-[380px] overflow-y-auto p-4 space-y-2 bg-slate-50/30 custom-scrollbar">
                 {students
                   .filter(s => normalize(s.name).includes(normalize(manualSearch)))
-                  .slice(0, 10)
+                  .slice(0, 15)
                   .map(student => (
                     <button 
                       key={student.id}
                       onClick={() => handleManualMatch(student.id)}
-                      className="w-full p-6 hover:bg-blue-50 rounded-[2rem] flex items-center justify-between group transition-all"
+                      className="w-full p-4 hover:bg-white rounded-2xl flex items-center justify-between group transition-all border border-transparent hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5 active:scale-[0.98]"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all">
-                          <UserCheck size={24} />
+                        <div className="w-11 h-11 rounded-1.5xl bg-white border border-slate-200 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all shadow-sm">
+                          <User size={20} className="group-hover:hidden" />
+                          <Check size={20} className="hidden group-hover:block animate-in zoom-in" />
                         </div>
                         <div className="text-left">
-                          <p className="text-lg font-black text-[#00174b] group-hover:text-blue-700">{student.name}</p>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{student.registration_number || 'Sem Matrícula'}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{student.name}</p>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-colors">
+                              {student.registration_number || 'N/I'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                            {classes.find(c => c.id === student.class_id)?.name || 'Sem Turma'}
+                          </p>
                         </div>
                       </div>
-                      <ArrowRight className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-2 transition-all" />
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                        <ChevronRight size={16} />
+                      </div>
                     </button>
                   ))}
                 {manualSearch && students.filter(s => normalize(s.name).includes(normalize(manualSearch))).length === 0 && (
-                  <div className="p-10 text-center">
-                    <p className="text-slate-400 font-bold">Nenhum aluno encontrado com este nome.</p>
+                  <div className="py-20 px-10 text-center animate-in fade-in slide-in-from-bottom-2">
+                    <div className="w-20 h-20 rounded-3xl bg-slate-50 text-slate-200 flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200">
+                      <UserX size={40} />
+                    </div>
+                    <p className="text-slate-400 font-bold">Nenhum aluno encontrado</p>
+                    <p className="text-slate-300 text-xs mt-1">Refine sua busca ou verifique se o aluno está cadastrado</p>
+                  </div>
+                )}
+                {!manualSearch && students.length > 0 && students.filter(s => normalize(s.name).includes(normalize(manualSearch))).length > 15 && (
+                  <div className="p-4 text-center border-t border-slate-50">
+                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Digite para filtrar mais resultados</p>
                   </div>
                 )}
               </div>
@@ -3480,3 +3588,5 @@ export function PixConference() {
     </>
   );
 }
+
+export default PixConference;
