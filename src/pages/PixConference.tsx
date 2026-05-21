@@ -277,20 +277,12 @@ export function PixConference() {
       // Group by batch_id
       const grouped = (raw || []).reduce((acc: any, curr: any) => {
         const batchId = curr.batch_id || 'sem-lote';
+        const isMeta = (curr.transaction_id && curr.transaction_id.startsWith('META_BATCH_')) || curr.origin_bank === 'METADATA_ROW';
         
-        // Link student locally if we have them in state
-        try {
-          if (curr.matched_student_id && students && students.length > 0) {
-            curr.student = students.find(s => s.id === curr.matched_student_id);
-          }
-        } catch (err) {
-          console.warn('Error linking student in history:', err);
-        }
-
         if (!acc[batchId]) {
           acc[batchId] = {
             batch_id: batchId,
-            file_name: curr.file_name || 'Arquivo sem nome',
+            file_name: 'Arquivo sem nome',
             created_at: curr.created_at || new Date().toISOString(),
             payer_name: curr.payer_name || 'N/A',
             amount: Number(curr.amount) || 0,
@@ -299,10 +291,47 @@ export function PixConference() {
             totalAmount: 0
           };
         }
-        acc[batchId].transactions.push(curr);
-        acc[batchId].totalAmount += Number(curr.amount) || 0;
+
+        if (isMeta) {
+          // Update the batch's file_name with the persisted custom name stored in payer_name
+          acc[batchId].file_name = curr.payer_name || 'Arquivo sem nome';
+          if (curr.created_at) {
+            acc[batchId].created_at = curr.created_at;
+          }
+        } else {
+          // Link student locally if we have them in state
+          try {
+            if (curr.matched_student_id && students && students.length > 0) {
+              curr.student = students.find(s => s.id === curr.matched_student_id);
+            }
+          } catch (err) {
+            console.warn('Error linking student in history:', err);
+          }
+
+          if (acc[batchId].file_name === 'Arquivo sem nome' && curr.file_name && curr.file_name !== 'Importação Manual') {
+            acc[batchId].file_name = curr.file_name;
+          }
+
+          acc[batchId].transactions.push(curr);
+          acc[batchId].totalAmount += Number(curr.amount) || 0;
+        }
         return acc;
       }, {});
+
+      // For any batches that did not have any metadata record (like legacy or manual single edits), fallback cleanly
+      Object.keys(grouped).forEach(batchId => {
+        const b = grouped[batchId];
+        if (b.file_name === 'Arquivo sem nome') {
+          const firstTx = b.transactions[0];
+          if (firstTx && firstTx.file_name && firstTx.file_name !== 'Importação Manual') {
+            b.file_name = firstTx.file_name;
+          } else if (b.transactions.length === 1 && firstTx?.payer_name) {
+            b.file_name = firstTx.payer_name;
+          } else {
+            b.file_name = `Lote ${String(batchId).substring(0, 8).toUpperCase()}`;
+          }
+        }
+      });
 
       const processedHistory = Object.values(grouped);
       console.info(`Histórico processado: ${processedHistory.length} lotes encontrados.`);
@@ -1065,6 +1094,24 @@ export function PixConference() {
       const total = transactionsWithId.length;
       
       console.info(`Salvando ${total} registros de conciliação...`);
+
+      // Persist the custom batch name via an isolated metadata row
+      try {
+        const metaDocId = crypto.randomUUID();
+        const metaDataToSave = {
+          batch_id: sessionBatchId,
+          transaction_id: `META_BATCH_${sessionBatchId}`,
+          payer_name: customFileName || file?.name || 'Importação Manual',
+          origin_bank: 'METADATA_ROW',
+          amount: 0,
+          status: 'unmatched',
+          date: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        };
+        await saveData('pix_reconciliations', metaDocId, metaDataToSave);
+      } catch (metaErr) {
+        console.warn('Erro ao salvar metadados do lote:', metaErr);
+      }
 
       for (let i = 0; i < total; i++) {
         const t = transactionsWithId[i];
