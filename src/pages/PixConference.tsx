@@ -308,7 +308,9 @@ export function PixConference() {
             console.warn('Error linking student in history:', err);
           }
 
-          if (acc[batchId].file_name === 'Arquivo sem nome' && curr.file_name && curr.file_name !== 'Importação Manual') {
+          if (acc[batchId].file_name === 'Arquivo sem nome' && curr.file_name) {
+            acc[batchId].file_name = curr.file_name;
+          } else if (acc[batchId].file_name === 'Importação Manual' && curr.file_name && curr.file_name !== 'Importação Manual') {
             acc[batchId].file_name = curr.file_name;
           }
 
@@ -321,9 +323,9 @@ export function PixConference() {
       // For any batches that did not have any metadata record (like legacy or manual single edits), fallback cleanly
       Object.keys(grouped).forEach(batchId => {
         const b = grouped[batchId];
-        if (b.file_name === 'Arquivo sem nome') {
+        if (b.file_name === 'Arquivo sem nome' || !b.file_name) {
           const firstTx = b.transactions[0];
-          if (firstTx && firstTx.file_name && firstTx.file_name !== 'Importação Manual') {
+          if (firstTx && firstTx.file_name) {
             b.file_name = firstTx.file_name;
           } else if (b.transactions.length === 1 && firstTx?.payer_name) {
             b.file_name = firstTx.payer_name;
@@ -816,7 +818,8 @@ export function PixConference() {
     const map = new Map();
     history.forEach(h => {
       if (h.batch_id && !map.has(h.batch_id)) {
-        map.set(h.batch_id, h.file_name || `Lote ${String(h.batch_id).substring(0, 6)}`);
+        const name = (h.file_name && h.file_name !== 'Arquivo sem nome') ? h.file_name : `Lote ${String(h.batch_id).substring(0, 8).toUpperCase()}`;
+        map.set(h.batch_id, name);
       }
     });
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
@@ -911,6 +914,7 @@ export function PixConference() {
         return {
           'Nº': idx + 1,
           'ID Transação': item.transaction_id || '',
+          'Lote / Origem': item.batch_file_name || 'Importação Manual',
           'Data': formatDateForDisplay(item.date) || item.date || '',
           'Pagador': item.payer_name ? item.payer_name.toUpperCase() : '',
           'Banco Origem': item.origin_bank || 'Não informado',
@@ -945,6 +949,15 @@ export function PixConference() {
       const margin = 14;
       const contentWidth = pageWidth - (margin * 2);
 
+      // Resolve current batch filter label
+      let batchLabel = 'Todos os arquivos / Lotes';
+      if (extratoBatchFilter !== 'all') {
+        const found = availableBatches.find(b => b.id === extratoBatchFilter);
+        if (found) {
+          batchLabel = found.label;
+        }
+      }
+
       // Header
       doc.setFontSize(16);
       doc.setTextColor(0, 23, 75); // #00174b
@@ -956,24 +969,24 @@ export function PixConference() {
       doc.setFont('helvetica', 'normal');
       doc.text(`Instituição: ${institution?.name || 'Escola Diocesana de Ministérios'}`, margin, 24);
       doc.text(`Endereço: ${institution?.address || 'Av. Venus, 195 - Guarulhos'}`, margin, 28);
-      doc.text(`Data de Emissão: ${new Date().toLocaleString('pt-BR')} | Formato de Conferência (Paisagem)`, margin, 32);
+      doc.text(`Origem (Lote): ${batchLabel} | Data de Emissão: ${new Date().toLocaleString('pt-BR')}`, margin, 32);
 
       // Stats Box
       doc.setDrawColor(240);
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(margin, 36, contentWidth, 20, 2, 2, 'F');
+      doc.roundedRect(margin, 36, contentWidth, 18, 2, 2, 'F');
       
       doc.setFontSize(8);
       doc.setTextColor(100);
       doc.setFont('helvetica', 'bold');
-      doc.text('RESUMO DO EXTRATO', margin + 4, 42);
+      doc.text('RESUMO DO EXTRATO', margin + 4, 41);
       
       const totalAmount = filteredList.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
       doc.setFontSize(9);
       doc.setTextColor(0);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Transações Filtradas: ${filteredList.length}`, margin + 4, 50);
-      doc.text(`Valor Total Conciliado: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}`, margin + 120, 50);
+      doc.text(`Transações Filtradas: ${filteredList.length}`, margin + 4, 48);
+      doc.text(`Valor Total Conciliado: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}`, margin + 120, 48);
 
       // Table Data
       const tableData = filteredList.map((item) => {
@@ -982,6 +995,7 @@ export function PixConference() {
         return [
           formatDateForDisplay(item.date) || item.date || '',
           (item.payer_name || '').toUpperCase(),
+          item.batch_file_name || 'Importação Manual',
           item.origin_bank || 'N/I',
           student ? `${student.name} (${student.registration_number})` : '-',
           className,
@@ -991,8 +1005,8 @@ export function PixConference() {
       });
 
       autoTable(doc, {
-        startY: 60,
-        head: [['Data', 'Pagador Extrato', 'Banco', 'Aluno Vinculado', 'Turma', 'Valor', 'Observações (Anotações Manuais)']],
+        startY: 58,
+        head: [['Data', 'Pagador Extrato', 'Lote/Origem', 'Banco', 'Aluno Vinculado', 'Turma', 'Valor', 'Observações (Anotações Manuais)']],
         body: tableData,
         headStyles: { 
           fillColor: [0, 23, 75],
@@ -1002,13 +1016,14 @@ export function PixConference() {
           cellPadding: 2
         },
         columnStyles: {
-          0: { cellWidth: 20, fontSize: 6.5 },
-          1: { cellWidth: 55, fontSize: 6.5 },
-          2: { cellWidth: 22, fontSize: 6.5 },
-          3: { cellWidth: 55, fontSize: 6.5 },
-          4: { cellWidth: 32, fontSize: 6.5 },
-          5: { cellWidth: 25, halign: 'right', fontSize: 7, fontStyle: 'bold' },
-          6: { cellWidth: 60, fontSize: 6.5 } // wide blank column 
+          0: { cellWidth: 18, fontSize: 6.5 },
+          1: { cellWidth: 42, fontSize: 6.5 },
+          2: { cellWidth: 38, fontSize: 6.5 },
+          3: { cellWidth: 18, fontSize: 6.5 },
+          4: { cellWidth: 42, fontSize: 6.5 },
+          5: { cellWidth: 26, fontSize: 6.5 },
+          6: { cellWidth: 25, halign: 'right', fontSize: 7, fontStyle: 'bold' },
+          7: { cellWidth: 60, fontSize: 6.5 } // wide blank column 
         },
         styles: { 
           fontSize: 6.5,
@@ -1017,7 +1032,7 @@ export function PixConference() {
           lineWidth: 0.1
         },
         alternateRowStyles: { fillColor: [252, 253, 254] },
-        margin: { top: 60, left: margin, right: margin },
+        margin: { top: 58, left: margin, right: margin },
         didDrawPage: function(data) {
           const str = "Página " + doc.getNumberOfPages();
           doc.setFontSize(7);
@@ -2225,7 +2240,7 @@ export function PixConference() {
                               </div>
                               <div>
                                 <h3 className="text-lg font-black text-[#00174b] group-hover/batch:text-blue-600 transition-colors uppercase tracking-tight">
-                                  {batch.transactions.length === 1 ? batch.payer_name : batch.file_name}
+                                  {batch.file_name} {batch.transactions.length === 1 && batch.payer_name !== 'N/A' && `(${batch.payer_name})`}
                                 </h3>
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -2519,7 +2534,14 @@ export function PixConference() {
             {/* Filter and Actions Bar */}
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
-                <h3 className="text-xl font-black text-[#00174b]">Extrato de Conciliação</h3>
+                <h3 className="text-xl font-black text-[#00174b] flex items-center gap-2.5 flex-wrap">
+                  Extrato de Conciliação
+                  {extratoBatchFilter !== 'all' && (
+                    <span className="px-3 py-1 bg-blue-50 border border-blue-200 text-[10px] font-black text-blue-700 uppercase rounded-xl tracking-wider shadow-sm animate-in fade-in zoom-in">
+                      📁 {availableBatches.find(b => b.id === extratoBatchFilter)?.label || 'Lote Selecionado'}
+                    </span>
+                  )}
+                </h3>
                 <p className="text-sm font-bold text-slate-400">Listagem das transações conciliadas no sistema</p>
               </div>
 
@@ -2720,6 +2742,11 @@ export function PixConference() {
                             <td className="px-8 py-4">
                               <p className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{t.transaction_id || '—'}</p>
                               <p className="text-[11px] font-bold text-slate-500 mt-0.5">{formatDateForDisplay(t.date) || t.date || '—'}</p>
+                              {t.batch_file_name && (
+                                <p className="text-[9px] font-black text-blue-600 bg-blue-50/50 border border-blue-100 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 mt-1 uppercase tracking-tighter" title="Lote/Origem de Importação">
+                                  📁 {t.batch_file_name}
+                                </p>
+                              )}
                             </td>
                             <td className="px-8 py-4">
                               <p className="font-black text-[#00174b] uppercase text-sm">{t.payer_name || '—'}</p>
