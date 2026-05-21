@@ -133,7 +133,7 @@ export function Navbar() {
                   style={{ clipPath: 'polygon(50% 50%, -50% -50%, 150% -50%)' }}
                 />
               </div>
-              <span className="text-[10px] font-black tabular-nums text-slate-500 group-hover:text-indigo-600 transition-colors uppercase tracking-widest whitespace-nowrap">
+              <span className="text-[10px] font-bold tabular-nums text-slate-500 group-hover:text-indigo-600 transition-colors uppercase tracking-widest whitespace-nowrap">
                 {Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')}
               </span>
             </div>

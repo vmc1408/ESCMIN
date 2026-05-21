@@ -88,59 +88,57 @@ const ClassItem = React.memo(({
     <button
       onClick={() => onSelect(cls)}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left",
         isSelected 
-          ? "bg-blue-50 border-blue-100" 
+          ? "bg-indigo-50 border-indigo-100 shadow-sm" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] relative">
+      <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] relative border border-slate-200">
         {cls.code}
         <div className={cn(
-          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
+          "absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white",
           cls.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
         )} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-bold text-[#131b2e] truncate">{cls.name}</p>
+          <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{cls.name}</p>
           <span className={cn(
-            "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
-            cls.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
+            "px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider",
+            cls.status === 'Inativo' ? "bg-slate-50 text-slate-500 border border-slate-200" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
           )}>
             {cls.status || 'Ativo'}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-          <span className="font-medium">{cls.period}</span>
-          <span className="text-slate-300">•</span>
-          <span className="font-medium">{cls.year}</span>
-          <span className="text-slate-300">•</span>
-          <span className="font-medium">{cls.semester}</span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-0.5">
+          <span>{cls.period}</span>
+          <span className="text-slate-200">|</span>
+          <span>{cls.year}</span>
         </div>
-        {cls.subject_ids && cls.subject_ids.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {cls.subject_ids.map(sid => {
-              const subject = subjects.find(s => s.id === sid);
-              if (!subject) return null;
-              return (
-                <span key={sid} className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100 text-[9px] font-bold">
-                  {subject.name}
-                </span>
-              );
-            })}
+      </div>
+      {cls.subject_ids && cls.subject_ids.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {cls.subject_ids.map(sid => {
+            const subject = subjects.find(s => s.id === sid);
+            if (!subject) return null;
+            return (
+              <span key={sid} className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100 text-[9px] font-bold">
+                {subject.name}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {cls.start_date && (
+          <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 text-[10px] font-black uppercase">
+            <Calendar size={10} />
+            Início: {cls.start_date.includes('T') ? cls.start_date.split('T')[0].split('-').reverse().join('/') : 
+                    cls.start_date.includes('-') ? cls.start_date.split('-').reverse().join('/') : 
+                    cls.start_date}
           </div>
         )}
-        {cls.start_date && (
-            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 text-[10px] font-black uppercase">
-              <Calendar size={10} />
-              Início: {cls.start_date.includes('T') ? cls.start_date.split('T')[0].split('-').reverse().join('/') : 
-                      cls.start_date.includes('-') ? cls.start_date.split('-').reverse().join('/') : 
-                      cls.start_date}
-            </div>
-          )}
-      </div>
     </button>
   );
 });
@@ -478,64 +476,56 @@ export function Classes() {
   }, [classes, searchTerm, statusFilter, sortBy]);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-2">
+    <div className="h-[calc(100vh-6rem)] flex gap-4">
       {/* Sidebar List */}
-      <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
-        <div className="p-4 border-b border-slate-50 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#131b2e]">Turmas</h2>
-            <div className="flex gap-2">
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100 flex items-center">
+      <div className="w-[412px] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden order-last">
+        <div className="p-4 border-b border-slate-100 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-bold text-slate-800 tracking-tight">Turmas</h2>
+            <div className="flex items-center gap-2">
+              <div className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded border border-slate-200">
                 {filteredClasses.length}
               </div>
               <button 
-                onClick={generateClassListPDF}
-                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm"
-                title="Imprimir Listagem Completa"
-              >
-                <Printer size={16} />
-                <span className="text-[10px] font-black uppercase tracking-tight">Listagem</span>
-              </button>
-              <button 
                 onClick={handleNew}
-                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                title="Nova Turma"
+                className="px-3 h-8 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
               >
-                <Plus size={18} />
+                <Plus size={14} />
+                NOVA
               </button>
             </div>
           </div>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input 
               type="text"
               placeholder="Buscar turma..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
+              className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] focus:ring-1 focus:ring-indigo-500/20 outline-none transition-all focus:bg-white"
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-2">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-indigo-500/20 outline-none"
             >
-              <option value="name_year">Nome e Ano (Recente)</option>
-              <option value="name">Ordenar por Nome</option>
+              <option value="name_year">Nome e Ano (Recente Primeiro)</option>
+              <option value="name">Ordenar por Nome (A-Z)</option>
               <option value="code">Ordenar por Código</option>
               <option value="year">Ordenar por Ano</option>
               <option value="period">Ordenar por Período</option>
             </select>
-            <div className="flex bg-slate-50 p-1 rounded-lg">
+            <div className="flex bg-slate-100 p-1 rounded-md">
               {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
                   className={cn(
-                    "flex-1 py-1 text-[8px] font-black uppercase rounded transition-all",
+                    "flex-1 py-1 text-[9px] font-bold uppercase rounded transition-all",
                     statusFilter === status 
-                      ? "bg-white text-blue-600 shadow-sm" 
+                      ? "bg-slate-800 text-white shadow-sm" 
                       : "text-slate-500 hover:text-slate-700"
                   )}
                 >
@@ -564,78 +554,77 @@ export function Classes() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden relative">
         {selectedClass || isEditing ? (
           <>
             {notification && (
               <div className={cn(
-                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3",
-                notification.type === 'success' ? "bg-green-600 text-white" : "bg-red-600 text-white"
+                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-md shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2",
+                notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
               )}>
-                {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-                <p className="text-sm font-bold">{notification.message}</p>
+                {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                <p className="text-[11px] font-bold uppercase tracking-wider">{notification.message}</p>
               </div>
             )}
-            <div className="p-4 border-b border-slate-50 bg-slate-50/50">
-              <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
-                  <School size={32} />
+                <div className="w-12 h-12 rounded bg-white shadow-sm flex items-center justify-center text-indigo-400 border border-slate-200">
+                  <School size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-[#131b2e]">
+                  <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
                     {isEditing ? (selectedClass ? 'Editar Turma' : 'Nova Turma') : formData.name}
                   </h3>
-                  <p className="text-sm text-slate-500">Turma: {formData.code}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">CÓDIGO: {formData.code || '---'}</p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-2">
                 {!isEditing && selectedClass && (
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group"
-                    title="Excluir Turma"
-                  >
-                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
-                  </button>
+                  <>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all group border border-transparent hover:border-red-100"
+                      title="Excluir Turma"
+                    >
+                      <Trash2 size={18} className="group-hover:scale-105 transition-transform" />
+                    </button>
+                    <button 
+                      onClick={() => window.print()}
+                      className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-md hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center shadow-sm"
+                      title="Imprimir Listagem"
+                    >
+                      <Printer size={16} />
+                    </button>
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="h-10 px-4 bg-indigo-50 text-indigo-600 rounded-md text-[11px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm shadow-indigo-100/50 uppercase tracking-widest"
+                    >
+                      <Edit2 size={14} />
+                      Editar
+                    </button>
+                  </>
                 )}
-                {isEditing ? (
+                {isEditing && (
                   <>
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-bold transition-all"
+                      className="px-4 py-2 text-slate-500 hover:text-slate-800 text-[11px] font-bold uppercase tracking-widest"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-6 py-2 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                      className="px-5 py-2.5 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
                     >
-                      Salvar Turma
+                      Salvar Registro
                     </button>
                   </>
-                ) : (
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => window.print()}
-                      className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
-                    >
-                      <Printer size={16} />
-                      Imprimir Ficha
-                    </button>
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                    >
-                      <Edit2 size={16} />
-                      Editar Cadastro
-                    </button>
-                  </div>
                 )}
               </div>
             </div>
@@ -653,7 +642,7 @@ export function Classes() {
                     <div className="col-span-12 grid grid-cols-12 gap-3 pb-2">
                        <div className="col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Ano Letivo</label>
-                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1 flex-wrap">
+                        <div className="flex bg-slate-100 p-1 rounded-md gap-1 flex-wrap">
                           {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
                             <button
                               key={year}
@@ -676,9 +665,9 @@ export function Classes() {
                                 setFormData({...formData, year: newYear, subject_ids: validSubjects});
                               }}
                               className={cn(
-                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-lg transition-all",
+                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded transition-all",
                                 formData.year === year 
-                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  ? "bg-slate-800 text-white shadow-sm" 
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
                               )}
                             >
@@ -689,7 +678,7 @@ export function Classes() {
                       </div>
                       <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Semestre</label>
-                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
+                        <div className="flex bg-slate-100 p-1 rounded-md gap-1">
                           {(formData.year === 'Curso Extra' ? ['1º Semestre', '2º Semestre', 'Ano Inteiro'] : ['1º Semestre', '2º Semestre']).map((sem) => (
                             <button
                               key={sem}
@@ -717,9 +706,9 @@ export function Classes() {
                                 setFormData({...formData, semester: newSemester, subject_ids: validSubjects});
                               }}
                               className={cn(
-                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                "flex-1 py-2 text-[10px] font-bold rounded transition-all",
                                 formData.semester === sem 
-                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  ? "bg-slate-800 text-white shadow-sm" 
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
                               )}
                             >
@@ -743,7 +732,7 @@ export function Classes() {
                               newIds[index] = e.target.value;
                               setFormData({...formData, subject_ids: newIds.filter(Boolean)});
                             }}
-                            className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-indigo-500/20 disabled:opacity-60 outline-none transition-all"
                           >
                             <option value="">{index === 0 ? '1ª Disciplina...' : '2ª Disciplina (Opcional)...'}</option>
                             {subjects

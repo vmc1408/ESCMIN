@@ -20,66 +20,74 @@ const setDbConnected = (val: boolean, latency: number | null = null, error: stri
 /**
  * Utility to fetch with timeout
  */
-export const fetchWithTimeout = async (promise: any, timeoutMs = 20000): Promise<any> => {
+export const fetchWithTimeout = async (promise: any, timeoutMs = 20000, maxRetries = 1): Promise<any> => {
   if (typeof window !== 'undefined' && !window.navigator.onLine) {
     return { data: null, error: { message: 'Dispositivo Offline', isOffline: true } };
   }
 
-  const startTime = Date.now();
-  const timeout = new Promise<never>((_, reject) => 
-    setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
-  );
+  let attempt = 0;
+  
+  const executeAttempt = async (): Promise<any> => {
+    const startTime = Date.now();
+    const timeout = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
+    );
 
-  try {
-    const result = await Promise.race([promise, timeout]);
-    const latency = Date.now() - startTime;
-    
-    // Se recebemos um resultado com status, o servidor está vivo
-    if (result && result.status !== undefined) {
-      setDbConnected(true, latency, null);
-    }
-    
-    return result;
-  } catch (err: any) {
-    const latency = Date.now() - startTime;
-    const errorMessage = err.message || String(err);
-    
-    // Lista de erros que indicam falha real de rede/conectividade
-    const isConnectivityError = 
-      errorMessage === 'TIMEOUT' ||
-      errorMessage.includes('Failed to fetch') ||
-      errorMessage.includes('Network Error') ||
-      errorMessage.includes('TypeError: Load failed') ||
-      errorMessage.includes('TypeError: NetworkError') ||
-      errorMessage.includes('Network request failed') ||
-      errorMessage.includes('Socket closed') ||
-      errorMessage.includes('connection refused') ||
-      err.status === 0 || 
-      err.code === 'PGRST301' || // JWT Expired (sometimes triggers on disconnect)
-      err.code === '08001' ||    // SQL Connection failure
-      err.code === '08004' ||    // SQL Connection failure
-      err.code === '08006' ||    // SQL Connection failure
-      err.code === '08P01';      // Protocol violation
+    try {
+      const result = await Promise.race([promise, timeout]);
+      const latency = Date.now() - startTime;
+      
+      if (result && result.status !== undefined) {
+        setDbConnected(true, latency, null);
+      }
+      
+      return result;
+    } catch (err: any) {
+      const latency = Date.now() - startTime;
+      const errorMessage = err.message || String(err);
+      
+      const isConnectivityError = 
+        errorMessage === 'TIMEOUT' ||
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('Network Error') ||
+        errorMessage.includes('TypeError: Load failed') ||
+        errorMessage.includes('TypeError: NetworkError') ||
+        errorMessage.includes('Network request failed') ||
+        errorMessage.includes('Socket closed') ||
+        errorMessage.includes('connection refused') ||
+        err.status === 0 || 
+        err.code === 'PGRST301' || 
+        err.code === '08001' ||    
+        err.code === '08004' ||    
+        err.code === '08006' ||    
+        err.code === '08P01';      
 
-    if (errorMessage === 'TIMEOUT') {
-      console.warn(`[Supabase] Timeout (${timeoutMs}ms) em operação.`);
-      // Só marca como offline se o timeout for curto (indicando instabilidades bruscas)
-      if (timeoutMs < 10000) setDbConnected(false, latency, 'Tempo de resposta excedido (Timeout)');
-      return { data: null, error: { message: 'Operação lenta ou sem resposta (TIMEOUT)', isTimeout: true } };
-    }
+      // Retry logic for transient network failures
+      if (attempt < maxRetries && isConnectivityError && errorMessage !== 'TIMEOUT') {
+        attempt++;
+        const backoff = 1000 * attempt; 
+        console.warn(`[Supabase] Erro de rede (Failed to fetch). Tentativa ${attempt}/${maxRetries} em ${backoff}ms...`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        return executeAttempt();
+      }
 
-    // Só marca dispositivo como offline se for erro de conectividade
-    // Erros de permissão (403), código de objeto duplicado (23505), tabela inexistente (42P01), etc, 
-    // são erros de negócio/configuração e NÃO devem derrubar o status do sistema.
-    if (isConnectivityError) {
-      setDbConnected(false, latency, errorMessage);
-    } else {
-      // Se deu erro mas NÃO é conectividade, garantimos que o sistema continue como "conectado"
-      setDbConnected(true, latency, null);
+      if (errorMessage === 'TIMEOUT') {
+        console.warn(`[Supabase] Timeout (${timeoutMs}ms) em operação.`);
+        if (timeoutMs < 10000) setDbConnected(false, latency, 'Tempo de resposta excedido (Timeout)');
+        return { data: null, error: { message: 'Operação lenta ou sem resposta (TIMEOUT)', isTimeout: true } };
+      }
+
+      if (isConnectivityError) {
+        setDbConnected(false, latency, errorMessage);
+      } else {
+        setDbConnected(true, latency, null);
+      }
+      
+      return { data: null, error: err };
     }
-    
-    return { data: null, error: err };
-  }
+  };
+
+  return executeAttempt();
 };
 
 const rawUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();

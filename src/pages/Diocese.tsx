@@ -40,24 +40,24 @@ type TabType = 'dashboard' | 'foranias' | 'parishes' | 'clergy';
 
 const DetailField = ({ label, value, icon, fullWidth = false }: { label: string, value: any, icon: React.ReactNode, fullWidth?: boolean }) => (
   <div className={cn("space-y-1.5", fullWidth ? "md:col-span-2" : "")}>
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 border-l-2 border-blue-500/20">{label}</label>
-    <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 border-l-2 border-blue-500/20">{label}</label>
+    <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
       <div className="text-blue-500">
         {icon}
       </div>
-      <span className="text-sm font-bold text-slate-700">{value || 'Não informado'}</span>
+      <span className="text-sm font-semibold text-slate-700">{value || 'Não informado'}</span>
     </div>
   </div>
 );
 
 const SummaryCard = ({ label, value, icon, color }: { label: string, value: number, icon: React.ReactNode, color: string }) => (
-  <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5 group hover:shadow-xl transition-all duration-300">
-    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg", color)}>
+  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-5 group hover:shadow-lg transition-all duration-300">
+    <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center text-white shadow-md", color)}>
       {icon}
     </div>
     <div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
-      <p className="text-3xl font-black text-slate-800 tracking-tight">{value}</p>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+      <p className="text-3xl font-bold text-slate-800 tracking-tight">{value}</p>
     </div>
   </div>
 );
@@ -550,7 +550,14 @@ export function Diocese() {
       
       if (activeTab === 'parishes' || activeTab === 'dashboard') {
         const foundationDate = (dataForDB as any).foundation_date;
-        (dataForDB as any).foundation_date = foundationDate ? parseDateToDB(foundationDate) : null;
+        const parsed = foundationDate ? parseDateToDB(foundationDate) : null;
+        
+        if (parsed) {
+          (dataForDB as any).foundation_date = parsed;
+        } else {
+          // Explicitly delete if empty to avoid sending "" to a DATE column
+          delete (dataForDB as any).foundation_date;
+        }
       }
       
       if (activeTab === 'clergy') {
@@ -739,13 +746,13 @@ export function Diocese() {
     <div className="max-w-7xl mx-auto space-y-6 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
-          <h2 className="text-4xl font-black text-[#131b2e] tracking-tight flex items-center gap-4">
-            <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-xl shadow-blue-200">
-              <Scroll size={32} />
+          <h2 className="text-3xl font-bold text-[#131b2e] tracking-tight flex items-center gap-4">
+            <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-md border border-blue-500">
+              <Scroll size={24} />
             </div>
             Gestão da Diocese
           </h2>
-          <p className="text-slate-500 font-bold mt-1 pl-1">Painel Central de Paróquias, Foranias e Clero.</p>
+          <p className="text-slate-500 font-semibold text-xs mt-1 pl-1">Painel Central de Paróquias, Foranias e Clero.</p>
         </div>
         <div className="flex items-center gap-3">
           <input 
@@ -757,16 +764,16 @@ export function Diocese() {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+            className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
           >
-            <Upload size={18} className="text-blue-600" />
+            <Upload size={16} className="text-blue-600" />
             Importar Excel
           </button>
           <button
             onClick={handlePrint}
-            className="px-5 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-xl shadow-emerald-200"
+            className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-md"
           >
-            <Printer size={18} />
+            <Printer size={16} />
             Gerar Relatório
           </button>
         </div>
@@ -781,7 +788,7 @@ export function Diocese() {
 
       {/* Nav Tabs */}
       <div className="flex flex-col md:flex-row items-center gap-6 print:hidden">
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200 w-full md:w-fit">
+        <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-xl border border-slate-200 w-full md:w-fit">
           <button
             onClick={() => { 
               setActiveTab('dashboard'); 
@@ -793,8 +800,8 @@ export function Diocese() {
               setFilterRole('');
             }}
             className={cn(
-              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
-              activeTab === 'dashboard' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+              "flex-1 md:flex-none px-6 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              activeTab === 'dashboard' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
             )}
           >
             <Layers size={14} />
@@ -803,8 +810,8 @@ export function Diocese() {
           <button
             onClick={() => { setActiveTab('parishes'); setIsEditing(false); setFilterParish(''); }}
             className={cn(
-              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
-              activeTab === 'parishes' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+              "flex-1 md:flex-none px-6 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              activeTab === 'parishes' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
             )}
           >
             <Church size={14} />
@@ -813,8 +820,8 @@ export function Diocese() {
           <button
             onClick={() => { setActiveTab('foranias'); setIsEditing(false); setFilterForania(''); }}
             className={cn(
-              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
-              activeTab === 'foranias' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+              "flex-1 md:flex-none px-6 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              activeTab === 'foranias' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
             )}
           >
             <MapIcon size={14} />
@@ -823,8 +830,8 @@ export function Diocese() {
           <button
             onClick={() => { setActiveTab('clergy'); setIsEditing(false); setFilterClergyMember(''); }}
             className={cn(
-              "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2",
-              activeTab === 'clergy' ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+              "flex-1 md:flex-none px-6 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+              activeTab === 'clergy' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
             )}
           >
             <Shield size={14} />
@@ -834,30 +841,30 @@ export function Diocese() {
 
         <button
           onClick={handleAddNew}
-          className="w-full md:w-auto px-8 py-3 bg-[#00174b] text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-blue-900/15 flex items-center justify-center gap-3"
+          className="w-full md:w-auto px-6 py-2.5 bg-[#00174b] text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center gap-3"
         >
-          <Plus size={18} />
+          <Plus size={16} />
           Novo Cadastro
         </button>
       </div>
 
       {/* Filters Hub */}
-      <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-6 print:hidden">
-        <div className="flex-1 flex items-center gap-4 w-full bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/5 transition-all">
-          <Search className="text-slate-400" size={20} />
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center gap-6 print:hidden">
+        <div className="flex-1 flex items-center gap-4 w-full bg-slate-50 px-5 py-2.5 rounded-xl border border-slate-100 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+          <Search className="text-slate-400" size={18} />
           <input 
             type="text"
             placeholder="Qualquer informação (Nome, Padre, CNPJ, Cidade...)"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-bold text-slate-700 placeholder:text-slate-300"
+            className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-semibold text-slate-700 placeholder:text-slate-300"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
           {/* Forania Filter - Hidden only if we are in Foranias tab and user considers search box as "auto-busca" */}
           {activeTab !== 'foranias' && (
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
               <MapIcon size={14} className="text-indigo-400" />
               <select
                 value={filterForania}
@@ -866,7 +873,7 @@ export function Diocese() {
                   setFilterParish('');
                   setFilterClergyMember('');
                 }}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
+                className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
               >
                 <option value="">Selecionar Forania...</option>
                 <option value="all">Todas as Foranias</option>
@@ -879,7 +886,7 @@ export function Diocese() {
 
           {/* Parish Filter - Hidden if in Parishes tab */}
           {activeTab !== 'parishes' && (
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
               <Church size={14} className="text-blue-400" />
               <select
                 value={filterParish}
@@ -891,7 +898,7 @@ export function Diocese() {
                   }
                   setFilterClergyMember('');
                 }}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
+                className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
               >
                 <option value="">Selecionar Paróquia...</option>
                 <option value="all">Todas as Paróquias</option>
@@ -906,7 +913,7 @@ export function Diocese() {
 
           {/* Clergy Filter - Hidden if in Clergy tab */}
           {activeTab !== 'clergy' && (
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
               <User size={14} className="text-amber-400" />
               <select
                 value={filterClergyMember}
@@ -920,7 +927,7 @@ export function Diocese() {
                     }
                   }
                 }}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
+                className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0 max-w-[120px]"
               >
                 <option value="">Selecionar Clero...</option>
                 <option value="all">Todo o Clero</option>
@@ -939,12 +946,12 @@ export function Diocese() {
           )}
 
           {activeTab === 'clergy' && (
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-100">
               <Shield size={14} className="text-slate-400" />
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
+                className="bg-transparent border-none text-[9px] font-bold uppercase tracking-widest text-slate-500 focus:ring-0 cursor-pointer p-0"
               >
                 <option value="">Todos Cargos</option>
                 <option value="pároco">Pároco</option>
@@ -955,8 +962,8 @@ export function Diocese() {
             </div>
           )}
 
-          <div className="px-5 py-3 bg-blue-50 text-blue-600 rounded-2xl text-[11px] font-black uppercase tracking-tighter shrink-0 border border-blue-100">
-            {filteredItems.length} registros encontrados
+          <div className="px-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-[9px] font-bold uppercase tracking-widest shrink-0 border border-blue-100">
+            {filteredItems.length} registros
           </div>
         </div>
       </div>
@@ -964,38 +971,38 @@ export function Diocese() {
       {/* Main Content View */}
       <div className="space-y-4">
         {loading ? (
-          <div className="bg-white p-20 rounded-[3rem] shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center gap-6">
+          <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center gap-6">
             <div className="relative">
               <div className="w-20 h-20 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin"></div>
               <Scroll className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-600" size={32} />
             </div>
             <div>
-              <p className="text-xl font-black text-slate-800">Organizando Hub Diocese</p>
-              <p className="text-slate-400 font-bold uppercase text-xs tracking-widest mt-2">Sincronizando dados eclesiásticos...</p>
+              <p className="text-lg font-bold text-slate-800">Organizando Hub Diocese</p>
+              <p className="text-slate-400 font-semibold uppercase text-[10px] tracking-widest mt-2">Sincronizando dados eclesiásticos...</p>
             </div>
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="bg-white p-20 rounded-[3rem] border-2 border-dashed border-slate-200 text-center">
-            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+          <div className="bg-white p-12 rounded-2xl border-2 border-dashed border-slate-100 text-center">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg">
               {activeTab === 'dashboard' && !(search || filterForania || filterParish || filterClergyMember) ? (
-                <Filter size={48} />
+                <Filter size={24} className="text-slate-300" />
               ) : (
-                <Search size={48} />
+                <Search size={24} className="text-slate-300" />
               )}
             </div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2">
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
               {activeTab === 'dashboard' && !(search || filterForania || filterParish || filterClergyMember) 
                 ? 'Selecione um filtro para começar' 
-                : 'Sem resultados para seu filtro'}
+                : 'Sem resultados encontrados'}
             </h3>
-            <p className="text-slate-400 font-bold max-w-md mx-auto">
+            <p className="text-slate-400 font-semibold max-w-xs mx-auto text-sm">
               {activeTab === 'dashboard' && !(search || filterForania || filterParish || filterClergyMember)
-                ? 'Utilize os campos de busca ou os filtros de Forania, Paróquia e Clero para visualizar os dados.'
+                ? 'Utilize os filtros acima para visualizar os dados integrados da diocese.'
                 : 'Tente ajustar sua busca ou limpar os filtros aplicados.'}
             </p>
             <button 
               onClick={() => { setSearch(''); setFilterForania(''); setFilterParish(''); setFilterClergyMember(''); setFilterRole(''); }}
-              className="mt-8 px-8 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
+              className="mt-8 px-6 py-2.5 bg-slate-100 text-slate-600 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all shadow-sm"
             >
               Limpar Filtros
             </button>
@@ -1007,11 +1014,11 @@ export function Diocese() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo / Cadastro</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">Região / Forania</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável / Cargo</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:table-cell">Contato / Localização</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right print:hidden">Ações</th>
+                    <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest underline decoration-blue-500/30 underline-offset-4">Tipo / Cadastro</th>
+                    <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden md:table-cell underline decoration-blue-500/30 underline-offset-4">Região / Forania</th>
+                    <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest underline decoration-blue-500/30 underline-offset-4">Responsável / Cargo</th>
+                    <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden lg:table-cell underline decoration-blue-500/30 underline-offset-4">Contato / Localização</th>
+                    <th className="px-6 py-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-right print:hidden underline decoration-blue-500/30 underline-offset-4">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -1119,7 +1126,7 @@ export function Diocese() {
           /* PREVIOUS LIST VIEWS (for other categories like Clergy directly) */
           <div className="grid gap-4 print:block">
             {filteredItems.map((item: any) => (
-              <div key={`${item._type}-${item.id}`} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all group relative overflow-hidden print:border-slate-300 print:mb-4 print:shadow-none">
+              <div key={`${item._type}-${item.id}`} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all group relative overflow-hidden print:border-slate-300 print:mb-4 print:shadow-none">
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600 opacity-20 group-hover:opacity-100 transition-opacity" />
                 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

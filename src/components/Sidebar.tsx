@@ -182,35 +182,34 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <button
               onClick={() => toggleGroup(item.label)}
               className={cn(
-                "w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-lg transition-all duration-200",
+                "w-full flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-md transition-all duration-200",
                 isActive && !isOpen ? "bg-white/5 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
               <div className="flex items-center gap-3">
-                {item.icon && <item.icon size={16} className={cn(isActive ? "text-indigo-400" : "text-slate-500")} />}
+                {item.icon && <item.icon size={15} className={cn(isActive ? "text-indigo-400" : "text-slate-500")} />}
                 <span className={cn(
-                  "text-sm font-semibold uppercase tracking-wider",
-                  depth > 0 ? "text-[10px]" : "text-[11px]",
+                  "text-[10px] font-bold uppercase tracking-wider",
                   isActive ? "text-white" : "text-slate-400"
                 )}>
                   {item.label}
                 </span>
               </div>
-              {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             </button>
             
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {isOpen && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
                   className="overflow-hidden"
                 >
                   <div className={cn(
                     "space-y-0.5 mt-0.5",
-                    depth === 0 ? "ml-4 border-l border-white/10 pl-2" : "ml-3 border-l border-white/5 pl-2"
+                    depth === 0 ? "ml-4 border-l border-white/5 pl-2" : "ml-3 border-l border-white/5 pl-2"
                   )}>
                     {renderNavItems(item.children, depth + 1)}
                   </div>
@@ -226,63 +225,57 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           key={item.path}
           to={item.path}
           className={cn(
-            "flex items-center gap-3 px-3.5 py-2 rounded-lg transition-all duration-200 active:scale-95",
+            "flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200",
             isActive 
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20" 
-              : "text-slate-300 hover:text-white hover:bg-white/10"
+              ? "bg-indigo-600/90 text-white shadow-sm shadow-indigo-900/10" 
+              : "text-slate-300 hover:text-white hover:bg-white/5"
           )}
         >
-          {item.icon && <item.icon size={16} />}
-          <span className="text-sm font-medium">{item.label}</span>
+          {item.icon && <item.icon size={15} />}
+          <span className="text-[13px] font-medium">{item.label}</span>
         </Link>
       );
     });
   };
 
   return (
-    <aside className="h-full w-64 bg-[#00174b] text-white flex flex-col border-r border-white/5 print:hidden overflow-hidden shrink-0 shadow-xl">
-      <div className="p-6 border-b border-white/5 flex items-center justify-between">
-        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400/80">Menu Principal</h2>
+    <aside className="h-full w-60 bg-[#001440] text-white flex flex-col border-r border-white/5 print:hidden overflow-hidden shrink-0">
+      <div className="p-5 border-b border-white/5 flex items-center justify-between">
+        <div className="flex flex-col">
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400/90">Sistema Diocesano</h2>
+          <span className="text-[9px] font-medium text-slate-500">Gestão Educacional</span>
+        </div>
         {onClose && (
           <button 
             onClick={onClose}
             className="lg:hidden p-1 text-white/40 hover:text-white transition-colors"
           >
-            <XCircle size={20} />
+            <XCircle size={18} />
           </button>
         )}
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto custom-scrollbar">
         {renderNavItems(filteredNavItems)}
       </nav>
 
-      <div className="p-4 bg-[#001440] border-t border-white/5 space-y-4">
+      <div className="p-4 bg-[#001035] border-t border-white/5">
         {/* Database Connection Indicator */}
-        <div className="px-3 py-2 bg-black/20 rounded-lg border border-white/5 flex items-center justify-between group">
+        <div className="px-3 py-2 bg-black/10 rounded-md border border-white/5 flex items-center justify-between group">
           <div className="flex items-center gap-2">
             {dbStatus === 'online' ? (
-              <div className="relative">
-                <OnlineIcon size={14} className="text-emerald-400" />
-                <span className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-25"></span>
-              </div>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
             ) : dbStatus === 'offline' ? (
-              <OfflineIcon size={14} className="text-red-400" />
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
             ) : (
-              <StatusIcon size={14} className="text-slate-500 animate-pulse" />
+              <StatusIcon size={12} className="text-slate-500 animate-pulse" />
             )}
             <span className={cn(
-              "text-[9px] font-semibold uppercase tracking-wider",
-              dbStatus === 'online' ? "text-emerald-400/80" : dbStatus === 'offline' ? "text-red-400/80" : "text-slate-500"
+              "text-[9px] font-bold uppercase tracking-widest",
+              dbStatus === 'online' ? "text-emerald-500/80" : dbStatus === 'offline' ? "text-red-500/80" : "text-slate-500"
             )}>
-              {dbStatus === 'online' ? 'Sistema Online' : dbStatus === 'offline' ? 'Banco Offline' : 'Verificando...'}
+              {dbStatus === 'online' ? 'Online' : dbStatus === 'offline' ? 'Offline' : '...'}
             </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className={cn(
-              "w-1 h-1 rounded-full",
-              dbStatus === 'online' ? "bg-emerald-400" : dbStatus === 'offline' ? "bg-red-400" : "bg-slate-500"
-            )}></div>
           </div>
         </div>
       </div>

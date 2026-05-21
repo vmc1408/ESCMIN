@@ -295,179 +295,171 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="space-y-10 p-2 pb-20">
+    <div className="space-y-8 p-1">
       <motion.div 
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
         <div className="space-y-1">
-          <h1 className="text-4xl font-black text-[#00174b] tracking-tighter">Painel de Controle</h1>
-          <div className="flex items-center gap-3">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Panorama da Instituição</p>
-            <div className="w-1 h-1 rounded-full bg-slate-300" />
-            <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-               <ShieldCheck size={12} /> Sistema Seguro
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Painel de Controle</h1>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Panorama da Instituição</p>
+            <div className="w-1 h-1 rounded-full bg-slate-200" />
+            <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
+               <ShieldCheck size={11} /> Conexão Segura
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button 
             onClick={fetchStats}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white border border-slate-100 text-[#00174b] text-[10px] font-black uppercase tracking-widest shadow-sm hover:shadow-md hover:border-blue-100 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all active:scale-95"
           >
-            <RefreshCw size={14} className={cn(isRefreshing && "animate-spin")} />
-            Sync Agora
+            <RefreshCw size={12} className={cn(isRefreshing && "animate-spin")} />
+            Sincronizar
           </button>
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, idx) => (
           <motion.div 
             key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="group relative bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-100/50 border border-slate-50 hover:shadow-2xl transition-all duration-500 overflow-hidden"
+            transition={{ delay: idx * 0.05 }}
+            className="group relative bg-white p-6 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-300"
           >
-            <div className="flex items-start justify-between mb-8 relative z-10">
-              <div className={`${stat.bg} ${stat.color} w-14 h-14 rounded-[1.25rem] flex items-center justify-center transition-transform group-hover:scale-110 duration-500`}>
-                <stat.icon size={26} />
+            <div className="flex items-start justify-between mb-6">
+              <div className={`${stat.bg} ${stat.color} w-10 h-10 rounded-md flex items-center justify-center transition-transform group-hover:scale-105`}>
+                <stat.icon size={20} />
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{stat.label}</p>
-                <h3 className="text-4xl font-black text-[#00174b] tracking-tighter mt-1 tabular-nums">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                <h3 className="text-2xl font-bold text-slate-800 tracking-tight mt-1 tabular-nums">
                   {isRefreshing ? "..." : stat.stats.active}
                 </h3>
               </div>
             </div>
 
-            <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center justify-between">
                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Rede</span>
-                  <div className="flex items-center gap-2">
+                  <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Latência</span>
+                  <div className="flex items-center gap-1.5">
                     <div className={cn(
-                      "h-2 w-2 rounded-full",
-                      dbStatus === 'connected' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" : "bg-amber-400"
+                      "h-1.5 w-1.5 rounded-full",
+                      dbStatus === 'connected' ? "bg-emerald-500" : "bg-amber-400"
                     )}></div>
-                    <span className="text-[10px] font-bold text-slate-400">{dbInfo.latency || '?'}ms</span>
+                    <span className="text-[9px] font-medium text-slate-400">{dbInfo.latency || '?'} ms</span>
                   </div>
                </div>
-               <div className="px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest">
+               <div className="px-2 py-0.5 bg-slate-50 border border-slate-100 rounded text-[8px] font-bold text-slate-500 uppercase tracking-widest">
                   Ativos
                </div>
             </div>
-
-            <div className={`absolute -bottom-6 -right-6 w-32 h-32 blur-[60px] opacity-10 rounded-full transition-all group-hover:opacity-20 ${stat.bg.replace('bg-', 'bg-')}`} />
           </motion.div>
         ))}
-      </div>      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-          className="lg:col-span-8 bg-white rounded-[3rem] border border-slate-50 shadow-2xl shadow-slate-200/50 overflow-hidden"
+          transition={{ delay: 0.3 }}
+          className="lg:col-span-8 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden"
         >
-          <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-white relative overflow-hidden">
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
-                <Activity size={24} />
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white overflow-hidden">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Activity size={16} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-[#00174b] tracking-tight">Ocupação Acadêmica</h3>
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Análise por Turma</p>
+                <h3 className="text-sm font-bold text-slate-800">Ocupação Acadêmica</h3>
+                <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Distribuição por Turma</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 relative z-10 font-black text-[9px] uppercase tracking-widest">
-              <TrendingUp size={14} className="fill-emerald-600" />
-              Live
+            <div className="flex items-center gap-2 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold uppercase tracking-widest border border-emerald-100">
+              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+              Tempo Real
             </div>
           </div>
           
-          <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#fafbfc]">
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/30">
             {studentsByClass.length > 0 ? (
               studentsByClass.map((c, i) => (
                 <motion.div 
                   key={i} 
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
+                  transition={{ delay: i * 0.03 }}
                   className={cn(
-                    "p-6 rounded-[2rem] border transition-all duration-500 group bg-white shadow-sm hover:shadow-xl hover:scale-[1.02]",
+                    "p-4 rounded-md border bg-white transition-all shadow-sm flex flex-col h-full",
                     c.borderClass
                   )}
                 >
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center gap-4">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
                       <div className={cn(
-                        "h-10 px-3 w-auto flex items-center justify-center text-white font-black text-[11px] shadow-xl whitespace-nowrap rounded-xl",
-                        "bg-gradient-to-br",
+                        "h-8 px-2 flex items-center justify-center text-white font-bold text-[10px] whitespace-nowrap rounded",
+                        "bg-slate-700",
                         c.color
                       )}>
                         {c.code}
                       </div>
                       <div className="min-w-0">
-                        <h5 className="text-sm font-black text-[#00174b] tracking-tight truncate">{c.name}</h5>
-                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-0.5">{c.period}</p>
+                        <h5 className="text-[13px] font-bold text-slate-800 tracking-tight truncate">{c.name}</h5>
+                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest">{c.period}</p>
                       </div>
                     </div>
                     {c.count > 0 && (
                       <button 
                         onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
-                        className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center"
+                        className="w-6 h-6 rounded bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all flex items-center justify-center border border-slate-200"
                       >
-                        <Eye size={16} />
+                        <Eye size={14} />
                       </button>
                     )}
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="mt-auto space-y-1.5">
                     <div className="flex justify-between items-end px-1">
-                       <div className="flex flex-col">
-                          <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Ocupação</span>
-                          <span className="text-lg font-black text-[#00174b] tabular-nums leading-none">{c.percentage}%</span>
-                       </div>
-                       <div className="text-right">
-                          <span className="text-lg font-black text-[#00174b] tabular-nums leading-none">{c.count}</span>
-                          <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Alunos</p>
-                       </div>
+                       <span className="text-[10px] font-bold text-slate-700">{c.percentage}%</span>
+                       <span className="text-[10px] font-medium text-slate-500">{c.count} Alunos</span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min(c.percentage, 100)}%` }}
-                        transition={{ duration: 1.5, ease: "easeOut", delay: i * 0.1 }}
-                        className={cn("h-full rounded-full shadow-lg", c.color)} 
+                        transition={{ duration: 1, ease: "easeOut", delay: i * 0.05 }}
+                        className={cn("h-full", c.color)} 
                       />
                     </div>
                   </div>
                 </motion.div>
               ))
             ) : (
-               <div className="col-span-full py-20 flex flex-col items-center gap-4 text-slate-300">
-                  <RefreshCw size={32} className="animate-spin opacity-20" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Atualizando Dados Acadêmicos...</span>
+               <div className="col-span-full py-10 flex flex-col items-center gap-3 text-slate-400">
+                  <RefreshCw size={24} className="animate-spin opacity-30" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Consultando Banco de Dados...</span>
                </div>
             )}
           </div>
         </motion.div>
 
         <motion.div
-           initial={{ opacity: 0, x: 20 }}
+           initial={{ opacity: 0, x: 10 }}
            animate={{ opacity: 1, x: 0 }}
-           transition={{ delay: 0.6 }}
-           className="lg:col-span-4 space-y-6"
+           transition={{ delay: 0.5 }}
+           className="lg:col-span-4"
         >
-
-
-           <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-50 space-y-6">
-              <h4 className="text-xs font-black text-[#00174b] uppercase tracking-widest px-2">Acesso Rápido</h4>
-              <div className="grid grid-cols-2 gap-3">
+           <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Acesso Rápido</h4>
+              <div className="grid grid-cols-2 gap-2">
                  {[
-                   { label: 'Novo Aluno', icon: Users, path: '/students' },
+                   { label: 'Matricular', icon: Users, path: '/students' },
                    { label: 'Calendário', icon: Activity, path: '/calendar' },
                    { label: 'Turmas', icon: GraduationCap, path: '/classes' },
                    { label: 'Docentes', icon: UserCheck, path: '/teachers' }
@@ -475,108 +467,102 @@ export function Dashboard() {
                     <button 
                       key={i}
                       onClick={() => item.path !== '#' && navigate(item.path)}
-                      className="flex flex-col items-center justify-center p-6 bg-[#fafbfc] border border-slate-50 rounded-[2rem] hover:bg-blue-50 hover:border-blue-100 hover:shadow-lg transition-all group"
+                      className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-md hover:bg-slate-100 hover:border-slate-200 transition-all group"
                     >
-                       <item.icon size={22} className="text-slate-300 group-hover:text-blue-600 mb-3" />
-                       <span className="text-[9px] font-black text-slate-400 group-hover:text-blue-700 uppercase tracking-widest">{item.label}</span>
+                       <item.icon size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                       <span className="text-[11px] font-bold text-slate-600 group-hover:text-slate-800">{item.label}</span>
                     </button>
                  ))}
+              </div>
+              
+              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                 <div className="flex flex-col">
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Último Update</span>
+                    <span className="text-[10px] font-medium text-slate-600">{lastUpdated.toLocaleTimeString()}</span>
+                 </div>
+                 <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase tracking-widest border border-blue-100">
+                    Sincronizado
+                 </div>
               </div>
            </div>
         </motion.div>
       </div>
+
       {/* Students Modal */}
       {showStudentsModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[999]">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-[999]">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.98 }}
+            initial={{ opacity: 0, scale: 0.99 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200"
+            className="bg-white rounded-lg w-full max-w-xl overflow-hidden shadow-2xl border border-slate-200"
           >
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <div className="px-5 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">{selectedClassLabel}</h3>
-                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mt-1">
-                  {isUnallocatedContext 
-                    ? "Alunos ativos sem turma vinculada"
-                    : `Alunos matriculados`
-                  }
+                <h3 className="text-sm font-bold text-slate-900">{selectedClassLabel}</h3>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                  {isUnallocatedContext ? "Pendente" : "Matriculados"}
                 </p>
               </div>
               <button 
                 onClick={() => setShowStudentsModal(false)}
-                className="w-8 h-8 rounded-lg hover:bg-white flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all border border-slate-200 shadow-sm"
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-all"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
             
-            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              <div className="space-y-3">
+            <div className="p-4 max-h-[50vh] overflow-y-auto custom-scrollbar bg-white">
+              <div className="grid gap-2">
                 {selectedClassStudents.length > 0 ? (
                   selectedClassStudents.map((student) => (
-                    <div key={student.id} className="p-3 bg-white border border-slate-100 rounded-lg flex items-center justify-between hover:border-indigo-200 hover:shadow-sm transition-all group">
+                    <div key={student.id} className="p-2 border border-slate-100 rounded-md flex items-center justify-between hover:bg-slate-50 transition-all">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded bg-slate-50 flex items-center justify-center text-slate-600 font-bold text-sm border border-slate-200 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all">
+                        <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
                           {student.name.charAt(0)}
                         </div>
                         <div>
-                          <h5 className="text-sm font-bold text-slate-900">{student.name}</h5>
-                          <p className="text-[10px] text-slate-500 uppercase mt-0.5">CPF: {student.cpf || '---'}</p>
+                          <h5 className="text-[13px] font-bold text-slate-800 leading-tight">{student.name}</h5>
+                          <p className="text-[9px] text-slate-400 font-medium tracking-tight">CPF: {student.cpf || '---'}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => {
-                            setShowStudentsModal(false);
-                            navigate('/students', { state: { studentId: student.id } });
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all border border-transparent hover:border-indigo-100"
-                        >
-                          <UserCircle size={16} />
-                        </button>
-                        <span className={cn(
-                          "px-2 py-0.5 text-[9px] font-bold uppercase rounded border",
-                          isUnallocatedContext ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        )}>
-                          {isUnallocatedContext ? "Pendente" : "OK"}
-                        </span>
-                      </div>
+                      <button 
+                        onClick={() => {
+                          setShowStudentsModal(false);
+                          navigate('/students', { state: { studentId: student.id } });
+                        }}
+                        className="text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider"
+                      >
+                        Ver Ficha
+                      </button>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-10">
-                    <p className="text-slate-400 font-bold">Nenhum aluno nesta situação.</p>
+                  <div className="text-center py-6">
+                    <p className="text-[11px] text-slate-400 font-medium">Nenhum registro encontrado.</p>
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="p-8 bg-slate-50 border-t border-slate-100 flex flex-wrap justify-between gap-3">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-between gap-3">
               {isUnallocatedContext && (
                 <button 
                   onClick={handleDeactivateAllUnallocated}
                   disabled={isDeactivating || selectedClassStudents.length === 0}
-                  className="px-6 py-3 bg-slate-200 text-slate-700 rounded-xl font-black text-sm hover:bg-slate-300 transition-all active:scale-95 flex items-center gap-2"
+                  className="px-4 py-2 bg-slate-200 text-slate-700 rounded-md font-bold text-[10px] hover:bg-slate-300 uppercase tracking-widest transition-all"
                 >
-                  {isDeactivating ? (
-                    <RefreshCw size={18} className="animate-spin" />
-                  ) : (
-                    'DESATIVAR TODOS'
-                  )}
+                  {isDeactivating ? '...' : 'Desativar Todos'}
                 </button>
               )}
-              <div className="flex gap-3 flex-1 justify-end">
-                <button 
-                  onClick={() => {
-                    setShowStudentsModal(false);
-                    navigate('/students');
-                  }}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-sm hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200"
-                >
-                  IR PARA ALUNOS
-                </button>
-              </div>
+              <button 
+                onClick={() => {
+                  setShowStudentsModal(false);
+                  navigate('/students');
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-bold text-[10px] hover:bg-indigo-700 uppercase tracking-widest shadow-sm ml-auto"
+              >
+                Gerenciar Alunos
+              </button>
             </div>
           </motion.div>
         </div>

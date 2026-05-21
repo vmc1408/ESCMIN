@@ -886,52 +886,52 @@ export function Settings() {
     <div className="max-w-6xl mx-auto space-y-6">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-[#00174b] tracking-tight">Configurações</h2>
-          <p className="text-slate-500 font-medium mt-1">Gerencie os dados da instituição e permissões de usuários.</p>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Configurações</h2>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão da Instituição e Parâmetros do Sistema</p>
         </div>
 
-        <div className="flex bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
           <button 
             onClick={() => setActiveTab('institution')}
             className={cn(
-              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'institution' ? "bg-[#00174b] text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'institution' ? "bg-slate-800 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <Building2 size={18} />
+            <Building2 size={14} />
             Instituição
           </button>
 
           <button 
             onClick={() => setActiveTab('academic')}
             className={cn(
-              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'academic' ? "bg-emerald-600 text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'academic' ? "bg-emerald-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <Clock size={18} />
+            <Clock size={14} />
             Acadêmico
           </button>
 
           <button 
             onClick={() => setActiveTab('security')}
             className={cn(
-              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'security' ? "bg-amber-600 text-white shadow-lg shadow-amber-100" : "text-slate-400 hover:text-slate-600"
+              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'security' ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <ShieldCheck size={18} />
+            <ShieldCheck size={14} />
             Segurança
           </button>
 
           <button 
             onClick={() => setActiveTab('maintenance')}
             className={cn(
-              "px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'maintenance' ? "bg-red-600 text-white shadow-lg shadow-red-100" : "text-slate-400 hover:text-slate-600"
+              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'maintenance' ? "bg-red-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            <Database size={18} />
+            <Database size={14} />
             Manutenção
           </button>
         </div>
@@ -951,83 +951,83 @@ export function Settings() {
       )}
 
       {activeTab === 'institution' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
           <form onSubmit={handleSaveInstitution} className="p-8 md:p-10 space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
               {/* Identificação & Endereço Section */}
               <div className="lg:col-span-2 space-y-6">
-                <h3 className="text-lg font-black text-[#00174b] flex items-center gap-3 border-b border-slate-50 pb-4">
-                  <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <Building2 size={18} />
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-3 border-b border-slate-100 pb-4 tracking-tight">
+                  <div className="w-8 h-8 rounded bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200">
+                    <Building2 size={16} />
                   </div>
                   Informações da Instituição
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-5">
                   {/* Row 1: Name and Subtitle */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome da Instituição</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome da Instituição</label>
                     <input 
                       type="text"
                       value={institution.name || ''}
                       onChange={(e) => setInstitution({...institution, name: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
                       placeholder="Ex: Escola ESCMIN"
                       required
                     />
                   </div>
                   <div className="md:col-span-3 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Subtítulo / Patrono / Complemento</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Subtítulo / Patrono / Complemento</label>
                     <input 
                       type="text"
                       value={institution.subtitle || ''}
                       onChange={(e) => setInstitution({...institution, subtitle: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
                       placeholder="Ex: Pe. José Fernando de Brito"
                     />
                   </div>
 
                   {/* Row 2: Address, CEP, City/UF */}
                   <div className="md:col-span-3 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
                     <input 
                       type="text"
                       value={institution.address || ''}
                       onChange={(e) => setInstitution({...institution, address: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
                       placeholder="Rua, Número, Bairro"
                     />
                   </div>
                   <div className="md:col-span-1 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CEP</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CEP</label>
                     <input 
                       type="text"
                       value={institution.cep || ''}
                       onChange={(e) => setInstitution({...institution, cep: formatCEP(e.target.value)})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
                       placeholder="00000-000"
                       maxLength={9}
                     />
                   </div>
                   <div className="md:col-span-2 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cidade / UF</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cidade / UF</label>
                     <input 
                       type="text"
                       value={institution.city_uf || ''}
                       onChange={(e) => setInstitution({...institution, city_uf: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
                       placeholder="Ex: Guarulhos / SP"
                     />
                   </div>
 
                   {/* Row 3: Phone, WhatsApp and Email */}
                   <div className="md:col-span-2 space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
                     <div className="relative">
                       <input 
                         type="text"
                         value={institution.phone || ''}
                         onChange={(e) => setInstitution({...institution, phone: formatPhone(e.target.value)})}
-                        className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-bold text-[#00174b] text-sm pr-12"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px] pr-12"
                         placeholder="(00) 00000-0000"
                       />
                       <button
@@ -1035,7 +1035,7 @@ export function Settings() {
                         onClick={() => setInstitution({...institution, phone_is_whatsapp: !institution.phone_is_whatsapp})}
                         className={cn(
                           "absolute right-4 top-1/2 -translate-y-1/2 transition-all p-1 rounded-md",
-                          institution.phone_is_whatsapp ? "text-green-500 bg-green-50" : "text-slate-300 hover:text-slate-400"
+                          institution.phone_is_whatsapp ? "text-emerald-500 bg-emerald-50" : "text-slate-300 hover:text-slate-400"
                         )}
                         title={institution.phone_is_whatsapp ? "Número com WhatsApp" : "Marcar como WhatsApp"}
                       >
@@ -1240,10 +1240,9 @@ export function Settings() {
                 </div>
               </div>
             </div>
+          </div>
 
-            </div>
-
-            <div className="pt-8 border-t border-slate-100 flex justify-end">
+          <div className="pt-8 border-t border-slate-100 flex justify-end">
                 <button 
                   type="submit"
                   disabled={saving}
@@ -1257,36 +1256,117 @@ export function Settings() {
           </div>
         )}
 
-      {activeTab === 'security' && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl flex flex-col md:flex-row items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-              <ShieldCheck size={32} />
+      {activeTab === 'academic' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-emerald-50/50 border border-emerald-100 p-6 rounded-lg flex flex-col md:flex-row items-center gap-6">
+            <div className="w-14 h-14 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200">
+              <School size={28} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-amber-900">Segurança de Acesso (PIN)</h3>
-              <p className="text-amber-700 font-medium text-sm mt-1">
-                Aumente a segurança do sistema definindo um código PIN numérico. Sempre que você acessar o sistema, este código será solicitado.
+              <h3 className="text-base font-bold text-emerald-900 tracking-tight">Parâmetros Acadêmicos</h3>
+              <p className="text-emerald-700 font-medium text-[11px] mt-1">
+                Configure as regras para aprovação, recuperação e limites de faltas das turmas.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden p-8 md:p-10">
+            <form onSubmit={handleSaveAcademicParams} className="space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-emerald-600">Média de Aprovação</label>
+                  <input 
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    value={academicParams.approval_grade}
+                    onChange={(e) => setAcademicParams({...academicParams, approval_grade: parseFloat(e.target.value)})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-300 outline-none transition-all font-black text-slate-800 text-lg"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-amber-600">Limite Recuperação</label>
+                  <input 
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    value={academicParams.recovery_grade}
+                    onChange={(e) => setAcademicParams({...academicParams, recovery_grade: parseFloat(e.target.value)})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-amber-500/20 focus:border-amber-300 outline-none transition-all font-black text-slate-800 text-lg"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-red-600">Média de Reprovação</label>
+                  <input 
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    value={academicParams.failure_grade}
+                    onChange={(e) => setAcademicParams({...academicParams, failure_grade: parseFloat(e.target.value)})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-red-500/20 focus:border-red-300 outline-none transition-all font-black text-slate-800 text-lg"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-indigo-600">% Limite de Faltas</label>
+                  <input 
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={academicParams.absence_limit_percentage}
+                    onChange={(e) => setAcademicParams({...academicParams, absence_limit_percentage: parseInt(e.target.value)})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-black text-slate-800 text-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-slate-100 flex justify-end">
+                <button 
+                  type="submit"
+                  disabled={saving}
+                  className="px-10 py-4 bg-[#00174b] text-white rounded-xl font-black flex items-center gap-3 hover:bg-blue-900 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+                >
+                  {saving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                  Salvar Parâmetros
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'security' && (
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-amber-50/50 border border-amber-100 p-6 rounded-lg flex flex-col md:flex-row items-center gap-6">
+            <div className="w-14 h-14 rounded bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200">
+              <ShieldCheck size={28} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-amber-900 tracking-tight">Segurança de Acesso (PIN)</h3>
+              <p className="text-amber-700 font-medium text-[11px] mt-1">
+                Aumente a segurança do sistema definindo um código PIN numérico de 4 dígitos para acesso rápido.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6">
-              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <Key size={20} />
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
+              <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+                <div className="w-9 h-9 rounded bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                  <Key size={16} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-[#00174b]">Gestão de PIN</h4>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Defina seu código de acesso rápido</p>
+                  <h4 className="text-sm font-bold text-slate-800 tracking-tight">Gestão de PIN</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Defina seu código de acesso</p>
                 </div>
               </div>
 
               <form onSubmit={handleUpdatePin} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Novo PIN (4 dígitos)</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Novo PIN (4 dígitos)</label>
                     <input 
                       type="password"
                       inputMode="numeric"
@@ -1294,13 +1374,13 @@ export function Settings() {
                       maxLength={4}
                       value={newPin}
                       onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:bg-white focus:border-amber-200 transition-all font-black text-[#00174b] text-center text-xl tracking-[0.5em]"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-amber-500/20 focus:border-amber-300 outline-none transition-all font-bold text-slate-800 text-center text-xl tracking-[0.5em]"
                       placeholder="****"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar Novo PIN</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirmar Novo PIN</label>
                     <input 
                       type="password"
                       inputMode="numeric"
@@ -1308,7 +1388,7 @@ export function Settings() {
                       maxLength={4}
                       value={confirmPin}
                       onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:bg-white focus:border-amber-200 transition-all font-black text-[#00174b] text-center text-xl tracking-[0.5em]"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-amber-500/20 focus:border-amber-300 outline-none transition-all font-bold text-slate-800 text-center text-xl tracking-[0.5em]"
                       placeholder="****"
                     />
                   </div>
@@ -1317,13 +1397,13 @@ export function Settings() {
                 <div className="pt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {profile?.pin ? (
-                      <div className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase flex items-center gap-1.5">
+                      <div className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-emerald-100">
                         <Check size={12} />
-                        PIN Configurado
+                        ATIVADO
                       </div>
                     ) : (
-                      <div className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-[10px] font-black uppercase">
-                        Sem PIN definido
+                      <div className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded text-[9px] font-bold uppercase tracking-wider border border-slate-200">
+                        DESATIVADO
                       </div>
                     )}
                   </div>
@@ -1331,45 +1411,44 @@ export function Settings() {
                   <button 
                     type="submit"
                     disabled={savingPin || newPin.length < 4}
-                    className="px-8 py-3 bg-amber-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-amber-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                    className="px-6 py-2.5 bg-amber-600 text-white rounded-md text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-amber-700 transition-all shadow-md shadow-amber-600/20 disabled:opacity-50"
                   >
-                    {savingPin ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    {profile?.pin ? 'Atualizar PIN' : 'Definir PIN'}
+                    {savingPin ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    {profile?.pin ? 'ATUALIZAR PIN' : 'DEFINIR PIN'}
                   </button>
                 </div>
               </form>
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
-              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Info size={20} />
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
+              <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+                <div className="w-9 h-9 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                  <Info size={16} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-[#00174b]">Como funciona</h4>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Segurança em duas camadas</p>
+                  <h4 className="text-sm font-bold text-slate-800 tracking-tight">Instruções</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Segurança em duas camadas</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">1</div>
-                  <p className="text-sm font-medium text-slate-600">O PIN é solicitado imediatamente após o login ou ao reabrir a aba do sistema.</p>
+                  <div className="w-5 h-5 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px] border border-indigo-100">1</div>
+                  <p className="text-[11px] font-medium text-slate-600 leading-normal">O PIN será solicitado imediatamente após o login ou ao reabrir o sistema.</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">2</div>
-                  <p className="text-sm font-medium text-slate-600">Este código é pessoal e intransferível. Cada usuário tem seu próprio PIN.</p>
+                  <div className="w-5 h-5 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px] border border-indigo-100">2</div>
+                  <p className="text-[11px] font-medium text-slate-600 leading-normal">Este código é pessoal. Cada usuário define o seu próprio PIN de acesso.</p>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 font-black text-xs">3</div>
-                  <p className="text-sm font-medium text-slate-600">Se você esquecer seu PIN, entre em contato com o administrador do sistema para resetar seu perfil.</p>
+                  <div className="w-5 h-5 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px] border border-indigo-100">3</div>
+                  <p className="text-[11px] font-medium text-slate-600 leading-normal">Se esquecer seu PIN, solicite o reset do perfil para o administrador.</p>
                 </div>
               </div>
 
               {profile?.pin && (
-                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-3">
-                  <p className="text-xs font-bold text-red-800 uppercase tracking-tight">Deseja remover a proteção por PIN?</p>
-                  <button 
+                <div className="p-4 bg-red-50/50 border border-red-100 rounded-md">
+                   <button 
                     onClick={async () => {
                       if (window.confirm('Tem certeza que deseja remover a proteção por PIN da sua conta?')) {
                         try {
@@ -1381,9 +1460,9 @@ export function Settings() {
                         }
                       }
                     }}
-                    className="w-full py-2.5 bg-white text-red-600 border border-red-200 rounded-lg text-[10px] font-black uppercase hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                    className="w-full py-2 bg-white text-red-600 border border-red-200 rounded-md text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
                   >
-                    Remover Proteção
+                    Remover Proteção por PIN
                   </button>
                 </div>
               )}
@@ -1392,180 +1471,28 @@ export function Settings() {
         </div>
       )}
 
-      {activeTab === 'academic' && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-3xl flex flex-col md:flex-row items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-              <School size={32} />
+        {activeTab === 'maintenance' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-red-50/50 border border-red-100 p-6 rounded-lg flex flex-col md:flex-row items-center gap-6">
+            <div className="w-14 h-14 rounded bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
+              <AlertTriangle size={28} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-emerald-900">Configurações Acadêmicas</h3>
-              <p className="text-emerald-700 font-medium text-sm mt-1">
-                Defina os parâmetros de avaliação, médias e limites de presença que regem o sistema acadêmico.
+              <h3 className="text-base font-bold text-red-900 tracking-tight">Área de Risco & Manutenção</h3>
+              <p className="text-red-700 font-medium text-[11px] mt-1 leading-relaxed">
+                As ferramentas abaixo executam ações em massa. Certifique-se antes de prosseguir, pois dados excluídos não podem ser recuperados.
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleSaveAcademicParams} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6">
-              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Plus size={20} />
-                </div>
-                <div>
-                  <h4 className="text-lg font-black text-[#00174b]">Parâmetros Acadêmicos</h4>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Critérios de Aprovação e Retenção</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Média para Aprovação Direta</label>
-                  <input 
-                    type="number"
-                    step="0.1"
-                    min="1"
-                    max="10"
-                    value={academicParams.approval_grade || 0}
-                    onChange={(e) => setAcademicParams({...academicParams, approval_grade: parseFloat(e.target.value)})}
-                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
-                  />
-                  <p className="text-[9px] text-slate-400 font-medium px-1">Ex: 7.0 - Aluno aprovado sem recuperação</p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Média Mínima para Recuperação</label>
-                  <input 
-                    type="number"
-                    step="0.1"
-                    min="1"
-                    max="10"
-                    value={academicParams.recovery_grade || 0}
-                    onChange={(e) => setAcademicParams({...academicParams, recovery_grade: parseFloat(e.target.value)})}
-                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
-                  />
-                  <p className="text-[9px] text-slate-400 font-medium px-1">Alunos entre este valor e a aprovação entram em recuperação</p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Média de Reprovação Direta</label>
-                  <input 
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="10"
-                    value={academicParams.failure_grade || 0}
-                    onChange={(e) => setAcademicParams({...academicParams, failure_grade: parseFloat(e.target.value)})}
-                    className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
-                  />
-                  <p className="text-[9px] text-slate-400 font-medium px-1">Abaixo deste valor o aluno é reprovado sem recuperação</p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Limite Máximo de Faltas (%)</label>
-                  <div className="relative">
-                    <input 
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={academicParams.absence_limit_percentage || 0}
-                      onChange={(e) => setAcademicParams({...academicParams, absence_limit_percentage: parseInt(e.target.value)})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-black text-[#00174b]"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-300">%</span>
-                  </div>
-                  <p className="text-[9px] text-slate-400 font-medium px-1">Porcentagem sobre o total de dias letivos</p>
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end">
-                <button 
-                  type="submit"
-                  disabled={saving}
-                  className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
-                >
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Salvar Parâmetros
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
-              <div className="flex items-center gap-4 border-b border-slate-50 pb-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <AlertTriangle size={20} />
-                </div>
-                <div>
-                  <h4 className="text-lg font-black text-[#00174b]">Regras de Frequência</h4>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Vínculo com Calendário Acadêmico</p>
-                </div>
-              </div>
-
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                <p className="text-sm font-bold text-slate-600 leading-relaxed">
-                  O sistema de faltas está configurado para calcular a assiduidade com base em:
-                </p>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check size={12} />
-                    </div>
-                    <p className="text-xs font-medium text-slate-500">Dias de aula registrados no Calendário Escolar.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check size={12} />
-                    </div>
-                    <p className="text-xs font-medium text-slate-500">Frequência diária lançada por disciplina ou turma.</p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check size={12} />
-                    </div>
-                    <p className="text-xs font-medium text-slate-500">Limite de {academicParams.absence_limit_percentage}% sobre o total de horas letivas.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-2xl flex items-start gap-4">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                  <Info size={16} />
-                </div>
-                <p className="text-[10px] font-bold text-amber-800 uppercase leading-loose">
-                  Lembre-se: Para que o controle de faltas seja preciso, todos os dias de aula devem estar marcados como "Dia de Aula" no calendário acadêmico.
-                </p>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {activeTab === 'maintenance' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-red-50 border border-red-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-              <AlertTriangle size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-red-900">Área de Risco & Manutenção</h3>
-              <p className="text-red-700 font-medium text-sm mt-1">
-                As ferramentas abaixo executam ações em massa no banco de dados. 
-                Certifique-se de ter certeza antes de prosseguir, pois os dados excluídos não podem ser recuperados.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
-              <h4 className="text-lg font-black text-[#00174b] flex items-center gap-2">
-                <RefreshCw size={20} className="text-blue-500" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
+              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 tracking-tight">
+                <RefreshCw size={16} className="text-indigo-500" />
                 Status da Migração Progressiva
               </h4>
-              <p className="text-slate-500 text-sm">
-                Acompanhe quais tabelas já estão operando exclusivamente no Supabase.
-              </p>
               
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                 {[
                   'institution_settings', 'users', 'email_registry', 'foraries', 'parishes', 
                   'clergy_leity', 'subjects', 'teachers', 'classes', 
@@ -1575,18 +1502,18 @@ export function Settings() {
                   const isMigrated = MIGRATED_COLLECTIONS.includes(col);
                   return (
                     <div key={col} className={cn(
-                      "p-3 rounded-xl border flex flex-col gap-1 transition-all",
+                      "p-2.5 rounded border flex flex-col gap-1 transition-all",
                       isMigrated ? "bg-emerald-50 border-emerald-100" : "bg-slate-50 border-slate-100 grayscale opacity-60"
                     )}>
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black uppercase text-[#00174b] truncate">{col}</span>
-                        {isMigrated ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Clock size={12} className="text-slate-400" />}
+                        <span className="text-[9px] font-bold uppercase text-slate-700 truncate tracking-tighter">{col}</span>
+                        {isMigrated ? <CheckCircle2 size={10} className="text-emerald-500" /> : <Clock size={10} className="text-slate-400" />}
                       </div>
                       <span className={cn(
-                        "text-[8px] font-bold uppercase",
+                        "text-[8px] font-bold uppercase tracking-widest",
                         isMigrated ? "text-emerald-600" : "text-slate-400"
                       )}>
-                        {isMigrated ? 'Migrado' : 'Pendente'}
+                        {isMigrated ? 'Ativo' : 'Off'}
                       </span>
                     </div>
                   );
@@ -1594,230 +1521,116 @@ export function Settings() {
               </div>
 
               {isSyncing && (
-                <div className="mt-6 p-6 bg-blue-50 border border-blue-100 rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-md space-y-3 animate-in fade-in slide-in-from-top-2">
                   <div className="flex items-center justify-between">
-                    <h5 className="text-sm font-black text-blue-900 flex items-center gap-2">
-                      <Loader2 size={16} className="animate-spin" />
+                    <h5 className="text-[11px] font-bold text-indigo-900 flex items-center gap-2 uppercase tracking-wider">
+                      <Loader2 size={12} className="animate-spin" />
                       Sincronizando: {syncProgress.currentCol}
                     </h5>
-                    <span className="text-[10px] font-black text-blue-600 uppercase">
-                      {syncProgress.totalSynced} Sucessos
+                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                      {syncProgress.totalSynced} OK
                     </span>
                   </div>
-                  <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-indigo-100/50 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-blue-600 transition-all duration-500" 
-                      style={{ width: `${(syncProgress.completed.length / 16) * 100}%` }}
+                      className="h-full bg-indigo-600 transition-all duration-500 shadow-sm" 
+                      style={{ width: `${(syncProgress.completed.length / 17) * 100}%` }}
                     />
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {syncProgress.failed.map(f => (
-                      <span key={f} className="px-2 py-0.5 bg-red-100 text-red-600 rounded-md text-[8px] font-bold uppercase">Erro: {f}</span>
-                    ))}
                   </div>
                 </div>
               )}
 
-              <div className="space-y-3 pt-4">
+              <div className="space-y-2 pt-2">
                 <button 
                   onClick={handleSchemaCheckup}
                   disabled={checkingSchema}
-                  className="w-full p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between group hover:bg-blue-600 hover:text-white transition-all text-left active:scale-[0.98]"
+                  className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between group hover:border-indigo-300 transition-all text-left active:scale-[0.98] outline-none"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all shadow-sm">
-                      <Shield size={18} />
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <Shield size={16} className="text-slate-400" />
                     <div>
-                      <p className="text-sm font-black text-[#00174b]">Sincronizar Schema (Checkup)</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Verificar se faltam colunas nas tabelas do Supabase
-                      </p>
+                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider leading-none">Checkup de Schema</p>
                     </div>
                   </div>
-                  {checkingSchema ? <Loader2 size={18} className="animate-spin text-blue-300" /> : <RefreshCw size={18} className="text-blue-300" />}
-                </button>
-
-                <button 
-                  onClick={handleCleanDuplicates}
-                  disabled={loading}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-blue-50 hover:border-blue-100 transition-all text-left active:scale-[0.98]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
-                      <Search size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-[#00174b]">Detectar & Limpar Duplicatas de Alunos</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        {counts.students > 0 ? `${counts.students} alunos totais cadastrados` : 'Buscando contagem...'}
-                      </p>
-                    </div>
-                  </div>
-                  {loading ? <Loader2 size={18} className="animate-spin text-slate-300" /> : <Eraser size={18} className="text-slate-300" />}
+                  {checkingSchema ? <Loader2 size={14} className="animate-spin text-indigo-300" /> : <RefreshCw size={14} className="text-slate-300" />}
                 </button>
 
                 <button 
                   onClick={handleSyncSupabase}
                   disabled={isSyncing}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-blue-50 hover:border-blue-100 transition-all text-left active:scale-[0.98]"
+                  className="w-full h-12 px-4 bg-indigo-600 text-white rounded-md flex items-center justify-between group hover:bg-indigo-700 transition-all text-left active:scale-[0.98] outline-none shadow-sm shadow-indigo-600/20"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center transition-all shadow-sm",
-                      isSyncing ? "bg-blue-600 text-white" : "group-hover:bg-blue-600 group-hover:text-white"
-                    )}>
-                      <Database size={18} className={isSyncing ? "animate-pulse" : ""} />
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <Database size={16} className={cn(isSyncing && "animate-pulse")} />
                     <div>
-                      <p className="text-sm font-black text-[#00174b]">Sincronizar com Supabase</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Migrar todos os dados do Firebase para o Banco de Dados SQL
-                      </p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider leading-none">Sincronizar Banco</p>
                     </div>
                   </div>
                   {isSyncing ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[8px] font-black text-blue-600 animate-pulse uppercase">Processando...</span>
-                      <Loader2 size={18} className="animate-spin text-blue-600" />
-                    </div>
+                    <Loader2 size={14} className="animate-spin" />
                   ) : (
-                    <RefreshCw size={18} className="text-slate-300 group-hover:rotate-180 transition-transform duration-700" />
+                    <RefreshCw size={14} className="opacity-40 group-hover:rotate-180 transition-transform duration-700" />
                   )}
                 </button>
-
-                <button 
-                  onClick={handleInactivateOldStudents}
-                  disabled={loading}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-amber-50 hover:border-amber-100 transition-all text-left active:scale-[0.98]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all shadow-sm">
-                      <Database size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-[#00174b]">Inativar Alunos Antigos (&lt; 2023)</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Mudar status para Inativo de matrículas anteriores a 2023
-                      </p>
-                    </div>
-                  </div>
-                  {loading ? <Loader2 size={18} className="animate-spin text-slate-300" /> : <Database size={18} className="text-slate-300" />}
-                </button>
-
-                <button 
-                  onClick={handleActivateRecentStudents}
-                  disabled={loading}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-green-50 hover:border-green-100 transition-all text-left active:scale-[0.98]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:bg-green-600 group-hover:text-white transition-all shadow-sm">
-                      <UserCheck size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-[#00174b]">Ativar Alunos Recentes (&gt; 2023)</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Corrigir status para Ativo de alunos matriculados após 2023
-                      </p>
-                    </div>
-                  </div>
-                  {loading ? <Loader2 size={18} className="animate-spin text-slate-300" /> : <Check size={18} className="text-slate-300" />}
-                </button>
-
-                <button 
-                  onClick={handleInactivateStudentsWithoutClass}
-                  disabled={isCleaningStudents}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-red-50 hover:border-red-100 transition-all text-left active:scale-[0.98]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-all shadow-sm">
-                      <AlertCircle size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-[#00174b]">Inativar Alunos Sem Turma</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Mudar para Inativo alunos que não possuem vínculo com nenhuma turma
-                      </p>
-                    </div>
-                  </div>
-                  {isCleaningStudents ? <Loader2 size={18} className="animate-spin text-red-600" /> : <AlertCircle size={18} className="text-slate-300" />}
-                </button>
-
-                <button 
-                  onClick={handleInactivateOldClasses}
-                  disabled={loading}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-amber-50 hover:border-amber-100 transition-all text-left active:scale-[0.98]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all shadow-sm">
-                      <School size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-[#00174b]">Inativar Turmas Antigas (&lt; 2023)</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                        Mudar status para Inativo de turmas anteriores a 2023
-                      </p>
-                    </div>
-                  </div>
-                  {loading ? <Loader2 size={18} className="animate-spin text-slate-300" /> : <Database size={18} className="text-slate-300" />}
-                </button>
-
-                <div className="w-full p-6 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-inner">
-                      <Clock size={28} />
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-black text-[#00174b]">Registros em Stand-by</h4>
-                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                        Registros Inativos permanecem na base em modo de espera
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-amber-600">
-                      {Object.values(inactiveCounts).reduce((a, b) => a + b, 0)}
-                    </p>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Registros Totais</p>
-                  </div>
-                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
-              <h4 className="text-lg font-black text-[#00174b] flex items-center gap-2">
-                <Trash2 size={20} className="text-red-500" />
-                Exclusão em Massa
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
+               <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 tracking-tight">
+                <Eraser size={16} className="text-red-500" />
+                Limpeza e Manutenção
               </h4>
-              <p className="text-slate-500 text-sm">Zere módulos específicos do sistema para reiniciar o processo de importação.</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+              <div className="space-y-2">
                 {[
-                  { id: 'students', label: 'Alunos' },
-                  { id: 'teachers', label: 'Professores' },
-                  { id: 'classes', label: 'Turmas' },
-                  { id: 'subjects', label: 'Disciplinas' },
-                  { id: 'assessments', label: 'Avaliações' }
-                ].map((mod) => (
-                  <button
-                    key={mod.id}
-                    onClick={() => handleClearModule(mod.id, mod.label)}
+                  { label: 'Inativar Alunos Antigos (< 2023)', action: handleInactivateOldStudents, icon: <Clock size={14} /> },
+                  { label: 'Ativar Alunos Recentes (> 2023)', action: handleActivateRecentStudents, icon: <UserCheck size={14} /> },
+                  { label: 'Inativar Alunos Sem Turma', action: handleInactivateStudentsWithoutClass, icon: <AlertCircle size={14} /> },
+                  { label: 'Inativar Turmas Antigas (< 2023)', action: handleInactivateOldClasses, icon: <School size={14} /> },
+                  { label: 'Limpar Duplicatas de Alunos', action: handleCleanDuplicates, icon: <Search size={14} /> }
+                ].map((tool, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={tool.action}
                     disabled={loading}
-                    className="p-4 bg-red-50 text-red-600 rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-red-600 hover:text-white transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50 active:scale-[0.98]"
+                    className="w-full h-11 px-4 bg-white border border-slate-200 rounded-md flex items-center justify-between hover:bg-slate-50 transition-all text-left group outline-none"
                   >
-                    <div className="flex items-center gap-2">
-                      <Trash2 size={14} />
-                      Zerar {mod.label}
+                    <div className="flex items-center gap-3">
+                      <span className="text-slate-400 group-hover:text-indigo-600 transition-colors">{tool.icon}</span>
+                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest leading-none">{tool.label}</p>
                     </div>
-                    <span className="text-[9px] opacity-70">
-                      {counts[mod.id] || 0} registros
-                    </span>
+                    <ArrowUpRight size={14} className="text-slate-200 group-hover:text-slate-400" />
                   </button>
                 ))}
               </div>
+
+               <div className="grid grid-cols-1 gap-2 pt-2">
+                <div className="p-4 bg-red-50/50 border border-red-100 rounded-md">
+                   <h5 className="text-[10px] font-bold text-red-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                     <Trash2 size={12} />
+                     Exclusão Definitiva (Zerar Módulos)
+                   </h5>
+                   <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'students', label: 'Alunos' },
+                      { id: 'teachers', label: 'Professores' },
+                      { id: 'classes', label: 'Turmas' },
+                      { id: 'subjects', label: 'Disciplinas' }
+                    ].map((mod) => (
+                      <button
+                        key={mod.id}
+                        onClick={() => handleClearModule(mod.id, mod.label)}
+                        className="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                      >
+                        {mod.label}
+                      </button>
+                    ))}
+                   </div>
+                </div>
+              </div>
             </div>
           </div>
-
+        </div>
+      )}
           {schemaReport && (
             <div className="mt-8 bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
               <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -1921,8 +1734,7 @@ export function Settings() {
               </div>
             </div>
           )}
-        </div>
-      )}
+        
 
 
 

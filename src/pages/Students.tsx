@@ -53,14 +53,14 @@ const StudentItem = React.memo(({
     <button
       onClick={() => onSelect(student)}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left",
         isSelected 
-          ? "bg-blue-50 border-blue-100 shadow-sm" 
+          ? "bg-indigo-50 border-indigo-100 shadow-sm" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden">
+      <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200">
         {student.photo_url ? (
           <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
@@ -68,18 +68,15 @@ const StudentItem = React.memo(({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-[#131b2e] truncate">{student.name}</p>
+        <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{student.name}</p>
         <div className="flex items-center gap-2">
           <span className={cn(
-            "text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase",
-            student.status === 'Inativo' ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+            "text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider",
+            student.status === 'Inativo' ? "bg-red-50 text-red-700 border border-red-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
           )}>
             {student.status || 'Ativo'}
           </span>
-          <span className="text-[10px] text-slate-400 font-bold">{student.registration_number}</span>
-          {student.start_date && (
-            <span className="text-[9px] text-blue-600 font-black ml-1 uppercase">Entrada: {formatDateForDisplay(student.start_date)}</span>
-          )}
+          <span className="text-[10px] text-slate-400 font-medium">{student.registration_number}</span>
         </div>
       </div>
     </button>
@@ -896,46 +893,46 @@ export function Students() {
   }, [students]);
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-2">
+    <div className="h-[calc(100vh-6rem)] flex gap-4">
       {/* Sidebar List */}
-      <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
+      <div className="w-[380px] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-100 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-[#131b2e]">Alunos</h2>
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100 flex items-center">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-base font-bold text-slate-800 tracking-tight">Alunos</h2>
+              <div className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded border border-slate-200">
                 {filteredStudents.length}
               </div>
             </div>
             <button 
               onClick={handleNew}
-              className="flex-1 h-10 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
+              className="px-3 h-8 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
             >
-              <Plus size={18} />
-              Novo Aluno
+              <Plus size={14} />
+              Novo
             </button>
           </div>
           <div className="space-y-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input 
                 type="text"
-                placeholder="Buscar aluno..."
+                placeholder="Buscar por nome, RA ou CPF..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
+                className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] focus:ring-1 focus:ring-indigo-500/20 focus:bg-white transition-all outline-none"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
                   className={cn(
-                    "flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all border",
+                    "flex-1 py-1.5 text-[9px] font-bold rounded-md transition-all border uppercase tracking-wider",
                     statusFilter === status 
-                      ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200" 
-                      : "bg-white border-slate-100 text-slate-500 hover:border-slate-200"
+                      ? "bg-slate-800 border-slate-800 text-white shadow-sm" 
+                      : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
                   )}
                 >
                   {status}
@@ -943,22 +940,22 @@ export function Students() {
               ))}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <select 
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-indigo-500/20 outline-none"
               >
-                <option value="">Todas as Turmas (Nome)</option>
+                <option value="">Todas as Turmas</option>
                 {classes.filter(c => c.status === 'Ativo').map(c => (
-                  <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                  className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-indigo-500/20 outline-none"
                 >
                   <option value="">Escolha um ano</option>
                   <option value="all">Todos os Anos</option>
@@ -966,10 +963,10 @@ export function Students() {
                 </select>
                 <button
                   onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
-                  className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
-                  title={sortBy === 'name' ? "Ordering by Matrícula" : "Ordering by Name"}
+                  className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded-md hover:bg-slate-50 transition-colors"
+                  title={sortBy === 'name' ? "Ordering by RA" : "Ordering by Name"}
                 >
-                  <ArrowUpDown size={16} />
+                  <ArrowUpDown size={14} />
                 </button>
               </div>
             </div>
@@ -1003,84 +1000,109 @@ export function Students() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
         {selectedStudent || isEditing ? (
           <>
             {notification && (
               <div className={cn(
-                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3",
-                notification.type === 'success' ? "bg-green-600 text-white" : "bg-red-600 text-white"
+                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-md shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2",
+                notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
               )}>
-                {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-                <p className="text-sm font-bold">{notification.message}</p>
+                {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                <p className="text-[11px] font-bold uppercase tracking-wider">{notification.message}</p>
               </div>
             )}
-            <div className="p-4 border-b border-slate-100 bg-white">
-              <div className="max-w-4xl mx-auto flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {institution?.logo_url && (
-                    <img 
-                      src={institution.logo_url} 
-                      alt="Logo" 
-                      className="w-10 h-10 object-contain hidden sm:block" 
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-5">
                 <div className="relative group">
-                  <div className="w-24 h-32 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 overflow-hidden border-2 border-white relative">
+                  <div className="w-20 h-28 rounded-md bg-white shadow-sm flex items-center justify-center text-indigo-200 overflow-hidden border border-slate-200 relative">
                     {formData.photo_url ? (
                       <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <GraduationCap size={40} />
+                      <GraduationCap size={32} />
                     )}
                     
                     {uploadingPhoto && (
-                      <div className="absolute inset-0 bg-blue-900/40 backdrop-blur-[2px] flex items-center justify-center">
-                        <Loader2 className="text-white animate-spin" size={24} />
+                      <div className="absolute inset-0 bg-indigo-900/40 backdrop-blur-[1px] flex items-center justify-center">
+                        <Loader2 className="text-white animate-spin" size={20} />
                       </div>
                     )}
                   </div>
                   {isEditing && !uploadingPhoto && (
-                    <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="absolute inset-0 bg-black/40 rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button 
                         onClick={() => setShowWebcam(true)}
-                        className="p-1.5 bg-white text-blue-600 rounded-lg hover:scale-110 transition-transform"
+                        className="p-1.5 bg-white text-indigo-600 rounded hover:scale-105 transition-transform"
                         title="Tirar Foto"
                       >
-                        <Camera size={16} />
+                        <Camera size={14} />
                       </button>
-                      <label className="p-1.5 bg-white text-blue-600 rounded-lg hover:scale-110 transition-transform cursor-pointer" title="Upload Foto">
-                        <Upload size={16} />
+                      <label className="p-1.5 bg-white text-indigo-600 rounded hover:scale-105 transition-transform cursor-pointer" title="Upload Foto">
+                        <Upload size={14} />
                         <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                       </label>
                     </div>
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-[#131b2e]">
-                    {isEditing ? (selectedStudent ? 'Editar Aluno' : 'Novo Aluno') : formData.name}
+                  <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
+                    {isEditing ? (selectedStudent ? 'Editar Aluno' : 'Novo Registro') : formData.name}
                   </h3>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-slate-500 font-medium">Matrícula: {formData.registration_number || '---'}</span>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Matrícula: {formData.registration_number || '---'}</span>
                     <span className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                      formData.status === 'Ativo' ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                      "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border tracking-wider",
+                      formData.status === 'Ativo' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-500 border-slate-200"
                     )}>
                       {formData.status}
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-2">
                 {!isEditing && selectedStudent && (
-                  <button 
-                    onClick={handlePrint}
-                    className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                  >
-                    <Printer size={16} />
-                    Imprimir Ficha
-                  </button>
+                  <>
+                    <button 
+                      onClick={handlePrint}
+                      className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-md hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center shadow-sm"
+                      title="Imprimir Ficha"
+                    >
+                      <Printer size={16} />
+                    </button>
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="h-10 px-4 bg-indigo-50 text-indigo-600 rounded-md text-[11px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm shadow-indigo-100/50 uppercase tracking-widest"
+                    >
+                      <Edit2 size={14} />
+                      Editar
+                    </button>
+                  </>
                 )}
+                {isEditing && (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setIsEditing(false);
+                        if (!selectedStudent) setFormData(INITIAL_STUDENT_STATE);
+                        else handleSelectStudent(selectedStudent);
+                      }}
+                      className="h-10 px-4 text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-all uppercase tracking-widest"
+                    >
+                      Descartar
+                    </button>
+                    <button 
+                      onClick={handleSave}
+                      disabled={loading}
+                      className="h-10 px-5 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
+                    >
+                      <Save size={14} />
+                      Confirmar
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
                 {!isEditing && selectedStudent && (
                   <button 
                     onClick={() => navigate('/contributions', { state: { studentId: selectedStudent.id } })}
@@ -1114,8 +1136,6 @@ export function Students() {
                   </button>
                 )}
               </div>
-            </div>
-          </div>
 
           <div className="flex-1 overflow-y-auto">
               <div className="p-3 pb-24">
@@ -1275,15 +1295,12 @@ export function Students() {
 
                       {/* Enrollment Management - Integrated directly */}
                       {selectedStudent?.id ? (
-                        <div className="col-span-12 p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3 mt-2 mb-4">
+                        <div className="col-span-12 p-5 bg-indigo-50/30 border border-indigo-100 rounded-lg space-y-4 mt-2 mb-6 shadow-sm">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                            <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                               <BookOpen size={14} />
-                              Matrículas Adicionais (Multi-turma)
+                              Matrículas em Outras Turmas
                             </h4>
-                            <span className="text-[9px] font-bold text-blue-400 uppercase bg-white px-2 py-0.5 rounded-full border border-blue-100">
-                              Gestão Ativa
-                            </span>
                           </div>
 
                           <div className="flex gap-2">
@@ -1291,11 +1308,11 @@ export function Students() {
                               disabled={!isEditing}
                               value={enrollClassId}
                               onChange={(e) => setEnrollClassId(e.target.value)}
-                              className="flex-1 px-3 py-2 bg-white border border-blue-100 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm disabled:opacity-50"
+                              className="flex-1 px-3 py-2 bg-white border border-indigo-100 rounded-md text-xs focus:ring-1 focus:ring-indigo-500/20 outline-none shadow-sm disabled:opacity-50"
                             >
                               <option value="">Matricular em outra turma...</option>
                               {classes.filter(c => c.status === 'Ativo' && c.id !== formData.class_id).map(c => (
-                                <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                                <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>
                             <button
@@ -1304,30 +1321,30 @@ export function Students() {
                                 setEnrollClassId('');
                               }}
                               disabled={!enrollClassId || !isEditing}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center gap-1 shadow-md shadow-blue-100"
+                              className="px-4 py-2 bg-slate-800 text-white rounded-md text-[10px] font-bold uppercase hover:bg-slate-900 transition-all disabled:opacity-50 flex items-center gap-1 shadow-sm"
                             >
                               <Plus size={14} />
                               Matricular
                             </button>
                           </div>
 
-                          <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
                             {studentEnrollments.length === 0 ? (
-                              <p className="text-[9px] text-blue-400 font-bold text-center py-2 italic bg-white/50 rounded-lg border border-dashed border-blue-100">
-                                Nenhuma matrícula adicional registrada
-                              </p>
+                              <div className="col-span-full py-4 text-center bg-white/50 rounded-md border border-dashed border-indigo-100">
+                                <p className="text-[10px] text-indigo-400 font-medium uppercase tracking-tight">Nenhuma matrícula adicional</p>
+                              </div>
                             ) : (
                               studentEnrollments.map(enrollment => {
                                 const targetClass = classes.find(c => c.id === enrollment.class_id);
                                 return (
-                                  <div key={enrollment.id} className="flex items-center justify-between p-2 bg-white rounded-xl border border-blue-50 shadow-sm group">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-                                        <GraduationCap size={12} />
+                                  <div key={enrollment.id} className="flex items-center justify-between p-2.5 bg-white rounded-md border border-indigo-50 shadow-sm group hover:border-indigo-200 transition-all">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                        <GraduationCap size={14} />
                                       </div>
                                       <div className="leading-tight">
-                                        <p className="text-[10px] font-black text-slate-700 uppercase">{targetClass?.name || 'Turma N/I'}</p>
-                                        <p className="text-[8px] text-slate-400 font-bold uppercase">
+                                        <p className="text-[11px] font-bold text-slate-700 uppercase">{targetClass?.name || 'Turma N/I'}</p>
+                                        <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
                                           {enrollment.enrollment_date ? formatDateForDisplay(enrollment.enrollment_date) : ''}
                                         </p>
                                       </div>
@@ -1335,10 +1352,10 @@ export function Students() {
                                     {isEditing && (
                                       <button 
                                         onClick={() => handleRemoveEnrollment(enrollment.id)}
-                                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
                                         title="Remover Matrícula"
                                       >
-                                        <X size={12} />
+                                        <X size={14} />
                                       </button>
                                     )}
                                   </div>
@@ -1348,9 +1365,9 @@ export function Students() {
                           </div>
                         </div>
                       ) : (
-                        <div className="col-span-12 p-3 bg-slate-50 border border-dashed border-slate-200 rounded-2xl mb-4 text-center">
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">
-                            Salve o cadastro básico primeiro para habilitar as matriculas múltiplas
+                        <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-md mb-6 text-center">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            Salve o registro para habilitar matrículas em outras turmas
                           </p>
                         </div>
                       )}
