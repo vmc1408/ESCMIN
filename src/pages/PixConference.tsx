@@ -1049,6 +1049,145 @@ export function PixConference() {
     }
   };
 
+  const handlePrintExtratoPDF = (filteredList: any[]) => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 14;
+      const contentWidth = pageWidth - (margin * 2);
+
+      // Resolve current batch filter label
+      let batchLabel = 'Todos os arquivos / Lotes';
+      if (extratoBatchFilter !== 'all') {
+        const found = availableBatches.find(b => b.id === extratoBatchFilter);
+        if (found) {
+          batchLabel = found.label;
+        }
+      }
+
+      // Header
+      doc.setFontSize(16);
+      doc.setTextColor(0, 23, 75); // #00174b
+      doc.setFont('helvetica', 'bold');
+      doc.text('EXTRATO DE CONCILIAÇÃO PIX', margin, 18);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(120);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Instituição: ${institution?.name || 'Escola Diocesana de Ministérios'}`, margin, 24);
+      doc.text(`Endereço: ${institution?.address || 'Av. Venus, 195 - Guarulhos'}`, margin, 28);
+      doc.text(`Origem (Lote): ${batchLabel} | Data de Emissão: ${new Date().toLocaleString('pt-BR')}`, margin, 32);
+
+      // Stats Box
+      doc.setDrawColor(240);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(margin, 36, contentWidth, 18, 2, 2, 'F');
+      
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RESUMO DO EXTRATO', margin + 4, 41);
+      
+      const totalAmount = filteredList.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Transações Filtradas: ${filteredList.length}`, margin + 4, 48);
+      doc.text(`Valor Total Conciliado: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}`, margin + 120, 48);
+
+      // Table Data
+      const tableData = filteredList.map((item) => {
+        const student = item.student;
+        const className = student ? (classes.find(c => c.id === student.class_id)?.name || 'Sem Turma') : '';
+        return [
+          formatDateForDisplay(item.date) || item.date || '',
+          (item.payer_name || '').toUpperCase(),
+          item.batch_file_name || 'Importação Manual',
+          item.origin_bank || 'N/I',
+          student ? `${student.name} (${student.registration_number})` : '-',
+          className,
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0),
+          '' // empty column for manual handwriting annotations
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 58,
+        head: [['Data', 'Pagador Extrato', 'Lote/Origem', 'Banco', 'Aluno Vinculado', 'Turma', 'Valor', 'Observações (Anotações Manuais)']],
+        body: tableData,
+        headStyles: { 
+          fillColor: [0, 23, 75],
+          fontSize: 7.5,
+          halign: 'center',
+          valign: 'middle',
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 18, fontSize: 6.5 },
+          1: { cellWidth: 42, fontSize: 6.5 },
+          2: { cellWidth: 38, fontSize: 6.5 },
+          3: { cellWidth: 18, fontSize: 6.5 },
+          4: { cellWidth: 42, fontSize: 6.5 },
+          5: { cellWidth: 26, fontSize: 6.5 },
+          6: { cellWidth: 25, halign: 'right', fontSize: 7, fontStyle: 'bold' },
+          7: { cellWidth: 60, fontSize: 6.5 } // wide blank column 
+        },
+        styles: { 
+          fontSize: 6.5,
+          cellPadding: 2,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        alternateRowStyles: { fillColor: [252, 253, 254] },
+        margin: { top: 58, left: margin, right: margin },
+        didDrawPage: function(data) {
+          const str = "Página " + doc.getNumberOfPages();
+          doc.setFontSize(7);
+          doc.setTextColor(180);
+          doc.text(str, pageWidth / 2, pageHeight - 8, { align: 'center' });
+          doc.text('Relatório de Conferência Pix (Espaço reservado para canetada manual)', margin, pageHeight - 8);
+        }
+      });
+
+      // Use a hidden iframe to invoke print directly without popup-blocking
+      const blobUrl = doc.output('bloburl');
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = String(blobUrl);
+      document.body.appendChild(iframe);
+      
+      iframe.onload = () => {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        }
+        // clean up the iframe after triggering the print window
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch (e) {
+            console.warn('Iframe cleanup warning:', e);
+          }
+        }, 3000);
+      };
+
+      setNotification({ type: 'success', message: 'Preparando impressão do extrato...' });
+    } catch (error: any) {
+      setNotification({ type: 'error', message: 'Erro ao imprimir extrato: ' + error.message });
+    }
+  };
+
   const handleManualMatch = (studentId: string) => {
     if (matchingTransactionIndex === null) return;
     
@@ -2584,21 +2723,21 @@ export function PixConference() {
 
                 {/* Export Buttons */}
                 <button
-                  onClick={() => handleExportExtratoExcel(filteredExtratoTransactions)}
+                  onClick={() => handlePrintExtratoPDF(filteredExtratoTransactions)}
                   className="px-5 py-3 bg-green-600 text-white hover:bg-green-700 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                  title="Exportar dados filtrados para planilha Excel"
+                  title="Abrir caixa de diálogo do sistema para impressão do relatório"
                 >
-                  <FileSpreadsheet size={16} />
-                  Excel
+                  <Printer size={16} />
+                  Imprimir
                 </button>
 
                 <button
                   onClick={() => handleExportExtratoPDF(filteredExtratoTransactions)}
                   className="px-5 py-3 bg-[#00174b] text-white hover:bg-blue-900 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center gap-2"
-                  title="Imprimir relatório em PDF"
+                  title="Fazer download do relatório estruturado em PDF"
                 >
-                  <Printer size={16} />
-                  PDF
+                  <Download size={16} />
+                  Baixar PDF
                 </button>
               </div>
             </div>
