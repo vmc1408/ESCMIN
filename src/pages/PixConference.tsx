@@ -45,6 +45,7 @@ import { useAuth } from '../contexts/AuthContext';
 export function PixConference() {
   const { user: userAuth } = useAuth();
   const [file, setFile] = useState<File | null>(null);
+  const [customFileName, setCustomFileName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<PixTransaction[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -392,6 +393,7 @@ export function PixConference() {
         setRegisteredPixIds(new Set());
         setTransactions([]);
         setFile(null);
+        setCustomFileName('');
         setIsDeleting(false);
         return;
       }
@@ -410,6 +412,7 @@ export function PixConference() {
       setRegisteredPixIds(new Set());
       setTransactions([]);
       setFile(null);
+      setCustomFileName('');
       setSelectedIds(new Set());
       setSelectedHistoryIds(new Set());
       
@@ -480,6 +483,7 @@ export function PixConference() {
     // Set the current transactions to this batch's transactions and show preview
     setTransactions(batch.transactions);
     setFile({ name: batch.file_name } as File);
+    setCustomFileName(batch.file_name);
     setShowReportPreview(true);
   };
 
@@ -544,6 +548,7 @@ export function PixConference() {
     }
 
     setFile(selectedFile);
+    setCustomFileName(selectedFile.name);
     setLoading(true);
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -1074,7 +1079,7 @@ export function PixConference() {
         
         const dataToSave = {
           batch_id: t.batch_id || sessionBatchId,
-          file_name: file?.name || 'Importação Manual',
+          file_name: customFileName || file?.name || 'Importação Manual',
           transaction_id: t.transaction_id,
           date: parseSafeDate(t.date).toISOString(),
           payer_name: t.payer_name,
@@ -1141,7 +1146,7 @@ export function PixConference() {
       doc.setFontSize(8);
       doc.setTextColor(120);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Arquivo: ${file?.name || 'Importação Manual'}`, margin, 24);
+      doc.text(`Arquivo: ${customFileName || file?.name || 'Importação Manual'}`, margin, 24);
       doc.text(`Data: ${new Date().toLocaleString('pt-BR')}`, margin, 28);
 
       // Stats Summary Box
@@ -1254,7 +1259,7 @@ export function PixConference() {
         doc.line(margin, finalY + 25, margin + 60, finalY + 25);
       }
 
-      const fileName = file?.name.replace('.xlsx', '') || 'Pix';
+      const fileName = (customFileName || file?.name || 'Pix').replace(/\.xlsx?$/i, '');
       doc.save(`Relatorio_Pix_${fileName}.pdf`);
       setNotification({ type: 'success', message: 'Relatório PDF gerado com sucesso!' });
     } catch (error: any) {
@@ -1810,10 +1815,24 @@ export function PixConference() {
                     <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
                       <FileSpreadsheet size={24} />
                     </div>
-                    <div>
-                      <h3 className="text-xl font-black text-[#00174b]">{file.name}</h3>
-                      <div className="flex items-center gap-3">
-                        <p className="text-sm font-bold text-slate-400">{transactions.length} transações • Total {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalAmount)}</p>
+                    <div className="flex-1 min-w-[280px]">
+                      <div className="flex items-center gap-2 group">
+                        <input
+                          type="text"
+                          value={customFileName}
+                          onChange={(e) => setCustomFileName(e.target.value)}
+                          placeholder="Nome de identificação do lote (ex: Lote Maio 2026)"
+                          className="text-lg font-black text-[#00174b] bg-transparent border-b border-dashed border-slate-300 hover:border-slate-500 focus:border-blue-500 focus:ring-0 px-0 py-0.5 focus:outline-none w-full transition-all"
+                          title="Clique para editar o nome do lote para controle e filtros futuros"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                        <p className="text-xs font-bold text-slate-400">
+                          {transactions.length} transações • Total {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalAmount)} •
+                          <span className="text-blue-600 font-extrabold ml-1 uppercase text-[9px] tracking-wider bg-blue-50 px-1.5 py-0.5 rounded">
+                            ✏️ Nome de Controle do Lote (Edite se desejar)
+                          </span>
+                        </p>
                         {selectedIds.size > 0 && (
                           <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase rounded tracking-wider animate-in fade-in zoom-in">
                             {selectedIds.size} selecionados
@@ -2914,7 +2933,7 @@ export function PixConference() {
                   <div className="flex justify-between items-start border-b-4 border-[#00174b] pb-8">
                     <div>
                       <h1 className="text-4xl font-black text-[#00174b] uppercase tracking-tighter mb-2">Relatório de Conciliação Pix</h1>
-                      <p className="text-slate-500 font-bold">Arquivo: {file?.name || 'Importação Manual'}</p>
+                      <p className="text-slate-500 font-bold">Arquivo: {customFileName || file?.name || 'Importação Manual'}</p>
                       <p className="text-slate-400 text-sm">Gerado em: {new Date().toLocaleString('pt-BR')}</p>
                     </div>
                     <div className="text-right">
