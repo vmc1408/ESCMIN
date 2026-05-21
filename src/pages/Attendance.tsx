@@ -34,6 +34,7 @@ interface Class {
   code: string;
   subject_ids?: string[];
   days_of_week?: string[];
+  start_date?: string;
 }
 
 interface Subject {
@@ -347,15 +348,17 @@ export function Attendance() {
     const classInfo = classes.find(c => c.id === selectedClass);
     const targetDays = classInfo?.days_of_week || [];
     const dayMap: Record<string, number> = {
-      'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6
+      'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6,
+      'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6,
+      'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3, 'Quinta-feira': 4, 'Sexta-feira': 5,
+      'segunda-feira': 1, 'terça-feira': 2, 'quarta-feira': 3, 'quinta-feira': 4, 'sexta-feira': 5,
     };
     
     let targetDayIndices: number[] = targetDays.map(d => dayMap[d]).filter(d => d !== undefined);
 
-    // Fallback to name matching with more flexibility
+    // 1. Fallback to name matching with more flexibility
     if (targetDayIndices.length === 0 && classInfo?.name) {
       const lowerName = classInfo.name.toLowerCase();
-      
       const dayMatches = [
         { keywords: ['segunda', '2ª', '2a', 'seg'], index: 1 },
         { keywords: ['terça', '3ª', '3a', 'ter'], index: 2 },
@@ -365,7 +368,6 @@ export function Attendance() {
         { keywords: ['sábado', 'sab', 'sáb'], index: 6 },
         { keywords: ['domingo', 'dom'], index: 0 },
       ];
-
       dayMatches.forEach(match => {
         if (match.keywords.some(k => lowerName.includes(k))) {
           targetDayIndices.push(match.index);
@@ -373,20 +375,35 @@ export function Attendance() {
       });
     }
 
-    // If still empty, check if any class-specific event already exists to deduce the day
-    if (targetDayIndices.length === 0) {
-      const classSpecific = classEvents.filter(e => e.class_id === selectedClass);
-      if (classSpecific.length > 0) {
-        const days = new Set(classSpecific.map(e => new Date(e.start_date + 'T12:00:00').getDay()));
-        targetDayIndices = Array.from(days);
+    // 2. Fallback to start_date weekday deduction
+    if (targetDayIndices.length === 0 && classInfo?.start_date) {
+      const dbDate = classInfo.start_date.includes('T') ? classInfo.start_date.split('T')[0] : classInfo.start_date;
+      const dateObj = new Date(dbDate + 'T12:00:00');
+      if (!isNaN(dateObj.getTime())) {
+        targetDayIndices = [dateObj.getDay()];
       }
     }
 
-    // 1. Filter for unique dates and respect weekday
+    // 3. Fallback to most frequent day in class-specific events
+    if (targetDayIndices.length === 0) {
+      const classSpecific = classEvents.filter(e => e.class_id === selectedClass);
+      if (classSpecific.length > 0) {
+        const dayCounts: Record<number, number> = {};
+        classSpecific.forEach(e => {
+          const d = new Date(e.start_date + 'T12:00:00').getDay();
+          dayCounts[d] = (dayCounts[d] || 0) + 1;
+        });
+        const entries = Object.entries(dayCounts).sort((a, b) => b[1] - a[1]);
+        if (entries.length > 0) {
+          targetDayIndices = [parseInt(entries[0][0])];
+        }
+      }
+    }
+
+    // Filter for unique dates and respect weekday STRICTLY
     const uniqueMap = new Map();
     
-    // Sort classEvents so that class-specific events come later to override global ones in uniqueMap if needed
-    // However, since we check !has, we should put them first if we want to prefer them.
+    // Preference: Class-specific events override global ones
     const sortedEvents = [...classEvents].sort((a, b) => {
       if (a.class_id && !b.class_id) return -1;
       if (!a.class_id && b.class_id) return 1;
@@ -396,8 +413,8 @@ export function Attendance() {
     sortedEvents.forEach(event => {
       const dateKey = event.start_date;
       if (!uniqueMap.has(dateKey)) {
-        // If it's a global class day (no class_id), check if it matches target days
-        if (!event.class_id && targetDayIndices.length > 0) {
+        // STRICT FILTER: If we identified target days, DO NOT show other days
+        if (targetDayIndices.length > 0) {
           const date = new Date(dateKey + 'T12:00:00');
           if (!targetDayIndices.includes(date.getDay())) return;
         }
@@ -405,7 +422,6 @@ export function Attendance() {
       }
     });
 
-    // 2. Sort chronologically (Jan to Dec)
     return Array.from(uniqueMap.values())
       .sort((a, b) => a.start_date.localeCompare(b.start_date))
       .map(event => {
