@@ -2026,10 +2026,10 @@ export function AcademicCalendar() {
                               {type.icon}
                             </div>
                             <p className={cn(
-                              "text-[10px] font-black uppercase tracking-tight",
+                              "text-xs font-black uppercase tracking-tight",
                               formData.type === type.id ? `text-${type.color}-700` : "text-slate-500"
                             )}>{type.label}</p>
-                            <p className="text-[8px] font-medium text-slate-400 leading-none mt-0.5">{type.desc}</p>
+                            <p className="text-[9px] font-medium text-slate-400 leading-none mt-1">{type.desc}</p>
                             
                             {formData.type === type.id && (
                               <div className={cn(`absolute top-2 right-2 w-4 h-4 flex items-center justify-center rounded-full bg-${type.color}-600 shadow-sm shadow-${type.color}-200`)}>
@@ -2042,8 +2042,8 @@ export function AcademicCalendar() {
                   </div>
 
                   {/* Datas */}
-                  <div className="space-y-4">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Período</label>
+                  <div className="space-y-5">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1 block mb-2">Período</label>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="relative">
                         <input 
