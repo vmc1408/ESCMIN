@@ -2770,6 +2770,23 @@ export function AcademicCalendar() {
               .page-break { page-break-after: always; }
               .avoid-break { page-break-inside: avoid; }
               
+              /* Repetição de cabeçalho em todas as páginas */
+              table { 
+                width: 100% !important; 
+                border-collapse: collapse !important;
+                background: white !important;
+              }
+              thead { 
+                display: table-header-group !important; 
+              }
+              .printable-header {
+                display: flex !important;
+                width: 100% !important;
+              }
+              tbody {
+                display: table-row-group !important;
+              }
+
               /* Forçar ajuste em uma página se for grade mensal única */
               .monthly-grid-print {
                 max-height: 100%;
@@ -2779,33 +2796,44 @@ export function AcademicCalendar() {
         </style>
         
         <div className="print-container font-sans text-slate-800">
-          {/* Header do Relatório - Mais Compacto e Profissional */}
-          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-4">
-            <div className="flex items-center gap-4">
-              {institution?.logo_url ? (
-                <img src={institution.logo_url} className="h-12 w-auto object-contain" referrerPolicy="no-referrer" />
-              ) : (
-                <School className="text-slate-200" size={28} />
-              )}
-              <div className="space-y-0.5">
-                <h1 className="text-xl font-bold uppercase tracking-tight text-slate-900">
-                  {institution?.name || 'Sistema de Gestão Escolar'}
-                </h1>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">
-                  {institution?.city || ''} {institution?.document ? `• CNPJ: ${institution.document}` : ''}
-                </p>
-              </div>
-            </div>
-            <div className="text-right flex flex-col justify-center">
-              <h2 className="text-[13px] font-black text-slate-800 uppercase tracking-widest">
-                {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
-                 printType === 'annual_poster' ? 'Calendário Anual' : 'Grade de Eventos'}
-              </h2>
-              <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
-                Ano Letivo: {currentDate.getFullYear()} • {new Date().toLocaleDateString('pt-BR')}
-              </div>
-            </div>
-          </div>
+          <table className="w-full">
+            <thead>
+              <tr>
+                <td>
+                  {/* Header do Relatório - Mais Compacto e Profissional */}
+                  <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-6 printable-header">
+                    <div className="flex items-center gap-4">
+                      {institution?.logo_url ? (
+                        <img src={institution.logo_url} className="h-12 w-auto object-contain" referrerPolicy="no-referrer" />
+                      ) : (
+                        <School className="text-slate-200" size={28} />
+                      )}
+                      <div className="space-y-0.5">
+                        <h1 className="text-xl font-bold uppercase tracking-tight text-slate-900">
+                          {institution?.name || 'Sistema de Gestão Escolar'}
+                        </h1>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">
+                          {institution?.city || ''} {institution?.document ? `• CNPJ: ${institution.document}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right flex flex-col justify-center">
+                      <h2 className="text-[13px] font-black text-slate-800 uppercase tracking-widest">
+                        {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
+                         printType === 'annual_poster' ? 'Calendário Anual' : 'Grade de Eventos'}
+                      </h2>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
+                        Ano Letivo: {currentDate.getFullYear()} • {new Date().toLocaleDateString('pt-BR')}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div className="page-content">
 
           {/* Relatório 1: Cronograma de Aulas */}
           {printType === 'class_schedule' && (
@@ -3192,12 +3220,11 @@ export function AcademicCalendar() {
               })}
             </div>
           )}
-
-          {/* Footer do Relatório */}
-          <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[8px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-            <div>SISTEMA DE GESTÃO ESCMIN • CALENDÁRIO ACADÊMICO</div>
-            <div>{institution?.name?.toUpperCase()} • {institution?.city_uf || ''}</div>
-          </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </>
