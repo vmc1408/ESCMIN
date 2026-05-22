@@ -551,101 +551,92 @@ export function Attendance() {
         }
       `}} />
 
-      <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8 no-print">
+      <div className="max-w-[1600px] mx-auto p-4 md:p-10 space-y-12 no-print">
       {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          {institution?.logo && (
-            <div className="w-16 h-16 p-2 bg-white rounded-2xl shadow-lg border border-slate-100 no-print">
-              <img src={institution.logo} alt="Logo" className="w-full h-full object-contain" />
-            </div>
-          )}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+        <div className="flex items-center gap-10">
+          <div className="w-24 h-24 p-4 bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 no-print flex items-center justify-center group overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-white" />
+            {institution?.logo ? (
+              <img src={institution.logo} alt="Logo" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700 relative z-10" />
+            ) : (
+              <School size={36} className="text-emerald-600 relative z-10" />
+            )}
+          </div>
           <div>
-              <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Gestão de Frequência</h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{institution?.name || 'Gestão Escolar'}</p>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-none uppercase">Frequência</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-4">
+              <div className="flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-200 animate-pulse" />
+                <p className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em]">{institution?.name || 'CENTRO DE ENSINO'}</p>
               </div>
-              <div className="hidden sm:block w-px h-3 bg-slate-200" />
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest">Controle e Resumo de Assiduidade</p>
+              <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-slate-300" />
+              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest bg-slate-100/50 px-4 py-1.5 rounded-full border border-slate-200/50">Diário Digital de Classe</p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-            <button 
-              onClick={() => setActiveTab('marking')}
-              className={cn(
-                "px-5 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all duration-300",
-                activeTab === 'marking' 
-                  ? "bg-white text-emerald-600 shadow-sm border border-slate-100" 
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Lançar Chamada
-            </button>
-            <button 
-              onClick={() => setActiveTab('summary')}
-              className={cn(
-                "px-5 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all duration-300",
-                activeTab === 'summary' 
-                  ? "bg-white text-amber-600 shadow-sm border border-slate-100" 
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Resumo de Faltas
-            </button>
-            <button 
-              onClick={() => setActiveTab('monthly')}
-              className={cn(
-                "px-5 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all duration-300",
-                activeTab === 'monthly' 
-                  ? "bg-white text-indigo-600 shadow-sm border border-slate-100" 
-                  : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              Lista Mensal
-            </button>
+        <div className="flex flex-wrap items-center gap-5">
+          <div className="flex bg-slate-100/50 backdrop-blur-xl p-2 rounded-[2rem] border border-slate-200/60 shadow-inner">
+            {[
+              { id: 'marking', label: 'Chamada', color: 'emerald' },
+              { id: 'summary', label: 'Resumo', color: 'amber' },
+              { id: 'monthly', label: 'Mensal', color: 'indigo' }
+            ].map((tab) => (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={cn(
+                  "px-8 py-3.5 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-500",
+                  activeTab === tab.id 
+                    ? "bg-white text-slate-900 shadow-xl border border-slate-100 scale-100" 
+                    : "text-slate-400 hover:text-slate-600 hover:bg-white/50 scale-95"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {selectedClass && (
-            <button 
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-6 py-3.5 bg-white text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all active:scale-95"
-            >
-              <Printer size={18} />
-              Imprimir {activeTab === 'marking' ? 'Lista' : activeTab === 'summary' ? 'Resumo' : 'Lista Mensal'}
-            </button>
-          )}
+          <div className="flex items-center gap-4 ml-4">
+            {selectedClass && (
+              <button 
+                onClick={handlePrint}
+                className="w-14 h-14 bg-white text-slate-700 rounded-2xl flex items-center justify-center border border-slate-200 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 shadow-lg shadow-slate-200/50 transition-all active:scale-90 group"
+                title="IMPRIMIR RELATÓRIO"
+              >
+                <Printer size={22} className="group-hover:rotate-12 transition-transform" />
+              </button>
+            )}
 
-          {activeTab === 'marking' && students.length > 0 && (
-            <button 
-              disabled={saving || !selectedSubject || !isScheduledDay}
-              onClick={saveAttendance}
-              className="flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50 disabled:bg-slate-300 disabled:shadow-none"
-            >
-              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-              Salvar Chamada
-            </button>
-          )}
+            {activeTab === 'marking' && students.length > 0 && (
+              <button 
+                disabled={saving || !selectedSubject || !isScheduledDay}
+                onClick={saveAttendance}
+                className="group relative flex items-center gap-4 h-14 px-10 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-700 shadow-2xl shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50 disabled:bg-slate-300 disabled:shadow-none overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                <span>Salvar Tudo</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
         {/* Filter Bar */}
-        <div className="p-6 border-b border-slate-100 bg-slate-50/30">
+        <div className="p-12 border-b border-slate-100 bg-slate-50/10">
           <div className={cn(
-            "grid grid-cols-1 gap-6",
+            "grid grid-cols-1 gap-10",
             activeTab === 'marking' ? "md:grid-cols-3" : "md:grid-cols-2"
           )}>
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Turma Selecionada</label>
+            <div className="space-y-4">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Grupo Acadêmico</label>
               <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-emerald-500 group-focus-within:border-emerald-100 transition-all shadow-sm">
-                  <School size={16} />
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200 group-focus-within:text-emerald-600 group-focus-within:border-emerald-200 group-focus-within:shadow-xl group-focus-within:shadow-emerald-100 transition-all duration-500 shadow-sm">
+                  <School size={22} />
                 </div>
                 <select
                   value={selectedClass}
@@ -653,102 +644,105 @@ export function Attendance() {
                     setSelectedClass(e.target.value);
                     setSelectedSubject('');
                   }}
-                  className="w-full pl-16 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 appearance-none transition-all shadow-sm"
+                  className="w-full pl-22 pr-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm group-hover:border-slate-300 outline-none"
                 >
-                  <option value="">Selecione uma turma...</option>
+                  <option value="">SELECIONAR TURMA...</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" size={24} />
               </div>
             </div>
 
             {activeTab === 'monthly' && (
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mês de Referência</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="relative group">
+              <div className="space-y-4">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Ciclo de Mensal</label>
+                <div className="grid grid-cols-5 gap-3">
+                  <div className="col-span-3 relative group">
                     <select
                       value={selectedMonth}
                       onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                      className="w-full pl-4 pr-10 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:border-emerald-500 appearance-none transition-all shadow-sm"
+                      className="w-full px-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm outline-none"
                     >
                       {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
-                        <option key={i} value={i}>{m}</option>
+                        <option key={i} value={i}>{m.toUpperCase()}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={20} />
                   </div>
-                  <div className="relative group">
+                  <div className="col-span-2 relative group">
                     <select
                       value={selectedYear}
                       onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full pl-4 pr-10 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:border-emerald-500 appearance-none transition-all shadow-sm"
+                      className="w-full px-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm outline-none text-center"
                     >
                       {[2024, 2025, 2026, 2027, 2028].map(y => (
                         <option key={y} value={y}>{y}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={20} />
                   </div>
                 </div>
               </div>
             )}
             
             {(activeTab === 'marking' || activeTab === 'monthly') && (
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Disciplina</label>
+              <div className="space-y-4">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Matriz Curricular</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-emerald-500 group-focus-within:border-emerald-100 transition-all shadow-sm">
-                    <BookOpen size={16} />
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200 group-focus-within:text-emerald-600 group-focus-within:border-emerald-200 group-focus-within:shadow-xl group-focus-within:shadow-emerald-100 transition-all duration-500 shadow-sm">
+                    <BookOpen size={22} />
                   </div>
                   <select
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
                     disabled={!selectedClass}
-                    className="w-full pl-16 pr-4 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 appearance-none transition-all shadow-sm disabled:bg-slate-100 disabled:opacity-60"
+                    className="w-full pl-22 pr-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm disabled:bg-slate-100/50 disabled:opacity-60 disabled:cursor-not-allowed group-hover:border-slate-300 outline-none"
                   >
-                    <option value="">Selecione uma disciplina...</option>
-                    {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    <option value="">SELECIONAR DISCIPLINA...</option>
+                    {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" size={24} />
                 </div>
               </div>
             )}
 
             {activeTab === 'marking' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between ml-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Aula</label>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between ml-2">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em]">Data Letiva</label>
                   {selectedClass && (
-                    <div className={cn(
-                      "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                      availableDates.length > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                    )}>
-                      {availableDates.length > 0 ? `${availableDates.length} Agendados` : 'Sem agendamento'}
-                    </div>
+                    <motion.div 
+                      layout
+                      className={cn(
+                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.1em] border animate-in fade-in zoom-in duration-700",
+                        availableDates.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"
+                      )}
+                    >
+                      {availableDates.length > 0 ? `${availableDates.length} AGENDADOS` : 'FORA DO CALENDÁRIO'}
+                    </motion.div>
                   )}
                 </div>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 group-focus-within:text-emerald-500 group-focus-within:border-emerald-100 transition-all shadow-sm">
-                    <CalendarIcon size={16} />
+                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200 group-focus-within:text-emerald-600 group-focus-within:border-emerald-200 group-focus-within:shadow-xl group-focus-within:shadow-emerald-100 transition-all duration-500 shadow-sm">
+                    <CalendarIcon size={22} />
                   </div>
                   <select
                     disabled={!selectedClass || availableDates.length === 0}
                     value={parseDateToDB(selectedDate)}
                     onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
                     className={cn(
-                      "w-full pl-16 pr-10 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:border-emerald-500 appearance-none transition-all shadow-sm disabled:bg-slate-100 disabled:opacity-60",
-                      availableDates.length > 0 ? "focus:ring-emerald-500/10" : "ring-1 ring-red-200"
+                      "w-full pl-22 pr-12 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:border-slate-400 appearance-none transition-all shadow-sm disabled:bg-slate-100/50 disabled:opacity-60 disabled:cursor-not-allowed group-hover:border-slate-300 outline-none",
+                      availableDates.length > 0 ? "focus:ring-slate-500/5" : "ring-8 ring-red-50/50"
                     )}
                   >
-                    <option value="">Selecione o dia...</option>
+                    <option value="">ESCOLHER DATA...</option>
                     {availableDates.map(date => (
                       <option key={date.dbValue} value={date.dbValue}>
-                        {date.label}
+                        {date.label.toUpperCase()}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" size={24} />
                 </div>
               </div>
             )}
@@ -757,30 +751,34 @@ export function Attendance() {
 
         {/* Action Strip for Marking */}
         {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
-          <div className="px-8 py-5 bg-white border-b border-slate-50 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black text-sm">
-                {students.length}
+          <div className="px-12 py-8 bg-white border-b border-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-8">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center font-black text-2xl shadow-2xl shadow-slate-200 group relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="relative z-10">{students.length}</span>
               </div>
               <div>
-                <p className="text-xs font-black text-slate-800 uppercase tracking-widest">Alunos Inscritos</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">Aguardando lançamento de presença</p>
+                <p className="text-sm font-black text-slate-900 uppercase tracking-[0.1em] leading-none">Matriculados</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                   Sessão de chamada ativa para hoje
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => handleMarkAll('P')}
-                className="flex items-center gap-2 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all"
+                className="flex items-center gap-4 px-10 py-5 bg-emerald-50 text-emerald-700 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-emerald-600 hover:text-white hover:shadow-[0_20px_50px_rgba(16,185,129,0.2)] transition-all duration-500 group active:scale-95"
               >
-                <Check size={14} />
+                <Check size={20} className="group-hover:scale-125 transition-transform" />
                 Presença Geral
               </button>
               <button
                 onClick={() => handleMarkAll('F')}
-                className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+                className="flex items-center gap-4 px-10 py-5 bg-red-50 text-red-700 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-red-600 hover:text-white hover:shadow-[0_20px_50px_rgba(239,68,68,0.2)] transition-all duration-500 group active:scale-95"
               >
-                <X size={14} />
+                <X size={20} className="group-hover:scale-125 transition-transform" />
                 Falta Geral
               </button>
             </div>
@@ -788,23 +786,26 @@ export function Attendance() {
         )}
 
         {/* Content Area */}
-        <div className="p-8">
+        <div className="p-12 bg-slate-50/5">
           <AnimatePresence mode="wait">
             {!selectedClass ? (
               <motion.div 
                 key="empty"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="py-32 flex flex-col items-center text-center space-y-6"
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="py-48 flex flex-col items-center text-center space-y-10"
               >
-                <div className="w-24 h-24 bg-slate-50 text-slate-200 rounded-[2.5rem] flex items-center justify-center shadow-inner">
-                  <ClipboardCheck size={48} />
+                <div className="relative">
+                  <div className="absolute inset-0 bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
+                  <div className="relative w-40 h-40 bg-white text-slate-200 rounded-[3.5rem] flex items-center justify-center shadow-2xl border border-slate-50 group hover:border-emerald-100 transition-colors duration-700">
+                    <ClipboardCheck size={80} className="relative group-hover:text-emerald-500 group-hover:scale-110 transition-all duration-700" />
+                  </div>
                 </div>
-                <div className="max-w-md">
-                  <h3 className="text-xl font-black text-slate-800">Seleção Pendente</h3>
-                  <p className="text-sm font-bold text-slate-400 mt-2 leading-relaxed">
-                    Escolha uma turma para visualizar a lista de alunos e realizar a gestão de presença.
+                <div className="max-w-md space-y-4">
+                  <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Painel de Assiduidade</h3>
+                  <p className="text-[12px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-loose">
+                    Selecione o grupo acadêmico no seletor principal para carregar o quadro de frequências dinâmico.
                   </p>
                 </div>
               </motion.div>
@@ -813,171 +814,181 @@ export function Attendance() {
                 key="loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="py-32 flex flex-col items-center justify-center gap-4"
+                className="py-48 flex flex-col items-center justify-center gap-8"
               >
-                <div className="w-16 h-16 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin shadow-lg" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Consultando Registros...</p>
+                <div className="relative w-24 h-24">
+                   <div className="absolute inset-0 border-[8px] border-slate-100 rounded-full" />
+                   <div className="absolute inset-0 border-[8px] border-emerald-600 rounded-full animate-spin border-t-transparent shadow-xl" />
+                   <div className="absolute inset-0 flex items-center justify-center">
+                     <div className="w-3 h-3 bg-emerald-600 rounded-full animate-ping" />
+                   </div>
+                </div>
+                <div className="text-center space-y-3">
+                  <p className="text-[14px] font-black text-slate-900 uppercase tracking-[0.4em] animate-pulse">Sincronizando</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">Acessando registros criptografados...</p>
+                </div>
               </motion.div>
             ) : (
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-8"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-12"
               >
                 {notification && (
                   <motion.div 
-                    initial={{ opacity: 0, x: -10 }}
+                    initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={cn(
-                      "p-5 rounded-2xl flex items-center gap-4 border shadow-sm",
+                      "p-8 rounded-[2rem] flex items-center gap-8 border shadow-2xl animate-in slide-in-from-left-12 duration-700",
                       notification.type === 'success' 
-                        ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
-                        : "bg-red-50 border-red-100 text-red-700"
+                        ? "bg-slate-900 text-white border-slate-800" 
+                        : "bg-red-600 text-white border-red-500"
                     )}
                   >
                     <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-white shadow-sm",
-                      notification.type === 'success' ? "text-emerald-500" : "text-red-500"
+                      "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner text-white",
+                      notification.type === 'success' ? "bg-emerald-500" : "bg-red-500"
                     )}>
-                      {notification.type === 'success' ? <Check size={20} /> : <X size={20} />}
+                      {notification.type === 'success' ? <Check size={30} /> : <X size={30} />}
                     </div>
-                    <p className="text-sm font-black uppercase tracking-widest">{notification.message}</p>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">Notificação do Sistema</p>
+                      <p className="text-sm font-black uppercase tracking-[0.05em]">{notification.message}</p>
+                    </div>
+                    <button onClick={() => setNotification(null)} className="ml-auto w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                      <X size={20} />
+                    </button>
                   </motion.div>
                 )}
 
                 {activeTab === 'marking' ? (
-                  <div className="space-y-4">
+                  <div className="space-y-8">
                     {!selectedSubject && (
-                      <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl flex items-center gap-5 text-amber-800">
-                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-amber-500 shadow-sm">
-                          <Info size={24} />
+                      <div className="bg-white border border-amber-100 p-12 rounded-[3.5rem] flex items-center gap-10 text-amber-900 shadow-2xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
+                        <div className="w-20 h-20 bg-amber-50 rounded-[2rem] flex items-center justify-center text-amber-500 shadow-sm group-hover:scale-110 transition-transform duration-500">
+                          <Info size={40} />
                         </div>
-                        <p className="text-sm font-black uppercase tracking-widest">Selecione uma disciplina para habilitar o lançamento da frequência.</p>
+                        <div className="space-y-3">
+                           <p className="text-2xl font-black uppercase tracking-tight">Etapa Pendente</p>
+                           <p className="text-[12px] font-bold text-amber-700/60 uppercase tracking-[0.1em] leading-loose">Selecione a disciplina correspondente no menu superior para carregar a grade de frequência.</p>
+                        </div>
                       </div>
                     )}
 
                     {!isScheduledDay && selectedClass && (
-                      <div className="bg-red-50 border border-red-100 p-6 rounded-3xl flex items-center gap-5 text-red-800">
-                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-500 shadow-sm">
-                          <Clock size={24} />
+                      <div className="bg-red-50/20 border border-red-100 p-12 rounded-[3.5rem] flex items-center gap-10 text-red-900 shadow-2xl shadow-red-50/50">
+                        <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center text-red-500 shadow-sm animate-pulse">
+                          <Clock size={40} />
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-black uppercase tracking-widest">Data não agendada</p>
-                          <p className="text-xs font-bold opacity-75">Esta data não consta como dia letivo para esta turma no calendário acadêmico.</p>
+                        <div className="space-y-3">
+                          <p className="text-2xl font-black uppercase tracking-tight">Data Inválida</p>
+                          <p className="text-[12px] font-bold text-red-600/60 uppercase tracking-[0.1em] leading-loose">A data selecionada não foi identificada no cronograma acadêmico oficial desta turma.</p>
                         </div>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 gap-4 mt-8">
+                    <div className="grid grid-cols-1 gap-6 mt-12">
                       {students.map((student, idx) => (
                         <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.03 }}
+                          transition={{ delay: idx * 0.05 }}
                           key={student.id} 
                           className={cn(
-                            "group flex flex-col lg:flex-row lg:items-center justify-between p-6 rounded-[2rem] border transition-all duration-300",
-                            attendance[student.id]?.status === 'P' ? "bg-emerald-50/30 border-emerald-100 shadow-emerald-100/20" :
-                            attendance[student.id]?.status === 'F' ? "bg-red-50/30 border-red-100 shadow-red-100/20" :
-                            attendance[student.id]?.status === 'J' ? "bg-amber-50/30 border-amber-100 shadow-amber-100/20" :
-                            "bg-white border-slate-100 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50"
+                            "group flex flex-col lg:flex-row lg:items-center justify-between p-10 rounded-[3rem] border transition-all duration-700 relative overflow-hidden",
+                            attendance[student.id]?.status === 'P' ? "bg-emerald-50/20 border-emerald-100 shadow-[0_20px_50px_rgba(16,185,129,0.08)]" :
+                            attendance[student.id]?.status === 'F' ? "bg-red-50/20 border-red-100 shadow-[0_20px_50px_rgba(239,68,68,0.08)]" :
+                            attendance[student.id]?.status === 'J' ? "bg-amber-50/20 border-amber-100 shadow-[0_20px_50px_rgba(245,158,11,0.08)]" :
+                            "bg-white border-slate-100 hover:border-slate-300 hover:shadow-2xl hover:shadow-slate-200/50 shadow-sm"
                           )}
                         >
-                          <div className="flex items-center gap-6 mb-6 lg:mb-0">
+                          <div className="flex items-center gap-10 mb-10 lg:mb-0 relative z-10">
                             <div className={cn(
-                              "w-12 h-12 rounded-2xl flex items-center justify-center text-base font-black shadow-sm transition-all duration-300",
-                              attendance[student.id]?.status === 'P' ? "bg-emerald-600 text-white" :
-                              attendance[student.id]?.status === 'F' ? "bg-red-600 text-white" :
-                              attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white" :
-                              "bg-slate-50 text-slate-400 group-hover:bg-slate-800 group-hover:text-white"
+                              "w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-xl font-black shadow-lg transition-all duration-700 scale-100 group-hover:scale-110",
+                              attendance[student.id]?.status === 'P' ? "bg-emerald-600 text-white shadow-emerald-100" :
+                              attendance[student.id]?.status === 'F' ? "bg-red-600 text-white shadow-red-100" :
+                              attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white shadow-amber-100" :
+                              "bg-slate-900 text-white border border-slate-700"
                             )}>
-                              {idx + 1}
+                              {String(idx + 1).padStart(2, '0')}
                             </div>
                             <div>
-                              <p className="text-lg font-black text-slate-800 tracking-tight uppercase group-hover:text-slate-900">{student.name}</p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 py-0.5 bg-slate-50 rounded-md border border-slate-100 group-hover:bg-white transition-colors">RA: {student.registration_number}</span>
+                              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase group-hover:text-emerald-900 transition-colors leading-none">{student.name}</p>
+                              <div className="flex flex-wrap items-center gap-6 mt-4">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-4 py-1.5 bg-slate-50 border border-slate-100 rounded-xl group-hover:bg-white transition-colors">RA: {student.registration_number}</span>
+                                </div>
                                 {attendance[student.id]?.status && (
                                   <span className={cn(
-                                    "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md",
-                                    attendance[student.id]?.status === 'P' ? "bg-emerald-100 text-emerald-700" :
-                                    attendance[student.id]?.status === 'F' ? "bg-red-100 text-red-700" :
-                                    "bg-amber-100 text-amber-700"
+                                    "text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border shadow-sm animate-in zoom-in duration-500",
+                                    attendance[student.id]?.status === 'P' ? "bg-emerald-500 text-white border-emerald-400" :
+                                    attendance[student.id]?.status === 'F' ? "bg-red-500 text-white border-red-400" :
+                                    "bg-amber-500 text-white border-amber-400"
                                   )}>
-                                    Status: {attendance[student.id]?.status === 'P' ? 'Presente' : attendance[student.id]?.status === 'F' ? 'Faltou' : 'Justificado'}
+                                    STATUS: {attendance[student.id]?.status === 'P' ? 'PRESENTE' : attendance[student.id]?.status === 'F' ? 'FALTA' : 'JUSTIFICADO'}
                                   </span>
                                 )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-3">
-                            <button
-                              onClick={() => handleStatusChange(student.id, 'P')}
-                              className={cn(
-                                "flex-1 sm:flex-none lg:w-36 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 transform",
-                                attendance[student.id]?.status === 'P' 
-                                  ? "bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-105" 
-                                  : "bg-white border border-slate-200 text-slate-400 hover:border-emerald-500 hover:text-emerald-500 hover:shadow-lg active:scale-95"
-                              )}
-                            >
-                              <Check size={16} />
-                              Presente
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(student.id, 'F')}
-                              className={cn(
-                                "flex-1 sm:flex-none lg:w-36 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 transform",
-                                attendance[student.id]?.status === 'F' 
-                                  ? "bg-red-600 text-white shadow-xl shadow-red-200 scale-105" 
-                                  : "bg-white border border-slate-200 text-slate-400 hover:border-red-500 hover:text-red-500 hover:shadow-lg active:scale-95"
-                              )}
-                            >
-                              <X size={16} />
-                              Faltou
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(student.id, 'J')}
-                              className={cn(
-                                "flex-1 sm:flex-none lg:w-36 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 transform",
-                                attendance[student.id]?.status === 'J' 
-                                  ? "bg-amber-600 text-white shadow-xl shadow-amber-200 scale-105" 
-                                  : "bg-white border border-slate-200 text-slate-400 hover:border-amber-500 hover:text-amber-500 hover:shadow-lg active:scale-95"
-                              )}
-                            >
-                              <Info size={16} />
-                              Justific.
-                            </button>
+                          <div className="flex items-center gap-3 relative z-10">
+                            {[
+                              { id: 'P', label: 'Presente', icon: Check, color: 'emerald' },
+                              { id: 'F', label: 'Falta', icon: X, color: 'red' },
+                              { id: 'J', label: 'Justificar', icon: Info, color: 'amber' }
+                            ].map((btn) => (
+                              <button
+                                key={btn.id}
+                                onClick={() => handleStatusChange(student.id, btn.id as any)}
+                                className={cn(
+                                  "flex items-center justify-center gap-3 px-8 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-500 border",
+                                  attendance[student.id]?.status === btn.id
+                                    ? `bg-${btn.color}-600 text-white scale-105 shadow-xl shadow-${btn.color}-200 border-${btn.color}-500`
+                                    : `bg-slate-50 border-slate-100 text-slate-400 hover:bg-white hover:border-${btn.color}-200 hover:text-${btn.color}-600`
+                                )}
+                              >
+                                <btn.icon size={18} className={cn("transition-transform duration-500", attendance[student.id]?.status === btn.id && "scale-125")} />
+                                <span className={cn("hidden xl:block")}>{btn.label}</span>
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Decorative pattern for student card */}
+                          <div className="absolute -right-10 -bottom-10 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-700 pointer-events-none rotate-12">
+                             <School size={160} />
                           </div>
                         </motion.div>
                       ))}
                     </div>
                   </div>
                 ) : activeTab === 'summary' ? (
-                  <div className="space-y-10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 flex items-center gap-6 shadow-sm">
-                        <div className="w-16 h-16 rounded-[1.25rem] bg-white text-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-100/50">
-                          <CalendarIcon size={32} />
+                  <div className="space-y-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="bg-slate-900 p-10 rounded-[3.5rem] border border-slate-800 flex items-center gap-8 shadow-2xl group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-20 h-20 rounded-[2rem] bg-slate-800 text-indigo-400 flex items-center justify-center shadow-inner relative z-10">
+                          <CalendarIcon size={40} />
                         </div>
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Dias Letivos Totais</p>
-                          <p className="text-4xl font-black text-slate-800 tracking-tighter mt-1">{calendarDays}</p>
+                        <div className="relative z-10">
+                          <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.25em]">Ciclo de Dias Letivos</p>
+                          <p className="text-5xl font-black text-white tracking-tighter mt-2">{String(calendarDays).padStart(2, '0')}</p>
                         </div>
                       </div>
-                      <div className="bg-amber-50/50 p-8 rounded-[2.5rem] border border-amber-100 flex items-center gap-6 shadow-sm">
-                        <div className="w-16 h-16 rounded-[1.25rem] bg-white text-amber-600 flex items-center justify-center shadow-lg shadow-amber-100/50">
-                          <Filter size={32} />
+                      <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 flex items-center gap-8 shadow-2xl group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-20 h-20 rounded-[2rem] bg-amber-50 text-amber-500 flex items-center justify-center shadow-sm relative z-10">
+                          <Filter size={40} />
                         </div>
-                        <div>
-                          <p className="text-[10px] font-black text-amber-400 uppercase tracking-[0.2em]">Limite de Faltas</p>
-                          <p className="text-4xl font-black text-amber-800 tracking-tighter mt-1">{academicParams?.absence_limit_percentage || 25}%</p>
+                        <div className="relative z-10">
+                          <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em]">Limite Administrativo</p>
+                          <p className="text-5xl font-black text-slate-900 tracking-tighter mt-2">{academicParams?.absence_limit_percentage || 25}%</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 gap-6">
                       {students.map((student, idx) => {
                         const absences = studentAbsences[student.id] || 0;
                         const limit = academicParams?.absence_limit_percentage || 25;
@@ -991,30 +1002,30 @@ export function Attendance() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.03 }}
                             key={student.id} 
-                            className="group flex flex-col lg:flex-row lg:items-center justify-between p-8 bg-white border border-slate-100 rounded-[2.5rem] hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300"
+                            className="group flex flex-col lg:flex-row lg:items-center justify-between p-10 bg-white border border-slate-100 rounded-[3rem] hover:shadow-[0_30px_70px_rgba(15,23,42,0.08)] transition-all duration-500 relative overflow-hidden"
                           >
-                            <div className="flex items-center gap-6 mb-8 lg:mb-0">
-                              <div className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center text-lg font-black group-hover:bg-slate-800 group-hover:text-white transition-colors duration-300">
-                                {idx + 1}
+                            <div className="flex items-center gap-8 mb-10 lg:mb-0 relative z-10">
+                              <div className="w-16 h-16 rounded-[1.5rem] bg-slate-50 text-slate-300 flex items-center justify-center text-xl font-black group-hover:bg-slate-900 group-hover:text-white transition-all duration-700">
+                                {String(idx + 1).padStart(2, '0')}
                               </div>
                               <div>
-                                <p className="text-lg font-black text-slate-800 uppercase tracking-tight group-hover:text-slate-900">{student.name}</p>
-                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">RA: {student.registration_number}</p>
+                                <p className="text-2xl font-black text-slate-800 tracking-tighter uppercase group-hover:text-slate-900 leading-none">{student.name}</p>
+                                <p className="text-[11px] font-bold text-slate-400 mt-3 uppercase tracking-[0.2em] bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg inline-block">RA: {student.registration_number}</p>
                               </div>
                             </div>
 
-                            <div className="flex flex-col sm:flex-row items-center gap-12">
-                              <div className="text-center sm:text-right min-w-[100px]">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Faltas</p>
+                            <div className="flex flex-col sm:flex-row items-center gap-16 relative z-10">
+                              <div className="text-center sm:text-right min-w-[120px]">
+                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">Ausências</p>
                                 <p className={cn(
-                                  "text-3xl font-black mt-2 leading-none",
+                                  "text-4xl font-black mt-3 leading-none tracking-tighter",
                                   absences > 0 ? (isOverLimit ? "text-red-600" : "text-amber-600") : "text-slate-800"
                                 )}>{absences}</p>
                               </div>
                               
-                              <div className="w-full sm:w-64">
-                                <div className="flex justify-between items-end mb-2 px-1">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Percentual de Faltas</p>
+                              <div className="w-full sm:w-72">
+                                <div className="flex justify-between items-end mb-3 px-1">
+                                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Frequência Negativa</p>
                                   <span className={cn(
                                     "text-sm font-black uppercase tracking-widest",
                                     isOverLimit ? "text-red-600" : "text-emerald-600"
@@ -1022,26 +1033,26 @@ export function Attendance() {
                                     {percentage}%
                                   </span>
                                 </div>
-                                <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                <div className="h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner p-0.5">
                                   <motion.div 
                                     initial={{ width: 0 }}
                                     animate={{ width: `${Math.min(parseFloat(percentage), 100)}%` }}
-                                    transition={{ duration: 1, ease: "easeOut" }}
+                                    transition={{ duration: 1.5, ease: "circOut" }}
                                     className={cn(
-                                      "h-full rounded-full transition-all duration-500",
-                                      isOverLimit ? "bg-red-500 shadow-lg shadow-red-200" : "bg-emerald-500 shadow-lg shadow-emerald-200"
+                                      "h-full rounded-full transition-all duration-700",
+                                      isOverLimit ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]" : "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                                     )}
                                   />
                                 </div>
                               </div>
 
                               <div className={cn(
-                                "px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center shadow-sm border",
+                                "px-10 py-5 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.2em] min-w-[180px] text-center shadow-sm border transition-all duration-700",
                                 isOverLimit 
-                                  ? "bg-red-50 text-red-600 border-red-100" 
-                                  : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                  ? "bg-red-600 text-white border-red-500 shadow-xl shadow-red-100" 
+                                  : "bg-emerald-50 text-emerald-700 border-emerald-100"
                               )}>
-                                {isOverLimit ? 'Risco de Reprovação' : 'Situação Regular'}
+                                {isOverLimit ? 'Reprovação' : 'Aprovado'}
                               </div>
                             </div>
                           </motion.div>
@@ -1050,55 +1061,60 @@ export function Attendance() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-8">
-                    <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
-                      <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-lg shadow-indigo-100/50">
-                          <CalendarIcon size={28} />
+                  <div className="space-y-12">
+                    <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-10 group relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-transparent opacity-50" />
+                      <div className="flex items-center gap-8 relative z-10">
+                        <div className="w-20 h-20 bg-slate-800 rounded-[2rem] flex items-center justify-center text-indigo-400 shadow-inner">
+                          <CalendarIcon size={40} />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relatório Mensal de Presença</p>
-                          <h4 className="text-2xl font-black text-slate-800 tracking-tight">
+                          <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">Base Mensal de Assiduidade</p>
+                          <h4 className="text-4xl font-black text-white tracking-tighter mt-2 uppercase">
                             {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}
                           </h4>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-4">
-                        <div className="px-5 py-2 bg-white rounded-xl border border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                          {monthlyClassDays.length} Dias de Aula
+                      <div className="flex items-center gap-6 relative z-10">
+                        <div className="px-8 py-4 bg-slate-800 text-white rounded-2xl border border-slate-700/50 text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3">
+                           <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                           {monthlyClassDays.length} Aulas
                         </div>
-                        <div className="px-5 py-2 bg-white rounded-xl border border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                          {students.length} Alunos
+                        <div className="px-8 py-4 bg-slate-800 text-white rounded-2xl border border-slate-700/50 text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3">
+                           <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                           {students.length} Alunos
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-x-auto">
-                      <table className="w-full border-collapse table-fixed">
+                    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-x-auto overflow-hidden">
+                      <table className="w-full border-collapse">
                         <thead>
-                          <tr className="bg-slate-50/50">
-                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-16">Nº</th>
-                            <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 w-80">Nome do Aluno</th>
+                          <tr className="bg-slate-900">
+                            <th className="px-8 py-6 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] w-20">Nº</th>
+                            <th className="px-8 py-6 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] w-96">Nome do Aluno</th>
                             {monthlyClassDays.map(day => (
-                              <th key={day.dbValue} className="px-2 py-5 text-center border-b border-slate-100 border-l border-slate-50 min-w-[50px]">
-                                <p className="text-[9px] font-black text-slate-800 leading-none">{day.dayNumber}</p>
-                                <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">{day.weekday}</p>
+                              <th key={day.dbValue} className="px-3 py-6 text-center border-l border-slate-800 min-w-[60px]">
+                                <p className="text-[12px] font-black text-white leading-none">{String(day.dayNumber).padStart(2, '0')}</p>
+                                <p className="text-[10px] font-black text-indigo-400 uppercase mt-2 tracking-widest">{day.weekday}</p>
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100">
                           {students.map((student, idx) => (
-                            <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-6 py-4 text-xs font-black text-slate-400 border-b border-slate-50">{idx + 1}</td>
-                              <td className="px-6 py-4 border-b border-slate-50">
-                                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{student.name}</p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase">RA: {student.registration_number}</p>
+                            <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
+                              <td className="px-8 py-5 text-sm font-black text-slate-400">{String(idx + 1).padStart(2, '0')}</td>
+                              <td className="px-8 py-5">
+                                <p className="text-sm font-black text-slate-800 uppercase tracking-tighter group-hover:text-indigo-600 transition-colors">{student.name}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">RA: {student.registration_number}</p>
                               </td>
                               {monthlyClassDays.map(day => (
-                                <td key={day.dbValue} className="px-2 py-4 border-b border-slate-50 border-l border-slate-50">
-                                  <div className="w-6 h-6 mx-auto border border-slate-200 rounded-md"></div>
+                                <td key={day.dbValue} className="px-3 py-5 border-l border-slate-50">
+                                  <div className="w-7 h-7 mx-auto border-2 border-slate-200 rounded-lg group-hover:border-slate-300 transition-colors flex items-center justify-center">
+                                     <div className="w-1.5 h-1.5 rounded-full bg-slate-100 group-hover:bg-slate-200 transition-colors" />
+                                  </div>
                                 </td>
                               ))}
                             </tr>

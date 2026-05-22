@@ -15,7 +15,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Printer,
-  Filter
+  Filter,
+  ChevronRight,
+  ChevronDown,
+  BookOpen,
+  Edit
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -88,57 +92,48 @@ const ClassItem = React.memo(({
     <button
       onClick={() => onSelect(cls)}
       className={cn(
-        "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left",
+        "w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left relative overflow-hidden group",
         isSelected 
-          ? "bg-indigo-50 border-indigo-100 shadow-sm" 
-          : "hover:bg-slate-50 border-transparent",
+          ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100 ring-1 ring-indigo-600" 
+          : "hover:bg-slate-50 text-slate-600 border border-transparent hover:border-slate-200",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] relative border border-slate-200">
+      <div className={cn(
+        "w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs relative flex-shrink-0 transition-transform group-hover:scale-110",
+        isSelected ? "bg-white/20 text-white shadow-inner" : "bg-slate-100 text-slate-500 border border-slate-200"
+      )}>
         {cls.code}
         <div className={cn(
-          "absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white",
+          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2",
+          isSelected ? "border-indigo-600 shadow-sm" : "border-white",
           cls.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
         )} />
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pr-4">
         <div className="flex items-center gap-2">
-          <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{cls.name}</p>
-          <span className={cn(
-            "px-1.5 py-0.5 text-[8px] font-bold rounded-sm uppercase tracking-wider",
-            cls.status === 'Inativo' ? "bg-slate-50 text-slate-500 border border-slate-200" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
-          )}>
-            {cls.status || 'Ativo'}
-          </span>
+          <p className={cn(
+            "text-sm font-black truncate tracking-tight uppercase",
+            isSelected ? "text-white" : "text-slate-900"
+          )}>{cls.name}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-400 font-medium uppercase tracking-widest mt-0.5">
+        <div className={cn(
+          "flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-black uppercase tracking-[0.15em] mt-1 pr-2",
+          isSelected ? "text-indigo-100" : "text-slate-400"
+        )}>
           <span>{cls.period}</span>
-          <span className="text-slate-200">|</span>
-          <span>{cls.year}</span>
+          <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-indigo-300" : "bg-slate-300")} />
+          <span>{cls.year || '---'}</span>
+          <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-indigo-300" : "bg-slate-300")} />
+          <span>{cls.semester || '---'}</span>
         </div>
       </div>
-      {cls.subject_ids && cls.subject_ids.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {cls.subject_ids.map(sid => {
-            const subject = subjects.find(s => s.id === sid);
-            if (!subject) return null;
-            return (
-              <span key={sid} className="bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-100 text-[9px] font-bold">
-                {subject.name}
-              </span>
-            );
-          })}
+      
+      {isSelected && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 animate-in fade-in slide-in-from-right-4 duration-300">
+          <ChevronRight size={20} />
         </div>
       )}
-      {cls.start_date && (
-          <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 text-[10px] font-black uppercase">
-            <Calendar size={10} />
-            Início: {cls.start_date.includes('T') ? cls.start_date.split('T')[0].split('-').reverse().join('/') : 
-                    cls.start_date.includes('-') ? cls.start_date.split('-').reverse().join('/') : 
-                    cls.start_date}
-          </div>
-        )}
     </button>
   );
 });
@@ -476,110 +471,139 @@ export function Classes() {
   }, [classes, searchTerm, statusFilter, sortBy]);
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex gap-4">
+    <div className="h-[calc(100vh-6rem)] flex gap-6 p-4">
       {/* Sidebar List */}
-      <div className="w-[412px] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden order-last">
-        <div className="p-4 border-b border-slate-100 space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-bold text-slate-800 tracking-tight">Turmas</h2>
-            <div className="flex items-center gap-2">
-              <div className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded border border-slate-200">
+      <div className="w-[440px] bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden order-last">
+        <div className="p-8 border-b border-slate-100 space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Turmas</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Gestão de Grupos Acadêmicos</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg border border-slate-200 shadow-sm uppercase tracking-widest leading-none">
                 {filteredClasses.length}
               </div>
               <button 
                 onClick={handleNew}
-                className="px-3 h-8 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
+                className="w-10 h-10 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100 active:scale-90"
+                title="NOVA TURMA"
               >
-                <Plus size={14} />
-                NOVA
+                <Plus size={20} />
               </button>
             </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <input 
-              type="text"
-              placeholder="Buscar turma..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] focus:ring-1 focus:ring-indigo-500/20 outline-none transition-all focus:bg-white"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-indigo-500/20 outline-none"
-            >
-              <option value="name_year">Nome e Ano (Recente Primeiro)</option>
-              <option value="name">Ordenar por Nome (A-Z)</option>
-              <option value="code">Ordenar por Código</option>
-              <option value="year">Ordenar por Ano</option>
-              <option value="period">Ordenar por Período</option>
-            </select>
-            <div className="flex bg-slate-100 p-1 rounded-md">
-              {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={cn(
-                    "flex-1 py-1 text-[9px] font-bold uppercase rounded transition-all",
-                    statusFilter === status 
-                      ? "bg-slate-800 text-white shadow-sm" 
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  {status}
-                </button>
-              ))}
+          
+          <div className="space-y-4">
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
+              <input 
+                type="text"
+                placeholder="Buscar por nome ou código..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all cursor-pointer"
+              >
+                <option value="name_year">Nome e Ano (Recente Primeiro)</option>
+                <option value="name">Ordenar por Nome (A-Z)</option>
+                <option value="code">Ordenar por Código</option>
+                <option value="year">Ordenar por Ano</option>
+                <option value="period">Ordenar por Período</option>
+              </select>
+              
+              <div className="flex bg-slate-100/50 p-1.5 rounded-xl border border-slate-200">
+                {(['Ativo', 'Todos'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status === 'Todos' ? 'Todos' : 'Ativo')}
+                    className={cn(
+                      "flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all",
+                      (status === 'Todos' && statusFilter === 'Todos') || (status === 'Ativo' && statusFilter === 'Ativo')
+                        ? "bg-white text-indigo-600 shadow-sm border border-slate-100" 
+                        : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/30">
           {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="animate-spin text-blue-500" />
+            <div className="flex flex-col items-center justify-center h-48 space-y-3 opacity-50">
+              <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+              <p className="text-[10px] font-black uppercase tracking-widest">Sincronizando...</p>
             </div>
-          ) : filteredClasses.map((cls) => (
-            <ClassItem
-              key={cls.id}
-              cls={cls}
-              subjects={subjects}
-              isSelected={selectedClass?.id === cls.id}
-              onSelect={handleSelectClass}
-            />
-          ))}
+          ) : filteredClasses.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-4">
+              <Search size={40} />
+              <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma turma encontrada</p>
+            </div>
+          ) : (
+            filteredClasses.map((cls) => (
+              <ClassItem
+                key={cls.id}
+                cls={cls}
+                subjects={subjects}
+                isSelected={selectedClass?.id === cls.id}
+                onSelect={handleSelectClass}
+              />
+            ))
+          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden relative">
+      <div className="flex-1 bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden relative">
         {selectedClass || isEditing ? (
           <>
             {notification && (
               <div className={cn(
-                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-md shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2",
-                notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                "fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-[1.5rem] shadow-2xl animate-in fade-in slide-in-from-top-12 duration-500 flex items-center gap-4 border",
+                notification.type === 'success' ? "bg-emerald-600 text-white border-emerald-500" : "bg-red-600 text-white border-red-500"
               )}>
-                {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                <p className="text-[11px] font-bold uppercase tracking-wider">{notification.message}</p>
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                </div>
+                <p className="text-xs font-black uppercase tracking-[0.1em]">{notification.message}</p>
               </div>
             )}
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded bg-white shadow-sm flex items-center justify-center text-indigo-400 border border-slate-200">
-                  <School size={24} />
+            <div className="px-10 py-8 border-b border-slate-100 bg-slate-50/20">
+              <div className="flex items-center justify-between gap-8">
+                <div className="flex items-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-100 flex items-center justify-center">
+                  <School size={32} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
-                    {isEditing ? (selectedClass ? 'Editar Turma' : 'Nova Turma') : formData.name}
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none uppercase">
+                    {isEditing ? (selectedClass ? 'Editar Registro' : 'Novo Lançamento') : formData.name}
                   </h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">CÓDIGO: {formData.code || '---'}</p>
+                  <div className="flex items-center gap-3 mt-3">
+                    <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest shadow-sm">
+                      ID: {formData.code || '---'}
+                    </span>
+                    <div className={cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm",
+                      formData.status === 'Inativo' ? "bg-slate-50 text-slate-500 border-slate-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    )}>
+                      <div className={cn("w-1.5 h-1.5 rounded-full", formData.status === 'Inativo' ? "bg-slate-400" : "bg-emerald-500 animate-pulse")} />
+                      {formData.status || 'Ativo'}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {!isEditing && selectedClass && (
                   <>
                     <button 
@@ -589,24 +613,24 @@ export function Classes() {
                         e.stopPropagation();
                         setShowDeleteConfirm(true);
                       }}
-                      className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all group border border-transparent hover:border-red-100"
+                      className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all group border border-transparent hover:border-red-100 shadow-sm hover:shadow-lg active:scale-90"
                       title="Excluir Turma"
                     >
-                      <Trash2 size={18} className="group-hover:scale-105 transition-transform" />
+                      <Trash2 size={24} className="group-hover:rotate-12 transition-transform" />
                     </button>
                     <button 
                       onClick={() => window.print()}
-                      className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-md hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center shadow-sm"
-                      title="Imprimir Listagem"
+                      className="w-12 h-12 bg-white border border-slate-200 text-slate-500 rounded-2xl hover:text-indigo-600 hover:border-indigo-400 transition-all flex items-center justify-center shadow-sm hover:shadow-lg active:scale-90"
+                      title="Imprimir"
                     >
-                      <Printer size={16} />
+                      <Printer size={20} />
                     </button>
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="h-10 px-4 bg-indigo-50 text-indigo-600 rounded-md text-[11px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm shadow-indigo-100/50 uppercase tracking-widest"
+                      className="h-14 px-8 bg-indigo-600 text-white rounded-2xl text-[11px] font-black hover:bg-indigo-700 transition-all flex items-center gap-3 shadow-xl shadow-indigo-100 uppercase tracking-widest active:scale-95 group"
                     >
-                      <Edit2 size={14} />
-                      Editar
+                      <Edit2 size={18} className="group-hover:rotate-12 transition-transform" />
+                      Editar Turma
                     </button>
                   </>
                 )}
@@ -614,15 +638,16 @@ export function Classes() {
                   <>
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 text-slate-500 hover:text-slate-800 text-[11px] font-bold uppercase tracking-widest"
+                      className="px-6 py-4 text-slate-500 hover:text-slate-900 text-[11px] font-black uppercase tracking-widest transition-colors"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-5 py-2.5 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
+                      className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-[11px] font-black hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 uppercase tracking-widest active:scale-95 flex items-center gap-3"
                     >
-                      Salvar Registro
+                      <Save size={18} />
+                      Salvar Cadastro
                     </button>
                   </>
                 )}
@@ -630,264 +655,246 @@ export function Classes() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
-              <div className="max-w-4xl mx-auto space-y-4">
+          <div className="flex-1 overflow-y-auto p-10 bg-slate-50/10">
+              <div className="max-w-4xl mx-auto space-y-12 pb-20">
                 {/* Basic Info */}
-                <section className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <School size={14} />
-                    Informações da Turma
-                  </h4>
-                  <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-12 grid grid-cols-12 gap-3 pb-2">
-                       <div className="col-span-8 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Ano Letivo</label>
-                        <div className="flex bg-slate-100 p-1 rounded-md gap-1 flex-wrap">
-                          {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
-                            <button
-                              key={year}
-                              type="button"
-                              disabled={!isEditing}
-                              onClick={() => {
-                                const newYear = year;
-                                const validSubjects = (formData.subject_ids || []).filter(sid => {
-                                  const s = subjects.find(sub => sub.id === sid);
-                                  if (!s) return false;
-                                  const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
-                                  
-                                  const isCursoExtraClass = newYear === 'Curso Extra';
-                                  const matchesYear = isCursoExtraClass || !newYear || !s.year || s.year === newYear;
-                                  // When Curso Extra, we allow any semester
-                                  const matchesSemester = isCursoExtraClass || !formData.semester || !sSem || sSem === formData.semester;
-                                  
-                                  return matchesYear && matchesSemester;
-                                });
-                                setFormData({...formData, year: newYear, subject_ids: validSubjects});
-                              }}
-                              className={cn(
-                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded transition-all",
-                                formData.year === year 
-                                  ? "bg-slate-800 text-white shadow-sm" 
-                                  : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
-                              )}
-                            >
-                              {year}
-                            </button>
-                          ))}
+                <section className="space-y-6">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                      <School size={20} />
+                     </div>
+                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                        Informações Principais
+                      </h4>
+                      <div className="flex-1 h-px bg-slate-100" />
+                  </div>
+                  
+                  <div className="grid grid-cols-12 gap-8">
+                    <div className="col-span-12 space-y-6">
+                       <div className="grid grid-cols-12 gap-8">
+                         <div className="col-span-8 space-y-3">
+                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Ano Acadêmico</label>
+                          <div className="flex bg-slate-100 rounded-[1.25rem] p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
+                            {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
+                              <button
+                                key={year}
+                                type="button"
+                                disabled={!isEditing}
+                                onClick={() => {
+                                  const newYear = year;
+                                  const validSubjects = (formData.subject_ids || []).filter(sid => {
+                                    const s = subjects.find(sub => sub.id === sid);
+                                    if (!s) return false;
+                                    const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                                    const isCursoExtraClass = newYear === 'Curso Extra';
+                                    const matchesYear = isCursoExtraClass || !newYear || !s.year || s.year === newYear;
+                                    const matchesSemester = isCursoExtraClass || !formData.semester || !sSem || sSem === formData.semester;
+                                    return matchesYear && matchesSemester;
+                                  });
+                                  setFormData({...formData, year: newYear, subject_ids: validSubjects});
+                                }}
+                                className={cn(
+                                  "flex-1 py-3 text-[10px] font-black rounded-xl uppercase tracking-widest transition-all duration-300",
+                                  formData.year === year 
+                                    ? "bg-white text-indigo-600 shadow-md border border-slate-100" 
+                                    : "text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                                )}
+                              >
+                                {year}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div className="col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Semestre</label>
-                        <div className="flex bg-slate-100 p-1 rounded-md gap-1">
-                          {(formData.year === 'Curso Extra' ? ['1º Semestre', '2º Semestre', 'Ano Inteiro'] : ['1º Semestre', '2º Semestre']).map((sem) => (
-                            <button
-                              key={sem}
-                              type="button"
-                              disabled={!isEditing}
-                              onClick={() => {
-                                const newSemester = sem;
-                                const validSubjects = (formData.subject_ids || []).filter(sid => {
-                                  const s = subjects.find(sub => sub.id === sid);
-                                  if (!s) return false;
-                                  const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
-                                  
-                                  const isCursoExtraClass = formData.year === 'Curso Extra';
-                                  const matchesYear = isCursoExtraClass || !formData.year || !s.year || s.year === formData.year;
-                                  
-                                  let matchesSemester = !newSemester || !sSem || sSem === newSemester;
-                                  if (isCursoExtraClass && newSemester === 'Ano Inteiro') {
-                                    matchesSemester = true; // Show all for full year
-                                  } else if (isCursoExtraClass) {
-                                    matchesSemester = matchesSemester || isCursoExtraClass; // Keep current flexible behavior if preferred
-                                  }
-                                  
-                                  return matchesYear && matchesSemester;
-                                });
-                                setFormData({...formData, semester: newSemester, subject_ids: validSubjects});
-                              }}
-                              className={cn(
-                                "flex-1 py-2 text-[10px] font-bold rounded transition-all",
-                                formData.semester === sem 
-                                  ? "bg-slate-800 text-white shadow-sm" 
-                                  : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
-                              )}
-                            >
-                              {sem === '1º Semestre' ? '1º Sem.' : sem === '2º Semestre' ? '2º Sem.' : 'Ambos'}
-                            </button>
-                          ))}
+                        <div className="col-span-4 space-y-3">
+                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Semestre Atual</label>
+                          <div className="flex bg-slate-100 rounded-[1.25rem] p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
+                            {(formData.year === 'Curso Extra' ? ['1º Semestre', '2º Semestre', 'Ano Inteiro'] : ['1º Semestre', '2º Semestre']).map((sem) => (
+                              <button
+                                key={sem}
+                                type="button"
+                                disabled={!isEditing}
+                                onClick={() => {
+                                  const newSemester = sem;
+                                  const validSubjects = (formData.subject_ids || []).filter(sid => {
+                                    const s = subjects.find(sub => sub.id === sid);
+                                    if (!s) return false;
+                                    const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
+                                    const isCursoExtraClass = formData.year === 'Curso Extra';
+                                    const matchesYear = isCursoExtraClass || !formData.year || !s.year || s.year === formData.year;
+                                    let matchesSemester = !newSemester || !sSem || sSem === newSemester;
+                                    if (isCursoExtraClass && newSemester === 'Ano Inteiro') matchesSemester = true;
+                                    return matchesYear && matchesSemester;
+                                  });
+                                  setFormData({...formData, semester: newSemester, subject_ids: validSubjects});
+                                }}
+                                className={cn(
+                                  "flex-1 py-3 text-[10px] font-black rounded-xl uppercase tracking-widest transition-all duration-300",
+                                  formData.semester === sem 
+                                    ? "bg-white text-indigo-600 shadow-md border border-slate-100" 
+                                    : "text-slate-400 hover:text-slate-600 disabled:opacity-30"
+                                )}
+                              >
+                                {sem === '1º Semestre' ? '1º' : sem === '2º Semestre' ? '2º' : 'Anual'}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="col-span-12 space-y-2">
-                      <label className="text-xs font-bold text-slate-700">Disciplinas {formData.year === 'Curso Extra' ? '(Até 4 por Ano)' : '(Até 2 por Semestre)'}</label>
-                      <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-12 space-y-4 pt-4">
+                      <div className="flex items-baseline justify-between ml-1">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Matriz Curricular Ativa</label>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          {formData.year === 'Curso Extra' ? 'Permitido até 4 disciplinas' : 'Permitido até 2 disciplinas por ciclo'}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
                         {(formData.year === 'Curso Extra' ? [0, 1, 2, 3] : [0, 1]).map((index) => (
-                          <select 
-                            key={index}
-                            disabled={!isEditing}
-                            value={formData.subject_ids?.[index] || ''}
-                            onChange={(e) => {
-                              const newIds = [...(formData.subject_ids || [])];
-                              newIds[index] = e.target.value;
-                              setFormData({...formData, subject_ids: newIds.filter(Boolean)});
-                            }}
-                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-indigo-500/20 disabled:opacity-60 outline-none transition-all"
-                          >
-                            <option value="">{index === 0 ? '1ª Disciplina...' : '2ª Disciplina (Opcional)...'}</option>
-                            {subjects
-                               .filter(s => {
-                                 const sSem = (s as any).semester?.includes('1º') ? '1º Semestre' : (s as any).semester?.includes('2º') ? '2º Semestre' : (s as any).semester;
-
-                                 const isCursoExtraClass = formData.year === 'Curso Extra';
-                                 
-                                 const matchesYear = isCursoExtraClass || !formData.year || !(s as any).year || (s as any).year === formData.year;
-                                 let matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
-
-                                 if (isCursoExtraClass) {
-                                   if (formData.semester === 'Ano Inteiro') {
-                                     matchesSemester = true;
-                                   } else {
-                                     // If a specific semester is chosen for extra course, maybe we still want to show all but prioritize?
-                                     // The user asked to permit selecting simultaneously.
-                                     // So if "Ano Inteiro" or "Ambos" is selected, it should work.
-                                     matchesSemester = true; // Let's make it always true for Curso Extra to be simple
-                                   }
-                                 }
-
-                                 const isActiveOrSelected = (s as any).status === 'Ativo' || formData.subject_ids?.includes(s.id);
-                                 return matchesYear && matchesSemester && isActiveOrSelected;
-                               })
-                              .map(subject => (
-                                <option 
-                                  key={subject.id} 
-                                  value={subject.id}
-                                  disabled={formData.subject_ids?.includes(subject.id) && formData.subject_ids[index] !== subject.id}
-                                >
-                                  [{subject.code}] {subject.name}
-                                </option>
-                              ))}
-                          </select>
+                          <div key={index} className="relative group">
+                            <select 
+                              disabled={!isEditing}
+                              value={formData.subject_ids?.[index] || ''}
+                              onChange={(e) => {
+                                const newIds = [...(formData.subject_ids || [])];
+                                newIds[index] = e.target.value;
+                                setFormData({...formData, subject_ids: newIds.filter(Boolean)});
+                              }}
+                              className="w-full pl-6 pr-12 py-5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed outline-none transition-all shadow-sm appearance-none group-hover:border-slate-300"
+                            >
+                              <option value="">{index === 0 ? 'Selecionar Disciplina Primária...' : 'Selecionar Disciplina Secundária...'}</option>
+                              {subjects
+                                 .filter(s => {
+                                   const sSem = (s as any).semester?.includes('1º') ? '1º Semestre' : (s as any).semester?.includes('2º') ? '2º Semestre' : (s as any).semester;
+                                   const isCursoExtraClass = formData.year === 'Curso Extra';
+                                   const matchesYear = isCursoExtraClass || !formData.year || !(s as any).year || (s as any).year === formData.year;
+                                   let matchesSemester = !formData.semester || !sSem || sSem === formData.semester;
+                                   if (isCursoExtraClass) matchesSemester = true;
+                                   const isActiveOrSelected = (s as any).status === 'Ativo' || formData.subject_ids?.includes(s.id);
+                                   return matchesYear && matchesSemester && isActiveOrSelected;
+                                 })
+                                .map(subject => (
+                                  <option 
+                                    key={subject.id} 
+                                    value={subject.id}
+                                    disabled={formData.subject_ids?.includes(subject.id) && formData.subject_ids[index] !== subject.id}
+                                  >
+                                    [{subject.code}] {subject.name.toUpperCase()}
+                                  </option>
+                                ))}
+                            </select>
+                            <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:rotate-180 transition-transform pointer-events-none" />
+                          </div>
                         ))}
                       </div>
-                      {subjects.filter(s => {
-                        const sSem = s.semester?.includes('1º') ? '1º Semestre' : s.semester?.includes('2º') ? '2º Semestre' : s.semester;
-                        const isCursoExtraClass = formData.year === 'Curso Extra';
-                        const matchesYear = isCursoExtraClass || !formData.year || !s.year || s.year === formData.year;
-                        const matchesSemester = isCursoExtraClass || !formData.semester || !sSem || sSem === formData.semester;
-                        return matchesYear && matchesSemester;
-                      }).length === 0 && (
-                        <p className="text-[10px] text-amber-600 font-medium mt-1">Nenhuma disciplina cadastrada para este Ano/Semestre.</p>
-                      )}
                     </div>
 
-                    <div className="col-span-3 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Turma (Código)</label>
-                      <input 
-                        type="text"
-                        disabled={!isEditing}
-                        value={formData.code || ''}
-                        onChange={(e) => setFormData({...formData, code: e.target.value})}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                        tabIndex={1}
-                      />
+                    <div className="col-span-12 grid grid-cols-12 gap-8 pt-8">
+                       <div className="col-span-3 space-y-3">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Código</label>
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          value={formData.code || ''}
+                          onChange={(e) => setFormData({...formData, code: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50 transition-all shadow-sm outline-none"
+                          tabIndex={1}
+                        />
+                      </div>
+                      <div className="col-span-6 space-y-3">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Nome Identificador do Curso</label>
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          placeholder="EX: TEOLOGIA AVANÇADA 2026"
+                          value={formData.name || ''}
+                          onChange={(e) => setFormData({...formData, name: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-sm outline-none transition-all uppercase placeholder:text-slate-300"
+                          tabIndex={2}
+                        />
+                      </div>
+                      <div className="col-span-3 space-y-3">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Sala / Local</label>
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          value={formData.room || ''}
+                          onChange={(e) => setFormData({...formData, room: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 shadow-sm outline-none transition-all"
+                          tabIndex={3}
+                        />
+                      </div>
                     </div>
-                    <div className="col-span-6 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Nome do Curso</label>
-                      <input 
-                        type="text"
-                        disabled={!isEditing}
-                        value={formData.name || ''}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                        tabIndex={2}
-                      />
-                    </div>
-                    <div className="col-span-3 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Sala</label>
-                      <input 
-                        type="text"
-                        disabled={!isEditing}
-                        value={formData.room || ''}
-                        onChange={(e) => setFormData({...formData, room: e.target.value})}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                        tabIndex={3}
-                      />
-                    </div>
-                    <div className="col-span-4 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Situação</label>
-                      <select 
-                        disabled={!isEditing}
-                        value={formData.status || 'Ativo'}
-                        onChange={(e) => setFormData({...formData, status: e.target.value as any})}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                        tabIndex={4}
-                      >
-                        <option value="Ativo">Ativo</option>
-                        <option value="Inativo">Inativo</option>
-                      </select>
-                    </div>
-                    <div className="col-span-4 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Data de Início</label>
-                      <input 
-                        type="text"
-                        placeholder="DD/MM/AAAA"
-                        disabled={!isEditing}
-                        value={formData.start_date || ''}
-                        onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
-                        onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
-                        tabIndex={5}
-                      />
-                    </div>
-                    {/* Semester and Period below */}
-                    <div className="col-span-4 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Período</label>
-                      <div className="flex gap-2">
-                        {['Manhã', 'Tarde', 'Noite'].map(p => (
-                          <button
-                            key={p}
+
+                    <div className="col-span-12 grid grid-cols-12 gap-8">
+                       <div className="col-span-4 space-y-3 pt-2">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Prevista de Início</label>
+                        <div className="relative group">
+                          <input 
+                            type="text"
+                            placeholder="DD/MM/AAAA"
                             disabled={!isEditing}
-                            onClick={() => setFormData({...formData, period: p as any})}
-                            className={cn(
-                              "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all",
-                              formData.period === p 
-                                ? "bg-blue-600 text-white shadow-md" 
-                                : "bg-slate-50 text-slate-500 hover:bg-slate-100"
-                            )}
-                          >
-                            {p}
-                          </button>
-                        ))}
+                            value={formData.start_date || ''}
+                            onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
+                            onKeyDown={handleKeyDown}
+                            className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 shadow-sm outline-none transition-all"
+                            tabIndex={5}
+                          />
+                          <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </div>
+                      <div className="col-span-8 space-y-3 pt-2">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Turno de Aula</label>
+                        <div className="flex bg-slate-100 rounded-[1.25rem] p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
+                          {['Manhã', 'Tarde', 'Noite'].map(p => (
+                            <button
+                              key={p}
+                              disabled={!isEditing}
+                              onClick={() => setFormData({...formData, period: p as any})}
+                              className={cn(
+                                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                formData.period === p 
+                                  ? "bg-white text-indigo-600 shadow-md border border-slate-100" 
+                                  : "text-slate-400 hover:text-slate-600"
+                              )}
+                            >
+                              {p}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </section>
 
                 {/* Days of Week */}
-                <section className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Calendar size={14} />
-                    Dias da Semana
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
+                <section className="space-y-6">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                      <Clock size={20} />
+                     </div>
+                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                        Cronograma da Semana
+                      </h4>
+                      <div className="flex-1 h-px bg-slate-100" />
+                  </div>
+                  <div className="flex flex-wrap gap-4">
                     {DAYS.map((day) => (
                       <button
                         key={day.value}
                         disabled={!isEditing}
                         onClick={() => toggleDay(day.value)}
                         className={cn(
-                          "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border",
+                          "px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 flex items-center gap-3 border shadow-sm",
                           formData.days_of_week?.includes(day.value)
-                            ? "bg-blue-50 border-blue-200 text-blue-700"
-                            : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
+                            ? "bg-indigo-600 border-indigo-500 text-white shadow-xl shadow-indigo-100 scale-105"
+                            : "bg-white border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-600"
                         )}
                       >
-                        {formData.days_of_week?.includes(day.value) && <CheckCircle2 size={14} />}
+                        {formData.days_of_week?.includes(day.value) ? <CheckCircle2 size={18} /> : <div className="w-4.5 h-4.5 rounded-full border-2 border-slate-200" />}
                         {day.label}
                       </button>
                     ))}
@@ -895,18 +902,24 @@ export function Classes() {
                 </section>
 
                 {/* Additional Info */}
-                <section className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <FileText size={14} />
-                    Observações
-                  </h4>
+                <section className="space-y-6">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                      <FileText size={20} />
+                     </div>
+                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                        Observações Complementares
+                      </h4>
+                      <div className="flex-1 h-px bg-slate-100" />
+                  </div>
                   <textarea 
                     disabled={!isEditing}
+                    placeholder="Informações adicionais sobre a turma..."
                     value={(formData.observations || '').replace(/\[METADATA:.+?\]/, '').trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
-                    rows={4}
-                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 resize-none"
+                    rows={6}
+                    className="w-full px-8 py-6 bg-white border border-slate-200 rounded-[2rem] text-sm font-medium text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:bg-slate-100/50 outline-none transition-all resize-none shadow-sm placeholder:text-slate-300"
                     tabIndex={6}
                   />
                 </section>
@@ -914,11 +927,21 @@ export function Classes() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center">
-              <School size={40} />
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50/20 p-20">
+            <div className="flex flex-col items-center text-center max-w-sm space-y-10">
+              <div className="relative">
+                <div className="absolute inset-0 bg-indigo-500/10 blur-3xl rounded-full" />
+                <div className="relative w-32 h-32 bg-white rounded-[3rem] shadow-2xl flex items-center justify-center text-slate-200 border border-slate-50">
+                  <School size={64} className="animate-pulse" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Base de Conhecimento</h3>
+                <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest leading-loose">
+                  Navegue pela listagem lateral para visualizar os detalhes cadastrais ou criar novos grupos de ensino.
+                </p>
+              </div>
             </div>
-            <p className="text-sm font-medium">Selecione uma turma para ver os detalhes</p>
           </div>
         )}
       </div>
