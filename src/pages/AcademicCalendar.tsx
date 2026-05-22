@@ -966,7 +966,7 @@ export function AcademicCalendar() {
 
     return filtered.reduce((acc, current) => {
       // Agrupa visualmente eventos do mesmo tipo no mesmo dia
-      const isGroupable = current.type === 'class_day' || current.type === 'exam' || current.title.includes('Aula Abonada');
+      const isGroupable = current.type === 'class_day' || current.title.includes('Aula Abonada');
       const existingIndex = acc.findIndex(item => 
         item.start_date === current.start_date && 
         (isGroupable ? item.type === current.type : (item.title === current.title && item.type === current.type))
@@ -1521,7 +1521,7 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                               className={cn(
-                                "px-2 py-0.5 rounded-md text-[8.5px] font-bold line-clamp-2 whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
+                                "px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
                                 getTypeStyle(event.type, event.start_date)
                               )}
                               title={event.title.replace(/^Dia de Aula - /, '')}
@@ -1550,7 +1550,7 @@ export function AcademicCalendar() {
                     { type: 'holiday_est', label: 'Feriado Estadual', color: 'bg-indigo-600' },
                     { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-600' },
                     { type: 'class_day', label: 'Dia de Aula', color: 'bg-blue-600' },
-                    { type: 'exam', label: 'Avaliação', color: 'bg-amber-500' },
+                    { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
                     { type: 'start_term', label: 'Início', color: 'bg-blue-600' },
                     { type: 'end_term', label: 'Final', color: 'bg-slate-800' },
                   ].map(item => (
@@ -3171,7 +3171,9 @@ export function AcademicCalendar() {
                           
                           const normalizedTitle = norm(curr.title);
 
-                          if (!acc.some(item => norm(item.title) === normalizedTitle && item.type === curr.type)) {
+                          if (curr.type === 'exam') {
+                            acc.push(curr);
+                          } else if (!acc.some(item => norm(item.title) === normalizedTitle && item.type === curr.type)) {
                             acc.push(curr);
                           }
                           return acc;
@@ -3202,7 +3204,7 @@ export function AcademicCalendar() {
                                     className={cn(
                                       "text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm",
                                       isHoliday ? "bg-red-500 text-white border-red-600" : 
-                                      isExam ? "bg-amber-400 text-white border-amber-500" :
+                                      isExam ? "bg-orange-500 text-white border-orange-600" :
                                       "bg-blue-400 text-white border-blue-500"
                                     )}
                                   >
