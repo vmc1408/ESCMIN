@@ -156,7 +156,7 @@ export function Teachers() {
         }
         
         if ((!sIds || sIds.length === 0) && normalized.observations) {
-          const match = normalized.observations.match(/\[SUBJECTS:(.+?)\]/);
+          const match = normalized.observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
           if (match && match[1]) {
             try { sIds = JSON.parse(match[1]); } catch (e) {}
           }
@@ -189,7 +189,7 @@ export function Teachers() {
     
     // FALLBACK: If subject_ids is empty, check if it's stored in observations as metadata
     if ((!subjectIds || subjectIds.length === 0) && teacher.observations) {
-      const match = teacher.observations.match(/\[SUBJECTS:(.+?)\]/);
+      const match = teacher.observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
       if (match && match[1]) {
         try {
           subjectIds = JSON.parse(match[1]);
@@ -337,7 +337,7 @@ export function Teachers() {
       if (syncData.subject_ids && syncData.subject_ids.length > 0) {
         const metadataStr = `[SUBJECTS:${JSON.stringify(syncData.subject_ids)}]`;
         // Clean up existing metadata first
-        let cleanObs = (syncData.observations || '').replace(/\[SUBJECTS:.+?\]/, '').trim();
+        let cleanObs = (syncData.observations || '').replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').trim();
         syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
       }
 
@@ -1045,7 +1045,7 @@ export function Teachers() {
                   </h4>
                   <textarea 
                     disabled={!isEditing}
-                    value={(formData.observations || '').replace(/\[SUBJECTS:.+?\]/, '').trim()}
+                    value={(formData.observations || '').replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={4}

@@ -130,7 +130,7 @@ export function Subjects() {
       const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
         let normalized = { ...s };
         if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
-          const match = normalized.program_content.match(/\[METADATA:(.+?)\]/);
+          const match = normalized.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
           if (match && match[1]) {
             try {
               const meta = JSON.parse(match[1]);
@@ -154,7 +154,7 @@ export function Subjects() {
         }
         
         if ((!sIds || sIds.length === 0) && normalized.observations) {
-          const match = normalized.observations.match(/\[SUBJECTS:(.+?)\]/);
+          const match = normalized.observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
           if (match && match[1]) {
             try { sIds = JSON.parse(match[1]); } catch (e) {}
           }
@@ -299,7 +299,7 @@ export function Subjects() {
       
       if (Object.keys(metadata).length > 0) {
         const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
-        let cleanContent = (syncData.program_content || '').replace(/\[METADATA:.+?\]/, '').trim();
+        let cleanContent = (syncData.program_content || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim();
         syncData.program_content = (cleanContent + (cleanContent ? '\n' : '') + metadataStr).trim();
       }
 
@@ -717,7 +717,7 @@ export function Subjects() {
                         }
                         // Fallback: check metadata in observations
                         if ((!sIds || sIds.length === 0) && (t as any).observations) {
-                          const match = (t as any).observations.match(/\[SUBJECTS:(.+?)\]/);
+                          const match = (t as any).observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
                           if (match && match[1]) {
                             try {
                               sIds = JSON.parse(match[1]);
@@ -756,7 +756,7 @@ export function Subjects() {
                   </h4>
                   <textarea 
                     disabled={!isEditing}
-                    value={(formData.program_content || '').replace(/\[METADATA:.+?\]/, '').trim()}
+                    value={(formData.program_content || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim()}
                     onChange={(e) => setFormData({...formData, program_content: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={12}
@@ -866,7 +866,7 @@ export function Subjects() {
                 <div className="border-b border-black/10 pb-2">
                   <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Conteúdo Programático</p>
                   <div className="text-[10pt] leading-relaxed text-justify whitespace-pre-line min-h-[300px]">
-                    {(selectedSubject.program_content || '').replace(/\[METADATA:.+?\]/, '').trim() || 'Nenhum conteúdo descrito.'}
+                    {(selectedSubject.program_content || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim() || 'Nenhum conteúdo descrito.'}
                   </div>
                 </div>
               </div>

@@ -209,7 +209,7 @@ export function Classes() {
         }
 
         if ((!normalized.year || !normalized.semester || sIds.length === 0) && normalized.observations) {
-          const match = normalized.observations.match(/\[METADATA:(.+?)\]/);
+          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*?\})\]/);
           if (match && match[1]) {
             try {
               const meta = JSON.parse(match[1]);
@@ -378,7 +378,7 @@ export function Classes() {
       
       if (Object.keys(metadata).length > 0) {
         const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
-        let cleanObs = (syncData.observations || '').replace(/\[METADATA:.+?\]/, '').trim();
+        let cleanObs = (syncData.observations || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim();
         syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
       }
 
@@ -389,7 +389,11 @@ export function Classes() {
       await fetchClasses();
       
       // Update local state with the saved data to ensure UI sync
-      const updatedData = { ...syncData, id: savedId } as Class;
+      const updatedData = { 
+        ...syncData, 
+        id: savedId,
+        start_date: formatDateForDisplay(syncData.start_date)
+      } as Class;
       setSelectedClass(updatedData);
       setFormData(updatedData);
       
@@ -915,7 +919,7 @@ export function Classes() {
                   <textarea 
                     disabled={!isEditing}
                     placeholder="Informações adicionais sobre a turma..."
-                    value={(formData.observations || '').replace(/\[METADATA:.+?\]/, '').trim()}
+                    value={(formData.observations || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={6}
