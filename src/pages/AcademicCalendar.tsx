@@ -2989,7 +2989,7 @@ export function AcademicCalendar() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <div className="min-w-0 flex-1">
-                                <p className={cn("text-[10px] font-bold truncate", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
+                                <p className={cn("text-[10px] font-bold whitespace-normal break-words leading-tight", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
                                   {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').trim()}
                                 </p>
                                 <p className="text-[8px] font-medium text-slate-400 uppercase">
@@ -3200,7 +3200,7 @@ export function AcademicCalendar() {
                                   <div 
                                     key={e.id} 
                                     className={cn(
-                                      "text-[8px] font-bold p-0.5 rounded border leading-tight line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis shadow-sm",
+                                      "text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm",
                                       isHoliday ? "bg-red-500 text-white border-red-600" : 
                                       isExam ? "bg-amber-400 text-white border-amber-500" :
                                       "bg-blue-400 text-white border-blue-500"
