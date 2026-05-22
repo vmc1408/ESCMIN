@@ -334,12 +334,15 @@ export function Teachers() {
       // PROACTIVE METADATA SYNC:
       // Always sync subject_ids into observations metadata before saving.
       // This ensures data persistence even if the Supabase column is missing.
-      if (syncData.subject_ids && syncData.subject_ids.length > 0) {
-        const metadataStr = `[SUBJECTS:${JSON.stringify(syncData.subject_ids)}]`;
-        // Clean up existing metadata first
-        let cleanObs = (syncData.observations || '').replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').trim();
-        syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
-      }
+        if (syncData.subject_ids && syncData.subject_ids.length > 0) {
+          const metadataStr = `[SUBJECTS:${JSON.stringify(syncData.subject_ids)}]`;
+          // Clean up existing metadata first, handled more robustly
+          let cleanObs = (syncData.observations || '')
+            .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
+            .replace(/\]\]$/g, '') // Clean up any orphaned trailing brackets
+            .trim();
+          syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
+        }
 
       console.log('[Teachers] Saving data:', syncData);
       
@@ -486,7 +489,7 @@ export function Teachers() {
         
         doc.setFontSize(10);
         doc.setTextColor(0);
-        doc.text(teacher.observations.replace(/\[SUBJECTS:.+?\]/, '').trim(), margin, obsY + 10, { maxWidth: pageWidth - (margin * 2) });
+        doc.text(teacher.observations.replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').replace(/\s*\]\]\s*$/g, '').trim(), margin, obsY + 10, { maxWidth: pageWidth - (margin * 2) });
       }
 
       doc.setFontSize(8);
@@ -629,7 +632,7 @@ export function Teachers() {
               <div className="space-y-1 pt-4">
                 <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Observações Gerais</p>
                 <div className="text-[10pt] font-medium border border-black/10 p-4 rounded bg-slate-50/20 whitespace-pre-wrap leading-relaxed min-h-[100px]">
-                  {selectedTeacher.observations.replace(/\[SUBJECTS:.+?\]/, '').trim()}
+                  {selectedTeacher.observations.replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').replace(/\s*\]\]\s*$/g, '').trim()}
                 </div>
               </div>
             )}
@@ -1045,7 +1048,10 @@ export function Teachers() {
                   </h4>
                   <textarea 
                     disabled={!isEditing}
-                    value={(formData.observations || '').replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').trim()}
+                    value={(formData.observations || '')
+                      .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
+                      .replace(/\s*\]\]\s*$/g, '')
+                      .trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={4}

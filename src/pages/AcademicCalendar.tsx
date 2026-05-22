@@ -2739,6 +2739,8 @@ export function AcademicCalendar() {
                 background: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
               .no-print {
                 display: none !important;
@@ -2752,6 +2754,15 @@ export function AcademicCalendar() {
                 padding: 0 !important;
                 background: white !important;
                 transform-origin: top center;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              /* Garante que backgrounds e textos coloridos apareçam */
+              .print-container [class*="bg-"],
+              .print-container [class*="text-"],
+              .print-container [class*="border-"] {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
               .print-container * {
                 visibility: visible !important;
@@ -3167,6 +3178,11 @@ export function AcademicCalendar() {
             </div>
           )}
 
+          {/* Footer do Relatório */}
+          <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[8px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+            <div>SISTEMA DE GESTÃO ESCMIN • CALENDÁRIO ACADÊMICO</div>
+            <div>{institution?.name?.toUpperCase()} • {institution?.city_uf || ''}</div>
+          </div>
         </div>
       </div>
     </>

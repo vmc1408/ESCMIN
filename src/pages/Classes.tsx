@@ -209,7 +209,7 @@ export function Classes() {
         }
 
         if ((!normalized.year || !normalized.semester || sIds.length === 0) && normalized.observations) {
-          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*?\})\]/);
+          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
           if (match && match[1]) {
             try {
               const meta = JSON.parse(match[1]);
@@ -241,9 +241,13 @@ export function Classes() {
 
   const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
+    
+    // Ensure accurate date formatting for display (DD/MM/YYYY)
+    const displayDate = cls.start_date ? formatDateForDisplay(cls.start_date) : '';
+    
     setFormData({
       ...cls,
-      start_date: formatDateForDisplay(cls.start_date)
+      start_date: displayDate
     });
     setIsEditing(false);
   }, []);
@@ -378,7 +382,11 @@ export function Classes() {
       
       if (Object.keys(metadata).length > 0) {
         const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
-        let cleanObs = (syncData.observations || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim();
+        // Clean up existing metadata and any orphaned closing brackets
+        let cleanObs = (syncData.observations || '')
+          .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+          .replace(/\}\]$/g, '') // Remove orphaned trailing bracket if any
+          .trim();
         syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
       }
 
@@ -919,7 +927,10 @@ export function Classes() {
                   <textarea 
                     disabled={!isEditing}
                     placeholder="Informações adicionais sobre a turma..."
-                    value={(formData.observations || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim()}
+                    value={(formData.observations || '')
+                      .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+                      .replace(/\s*\}\]\s*$/g, '') // Robust cleaning of orphaned brackets
+                      .trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={6}

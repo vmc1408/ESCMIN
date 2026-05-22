@@ -299,7 +299,11 @@ export function Subjects() {
       
       if (Object.keys(metadata).length > 0) {
         const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
-        let cleanContent = (syncData.program_content || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim();
+        // Clean up existing metadata and any orphaned closing brackets
+        let cleanContent = (syncData.program_content || '')
+          .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+          .replace(/\}\]$/g, '') // Remove orphaned trailing bracket if any
+          .trim();
         syncData.program_content = (cleanContent + (cleanContent ? '\n' : '') + metadataStr).trim();
       }
 
@@ -756,7 +760,10 @@ export function Subjects() {
                   </h4>
                   <textarea 
                     disabled={!isEditing}
-                    value={(formData.program_content || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim()}
+                    value={(formData.program_content || '')
+                      .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+                      .replace(/\s*\}\]\s*$/g, '') // Robust cleaning of orphaned brackets
+                      .trim()}
                     onChange={(e) => setFormData({...formData, program_content: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={12}
@@ -866,7 +873,10 @@ export function Subjects() {
                 <div className="border-b border-black/10 pb-2">
                   <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Conteúdo Programático</p>
                   <div className="text-[10pt] leading-relaxed text-justify whitespace-pre-line min-h-[300px]">
-                    {(selectedSubject.program_content || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').trim() || 'Nenhum conteúdo descrito.'}
+                    {(selectedSubject.program_content || '')
+                      .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+                      .replace(/\s*\}\]\s*$/g, '')
+                      .trim() || 'Nenhum conteúdo descrito.'}
                   </div>
                 </div>
               </div>
