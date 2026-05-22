@@ -2810,15 +2810,6 @@ export function AcademicCalendar() {
           {/* Relatório 1: Cronograma de Aulas */}
           {printType === 'class_schedule' && (
             <div className="space-y-8">
-              {/* Resumo das turmas filtradas */}
-              <div className="mb-6 py-2 px-3 bg-slate-50 border border-slate-100 rounded-lg">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Turmas Envolvidas:</span>
-                <p className="text-[13px] font-bold text-slate-600">
-                  {involvedClasses.length > 0 ? involvedClasses.map(c => c.name).join(' • ') : 'Todas as Turmas'}
-                  {printFilters.weekday !== 'all' && ` • Filtrado por ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][printFilters.weekday]}`}
-                </p>
-              </div>
-
               {Object.entries(printGroupedEvents).map(([month, monthEvents]) => {
                 const autoEvents = monthEvents.filter(e => {
                   const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'event', 'holiday'].includes(e.type);
@@ -2901,7 +2892,14 @@ export function AcademicCalendar() {
                                     const sortedClassNames = sortClassNames(classNames);
                                     const isHoliday = event.type === 'holiday' || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
                                     
-                                    let displayTitle = event.title.replace(/^Dia de Aula - /, '');
+                                    const cleanTitle = (t: string) => t
+                                      .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+                                      .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
+                                      .replace(/\s*[\]\}]\]\s*$/g, '')
+                                      .replace(/^Dia de Aula - /, '')
+                                      .trim();
+                                    
+                                    let displayTitle = cleanTitle(event.title);
 
                                     return (
                                       <div key={event.id} className={cn("flex items-center justify-between gap-2 p-1 rounded", isHoliday && "bg-slate-50 border border-slate-200")}>
@@ -2910,7 +2908,7 @@ export function AcademicCalendar() {
                                             {displayTitle}
                                           </p>
                                           <p className="text-[8px] font-medium text-slate-500 uppercase tracking-tight leading-normal">
-                                            {sortedClassNames.join(', ')} {event.description && !event.description.includes('automático') && ` • ${event.description}`}
+                                            {sortedClassNames.join(', ')} {event.description && !event.description.includes('automático') && ` • ${event.description.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').trim()}`}
                                           </p>
                                         </div>
                                         <div className={cn(
@@ -2964,7 +2962,7 @@ export function AcademicCalendar() {
                             <div className="flex items-center justify-between gap-4">
                               <div className="min-w-0 flex-1">
                                 <p className={cn("text-[10px] font-bold truncate", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
-                                  {event.title.replace(/^Dia de Aula - /, '')}
+                                  {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').trim()}
                                 </p>
                                 <p className="text-[8px] font-medium text-slate-400 uppercase">
                                   {event.type === 'class_day' ? 'Aula Regular' : 
@@ -3101,6 +3099,23 @@ export function AcademicCalendar() {
                     <h2 className="text-2xl font-black text-center uppercase tracking-[0.3em] mb-6 text-slate-800 print:text-xl">
                       {monthName}
                     </h2>
+                    
+                    {/* Legenda de Marcações Compacta Superior */}
+                    <div className="mb-4 flex flex-wrap justify-center gap-x-8 gap-y-2 pb-2 border-b border-slate-100 no-print-break">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded bg-red-500 border border-red-600" />
+                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Feriado / Recesso</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded bg-amber-400 border border-amber-500" />
+                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Avaliação / Prova</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded bg-blue-400 border border-blue-500" />
+                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Dia de Aula Letivo</span>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-lg overflow-hidden">
                       {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
                         <div key={day} className="bg-slate-50 py-4 text-center text-[11px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
@@ -3163,7 +3178,7 @@ export function AcademicCalendar() {
                                       "bg-blue-400 text-white border-blue-500"
                                     )}
                                   >
-                                    {e.title.replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0]}
+                                    {e.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                   </div>
                                 );
                               })}
