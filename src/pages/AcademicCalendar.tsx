@@ -2007,7 +2007,11 @@ export function AcademicCalendar() {
                             key={type.id}
                             type="button"
                             disabled={!(isAdmin || isDirector)}
-                            onClick={() => setFormData({...formData, type: type.id as any})}
+                            onClick={() => setFormData({
+                              ...formData, 
+                              type: type.id as any,
+                              title: type.label
+                            })}
                             className={cn(
                               "relative flex flex-col p-3 rounded-2xl border-2 transition-all text-left group",
                               formData.type === type.id 
