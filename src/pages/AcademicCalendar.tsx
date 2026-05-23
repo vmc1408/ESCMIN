@@ -181,14 +181,10 @@ export function AcademicCalendar() {
   };
 
   useEffect(() => {
-    if (showSettings) {
-      const targetId = settingsForm.target_class_ids.length === 1 ? settingsForm.target_class_ids[0] : 'current';
-      const key = `annual_${targetId}_${currentDate.getFullYear()}`;
-      if (lastLoadedKey !== key) {
-        loadSettings(targetId);
-      }
+    if (showSettings && lastLoadedKey === '') {
+      loadSettings('current');
     }
-  }, [showSettings, settingsForm.target_class_ids]);
+  }, [showSettings]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -2465,7 +2461,24 @@ export function AcademicCalendar() {
                 {activeStep === 1 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="space-y-1">
-                      <h4 className="text-base font-bold text-slate-900">Selecione as Turmas</h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-base font-bold text-slate-900">Selecione as Turmas</h4>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setSettingsForm({ ...settingsForm, target_class_ids: classes.map(c => c.id) })}
+                            className="text-[9px] font-bold text-blue-600 uppercase tracking-wider hover:underline"
+                          >
+                            Selecionar Todas
+                          </button>
+                          <span className="text-slate-200">|</span>
+                          <button 
+                            onClick={() => setSettingsForm({ ...settingsForm, target_class_ids: [] })}
+                            className="text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:underline"
+                          >
+                            Limpar
+                          </button>
+                        </div>
+                      </div>
                       <p className="text-[11px] text-slate-500">O cronograma será gerado para as turmas selecionadas. Se nenhuma for selecionada, será gerado um cronograma geral.</p>
                     </div>
 
