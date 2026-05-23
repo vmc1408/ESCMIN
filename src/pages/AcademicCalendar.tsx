@@ -917,13 +917,13 @@ export function AcademicCalendar() {
           const weekday = new Date(startDate + 'T00:00:00').getDay();
           if (weekday === 3) return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
           if (weekday === 4) return 'bg-amber-50 text-amber-700 border-amber-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
-          return 'bg-emerald-50 text-emerald-700 border-emerald-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
+          return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
         }
-        return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+        return 'bg-blue-50 text-blue-700 border-blue-100';
       }
-      case 'excused_class':
-        return 'bg-slate-100 text-slate-600 border-slate-200 line-through opacity-75';
-      default: return 'bg-slate-50 text-slate-600 border-slate-100 font-medium';
+      case 'excused_class': 
+        return 'bg-slate-100 text-slate-500 border-slate-200 line-through opacity-70 font-black text-[9px] uppercase tracking-tighter';
+      default: return 'bg-slate-50 text-slate-600 border-slate-100 font-black text-[9px] uppercase tracking-wider';
     }
   };
 
@@ -993,21 +993,18 @@ export function AcademicCalendar() {
 
     return filtered.reduce((acc, current) => {
       // Agrupa visualmente eventos do mesmo tipo no mesmo dia
-      // NOVO: Permitir avaliações duplicadas se forem de turmas diferentes ou tiverem títulos diferentes
-      const isGroupable = current.type === 'class_day' || current.title.includes('Aula Abonada');
+      const baseTitle = current.title.split(' - ')[0].trim();
+      const isClassDay = current.type === 'class_day' || current.title.includes('Aula Abonada');
+      
       const existingIndex = acc.findIndex(item => 
         item.start_date === current.start_date && 
-        (isGroupable ? 
-          item.type === current.type : 
-          (item.title === current.title && item.type === current.type && item.class_id === current.class_id)
-        )
+        item.type === current.type &&
+        (isClassDay ? true : item.title.split(' - ')[0].trim() === baseTitle)
       );
 
       if (existingIndex === -1) {
         acc.push({ ...current });
       }
-      // Se já existe um evento deste tipo no dia, não concatenamos mais as turmas no título para manter limpo
-      // conforme solicitado ("somente do dia da turma x")
       return acc;
     }, [] as CalendarEvent[]);
   }, [events, currentDate.getFullYear(), classes]);
@@ -1508,7 +1505,7 @@ export function AcademicCalendar() {
                     const isToday = todayStr === dateStr;
                     const periodType = getPeriodType(dateStr, academicSettings);
                     const isExcused = dayEvents.some(e => e.type === 'excused_class');
-                    const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                    const isVacation = periodType === 'vacation' || periodType === 'recess' || isExcused || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                     const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
 
                     return (
