@@ -843,10 +843,17 @@ export function AcademicCalendar() {
     }
   };
 
-  const handleEdit = (event: CalendarEvent) => {
+  const handleEdit = (event: CalendarEvent & { _count?: number }) => {
     setSelectedEvent(event);
+    // Remove os contadores "(x turmas)" do título ao editar
+    const cleanTitle = event.title
+      .replace(/^Dia de Aula - /, '')
+      .replace(/\s*\(\d+\s*turmas\)$/i, '')
+      .split(' - ')[0]
+      .trim();
+
     setFormData({
-      title: event.title.replace(/^Dia de Aula - /, '').split(' - ')[0].trim(),
+      title: cleanTitle,
       description: event.description,
       start_date: formatDateForDisplay(event.start_date),
       end_date: formatDateForDisplay(event.end_date),
@@ -871,13 +878,21 @@ export function AcademicCalendar() {
     }
 
     try {
-      // Realiza a varredura e remove todas as instâncias (passadas e futuras) com o mesmo título e tipo
-      await deleteQuery('calendar_events', [
-        { field: 'title', operator: 'eq', value: eventToDelete.title },
+      // Realiza a remoção cirúrgica de todos os eventos agrupados no mesmo dia e tipo
+      // Se for feriado ou dia de aula, remove todos do mesmo dia
+      // Se for evento customizado, remove pelo título também para garantir
+      const filters: any[] = [
+        { field: 'start_date', operator: 'eq', value: eventToDelete.start_date },
         { field: 'type', operator: 'eq', value: eventToDelete.type }
-      ]);
+      ];
+
+      if (eventToDelete.type === 'event' || eventToDelete.type === 'exam') {
+        filters.push({ field: 'title', operator: 'eq', value: eventToDelete.title });
+      }
+
+      await deleteQuery('calendar_events', filters);
       
-      setNotification({ type: 'success', message: 'Tudo removido: Varedura completa concluída com sucesso!' });
+      setNotification({ type: 'success', message: 'Registros removidos com sucesso!' });
       setConfirmDeleteId(null);
       fetchData();
     } catch (error: any) {
@@ -2146,18 +2161,34 @@ export function AcademicCalendar() {
                     </div>
                   </div>
 
-                  {/* Título */}
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Identificação</label>
-                    <input 
-                      required
-                      readOnly={!(isAdmin || isDirector)}
-                      type="text"
-                      placeholder="Título do evento ou atividade..."
-                      value={formData.title}
-                      onChange={e => setFormData({...formData, title: e.target.value})}
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
-                    />
+                  {/* Título e Turma */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Identificação</label>
+                      <input 
+                        required
+                        readOnly={!(isAdmin || isDirector)}
+                        type="text"
+                        placeholder="Título do evento..."
+                        value={formData.title}
+                        onChange={e => setFormData({...formData, title: e.target.value})}
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Vincular Turma</label>
+                      <select
+                        disabled={!(isAdmin || isDirector)}
+                        value={formData.class_id}
+                        onChange={e => setFormData({...formData, class_id: e.target.value})}
+                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                      >
+                        <option value="">Anotação Geral (Todas)</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -2195,18 +2226,36 @@ export function AcademicCalendar() {
                     <button 
                       type="button"
                       onClick={async () => {
-                        await saveData('calendar_events', selectedEvent.id, {
-                          ...selectedEvent,
-                          type: 'excused_class',
-                          title: 'Aula Abonada',
-                          description: 'Dia de aula abonado/dispensado'
-                        });
-                        setIsEditing(false);
-                        fetchData();
+                        setIsSyncing(true);
+                        setSyncMessage('Abonando turmas...');
+                        try {
+                          // Busca todos os eventos de aula do mesmo dia para abonar em massa
+                          const sameDayEvents = events.filter(e => 
+                            e.start_date === selectedEvent.start_date && 
+                            e.type === 'class_day'
+                          );
+
+                          await Promise.all(sameDayEvents.map(ev => 
+                            saveData('calendar_events', ev.id, {
+                              ...ev,
+                              type: 'excused_class',
+                              title: 'Aula Abonada',
+                              description: 'Dia de aula abonado/dispensado'
+                            })
+                          ));
+
+                          setNotification({ type: 'success', message: `${sameDayEvents.length} turmas abonadas com sucesso!` });
+                          setIsEditing(false);
+                          fetchData();
+                        } catch (err) {
+                          console.error(err);
+                        } finally {
+                          setIsSyncing(false);
+                        }
                       }}
                       className="flex-1 py-4 bg-slate-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-700 shadow-xl shadow-slate-100 transition-all"
                     >
-                      Abonar Aula
+                      Abonar Tudo
                     </button>
                   )}
                   {(isAdmin || isDirector) && (
