@@ -173,18 +173,6 @@ export function AcademicCalendar() {
     ];
   };
 
-  const [settingsForm, setSettingsForm] = useState({
-    term1_start: '',
-    term1_end: '',
-    term2_start: '',
-    term2_end: '',
-    class_weekdays: [3] as number[],
-    weekday_titles: {} as Record<number, string>,
-    target_class_ids: [] as string[]
-  });
-
-  const [activeStep, setActiveStep] = useState(1);
-
   const [academicSettings, setAcademicSettings] = useState<AcademicSettings>({
     term1_start: `${new Date().getFullYear()}-02-03`,
     term1_end: `${new Date().getFullYear()}-06-25`,
@@ -254,79 +242,54 @@ export function AcademicCalendar() {
     return `${d.getFullYear()}-W${weekNo}`;
   };
 
-  // Initialize settingsForm when opening settings
-  useEffect(() => {
-    if (showSettings && academicSettings) {
-      setSettingsForm({
-        term1_start: formatDateForDisplay(academicSettings.term1_start),
-        term1_end: formatDateForDisplay(academicSettings.term1_end),
-        term2_start: formatDateForDisplay(academicSettings.term2_start),
-        term2_end: formatDateForDisplay(academicSettings.term2_end),
-        class_weekdays: academicSettings.class_weekdays || [],
-        weekday_titles: academicSettings.weekday_titles || {},
-        target_class_ids: academicSettings.target_class_ids || []
-      });
-      setActiveStep(1); // Reset to first step when opening
-    }
-  }, [showSettings, academicSettings]);
+  const [settingsForm, setSettingsForm] = useState<AcademicSettings>({
+    term1_start: '',
+    term1_end: '',
+    term2_start: '',
+    term2_end: '',
+    class_weekdays: [3],
+    weekday_titles: { 3: 'Dia de Aula' },
+    target_class_ids: []
+  });
+
+  const [activeStep, setActiveStep] = useState(1);
 
   // Memoize settings loading to prevent loops
   const [lastLoadedKey, setLastLoadedKey] = useState('');
 
-  useEffect(() => {
-    async function loadSettings() {
-      // If we have a target class selected, try to load its specific settings first
-      const targetId = settingsForm.target_class_ids.length === 1 ? settingsForm.target_class_ids[0] : null;
+  const loadSettings = async (targetId: string = 'current') => {
+    try {
+      const key = `annual_${targetId}_${currentDate.getFullYear()}`;
+      const data = await fetchById('academic_settings', targetId);
       
-      if (!targetId) return;
-
-      const key = `target_${targetId}`;
-      if (key === lastLoadedKey) return;
-
-      try {
-        const data = await fetchById('academic_settings', targetId);
-        if (data) {
-          // Se o dia da semana salvo for o mesmo do que está no form (ou se o usuário acabou de abrir), carrega
-          // Se o usuário mudou o dia e estamos carregando por turma, vamos ver se a turma tem outro dia salvo
-          setSettingsForm(prev => ({
-            ...prev,
-            term1_start: formatDateForDisplay(data.term1_start),
-            term1_end: formatDateForDisplay(data.term1_end),
-            term2_start: formatDateForDisplay(data.term2_start),
-            term2_end: formatDateForDisplay(data.term2_end),
-            // Only update weekdays if we are loading first time or if it specifically matches
-            class_weekdays: (Array.isArray(data.class_weekdays) 
-              ? data.class_weekdays 
-              : (data.class_weekday !== undefined ? [data.class_weekday] : (data.class_weekdays ? [data.class_weekdays] : prev.class_weekdays))
-            )
-          }));
-          setLastLoadedKey(key);
-        } else {
-          // Se não houver dados específicos, podemos manter o que está no form (que veio do 'current' no open)
-          // Mas se o usuário mudar de turma e não tiver dados, talvez queiramos resetar para os valores globais
-          if (targetId !== 'current') {
-            const global = await fetchById('academic_settings', 'current');
-            if (global) {
-              setSettingsForm(prev => ({
-                ...prev,
-                term1_start: formatDateForDisplay(global.term1_start),
-                term1_end: formatDateForDisplay(global.term1_end),
-                term2_start: formatDateForDisplay(global.term2_start),
-                term2_end: formatDateForDisplay(global.term2_end),
-              }));
-            }
-          }
-          setLastLoadedKey(key);
+      if (data) {
+        const parsed = {
+          ...data,
+          term1_start: formatDateForDisplay(data.term1_start),
+          term1_end: formatDateForDisplay(data.term1_end),
+          term2_start: formatDateForDisplay(data.term2_start),
+          term2_end: formatDateForDisplay(data.term2_end),
+          class_weekdays: Array.isArray(data.class_weekdays) ? data.class_weekdays.map(Number) : [Number(data.class_weekdays || 3)],
+          target_class_ids: Array.isArray(data.target_class_ids) ? data.target_class_ids : []
+        };
+        
+        if (targetId === 'current') {
+          setAcademicSettings(parsed);
         }
-      } catch (err) {
-        console.error("Error loading settings:", err);
+        setSettingsForm(parsed);
+        setLastLoadedKey(key);
       }
+    } catch (err) {
+      console.error("Error loading settings:", err);
     }
+  };
 
+  useEffect(() => {
     if (showSettings) {
-      loadSettings();
+      const targetId = settingsForm.target_class_ids.length === 1 ? settingsForm.target_class_ids[0] : 'current';
+      loadSettings(targetId);
     }
-  }, [showSettings, settingsForm.target_class_ids[0], settingsForm.class_weekdays]);
+  }, [showSettings, settingsForm.target_class_ids[0]]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -1389,7 +1352,7 @@ export function AcademicCalendar() {
               <button 
                 onClick={() => setShowSettings(true)}
                 className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-xl border border-slate-100 shadow-sm active:scale-95"
-                title="Configurações Acadêmicas"
+                title="Ajuste do Calendário Anual"
               >
                 <Settings size={16} />
               </button>
@@ -2304,15 +2267,16 @@ export function AcademicCalendar() {
                     <CalendarDays size={18} />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900 tracking-tight">Novo Cronograma</h3>
+                    <h3 className="text-base font-bold text-slate-900 tracking-tight">Parâmetros Anuais</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest -mt-1">Ajuste do Calendário Escolar</p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between px-2">
                   {[
                     { s: 1, label: 'Turmas' },
-                    { s: 2, label: 'Datas' },
-                    { s: 3, label: 'Aula' }
+                    { s: 2, label: 'Períodos' },
+                    { s: 3, label: 'Config. Diária' }
                   ].map((item, idx) => (
                     <React.Fragment key={item.s}>
                       <div className="flex flex-col items-center gap-1.5">
@@ -2411,7 +2375,7 @@ export function AcademicCalendar() {
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
                     <div className="space-y-1">
                       <h4 className="text-base font-bold text-slate-900">Períodos Letivos</h4>
-                      <p className="text-[11px] text-slate-500">Intervalos para geração das aulas.</p>
+                      <p className="text-[11px] text-slate-500">Defina os marcos para o ajuste do registro anual das turmas.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -2636,7 +2600,7 @@ export function AcademicCalendar() {
 
                           setShowSettings(false);
                           setActiveStep(1);
-                          setNotification({ type: 'success', message: 'Cronograma gerado!' });
+                          setNotification({ type: 'success', message: 'Registro anual atualizado com sucesso!' });
                         } catch (error) {
                           console.error("Error saving:", error);
                           setNotification({ type: 'err', message: 'Erro ao processar.' });
@@ -2648,7 +2612,7 @@ export function AcademicCalendar() {
                       className="px-6 py-2.5 bg-slate-900 text-white rounded text-[10px] font-bold uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                      Gerar Cronograma
+                      Salvar e Atualizar Registro
                     </button>
                   )}
                 </div>
