@@ -251,14 +251,27 @@ export interface InstitutionSettings {
 }
 
 export interface AcademicSettings {
-  id: string;
+  id?: string;
   term1_start: string;
   term1_end: string;
   term2_start: string;
   term2_end: string;
-  class_weekday: number;
-  skip_holiday_neighbors: boolean;
-  target_class_id?: string;
+  class_weekdays: number[];
+  weekday_titles?: Record<number, string>;
+  target_class_ids: string[];
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  type: 'holiday' | 'holiday_nac' | 'holiday_est' | 'holiday_mun' | 'exam' | 'start_term' | 'end_term' | 'class_day' | 'event' | 'excused_class';
+  class_id?: string;
+  subject_id?: string;
+  user_id: string;
+  created_at: string;
   updated_at?: string;
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -45,48 +45,17 @@ import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils'
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  type: 'holiday' | 'holiday_nac' | 'holiday_est' | 'holiday_mun' | 'exam' | 'start_term' | 'end_term' | 'class_day' | 'event' | 'excused_class';
-  class_id?: string;
-  subject_id?: string;
-  user_id: string;
-  created_at: any;
-}
-
-interface Class {
-  id: string;
-  name: string;
-  code: string;
-  status: 'Ativo' | 'Inativo';
-}
-
-interface Subject {
-  id: string;
-  name: string;
-  status: 'Ativo' | 'Inativo';
-}
-
-interface AcademicSettings {
-  id?: string;
-  term1_start: string;
-  term1_end: string;
-  term2_start: string;
-  term2_end: string;
-  class_weekdays: number[];
-  weekday_titles?: Record<number, string>;
-  target_class_ids: string[];
-}
+import { useCalendarHelpers } from '../hooks/useCalendar';
+import { getTypeStyle, getTypeText, getTypeColor } from '../lib/calendar-utils';
+import { CalendarEvent, AcademicSettings, Class, Subject, InstitutionSettings } from '../types';
+import { HolidayListReport } from '../components/calendar/HolidayListReport';
 
 export function AcademicCalendar() {
   const { userAuth, isAdmin, isDirector } = useAuth();
+  const { getEaster, getHolidaysForYear, getPeriodType } = useCalendarHelpers();
+  
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [institution, setInstitution] = useState<any>(null);
+  const [institution, setInstitution] = useState<InstitutionSettings | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,63 +87,6 @@ export function AcademicCalendar() {
     month: 'all' as number | 'all'
   });
   
-  // Helper para calcular a Páscoa (Algoritmo de Meeus/Jones/Butcher)
-  const getEaster = (year: number) => {
-    const a = year % 19;
-    const b = Math.floor(year / 100);
-    const c = year % 100;
-    const d = Math.floor(b / 4);
-    const e = b % 4;
-    const f = Math.floor((b + 8) / 25);
-    const g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30;
-    const i = Math.floor(c / 4);
-    const k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7;
-    const m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const n = Math.floor((h + l - 7 * m + 114) / 31);
-    const p = (h + l - 7 * m + 114) % 31;
-    return new Date(year, n - 1, p + 1);
-  };
-
-  // Helper para gerar feriados dinamicamente para qualquer ano
-  const getHolidaysForYear = (year: number) => {
-    const easter = getEaster(year);
-    
-    // Carnival is 47 days before Easter
-    const carnival = new Date(easter);
-    carnival.setDate(easter.getDate() - 47);
-    
-    // Good Friday is 2 days before Easter
-    const goodFriday = new Date(easter);
-    goodFriday.setDate(easter.getDate() - 2);
-    
-    // Corpus Christi is 60 days after Easter
-    const corpusChristi = new Date(easter);
-    corpusChristi.setDate(easter.getDate() + 60);
-
-    return [
-      { title: "Confraternização Universal", date: `${year}-01-01`, category: 'nacional' },
-      { title: "Aniv. de São Paulo", date: `${year}-01-25`, category: 'estadual' },
-      { title: "Carnaval", date: carnival.toISOString().split('T')[0], category: 'nacional' },
-      { title: "Sexta-feira Santa", date: goodFriday.toISOString().split('T')[0], category: 'nacional' },
-      { title: "Páscoa", date: easter.toISOString().split('T')[0], category: 'nacional' },
-      { title: "Tiradentes", date: `${year}-04-21`, category: 'nacional' },
-      { title: "Dia do Trabalho", date: `${year}-05-01`, category: 'nacional' },
-      { title: "Corpus Christi", date: corpusChristi.toISOString().split('T')[0], category: 'nacional' },
-      { title: "Independência do Brasil", date: `${year}-09-07`, category: 'nacional' },
-      { title: "Nossa Sra Aparecida", date: `${year}-10-12`, category: 'nacional' },
-      { title: "Finados", date: `${year}-11-02`, category: 'nacional' },
-      { title: "Proclamação da República", date: `${year}-11-15`, category: 'nacional' },
-      { title: "Consciência Negra", date: `${year}-11-20`, category: 'nacional' },
-      { title: "Natal", date: `${year}-12-25`, category: 'nacional' },
-      // Feriados Estaduais (SP)
-      { title: "Revolução Constitucionalista", date: `${year}-07-09`, category: 'estadual' },
-      // Feriados Municipais (Guarulhos exemplo)
-      { title: "Imaculada Conceição (Aniv. Guarulhos)", date: `${year}-12-08`, category: 'municipal' },
-    ];
-  };
-
   const [academicSettings, setAcademicSettings] = useState<AcademicSettings>({
     term1_start: `${new Date().getFullYear()}-02-03`,
     term1_end: `${new Date().getFullYear()}-06-25`,
@@ -194,24 +106,6 @@ export function AcademicCalendar() {
     'text-rose-600',     // Sex
     'text-violet-600'  // Sáb
   ];
-
-  const getPeriodType = (dateStr: string, settings: AcademicSettings) => {
-    if (!settings.term1_start || !settings.term1_end || !settings.term2_start || !settings.term2_end) return null;
-    
-    const date = new Date(dateStr + 'T00:00:00');
-    const t1Start = new Date(settings.term1_start + 'T00:00:00');
-    const t1End = new Date(settings.term1_end + 'T00:00:00');
-    const t2Start = new Date(settings.term2_start + 'T00:00:00');
-    const t2End = new Date(settings.term2_end + 'T00:00:00');
-
-    // Férias: Entre término do 1º semestre e início do 2º semestre
-    if (date > t1End && date < t2Start) return 'vacation';
-
-    // Recesso: Antes do início das aulas ou após o término do ano letivo
-    if (date < t1Start || date > t2End) return 'recess';
-
-    return null;
-  };
 
   const dayBgColors = [
     'bg-slate-50',
@@ -878,78 +772,15 @@ export function AcademicCalendar() {
 
   const isSyncingInPage = isSyncing; // Avoid naming conflict if any
 
-  // Detect today's date in local format, or fallback to user's desired date if specifically requested
   const todayStr = React.useMemo(() => {
-    // Basic local date
     const d = new Date();
     return d.toLocaleDateString('en-CA');
   }, []);
 
-  const getTypeStyle = (type: CalendarEvent['type'], startDate?: string) => {
-    switch (type) {
-      case 'holiday':
-      case 'holiday_nac':
-        return 'bg-red-50 text-red-700 border-red-100/50 shadow-sm font-semibold';
-      case 'holiday_est':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-100/50 shadow-sm font-semibold';
-      case 'holiday_mun':
-        return 'bg-amber-50 text-amber-700 border-amber-100/50 shadow-sm font-semibold';
-      case 'exam': 
-        return 'bg-orange-50 text-orange-700 border-orange-100 font-semibold';
-      case 'start_term': 
-      case 'end_term':
-        return 'bg-slate-900 text-white border-slate-950 font-semibold shadow-sm';
-      case 'class_day': {
-        if (startDate) {
-          const weekday = new Date(startDate + 'T00:00:00').getDay();
-          if (weekday === 3) return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
-          if (weekday === 4) return 'bg-amber-50 text-amber-700 border-amber-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
-          return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
-        }
-        return 'bg-blue-50 text-blue-700 border-blue-100';
-      }
-      case 'excused_class': 
-        return 'bg-slate-50/80 text-slate-400 border-slate-200/50 opacity-90 font-black text-[9px] uppercase tracking-tighter';
-      default: return 'bg-slate-50 text-slate-600 border-slate-100 font-black text-[9px] uppercase tracking-wider';
-    }
-  };
-
-  const getTypeText = (type: CalendarEvent['type'], description?: string) => {
-    switch (type) {
-      case 'holiday':
-      case 'holiday_nac': return 'Feriado Nacional';
-      case 'holiday_est': return 'Feriado Estadual';
-      case 'holiday_mun': return 'Feriado Municipal';
-      case 'exam': return 'Avaliação';
-      case 'start_term': return 'Início Letivo';
-      case 'end_term': return 'Cierre Letivo';
-      case 'class_day': return 'Dia de Aula';
-      case 'excused_class': return 'Dia de Aula';
-      default: return 'Evento';
-    }
-  };
-
-  const getTypeColor = (type: CalendarEvent['type'], startDate?: string) => {
-    switch (type) {
-      case 'holiday':
-      case 'holiday_nac': return 'bg-red-500';
-      case 'holiday_est': return 'bg-slate-500';
-      case 'holiday_mun': return 'bg-amber-500';
-      case 'exam': return 'bg-orange-500';
-      case 'start_term': return 'bg-slate-900';
-      case 'end_term': return 'bg-slate-800';
-      case 'class_day': {
-        if (startDate) {
-          const weekday = new Date(startDate + 'T00:00:00').getDay();
-          if (weekday === 3) return 'bg-blue-600';
-          if (weekday === 4) return 'bg-amber-500';
-        }
-        return 'bg-emerald-600';
-      }
-      case 'excused_class': return 'bg-slate-400';
-      default: return 'bg-slate-400';
-    }
-  };
+  const totalHolidays = useMemo(() => {
+    const currentYear = currentDate.getFullYear().toString();
+    return events.filter(e => e.type?.includes('holiday') && e.start_date.startsWith(currentYear)).length;
+  }, [events, currentDate]);
 
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -3250,7 +3081,7 @@ export function AcademicCalendar() {
                           {institution?.name || 'Sistema de Gestão Escolar'}
                         </h1>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">
-                          {institution?.city || ''} {institution?.document ? `• CNPJ: ${institution.document}` : ''}
+                          {institution?.city_uf || ''} {institution?.cnpj ? `• CNPJ: ${institution.cnpj}` : ''}
                         </p>
                       </div>
                     </div>
@@ -3449,106 +3280,33 @@ export function AcademicCalendar() {
 
           {/* Relatório: Listagem de Feriados */}
           {printType === 'holiday_list' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1">
-                {(() => {
-                  const currentYear = currentDate.getFullYear().toString();
-                  let holidays = events
-                    .filter(e => {
-                      const isHoliday = e.type?.includes('holiday');
-                      const inYear = e.start_date.startsWith(currentYear);
-                      // Excluir explicitamente Santo Antônio como solicitado
-                      const isExcl = e.title?.toLowerCase().includes('santo antônio');
-                      return isHoliday && inYear && !isExcl;
-                    });
-                  
-                  // Garantir que Aniversário de São Paulo esteja presente na listagem (25/01)
-                  const hasSP = holidays.some(h => h.start_date.endsWith('-01-25'));
-                  if (!hasSP) {
-                    holidays.push({
-                      id: 'manual-sp-h',
-                      title: "Aniv. de São Paulo",
-                      start_date: `${currentYear}-01-25`,
-                      type: 'holiday_est'
-                    } as any);
-                  }
-
-                  holidays = holidays.sort((a, b) => a.start_date.localeCompare(b.start_date));
-
-                  if (holidays.length === 0) {
-                    return (
-                      <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-3xl">
-                        <Bookmark size={32} className="mx-auto text-slate-200 mb-2" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhum feriado para {currentYear}</p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-4 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest w-[100px]">Data</th>
-                            <th className="px-4 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">Descrição do Feriado</th>
-                            <th className="px-4 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest w-[130px]">Nível</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {holidays.map(hol => {
-                            const date = new Date(hol.start_date + 'T00:00:00');
-                            return (
-                              <tr key={hol.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-4 py-1.5 w-[100px]">
-                                  <div className="text-[10px] font-black text-slate-900 leading-none">
-                                    {date.toLocaleDateString('pt-BR')}
-                                  </div>
-                                  <div className="text-[7px] font-bold text-slate-400 uppercase mt-0.5 tracking-tighter">
-                                    {date.toLocaleDateString('pt-BR', { weekday: 'long' })}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-1.5">
-                                  <div className="text-[9px] font-black text-slate-800 uppercase tracking-tight">{hol.title}</div>
-                                  {hol.description && hol.description !== getTypeText(hol.type) && !hol.description.includes('Feriado') && (
-                                    <div className="text-[8px] font-semibold text-slate-400 mt-0.5">{hol.description}</div>
-                                  )}
-                                </td>
-                                <td className="px-4 py-1.5 w-[130px]">
-                                  <span className={cn(
-                                    "px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border whitespace-nowrap inline-block",
-                                    getTypeStyle(hol.type, hol.start_date)
-                                  )}>
-                                    {getTypeText(hol.type, hol.description)}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot className="bg-slate-50 border-t border-slate-200">
-                          <tr>
-                            <td colSpan={2} className="px-4 py-2 text-[9px] font-black text-slate-500 uppercase text-right">Total de Feriados no Ano:</td>
-                            <td className="px-4 py-2">
-                              <span className="text-[10px] font-black text-slate-900">{holidays.length}</span>
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Versão simplificada do rodapé */}
-              <div className="pt-4 flex justify-between items-center px-4">
-                <p className="text-[7px] font-bold text-slate-300 uppercase tracking-[0.2em]">Escola Diocesana de Ministério • {currentDate.getFullYear()}</p>
-                <div className="flex gap-10">
-                   <div className="text-center w-32 border-t border-slate-200 pt-1">
-                      <p className="text-[7px] font-bold text-slate-400 uppercase">Secretaria</p>
-                   </div>
-                </div>
-              </div>
-            </div>
+            <HolidayListReport 
+              holidays={(() => {
+                const currentYear = currentDate.getFullYear().toString();
+                let holidays = events.filter(e => {
+                  const isHoliday = e.type?.includes('holiday');
+                  const inYear = e.start_date.startsWith(currentYear);
+                  // Excluir explicitamente Santo Antônio e Dia do Servidor conforme solicitado
+                  const titleLower = e.title?.toLowerCase() || '';
+                  const isExcl = titleLower.includes('santo antônio') || titleLower.includes('servidor público');
+                  return isHoliday && inYear && !isExcl;
+                });
+                
+                const hasSP = holidays.some(h => h.start_date.endsWith('-01-25'));
+                if (!hasSP) {
+                  holidays.push({
+                    id: 'manual-sp-h',
+                    title: "Aniv. de São Paulo",
+                    start_date: `${currentYear}-01-25`,
+                    type: 'holiday_est'
+                  } as CalendarEvent);
+                }
+                return holidays.sort((a, b) => a.start_date.localeCompare(b.start_date));
+              })()}
+              currentYear={currentDate.getFullYear().toString()}
+              institution={institution}
+              currentDate={currentDate}
+            />
           )}
 
           {/* Relatório 2: Pôster Anual */}
