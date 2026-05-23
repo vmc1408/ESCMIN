@@ -295,7 +295,10 @@ export function AcademicCalendar() {
             term2_start: formatDateForDisplay(data.term2_start),
             term2_end: formatDateForDisplay(data.term2_end),
             // Only update weekdays if we are loading first time or if it specifically matches
-            class_weekdays: data.class_weekdays ?? (data.class_weekday !== undefined ? [data.class_weekday] : prev.class_weekdays)
+            class_weekdays: (Array.isArray(data.class_weekdays) 
+              ? data.class_weekdays 
+              : (data.class_weekday !== undefined ? [data.class_weekday] : (data.class_weekdays ? [data.class_weekdays] : prev.class_weekdays))
+            )
           }));
           setLastLoadedKey(key);
         } else {
@@ -378,7 +381,10 @@ export function AcademicCalendar() {
           term2_start: settingsData.term2_start || `${new Date().getFullYear()}-08-04`,
           term2_end: settingsData.term2_end || `${new Date().getFullYear()}-11-28`,
           target_class_ids: settingsData.target_class_ids || (settingsData.target_class_id ? [settingsData.target_class_id] : []),
-          class_weekdays: (settingsData.class_weekdays || (settingsData.class_weekday !== undefined ? [settingsData.class_weekday] : [3])).map((d: any) => Number(d))
+          class_weekdays: (Array.isArray(settingsData.class_weekdays) 
+            ? settingsData.class_weekdays 
+            : (settingsData.class_weekday !== undefined ? [settingsData.class_weekday] : (settingsData.class_weekdays ? [settingsData.class_weekdays] : [3]))
+          ).map((d: any) => Number(d))
         });
       }
       
@@ -752,7 +758,8 @@ export function AcademicCalendar() {
           while (currentDateObj <= range.end) {
             const weekday = currentDateObj.getDay();
             // Verificação rigorosa do dia da semana
-            if (settings.class_weekdays?.map((d: any) => Number(d)).includes(weekday)) {
+            const currentWeekdays = Array.isArray(settings.class_weekdays) ? settings.class_weekdays : [Number(settings.class_weekdays || 3)];
+            if (currentWeekdays.map((d: any) => Number(d)).includes(weekday)) {
               const dateStr = currentDateObj.toISOString().split('T')[0];
               const dayTitle = settings.weekday_titles?.[weekday] || 'Dia de Aula';
               
