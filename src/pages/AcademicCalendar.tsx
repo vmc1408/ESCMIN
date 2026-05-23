@@ -155,6 +155,7 @@ export function AcademicCalendar() {
 
     return [
       { title: "Confraternização Universal", date: `${year}-01-01`, category: 'nacional' },
+      { title: "Aniv. de São Paulo", date: `${year}-01-25`, category: 'estadual' },
       { title: "Carnaval", date: carnival.toISOString().split('T')[0], category: 'nacional' },
       { title: "Sexta-feira Santa", date: goodFriday.toISOString().split('T')[0], category: 'nacional' },
       { title: "Páscoa", date: easter.toISOString().split('T')[0], category: 'nacional' },
@@ -171,7 +172,6 @@ export function AcademicCalendar() {
       { title: "Revolução Constitucionalista", date: `${year}-07-09`, category: 'estadual' },
       { title: "Dia do Servidor Público", date: `${year}-10-28`, category: 'estadual' },
       // Feriados Municipais (Guarulhos exemplo)
-      { title: "Santo Antônio (Guarulhos)", date: `${year}-06-13`, category: 'municipal' },
       { title: "Imaculada Conceição (Aniv. Guarulhos)", date: `${year}-12-08`, category: 'municipal' },
     ];
   };
@@ -892,7 +892,7 @@ export function AcademicCalendar() {
       case 'holiday_nac':
         return 'bg-red-50 text-red-700 border-red-100/50 shadow-sm font-semibold';
       case 'holiday_est':
-        return 'bg-slate-100 text-slate-700 border-slate-200 shadow-sm font-semibold';
+        return 'bg-indigo-50 text-indigo-700 border-indigo-100/50 shadow-sm font-semibold';
       case 'holiday_mun':
         return 'bg-amber-50 text-amber-700 border-amber-100/50 shadow-sm font-semibold';
       case 'exam': 
@@ -919,7 +919,7 @@ export function AcademicCalendar() {
     switch (type) {
       case 'holiday':
       case 'holiday_nac': return 'Feriado Nacional';
-      case 'holiday_est': return 'Feriados Geral';
+      case 'holiday_est': return 'Feriado Estadual';
       case 'holiday_mun': return 'Feriado Municipal';
       case 'exam': return 'Avaliação';
       case 'start_term': return 'Início Letivo';
@@ -3467,58 +3467,50 @@ export function AcademicCalendar() {
                     );
                   }
 
-                  // Agrupar por mês para melhor legibilidade
-                  const holidaysByMonth: Record<string, typeof holidays> = {};
-                  holidays.forEach(h => {
-                    const month = new Date(h.start_date + 'T00:00:00')
-                      .toLocaleDateString('pt-BR', { month: 'long' })
-                      .toUpperCase();
-                    if (!holidaysByMonth[month]) holidaysByMonth[month] = [];
-                    holidaysByMonth[month].push(h);
-                  });
-
-                  return Object.entries(holidaysByMonth).map(([month, monthHolidays]) => (
-                    <div key={month} className="avoid-break border border-slate-200 rounded-2xl overflow-hidden">
-                      <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
-                        <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{month}</h3>
-                      </div>
-                      <div className="divide-y divide-slate-100">
-                        {monthHolidays.map(hol => (
-                          <div key={hol.id} className="p-4 flex items-center justify-between group">
-                            <div className="flex items-center gap-4">
-                              <div className="flex flex-col items-center justify-center min-w-[45px] h-[45px] bg-slate-50 rounded-xl border border-slate-100">
-                                <span className="text-[16px] font-black text-slate-800 leading-none">
-                                  {new Date(hol.start_date + 'T00:00:00').getDate()}
-                                </span>
-                                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">
-                                  {new Date(hol.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                                </span>
-                              </div>
-                              <div>
-                                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">{hol.title}</h4>
-                                <div className="flex items-center gap-2 mt-0.5">
+                  return (
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden mt-4">
+                      <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-[120px]">Data</th>
+                            <th className="px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Descrição do Feriado</th>
+                            <th className="px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-[160px]">Nível</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {holidays.map(hol => {
+                            const date = new Date(hol.start_date + 'T00:00:00');
+                            return (
+                              <tr key={hol.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-5 py-3">
+                                  <div className="text-[12px] font-black text-slate-900 leading-none">
+                                    {date.toLocaleDateString('pt-BR')}
+                                  </div>
+                                  <div className="text-[8px] font-bold text-slate-400 uppercase mt-1 tracking-tighter">
+                                    {date.toLocaleDateString('pt-BR', { weekday: 'long' })}
+                                  </div>
+                                </td>
+                                <td className="px-5 py-3">
+                                  <div className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{hol.title}</div>
+                                  {hol.description && hol.description !== getTypeText(hol.type) && (
+                                    <div className="text-[9px] font-semibold text-slate-400 mt-0.5">{hol.description}</div>
+                                  )}
+                                </td>
+                                <td className="px-5 py-3">
                                   <span className={cn(
-                                    "px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border",
+                                    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border whitespace-nowrap inline-block",
                                     getTypeStyle(hol.type, hol.description)
                                   )}>
                                     {getTypeText(hol.type, hol.description)}
                                   </span>
-                                  {hol.description && (
-                                    <span className="text-[9px] font-medium text-slate-400 italic">— {hol.description}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">
-                                {new Date(hol.start_date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                  ));
+                  );
                 })()}
               </div>
 
