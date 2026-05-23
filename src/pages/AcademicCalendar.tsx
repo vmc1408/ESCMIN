@@ -166,6 +166,7 @@ export function AcademicCalendar() {
           term2_start: formatDateForDisplay(data.term2_start),
           term2_end: formatDateForDisplay(data.term2_end),
           class_weekdays: Array.isArray(data.class_weekdays) ? data.class_weekdays.map(Number) : [Number(data.class_weekdays || 3)],
+          weekday_titles: data.weekday_titles || {},
           target_class_ids: Array.isArray(data.target_class_ids) ? data.target_class_ids : []
         };
         
@@ -239,6 +240,7 @@ export function AcademicCalendar() {
           term2_start: settingsData.term2_start || `${new Date().getFullYear()}-08-04`,
           term2_end: settingsData.term2_end || `${new Date().getFullYear()}-11-28`,
           target_class_ids: settingsData.target_class_ids || (settingsData.target_class_id ? [settingsData.target_class_id] : []),
+          weekday_titles: settingsData.weekday_titles || { 3: 'Dia de Aula' },
           class_weekdays: (Array.isArray(settingsData.class_weekdays) 
             ? settingsData.class_weekdays 
             : (settingsData.class_weekday !== undefined ? [settingsData.class_weekday] : (settingsData.class_weekdays ? [settingsData.class_weekdays] : [3]))
@@ -2685,10 +2687,10 @@ export function AcademicCalendar() {
                               type="text"
                               autoFocus
                               placeholder="Ex: Dia de Aula, Aula Teórica, etc..."
-                              value={settingsForm.weekday_titles[editingDayIndex] || ''}
+                              value={(settingsForm.weekday_titles || {})[editingDayIndex] || ''}
                               onChange={(e) => setSettingsForm({
                                 ...settingsForm,
-                                weekday_titles: { ...settingsForm.weekday_titles, [editingDayIndex]: e.target.value }
+                                weekday_titles: { ...(settingsForm.weekday_titles || {}), [editingDayIndex]: e.target.value }
                               })}
                               className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all"
                             />
@@ -3505,7 +3507,7 @@ export function AcademicCalendar() {
                             <span className="text-[14px] font-black text-slate-900">{day}</span>
                             <div className="mt-1 space-y-0.5">
                               {dayEvents.map(e => {
-                                const isHoliday = e.type.includes('holiday') || e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('feriado') || e.title.toLowerCase().includes('recesso');
+                                const isHoliday = e.type?.includes('holiday') || e.title?.toLowerCase().includes('férias') || e.title?.toLowerCase().includes('feriado') || e.title?.toLowerCase().includes('recesso');
                                 const isExam = e.type === 'exam';
                                 
                                 return (
@@ -3518,7 +3520,7 @@ export function AcademicCalendar() {
                                       "bg-blue-400 text-white border-blue-500"
                                     )}
                                   >
-                                    {e.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
+                                    {(e.title || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                   </div>
                                 );
                               })}
