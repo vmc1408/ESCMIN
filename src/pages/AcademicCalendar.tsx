@@ -170,7 +170,6 @@ export function AcademicCalendar() {
       { title: "Natal", date: `${year}-12-25`, category: 'nacional' },
       // Feriados Estaduais (SP)
       { title: "Revolução Constitucionalista", date: `${year}-07-09`, category: 'estadual' },
-      { title: "Dia do Servidor Público", date: `${year}-10-28`, category: 'estadual' },
       // Feriados Municipais (Guarulhos exemplo)
       { title: "Imaculada Conceição (Aniv. Guarulhos)", date: `${year}-12-08`, category: 'municipal' },
     ];
@@ -3500,7 +3499,7 @@ export function AcademicCalendar() {
                             const date = new Date(hol.start_date + 'T00:00:00');
                             return (
                               <tr key={hol.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-4 py-1.5">
+                                <td className="px-4 py-1.5 w-[100px]">
                                   <div className="text-[10px] font-black text-slate-900 leading-none">
                                     {date.toLocaleDateString('pt-BR')}
                                   </div>
@@ -3514,7 +3513,7 @@ export function AcademicCalendar() {
                                     <div className="text-[8px] font-semibold text-slate-400 mt-0.5">{hol.description}</div>
                                   )}
                                 </td>
-                                <td className="px-4 py-1.5">
+                                <td className="px-4 py-1.5 w-[130px]">
                                   <span className={cn(
                                     "px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border whitespace-nowrap inline-block",
                                     getTypeStyle(hol.type, hol.start_date)
@@ -3526,6 +3525,14 @@ export function AcademicCalendar() {
                             );
                           })}
                         </tbody>
+                        <tfoot className="bg-slate-50 border-t border-slate-200">
+                          <tr>
+                            <td colSpan={2} className="px-4 py-2 text-[9px] font-black text-slate-500 uppercase text-right">Total de Feriados no Ano:</td>
+                            <td className="px-4 py-2">
+                              <span className="text-[10px] font-black text-slate-900">{holidays.length}</span>
+                            </td>
+                          </tr>
+                        </tfoot>
                       </table>
                     </div>
                   );
