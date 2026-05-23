@@ -95,7 +95,8 @@ export function AcademicCalendar() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'year' | 'list' | 'month'>('month');
+  const [viewMode, setViewMode] = useState<'year' | 'list' | 'month' | 'management'>('month');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'record'>('calendar');
   const [showSettings, setShowSettings] = useState(false);
   const [editingDayIndex, setEditingDayIndex] = useState<number>(1);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -1214,6 +1215,18 @@ export function AcademicCalendar() {
             >
               Lista
             </button>
+            <button 
+              onClick={() => {
+                setViewMode('management');
+                setActiveTab('record');
+              }}
+              className={cn(
+                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                viewMode === 'management' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Registro
+            </button>
           </div>
 
           {/* Navegação de Data Contextual - Aumentado */}
@@ -1267,7 +1280,8 @@ export function AcademicCalendar() {
                 const now = new Date().getTime();
                 const total = end - start;
                 const elapsed = now - start;
-                const progress = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+                const progressVal = (elapsed / total) * 100;
+                const progress = isNaN(progressVal) ? 0 : Math.min(Math.max(progressVal, 0), 100);
                 return (
                   <motion.div 
                     initial={{ width: 0 }}
@@ -1420,7 +1434,7 @@ export function AcademicCalendar() {
                 <motion.div 
                   className="h-full bg-blue-600"
                   initial={{ width: 0 }}
-                  animate={{ width: `${syncProgress}%` }}
+                  animate={{ width: `${isNaN(Number(syncProgress)) ? 0 : syncProgress}%` }}
                   transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
                 />
               </div>
@@ -1454,6 +1468,141 @@ export function AcademicCalendar() {
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+            </div>
+          ) : viewMode === 'management' ? (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div className="xl:col-span-2 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-black text-slate-900 tracking-tight">Registro de Calendários por Turma</h2>
+                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo anual e ajuste individual de datas</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Início/Fim</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Dias Letivos</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Concluídas</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {classes.map(cls => {
+                          const classEvents = events.filter(e => e.class_id === cls.id && e.type === 'class_day');
+                          const total = classEvents.length;
+                          const completed = classEvents.filter(e => new Date(e.start_date + 'T00:00:00') < new Date()).length;
+                          
+                          return (
+                            <tr key={cls.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold text-slate-900">{cls.name}</span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{cls.code}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <div className="flex flex-col items-center">
+                                  <span className="text-[10px] font-bold text-slate-600">
+                                    {classEvents.length > 0 ? formatDateForDisplay(classEvents[0].start_date) : '-'}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">até</span>
+                                  <span className="text-[10px] font-bold text-slate-600">
+                                    {classEvents.length > 0 ? formatDateForDisplay(classEvents[classEvents.length - 1].start_date) : '-'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <span className={cn(
+                                  "px-3 py-1 rounded-full text-[11px] font-black border",
+                                  total > 0 ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-slate-50 text-slate-400 border-slate-100"
+                                )}>
+                                  {total} DIAS
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-xs font-bold text-slate-700">{completed} / {total}</span>
+                                  <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-emerald-500" 
+                                      style={{ width: `${total ? (completed / total) * 100 : 0}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button 
+                                  onClick={() => {
+                                    setSettingsForm(prev => ({
+                                      ...prev,
+                                      target_class_ids: [cls.id]
+                                    }));
+                                    setShowSettings(true);
+                                  }}
+                                  className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200"
+                                >
+                                  Ajustar Registro
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Estatísticas do Ano</h2>
+                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo geral da instituição</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                          <Bookmark size={24} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Feriados</p>
+                          <p className="text-2xl font-black text-slate-900">{events.filter(e => e.type.includes('holiday')).length}</p>
+                        </div>
+                      </div>
+                      <div className="h-px bg-slate-100 w-full" />
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                          <GraduationCap size={24} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aulas Cadastradas</p>
+                          <p className="text-2xl font-black text-slate-900">{events.filter(e => e.type === 'class_day').length}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-8 rounded-[40px] text-white relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/10 transition-all duration-700" />
+                      <Settings className="mb-6 opacity-40" size={32} />
+                      <h3 className="text-xl font-black leading-tight mb-4 pr-12">Deseja reiniciar o calendário?</h3>
+                      <p className="text-slate-400 text-xs font-medium leading-relaxed mb-6">
+                        Você pode excluir todos os registros de aula e gerar novamente com novos parâmetros.
+                      </p>
+                      <button 
+                        onClick={() => setShowSettings(true)}
+                        className="w-full py-4 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl shadow-black/20"
+                      >
+                        Abrir Ferramenta de Ajuste
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : viewMode === 'month' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
