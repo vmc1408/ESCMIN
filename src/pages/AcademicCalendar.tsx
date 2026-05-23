@@ -922,7 +922,7 @@ export function AcademicCalendar() {
         return 'bg-blue-50 text-blue-700 border-blue-100';
       }
       case 'excused_class': 
-        return 'bg-slate-100 text-slate-500 border-slate-200 line-through opacity-70 font-black text-[9px] uppercase tracking-tighter';
+        return 'bg-slate-50/80 text-slate-400 border-slate-200/50 opacity-90 font-black text-[9px] uppercase tracking-tighter';
       default: return 'bg-slate-50 text-slate-600 border-slate-100 font-black text-[9px] uppercase tracking-wider';
     }
   };
@@ -937,7 +937,7 @@ export function AcademicCalendar() {
       case 'start_term': return 'Início Letivo';
       case 'end_term': return 'Cierre Letivo';
       case 'class_day': return 'Dia de Aula';
-      case 'excused_class': return 'Aula Abonada';
+      case 'excused_class': return 'Dia de Aula';
       default: return 'Evento';
     }
   };
@@ -1585,7 +1585,18 @@ export function AcademicCalendar() {
                               )}
                               title={event.title.replace(/^Dia de Aula - /, '')}
                             >
-                              {event.title.replace(/^Dia de Aula - /, '')}
+                              {event.type === 'excused_class' ? (
+                                <div className="flex flex-col py-0.5">
+                                  <span className="line-through text-slate-400">
+                                    {(event._count && event._count > 1) ? `DIA DE AULA (${event._count} turmas)` : 'DIA DE AULA'}
+                                  </span>
+                                  <span className="text-[6.5px] font-black opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block">
+                                    {event.title === 'Aula Abonada' ? 'JUSTIFICADO' : event.title?.toUpperCase()}
+                                  </span>
+                                </div>
+                              ) : (
+                                event.title.replace(/^Dia de Aula - /, '').toUpperCase()
+                              )}
                             </div>
                           ))}
                         </div>
