@@ -29,6 +29,7 @@ import {
   ListFilter,
   CalendarPlus,
   GraduationCap,
+  Bookmark,
   Settings2,
   Calendar,
   Globe,
@@ -97,6 +98,7 @@ export function AcademicCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'year' | 'list' | 'month' | 'management'>('month');
   const [activeTab, setActiveTab] = useState<'calendar' | 'record'>('calendar');
+  const [inspectingClassId, setInspectingClassId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editingDayIndex, setEditingDayIndex] = useState<number>(1);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -109,7 +111,7 @@ export function AcademicCalendar() {
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showPrintOptions, setShowPrintOptions] = useState(false);
-  const [printType, setPrintType] = useState<'class_schedule' | 'annual_poster' | 'monthly_grid' | null>(null);
+  const [printType, setPrintType] = useState<'class_schedule' | 'holiday_list' | 'annual_poster' | 'monthly_grid' | null>(null);
   const [printFilters, setPrintFilters] = useState({
     class_id: 'all',
     weekday: 'all' as number | 'all',
@@ -1471,138 +1473,305 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'management' ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                <div className="xl:col-span-2 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-black text-slate-900 tracking-tight">Registro de Calendários por Turma</h2>
-                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo anual e ajuste individual de datas</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Início/Fim</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Dias Letivos</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Concluídas</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {classes.map(cls => {
-                          const classEvents = events.filter(e => e.class_id === cls.id && e.type === 'class_day');
-                          const total = classEvents.length;
-                          const completed = classEvents.filter(e => new Date(e.start_date + 'T00:00:00') < new Date()).length;
-                          
-                          return (
-                            <tr key={cls.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-6 py-4">
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-bold text-slate-900">{cls.name}</span>
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{cls.code}</span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <div className="flex flex-col items-center">
-                                  <span className="text-[10px] font-bold text-slate-600">
-                                    {classEvents.length > 0 ? formatDateForDisplay(classEvents[0].start_date) : '-'}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">até</span>
-                                  <span className="text-[10px] font-bold text-slate-600">
-                                    {classEvents.length > 0 ? formatDateForDisplay(classEvents[classEvents.length - 1].start_date) : '-'}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className={cn(
-                                  "px-3 py-1 rounded-full text-[11px] font-black border",
-                                  total > 0 ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-slate-50 text-slate-400 border-slate-100"
-                                )}>
-                                  {total} DIAS
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  <span className="text-xs font-bold text-slate-700">{completed} / {total}</span>
-                                  <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
-                                    <div 
-                                      className="h-full bg-emerald-500" 
-                                      style={{ width: `${total ? (completed / total) * 100 : 0}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                <button 
-                                  onClick={() => {
-                                    setSettingsForm(prev => ({
-                                      ...prev,
-                                      target_class_ids: [cls.id]
-                                    }));
-                                    setShowSettings(true);
-                                  }}
-                                  className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200"
-                                >
-                                  Ajustar Registro
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
+              {inspectingClassId ? (
+                // --- MODO INSPEÇÃO DE TURMA ---
                 <div className="space-y-6">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Estatísticas do Ano</h2>
-                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo geral da instituição</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                          <Bookmark size={24} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Feriados</p>
-                          <p className="text-2xl font-black text-slate-900">{events.filter(e => e.type.includes('holiday')).length}</p>
-                        </div>
-                      </div>
-                      <div className="h-px bg-slate-100 w-full" />
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
-                          <GraduationCap size={24} />
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aulas Cadastradas</p>
-                          <p className="text-2xl font-black text-slate-900">{events.filter(e => e.type === 'class_day').length}</p>
-                        </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => setInspectingClassId(null)}
+                        className="w-10 h-10 flex items-center justify-center bg-white text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-xl border border-slate-200"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                          {classes.find(c => c.id === inspectingClassId)?.name}
+                        </h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cronograma de Aulas Detalhado</p>
                       </div>
                     </div>
-
-                    <div className="bg-slate-900 p-8 rounded-[40px] text-white relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/10 transition-all duration-700" />
-                      <Settings className="mb-6 opacity-40" size={32} />
-                      <h3 className="text-xl font-black leading-tight mb-4 pr-12">Deseja reiniciar o calendário?</h3>
-                      <p className="text-slate-400 text-xs font-medium leading-relaxed mb-6">
-                        Você pode excluir todos os registros de aula e gerar novamente com novos parâmetros.
-                      </p>
-                      <button 
-                        onClick={() => setShowSettings(true)}
-                        className="w-full py-4 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl shadow-black/20"
+                    <div className="flex items-center gap-2">
+                       <button 
+                        onClick={() => {
+                          setSettingsForm(prev => ({
+                            ...prev,
+                            target_class_ids: [inspectingClassId]
+                          }));
+                          setShowSettings(true);
+                        }}
+                        className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
                       >
-                        Abrir Ferramenta de Ajuste
+                        <Settings size={14} />
+                        Ajustar Regras
                       </button>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    {/* Lista Cronológica */}
+                    <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">#</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Semana</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Título do Registro</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {events
+                            .filter(e => String(e.class_id) === String(inspectingClassId) && (e.type === 'class_day' || e.type === 'excused_class'))
+                            .sort((a, b) => a.start_date.localeCompare(b.start_date))
+                            .map((ev, idx) => {
+                              const date = new Date(ev.start_date + 'T00:00:00');
+                              const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+
+                              return (
+                                <tr key={ev.id} className={cn(
+                                  "hover:bg-slate-50/50 transition-colors group",
+                                  ev.type === 'excused_class' && "opacity-60 grayscale-[0.5]"
+                                )}>
+                                  <td className="px-8 py-4 text-xs font-bold text-slate-400">
+                                    {String(idx + 1).padStart(2, '0')}
+                                  </td>
+                                  <td className="px-8 py-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-black text-slate-900">{formatDateForDisplay(ev.start_date)}</span>
+                                      <span className="text-[10px] font-bold text-slate-500 uppercase">{weekday}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-8 py-4">
+                                    <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                                      W{getWeekId(ev.start_date).split('W')[1]}
+                                    </span>
+                                  </td>
+                                  <td className="px-8 py-4">
+                                    <span className="text-sm font-bold text-slate-600">{ev.title}</span>
+                                  </td>
+                                  <td className="px-8 py-4">
+                                    <span className={cn(
+                                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                                      ev.type === 'class_day' ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-slate-100 text-slate-500 border-slate-200"
+                                    )}>
+                                      {ev.type === 'class_day' ? 'Letivo' : 'Abonado'}
+                                    </span>
+                                  </td>
+                                  <td className="px-8 py-4 text-right">
+                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button 
+                                        onClick={async () => {
+                                          const nextType = ev.type === 'class_day' ? 'excused_class' : 'class_day';
+                                          const nextTitle = ev.type === 'class_day' ? 'Aula Abonada' : 'Dia de Aula';
+                                          await saveData('calendar_events', ev.id, { ...ev, type: nextType, title: nextTitle });
+                                          fetchData();
+                                        }}
+                                        className={cn(
+                                          "p-2 rounded-lg transition-all",
+                                          ev.type === 'class_day' ? "bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white"
+                                        )}
+                                        title={ev.type === 'class_day' ? 'Abonar Aula' : 'Retornar para Letivo'}
+                                      >
+                                        <CheckCircle2 size={16} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDelete(ev.id, true)}
+                                        className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-all"
+                                        title="Remover Data"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // --- MODO LISTA DE TURMAS ---
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                  <div className="xl:col-span-2 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">Registro de Calendários por Turma</h2>
+                        <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo anual e ajuste individual de datas</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Início/Fim</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Dias Letivos</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Concluídas</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {classes.map(cls => {
+                            const classEvents = events.filter(e => String(e.class_id) === String(cls.id) && (e.type === 'class_day' || e.type === 'excused_class'));
+                            const letivos = classEvents.filter(e => e.type === 'class_day').length;
+                            const sortedEvents = [...classEvents].sort((a,b) => a.start_date.localeCompare(b.start_date));
+                            const completed = classEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
+                            const excused = classEvents.filter(e => e.type === 'excused_class').length;
+                            
+                            return (
+                              <tr key={cls.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-6 py-4">
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-slate-900">{cls.name}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{cls.code}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-[10px] font-bold text-slate-600">
+                                      {sortedEvents.length > 0 ? formatDateForDisplay(sortedEvents[0].start_date) : '-'}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">até</span>
+                                    <span className="text-[10px] font-bold text-slate-600">
+                                      {sortedEvents.length > 0 ? formatDateForDisplay(sortedEvents[sortedEvents.length - 1].start_date) : '-'}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    <span className={cn(
+                                      "px-3 py-1 rounded-full text-[11px] font-black border",
+                                      letivos > 0 ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-slate-50 text-slate-400 border-slate-100"
+                                    )}>
+                                      {letivos} DIAS
+                                    </span>
+                                    {excused > 0 && (
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase italic">
+                                        ({excused} abonados)
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span className="text-xs font-bold text-slate-700">{completed} / {letivos}</span>
+                                    <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-emerald-500" 
+                                        style={{ width: `${letivos ? (completed / letivos) * 100 : 0}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                      onClick={() => setInspectingClassId(cls.id)}
+                                      className="px-4 py-2 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200"
+                                    >
+                                      Ver Lista
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setSettingsForm(prev => ({
+                                          ...prev,
+                                          target_class_ids: [cls.id]
+                                        }));
+                                        setShowSettings(true);
+                                      }}
+                                      className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all border border-slate-200"
+                                      title="Configurações"
+                                    >
+                                      <Settings2 size={16} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-xl font-black text-slate-900 tracking-tight">Estatísticas de {currentDate.getFullYear()}</h2>
+                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo geral da instituição</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-4">
+                      {(() => {
+                        const currentYearStr = currentDate.getFullYear().toString();
+                        const yearEvents = events.filter(e => e.start_date && e.start_date.startsWith(currentYearStr));
+                        
+                        const holidayDates = new Set(
+                          yearEvents
+                            .filter(e => e.type?.includes('holiday'))
+                            .map(e => e.start_date)
+                        );
+                        
+                        const classDaysCount = yearEvents.filter(e => 
+                          e.type === 'class_day' || 
+                          e.type === 'excused_class' ||
+                          e.type === 'exam' ||
+                          e.type === 'start_term' ||
+                          e.type === 'end_term' ||
+                          (e.type === 'event' && e.title?.toLowerCase().includes('aula'))
+                        ).length;
+
+                        return (
+                          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                                <Bookmark size={24} />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Feriados Únicos</p>
+                                <p className="text-2xl font-black text-slate-900">{holidayDates.size}</p>
+                              </div>
+                            </div>
+                            <div className="h-px bg-slate-100 w-full" />
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                                <GraduationCap size={24} />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Datas Letivas</p>
+                                <p className="text-2xl font-black text-slate-900">{classDaysCount}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="bg-slate-900 p-8 rounded-[40px] text-white relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/10 transition-all duration-700" />
+                        <Settings className="mb-6 opacity-40" size={32} />
+                        <h3 className="text-xl font-black leading-tight mb-4 pr-12">Deseja reiniciar o calendário?</h3>
+                        <p className="text-slate-400 text-xs font-medium leading-relaxed mb-6">
+                          Você pode excluir todos os registros de aula e gerar novamente com novos parâmetros.
+                        </p>
+                        <button 
+                          onClick={() => {
+                            setSettingsForm(prev => ({ ...prev, target_class_ids: [] }));
+                            setShowSettings(true);
+                          }}
+                          className="w-full py-4 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl shadow-black/20"
+                        >
+                          Abrir Ferramenta de Geração
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : viewMode === 'month' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -2886,6 +3055,7 @@ export function AcademicCalendar() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 {[
                   { id: 'class_schedule', title: 'Relatório de Aulas', icon: FileDown, desc: 'Lista mensal filtrável por turma e dia.' },
+                  { id: 'holiday_list', title: 'Lista de Feriados', icon: Bookmark, desc: 'Listagem completa dos feriados nacionais e locais.' },
                   { id: 'annual_poster', title: 'Pôster Anual', icon: Target, desc: 'Grade compacta de 12 meses em página única.' },
                   { id: 'monthly_grid', title: 'Grade Mensal', icon: LayoutGrid, desc: 'Visualização clássica do mês selecionado.' }
                 ].map((option) => (
@@ -3088,6 +3258,7 @@ export function AcademicCalendar() {
                     <div className="text-right flex flex-col justify-center">
                       <h2 className="text-[13px] font-black text-slate-800 uppercase tracking-widest">
                         {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
+                         printType === 'holiday_list' ? 'Listagem de Feriados' :
                          printType === 'annual_poster' ? 'Calendário Anual' : 'Grade de Eventos'}
                       </h2>
                       <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
@@ -3274,6 +3445,94 @@ export function AcademicCalendar() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Relatório: Listagem de Feriados */}
+          {printType === 'holiday_list' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                {(() => {
+                  const currentYear = currentDate.getFullYear().toString();
+                  const holidays = events
+                    .filter(e => e.type?.includes('holiday') && e.start_date.startsWith(currentYear))
+                    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+                  if (holidays.length === 0) {
+                    return (
+                      <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-3xl">
+                        <Bookmark size={40} className="mx-auto text-slate-200 mb-4" />
+                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum feriado cadastrado para {currentYear}</p>
+                      </div>
+                    );
+                  }
+
+                  // Agrupar por mês para melhor legibilidade
+                  const holidaysByMonth: Record<string, typeof holidays> = {};
+                  holidays.forEach(h => {
+                    const month = new Date(h.start_date + 'T00:00:00')
+                      .toLocaleDateString('pt-BR', { month: 'long' })
+                      .toUpperCase();
+                    if (!holidaysByMonth[month]) holidaysByMonth[month] = [];
+                    holidaysByMonth[month].push(h);
+                  });
+
+                  return Object.entries(holidaysByMonth).map(([month, monthHolidays]) => (
+                    <div key={month} className="avoid-break border border-slate-200 rounded-2xl overflow-hidden">
+                      <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+                        <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{month}</h3>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {monthHolidays.map(hol => (
+                          <div key={hol.id} className="p-4 flex items-center justify-between group">
+                            <div className="flex items-center gap-4">
+                              <div className="flex flex-col items-center justify-center min-w-[45px] h-[45px] bg-slate-50 rounded-xl border border-slate-100">
+                                <span className="text-[16px] font-black text-slate-800 leading-none">
+                                  {new Date(hol.start_date + 'T00:00:00').getDate()}
+                                </span>
+                                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">
+                                  {new Date(hol.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight">{hol.title}</h4>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className={cn(
+                                    "px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border",
+                                    getTypeStyle(hol.type, hol.description)
+                                  )}>
+                                    {getTypeText(hol.type, hol.description)}
+                                  </span>
+                                  {hol.description && (
+                                    <span className="text-[9px] font-medium text-slate-400 italic">— {hol.description}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">
+                                {new Date(hol.start_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
+              {/* Assinatura no Rodapé do Relatório */}
+              <div className="mt-12 pt-12 border-t border-slate-100 grid grid-cols-2 gap-20 px-10">
+                <div className="text-center">
+                  <div className="h-px bg-slate-300 w-full mb-2" />
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Direção Pedagógica</p>
+                </div>
+                <div className="text-center">
+                  <div className="h-px bg-slate-300 w-full mb-2" />
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Secretaria Acadêmica</p>
+                </div>
+              </div>
             </div>
           )}
 
