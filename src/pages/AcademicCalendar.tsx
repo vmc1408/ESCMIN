@@ -994,19 +994,30 @@ export function AcademicCalendar() {
     return filtered.reduce((acc, current) => {
       // Agrupa visualmente eventos do mesmo tipo no mesmo dia
       const baseTitle = current.title.split(' - ')[0].trim();
-      const isClassDay = current.type === 'class_day' || current.title.includes('Aula Abonada');
+      const isGroupable = current.type === 'class_day' || current.type === 'excused_class' || current.title.includes('Aula Abonada');
       
       const existingIndex = acc.findIndex(item => 
         item.start_date === current.start_date && 
         item.type === current.type &&
-        (isClassDay ? true : item.title.split(' - ')[0].trim() === baseTitle)
+        (isGroupable ? true : item.title.split(' - ')[0].trim() === baseTitle)
       );
 
       if (existingIndex === -1) {
-        acc.push({ ...current });
+        acc.push({ ...current, _count: 1 });
+      } else {
+        acc[existingIndex]._count = (acc[existingIndex]._count || 1) + 1;
       }
       return acc;
-    }, [] as CalendarEvent[]);
+    }, [] as (CalendarEvent & { _count?: number })[]).map(event => {
+      if (event._count && event._count > 1) {
+        const baseTitle = event.title.split(' - ')[0].trim();
+        return {
+          ...event,
+          title: `${baseTitle} (${event._count} turmas)`
+        };
+      }
+      return event;
+    });
   }, [events, currentDate.getFullYear(), classes]);
 
   const filteredEvents = React.useMemo(() => {
