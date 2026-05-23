@@ -51,7 +51,7 @@ interface CalendarEvent {
   description: string;
   start_date: string;
   end_date: string;
-  type: 'holiday' | 'holiday_nac' | 'holiday_est' | 'holiday_mun' | 'exam' | 'start_term' | 'end_term' | 'class_day' | 'event';
+  type: 'holiday' | 'holiday_nac' | 'holiday_est' | 'holiday_mun' | 'exam' | 'start_term' | 'end_term' | 'class_day' | 'event' | 'excused_class';
   class_id?: string;
   subject_id?: string;
   user_id: string;
@@ -374,7 +374,7 @@ export function AcademicCalendar() {
           term2_start: settingsData.term2_start || `${new Date().getFullYear()}-08-04`,
           term2_end: settingsData.term2_end || `${new Date().getFullYear()}-11-28`,
           target_class_ids: settingsData.target_class_ids || (settingsData.target_class_id ? [settingsData.target_class_id] : []),
-          class_weekdays: settingsData.class_weekdays || (settingsData.class_weekday !== undefined ? [settingsData.class_weekday] : [3])
+          class_weekdays: (settingsData.class_weekdays || (settingsData.class_weekday !== undefined ? [settingsData.class_weekday] : [3])).map((d: any) => Number(d))
         });
       }
       
@@ -722,14 +722,26 @@ export function AcademicCalendar() {
         // --- REMOVIDO GERAÇÃO DE EVENTOS DE FÉRIAS E RECESSO ---
         // A visualização agora é feita via lógica no renderizador
         
-        const holidayDates = new Set(currentEvents.filter(e => e.type.includes('holiday')).map(h => h.start_date));
+        const holidayDates = new Set();
+        currentEvents.filter(e => e.type.includes('holiday') || e.type === 'excused_class').forEach(h => {
+          holidayDates.add(h.start_date);
+          if (h.end_date && h.end_date !== h.start_date) {
+            let curr = new Date(h.start_date + 'T00:00:00');
+            const end = new Date(h.end_date + 'T00:00:00');
+            while (curr <= end) {
+              holidayDates.add(curr.toISOString().split('T')[0]);
+              curr.setDate(curr.getDate() + 1);
+            }
+          }
+        });
 
         for (const range of ranges) {
           if (isNaN(range.start.getTime()) || isNaN(range.end.getTime())) continue;
           let currentDateObj = new Date(range.start);
           while (currentDateObj <= range.end) {
             const weekday = currentDateObj.getDay();
-            if (settings.class_weekdays?.includes(weekday)) {
+            // Verificação rigorosa do dia da semana
+            if (settings.class_weekdays?.map((d: any) => Number(d)).includes(weekday)) {
               const dateStr = currentDateObj.toISOString().split('T')[0];
               const dayTitle = settings.weekday_titles?.[weekday] || 'Dia de Aula';
               
@@ -898,6 +910,8 @@ export function AcademicCalendar() {
         }
         return 'bg-emerald-50 text-emerald-700 border-emerald-100';
       }
+      case 'excused_class':
+        return 'bg-slate-100 text-slate-600 border-slate-200 line-through opacity-75';
       default: return 'bg-slate-50 text-slate-600 border-slate-100 font-medium';
     }
   };
@@ -912,6 +926,7 @@ export function AcademicCalendar() {
       case 'start_term': return 'Início Letivo';
       case 'end_term': return 'Cierre Letivo';
       case 'class_day': return 'Dia de Aula';
+      case 'excused_class': return 'Aula Abonada';
       default: return 'Evento';
     }
   };
@@ -933,6 +948,7 @@ export function AcademicCalendar() {
         }
         return 'bg-emerald-600';
       }
+      case 'excused_class': return 'bg-slate-400';
       default: return 'bg-slate-400';
     }
   };
@@ -1551,6 +1567,7 @@ export function AcademicCalendar() {
                     { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-600' },
                     { type: 'class_day', label: 'Dia de Aula', color: 'bg-blue-600' },
                     { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
+                    { type: 'excused_class', label: 'Aula Abonada', color: 'bg-slate-400' },
                     { type: 'start_term', label: 'Início', color: 'bg-blue-600' },
                     { type: 'end_term', label: 'Final', color: 'bg-slate-800' },
                   ].map(item => (
@@ -2001,6 +2018,7 @@ export function AcademicCalendar() {
                           { id: 'holiday_mun', label: 'Municipal', icon: <MapPin size={14} />, color: 'amber', desc: 'Padroeiro/Local' },
                           { id: 'exam', label: 'Avaliação', icon: <GraduationCap size={14} />, color: 'orange', desc: 'Provas/Testes' },
                           { id: 'class_day', label: 'Aula Extra', icon: <BookOpen size={14} />, color: 'blue', desc: 'Dia Letivo' },
+                          { id: 'excused_class', label: 'Aula Abonada', icon: <Divide size={14} />, color: 'slate', desc: 'Dispensa/Abono' },
                           { id: 'event', label: 'Evento', icon: <CalendarDays size={14} />, color: 'emerald', desc: 'Geral/Festivo' }
                         ].map(type => (
                           <button
@@ -2119,6 +2137,24 @@ export function AcademicCalendar() {
                   >
                     Fechar
                   </button>
+                  {(isAdmin || isDirector) && selectedEvent && formData.type === 'class_day' && (
+                    <button 
+                      type="button"
+                      onClick={async () => {
+                        await saveData('calendar_events', selectedEvent.id, {
+                          ...selectedEvent,
+                          type: 'excused_class',
+                          title: 'Aula Abonada',
+                          description: 'Dia de aula abonado/dispensado'
+                        });
+                        setIsEditing(false);
+                        fetchData();
+                      }}
+                      className="flex-1 py-4 bg-slate-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-700 shadow-xl shadow-slate-100 transition-all"
+                    >
+                      Abonar Aula
+                    </button>
+                  )}
                   {(isAdmin || isDirector) && (
                     <button 
                       type="submit"
@@ -2479,7 +2515,12 @@ export function AcademicCalendar() {
                             target_class_ids: settingsForm.target_class_ids
                           };
                           
+                          // Salva globalmente e para cada turma selecionada para garantir persistência
                           await saveData('academic_settings', 'current', updatedSettings);
+                          for (const cid of settingsForm.target_class_ids) {
+                            await saveData('academic_settings', cid, updatedSettings);
+                          }
+
                           setAcademicSettings(updatedSettings);
                           await generateClassDays(updatedSettings);
 
