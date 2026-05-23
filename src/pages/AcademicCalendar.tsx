@@ -597,7 +597,14 @@ export function AcademicCalendar() {
         // A visualização agora é feita via lógica no renderizador
         
         const holidayDates = new Set();
-        currentEvents.filter(e => e.type.includes('holiday')).forEach(h => {
+        const NON_BLOCKING_TITLES = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'];
+        
+        currentEvents.filter(e => {
+          const isH = e.type?.includes('holiday');
+          if (!isH) return false;
+          const titleLower = e.title?.toLowerCase() || '';
+          return !NON_BLOCKING_TITLES.some(nb => titleLower.includes(nb));
+        }).forEach(h => {
           holidayDates.add(h.start_date);
           if (h.end_date && h.end_date !== h.start_date) {
             let curr = new Date(h.start_date + 'T00:00:00');
@@ -1704,7 +1711,12 @@ export function AcademicCalendar() {
                     const periodType = getPeriodType(dateStr, academicSettings);
                     const isExcused = dayEvents.some(e => e.type === 'excused_class');
                     const isVacation = periodType === 'vacation' || periodType === 'recess' || isExcused || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
-                    const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
+                    const isHolidayCell = dayEvents.some(e => {
+                      const isH = e.type?.includes('holiday');
+                      if (!isH) return false;
+                      const titleLower = e.title?.toLowerCase() || '';
+                      return !['servidor público', 'santo antônio', 'dia do professor'].some(nb => titleLower.includes(nb));
+                    });
 
                     return (
                       <motion.div 
@@ -1730,7 +1742,7 @@ export function AcademicCalendar() {
                           "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-hidden cursor-pointer relative border-r border-b border-slate-100",
                           isToday && "bg-blue-50/20",
                           isVacation && "bg-stripes-slate",
-                          isHoliday && "bg-stripes-red"
+                          isHolidayCell && "bg-stripes-red"
                         )}
                       >
                         <div className="flex justify-between items-start">
@@ -1766,10 +1778,10 @@ export function AcademicCalendar() {
                                 e.stopPropagation();
                                 handleEdit(event);
                               }}
-                              className={cn(
-                                "px-2 py-1 rounded-md text-[9px] font-bold whitespace-normal break-words leading-snug cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
-                                getTypeStyle(event.type, event.start_date)
-                              )}
+                                className={cn(
+                                  "px-2 py-1 rounded-md text-[9px] font-bold whitespace-normal break-words leading-snug cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
+                                  getTypeStyle(event.type, event.start_date, event.title)
+                                )}
                               title={event.title.replace(/^Dia de Aula - /, '')}
                             >
                               {event.type === 'excused_class' ? (
@@ -3540,7 +3552,13 @@ export function AcademicCalendar() {
                         
                         const periodType = getPeriodType(dateStr, academicSettings);
                         const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
-                        const isHoliday = dayEvents.some(e => e.type.includes('holiday') || e.title.toLowerCase().includes('feriado') || e.title.toLowerCase().includes('recesso'));
+                        const isHolidayGrid = dayEvents.some(e => {
+                          const isH = e.type?.includes('holiday');
+                          if (!isH) return false;
+                          const titleLower = e.title?.toLowerCase() || '';
+                          // Exclude facultative holidays from stripes if they are not blocking
+                          return !['servidor público', 'santo antônio', 'dia do professor'].some(nb => titleLower.includes(nb));
+                        });
                         
                           return (
                           <div 
@@ -3548,29 +3566,32 @@ export function AcademicCalendar() {
                             className={cn(
                               "bg-white min-h-[125px] print:min-h-[115px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors",
                               isVacation && "bg-stripes-slate",
-                              isHoliday && "bg-stripes-red"
+                              isHolidayGrid && "bg-stripes-red"
                             )}
                           >
                             <span className="text-[14px] font-black text-slate-900">{day}</span>
                             <div className="mt-1 space-y-0.5">
-                              {dayEvents.map(e => {
-                                const isHoliday = e.type?.includes('holiday') || e.title?.toLowerCase().includes('férias') || e.title?.toLowerCase().includes('feriado') || e.title?.toLowerCase().includes('recesso');
-                                const isExam = e.type === 'exam';
-                                
-                                return (
-                                  <div 
-                                    key={e.id} 
-                                    className={cn(
-                                      "text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm",
-                                      isHoliday ? "bg-red-500 text-white border-red-600" : 
-                                      isExam ? "bg-orange-500 text-white border-orange-600" :
-                                      "bg-blue-400 text-white border-blue-500"
-                                    )}
-                                  >
-                                    {(e.title || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
-                                  </div>
-                                );
-                              })}
+                      {dayEvents.map(e => {
+                        const titleLower = e.title?.toLowerCase() || '';
+                        const isFacultative = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'].some(nb => titleLower.includes(nb));
+                        const isHoliday = !isFacultative && (e.type?.includes('holiday') || e.title?.toLowerCase().includes('férias') || e.title?.toLowerCase().includes('feriado') || e.title?.toLowerCase().includes('recesso'));
+                        const isExam = e.type === 'exam';
+                        
+                        return (
+                          <div 
+                            key={e.id} 
+                            className={cn(
+                              "text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm",
+                              isHoliday ? "bg-red-500 text-white border-red-600" : 
+                              isExam ? "bg-orange-500 text-white border-orange-600" :
+                              isFacultative ? "bg-indigo-500 text-white border-indigo-600" :
+                              "bg-blue-400 text-white border-blue-500"
+                            )}
+                          >
+                            {(e.title || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
+                          </div>
+                        );
+                      })}
                             </div>
                           </div>
                         );

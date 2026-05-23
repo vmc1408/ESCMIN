@@ -1,10 +1,15 @@
 import { CalendarEvent } from '../types';
 
-export const getTypeStyle = (type: CalendarEvent['type'], startDate?: string) => {
+export const getTypeStyle = (type: CalendarEvent['type'], startDate?: string, title?: string) => {
+  const titleLower = (title || '').toLowerCase();
   switch (type) {
     case 'holiday':
-    case 'holiday_nac':
+    case 'holiday_nac': {
+      if (titleLower.includes('servidor') || titleLower.includes('antônio') || titleLower.includes('professor')) {
+        return 'bg-indigo-50 text-indigo-700 border-indigo-100/50 shadow-sm font-semibold italic';
+      }
       return 'bg-red-50 text-red-700 border-red-100/50 shadow-sm font-semibold';
+    }
     case 'holiday_est':
       return 'bg-indigo-50 text-indigo-700 border-indigo-100/50 shadow-sm font-semibold';
     case 'holiday_mun':
