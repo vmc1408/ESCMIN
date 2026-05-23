@@ -625,9 +625,11 @@ export function Reports() {
 
     return [...result].sort((a, b) => {
       const extract = (s: string) => {
-        const match = s.match(/\d{4}/);
-        const yr = match ? parseInt(match[0]) : 0;
-        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        const match = s.match(/\d+/);
+        const yrStr = match ? match[0] : '0';
+        let yr = parseInt(yrStr);
+        if (yrStr.length === 2) yr += 2000;
+        const name = s.replace(/\d+/, '').trim().toLowerCase();
         return { yr, name };
       };
       const infoA = extract(a.name || '');
@@ -682,9 +684,11 @@ export function Reports() {
       if (!isUnallocatedA && isUnallocatedB) return -1;
 
       const extract = (s: string) => {
-        const match = s.match(/\d{4}/);
-        const yr = match ? parseInt(match[0]) : 0;
-        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        const match = s.match(/\d+/);
+        const yrStr = match ? match[0] : '0';
+        let yr = parseInt(yrStr);
+        if (yrStr.length === 2) yr += 2000;
+        const name = s.replace(/\d+/, '').trim().toLowerCase();
         return { yr, name };
       };
       const infoA = extract(a.name || '');

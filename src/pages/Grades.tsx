@@ -100,9 +100,11 @@ export function Grades() {
 
     const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
       const extract = (s: string) => {
-        const match = s.match(/\d{4}/);
-        const yr = match ? parseInt(match[0]) : 0;
-        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        const match = s.match(/\d+/);
+        const yrStr = match ? match[0] : '0';
+        let yr = parseInt(yrStr);
+        if (yrStr.length === 2) yr += 2000;
+        const name = s.replace(/\d+/, '').trim().toLowerCase();
         return { yr, name };
       };
       const infoA = extract(a.name || '');
@@ -251,7 +253,7 @@ export function Grades() {
           { field: 'subject_id', operator: '==', value: selectedSubject },
           { field: 'status', operator: '==', value: 'F' } // Just focus on absences
         ]),
-        fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'Dia de Aula' }])
+        fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }])
       ]);
       
       const newGradesMap = { ...grades };

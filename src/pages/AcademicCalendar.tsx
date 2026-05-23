@@ -351,9 +351,11 @@ export function AcademicCalendar() {
 
       const sortedClasses = (classesData || []).sort((a: any, b: any) => {
         const extract = (s: string) => {
-          const match = s.match(/\d{4}/);
-          const yr = match ? parseInt(match[0]) : 0;
-          const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+          const match = s.match(/\d+/);
+          const yrStr = match ? match[0] : '0';
+          let yr = parseInt(yrStr);
+          if (yrStr.length === 2) yr += 2000;
+          const name = s.replace(/\d+/, '').trim().toLowerCase();
           return { yr, name };
         };
         const infoA = extract(a.name || '');
@@ -1071,9 +1073,11 @@ export function AcademicCalendar() {
     const filtered = classes.filter(c => classIds.has(c.id));
     return [...filtered].sort((a, b) => {
       const extract = (s: string) => {
-        const match = s.match(/\d{4}/);
-        const yr = match ? parseInt(match[0]) : 0;
-        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
+        const match = s.match(/\d+/);
+        const yrStr = match ? match[0] : '0';
+        let yr = parseInt(yrStr);
+        if (yrStr.length === 2) yr += 2000;
+        const name = s.replace(/\d+/, '').trim().toLowerCase();
         return { yr, name };
       };
       const infoA = extract(a.name || '');
@@ -1470,9 +1474,21 @@ export function AcademicCalendar() {
                     const day = i + 1;
                     const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                     // Use filteredEvents which is already deduplicated
-                    const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date));
+                    const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date))
+                      .sort((a, b) => {
+                        // Priority order: class_day, then excused_class, then others
+                        const priority = (type: string) => {
+                          if (type === 'class_day') return 0;
+                          if (type === 'excused_class') return 1;
+                          if (type === 'start_term' || type === 'end_term') return 2;
+                          if (type.includes('holiday')) return 3;
+                          return 4;
+                        };
+                        return priority(a.type) - priority(b.type);
+                      });
                     const isToday = todayStr === dateStr;
                     const periodType = getPeriodType(dateStr, academicSettings);
+                    const isExcused = dayEvents.some(e => e.type === 'excused_class');
                     const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                     const isHoliday = dayEvents.some(e => e.type.includes('holiday'));
 
@@ -1500,7 +1516,8 @@ export function AcademicCalendar() {
                           "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-hidden cursor-pointer relative border-r border-b border-slate-100",
                           isToday && "bg-blue-50/20",
                           isVacation && "bg-stripes-slate",
-                          isHoliday && "bg-stripes-red"
+                          isHoliday && "bg-stripes-red",
+                          isExcused && "bg-slate-50/80 grayscale-[0.5] opacity-90"
                         )}
                       >
                         <div className="flex justify-between items-start">
