@@ -360,8 +360,10 @@ export function AcademicCalendar() {
         };
         const infoA = extract(a.name || '');
         const infoB = extract(b.name || '');
-        if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
-        return infoB.yr - infoA.yr;
+        // Sort primarily by Year Descending
+        if (infoA.yr !== infoB.yr) return infoB.yr - infoA.yr;
+        // Then by Name
+        return infoA.name.localeCompare(infoB.name);
       });
 
       setEvents(eventsData || []);
@@ -382,7 +384,7 @@ export function AcademicCalendar() {
       
       return {
         events: eventsData || [],
-        classes: classesData || [],
+        classes: sortedClasses,
         subjects: subjectsData || [],
         settings: settingsData
       };
@@ -725,7 +727,7 @@ export function AcademicCalendar() {
         // A visualização agora é feita via lógica no renderizador
         
         const holidayDates = new Set();
-        currentEvents.filter(e => e.type.includes('holiday') || e.type === 'excused_class').forEach(h => {
+        currentEvents.filter(e => e.type.includes('holiday')).forEach(h => {
           holidayDates.add(h.start_date);
           if (h.end_date && h.end_date !== h.start_date) {
             let curr = new Date(h.start_date + 'T00:00:00');
@@ -737,6 +739,13 @@ export function AcademicCalendar() {
           }
         });
 
+        // Specific holiday/excused dates for THIS class
+        const classExcusedDates = new Set(
+          currentEvents
+            .filter(e => e.type === 'excused_class' && e.class_id === tid)
+            .map(e => e.start_date)
+        );
+
         for (const range of ranges) {
           if (isNaN(range.start.getTime()) || isNaN(range.end.getTime())) continue;
           let currentDateObj = new Date(range.start);
@@ -747,7 +756,7 @@ export function AcademicCalendar() {
               const dateStr = currentDateObj.toISOString().split('T')[0];
               const dayTitle = settings.weekday_titles?.[weekday] || 'Dia de Aula';
               
-              if (!holidayDates.has(dateStr)) {
+              if (!holidayDates.has(dateStr) && !classExcusedDates.has(dateStr)) {
                 newEvents.push({
                   title: dayTitle,
                   start_date: dateStr,
@@ -837,7 +846,7 @@ export function AcademicCalendar() {
   const handleEdit = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setFormData({
-      title: event.title,
+      title: event.title.replace(/^Dia de Aula - /, '').split(' - ')[0].trim(),
       description: event.description,
       start_date: formatDateForDisplay(event.start_date),
       end_date: formatDateForDisplay(event.end_date),
@@ -906,9 +915,9 @@ export function AcademicCalendar() {
       case 'class_day': {
         if (startDate) {
           const weekday = new Date(startDate + 'T00:00:00').getDay();
-          if (weekday === 3) return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-semibold';
-          if (weekday === 4) return 'bg-amber-50 text-amber-700 border-amber-100/50 shadow-sm font-semibold';
-          return 'bg-emerald-50 text-emerald-700 border-emerald-100/50 shadow-sm font-semibold';
+          if (weekday === 3) return 'bg-blue-50 text-blue-700 border-blue-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
+          if (weekday === 4) return 'bg-amber-50 text-amber-700 border-amber-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
+          return 'bg-emerald-50 text-emerald-700 border-emerald-100/50 shadow-sm font-black text-[9.5px] uppercase tracking-wider';
         }
         return 'bg-emerald-50 text-emerald-700 border-emerald-100';
       }
@@ -984,10 +993,14 @@ export function AcademicCalendar() {
 
     return filtered.reduce((acc, current) => {
       // Agrupa visualmente eventos do mesmo tipo no mesmo dia
+      // NOVO: Permitir avaliações duplicadas se forem de turmas diferentes ou tiverem títulos diferentes
       const isGroupable = current.type === 'class_day' || current.title.includes('Aula Abonada');
       const existingIndex = acc.findIndex(item => 
         item.start_date === current.start_date && 
-        (isGroupable ? item.type === current.type : (item.title === current.title && item.type === current.type))
+        (isGroupable ? 
+          item.type === current.type : 
+          (item.title === current.title && item.type === current.type && item.class_id === current.class_id)
+        )
       );
 
       if (existingIndex === -1) {
@@ -1476,15 +1489,21 @@ export function AcademicCalendar() {
                     // Use filteredEvents which is already deduplicated
                     const dayEvents = filteredEvents.filter(e => e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date))
                       .sort((a, b) => {
-                        // Priority order: class_day, then excused_class, then others
-                        const priority = (type: string) => {
-                          if (type === 'class_day') return 0;
-                          if (type === 'excused_class') return 1;
-                          if (type === 'start_term' || type === 'end_term') return 2;
-                          if (type.includes('holiday')) return 3;
-                          return 4;
+                        const typeOrder: Record<string, number> = { 
+                          'class_day': 1, 
+                          'start_term': 2, 
+                          'end_term': 3, 
+                          'exam': 4, 
+                          'holiday': 5, 
+                          'holiday_nac': 6, 
+                          'holiday_est': 7, 
+                          'holiday_mun': 8, 
+                          'event': 9, 
+                          'excused_class': 10 
                         };
-                        return priority(a.type) - priority(b.type);
+                        const orderA = typeOrder[a.type] || 99;
+                        const orderB = typeOrder[b.type] || 99;
+                        return orderA - orderB;
                       });
                     const isToday = todayStr === dateStr;
                     const periodType = getPeriodType(dateStr, academicSettings);
@@ -1516,8 +1535,7 @@ export function AcademicCalendar() {
                           "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-hidden cursor-pointer relative border-r border-b border-slate-100",
                           isToday && "bg-blue-50/20",
                           isVacation && "bg-stripes-slate",
-                          isHoliday && "bg-stripes-red",
-                          isExcused && "bg-slate-50/80 grayscale-[0.5] opacity-90"
+                          isHoliday && "bg-stripes-red"
                         )}
                       >
                         <div className="flex justify-between items-start">
@@ -1545,7 +1563,7 @@ export function AcademicCalendar() {
                         </div>
 
                         {/* Resumo de Eventos */}
-                        <div className="flex flex-col gap-1 mt-1 overflow-y-auto custom-scrollbar flex-1 pb-1">
+                        <div className="flex flex-col gap-1.5 mt-1 overflow-y-auto custom-scrollbar flex-1 pb-1">
                           {dayEvents.map(event => (
                             <div 
                               key={event.id}
@@ -1554,7 +1572,7 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                               className={cn(
-                                "px-2 py-0.5 rounded-md text-[8.5px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
+                                "px-2 py-1 rounded-md text-[9px] font-bold whitespace-normal break-words leading-snug cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
                                 getTypeStyle(event.type, event.start_date)
                               )}
                               title={event.title.replace(/^Dia de Aula - /, '')}
@@ -3138,39 +3156,39 @@ export function AcademicCalendar() {
                 ))}
               </div>
               
-              {/* Legenda Estilo Screenshot Detalhada - Mais Compacta */}
-              <div className="mt-1 border-t-2 border-slate-900 pt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 pb-1">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-600 shadow-sm border border-red-700" />
-                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Feriado Nacional</span>
+                  {/* Legenda Estilo Screenshot Detalhada - No Rodapé */}
+                  <div className="mt-4 border-t border-slate-200 pt-3 flex flex-wrap justify-center gap-x-6 gap-y-2 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-red-600 shadow-sm border border-red-700" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Nacional</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-purple-600 shadow-sm border border-purple-700" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Estadual</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-orange-600 shadow-sm border border-orange-700" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Municipal</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-blue-400 shadow-sm border border-blue-500" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Dia de Aula Letivo</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-sm border border-amber-500" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Avaliação / Prova</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-blue-600 shadow-sm border border-blue-700" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Início</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-full bg-slate-900 shadow-sm border border-slate-950" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Final</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-purple-600 shadow-sm border border-purple-700" />
-                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Feriado Estadual</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-orange-600 shadow-sm border border-orange-700" />
-                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Feriado Municipal</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-blue-400 shadow-sm border border-blue-500" />
-                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Dia de Aula</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-amber-400 shadow-sm border border-amber-500" />
-                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Avaliação</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-blue-600 shadow-sm border border-blue-700" />
-                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Início</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-slate-900 shadow-sm border border-slate-950" />
-                  <span className="text-[7.5px] font-black text-slate-800 uppercase tracking-widest">Final</span>
-                </div>
-              </div>
-            </div>
-          )}
+              )}
 
           {/* Relatório 3: Grade Mensal */}
           {printType === 'monthly_grid' && (
@@ -3190,22 +3208,6 @@ export function AcademicCalendar() {
                       {monthName}
                     </h2>
                     
-                    {/* Legenda de Marcações Compacta Superior */}
-                    <div className="mb-4 flex flex-wrap justify-center gap-x-8 gap-y-2 pb-2 border-b border-slate-100 no-print-break">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded bg-red-500 border border-red-600" />
-                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Feriado / Recesso</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded bg-amber-400 border border-amber-500" />
-                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Avaliação / Prova</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded bg-blue-400 border border-blue-500" />
-                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Dia de Aula Letivo</span>
-                      </div>
-                    </div>
-
                     <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-lg overflow-hidden">
                       {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
                         <div key={day} className="bg-slate-50 py-4 text-center text-[11px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
@@ -3278,6 +3280,22 @@ export function AcademicCalendar() {
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* Legenda de Marcações Compacta - Agora no Rodapé de Cada Mês */}
+                    <div className="mt-4 flex flex-wrap justify-center gap-x-10 gap-y-2 pb-2 border-t border-slate-200 pt-3 no-print-break">
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded bg-red-500 border border-red-600" />
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Feriado / Recesso</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded bg-amber-400 border border-amber-500" />
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Avaliação / Prova</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded bg-blue-400 border border-blue-500" />
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Dia de Aula Letivo</span>
+                      </div>
                     </div>
                   </div>
                 );

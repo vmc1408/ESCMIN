@@ -239,7 +239,7 @@ export function Grades() {
     setLoading(true);
     try {
       // 1. Fetch all academic components necessary for calculation
-      const [allGrades, assessmentsList, attendances, calendarEvents] = await Promise.all([
+      const [allGrades, assessmentsList, attendances, calendarEvents, excusedEvents] = await Promise.all([
         fetchQuery('grades', [
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'subject_id', operator: '==', value: selectedSubject }
@@ -253,11 +253,25 @@ export function Grades() {
           { field: 'subject_id', operator: '==', value: selectedSubject },
           { field: 'status', operator: '==', value: 'F' } // Just focus on absences
         ]),
-        fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }])
+        fetchQuery('calendar_events', [
+          { field: 'type', operator: '==', value: 'class_day' }
+        ]),
+        fetchQuery('calendar_events', [
+          { field: 'type', operator: '==', value: 'excused_class' },
+          { field: 'class_id', operator: '==', value: selectedClass }
+        ])
       ]);
       
       const newGradesMap = { ...grades };
-      const totalSchoolDays = calendarEvents?.length || 20; // Fallback to 20 if none defined, or handle gracefully
+      
+      // Filter calendar events for THIS class Specifically
+      const classSpecificEvents = (calendarEvents || []).filter(e => !e.class_id || e.class_id === selectedClass);
+      const totalSchoolDays = (classSpecificEvents.length || 0); // Total intended class days
+      
+      // Total effective days (Total - Excused)
+      // Note: If a day is excused, it's not a class day anymore.
+      const totalEffectiveDays = totalSchoolDays; 
+      
       const numAssessments = assessmentsList?.length || 0;
       
       const assessmentTitles = (assessmentsList || []).map(a => a.title);
@@ -285,8 +299,8 @@ export function Grades() {
 
         // Attendance Calculation: Present days >= 60% of school days
         const absences = (attendances || []).filter(a => a.student_id === student.id).length;
-        const presencePercentage = totalSchoolDays > 0 ? ((totalSchoolDays - absences) / totalSchoolDays) * 100 : 100;
-        const isAttendanceApproved = presencePercentage >= 60;
+        const presencePercentage = totalEffectiveDays > 0 ? ((totalEffectiveDays - absences) / totalEffectiveDays) * 100 : 100;
+        const isAttendanceApproved = presencePercentage >= (100 - (academicParams.absence_limit_percentage || 40));
         
         // Status Determination
         let status: GradeRecord['status'] = 'Pendente';

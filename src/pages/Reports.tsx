@@ -340,13 +340,7 @@ export function Reports() {
       doc.setFont('helvetica', 'bold');
       doc.text(title, centerX, y, { align: 'center' });
       
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100);
-      doc.text(`Data de Emissão: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, y + 10);
-      doc.text(`Identificador: ${Math.random().toString(36).substring(7).toUpperCase()}`, pageWidth - margin, y + 10, { align: 'right' });
-
-      y += 20;
+      y += 10;
 
       if (type === 'dashboard') {
         doc.setFontSize(12);
