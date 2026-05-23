@@ -3450,31 +3450,49 @@ export function AcademicCalendar() {
 
           {/* Relatório: Listagem de Feriados */}
           {printType === 'holiday_list' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1">
                 {(() => {
                   const currentYear = currentDate.getFullYear().toString();
-                  const holidays = events
-                    .filter(e => e.type?.includes('holiday') && e.start_date.startsWith(currentYear))
-                    .sort((a, b) => a.start_date.localeCompare(b.start_date));
+                  let holidays = events
+                    .filter(e => {
+                      const isHoliday = e.type?.includes('holiday');
+                      const inYear = e.start_date.startsWith(currentYear);
+                      // Excluir explicitamente Santo Antônio como solicitado
+                      const isExcl = e.title?.toLowerCase().includes('santo antônio');
+                      return isHoliday && inYear && !isExcl;
+                    });
+                  
+                  // Garantir que Aniversário de São Paulo esteja presente na listagem (25/01)
+                  const hasSP = holidays.some(h => h.start_date.endsWith('-01-25'));
+                  if (!hasSP) {
+                    holidays.push({
+                      id: 'manual-sp-h',
+                      title: "Aniv. de São Paulo",
+                      start_date: `${currentYear}-01-25`,
+                      type: 'holiday_est'
+                    } as any);
+                  }
+
+                  holidays = holidays.sort((a, b) => a.start_date.localeCompare(b.start_date));
 
                   if (holidays.length === 0) {
                     return (
-                      <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-3xl">
-                        <Bookmark size={40} className="mx-auto text-slate-200 mb-4" />
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum feriado cadastrado para {currentYear}</p>
+                      <div className="text-center py-10 border-2 border-dashed border-slate-100 rounded-3xl">
+                        <Bookmark size={32} className="mx-auto text-slate-200 mb-2" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhum feriado para {currentYear}</p>
                       </div>
                     );
                   }
 
                   return (
-                    <div className="border border-slate-200 rounded-2xl overflow-hidden mt-4">
-                      <table className="w-full text-left">
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
-                            <th className="px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-[120px]">Data</th>
-                            <th className="px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Descrição do Feriado</th>
-                            <th className="px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest w-[160px]">Nível</th>
+                            <th className="px-4 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest w-[100px]">Data</th>
+                            <th className="px-4 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">Descrição do Feriado</th>
+                            <th className="px-4 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest w-[130px]">Nível</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -3482,24 +3500,24 @@ export function AcademicCalendar() {
                             const date = new Date(hol.start_date + 'T00:00:00');
                             return (
                               <tr key={hol.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-5 py-3">
-                                  <div className="text-[12px] font-black text-slate-900 leading-none">
+                                <td className="px-4 py-1.5">
+                                  <div className="text-[10px] font-black text-slate-900 leading-none">
                                     {date.toLocaleDateString('pt-BR')}
                                   </div>
-                                  <div className="text-[8px] font-bold text-slate-400 uppercase mt-1 tracking-tighter">
+                                  <div className="text-[7px] font-bold text-slate-400 uppercase mt-0.5 tracking-tighter">
                                     {date.toLocaleDateString('pt-BR', { weekday: 'long' })}
                                   </div>
                                 </td>
-                                <td className="px-5 py-3">
-                                  <div className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{hol.title}</div>
-                                  {hol.description && hol.description !== getTypeText(hol.type) && (
-                                    <div className="text-[9px] font-semibold text-slate-400 mt-0.5">{hol.description}</div>
+                                <td className="px-4 py-1.5">
+                                  <div className="text-[9px] font-black text-slate-800 uppercase tracking-tight">{hol.title}</div>
+                                  {hol.description && hol.description !== getTypeText(hol.type) && !hol.description.includes('Feriado') && (
+                                    <div className="text-[8px] font-semibold text-slate-400 mt-0.5">{hol.description}</div>
                                   )}
                                 </td>
-                                <td className="px-5 py-3">
+                                <td className="px-4 py-1.5">
                                   <span className={cn(
-                                    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border whitespace-nowrap inline-block",
-                                    getTypeStyle(hol.type, hol.description)
+                                    "px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest border whitespace-nowrap inline-block",
+                                    getTypeStyle(hol.type, hol.start_date)
                                   )}>
                                     {getTypeText(hol.type, hol.description)}
                                   </span>
@@ -3514,15 +3532,13 @@ export function AcademicCalendar() {
                 })()}
               </div>
 
-              {/* Assinatura no Rodapé do Relatório */}
-              <div className="mt-12 pt-12 border-t border-slate-100 grid grid-cols-2 gap-20 px-10">
-                <div className="text-center">
-                  <div className="h-px bg-slate-300 w-full mb-2" />
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Direção Pedagógica</p>
-                </div>
-                <div className="text-center">
-                  <div className="h-px bg-slate-300 w-full mb-2" />
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Secretaria Acadêmica</p>
+              {/* Versão simplificada do rodapé */}
+              <div className="pt-4 flex justify-between items-center px-4">
+                <p className="text-[7px] font-bold text-slate-300 uppercase tracking-[0.2em]">Escola Diocesana de Ministério • {currentDate.getFullYear()}</p>
+                <div className="flex gap-10">
+                   <div className="text-center w-32 border-t border-slate-200 pt-1">
+                      <p className="text-[7px] font-bold text-slate-400 uppercase">Secretaria</p>
+                   </div>
                 </div>
               </div>
             </div>
