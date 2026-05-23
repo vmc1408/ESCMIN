@@ -183,9 +183,12 @@ export function AcademicCalendar() {
   useEffect(() => {
     if (showSettings) {
       const targetId = settingsForm.target_class_ids.length === 1 ? settingsForm.target_class_ids[0] : 'current';
-      loadSettings(targetId);
+      const key = `annual_${targetId}_${currentDate.getFullYear()}`;
+      if (lastLoadedKey !== key) {
+        loadSettings(targetId);
+      }
     }
-  }, [showSettings, settingsForm.target_class_ids[0]]);
+  }, [showSettings, settingsForm.target_class_ids]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -1509,10 +1512,11 @@ export function AcademicCalendar() {
                                     </button>
                                     <button 
                                       onClick={() => {
-                                        setSettingsForm(prev => ({
-                                          ...prev,
+                                        setSettingsForm({
+                                          ...academicSettings,
                                           target_class_ids: [cls.id]
-                                        }));
+                                        });
+                                        setLastLoadedKey(''); // Força recarga específica para esta turma
                                         setShowSettings(true);
                                       }}
                                       className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all border border-slate-200"
@@ -1590,7 +1594,12 @@ export function AcademicCalendar() {
                         </p>
                         <button 
                           onClick={() => {
-                            setSettingsForm(prev => ({ ...prev, target_class_ids: [] }));
+                            // Inicializa com as configurações atuais mas limpa as turmas para escolha manual
+                            setSettingsForm({
+                              ...academicSettings,
+                              target_class_ids: []
+                            });
+                            setLastLoadedKey(''); // Força recarga se necessário
                             setShowSettings(true);
                           }}
                           className="w-full py-4 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl shadow-black/20"
@@ -2457,48 +2466,55 @@ export function AcademicCalendar() {
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="space-y-1">
                       <h4 className="text-base font-bold text-slate-900">Selecione as Turmas</h4>
-                      <p className="text-[11px] text-slate-500">O cronograma será gerado para as turmas selecionadas.</p>
+                      <p className="text-[11px] text-slate-500">O cronograma será gerado para as turmas selecionadas. Se nenhuma for selecionada, será gerado um cronograma geral.</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                    {classes.map((c) => {
-                      const isSelected = settingsForm.target_class_ids.includes(c.id);
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSettingsForm({
-                                ...settingsForm,
-                                target_class_ids: settingsForm.target_class_ids.filter(id => id !== c.id)
-                              });
-                            } else {
-                              setSettingsForm({
-                                ...settingsForm,
-                                target_class_ids: [...settingsForm.target_class_ids, c.id]
-                              });
-                            }
-                          }}
-                          className={cn(
-                            "flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
-                            isSelected 
-                              ? "bg-blue-50 border-blue-200 text-blue-700" 
-                              : "bg-white border-slate-100 text-slate-600 hover:border-slate-200"
-                          )}
-                        >
-                          <div className={cn(
-                            "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                            isSelected ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200"
-                          )}>
-                            {isSelected && <Check size={10} />}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="text-xs font-bold block truncate">{c.name}</span>
-                            <span className="text-[9px] font-medium text-slate-400 block truncate">{c.code}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {classes.length === 0 ? (
+                        <div className="col-span-2 py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhuma turma ativa encontrada</p>
+                          <p className="text-[9px] text-slate-400 mt-1 italic">Você pode continuar para gerar um cronograma institucional geral.</p>
+                        </div>
+                      ) : (
+                        classes.map((c) => {
+                          const isSelected = settingsForm.target_class_ids.includes(c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSettingsForm({
+                                    ...settingsForm,
+                                    target_class_ids: settingsForm.target_class_ids.filter(id => id !== c.id)
+                                  });
+                                } else {
+                                  setSettingsForm({
+                                    ...settingsForm,
+                                    target_class_ids: [...settingsForm.target_class_ids, c.id]
+                                  });
+                                }
+                              }}
+                              className={cn(
+                                "flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                                isSelected 
+                                  ? "bg-blue-50 border-blue-200 text-blue-700" 
+                                  : "bg-white border-slate-100 text-slate-600 hover:border-slate-200"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                isSelected ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200"
+                              )}>
+                                {isSelected && <Check size={10} />}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold block truncate">{c.name}</span>
+                                <span className="text-[9px] font-medium text-slate-400 block truncate">{c.code}</span>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
 
                     <div className="flex justify-center">
@@ -2700,10 +2716,7 @@ export function AcademicCalendar() {
                   {activeStep < 3 ? (
                     <button 
                       onClick={() => {
-                        if (activeStep === 1 && settingsForm.target_class_ids.length === 0) {
-                          setNotification({ type: 'err', message: 'Selecione pelo menos uma turma.' });
-                          return;
-                        }
+                        // Removida a obrigatoriedade de selecionar turma para permitir calendário geral
                         setActiveStep(prev => prev + 1);
                       }}
                       className="px-6 py-2.5 bg-slate-900 text-white rounded text-[10px] font-bold uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center gap-2"
