@@ -9,6 +9,7 @@ import {
   X,
   Info,
   Printer,
+  FileText,
   ChevronDown,
   Clock,
   BookOpen,
@@ -17,7 +18,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
-import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
+import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -32,6 +33,7 @@ interface Class {
   id: string;
   name: string;
   code: string;
+  room?: string;
   subject_ids?: string[];
   days_of_week?: string[];
   start_date?: string;
@@ -62,6 +64,10 @@ export function Attendance() {
   const [academicParams, setAcademicParams] = useState<any>(null);
   const [calendarDays, setCalendarDays] = useState<number>(0);
   const [studentAbsences, setStudentAbsences] = useState<Record<string, number>>({});
+  const [studentGrades, setStudentGrades] = useState<Record<string, any>>({});
+  const [closedSessionsCount, setClosedSessionsCount] = useState<number>(0);
+  const [closedDates, setClosedDates] = useState<Set<string>>(new Set());
+  const [monthlyAttendance, setMonthlyAttendance] = useState<Record<string, Record<string, string>>>({});
   
   const [institution, setInstitution] = useState<any>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -73,6 +79,9 @@ export function Attendance() {
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [isClosed, setIsClosed] = useState(false);
+  const [isManualPrint, setIsManualPrint] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
   const fetchData = React.useCallback(async () => {
@@ -195,9 +204,19 @@ export function Attendance() {
       setStudents((studentList || []).sort((a, b) => a.name.localeCompare(b.name)));
 
       // 3. Fetch all absence records for this class
-      const allAttendances = await fetchQuery('attendances', [
-        { field: 'class_id', operator: '==', value: selectedClass },
-        { field: 'status', operator: '==', value: 'F' }
+      const [allAttendances, allGrades, closures] = await Promise.all([
+        fetchQuery('attendances', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'status', operator: '==', value: 'F' }
+        ]),
+        fetchQuery('grades', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'period', operator: '==', value: 'Resultado Final' }
+        ]),
+        fetchQuery('calendar_events', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'title', operator: '==', value: 'SISTEMA_FECHAMENTO_PRESENCA' }
+        ])
       ]);
 
       const counts: Record<string, number> = {};
@@ -205,6 +224,14 @@ export function Attendance() {
         counts[record.student_id] = (counts[record.student_id] || 0) + 1;
       });
       setStudentAbsences(counts);
+
+      const gradesMap: Record<string, any> = {};
+      (allGrades || []).forEach(grade => {
+        gradesMap[grade.student_id] = grade;
+      });
+      setStudentGrades(gradesMap);
+      setClosedSessionsCount(closures?.length || 0);
+      setClosedDates(new Set((closures || []).map(c => c.start_date)));
     } catch (error) {
       console.error('Error fetching summary:', error);
     } finally {
@@ -226,7 +253,8 @@ export function Attendance() {
     
     setLoading(true);
     try {
-      const [studentsList, attendanceList] = await Promise.all([
+      const dbDate = parseDateToDB(selectedDate);
+      const [studentsList, attendanceList, closureData] = await Promise.all([
         fetchQuery('students', [
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'status', operator: '==', value: 'Ativo' }
@@ -234,11 +262,18 @@ export function Attendance() {
         (selectedSubject && selectedDate) ? fetchQuery('attendances', [
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'subject_id', operator: '==', value: selectedSubject },
-          { field: 'date', operator: '==', value: parseDateToDB(selectedDate) }
+          { field: 'date', operator: '==', value: dbDate }
+        ]) : Promise.resolve([]),
+        (selectedClass && selectedSubject && selectedDate) ? fetchQuery('calendar_events', [
+          { field: 'class_id', operator: '==', value: selectedClass },
+          { field: 'subject_id', operator: '==', value: selectedSubject },
+          { field: 'start_date', operator: '==', value: dbDate },
+          { field: 'title', operator: '==', value: 'SISTEMA_FECHAMENTO_PRESENCA' }
         ]) : Promise.resolve([])
       ]);
 
       setStudents((studentsList || []).sort((a, b) => a.name.localeCompare(b.name)));
+      setIsClosed(closureData && closureData.length > 0);
 
       if (attendanceList) {
         const attendanceMap: Record<string, AttendanceRecord> = {};
@@ -274,6 +309,37 @@ export function Attendance() {
     if (!cls.subject_ids || cls.subject_ids.length === 0) return subjects; // Fallback
     return subjects.filter(s => cls.subject_ids?.includes(s.id));
   }, [selectedClass, classes, subjects]);
+
+  const fetchMonthlyData = React.useCallback(async () => {
+    if (!selectedClass || activeTab !== 'monthly') return;
+    setLoading(true);
+    try {
+      const monthStr = String(selectedMonth + 1).padStart(2, '0');
+      const start = `${selectedYear}-${monthStr}-01`;
+      const end = `${selectedYear}-${monthStr}-31`;
+
+      const allRecords = await fetchQuery('attendances', [
+        { field: 'class_id', operator: '==', value: selectedClass },
+        { field: 'date', operator: '>=', value: start },
+        { field: 'date', operator: '<=', value: end }
+      ]);
+
+      const map: Record<string, Record<string, string>> = {};
+      (allRecords || []).forEach(record => {
+        if (!map[record.student_id]) map[record.student_id] = {};
+        map[record.student_id][record.date] = record.status;
+      });
+      setMonthlyAttendance(map);
+    } catch (error) {
+      console.error('Error fetching monthly data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedClass, selectedMonth, selectedYear, activeTab]);
+
+  useEffect(() => {
+    fetchMonthlyData();
+  }, [fetchMonthlyData]);
 
   const handleStatusChange = (studentId: string, status: 'P' | 'F' | 'J') => {
     if (!selectedSubject) {
@@ -459,19 +525,22 @@ export function Attendance() {
       const recordsToSave = Object.values(attendance) as AttendanceRecord[];
       const dbDate = parseDateToDB(selectedDate);
       
-      for (const record of recordsToSave) {
+      const payloads = recordsToSave.map(record => {
         const studentId = record.student_id;
         const docId = record.id || `${selectedClass}_${selectedSubject}_${dbDate}_${studentId}`;
-        
-        const data = {
-          ...record,
+        return {
           id: docId,
+          student_id: studentId,
+          class_id: selectedClass,
+          subject_id: selectedSubject,
           date: dbDate,
-          user_id: userAuth.uid,
-          updated_at: new Date().toISOString()
+          status: record.status,
+          observations: record.observations || ""
         };
-        
-        await saveData('attendances', docId, data);
+      });
+      
+      if (payloads.length > 0) {
+        await saveBatch('attendances', payloads);
       }
 
       await fetchStudentsAndAttendance();
@@ -482,6 +551,58 @@ export function Attendance() {
       setNotification({ type: 'err', message: 'Erro ao salvar presença.' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const closeAttendance = async () => {
+    if (!userAuth || !selectedSubject || !selectedClass || !selectedDate) return;
+    
+    // Check if everything is marked
+    const markedCount = Object.keys(attendance).length;
+    if (markedCount < students.length) {
+      setNotification({ 
+        type: 'err', 
+        message: 'Complete a chamada de todos os alunos antes de fechar a data.' 
+      });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    setClosing(true);
+    try {
+      const dbDate = parseDateToDB(selectedDate);
+      const closureId = `CLOSURE_${selectedClass}_${selectedSubject}_${dbDate}`;
+      
+      const closureRecord = {
+        id: closureId,
+        title: 'SISTEMA_FECHAMENTO_PRESENCA',
+        description: `FECHAMENTO DE CHAMADA: ${JSON.stringify({ 
+          closed_by: userAuth.uid, 
+          closed_at: new Date().toISOString(), 
+          student_count: students.length 
+        })}`,
+        class_id: selectedClass,
+        subject_id: selectedSubject,
+        start_date: dbDate,
+        end_date: dbDate,
+        type: 'event',
+        user_id: userAuth.uid,
+        created_at: new Date().toISOString()
+      };
+      
+      await saveData('calendar_events', closureId, closureRecord);
+      
+      // Also save attendance one last time to be sure
+      await saveAttendance();
+      
+      setIsClosed(true);
+      setNotification({ type: 'success', message: 'Lançamentos finalizados com sucesso! A data está fechada para edições.' });
+      setTimeout(() => setNotification(null), 4000);
+    } catch (error) {
+      console.error("Error closing attendance:", error);
+      setNotification({ type: 'err', message: 'Erro ao finalizar lançamentos.' });
+    } finally {
+      setClosing(false);
     }
   };
 
@@ -503,83 +624,61 @@ export function Attendance() {
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
+          @page { 
+            size: ${activeTab === 'monthly' ? 'landscape' : 'portrait'}; 
+            margin: 5mm; 
+          }
           body * {
             visibility: hidden;
             margin: 0;
             padding: 0;
           }
+          #root { display: none !important; }
           #printable-area, #printable-area * {
             visibility: visible;
           }
           #printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 40px;
-            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
             background: white !important;
+            visibility: visible !important;
           }
-          .no-print {
-            display: none !important;
-          }
-          @page {
-            size: auto;
-            margin: 0mm;
-          }
-          .landscape-print {
-            display: none;
-          }
-        }
-        @media print {
-          .landscape-page {
-            size: landscape;
-          }
-          .portrait-page {
-            size: portrait;
-          }
+          .no-print { display: none !important; }
         }
       `}} />
 
-      {/* Landscape Print Helper CSS */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          ${activeTab === 'monthly' ? `
-            @page {
-              size: landscape;
-              margin: 10mm;
-            }
-          ` : ''}
-        }
-      `}} />
-
-      <div className="max-w-[1600px] mx-auto p-4 md:p-10 space-y-12 no-print">
+      <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8 no-print">
       {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-        <div className="flex items-center gap-10">
-          <div className="w-24 h-24 p-4 bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-50 no-print flex items-center justify-center group overflow-hidden relative">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 p-3 bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 no-print flex items-center justify-center group overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-white" />
             {institution?.logo ? (
               <img src={institution.logo} alt="Logo" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700 relative z-10" />
             ) : (
-              <School size={36} className="text-emerald-600 relative z-10" />
+              <School size={28} className="text-emerald-600 relative z-10" />
             )}
           </div>
           <div>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-none uppercase">Frequência</h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-4">
-              <div className="flex items-center gap-3">
-                <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-200 animate-pulse" />
-                <p className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em]">{institution?.name || 'CENTRO DE ENSINO'}</p>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Frequência</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-200 animate-pulse" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{institution?.name || 'CENTRO DE ENSINO'}</p>
               </div>
-              <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-slate-300" />
-              <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest bg-slate-100/50 px-4 py-1.5 rounded-full border border-slate-200/50">Diário Digital de Classe</p>
+              <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-300" />
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-100/50 px-3 py-1 rounded-full border border-slate-200/50">Diário Digital de Classe</p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-5">
-          <div className="flex bg-slate-100/50 backdrop-blur-xl p-2 rounded-[2rem] border border-slate-200/60 shadow-inner">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex bg-slate-100/50 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
             {[
               { id: 'marking', label: 'Chamada', color: 'emerald' },
               { id: 'summary', label: 'Resumo', color: 'amber' },
@@ -589,10 +688,10 @@ export function Attendance() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={cn(
-                  "px-8 py-3.5 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.15em] transition-all duration-500",
+                  "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300",
                   activeTab === tab.id 
-                    ? "bg-white text-slate-900 shadow-xl border border-slate-100 scale-100" 
-                    : "text-slate-400 hover:text-slate-600 hover:bg-white/50 scale-95"
+                    ? "bg-white text-slate-900 shadow-lg border border-slate-100" 
+                    : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
                 )}
               >
                 {tab.label}
@@ -600,45 +699,63 @@ export function Attendance() {
             ))}
           </div>
 
-          <div className="flex items-center gap-4 ml-4">
+          <div className="flex items-center gap-3">
             {selectedClass && (
               <button 
                 onClick={handlePrint}
-                className="w-14 h-14 bg-white text-slate-700 rounded-2xl flex items-center justify-center border border-slate-200 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 shadow-lg shadow-slate-200/50 transition-all active:scale-90 group"
+                className="w-12 h-12 bg-white text-slate-700 rounded-xl flex items-center justify-center border border-slate-200 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-900 shadow-sm transition-all active:scale-90 group"
                 title="IMPRIMIR RELATÓRIO"
               >
-                <Printer size={22} className="group-hover:rotate-12 transition-transform" />
+                <Printer size={18} className="group-hover:rotate-12 transition-transform" />
               </button>
             )}
 
             {activeTab === 'marking' && students.length > 0 && (
-              <button 
-                disabled={saving || !selectedSubject || !isScheduledDay}
-                onClick={saveAttendance}
-                className="group relative flex items-center gap-4 h-14 px-10 bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-700 shadow-2xl shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50 disabled:bg-slate-300 disabled:shadow-none overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                <span>Salvar Tudo</span>
-              </button>
+              <div className="flex items-center gap-3">
+                {!isClosed ? (
+                  <>
+                    <button 
+                      disabled={saving || closing || !selectedSubject || !isScheduledDay}
+                      onClick={saveAttendance}
+                      className="group relative flex items-center gap-3 h-12 px-6 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white hover:border-slate-400 transition-all active:scale-95 disabled:opacity-50 overflow-hidden"
+                    >
+                      {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      <span>Salvar Rascunho</span>
+                    </button>
+                    <button 
+                      disabled={saving || closing || !selectedSubject || !isScheduledDay}
+                      onClick={closeAttendance}
+                      className="group relative flex items-center gap-3 h-12 px-8 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black shadow-xl shadow-slate-200/50 transition-all active:scale-95 disabled:opacity-50 overflow-hidden"
+                    >
+                      {closing ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                      <span>Fechar Lançamentos</span>
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-3 h-12 px-8 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-100">
+                    <Check size={16} />
+                    <span>Lançamentos Finalizados</span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/30 overflow-hidden text-slate-900">
         {/* Filter Bar */}
-        <div className="p-12 border-b border-slate-100 bg-slate-50/10">
+        <div className="p-8 border-b border-slate-100 bg-slate-50/30">
           <div className={cn(
-            "grid grid-cols-1 gap-10",
+            "grid grid-cols-1 gap-6",
             activeTab === 'marking' ? "md:grid-cols-3" : "md:grid-cols-2"
           )}>
-            <div className="space-y-4">
-              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Grupo Acadêmico</label>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Turma</label>
               <div className="relative group">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200 group-focus-within:text-emerald-600 group-focus-within:border-emerald-200 group-focus-within:shadow-xl group-focus-within:shadow-emerald-100 transition-all duration-500 shadow-sm">
-                  <School size={22} />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
+                  <School size={18} />
                 </div>
                 <select
                   value={selectedClass}
@@ -646,77 +763,77 @@ export function Attendance() {
                     setSelectedClass(e.target.value);
                     setSelectedSubject('');
                   }}
-                  className="w-full pl-22 pr-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm group-hover:border-slate-300 outline-none"
+                  className="w-full pl-16 pr-8 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all outline-none"
                 >
                   <option value="">SELECIONAR TURMA...</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </select>
-                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" size={24} />
+                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
               </div>
             </div>
 
             {activeTab === 'monthly' && (
-              <div className="space-y-4">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Ciclo de Mensal</label>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Período</label>
                 <div className="grid grid-cols-5 gap-3">
                   <div className="col-span-3 relative group">
                     <select
                       value={selectedMonth}
                       onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                      className="w-full px-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm outline-none"
+                      className="w-full px-6 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all outline-none"
                     >
                       {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
                         <option key={i} value={i}>{m.toUpperCase()}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={20} />
+                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={18} />
                   </div>
                   <div className="col-span-2 relative group">
                     <select
                       value={selectedYear}
                       onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm outline-none text-center"
+                      className="w-full px-6 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all outline-none text-center"
                     >
                       {[2024, 2025, 2026, 2027, 2028].map(y => (
                         <option key={y} value={y}>{y}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={20} />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={18} />
                   </div>
                 </div>
               </div>
             )}
             
             {(activeTab === 'marking' || activeTab === 'monthly') && (
-              <div className="space-y-4">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] ml-2">Matriz Curricular</label>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Disciplina</label>
                 <div className="relative group">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200 group-focus-within:text-emerald-600 group-focus-within:border-emerald-200 group-focus-within:shadow-xl group-focus-within:shadow-emerald-100 transition-all duration-500 shadow-sm">
-                    <BookOpen size={22} />
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
+                    <BookOpen size={18} />
                   </div>
                   <select
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
                     disabled={!selectedClass}
-                    className="w-full pl-22 pr-8 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all shadow-sm disabled:bg-slate-100/50 disabled:opacity-60 disabled:cursor-not-allowed group-hover:border-slate-300 outline-none"
+                    className="w-full pl-16 pr-8 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
                   >
                     <option value="">SELECIONAR DISCIPLINA...</option>
                     {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
                   </select>
-                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" size={24} />
+                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
                 </div>
               </div>
             )}
 
             {activeTab === 'marking' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between ml-2">
-                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em]">Data Letiva</label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Data</label>
                   {selectedClass && (
                     <motion.div 
                       layout
                       className={cn(
-                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.1em] border animate-in fade-in zoom-in duration-700",
+                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border",
                         availableDates.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"
                       )}
                     >
@@ -725,26 +842,26 @@ export function Attendance() {
                   )}
                 </div>
                 <div className="relative group">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200 group-focus-within:text-emerald-600 group-focus-within:border-emerald-200 group-focus-within:shadow-xl group-focus-within:shadow-emerald-100 transition-all duration-500 shadow-sm">
-                    <CalendarIcon size={22} />
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
+                    <CalendarIcon size={18} />
                   </div>
                   <select
                     disabled={!selectedClass || availableDates.length === 0}
                     value={parseDateToDB(selectedDate)}
                     onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
                     className={cn(
-                      "w-full pl-22 pr-12 py-6 bg-white border border-slate-200 rounded-[1.75rem] text-sm font-bold text-slate-800 focus:ring-[12px] focus:border-slate-400 appearance-none transition-all shadow-sm disabled:bg-slate-100/50 disabled:opacity-60 disabled:cursor-not-allowed group-hover:border-slate-300 outline-none",
-                      availableDates.length > 0 ? "focus:ring-slate-500/5" : "ring-8 ring-red-50/50"
+                      "w-full pl-16 pr-12 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:border-slate-400 appearance-none transition-all outline-none",
+                      availableDates.length > 0 ? "focus:ring-slate-500/5" : "ring-4 ring-red-50/50"
                     )}
                   >
-                    <option value="">ESCOLHER DATA...</option>
+                    <option value="">DATA...</option>
                     {availableDates.map(date => (
                       <option key={date.dbValue} value={date.dbValue}>
                         {date.label.toUpperCase()}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" size={24} />
+                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
                 </div>
               </div>
             )}
@@ -753,34 +870,35 @@ export function Attendance() {
 
         {/* Action Strip for Marking */}
         {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
-          <div className="px-12 py-8 bg-white border-b border-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-8">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center font-black text-2xl shadow-2xl shadow-slate-200 group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="relative z-10">{students.length}</span>
+          <div className="px-8 py-6 bg-white border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-slate-200">
+                <span>{students.length}</span>
               </div>
               <div>
-                <p className="text-sm font-black text-slate-900 uppercase tracking-[0.1em] leading-none">Matriculados</p>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                   Sessão de chamada ativa para hoje
-                </p>
+                <p className="text-xs font-black text-slate-900 uppercase tracking-tight leading-none">Matriculados</p>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                   Sessão ativa
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
+                disabled={isClosed}
                 onClick={() => handleMarkAll('P')}
-                className="flex items-center gap-4 px-10 py-5 bg-emerald-50 text-emerald-700 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-emerald-600 hover:text-white hover:shadow-[0_20px_50px_rgba(16,185,129,0.2)] transition-all duration-500 group active:scale-95"
+                className="flex items-center gap-3 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-emerald-600 hover:text-white transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
-                <Check size={20} className="group-hover:scale-125 transition-transform" />
+                <Check size={16} />
                 Presença Geral
               </button>
               <button
+                disabled={isClosed}
                 onClick={() => handleMarkAll('F')}
-                className="flex items-center gap-4 px-10 py-5 bg-red-50 text-red-700 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-red-600 hover:text-white hover:shadow-[0_20px_50px_rgba(239,68,68,0.2)] transition-all duration-500 group active:scale-95"
+                className="flex items-center gap-3 px-6 py-3 bg-red-50 text-red-700 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-red-600 hover:text-white transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
-                <X size={20} className="group-hover:scale-125 transition-transform" />
+                <X size={16} />
                 Falta Geral
               </button>
             </div>
@@ -788,7 +906,7 @@ export function Attendance() {
         )}
 
         {/* Content Area */}
-        <div className="p-12 bg-slate-50/5">
+        <div className="p-8 bg-white">
           <AnimatePresence mode="wait">
             {!selectedClass ? (
               <motion.div 
@@ -890,52 +1008,50 @@ export function Attendance() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 gap-6 mt-12">
+                    <div className="grid grid-cols-1 gap-4 mt-8">
                       {students.map((student, idx) => (
                         <motion.div 
-                          initial={{ opacity: 0, y: 20 }}
+                          initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.05 }}
+                          transition={{ delay: idx * 0.03 }}
                           key={student.id} 
                           className={cn(
-                            "group flex flex-col lg:flex-row lg:items-center justify-between p-10 rounded-[3rem] border transition-all duration-700 relative overflow-hidden",
-                            attendance[student.id]?.status === 'P' ? "bg-emerald-50/20 border-emerald-100 shadow-[0_20px_50px_rgba(16,185,129,0.08)]" :
-                            attendance[student.id]?.status === 'F' ? "bg-red-50/20 border-red-100 shadow-[0_20px_50px_rgba(239,68,68,0.08)]" :
-                            attendance[student.id]?.status === 'J' ? "bg-amber-50/20 border-amber-100 shadow-[0_20px_50px_rgba(245,158,11,0.08)]" :
-                            "bg-white border-slate-100 hover:border-slate-300 hover:shadow-2xl hover:shadow-slate-200/50 shadow-sm"
+                            "group flex flex-col lg:flex-row lg:items-center justify-between p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden",
+                            attendance[student.id]?.status === 'P' ? "bg-emerald-50/30 border-emerald-100 shadow-sm" :
+                            attendance[student.id]?.status === 'F' ? "bg-red-50/30 border-red-100 shadow-sm" :
+                            attendance[student.id]?.status === 'J' ? "bg-amber-50/30 border-amber-100 shadow-sm" :
+                            "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
                           )}
                         >
-                          <div className="flex items-center gap-10 mb-10 lg:mb-0 relative z-10">
+                          <div className="flex items-center gap-6 mb-6 lg:mb-0 relative z-10">
                             <div className={cn(
-                              "w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-xl font-black shadow-lg transition-all duration-700 scale-100 group-hover:scale-110",
-                              attendance[student.id]?.status === 'P' ? "bg-emerald-600 text-white shadow-emerald-100" :
-                              attendance[student.id]?.status === 'F' ? "bg-red-600 text-white shadow-red-100" :
-                              attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white shadow-amber-100" :
-                              "bg-slate-900 text-white border border-slate-700"
+                              "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black shadow-sm transition-all duration-300",
+                              attendance[student.id]?.status === 'P' ? "bg-emerald-600 text-white" :
+                              attendance[student.id]?.status === 'F' ? "bg-red-600 text-white" :
+                              attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white" :
+                              "bg-slate-900 text-white"
                             )}>
                               {String(idx + 1).padStart(2, '0')}
                             </div>
                             <div>
-                              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase group-hover:text-emerald-900 transition-colors leading-none">{student.name}</p>
-                              <div className="flex flex-wrap items-center gap-6 mt-4">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] px-4 py-1.5 bg-slate-50 border border-slate-100 rounded-xl group-hover:bg-white transition-colors">RA: {student.registration_number}</span>
-                                </div>
+                              <p className="text-lg font-black text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
+                              <div className="flex flex-wrap items-center gap-3 mt-2">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md">RA: {student.registration_number}</span>
                                 {attendance[student.id]?.status && (
                                   <span className={cn(
-                                    "text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border shadow-sm animate-in zoom-in duration-500",
+                                    "text-[9px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full border shadow-sm",
                                     attendance[student.id]?.status === 'P' ? "bg-emerald-500 text-white border-emerald-400" :
                                     attendance[student.id]?.status === 'F' ? "bg-red-500 text-white border-red-400" :
                                     "bg-amber-500 text-white border-amber-400"
                                   )}>
-                                    STATUS: {attendance[student.id]?.status === 'P' ? 'PRESENTE' : attendance[student.id]?.status === 'F' ? 'FALTA' : 'JUSTIFICADO'}
+                                    {attendance[student.id]?.status === 'P' ? 'Presente' : attendance[student.id]?.status === 'F' ? 'Falta' : 'Justificado'}
                                   </span>
                                 )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3 relative z-10">
+                          <div className="flex items-center gap-2 relative z-10">
                             {[
                               { id: 'P', label: 'Presente', icon: Check, color: 'emerald' },
                               { id: 'F', label: 'Falta', icon: X, color: 'red' },
@@ -943,56 +1059,64 @@ export function Attendance() {
                             ].map((btn) => (
                               <button
                                 key={btn.id}
+                                disabled={isClosed}
                                 onClick={() => handleStatusChange(student.id, btn.id as any)}
                                 className={cn(
-                                  "flex items-center justify-center gap-3 px-8 py-5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all duration-500 border",
+                                  "flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 border",
                                   attendance[student.id]?.status === btn.id
-                                    ? `bg-${btn.color}-600 text-white scale-105 shadow-xl shadow-${btn.color}-200 border-${btn.color}-500`
-                                    : `bg-slate-50 border-slate-100 text-slate-400 hover:bg-white hover:border-${btn.color}-200 hover:text-${btn.color}-600`
+                                    ? `bg-slate-900 text-white border-slate-900 shadow-lg`
+                                    : `bg-white border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-900`,
+                                  isClosed && attendance[student.id]?.status !== btn.id && "opacity-20 grayscale cursor-not-allowed"
                                 )}
                               >
-                                <btn.icon size={18} className={cn("transition-transform duration-500", attendance[student.id]?.status === btn.id && "scale-125")} />
-                                <span className={cn("hidden xl:block")}>{btn.label}</span>
+                                <btn.icon size={14} />
+                                <span className="hidden xl:block">{btn.label}</span>
                               </button>
                             ))}
-                          </div>
-
-                          {/* Decorative pattern for student card */}
-                          <div className="absolute -right-10 -bottom-10 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-700 pointer-events-none rotate-12">
-                             <School size={160} />
                           </div>
                         </motion.div>
                       ))}
                     </div>
                   </div>
                 ) : activeTab === 'summary' ? (
-                  <div className="space-y-12">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="bg-slate-900 p-10 rounded-[3.5rem] border border-slate-800 flex items-center gap-8 shadow-2xl group overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-20 h-20 rounded-[2rem] bg-slate-800 text-indigo-400 flex items-center justify-center shadow-inner relative z-10">
-                          <CalendarIcon size={40} />
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex items-center gap-6 shadow-xl group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-14 h-14 rounded-2xl bg-slate-800 text-blue-400 flex items-center justify-center shadow-inner relative z-10">
+                          <CalendarIcon size={28} />
                         </div>
                         <div className="relative z-10">
-                          <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.25em]">Ciclo de Dias Letivos</p>
-                          <p className="text-5xl font-black text-white tracking-tighter mt-2">{String(calendarDays).padStart(2, '0')}</p>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Dias Letivos</p>
+                          <p className="text-3xl font-black text-white tracking-tight mt-1">{String(calendarDays).padStart(2, '0')}</p>
                         </div>
                       </div>
-                      <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 flex items-center gap-8 shadow-2xl group overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-20 h-20 rounded-[2rem] bg-amber-50 text-amber-500 flex items-center justify-center shadow-sm relative z-10">
-                          <Filter size={40} />
+                      <div className="bg-white p-8 rounded-3xl border border-slate-200 flex items-center gap-6 shadow-sm group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shadow-sm relative z-10">
+                          <ClipboardCheck size={28} />
                         </div>
                         <div className="relative z-10">
-                          <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em]">Limite Administrativo</p>
-                          <p className="text-5xl font-black text-slate-900 tracking-tighter mt-2">{academicParams?.absence_limit_percentage || 25}%</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sessões Fechadas</p>
+                          <p className="text-3xl font-black text-slate-900 tracking-tight mt-1">{closedSessionsCount}</p>
+                        </div>
+                      </div>
+                      <div className="bg-white p-8 rounded-3xl border border-slate-200 flex items-center gap-6 shadow-sm group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shadow-sm relative z-10">
+                          <Filter size={28} />
+                        </div>
+                        <div className="relative z-10">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Limite Faltas</p>
+                          <p className="text-3xl font-black text-slate-900 tracking-tight mt-1">{academicParams?.absence_limit_percentage || 25}%</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-1 gap-4">
                       {students.map((student, idx) => {
                         const absences = studentAbsences[student.id] || 0;
+                        const gradeRecord = studentGrades[student.id];
                         const limit = academicParams?.absence_limit_percentage || 25;
                         const totalDays = calendarDays || 200;
                         const percentage = ((absences / totalDays) * 100).toFixed(1);
@@ -1002,59 +1126,80 @@ export function Attendance() {
                           <motion.div 
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.03 }}
+                            transition={{ delay: idx * 0.02 }}
                             key={student.id} 
-                            className="group flex flex-col lg:flex-row lg:items-center justify-between p-10 bg-white border border-slate-100 rounded-[3rem] hover:shadow-[0_30px_70px_rgba(15,23,42,0.08)] transition-all duration-500 relative overflow-hidden"
+                            className="group flex flex-col xl:flex-row xl:items-center justify-between p-6 bg-white border border-slate-200 rounded-2xl hover:border-slate-300 transition-all duration-300 relative overflow-hidden"
                           >
-                            <div className="flex items-center gap-8 mb-10 lg:mb-0 relative z-10">
-                              <div className="w-16 h-16 rounded-[1.5rem] bg-slate-50 text-slate-300 flex items-center justify-center text-xl font-black group-hover:bg-slate-900 group-hover:text-white transition-all duration-700">
+                            <div className="flex items-center gap-6 mb-6 xl:mb-0 relative z-10">
+                              <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center text-sm font-black group-hover:bg-slate-900 group-hover:text-white transition-all duration-300">
                                 {String(idx + 1).padStart(2, '0')}
                               </div>
                               <div>
-                                <p className="text-2xl font-black text-slate-800 tracking-tighter uppercase group-hover:text-slate-900 leading-none">{student.name}</p>
-                                <p className="text-[11px] font-bold text-slate-400 mt-3 uppercase tracking-[0.2em] bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg inline-block">RA: {student.registration_number}</p>
+                                <p className="text-lg font-black text-slate-800 tracking-tight uppercase leading-none">{student.name}</p>
+                                <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md inline-block">RA: {student.registration_number}</p>
                               </div>
                             </div>
 
-                            <div className="flex flex-col sm:flex-row items-center gap-16 relative z-10">
-                              <div className="text-center sm:text-right min-w-[120px]">
-                                <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">Ausências</p>
-                                <p className={cn(
-                                  "text-4xl font-black mt-3 leading-none tracking-tighter",
-                                  absences > 0 ? (isOverLimit ? "text-red-600" : "text-amber-600") : "text-slate-800"
-                                )}>{absences}</p>
-                              </div>
-                              
-                              <div className="w-full sm:w-72">
-                                <div className="flex justify-between items-end mb-3 px-1">
-                                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Frequência Negativa</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 xl:gap-16 relative z-10 flex-1 ml-0 xl:ml-12">
+                              {/* Attendance Stats */}
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-end px-1">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ausências / Limite</p>
                                   <span className={cn(
-                                    "text-sm font-black uppercase tracking-widest",
+                                    "text-xs font-black uppercase tracking-widest",
                                     isOverLimit ? "text-red-600" : "text-emerald-600"
                                   )}>
-                                    {percentage}%
+                                    {absences} / {percentage}%
                                   </span>
                                 </div>
-                                <div className="h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner p-0.5">
+                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden p-0.5">
                                   <motion.div 
                                     initial={{ width: 0 }}
                                     animate={{ width: `${Math.min(parseFloat(percentage), 100)}%` }}
-                                    transition={{ duration: 1.5, ease: "circOut" }}
+                                    transition={{ duration: 1.2, ease: "circOut" }}
                                     className={cn(
-                                      "h-full rounded-full transition-all duration-700",
-                                      isOverLimit ? "bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]" : "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                      "h-full rounded-full transition-all duration-500",
+                                      isOverLimit ? "bg-red-500" : "bg-emerald-500"
                                     )}
                                   />
                                 </div>
                               </div>
 
-                              <div className={cn(
-                                "px-10 py-5 rounded-[1.5rem] text-[11px] font-black uppercase tracking-[0.2em] min-w-[180px] text-center shadow-sm border transition-all duration-700",
-                                isOverLimit 
-                                  ? "bg-red-600 text-white border-red-500 shadow-xl shadow-red-100" 
-                                  : "bg-emerald-50 text-emerald-700 border-emerald-100"
-                              )}>
-                                {isOverLimit ? 'Reprovação' : 'Aprovado'}
+                              {/* Grade Stats */}
+                              <div className="flex flex-col justify-center items-center md:items-end">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Média Global</p>
+                                <div className="flex items-center gap-3 mt-2">
+                                  <p className={cn(
+                                    "text-2xl font-black leading-none tracking-tight",
+                                    gradeRecord ? (parseFloat(gradeRecord.value?.toString().replace(',', '.') || '0') >= (academicParams?.approval_grade || 5) ? "text-slate-900" : "text-red-600") : "text-slate-300"
+                                  )}>
+                                    {gradeRecord?.value || '---'}
+                                  </p>
+                                  {gradeRecord && (
+                                    <div className={cn(
+                                      "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
+                                      gradeRecord.status === 'Aprovado' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
+                                    )}>
+                                      {gradeRecord.status}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Performance Badge */}
+                              <div className="flex items-center justify-center md:justify-end">
+                                <div className={cn(
+                                  "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center border transition-all",
+                                  isOverLimit || (gradeRecord && gradeRecord.status === 'Reprovado')
+                                    ? "bg-red-600 text-white border-red-500 shadow-lg shadow-red-100" 
+                                    : gradeRecord?.status === 'Aprovado'
+                                      ? "bg-slate-900 text-white border-slate-900 shadow-lg"
+                                      : "bg-slate-50 text-slate-400 border-slate-100"
+                                )}>
+                                  {isOverLimit ? 'Reprovação (Falta)' : 
+                                   (gradeRecord?.status === 'Reprovado' ? 'Reprovação (Nota)' : 
+                                   (gradeRecord?.status === 'Aprovado' ? 'Aprovado' : 'Em Avaliação'))}
+                                </div>
                               </div>
                             </div>
                           </motion.div>
@@ -1063,43 +1208,72 @@ export function Attendance() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-12">
-                    <div className="bg-slate-900 p-12 rounded-[3.5rem] border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-10 group relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-transparent opacity-50" />
-                      <div className="flex items-center gap-8 relative z-10">
-                        <div className="w-20 h-20 bg-slate-800 rounded-[2rem] flex items-center justify-center text-indigo-400 shadow-inner">
-                          <CalendarIcon size={40} />
+                  <div className="space-y-8">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                      <div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Lista de Presença Mensal</h4>
+                        <p className="text-xs font-bold text-slate-500 uppercase mt-1 tracking-widest">Gere formulários para assinatura manual ou visualize registros</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => {
+                            setIsManualPrint(true);
+                            setShowPrintPreview(true);
+                          }}
+                          className="flex items-center gap-3 px-6 py-3 bg-white text-slate-900 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
+                        >
+                          <FileText size={16} />
+                          Folha de Vistos (Manual)
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsManualPrint(false);
+                            setShowPrintPreview(true);
+                          }}
+                          className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+                        >
+                          <Printer size={16} />
+                          Relatório de Lançamentos
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8 group relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-50" />
+                      <div className="flex items-center gap-6 relative z-10">
+                        <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center text-blue-400 shadow-inner border border-slate-700/50">
+                          <CalendarIcon size={32} />
                         </div>
                         <div>
-                          <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">Base Mensal de Assiduidade</p>
-                          <h4 className="text-4xl font-black text-white tracking-tighter mt-2 uppercase">
-                            {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Relatório Mensal</p>
+                          <h4 className="text-2xl font-black text-white tracking-tight mt-1 uppercase">
+                            {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} {selectedYear}
                           </h4>
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-6 relative z-10">
-                        <div className="px-8 py-4 bg-slate-800 text-white rounded-2xl border border-slate-700/50 text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3">
-                           <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <div className="flex items-center gap-4 relative z-10">
+                        <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                            {monthlyClassDays.length} Aulas
                         </div>
-                        <div className="px-8 py-4 bg-slate-800 text-white rounded-2xl border border-slate-700/50 text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3">
-                           <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                        <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                            {students.length} Alunos
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl overflow-x-auto overflow-hidden">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto overflow-hidden">
                       <table className="w-full border-collapse">
                         <thead>
-                          <tr className="bg-slate-900">
-                            <th className="px-8 py-6 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] w-20">Nº</th>
-                            <th className="px-8 py-6 text-left text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] w-96">Nome do Aluno</th>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">Nº</th>
+                            <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-96">Nome do Aluno</th>
                             {monthlyClassDays.map(day => (
-                              <th key={day.dbValue} className="px-3 py-6 text-center border-l border-slate-800 min-w-[60px]">
-                                <p className="text-[12px] font-black text-white leading-none">{String(day.dayNumber).padStart(2, '0')}</p>
-                                <p className="text-[10px] font-black text-indigo-400 uppercase mt-2 tracking-widest">{day.weekday}</p>
+                              <th key={day.dbValue} className="px-3 py-4 text-center border-l border-slate-200 min-w-[60px]">
+                                <p className="text-[12px] font-black text-slate-900 leading-none">{String(day.dayNumber).padStart(2, '0')}</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase mt-1.5 tracking-tight">{day.weekday}</p>
                               </th>
                             ))}
                           </tr>
@@ -1107,18 +1281,26 @@ export function Attendance() {
                         <tbody className="divide-y divide-slate-100">
                           {students.map((student, idx) => (
                             <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
-                              <td className="px-8 py-5 text-sm font-black text-slate-400">{String(idx + 1).padStart(2, '0')}</td>
-                              <td className="px-8 py-5">
-                                <p className="text-sm font-black text-slate-800 uppercase tracking-tighter group-hover:text-indigo-600 transition-colors">{student.name}</p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">RA: {student.registration_number}</p>
+                              <td className="px-6 py-4 text-xs font-black text-slate-400">{String(idx + 1).padStart(2, '0')}</td>
+                              <td className="px-6 py-4">
+                                <p className="text-xs font-black text-slate-800 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{student.name}</p>
                               </td>
-                              {monthlyClassDays.map(day => (
-                                <td key={day.dbValue} className="px-3 py-5 border-l border-slate-50">
-                                  <div className="w-7 h-7 mx-auto border-2 border-slate-200 rounded-lg group-hover:border-slate-300 transition-colors flex items-center justify-center">
-                                     <div className="w-1.5 h-1.5 rounded-full bg-slate-100 group-hover:bg-slate-200 transition-colors" />
-                                  </div>
-                                </td>
-                              ))}
+                              {monthlyClassDays.map(day => {
+                                const status = monthlyAttendance[student.id]?.[day.dbValue];
+                                return (
+                                  <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100">
+                                    <div className={cn(
+                                      "w-7 h-7 mx-auto rounded-lg flex items-center justify-center text-[10px] font-black",
+                                      status === 'P' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
+                                      status === 'F' ? "bg-red-50 text-red-600 border border-red-100" :
+                                      status === 'J' ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                                      "bg-slate-50 text-slate-300 border border-slate-100"
+                                    )}>
+                                       {status || '—'}
+                                    </div>
+                                  </td>
+                                );
+                              })}
                             </tr>
                           ))}
                         </tbody>
@@ -1136,125 +1318,131 @@ export function Attendance() {
       {/* Printable Area */}
       <div id="printable-area" className="hidden print:block text-slate-900 font-sans w-full">
         {activeTab === 'monthly' ? (
-          /* Landscape Monthly Calling Sheet (Lista de Chamada matching k.pdf) */
+          /* Landscape Monthly Calling Sheet (Lista de Chamada matching reference image) */
           <div className="w-full">
-            {/* Header Box (enclosed in border box) */}
-            <div className="border border-slate-900 p-4 rounded flex items-center justify-between mb-4 w-full">
-              <div className="flex items-center gap-4">
+            {/* Header Box (enclosed in border box matching image) */}
+            <div className="border border-slate-900 px-4 py-2 flex items-center justify-between mb-0 w-full">
+              <div className="flex items-center gap-6">
                 {institution?.logo ? (
-                  <img src={institution.logo} alt="Logo" className="w-14 h-14 object-contain rounded-full border border-slate-200" />
+                  <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black border border-slate-300">LOGO</div>
+                  <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black border border-slate-300">LOGO</div>
                 )}
-                <div className="text-left">
-                  <h1 className="text-base font-black uppercase tracking-tight text-slate-900">
+                <div className="text-left py-2">
+                  <h1 className="text-[17px] font-black uppercase text-slate-900 leading-tight">
                     {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - Pe. José Fernando de Brito
                   </h1>
-                  <p className="text-[10px] font-medium text-slate-500 mt-0.5 uppercase">
+                  <p className="text-[10px] font-bold text-slate-700 uppercase mt-0.5">
                     {institution?.address || 'Av. Venus, 195 - Itapecica - Guarulhos - Cep 07044-170'}
                   </p>
                 </div>
               </div>
-              <div className="text-right text-[10px] font-bold text-slate-600 self-center">
+              <div className="text-right text-[11px] font-bold text-slate-900 pr-2">
                 <p>{new Date().toLocaleDateString('pt-BR')}</p>
-                <p className="mt-1">Página <span className="font-black text-slate-950">1</span></p>
+                <p className="mt-1 flex items-baseline justify-end gap-2 uppercase">Página <span className="text-[13px]">1</span></p>
               </div>
             </div>
 
-            {/* Title */}
-            <div className="text-center my-4">
-              <h2 className="text-base font-black tracking-widest text-slate-900 uppercase">LISTA DE CHAMADA</h2>
+            {/* Sub-header Title Bar */}
+            <div className="border-x border-b border-slate-900 text-center py-1">
+              <h2 className="text-[13px] font-black tracking-[0.2em] text-slate-900 uppercase">
+                LISTA DE CHAMADA
+              </h2>
             </div>
 
-            {/* Metadata Info lines */}
-            <div className="grid grid-cols-12 gap-y-2 text-[10px] font-bold text-slate-900 mb-4 px-1 pb-2 border-b border-slate-200">
-              <div className="col-span-8 flex items-baseline gap-1">
-                <span className="text-slate-500 uppercase font-black text-[9px]">Professor</span>
-                <span className="uppercase text-slate-900 font-bold">{userAuth?.displayName || 'XXX'}</span>
+            {/* Metadata Info lines (Manual Style) */}
+            <div className="border-x border-b border-slate-900 grid grid-cols-12 gap-y-3 text-[10px] uppercase text-slate-900 px-4 py-4 mb-6 relative">
+              
+              {/* Professor & Date Row */}
+              <div className="col-span-8 flex items-baseline gap-2">
+                <span className="font-bold text-slate-700 min-w-max">Professor</span>
+                <span className="font-black text-slate-900 border-b border-slate-200 flex-1">{userAuth?.displayName || (students.length > 0 ? '---' : 'XXX')}</span>
               </div>
-              <div className="col-span-4 text-right">
-                <span className="font-black uppercase text-[10px] text-slate-900">
+              <div className="col-span-4 flex items-baseline justify-end gap-2">
+                <span className="font-black text-[12px] text-slate-900">
                   {['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'][selectedMonth]} / {selectedYear}
                 </span>
               </div>
 
-              <div className="col-span-5 flex items-baseline gap-1">
-                <span className="text-slate-500 uppercase font-black text-[9px]">Turma</span>
-                <span className="font-black text-slate-900 text-[10px]">{currentClass?.code || 'N/A'}</span>
-                <span className="text-slate-700 font-bold ml-1">{currentClass?.name || 'N/A'}</span>
+              {/* Turma, Disciplina, Sala Row */}
+              <div className="col-span-5 flex items-baseline gap-2">
+                <span className="font-bold text-slate-700">Turma</span>
+                <span className="font-black text-slate-900">{currentClass?.code || '---'}</span>
+                <span className="font-black text-slate-900 ml-1 truncate">{currentClass?.name || '---'}</span>
               </div>
-              <div className="col-span-5 flex items-baseline gap-1">
-                <span className="text-slate-500 uppercase font-black text-[9px]">Disciplina</span>
-                <span className="font-black text-slate-900 text-[10px]">{currentSubject?.id?.slice(0, 3) || '026'}</span>
-                <span className="text-slate-700 font-bold ml-1">{currentSubject?.name || 'N/A'}</span>
+              <div className="col-span-5 flex items-baseline gap-2">
+                <span className="font-bold text-slate-700">Disciplina</span>
+                <span className="font-black text-slate-900">{currentSubject?.id?.slice(0, 3) || '---'}</span>
+                <span className="font-black text-slate-900 ml-1 truncate">{currentSubject?.name || '---'}</span>
               </div>
-              <div className="col-span-2 flex items-baseline gap-1">
-                <span className="text-slate-500 uppercase font-black text-[9px]">Sala</span>
-                <span className="font-black text-slate-900 text-[10px]">002</span>
+              <div className="col-span-2 flex items-baseline justify-end gap-2">
+                <span className="font-bold text-slate-700">Sala</span>
+                <span className="font-black text-slate-900">{currentClass?.room || '002'}</span>
               </div>
+
             </div>
 
-            {/* Custom high-contrast Table for Print */}
+            {/* Custom high-contrast Table for Print matching reference image */}
             <div className="w-full">
               <table className="w-full border-collapse table-fixed text-slate-900 border border-slate-900">
                 <colgroup>
-                  <col className="w-[4%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[34%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[5%]" />
-                  <col className="w-[5%]" />
+                  <col className="w-[3.2%]" />
+                  <col className="w-[8.5%]" />
+                  <col className="w-[28.3%]" />
+                  <col className="w-[9.2%]" />
+                  <col className="w-[9.2%]" />
+                  <col className="w-[9.2%]" />
+                  <col className="w-[9.2%]" />
+                  <col className="w-[9.2%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[7%]" />
                 </colgroup>
                 <thead>
-                  <tr className="bg-slate-50 text-slate-950 h-10">
-                    <th className="px-1 text-center font-black text-[8px] uppercase border border-slate-900">Nº</th>
-                    <th className="px-2 text-left font-black text-[8px] uppercase border border-slate-900">Código</th>
-                    <th className="px-3 text-left font-black text-[8px] uppercase border border-slate-900">Nome do Aluno</th>
-                    {/* Render exactly 5 signature date headers */}
-                    {Array.from({ length: 5 }).map((_, i) => {
-                      const day = monthlyClassDays[i];
-                      return (
-                        <th key={i} className="px-1 text-center font-black border border-slate-900 align-middle">
-                          {day ? (
-                            <div className="flex flex-col items-center justify-center">
-                              <span className="text-[10px] font-black border-b border-slate-400 px-1">
-                                {day.dayNumber.toString().padStart(2, '0')}
-                              </span>
-                              <span className="text-[7px] font-bold uppercase mt-0.5">{day.weekday}</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center text-slate-400 py-1">
-                              <span className="text-[10px] font-black tracking-widest leading-none">___/___</span>
-                            </div>
-                          )}
-                        </th>
-                      );
-                    })}
-                    <th className="px-1 text-center font-black text-[8px] uppercase border border-slate-900">Mensalidade</th>
-                    <th className="px-1 text-center font-black text-[8px] uppercase border border-slate-900">Nota</th>
+                  <tr className="bg-white text-slate-900 h-11">
+                    <th className="px-1 text-center font-bold text-[9px] border border-slate-900"></th>
+                    <th className="px-3 text-left font-bold text-[9px] border border-slate-900 uppercase">Código</th>
+                    <th className="px-3 text-left font-bold text-[9px] border border-slate-900 uppercase">Nome do Aluno</th>
+                    {/* exactly 5 date signature cells with underlining headers */}
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <th key={i} className="border border-slate-900 h-11 align-middle">
+                        <div className="flex items-center justify-center pt-2">
+                          <span className="text-[10px] font-black tracking-widest leading-none">________/________</span>
+                        </div>
+                      </th>
+                    ))}
+                    <th className="px-1 text-center font-bold text-[9px] uppercase border border-slate-900 leading-tight">Mensalidade</th>
+                    <th className="px-1 text-center font-bold text-[9px] uppercase border border-slate-900 leading-tight">Nota</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {students.map((student, idx) => (
-                    <tr key={student.id} className="h-11">
-                      <td className="px-1 text-center text-[10px] font-bold border border-slate-400">{idx + 1}</td>
-                      <td className="px-2 text-left text-[9px] font-mono font-medium border border-slate-400 text-slate-700">{student.registration_number}</td>
-                      <td className="px-3 text-left text-[10px] font-bold uppercase border border-slate-400 whitespace-nowrap overflow-hidden text-ellipsis">{student.name}</td>
-                      {/* exactly 5 date signature cells */}
+                    <tr key={student.id} className="h-10">
+                      <td className="px-1 text-center text-[10px] font-medium border border-slate-900">{idx + 1}</td>
+                      <td className="px-3 text-left text-[10px] font-mono font-medium border border-slate-900 text-slate-800">{student.registration_number}</td>
+                      <td className="px-3 text-left text-[11px] font-bold uppercase border border-slate-900 whitespace-nowrap overflow-hidden text-ellipsis">{student.name}</td>
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <td key={i} className="border border-slate-400 relative">
-                          <div className="w-full h-full"></div>
-                        </td>
+                        <td key={i} className="border border-slate-900 relative"></td>
                       ))}
-                      <td className="border border-slate-400"></td>
-                      <td className="border border-slate-400"></td>
+                      <td className="border border-slate-900"></td>
+                      <td className="border border-slate-900"></td>
+                    </tr>
+                  ))}
+                  {/* Fill empty rows to make the sheet look complete if there are few students (up to 20 rows total) */}
+                  {students.length < 20 && Array.from({ length: 20 - students.length }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="h-10">
+                      <td className="px-1 text-center text-[10px] font-medium border border-slate-900">{students.length + i + 1}</td>
+                      <td className="border border-slate-900"></td>
+                      <td className="border border-slate-900"></td>
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <td key={j} className="border border-slate-900"></td>
+                      ))}
+                      <td className="border border-slate-900"></td>
+                      <td className="border border-slate-900"></td>
                     </tr>
                   ))}
                 </tbody>
+
               </table>
             </div>
           </div>
@@ -1301,31 +1489,29 @@ export function Attendance() {
                 <thead>
                   <tr className="bg-slate-900 text-white">
                     <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
+                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-32">RA / Código</th>
                     <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-32">RA</th>
-                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Presença</th>
-                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Assinatura</th>
+                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-32">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {students.map((student, idx) => {
-                    const status = attendance[student.id]?.status;
-                    const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : ''));
+                    const record = attendance[student.id];
+                    const status = record?.status;
+                    const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : '---'));
                     return (
                       <tr key={student.id}>
                         <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
+                        <td className="px-4 py-3 text-xs font-bold border border-slate-300 font-mono text-slate-500">{student.registration_number}</td>
                         <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
-                        <td className="px-4 py-3 text-xs font-bold border border-slate-300">{student.registration_number}</td>
                         <td className="px-4 py-3 text-xs font-black border border-slate-300 text-center uppercase">
-                          {statusLabel || '__________'}
-                        </td>
-                        <td className="px-4 py-3 border border-slate-300">
-                          <div className="w-full border-b border-slate-400 mt-4"></div>
+                          {statusLabel}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
+
               </table>
             ) : (
               <table className="w-full border-collapse">
@@ -1412,8 +1598,10 @@ export function Attendance() {
 
             {/* Preview Content */}
             <div className="flex-1 overflow-auto bg-slate-100 p-8 flex justify-center">
-              <div className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-[20mm] origin-top scale-[0.85] rounded-sm transform transition-transform">
-                 {/* Re-using identical content from the actual printable area for accuracy */}
+              <div className={cn(
+                "bg-white shadow-2xl origin-top rounded-sm transform transition-transform",
+                activeTab === 'monthly' ? "w-[297mm] min-h-[210mm] p-[10mm]" : "w-[210mm] min-h-[297mm] p-[20mm]"
+              )}>
                  <div className="space-y-8 font-sans text-slate-900 pointer-events-none select-none">
                     <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
                       <div className="flex items-center gap-4">
@@ -1432,69 +1620,201 @@ export function Attendance() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-8 text-[11px]">
+                    <div className="grid grid-cols-3 gap-8 text-[11px] bg-slate-50 p-4 rounded-xl border border-slate-200">
                       <div className="space-y-1">
-                        <p className="flex justify-between border-b border-slate-100 pb-1">
-                          <span className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Turma:</span>
-                          <span className="font-bold">{currentClass?.name} ({currentClass?.code})</span>
-                        </p>
-                        <p className="flex justify-between border-b border-slate-100 pb-1">
-                          <span className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Disciplina:</span>
-                          <span className="font-bold">{currentSubject?.name || '---'}</span>
-                        </p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Turma</p>
+                        <p className="text-sm font-black uppercase leading-tight">{currentClass?.name || '---'} ({currentClass?.code})</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
+                        <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || '---'}</p>
                       </div>
                       <div className="space-y-1 text-right">
-                        <p className="flex justify-between border-b border-slate-100 pb-1">
-                          <span className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Data:</span>
-                          <span className="font-bold">{selectedDate}</span>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                           {activeTab === 'marking' ? 'Data da Aula' : activeTab === 'monthly' ? 'Mês Referência' : 'Data Emissão'}
                         </p>
-                        <p className="flex justify-between border-b border-slate-100 pb-1">
-                          <span className="font-black text-slate-400 uppercase tracking-widest text-[9px]">Total Alunos:</span>
-                          <span className="font-bold">{students.length}</span>
+                        <p className="text-sm font-black uppercase leading-tight">
+                           {activeTab === 'marking' ? selectedDate : 
+                            activeTab === 'monthly' ? `${['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'][selectedMonth]}/${selectedYear}` : 
+                            new Date().toLocaleDateString('pt-BR')}
                         </p>
                       </div>
                     </div>
 
-                    {/* Placeholder for table in preview - we want it to look realistic */}
-                    <table className="w-full text-left border-collapse">
-                       <thead>
-                         <tr>
-                           <th className="border-b-2 border-slate-900 py-3 text-[10px] font-black uppercase tracking-widest">RA</th>
-                           <th className="border-b-2 border-slate-900 py-3 text-[10px] font-black uppercase tracking-widest">Nome do Aluno</th>
-                           <th className="border-b-2 border-slate-900 py-3 text-[10px] font-black uppercase tracking-widest text-center">Status</th>
-                         </tr>
-                       </thead>
-                       <tbody className="divide-y divide-slate-100">
-                         {students.slice(0, 15).map((student, i) => (
-                           <tr key={student.id}>
-                             <td className="py-2.5 text-[10px] font-medium text-slate-400">{student.registration_number}</td>
-                             <td className="py-2.5 text-[11px] font-bold uppercase">{student.name}</td>
-                             <td className="py-2.5 text-center">
-                               <div className="w-4 h-4 rounded-sm border border-slate-300 mx-auto" />
-                             </td>
-                           </tr>
-                         ))}
-                         {students.length > 15 && (
-                           <tr>
-                             <td colSpan={3} className="py-4 text-center text-[10px] font-bold text-slate-300 italic">
-                               ... e mais {students.length - 15} alunos
-                             </td>
-                           </tr>
-                         )}
-                       </tbody>
-                    </table>
+                    {activeTab === 'marking' ? (
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-900 text-white">
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-12">Nº</th>
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-32">RA / Código</th>
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest">Nome do Aluno</th>
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-32 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {students.map((student, i) => {
+                            const record = attendance[student.id];
+                            const status = record?.status;
+                            const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : '---'));
+                            return (
+                              <tr key={student.id}>
+                                <td className="px-4 py-2 border border-slate-200 text-[9px] font-bold text-center">{i + 1}</td>
+                                <td className="px-4 py-2 border border-slate-200 text-[9px] font-mono text-slate-500 font-bold">{student.registration_number}</td>
+                                <td className="px-4 py-2 border border-slate-200 text-[10px] font-bold uppercase truncate max-w-[250px]">{student.name}</td>
+                                <td className="px-4 py-2 border border-slate-200 text-center font-black text-[9px]">{statusLabel}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : activeTab === 'summary' ? (
+                       <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-900 text-white">
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-12">Nº</th>
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest">Nome do Aluno</th>
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest text-center">Faltas</th>
+                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest text-center">Assiduidade</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {students.map((student, i) => {
+                             const absences = studentAbsences[student.id] || 0;
+                             const totalDays = calendarDays || 200;
+                             const percentage = ((absences / totalDays) * 100).toFixed(1);
+                             return (
+                              <tr key={student.id}>
+                                <td className="px-4 py-2.5 border border-slate-200 text-[10px] font-bold text-center">{i + 1}</td>
+                                <td className="px-4 py-2.5 border border-slate-200 text-[11px] font-bold uppercase">{student.name}</td>
+                                <td className="px-4 py-2.5 border border-slate-200 text-center font-black">{absences}</td>
+                                <td className="px-4 py-2.5 border border-slate-200 text-center font-black">{percentage}%</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      /* Minimal Monthly Preview matching Reference Image */
+                      <div className="space-y-0">
+                        {/* Header Box (enclosed in border box matching image) */}
+                        <div className="border border-slate-900 px-4 py-2 flex items-center justify-between mb-0 w-full">
+                          <div className="flex items-center gap-6">
+                            {institution?.logo ? (
+                              <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black border border-slate-300">LOGO</div>
+                            )}
+                            <div className="text-left py-2">
+                              <h1 className="text-[17px] font-black uppercase text-slate-900 leading-tight">
+                                {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - Pe. José Fernando de Brito
+                              </h1>
+                              <p className="text-[10px] font-bold text-slate-700 uppercase mt-0.5">
+                                {institution?.address || 'Av. Venus, 195 - Itapecica - Guarulhos - Cep 07044-170'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right text-[11px] font-bold text-slate-900 pr-2">
+                            <p>{new Date().toLocaleDateString('pt-BR')}</p>
+                            <p className="mt-1 flex items-baseline justify-end gap-2 uppercase">Página <span className="text-[13px]">1</span></p>
+                          </div>
+                        </div>
 
-                    <div className="mt-20 pt-10 grid grid-cols-2 gap-20">
-                       <div className="border-t border-slate-400 text-center pt-2">
-                         <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Professor</p>
-                       </div>
-                       <div className="border-t border-slate-400 text-center pt-2">
-                         <p className="text-[10px] font-black uppercase tracking-widest">Visto da Secretaria</p>
-                       </div>
-                    </div>
+                        {/* Sub-header Title Bar */}
+                        <div className="border-x border-b border-slate-900 text-center py-1">
+                          <h2 className="text-[13px] font-black tracking-[0.2em] text-slate-900 uppercase">
+                            LISTA DE CHAMADA
+                          </h2>
+                        </div>
+
+                        {/* Metadata Info lines (Manual Style) */}
+                        <div className="border-x border-b border-slate-900 grid grid-cols-12 gap-y-3 text-[10px] uppercase text-slate-900 px-4 py-3 mb-6 relative">
+                          {/* Professor & Date Row */}
+                          <div className="col-span-8 flex items-baseline gap-2">
+                            <span className="font-bold text-slate-700 min-w-max">Professor</span>
+                            <span className="font-black text-slate-900 border-b border-slate-200 flex-1">{userAuth?.displayName || (students.length > 0 ? '---' : 'XXX')}</span>
+                          </div>
+                          <div className="col-span-4 flex items-baseline justify-end gap-2">
+                            <span className="font-black text-[12px] text-slate-900 uppercase">
+                              {['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'][selectedMonth]} / {selectedYear}
+                            </span>
+                          </div>
+
+                          {/* Turma, Disciplina, Sala Row */}
+                          <div className="col-span-5 flex items-baseline gap-2">
+                            <span className="font-bold text-slate-700">Turma</span>
+                            <span className="font-black text-slate-900">{currentClass?.code || '---'}</span>
+                            <span className="font-black text-slate-900 ml-1 truncate">{currentClass?.name || '---'}</span>
+                          </div>
+                          <div className="col-span-5 flex items-baseline gap-2">
+                            <span className="font-bold text-slate-700">Disciplina</span>
+                            <span className="font-black text-slate-900">{currentSubject?.id?.slice(0, 3) || '---'}</span>
+                            <span className="font-black text-slate-900 ml-1 truncate">{currentSubject?.name || '---'}</span>
+                          </div>
+                          <div className="col-span-2 flex items-baseline justify-end gap-2">
+                            <span className="font-bold text-slate-700">Sala</span>
+                            <span className="font-black text-slate-900">{currentClass?.room || '002'}</span>
+                          </div>
+                        </div>
+
+                        <table className="w-full text-left border-collapse border border-slate-900 table-fixed">
+                           <colgroup>
+                              <col className="w-[3.5%]" />
+                              <col className="w-[8.5%]" />
+                              <col className="w-[28.5%]" />
+                              <col className="w-[9%]" />
+                              <col className="w-[9%]" />
+                              <col className="w-[9%]" />
+                              <col className="w-[9%]" />
+                              <col className="w-[9%]" />
+                              <col className="w-[7%]" />
+                              <col className="w-[7%]" />
+                           </colgroup>
+                           <thead className="bg-white">
+                             <tr className="h-10">
+                               <th className="border border-slate-900 text-[8px] font-black uppercase text-center"></th>
+                               <th className="px-2 border border-slate-900 text-[8px] font-black uppercase">Código</th>
+                               <th className="px-2 border border-slate-900 text-[8px] font-black uppercase">Nome do Aluno</th>
+                               {Array.from({ length: 5 }).map((_, i) => (
+                                 <th key={i} className="border border-slate-900 align-middle text-center p-0">
+                                    <div className="text-[10px] scale-[0.6] opacity-30 mt-2">________/________</div>
+                                 </th>
+                               ))}
+                               <th className="px-1 border border-slate-900 text-[8px] font-black uppercase text-center leading-tight">Mensalidade</th>
+                               <th className="px-1 border border-slate-900 text-[8px] font-black uppercase text-center leading-tight">Nota</th>
+                             </tr>
+                           </thead>
+                           <tbody>
+                             {students.slice(0, 15).map((student, i) => (
+                               <tr key={student.id} className="h-8">
+                                  <td className="border border-slate-900 text-[8px] text-center font-bold px-1">{i + 1}</td>
+                                  <td className="px-2 border border-slate-900 text-[8px] font-mono text-slate-500 font-bold">{student.registration_number}</td>
+                                  <td className="px-2 border border-slate-900 text-[8px] font-bold uppercase truncate">{student.name}</td>
+                                  {Array.from({ length: 5 }).map((_, j) => (
+                                    <td key={j} className="border border-slate-900"></td>
+                                  ))}
+                                  <td className="border border-slate-900"></td>
+                                  <td className="border border-slate-900"></td>
+                               </tr>
+                             ))}
+                           </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {activeTab !== 'monthly' && (
+                      <div className="mt-20 pt-10 grid grid-cols-2 gap-20">
+                         <div className="border-t border-slate-400 text-center pt-2">
+                           <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Coordenador</p>
+                         </div>
+                         <div className="border-t border-slate-400 text-center pt-2">
+                           <p className="text-[10px] font-black uppercase tracking-widest">Assinatura da Secretaria</p>
+                         </div>
+                      </div>
+                    )}
                  </div>
               </div>
             </div>
+
           </div>
         </div>
       )}
