@@ -1208,9 +1208,40 @@ export function Attendance() {
             {/* Preview Content */}
             <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300">
               <div 
-                id="printable-area"
-                className="shrink-0 scale-[0.85] xl:scale-90 2xl:scale-100 origin-top transform"
+                id="attendance-print-container"
+                className="shrink-0 scale-[0.7] xl:scale-[0.75] 2xl:scale-95 origin-top transform"
               >
+                <style>{`
+                  @media print {
+                    @page { size: A4 landscape; margin: 0; }
+                    body { visibility: hidden !important; }
+                    #attendance-print-container, #attendance-print-container * { visibility: visible !important; }
+                    #attendance-print-container { 
+                      position: absolute !important; 
+                      left: 0 !important; 
+                      top: 0 !important; 
+                      width: 297mm !important; 
+                      height: auto !important;
+                      margin: 0 !important;
+                      padding: 0 !important;
+                    }
+                    .print-page {
+                      width: 297mm !important;
+                      height: 210mm !important;
+                      page-break-after: always !important;
+                      break-after: page !important;
+                      position: relative !important;
+                      display: flex !important;
+                      flex-direction: column !important;
+                      margin: 0 !important;
+                      padding: 10mm !important;
+                      border: none !important;
+                    }
+                    .shadow-xl, .shadow-2xl, .shadow-[0_30px_60px_rgba(0,0,0,0.12)] {
+                      box-shadow: none !important;
+                    }
+                  }
+                `}</style>
                 {(() => {
                   const itemsPerPage = 25;
                   const totalStudents = students.length;
@@ -1223,79 +1254,95 @@ export function Attendance() {
                   return studentChunks.map((chunk, pageIdx) => (
                     <div 
                       key={pageIdx}
-                      className="print-page bg-white shadow-[0_20px_50px_rgba(0,0,0,0.1)] mb-10 last:mb-0 space-y-8 font-sans text-slate-900 pointer-events-none select-none"
+                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[15mm] border border-slate-100 print:shadow-none print:border-none print:p-0 print:mb-0"
+                      style={{ width: '297mm', height: '210mm', minWidth: '297mm', minHeight: '210mm' }}
                     >
-                      {/* Updated Header - Matching "Extrato" style */}
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-2">
-                          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-                            Lista de Presença Mensal
+                      {/* OFFICIAL SYSTEM HEADER - MATCHING FICHA DE INSCRIÇÃO STYLE */}
+                      <div className="flex items-center gap-8 mb-6 pb-4 border-b-2 border-black">
+                        <div className="flex-shrink-0 w-28 h-28 flex items-center justify-center">
+                          {institution?.logo || institution?.logo_url ? (
+                            <img 
+                              src={institution.logo || institution.logo_url} 
+                              className="w-full h-full object-contain max-h-28" 
+                              referrerPolicy="no-referrer" 
+                              alt="Logo" 
+                            />
+                          ) : (
+                            <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                              <span className="leading-none">SEM</span>
+                              <span className="leading-none">LOGO</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                          <p className="text-[11pt] font-semibold tracking-[0.2em] text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
+                          <h1 className="text-[22pt] font-black uppercase tracking-tight text-black leading-tight my-1">
+                            {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                           </h1>
-                          <div className="text-[11px] font-bold text-slate-500 uppercase leading-relaxed tracking-wide">
-                            <p>Instituição: <span className="text-slate-700">{institution?.name || 'Escola Diocesana de Ministérios'}</span></p>
-                            <p>Endereço: <span className="text-slate-700">{institution?.address || 'Av. Venus, 195 - Itapecica - Guarulhos'}</span></p>
-                            <p>
-                              Mês Referência: <span className="text-slate-900 font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span>
-                              <span className="mx-3 opacity-50">|</span> 
-                              Emissão: <span className="text-slate-700">{new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <p className="text-[13pt] font-bold text-slate-700 tracking-wide uppercase">
+                            {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
+                          </p>
+                        </div>
+                        <div className="text-right flex flex-col justify-center border-l-2 border-black/5 pl-8 h-20">
+                          <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Página</p>
+                          <p className="text-[20pt] font-black text-black leading-none">{pageIdx + 1}<span className="text-[12pt] text-slate-300 mx-1">/</span>{totalPages}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-end mb-8">
+                        <div>
+                          <h2 className="text-[18pt] font-black uppercase tracking-[0.05em] text-black">Lista de Presença Mensal</h2>
+                          <div className="mt-2 flex gap-12 text-[10pt] font-bold text-slate-500 uppercase tracking-wide">
+                            <p>Mês de Referência: <span className="text-black font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span></p>
+                            <p>Disciplina: <span className="text-black font-black truncate max-w-[400px] inline-block">{currentSubject?.name || 'Todas as Disciplinas'}</span></p>
+                          </div>
+                        </div>
+                        <div className="text-right text-[9pt] font-bold text-slate-400 uppercase tracking-widest space-y-1">
+                          <p>Emissão: <span className="text-slate-800 font-bold">{new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></p>
+                        </div>
+                      </div>
+
+                      {/* SUMMARY BOX - MATCHING EXTRATO DE CONCILIAÇÃO LAYOUT */}
+                      <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-6 mb-8 flex items-center justify-between">
+                        <div className="flex items-center gap-24">
+                          <div className="space-y-1">
+                            <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest">Turma / Código</p>
+                            <p className="text-[12pt] font-black text-black uppercase">
+                              {currentClass?.name || 'N/A'} <span className="text-slate-400 font-bold ml-1">({currentClass?.code || '---'})</span>
                             </p>
                           </div>
-                        </div>
-                        {institution?.logo ? (
-                          <div className="w-24 h-24 bg-white p-2 border border-slate-100 rounded-3xl flex items-center justify-center shadow-sm">
-                            <img src={institution.logo} alt="Logo" className="w-full h-full object-contain" />
-                          </div>
-                        ) : (
-                          <div className="w-20 h-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-300 uppercase">Logo</div>
-                        )}
-                      </div>
-
-                      {/* Summary Info Box - Matching "Resumo do Extrato" layout */}
-                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex items-center justify-between">
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resumo da Turma</p>
-                          <div className="flex items-center gap-12">
-                            <div>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">Turma</p>
-                              <p className="text-[13px] font-black text-slate-900 uppercase">{currentClass?.name || 'N/A'} <span className="text-slate-400 ml-1 font-bold">({currentClass?.code || '---'})</span></p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">Disciplina</p>
-                              <p className="text-[13px] font-black text-slate-900 uppercase">{currentSubject?.name || 'TODAS'}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">Sala</p>
-                              <p className="text-[13px] font-black text-slate-900 uppercase">{currentClass?.room || '002'}</p>
-                            </div>
+                          <div className="space-y-1">
+                            <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest">Sala Permanente</p>
+                            <p className="text-[12pt] font-black text-black uppercase">{currentClass?.room || '002'}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Alunos</p>
-                          <p className="text-3xl font-black text-slate-900">{students.length}</p>
+                        <div className="text-right space-y-1">
+                          <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest">Total de Alunos Matriculados</p>
+                          <p className="text-[22pt] font-black text-black leading-none">{students.length}</p>
                         </div>
                       </div>
 
-                      {/* Main Attendance Table - Matching dark header table */}
-                      <div className="w-full flex-1">
-                        <table className="w-full border-collapse table-fixed text-slate-900">
+                      {/* MAIN ATTENDANCE TABLE - REFINED STYLING */}
+                      <div className="w-full flex-1 overflow-hidden">
+                        <table className="w-full border-collapse table-fixed text-black border-slate-200 border">
                           <colgroup>
-                            <col className="w-[4%]" />
-                            <col className="w-[9%]" />
-                            <col className="w-[32%]" />
+                            <col className="w-[3.5%]" />
+                            <col className="w-[10%]" />
+                            <col className="w-[34%]" />
                             {monthlyClassDays.map((_, i) => (
                               <col key={i} />
                             ))}
                           </colgroup>
                           <thead>
                             <tr className="bg-slate-900 text-white h-12">
-                              <th className="px-1 text-center font-bold text-[10px] uppercase border border-slate-800">Nº</th>
-                              <th className="px-3 text-left font-bold text-[10px] uppercase border border-slate-800">Código</th>
-                              <th className="px-4 text-left font-bold text-[11px] uppercase border border-slate-800">Nome do Aluno</th>
+                              <th className="px-1 text-center font-bold text-[8.5pt] uppercase border border-slate-800">Nº</th>
+                              <th className="px-3 text-left font-bold text-[8.5pt] uppercase border border-slate-800 tracking-tighter">Matrícula</th>
+                              <th className="px-4 text-left font-bold text-[9.5pt] uppercase border border-slate-800">Nome Completo do Aluno</th>
                               {monthlyClassDays.map((day, i) => (
                                 <th key={i} className="border border-slate-800 text-center p-0 align-middle">
                                   <div className="flex flex-col items-center justify-center leading-none">
-                                    <span className="text-[10px] font-black mb-1">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
-                                    <span className="text-[6px] font-bold uppercase opacity-60">{day ? day.weekday : '--'}</span>
+                                    <span className="text-[8pt] font-black mb-0.5">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
+                                    <span className="text-[5pt] font-bold uppercase opacity-60">{day ? day.weekday : '--'}</span>
                                   </div>
                                 </th>
                               ))}
@@ -1305,12 +1352,12 @@ export function Attendance() {
                             {chunk.map((student, idx) => {
                               const overallIndex = pageIdx * itemsPerPage + idx;
                               return (
-                                <tr key={student.id} className={cn("h-10 border-b border-slate-100", idx % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
-                                  <td className="px-1 text-center text-[11px] font-bold border-x border-slate-100 text-slate-400">{overallIndex + 1}</td>
-                                  <td className="px-3 text-left text-[10px] font-mono font-bold border-x border-slate-100 text-slate-500">{student.registration_number}</td>
-                                  <td className="px-4 text-left text-[12px] font-black uppercase border-x border-slate-100 truncate text-slate-800">{student.name}</td>
+                                <tr key={student.id} className={cn("h-[9.5mm] border-b border-slate-100", idx % 2 === 0 ? "bg-white" : "bg-slate-50/20")}>
+                                  <td className="px-1 text-center text-[9pt] font-bold border-x border-slate-100 text-slate-300">{overallIndex + 1}</td>
+                                  <td className="px-3 text-left text-[8.5pt] font-mono font-bold border-x border-slate-100 text-slate-400 tracking-tighter">{student.registration_number}</td>
+                                  <td className="px-4 text-left text-[10.5pt] font-black uppercase border-x border-slate-100 truncate text-slate-900 tracking-tight">{student.name}</td>
                                   {monthlyClassDays.map((day, i) => (
-                                    <td key={i} className="border-x border-slate-100 p-0 text-center text-[14px] font-black">
+                                    <td key={i} className="border-x border-slate-100 p-0 text-center text-[13pt] font-black">
                                       {(() => {
                                         const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
                                         return status === 'P' ? '●' : status === 'F' ? 'F' : status === 'J' ? 'J' : '';
@@ -1320,12 +1367,48 @@ export function Attendance() {
                                 </tr>
                               );
                             })}
+                            {/* Fill empty rows for consistency if last page is short */}
+                            {chunk.length < itemsPerPage && pageIdx === totalPages - 1 && Array.from({ length: itemsPerPage - chunk.length }).map((_, i) => (
+                              <tr key={`empty-${i}`} className="h-[9.5mm] border-b border-slate-50 opacity-20">
+                                <td className="px-1 text-center text-[9pt] border-x border-slate-50"></td>
+                                <td className="px-3 border-x border-slate-50"></td>
+                                <td className="px-4 border-x border-slate-50"></td>
+                                {monthlyClassDays.map((_, j) => (
+                                  <td key={j} className="border-x border-slate-50"></td>
+                                ))}
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
 
-                      <div className="flex justify-end items-center text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-4">
-                        <p>Página {pageIdx + 1} de {totalPages}</p>
+                      {/* STANDARDIZED SYSTEM FOOTER - MATCHING FICHA DE INSCRIÇÃO EXACTLY */}
+                      <div className="mt-6">
+                        <div className="border-t-2 border-black pt-4 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight">
+                          <div className="flex-1 space-y-1">
+                            <p className="leading-none text-[9.5pt] font-black">
+                              {institution?.address || 'AV. VENUS, 195 - ITAPECICA - GUARULHOS - CEP 07044-170'}
+                            </p>
+                            <div className="flex items-center gap-4 leading-none font-bold text-[9pt]">
+                              {(institution?.phone || institution?.email) && (
+                                <p className="leading-none">
+                                  {institution?.phone ? `TEL: ${institution.phone}` : ''}
+                                  {institution?.phone && institution?.email ? ' | ' : ''}
+                                  {institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''}
+                                </p>
+                              )}
+                            </div>
+                            <p className="text-[7pt] text-slate-400 font-bold mt-1">ESCMIN Intelligence • GESTÃO ACADÊMICA INTEGRADA • DIOCESE DE GUARULHOS</p>
+                          </div>
+                          <div className="text-right flex flex-col items-end gap-1.5">
+                            {institution?.secretary && (
+                              <div className="text-[7.5pt] max-w-[400px] leading-tight">
+                                <p className="underline underline-offset-2 mb-0.5">ATENDIMENTO SECRETARIA:</p>
+                                <p className="font-bold text-slate-600 normal-case">{institution.secretary.toLowerCase()}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ));
