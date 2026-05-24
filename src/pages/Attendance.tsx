@@ -42,6 +42,12 @@ interface Class {
 interface Subject {
   id: string;
   name: string;
+  teacher_id?: string;
+}
+
+interface Teacher {
+  id: string;
+  name: string;
 }
 
 interface AttendanceRecord {
@@ -56,9 +62,10 @@ interface AttendanceRecord {
 
 export function Attendance() {
   const { userAuth, isAdmin, isDirector } = useAuth();
-  const [activeTab, setActiveTab] = useState<'marking' | 'summary' | 'monthly'>('marking');
+  const [activeTab, setActiveTab] = useState<'marking' | 'monthly'>('marking');
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
   const [academicParams, setAcademicParams] = useState<any>(null);
@@ -81,21 +88,23 @@ export function Attendance() {
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
-  const [isManualPrint, setIsManualPrint] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
 
   const fetchData = React.useCallback(async () => {
     try {
-      const [classesData, subjectsData, paramsData, instData] = await Promise.all([
+      const [classesData, subjectsData, paramsData, instData, teachersData] = await Promise.all([
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchAll('academic_parameters', '*', ''),
-        fetchAll('institution_settings')
+        fetchAll('institution_settings'),
+        fetchAll('teachers', 'id, name', 'name', true)
       ]);
 
       if (instData && instData.length > 0) {
         setInstitution(instData[0]);
       }
+      
+      setTeachers(teachersData || []);
 
       const normalizedClasses = (classesData || []).map((cls: any) => {
         let normalized = { ...cls };
@@ -186,64 +195,8 @@ export function Attendance() {
     fetchClassEvents();
   }, [fetchClassEvents]);
 
-  const fetchAbsenceSummary = async () => {
-    if (!selectedClass) return;
-    setLoading(true);
-    try {
-      // 1. Fetch academic calendar to count school days
-      const events = await fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]);
-      // Filter for this class specifically if needed, but for total school days we might use all class_days
-      const classSpecific = events?.filter(e => !e.class_id || e.class_id === selectedClass) || [];
-      setCalendarDays(classSpecific.length);
-
-      // 2. Fetch all students in class
-      const studentList = await fetchQuery('students', [
-        { field: 'class_id', operator: '==', value: selectedClass },
-        { field: 'status', operator: '==', value: 'Ativo' }
-      ]);
-      setStudents((studentList || []).sort((a, b) => a.name.localeCompare(b.name)));
-
-      // 3. Fetch all absence records for this class
-      const [allAttendances, allGrades, closures] = await Promise.all([
-        fetchQuery('attendances', [
-          { field: 'class_id', operator: '==', value: selectedClass },
-          { field: 'status', operator: '==', value: 'F' }
-        ]),
-        fetchQuery('grades', [
-          { field: 'class_id', operator: '==', value: selectedClass },
-          { field: 'period', operator: '==', value: 'Resultado Final' }
-        ]),
-        fetchQuery('calendar_events', [
-          { field: 'class_id', operator: '==', value: selectedClass },
-          { field: 'title', operator: '==', value: 'SISTEMA_FECHAMENTO_PRESENCA' }
-        ])
-      ]);
-
-      const counts: Record<string, number> = {};
-      (allAttendances || []).forEach(record => {
-        counts[record.student_id] = (counts[record.student_id] || 0) + 1;
-      });
-      setStudentAbsences(counts);
-
-      const gradesMap: Record<string, any> = {};
-      (allGrades || []).forEach(grade => {
-        gradesMap[grade.student_id] = grade;
-      });
-      setStudentGrades(gradesMap);
-      setClosedSessionsCount(closures?.length || 0);
-      setClosedDates(new Set((closures || []).map(c => c.start_date)));
-    } catch (error) {
-      console.error('Error fetching summary:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (activeTab === 'summary' && selectedClass) {
-      fetchAbsenceSummary();
-    }
-  }, [activeTab, selectedClass]);
+  }, [selectedClass]);
 
   const fetchStudentsAndAttendance = React.useCallback(async () => {
     if (!selectedClass) {
@@ -387,29 +340,54 @@ export function Attendance() {
   }, [selectedDate, classEvents, selectedClass]);
   
   const monthlyClassDays = React.useMemo(() => {
-    if (!selectedClass || classEvents.length === 0) return [];
+    if (!selectedClass) return [];
+    
+    // Get class target weekdays
+    const classInfo = classes.find(c => c.id === selectedClass);
+    const dayMap: Record<string, number> = {
+      'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6,
+      'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6,
+      'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3, 'Quinta-feira': 4, 'Sexta-feira': 5,
+    };
+
+    let targetDayIndices: number[] = [];
+    if (Array.isArray(classInfo?.days_of_week)) {
+      targetDayIndices = classInfo!.days_of_week.map(d => dayMap[d]).filter(d => d !== undefined);
+    }
     
     // Sort all class events chronologically
     const allDays = [...classEvents]
       .filter(e => {
         const date = new Date(e.start_date + 'T12:00:00');
-        return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+        const isCorrectMonth = date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+        
+        // Filter by subject if specified on the event
+        const isCorrectSubject = !selectedSubject || e.subject_id === selectedSubject;
+        
+        // Strictly follow class schedule if indices exist
+        const isScheduledWeekday = targetDayIndices.length === 0 || targetDayIndices.includes(date.getDay());
+        
+        return isCorrectMonth && isCorrectSubject && isScheduledWeekday;
       })
       .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
-    // Deduplicate dates
-    const uniqueDates = new Map();
-    allDays.forEach(day => uniqueDates.set(day.start_date, day));
+    // Otherwise, generate ALL scheduled weekdays for that month
+    const days: any[] = [];
+    const date = new Date(selectedYear, selectedMonth, 1);
+    while (date.getMonth() === selectedMonth) {
+      if (targetDayIndices.length === 0 || targetDayIndices.includes(date.getDay())) {
+        const dbValue = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        days.push({
+          dbValue,
+          dayNumber: date.getDate(),
+          weekday: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase()
+        });
+      }
+      date.setDate(date.getDate() + 1);
+    }
     
-    return Array.from(uniqueDates.values()).map(event => {
-      const date = new Date(event.start_date + 'T12:00:00');
-      return {
-        dbValue: event.start_date,
-        dayNumber: date.getDate(),
-        weekday: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
-      };
-    });
-  }, [selectedClass, classEvents, selectedMonth, selectedYear]);
+    return days;
+  }, [selectedClass, classEvents, selectedMonth, selectedYear, selectedSubject, classes]);
 
   const availableDates = React.useMemo(() => {
     // 1. Get class info
@@ -483,13 +461,17 @@ export function Attendance() {
           const dateObj = new Date(dateKey + 'T12:00:00');
           if (!targetDayIndices.includes(dateObj.getDay())) return;
         }
+
+        // Filter by subject if specified on the event
+        if (selectedSubject && event.subject_id !== selectedSubject) return;
+
         uniqueMap.set(dateKey, event);
       }
     });
 
     return Array.from(uniqueMap.values())
       .sort((a, b) => a.start_date.localeCompare(b.start_date))
-      .map(event => {
+      .map((event: any) => {
         const date = new Date(event.start_date + 'T12:00:00');
         const weekdayName = date.toLocaleDateString('pt-BR', { weekday: 'long' });
         return {
@@ -498,7 +480,7 @@ export function Attendance() {
           label: `${event.start_date.split('-').reverse().join('/')} (${weekdayName.split('-')[0]})`
         };
       });
-  }, [classEvents, selectedClass, classes]);
+  }, [classEvents, selectedClass, classes, selectedSubject]);
 
   // Auto-select logic
   useEffect(() => {
@@ -625,30 +607,51 @@ export function Attendance() {
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page { 
-            size: ${activeTab === 'monthly' ? 'landscape' : 'portrait'}; 
-            margin: 5mm; 
+            size: A4 landscape;
+            margin: 0;
+          }
+          html, body {
+            width: 297mm !important;
+            height: 210mm !important;
+            background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
           }
           body * {
-            visibility: hidden;
-            margin: 0;
-            padding: 0;
+            visibility: hidden !important;
           }
-          #root { display: none !important; }
-          #printable-area, #printable-area * {
-            visibility: visible;
+          #print-root, #printable-area, #printable-area * {
+            visibility: visible !important;
+          }
+          #root {
+            display: none !important;
           }
           #printable-area {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 100% !important;
-            padding: 0 !important;
+            width: 297mm !important;
             margin: 0 !important;
             display: block !important;
             background: white !important;
-            visibility: visible !important;
+            z-index: 99999 !important;
           }
-          .no-print { display: none !important; }
+          .print-page {
+            width: 297mm !important;
+            height: 210mm !important;
+            padding: 15mm !important;
+            overflow: hidden !important;
+            break-after: page !important;
+            background: white !important;
+            position: relative !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          .no-print, [role="dialog"], .backdrop-blur-sm {
+            display: none !important;
+            visibility: hidden !important;
+          }
         }
       `}} />
 
@@ -681,7 +684,6 @@ export function Attendance() {
           <div className="flex bg-slate-100/50 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
             {[
               { id: 'marking', label: 'Chamada', color: 'emerald' },
-              { id: 'summary', label: 'Resumo', color: 'amber' },
               { id: 'monthly', label: 'Mensal', color: 'indigo' }
             ].map((tab) => (
               <button 
@@ -747,10 +749,7 @@ export function Attendance() {
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/30 overflow-hidden text-slate-900">
         {/* Filter Bar */}
         <div className="p-8 border-b border-slate-100 bg-slate-50/30">
-          <div className={cn(
-            "grid grid-cols-1 gap-6",
-            activeTab === 'marking' ? "md:grid-cols-3" : "md:grid-cols-2"
-          )}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Turma</label>
               <div className="relative group">
@@ -1078,135 +1077,6 @@ export function Attendance() {
                       ))}
                     </div>
                   </div>
-                ) : activeTab === 'summary' ? (
-                  <div className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex items-center gap-6 shadow-xl group overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-14 h-14 rounded-2xl bg-slate-800 text-blue-400 flex items-center justify-center shadow-inner relative z-10">
-                          <CalendarIcon size={28} />
-                        </div>
-                        <div className="relative z-10">
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Dias Letivos</p>
-                          <p className="text-3xl font-black text-white tracking-tight mt-1">{String(calendarDays).padStart(2, '0')}</p>
-                        </div>
-                      </div>
-                      <div className="bg-white p-8 rounded-3xl border border-slate-200 flex items-center gap-6 shadow-sm group overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center shadow-sm relative z-10">
-                          <ClipboardCheck size={28} />
-                        </div>
-                        <div className="relative z-10">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sessões Fechadas</p>
-                          <p className="text-3xl font-black text-slate-900 tracking-tight mt-1">{closedSessionsCount}</p>
-                        </div>
-                      </div>
-                      <div className="bg-white p-8 rounded-3xl border border-slate-200 flex items-center gap-6 shadow-sm group overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shadow-sm relative z-10">
-                          <Filter size={28} />
-                        </div>
-                        <div className="relative z-10">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Limite Faltas</p>
-                          <p className="text-3xl font-black text-slate-900 tracking-tight mt-1">{academicParams?.absence_limit_percentage || 25}%</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      {students.map((student, idx) => {
-                        const absences = studentAbsences[student.id] || 0;
-                        const gradeRecord = studentGrades[student.id];
-                        const limit = academicParams?.absence_limit_percentage || 25;
-                        const totalDays = calendarDays || 200;
-                        const percentage = ((absences / totalDays) * 100).toFixed(1);
-                        const isOverLimit = parseFloat(percentage) > limit;
-
-                        return (
-                          <motion.div 
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.02 }}
-                            key={student.id} 
-                            className="group flex flex-col xl:flex-row xl:items-center justify-between p-6 bg-white border border-slate-200 rounded-2xl hover:border-slate-300 transition-all duration-300 relative overflow-hidden"
-                          >
-                            <div className="flex items-center gap-6 mb-6 xl:mb-0 relative z-10">
-                              <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center text-sm font-black group-hover:bg-slate-900 group-hover:text-white transition-all duration-300">
-                                {String(idx + 1).padStart(2, '0')}
-                              </div>
-                              <div>
-                                <p className="text-lg font-black text-slate-800 tracking-tight uppercase leading-none">{student.name}</p>
-                                <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md inline-block">RA: {student.registration_number}</p>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 xl:gap-16 relative z-10 flex-1 ml-0 xl:ml-12">
-                              {/* Attendance Stats */}
-                              <div className="space-y-4">
-                                <div className="flex justify-between items-end px-1">
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ausências / Limite</p>
-                                  <span className={cn(
-                                    "text-xs font-black uppercase tracking-widest",
-                                    isOverLimit ? "text-red-600" : "text-emerald-600"
-                                  )}>
-                                    {absences} / {percentage}%
-                                  </span>
-                                </div>
-                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden p-0.5">
-                                  <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min(parseFloat(percentage), 100)}%` }}
-                                    transition={{ duration: 1.2, ease: "circOut" }}
-                                    className={cn(
-                                      "h-full rounded-full transition-all duration-500",
-                                      isOverLimit ? "bg-red-500" : "bg-emerald-500"
-                                    )}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Grade Stats */}
-                              <div className="flex flex-col justify-center items-center md:items-end">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Média Global</p>
-                                <div className="flex items-center gap-3 mt-2">
-                                  <p className={cn(
-                                    "text-2xl font-black leading-none tracking-tight",
-                                    gradeRecord ? (parseFloat(gradeRecord.value?.toString().replace(',', '.') || '0') >= (academicParams?.approval_grade || 5) ? "text-slate-900" : "text-red-600") : "text-slate-300"
-                                  )}>
-                                    {gradeRecord?.value || '---'}
-                                  </p>
-                                  {gradeRecord && (
-                                    <div className={cn(
-                                      "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
-                                      gradeRecord.status === 'Aprovado' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
-                                    )}>
-                                      {gradeRecord.status}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Performance Badge */}
-                              <div className="flex items-center justify-center md:justify-end">
-                                <div className={cn(
-                                  "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest min-w-[140px] text-center border transition-all",
-                                  isOverLimit || (gradeRecord && gradeRecord.status === 'Reprovado')
-                                    ? "bg-red-600 text-white border-red-500 shadow-lg shadow-red-100" 
-                                    : gradeRecord?.status === 'Aprovado'
-                                      ? "bg-slate-900 text-white border-slate-900 shadow-lg"
-                                      : "bg-slate-50 text-slate-400 border-slate-100"
-                                )}>
-                                  {isOverLimit ? 'Reprovação (Falta)' : 
-                                   (gradeRecord?.status === 'Reprovado' ? 'Reprovação (Nota)' : 
-                                   (gradeRecord?.status === 'Aprovado' ? 'Aprovado' : 'Em Avaliação'))}
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 ) : (
                   <div className="space-y-8">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-200">
@@ -1217,23 +1087,12 @@ export function Attendance() {
                       <div className="flex items-center gap-3">
                         <button 
                           onClick={() => {
-                            setIsManualPrint(true);
                             setShowPrintPreview(true);
                           }}
-                          className="flex items-center gap-3 px-6 py-3 bg-white text-slate-900 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all active:scale-95 shadow-sm"
-                        >
-                          <FileText size={16} />
-                          Folha de Vistos (Manual)
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setIsManualPrint(false);
-                            setShowPrintPreview(true);
-                          }}
-                          className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+                          className="flex items-center gap-3 px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
                         >
                           <Printer size={16} />
-                          Relatório de Lançamentos
+                          Imprimir Lista de Chamada
                         </button>
                       </div>
                     </div>
@@ -1314,504 +1173,163 @@ export function Attendance() {
         </div>
       </div>
     </div>
-
-      {/* Printable Area */}
-      <div id="printable-area" className="hidden print:block text-slate-900 font-sans w-full">
-        {activeTab === 'monthly' ? (
-          /* Landscape Monthly Calling Sheet (Lista de Chamada matching reference image) */
-          <div className="w-full">
-            {/* Header Box (enclosed in border box matching image) */}
-            <div className="border border-slate-900 px-4 py-2 flex items-center justify-between mb-0 w-full">
-              <div className="flex items-center gap-6">
-                {institution?.logo ? (
-                  <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black border border-slate-300">LOGO</div>
-                )}
-                <div className="text-left py-2">
-                  <h1 className="text-[17px] font-black uppercase text-slate-900 leading-tight">
-                    {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - Pe. José Fernando de Brito
-                  </h1>
-                  <p className="text-[10px] font-bold text-slate-700 uppercase mt-0.5">
-                    {institution?.address || 'Av. Venus, 195 - Itapecica - Guarulhos - Cep 07044-170'}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right text-[11px] font-bold text-slate-900 pr-2">
-                <p>{new Date().toLocaleDateString('pt-BR')}</p>
-                <p className="mt-1 flex items-baseline justify-end gap-2 uppercase">Página <span className="text-[13px]">1</span></p>
-              </div>
-            </div>
-
-            {/* Sub-header Title Bar */}
-            <div className="border-x border-b border-slate-900 text-center py-1">
-              <h2 className="text-[13px] font-black tracking-[0.2em] text-slate-900 uppercase">
-                LISTA DE CHAMADA
-              </h2>
-            </div>
-
-            {/* Metadata Info lines (Manual Style) */}
-            <div className="border-x border-b border-slate-900 grid grid-cols-12 gap-y-3 text-[10px] uppercase text-slate-900 px-4 py-4 mb-6 relative">
-              
-              {/* Professor & Date Row */}
-              <div className="col-span-8 flex items-baseline gap-2">
-                <span className="font-bold text-slate-700 min-w-max">Professor</span>
-                <span className="font-black text-slate-900 border-b border-slate-200 flex-1">{userAuth?.displayName || (students.length > 0 ? '---' : 'XXX')}</span>
-              </div>
-              <div className="col-span-4 flex items-baseline justify-end gap-2">
-                <span className="font-black text-[12px] text-slate-900">
-                  {['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'][selectedMonth]} / {selectedYear}
-                </span>
-              </div>
-
-              {/* Turma, Disciplina, Sala Row */}
-              <div className="col-span-5 flex items-baseline gap-2">
-                <span className="font-bold text-slate-700">Turma</span>
-                <span className="font-black text-slate-900">{currentClass?.code || '---'}</span>
-                <span className="font-black text-slate-900 ml-1 truncate">{currentClass?.name || '---'}</span>
-              </div>
-              <div className="col-span-5 flex items-baseline gap-2">
-                <span className="font-bold text-slate-700">Disciplina</span>
-                <span className="font-black text-slate-900">{currentSubject?.id?.slice(0, 3) || '---'}</span>
-                <span className="font-black text-slate-900 ml-1 truncate">{currentSubject?.name || '---'}</span>
-              </div>
-              <div className="col-span-2 flex items-baseline justify-end gap-2">
-                <span className="font-bold text-slate-700">Sala</span>
-                <span className="font-black text-slate-900">{currentClass?.room || '002'}</span>
-              </div>
-
-            </div>
-
-            {/* Custom high-contrast Table for Print matching reference image */}
-            <div className="w-full">
-              <table className="w-full border-collapse table-fixed text-slate-900 border border-slate-900">
-                <colgroup>
-                  <col className="w-[3.2%]" />
-                  <col className="w-[8.5%]" />
-                  <col className="w-[28.3%]" />
-                  <col className="w-[9.2%]" />
-                  <col className="w-[9.2%]" />
-                  <col className="w-[9.2%]" />
-                  <col className="w-[9.2%]" />
-                  <col className="w-[9.2%]" />
-                  <col className="w-[7%]" />
-                  <col className="w-[7%]" />
-                </colgroup>
-                <thead>
-                  <tr className="bg-white text-slate-900 h-11">
-                    <th className="px-1 text-center font-bold text-[9px] border border-slate-900"></th>
-                    <th className="px-3 text-left font-bold text-[9px] border border-slate-900 uppercase">Código</th>
-                    <th className="px-3 text-left font-bold text-[9px] border border-slate-900 uppercase">Nome do Aluno</th>
-                    {/* exactly 5 date signature cells with underlining headers */}
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <th key={i} className="border border-slate-900 h-11 align-middle">
-                        <div className="flex items-center justify-center pt-2">
-                          <span className="text-[10px] font-black tracking-widest leading-none">________/________</span>
-                        </div>
-                      </th>
-                    ))}
-                    <th className="px-1 text-center font-bold text-[9px] uppercase border border-slate-900 leading-tight">Mensalidade</th>
-                    <th className="px-1 text-center font-bold text-[9px] uppercase border border-slate-900 leading-tight">Nota</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {students.map((student, idx) => (
-                    <tr key={student.id} className="h-10">
-                      <td className="px-1 text-center text-[10px] font-medium border border-slate-900">{idx + 1}</td>
-                      <td className="px-3 text-left text-[10px] font-mono font-medium border border-slate-900 text-slate-800">{student.registration_number}</td>
-                      <td className="px-3 text-left text-[11px] font-bold uppercase border border-slate-900 whitespace-nowrap overflow-hidden text-ellipsis">{student.name}</td>
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <td key={i} className="border border-slate-900 relative"></td>
-                      ))}
-                      <td className="border border-slate-900"></td>
-                      <td className="border border-slate-900"></td>
-                    </tr>
-                  ))}
-                  {/* Fill empty rows to make the sheet look complete if there are few students (up to 20 rows total) */}
-                  {students.length < 20 && Array.from({ length: 20 - students.length }).map((_, i) => (
-                    <tr key={`empty-${i}`} className="h-10">
-                      <td className="px-1 text-center text-[10px] font-medium border border-slate-900">{students.length + i + 1}</td>
-                      <td className="border border-slate-900"></td>
-                      <td className="border border-slate-900"></td>
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <td key={j} className="border border-slate-900"></td>
-                      ))}
-                      <td className="border border-slate-900"></td>
-                      <td className="border border-slate-900"></td>
-                    </tr>
-                  ))}
-                </tbody>
-
-              </table>
-            </div>
-          </div>
-        ) : (
-          /* Normal Daily list or Attendance Summary */
-          <div className="w-full">
-            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4 mb-6">
-              <div className="flex items-center gap-4">
-                {institution?.logo && (
-                  <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
-                )}
-                <div>
-                  <h1 className="text-xl font-black uppercase">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Controle de Frequência e Assiduidade</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-black uppercase">{new Date().toLocaleDateString('pt-BR')}</p>
-                <p className="text-[10px] font-bold text-slate-500 uppercase">Página 1 de 1</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-8 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Turma</p>
-                <p className="text-sm font-black uppercase leading-tight">{currentClass?.name || 'N/A'} ({currentClass?.code || 'N/A'})</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
-                <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                  {activeTab === 'marking' ? 'Data da Aula' : 'Encerramento'}
-                </p>
-                <p className="text-sm font-black uppercase leading-tight">
-                  {activeTab === 'marking' ? selectedDate : new Date().toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-            </div>
-
-            {activeTab === 'marking' ? (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-900 text-white">
-                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-32">RA / Código</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
-                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-32">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((student, idx) => {
-                    const record = attendance[student.id];
-                    const status = record?.status;
-                    const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : '---'));
-                    return (
-                      <tr key={student.id}>
-                        <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
-                        <td className="px-4 py-3 text-xs font-bold border border-slate-300 font-mono text-slate-500">{student.registration_number}</td>
-                        <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
-                        <td className="px-4 py-3 text-xs font-black border border-slate-300 text-center uppercase">
-                          {statusLabel}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-
-              </table>
-            ) : (
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-900 text-white">
-                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900 w-12">Nº</th>
-                    <th className="px-4 py-2 text-left text-[10px] font-black uppercase border border-slate-900">Nome do Aluno</th>
-                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-24">Faltas</th>
-                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-32">Assiduidade</th>
-                    <th className="px-4 py-2 text-center text-[10px] font-black uppercase border border-slate-900 w-48">Situação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((student, idx) => {
-                    const absences = studentAbsences[student.id] || 0;
-                    const limit = academicParams?.absence_limit_percentage || 25;
-                    const totalDays = calendarDays || 200;
-                    const percentage = ((absences / totalDays) * 100).toFixed(1);
-                    const isOverLimit = parseFloat(percentage) > limit;
-
-                    return (
-                      <tr key={student.id}>
-                        <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{idx + 1}</td>
-                        <td className="px-4 py-3 text-sm font-black uppercase border border-slate-300">{student.name}</td>
-                        <td className="px-4 py-3 text-sm font-bold border border-slate-300 text-center">{absences}</td>
-                        <td className="px-4 py-3 text-sm font-black border border-slate-300 text-center">{percentage}%</td>
-                        <td className={cn(
-                          "px-4 py-3 text-[10px] font-black uppercase border border-slate-300 text-center",
-                          isOverLimit ? "text-red-600 bg-red-50" : "text-emerald-600 bg-emerald-50"
-                        )}>
-                          {isOverLimit ? 'Reprovado por Faltas' : 'Regular / Aprovado'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
-        <div className="mt-12 grid grid-cols-2 gap-12 pt-8">
-          <div className="text-center">
-            <div className="border-t-2 border-slate-900 w-full mb-2"></div>
-            <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Coordenador</p>
-          </div>
-          <div className="text-center">
-            <div className="border-t-2 border-slate-900 w-full mb-2"></div>
-            <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Secretário</p>
-          </div>
-        </div>
-      </div>
       {/* Print Preview Modal */}
           {showPrintPreview && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[500] flex items-center justify-center p-4 no-print">
-          <div className="bg-white w-full max-w-5xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4 no-print">
+          <div className="bg-white w-full max-w-[1200px] h-[95vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
             {/* Modal Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md">
-                  <Printer size={20} />
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10">
+              <div className="flex items-center gap-5">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
+                  <Printer size={24} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800 tracking-tight">Visualização de Impressão</h3>
-                  <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Confira os dados antes de enviar para a impressora</p>
+                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Visualização de Impressão</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Padrão A4 Paisagem (Landscape)</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setShowPrintPreview(false)}
-                  className="px-5 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95"
+                  className="px-6 py-2.5 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95"
                 >
-                  Cancelar
+                  Fechar
                 </button>
                 <button 
                   onClick={confirmPrint}
-                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md active:scale-95 flex items-center gap-2"
+                  className="px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 active:scale-95 flex items-center gap-2"
                 >
-                  <Printer size={16} />
-                  Imprimir
+                  <Printer size={18} />
+                  Confirmar Impressão
                 </button>
               </div>
             </div>
 
             {/* Preview Content */}
-            <div className="flex-1 overflow-auto bg-slate-100 p-8 flex justify-center">
-              <div className={cn(
-                "bg-white shadow-2xl origin-top rounded-sm transform transition-transform",
-                activeTab === 'monthly' ? "w-[297mm] min-h-[210mm] p-[10mm]" : "w-[210mm] min-h-[297mm] p-[20mm]"
-              )}>
-                 <div className="space-y-8 font-sans text-slate-900 pointer-events-none select-none">
-                    <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6">
-                      <div className="flex items-center gap-4">
-                        {institution?.logo && <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />}
-                        <div>
-                          <h1 className="text-xl font-black uppercase tracking-tight">{institution?.name || 'Gestão Escolar'}</h1>
-                          <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{institution?.city_uf}</p>
-                          <p className="text-[10px] font-medium text-slate-400 mt-1">{institution?.address}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="bg-slate-900 text-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] inline-block">
-                          {activeTab === 'marking' ? 'Diário de Classe' : activeTab === 'summary' ? 'Resumo de Faltas' : 'Lista Mensal'}
-                        </div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Emissão: {new Date().toLocaleDateString()}</p>
-                      </div>
-                    </div>
+            <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300">
+              <div 
+                id="printable-area"
+                className="shrink-0 scale-[0.85] xl:scale-90 2xl:scale-100 origin-top transform"
+              >
+                {(() => {
+                  const itemsPerPage = 25;
+                  const totalStudents = students.length;
+                  const studentChunks = [];
+                  for (let i = 0; i < Math.max(totalStudents, 1); i += itemsPerPage) {
+                    studentChunks.push(students.slice(i, i + itemsPerPage));
+                  }
+                  const totalPages = studentChunks.length;
 
-                    <div className="grid grid-cols-3 gap-8 text-[11px] bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Turma</p>
-                        <p className="text-sm font-black uppercase leading-tight">{currentClass?.name || '---'} ({currentClass?.code})</p>
+                  return studentChunks.map((chunk, pageIdx) => (
+                    <div 
+                      key={pageIdx}
+                      className="print-page bg-white shadow-[0_20px_50px_rgba(0,0,0,0.1)] mb-10 last:mb-0 space-y-8 font-sans text-slate-900 pointer-events-none select-none"
+                    >
+                      {/* Updated Header - Matching "Extrato" style */}
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-2">
+                          <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                            Lista de Presença Mensal
+                          </h1>
+                          <div className="text-[11px] font-bold text-slate-500 uppercase leading-relaxed tracking-wide">
+                            <p>Instituição: <span className="text-slate-700">{institution?.name || 'Escola Diocesana de Ministérios'}</span></p>
+                            <p>Endereço: <span className="text-slate-700">{institution?.address || 'Av. Venus, 195 - Itapecica - Guarulhos'}</span></p>
+                            <p>
+                              Mês Referência: <span className="text-slate-900 font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span>
+                              <span className="mx-3 opacity-50">|</span> 
+                              Emissão: <span className="text-slate-700">{new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </p>
+                          </div>
+                        </div>
+                        {institution?.logo ? (
+                          <div className="w-24 h-24 bg-white p-2 border border-slate-100 rounded-3xl flex items-center justify-center shadow-sm">
+                            <img src={institution.logo} alt="Logo" className="w-full h-full object-contain" />
+                          </div>
+                        ) : (
+                          <div className="w-20 h-20 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-300 uppercase">Logo</div>
+                        )}
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Disciplina</p>
-                        <p className="text-sm font-black uppercase leading-tight">{currentSubject?.name || '---'}</p>
-                      </div>
-                      <div className="space-y-1 text-right">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                           {activeTab === 'marking' ? 'Data da Aula' : activeTab === 'monthly' ? 'Mês Referência' : 'Data Emissão'}
-                        </p>
-                        <p className="text-sm font-black uppercase leading-tight">
-                           {activeTab === 'marking' ? selectedDate : 
-                            activeTab === 'monthly' ? `${['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'][selectedMonth]}/${selectedYear}` : 
-                            new Date().toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                    </div>
 
-                    {activeTab === 'marking' ? (
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-900 text-white">
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-12">Nº</th>
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-32">RA / Código</th>
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest">Nome do Aluno</th>
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-32 text-center">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {students.map((student, i) => {
-                            const record = attendance[student.id];
-                            const status = record?.status;
-                            const statusLabel = status === 'P' ? 'PRESENTE' : (status === 'F' ? 'FALTOU' : (status === 'J' ? 'JUSTIFIC.' : '---'));
-                            return (
-                              <tr key={student.id}>
-                                <td className="px-4 py-2 border border-slate-200 text-[9px] font-bold text-center">{i + 1}</td>
-                                <td className="px-4 py-2 border border-slate-200 text-[9px] font-mono text-slate-500 font-bold">{student.registration_number}</td>
-                                <td className="px-4 py-2 border border-slate-200 text-[10px] font-bold uppercase truncate max-w-[250px]">{student.name}</td>
-                                <td className="px-4 py-2 border border-slate-200 text-center font-black text-[9px]">{statusLabel}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    ) : activeTab === 'summary' ? (
-                       <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-slate-900 text-white">
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest w-12">Nº</th>
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest">Nome do Aluno</th>
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest text-center">Faltas</th>
-                            <th className="px-4 py-2 border border-slate-900 text-[10px] font-black uppercase tracking-widest text-center">Assiduidade</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {students.map((student, i) => {
-                             const absences = studentAbsences[student.id] || 0;
-                             const totalDays = calendarDays || 200;
-                             const percentage = ((absences / totalDays) * 100).toFixed(1);
-                             return (
-                              <tr key={student.id}>
-                                <td className="px-4 py-2.5 border border-slate-200 text-[10px] font-bold text-center">{i + 1}</td>
-                                <td className="px-4 py-2.5 border border-slate-200 text-[11px] font-bold uppercase">{student.name}</td>
-                                <td className="px-4 py-2.5 border border-slate-200 text-center font-black">{absences}</td>
-                                <td className="px-4 py-2.5 border border-slate-200 text-center font-black">{percentage}%</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    ) : (
-                      /* Minimal Monthly Preview matching Reference Image */
-                      <div className="space-y-0">
-                        {/* Header Box (enclosed in border box matching image) */}
-                        <div className="border border-slate-900 px-4 py-2 flex items-center justify-between mb-0 w-full">
-                          <div className="flex items-center gap-6">
-                            {institution?.logo ? (
-                              <img src={institution.logo} alt="Logo" className="w-16 h-16 object-contain" />
-                            ) : (
-                              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black border border-slate-300">LOGO</div>
-                            )}
-                            <div className="text-left py-2">
-                              <h1 className="text-[17px] font-black uppercase text-slate-900 leading-tight">
-                                {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'} - Pe. José Fernando de Brito
-                              </h1>
-                              <p className="text-[10px] font-bold text-slate-700 uppercase mt-0.5">
-                                {institution?.address || 'Av. Venus, 195 - Itapecica - Guarulhos - Cep 07044-170'}
-                              </p>
+                      {/* Summary Info Box - Matching "Resumo do Extrato" layout */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex items-center justify-between">
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resumo da Turma</p>
+                          <div className="flex items-center gap-12">
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">Turma</p>
+                              <p className="text-[13px] font-black text-slate-900 uppercase">{currentClass?.name || 'N/A'} <span className="text-slate-400 ml-1 font-bold">({currentClass?.code || '---'})</span></p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">Disciplina</p>
+                              <p className="text-[13px] font-black text-slate-900 uppercase">{currentSubject?.name || 'TODAS'}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">Sala</p>
+                              <p className="text-[13px] font-black text-slate-900 uppercase">{currentClass?.room || '002'}</p>
                             </div>
                           </div>
-                          <div className="text-right text-[11px] font-bold text-slate-900 pr-2">
-                            <p>{new Date().toLocaleDateString('pt-BR')}</p>
-                            <p className="mt-1 flex items-baseline justify-end gap-2 uppercase">Página <span className="text-[13px]">1</span></p>
-                          </div>
                         </div>
-
-                        {/* Sub-header Title Bar */}
-                        <div className="border-x border-b border-slate-900 text-center py-1">
-                          <h2 className="text-[13px] font-black tracking-[0.2em] text-slate-900 uppercase">
-                            LISTA DE CHAMADA
-                          </h2>
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Alunos</p>
+                          <p className="text-3xl font-black text-slate-900">{students.length}</p>
                         </div>
+                      </div>
 
-                        {/* Metadata Info lines (Manual Style) */}
-                        <div className="border-x border-b border-slate-900 grid grid-cols-12 gap-y-3 text-[10px] uppercase text-slate-900 px-4 py-3 mb-6 relative">
-                          {/* Professor & Date Row */}
-                          <div className="col-span-8 flex items-baseline gap-2">
-                            <span className="font-bold text-slate-700 min-w-max">Professor</span>
-                            <span className="font-black text-slate-900 border-b border-slate-200 flex-1">{userAuth?.displayName || (students.length > 0 ? '---' : 'XXX')}</span>
-                          </div>
-                          <div className="col-span-4 flex items-baseline justify-end gap-2">
-                            <span className="font-black text-[12px] text-slate-900 uppercase">
-                              {['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'][selectedMonth]} / {selectedYear}
-                            </span>
-                          </div>
-
-                          {/* Turma, Disciplina, Sala Row */}
-                          <div className="col-span-5 flex items-baseline gap-2">
-                            <span className="font-bold text-slate-700">Turma</span>
-                            <span className="font-black text-slate-900">{currentClass?.code || '---'}</span>
-                            <span className="font-black text-slate-900 ml-1 truncate">{currentClass?.name || '---'}</span>
-                          </div>
-                          <div className="col-span-5 flex items-baseline gap-2">
-                            <span className="font-bold text-slate-700">Disciplina</span>
-                            <span className="font-black text-slate-900">{currentSubject?.id?.slice(0, 3) || '---'}</span>
-                            <span className="font-black text-slate-900 ml-1 truncate">{currentSubject?.name || '---'}</span>
-                          </div>
-                          <div className="col-span-2 flex items-baseline justify-end gap-2">
-                            <span className="font-bold text-slate-700">Sala</span>
-                            <span className="font-black text-slate-900">{currentClass?.room || '002'}</span>
-                          </div>
-                        </div>
-
-                        <table className="w-full text-left border-collapse border border-slate-900 table-fixed">
-                           <colgroup>
-                              <col className="w-[3.5%]" />
-                              <col className="w-[8.5%]" />
-                              <col className="w-[28.5%]" />
-                              <col className="w-[9%]" />
-                              <col className="w-[9%]" />
-                              <col className="w-[9%]" />
-                              <col className="w-[9%]" />
-                              <col className="w-[9%]" />
-                              <col className="w-[7%]" />
-                              <col className="w-[7%]" />
-                           </colgroup>
-                           <thead className="bg-white">
-                             <tr className="h-10">
-                               <th className="border border-slate-900 text-[8px] font-black uppercase text-center"></th>
-                               <th className="px-2 border border-slate-900 text-[8px] font-black uppercase">Código</th>
-                               <th className="px-2 border border-slate-900 text-[8px] font-black uppercase">Nome do Aluno</th>
-                               {Array.from({ length: 5 }).map((_, i) => (
-                                 <th key={i} className="border border-slate-900 align-middle text-center p-0">
-                                    <div className="text-[10px] scale-[0.6] opacity-30 mt-2">________/________</div>
-                                 </th>
-                               ))}
-                               <th className="px-1 border border-slate-900 text-[8px] font-black uppercase text-center leading-tight">Mensalidade</th>
-                               <th className="px-1 border border-slate-900 text-[8px] font-black uppercase text-center leading-tight">Nota</th>
-                             </tr>
-                           </thead>
-                           <tbody>
-                             {students.slice(0, 15).map((student, i) => (
-                               <tr key={student.id} className="h-8">
-                                  <td className="border border-slate-900 text-[8px] text-center font-bold px-1">{i + 1}</td>
-                                  <td className="px-2 border border-slate-900 text-[8px] font-mono text-slate-500 font-bold">{student.registration_number}</td>
-                                  <td className="px-2 border border-slate-900 text-[8px] font-bold uppercase truncate">{student.name}</td>
-                                  {Array.from({ length: 5 }).map((_, j) => (
-                                    <td key={j} className="border border-slate-900"></td>
+                      {/* Main Attendance Table - Matching dark header table */}
+                      <div className="w-full flex-1">
+                        <table className="w-full border-collapse table-fixed text-slate-900">
+                          <colgroup>
+                            <col className="w-[4%]" />
+                            <col className="w-[9%]" />
+                            <col className="w-[32%]" />
+                            {monthlyClassDays.map((_, i) => (
+                              <col key={i} />
+                            ))}
+                          </colgroup>
+                          <thead>
+                            <tr className="bg-slate-900 text-white h-12">
+                              <th className="px-1 text-center font-bold text-[10px] uppercase border border-slate-800">Nº</th>
+                              <th className="px-3 text-left font-bold text-[10px] uppercase border border-slate-800">Código</th>
+                              <th className="px-4 text-left font-bold text-[11px] uppercase border border-slate-800">Nome do Aluno</th>
+                              {monthlyClassDays.map((day, i) => (
+                                <th key={i} className="border border-slate-800 text-center p-0 align-middle">
+                                  <div className="flex flex-col items-center justify-center leading-none">
+                                    <span className="text-[10px] font-black mb-1">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
+                                    <span className="text-[6px] font-bold uppercase opacity-60">{day ? day.weekday : '--'}</span>
+                                  </div>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {chunk.map((student, idx) => {
+                              const overallIndex = pageIdx * itemsPerPage + idx;
+                              return (
+                                <tr key={student.id} className={cn("h-10 border-b border-slate-100", idx % 2 === 0 ? "bg-white" : "bg-slate-50/40")}>
+                                  <td className="px-1 text-center text-[11px] font-bold border-x border-slate-100 text-slate-400">{overallIndex + 1}</td>
+                                  <td className="px-3 text-left text-[10px] font-mono font-bold border-x border-slate-100 text-slate-500">{student.registration_number}</td>
+                                  <td className="px-4 text-left text-[12px] font-black uppercase border-x border-slate-100 truncate text-slate-800">{student.name}</td>
+                                  {monthlyClassDays.map((day, i) => (
+                                    <td key={i} className="border-x border-slate-100 p-0 text-center text-[14px] font-black">
+                                      {(() => {
+                                        const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
+                                        return status === 'P' ? '●' : status === 'F' ? 'F' : status === 'J' ? 'J' : '';
+                                      })()}
+                                    </td>
                                   ))}
-                                  <td className="border border-slate-900"></td>
-                                  <td className="border border-slate-900"></td>
-                               </tr>
-                             ))}
-                           </tbody>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
                         </table>
                       </div>
-                    )}
 
-                    {activeTab !== 'monthly' && (
-                      <div className="mt-20 pt-10 grid grid-cols-2 gap-20">
-                         <div className="border-t border-slate-400 text-center pt-2">
-                           <p className="text-[10px] font-black uppercase tracking-widest">Assinatura do Coordenador</p>
-                         </div>
-                         <div className="border-t border-slate-400 text-center pt-2">
-                           <p className="text-[10px] font-black uppercase tracking-widest">Assinatura da Secretaria</p>
-                         </div>
+                      <div className="flex justify-end items-center text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-4">
+                        <p>Página {pageIdx + 1} de {totalPages}</p>
                       </div>
-                    )}
-                 </div>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
 
