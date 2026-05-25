@@ -169,14 +169,12 @@ export function Attendance() {
       return;
     }
     try {
-      // Fetch both global class days and class-specific class days
+      // Fetch ALL related events (holidays, class days, cancelled, etc.)
       const [globalEvents, classSpecificEvents] = await Promise.all([
         fetchQuery('calendar_events', [
-          { field: 'type', operator: '==', value: 'class_day' },
           { field: 'class_id', operator: 'is', value: null }
         ]),
         fetchQuery('calendar_events', [
-          { field: 'type', operator: '==', value: 'class_day' },
           { field: 'class_id', operator: '==', value: selectedClass }
         ])
       ]);
@@ -269,7 +267,8 @@ export function Attendance() {
     try {
       const monthStr = String(selectedMonth + 1).padStart(2, '0');
       const start = `${selectedYear}-${monthStr}-01`;
-      const end = `${selectedYear}-${monthStr}-31`;
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const end = `${selectedYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
 
       const allRecords = await fetchQuery('attendances', [
         { field: 'class_id', operator: '==', value: selectedClass },
@@ -342,56 +341,65 @@ export function Attendance() {
   const monthlyClassDays = React.useMemo(() => {
     if (!selectedClass) return [];
     
-    // Get class target weekdays
-    const classInfo = classes.find(c => c.id === selectedClass);
-    const dayMap: Record<string, number> = {
-      'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6,
-      'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6,
-      'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3, 'Quinta-feira': 4, 'Sexta-feira': 5,
-    };
+    // 1. Get all academic events for this class in the current year
+    const academicEvents = classEvents.filter(e => 
+      e.start_date.startsWith(selectedYear.toString()) &&
+      (e.class_id === selectedClass || (!e.class_id && e.type?.includes('holiday')))
+    );
 
-    let targetDayIndices: number[] = [];
-    if (Array.isArray(classInfo?.days_of_week)) {
-      targetDayIndices = classInfo!.days_of_week.map(d => dayMap[d]).filter(d => d !== undefined);
-    }
-    
-    const days: any[] = [];
-    
-    // Determine start point for the annual sequence
-    // Use class start_date if available and in the current year, otherwise start of year
-    let sequenceStart = new Date(selectedYear, 0, 1);
-    if (classInfo?.start_date) {
-      const cStart = new Date(classInfo.start_date + 'T12:00:00');
-      if (cStart.getFullYear() === selectedYear) {
-        sequenceStart = cStart;
-      }
-    }
+    // 2. Identify holidays/cancellations that should BLOCK counting
+    const blockedDates = new Set(
+      academicEvents
+        .filter(e => e.type?.includes('holiday') || e.type === 'cancelled_class')
+        .map(e => e.start_date)
+    );
 
-    const iterDate = new Date(sequenceStart);
-    const endOfTargetMonth = new Date(selectedYear, selectedMonth + 1, 0);
-    let lessonCounter = 1;
-
-    while (iterDate <= endOfTargetMonth) {
-      const isTargetWeekday = targetDayIndices.length === 0 || targetDayIndices.includes(iterDate.getDay());
-      
-      if (isTargetWeekday) {
-        // If it's in the selected month, add it to our list
-        if (iterDate.getMonth() === selectedMonth && iterDate.getFullYear() === selectedYear) {
-          const dbValue = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(iterDate.getDate()).padStart(2, '0')}`;
-          days.push({
-            dbValue,
-            dayNumber: iterDate.getDate(),
-            weekday: iterDate.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase(),
-            lessonNumber: lessonCounter
-          });
+    // 3. Extract and sort ALL valid lesson events (including those from other months for numbering)
+    // We count: class_day, exam, excused_class
+    // DEDUPLICATE BY DATE: Only one lesson per day
+    const uniqueDayLessons = new Map();
+    academicEvents
+      .filter(e => 
+        ['class_day', 'exam', 'excused_class'].includes(e.type) &&
+        !blockedDates.has(e.start_date)
+      )
+      .forEach(e => {
+        // Prioritize: exam > class_day > excused_class
+        const existing = uniqueDayLessons.get(e.start_date);
+        if (!existing) {
+          uniqueDayLessons.set(e.start_date, e);
+        } else {
+          const typePriority = { 'exam': 3, 'class_day': 2, 'excused_class': 1 };
+          if ((typePriority[e.type as keyof typeof typePriority] || 0) > (typePriority[existing.type as keyof typeof typePriority] || 0)) {
+            uniqueDayLessons.set(e.start_date, e);
+          }
         }
-        lessonCounter++;
-      }
-      iterDate.setDate(iterDate.getDate() + 1);
-    }
+      });
+
+    const allLessons = Array.from(uniqueDayLessons.values())
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+    // 4. Extract only those belonging to the selected month and assign their global lesson number
+    const monthStr = String(selectedMonth + 1).padStart(2, '0');
+    const prefix = `${selectedYear}-${monthStr}-`;
     
-    return days;
-  }, [selectedClass, selectedMonth, selectedYear, classes]);
+    return allLessons
+      .filter(e => e.start_date.startsWith(prefix))
+      .map(e => {
+        const date = new Date(e.start_date + 'T12:00:00');
+        // Find index in the global list for the year
+        const lessonIndex = allLessons.findIndex(l => l.id === e.id);
+        
+        return {
+          dbValue: e.start_date,
+          dayNumber: date.getDate(),
+          weekday: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase(),
+          lessonNumber: lessonIndex + 1,
+          isExcused: e.type === 'excused_class'
+        };
+      })
+      .sort((a, b) => a.dbValue.localeCompare(b.dbValue));
+  }, [selectedClass, selectedMonth, selectedYear, classEvents]);
 
   const availableDates = React.useMemo(() => {
     // 1. Get class info
@@ -468,6 +476,9 @@ export function Attendance() {
 
         // Filter by subject if specified on the event
         if (selectedSubject && event.subject_id !== selectedSubject) return;
+
+        // Skip cancelled classes or holidays for markings
+        if (event.type === 'cancelled_class' || event.type?.includes('holiday')) return;
 
         uniqueMap.set(dateKey, event);
       }
@@ -1140,8 +1151,11 @@ export function Attendance() {
                                     {String(day.dayNumber).padStart(2, '0')}
                                     <span className="text-[10px] text-slate-400 ml-0.5">/{new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
                                   </p>
-                                  <div className="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-500 uppercase tracking-tighter">
-                                    Aula {day.lessonNumber}
+                                  <div className={cn(
+                                    "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter",
+                                    day.isExcused ? "bg-slate-500 text-white" : "bg-slate-100 text-slate-500"
+                                  )}>
+                                    {day.isExcused ? 'Abonada' : `Aula ${day.lessonNumber}`}
                                   </div>
                                 </div>
                               </th>
@@ -1359,8 +1373,11 @@ export function Attendance() {
                                          /{day ? new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase() : '--'}
                                        </span>
                                      </div>
-                                     <span className="text-[5.5pt] font-bold uppercase text-slate-500 mt-1">
-                                       Aula {day?.lessonNumber ? `Nº ${day.lessonNumber}` : '--'}
+                                     <span className={cn(
+                                       "text-[5.5pt] font-bold uppercase mt-1",
+                                       day?.isExcused ? "text-slate-400" : "text-slate-500"
+                                     )}>
+                                       {day?.isExcused ? 'Abonada' : `Aula ${day?.lessonNumber ? `Nº ${day.lessonNumber}` : '--'}`}
                                      </span>
                                    </div>
                                  </th>

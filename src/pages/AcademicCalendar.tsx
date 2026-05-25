@@ -39,7 +39,8 @@ import {
   Printer,
   FileDown,
   LayoutGrid,
-  Divide
+  Divide,
+  Ban
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
@@ -959,7 +960,7 @@ export function AcademicCalendar() {
     const classIds = new Set<string>();
     printEvents.forEach(e => {
       const matchesWeekday = printFilters.weekday === 'all' || new Date(e.start_date + 'T00:00:00').getDay() === printFilters.weekday;
-      const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'event'].includes(e.type);
+      const isAcademic = ['class_day', 'start_term', 'end_term', 'exam'].includes(e.type);
       if (matchesWeekday && isAcademic && e.class_id) {
         classIds.add(e.class_id);
       }
@@ -1409,7 +1410,7 @@ export function AcademicCalendar() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {events
-                            .filter(e => String(e.class_id) === String(inspectingClassId) && (e.type === 'class_day' || e.type === 'excused_class'))
+                            .filter(e => String(e.class_id) === String(inspectingClassId) && (e.type === 'class_day' || e.type === 'excused_class' || e.type === 'cancelled_class'))
                             .sort((a, b) => a.start_date.localeCompare(b.start_date))
                             .map((ev, idx) => {
                               const date = new Date(ev.start_date + 'T00:00:00');
@@ -1440,25 +1441,38 @@ export function AcademicCalendar() {
                                   <td className="px-8 py-4">
                                     <span className={cn(
                                       "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
-                                      ev.type === 'class_day' ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-slate-100 text-slate-500 border-slate-200"
+                                      ev.type === 'class_day' ? "bg-blue-50 text-blue-700 border-blue-100" : 
+                                      ev.type === 'cancelled_class' ? "bg-rose-50 text-rose-700 border-rose-100" :
+                                      "bg-slate-100 text-slate-500 border-slate-200"
                                     )}>
-                                      {ev.type === 'class_day' ? 'Letivo' : 'Abonado'}
+                                      {ev.type === 'class_day' ? 'Letivo' : ev.type === 'cancelled_class' ? 'Cancelado' : 'Abonado'}
                                     </span>
                                   </td>
                                   <td className="px-8 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button 
                                         onClick={async () => {
-                                          const nextType = ev.type === 'class_day' ? 'excused_class' : 'class_day';
-                                          const nextTitle = ev.type === 'class_day' ? 'Aula Abonada' : 'Dia de Aula';
+                                          let nextType: CalendarEvent['type'] = 'class_day';
+                                          let nextTitle = 'Dia de Aula';
+                                          
+                                          if (ev.type === 'class_day') {
+                                            nextType = 'excused_class';
+                                            nextTitle = 'Aula Abonada';
+                                          } else if (ev.type === 'excused_class') {
+                                            nextType = 'cancelled_class';
+                                            nextTitle = 'Aula Cancelada';
+                                          }
+
                                           await saveData('calendar_events', ev.id, { ...ev, type: nextType, title: nextTitle });
                                           fetchData();
                                         }}
                                         className={cn(
                                           "p-2 rounded-lg transition-all",
-                                          ev.type === 'class_day' ? "bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white"
+                                          ev.type === 'class_day' ? "bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white" : 
+                                          ev.type === 'cancelled_class' ? "bg-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
+                                          "bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white"
                                         )}
-                                        title={ev.type === 'class_day' ? 'Abonar Aula' : 'Retornar para Letivo'}
+                                        title={ev.type === 'class_day' ? 'Abonar Aula' : ev.type === 'excused_class' ? 'Cancelar Aula' : 'Retornar para Letivo'}
                                       >
                                         <CheckCircle2 size={16} />
                                       </button>
@@ -1770,8 +1784,10 @@ export function AcademicCalendar() {
                         </div>
 
                         {/* Resumo de Eventos */}
-                        <div className="flex flex-col gap-1.5 mt-1 overflow-y-auto custom-scrollbar flex-1 pb-1">
-                          {dayEvents.map(event => (
+                        <div className="flex flex-col gap-1 mt-1 overflow-y-auto custom-scrollbar flex-1 pb-1">
+                          {dayEvents
+                            .filter(e => e.type !== 'event')
+                            .map(event => (
                             <div 
                               key={event.id}
                               onClick={(e) => {
@@ -1779,22 +1795,27 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                                 className={cn(
-                                  "px-2 py-1 rounded-md text-[9px] font-bold whitespace-normal break-words leading-snug cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
+                                  "px-1.5 py-0.5 rounded-md text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
                                   getTypeStyle(event.type, event.start_date, event.title)
                                 )}
-                              title={event.title.replace(/^Dia de Aula - /, '')}
+                              title={event.title}
                             >
-                              {event.type === 'excused_class' ? (
+                              {event.type === 'excused_class' || event.type === 'cancelled_class' ? (
                                 <div className="flex flex-col py-0.5">
-                                  <span className="line-through text-slate-400">
-                                    {(event._count && event._count > 1) ? `DIA DE AULA (${event._count} turmas)` : 'DIA DE AULA'}
+                                  <span className={cn(
+                                    "line-through block",
+                                    event.type === 'excused_class' ? "text-slate-400" : "text-rose-400"
+                                  )}>
+                                    {(event._count && event._count > 1) ? `${event.title} (${event._count} turmas)` : event.title}
                                   </span>
-                                  <span className="text-[6.5px] font-black opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block">
-                                    {event.title === 'Aula Abonada' ? 'JUSTIFICADO' : event.title?.toUpperCase()}
+                                  <span className="text-[6px] font-black opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
+                                    {event.type === 'excused_class' ? 'ABONADA' : 'CANCELADA'}
                                   </span>
                                 </div>
                               ) : (
-                                event.title.replace(/^Dia de Aula - /, '').toUpperCase()
+                                <span className="block">
+                                  {event.title.toUpperCase()}
+                                </span>
                               )}
                             </div>
                           ))}
@@ -1816,11 +1837,11 @@ export function AcademicCalendar() {
                 <div className="flex flex-wrap gap-4 pt-6 mt-6 border-t border-slate-50">
                   {[
                     { type: 'holiday_nac', label: 'Feriado Nacional', color: 'bg-red-600' },
-                    { type: 'holiday_est', label: 'Feriado Estadual', color: 'bg-indigo-600' },
                     { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-600' },
                     { type: 'class_day', label: 'Dia de Aula', color: 'bg-blue-600' },
                     { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
                     { type: 'excused_class', label: 'Aula Abonada', color: 'bg-slate-400' },
+                    { type: 'cancelled_class', label: 'Aula Cancelada', color: 'bg-rose-500' },
                     { type: 'start_term', label: 'Início', color: 'bg-blue-600' },
                     { type: 'end_term', label: 'Final', color: 'bg-slate-800' },
                   ].map(item => (
@@ -1947,13 +1968,14 @@ export function AcademicCalendar() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-6 pt-8 mt-12 border-t border-slate-100">
+                <div className="flex flex-wrap gap-6 pt-5 mt-8 border-t border-slate-100">
                   {[
                     { type: 'holiday_nac', label: 'Feriado Nacional', color: 'bg-red-500' },
-                    { type: 'holiday_est', label: 'Feriados Geral', color: 'bg-slate-500' },
                     { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-500' },
                     { type: 'class_day', label: 'Dia de Aula', color: 'bg-blue-600' },
                     { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
+                    { type: 'excused_class', label: 'Aula Abonada', color: 'bg-slate-400' },
+                    { type: 'cancelled_class', label: 'Aula Cancelada', color: 'bg-rose-500' },
                   ].map(item => (
                     <div key={item.type} className="flex items-center gap-2">
                       <div className={cn("w-2 h-2 rounded-full", item.color)} />
@@ -2035,7 +2057,7 @@ export function AcademicCalendar() {
                   </div>
                   
                   {(Object.entries(groupedEvents) as [string, CalendarEvent[]][]).map(([month, monthEvents]) => {
-                    const manualEvents = monthEvents.filter(e => e.type !== 'class_day' && !e.description?.includes('Cronograma automático'));
+                    const manualEvents = monthEvents.filter(e => e.type !== 'class_day' && e.type !== 'event' && !e.description?.includes('Cronograma automático'));
                     if (manualEvents.length === 0) return null;
 
                     return (
@@ -2071,7 +2093,7 @@ export function AcademicCalendar() {
                                   <div className="flex items-center gap-3">
                                     <span className={cn(
                                       "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border shrink-0",
-                                      getTypeStyle(event.type, event.description)
+                                      getTypeStyle(event.type, event.start_date, event.title)
                                     )}>
                                       {getTypeText(event.type, event.description)}
                                     </span>
@@ -2221,90 +2243,94 @@ export function AcademicCalendar() {
 
       <AnimatePresence>
         {isEditing && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-2">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white max-w-lg w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
+              className="bg-white max-w-lg w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-200 max-h-[96vh] flex flex-col"
             >
-              <div className="px-8 py-8 border-b border-slate-100 relative">
+              <div className="px-6 py-5 border-b border-slate-100 relative shrink-0">
                 <button 
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="absolute top-6 right-6 p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+                  className="absolute top-5 right-6 p-1.5 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-600"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm border",
+                    "w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border",
                     getTypeStyle(formData.type)
                   )}>
-                    <CalendarPlus size={24} />
+                    <CalendarPlus size={20} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-800 tracking-tight">
+                    <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
                       {selectedEvent ? 'Editar Registro' : 'Novo Registro'}
                     </h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão de Calendário</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 whitespace-nowrap">Gestão de Calendário</p>
                   </div>
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-8 space-y-8">
+              <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 custom-scrollbar">
                 {!(isAdmin || isDirector) && (
-                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
-                    <Info size={16} className="text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-[11px] font-bold text-amber-800 leading-relaxed text-left">Somente leitura. Apenas administradores podem fazer alterações.</p>
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start gap-2">
+                    <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
+                    <p className="text-[10px] font-bold text-amber-800 leading-tight text-left">Somente leitura. Apenas administradores podem fazer alterações.</p>
                   </div>
                 )}
 
-                <div className="space-y-6">
-                  {/* Tipo de Evento */}
-                  <div className="space-y-4">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Natureza do Registro</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { id: 'holiday_nac', label: 'Nacional', icon: <Globe size={14} />, color: 'rose', desc: 'Feriado Federal' },
-                          { id: 'holiday_est', label: 'Estadual', icon: <Flag size={14} />, color: 'indigo', desc: 'Data Estadual' },
-                          { id: 'holiday_mun', label: 'Municipal', icon: <MapPin size={14} />, color: 'amber', desc: 'Padroeiro/Local' },
-                          { id: 'exam', label: 'Avaliação', icon: <GraduationCap size={14} />, color: 'orange', desc: 'Provas/Testes' },
-                          { id: 'class_day', label: 'Aula Extra', icon: <BookOpen size={14} />, color: 'blue', desc: 'Dia Letivo' },
-                          { id: 'excused_class', label: 'Aula Abonada', icon: <Divide size={14} />, color: 'slate', desc: 'Dispensa/Abono' },
-                          { id: 'event', label: 'Evento', icon: <CalendarDays size={14} />, color: 'emerald', desc: 'Geral/Festivo' }
-                        ].map(type => (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Tipo de Registro</label>
+                    <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'holiday_nac', label: 'Nacional', icon: <Globe size={13} />, color: 'rose', desc: 'Feriado Federal' },
+                      { id: 'holiday_mun', label: 'Municipal', icon: <MapPin size={13} />, color: 'amber', desc: 'Padroeiro/Local' },
+                      { id: 'exam', label: 'Avaliação', icon: <GraduationCap size={13} />, color: 'orange', desc: 'Provas/Testes' },
+                      { id: 'class_day', label: 'Aula Extra', icon: <BookOpen size={13} />, color: 'blue', desc: 'Dia Letivo' },
+                      { id: 'excused_class', label: 'Aula Abonada', icon: <Divide size={13} />, color: 'slate', desc: 'Dispensa/Abono' },
+                      { id: 'cancelled_class', label: 'Aula Cancelada', icon: <Ban size={13} />, color: 'red', desc: 'Aula Nula' }
+                    ].map(type => (
                           <button
                             key={type.id}
                             type="button"
                             disabled={!(isAdmin || isDirector)}
-                            onClick={() => setFormData({
-                              ...formData, 
-                              type: type.id as any,
-                              title: type.label
-                            })}
+                            onClick={() => {
+                              if (formData.type === type.id) {
+                                setFormData({ ...formData, type: 'class_day', title: 'Aula Extra' });
+                              } else {
+                                setFormData({
+                                  ...formData, 
+                                  type: type.id as any,
+                                  title: type.label
+                                });
+                              }
+                            }}
                             className={cn(
-                              "relative flex flex-col p-3 rounded-2xl border-2 transition-all text-left group",
+                              "relative flex flex-col p-2.5 rounded-xl border-2 transition-all text-left group",
                               formData.type === type.id 
-                                ? `bg-${type.color}-50 border-${type.color}-600 ring-4 ring-${type.color}-50` 
+                                ? `bg-${type.color === 'red' ? 'rose' : type.color}-50 border-${type.color === 'red' ? 'rose' : type.color}-600 ring-2 ring-${type.color === 'red' ? 'rose' : type.color}-50` 
                                 : "bg-white border-slate-100 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:border-slate-200"
                             )}
                           >
                             <div className={cn(
-                              "w-8 h-8 rounded-xl flex items-center justify-center mb-2 transition-transform group-hover:scale-110",
-                              formData.type === type.id ? `bg-${type.color}-600 text-white` : "bg-slate-100 text-slate-400"
+                              "w-7 h-7 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110",
+                              formData.type === type.id ? `bg-${type.color === 'red' ? 'rose' : type.color}-600 text-white` : "bg-slate-100 text-slate-400"
                             )}>
                               {type.icon}
                             </div>
                             <p className={cn(
-                              "text-xs font-black uppercase tracking-tight",
-                              formData.type === type.id ? `text-${type.color}-700` : "text-slate-500"
+                              "text-[11px] font-black uppercase tracking-tight leading-tight",
+                              formData.type === type.id ? `text-${type.color === 'red' ? 'rose' : type.color}-700` : "text-slate-500"
                             )}>{type.label}</p>
-                            <p className="text-[9px] font-medium text-slate-400 leading-none mt-1">{type.desc}</p>
+                            <p className="text-[8.5px] font-medium text-slate-400 leading-none mt-0.5">{type.desc}</p>
                             
                             {formData.type === type.id && (
-                              <div className={cn(`absolute top-2 right-2 w-4 h-4 flex items-center justify-center rounded-full bg-${type.color}-600 shadow-sm shadow-${type.color}-200`)}>
-                                <Check size={8} className="text-white" />
+                              <div className={cn(`absolute top-1.5 right-1.5 w-3.5 h-3.5 flex items-center justify-center rounded-full bg-${type.color === 'red' ? 'rose' : type.color}-600 shadow-sm shadow-${type.color === 'red' ? 'rose' : type.color}-200`)}>
+                                <Check size={7} className="text-white" />
                               </div>
                             )}
                           </button>
@@ -2313,9 +2339,9 @@ export function AcademicCalendar() {
                   </div>
 
                   {/* Datas */}
-                  <div className="space-y-5">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1 block mb-2">Período</label>
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 block mb-1">Período</label>
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="relative">
                         <input 
                           required
@@ -2327,9 +2353,9 @@ export function AcademicCalendar() {
                             const date = maskDate(e.target.value);
                             setFormData({...formData, start_date: date, end_date: formData.end_date || date});
                           }}
-                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
                         />
-                        <span className="absolute -top-2 left-4 px-1.5 bg-white text-[8px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Início</span>
+                        <span className="absolute -top-2 left-3 px-1 bg-white text-[7px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Início</span>
                       </div>
                       <div className="relative">
                         <input 
@@ -2338,17 +2364,17 @@ export function AcademicCalendar() {
                           placeholder="DD/MM/AAAA"
                           value={formData.end_date}
                           onChange={e => setFormData({...formData, end_date: maskDate(e.target.value)})}
-                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
                         />
-                        <span className="absolute -top-2 left-4 px-1.5 bg-white text-[8px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Término</span>
+                        <span className="absolute -top-2 left-3 px-1 bg-white text-[7px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Término</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Título e Turma */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Identificação</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Identificação</label>
                       <input 
                         required
                         readOnly={!(isAdmin || isDirector)}
@@ -2356,18 +2382,18 @@ export function AcademicCalendar() {
                         placeholder="Título do evento..."
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
-                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Vincular Turma</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Vincular Turma</label>
                       <select
                         disabled={!(isAdmin || isDirector)}
                         value={formData.class_id}
                         onChange={e => setFormData({...formData, class_id: e.target.value})}
-                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
                       >
-                        <option value="">Anotação Geral (Todas)</option>
+                        <option value="">Todas</option>
                         {classes.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -2376,8 +2402,8 @@ export function AcademicCalendar() {
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div className="flex gap-3 pt-4">
+                {/* Footer Buttons */}
+                <div className="flex gap-2 pt-2 border-t border-slate-50 shrink-0">
                   {selectedEvent && (isAdmin || isDirector) && (
                     <button 
                       type="button"
@@ -2390,64 +2416,94 @@ export function AcademicCalendar() {
                         }
                       }}
                       className={cn(
-                        "px-6 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border",
+                        "p-3 rounded-xl transition-all border",
                         confirmDeleteId === selectedEvent.id 
                           ? "bg-red-600 text-white border-red-700 shadow-lg shadow-red-100" 
-                          : "bg-white text-red-500 border-red-100 hover:bg-red-50"
+                          : "bg-white text-red-500 border-red-100 hover:bg-red-50 shadow-sm"
                       )}
                     >
-                      {confirmDeleteId === selectedEvent.id ? 'Confirmar?' : <Trash2 size={18} />}
+                      {confirmDeleteId === selectedEvent.id ? <Trash2 size={18} /> : <Trash2 size={18} />}
                     </button>
                   )}
                   <button 
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all"
+                    className="flex-1 py-3 px-4 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
                   >
                     Fechar
                   </button>
                   {(isAdmin || isDirector) && selectedEvent && formData.type === 'class_day' && (
-                    <button 
-                      type="button"
-                      onClick={async () => {
-                        setIsSyncing(true);
-                        setSyncMessage('Abonando turmas...');
-                        try {
-                          // Busca todos os eventos de aula do mesmo dia para abonar em massa
-                          const sameDayEvents = events.filter(e => 
-                            e.start_date === selectedEvent.start_date && 
-                            e.type === 'class_day'
-                          );
-
-                          await Promise.all(sameDayEvents.map(ev => 
-                            saveData('calendar_events', ev.id, {
-                              ...ev,
-                              type: 'excused_class',
-                              title: 'Aula Abonada',
-                              description: 'Dia de aula abonado/dispensado'
-                            })
-                          ));
-
-                          setNotification({ type: 'success', message: `${sameDayEvents.length} turmas abonadas com sucesso!` });
-                          setIsEditing(false);
-                          fetchData();
-                        } catch (err) {
-                          console.error(err);
-                        } finally {
-                          setIsSyncing(false);
-                        }
-                      }}
-                      className="flex-1 py-4 bg-slate-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-700 shadow-xl shadow-slate-100 transition-all"
-                    >
-                      Abonar Tudo
-                    </button>
+                    <>
+                      <button 
+                        type="button"
+                        onClick={async () => {
+                          setIsSyncing(true);
+                          setSyncMessage('Abonando turmas...');
+                          try {
+                            const sameDayEvents = events.filter(e => 
+                              e.start_date === selectedEvent.start_date && 
+                              e.type === 'class_day'
+                            );
+                            await Promise.all(sameDayEvents.map(ev => 
+                              saveData('calendar_events', ev.id, {
+                                ...ev,
+                                type: 'excused_class',
+                                description: 'Dia de aula abonado/dispensado'
+                              })
+                            ));
+                            setNotification({ type: 'success', message: `${sameDayEvents.length} turmas abonadas com sucesso!` });
+                            setIsEditing(false);
+                            fetchData();
+                          } catch (err) {
+                            console.error(err);
+                          } finally {
+                            setIsSyncing(false);
+                          }
+                        }}
+                        className="flex-1 py-3 px-1.5 bg-slate-600 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-slate-700 transition-all shadow-sm"
+                      >
+                        Abonar Tudo
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={async () => {
+                          setIsSyncing(true);
+                          setSyncMessage('Cancelando turmas...');
+                          try {
+                            const sameDayEvents = events.filter(e => 
+                              e.start_date === selectedEvent.start_date && 
+                              e.type === 'class_day'
+                            );
+                            await Promise.all(sameDayEvents.map(ev => 
+                              saveData('calendar_events', ev.id, {
+                                ...ev,
+                                type: 'cancelled_class',
+                                description: 'Dia de aula cancelado'
+                              })
+                            ));
+                            setNotification({ type: 'success', message: `${sameDayEvents.length} turmas canceladas com sucesso!` });
+                            setIsEditing(false);
+                            fetchData();
+                          } catch (err) {
+                            console.error(err);
+                          } finally {
+                            setIsSyncing(false);
+                          }
+                        }}
+                        className="flex-1 py-3 px-1.5 bg-rose-600 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-rose-700 transition-all shadow-sm"
+                      >
+                        Cancelar Tudo
+                      </button>
+                    </>
                   )}
                   {(isAdmin || isDirector) && (
                     <button 
                       type="submit"
-                      className="flex-[2] py-4 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all"
+                      disabled={isSyncing}
+                      className="flex-[2] py-3 px-4 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2"
                     >
-                      {selectedEvent ? 'Salvar Alterações' : 'Criar Registro'}
+                      {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      {selectedEvent ? 'Confirmar' : 'Criar'}
                     </button>
                   )}
                 </div>
@@ -3196,19 +3252,20 @@ export function AcademicCalendar() {
             <div className="space-y-8">
               {Object.entries(printGroupedEvents).map(([month, monthEvents]) => {
                 const autoEvents = monthEvents.filter(e => {
-                  const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'event', 'holiday'].includes(e.type);
-                  const matchesClass = printFilters.class_id === 'all' || e.class_id === printFilters.class_id;
+                  const isAcademic = ['class_day', 'start_term', 'end_term', 'exam', 'holiday', 'excused_class', 'cancelled_class'].includes(e.type);
+                  const isGlobal = !e.class_id;
+                  const matchesClass = printFilters.class_id === 'all' || e.class_id === printFilters.class_id || isGlobal;
                   const matchesWeekday = printFilters.weekday === 'all' || new Date(e.start_date + 'T00:00:00').getDay() === printFilters.weekday;
                   return isAcademic && matchesClass && matchesWeekday;
                 });
 
                 if (autoEvents.length === 0) return null;
                 
-                // Calculation of unique lessons (Only class_day and exam)
+                // Calculation of unique lessons (Only class_day, exam and excused_class)
                 const groupedCount = (() => {
                   const uniqueSet = new Set();
                   autoEvents.forEach(e => {
-                    if (e.type === 'class_day' || e.type === 'exam') {
+                    if (['class_day', 'exam', 'excused_class'].includes(e.type)) {
                       let baseTitle = e.title;
                       classes.forEach(c => baseTitle = baseTitle.replace(` - ${c.name}`, '').trim());
                       baseTitle = e.title.replace(/^Dia de Aula - /, '');
@@ -3238,7 +3295,7 @@ export function AcademicCalendar() {
                         {Object.entries(dateGroups).sort().map(([dateStr, events]) => {
                           const dateObj = new Date(dateStr + 'T00:00:00');
                           return (
-                            <div key={dateStr} className="avoid-break grid grid-cols-[50px,1fr] gap-4 py-2 items-start">
+                            <div key={`print-row-${month}-${dateStr}`} className="avoid-break grid grid-cols-[50px,1fr] gap-4 py-2 items-start">
                               <div className="flex flex-col items-center justify-center border-r border-slate-100 pr-2">
                                 <span className="text-base font-bold text-slate-900 leading-none">{dateObj.getDate()}</span>
                                 <span className="text-[8px] font-bold text-slate-400 uppercase">{dateObj.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
@@ -3274,7 +3331,8 @@ export function AcademicCalendar() {
                                   return Object.values(infoGroups).map(({ event, classNames }) => {
                                     const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
                                     const sortedClassNames = sortClassNames(classNames);
-                                    const isHoliday = event.type === 'holiday' || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
+                                    const isHoliday = event.type === 'holiday' || event.type?.includes('holiday') || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
+                                    const isCancelled = event.type === 'cancelled_class';
                                     
                                     const cleanTitle = (t: string) => t
                                       .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
@@ -3286,9 +3344,15 @@ export function AcademicCalendar() {
                                     let displayTitle = cleanTitle(event.title);
 
                                     return (
-                                      <div key={event.id} className={cn("flex items-center justify-between gap-2 p-1 rounded", isHoliday && "bg-slate-50 border border-slate-200")}>
+                                      <div key={event.id} className={cn("flex items-center justify-between gap-2 p-1 rounded", (isHoliday || isCancelled) && "bg-slate-50 border border-slate-200")}>
                                         <div className="flex-1 min-w-0">
-                                          <p className={cn("text-[10px] font-bold leading-tight", isImportant ? "text-amber-700" : isHoliday ? "text-slate-500 italic" : "text-slate-800")}>
+                                          <p className={cn(
+                                            "text-[10px] font-bold leading-tight", 
+                                            isImportant ? "text-amber-700" : 
+                                            isHoliday ? "text-slate-500 italic" : 
+                                            isCancelled ? "text-rose-400 line-through" :
+                                            "text-slate-800"
+                                          )}>
                                             {displayTitle}
                                           </p>
                                           <p className="text-[8px] font-medium text-slate-500 uppercase tracking-tight leading-normal">
@@ -3300,12 +3364,16 @@ export function AcademicCalendar() {
                                           event.type === 'class_day' ? "bg-blue-50 text-blue-600 border-blue-100" :
                                           event.type === 'exam' ? "bg-rose-50 text-rose-600 border-rose-100" :
                                           event.type === 'start_term' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                          event.type === 'excused_class' ? "bg-slate-100 text-slate-500 border-slate-200" :
+                                          event.type === 'cancelled_class' ? "bg-rose-50 text-rose-400 border-rose-100" :
                                           isHoliday ? "bg-slate-200 text-slate-600 border-slate-300" :
                                           "bg-slate-50 text-slate-500 border-slate-200"
                                         )}>
                                           {event.type === 'class_day' ? 'Aula Regular' : 
                                            event.type === 'exam' ? 'Prova' : 
                                            event.type === 'start_term' ? 'Início' : 
+                                           event.type === 'excused_class' ? 'Abonada' :
+                                           event.type === 'cancelled_class' ? 'Cancelada' :
                                            isHoliday ? 'Recesso' : 'Ativ.'}
                                         </div>
                                       </div>
@@ -3321,8 +3389,17 @@ export function AcademicCalendar() {
                   );
                 }
 
-                // Calculation for Single Class View
-                const specificCount = autoEvents.filter(e => e.type === 'class_day' || e.type === 'exam').length;
+                 // Calculation for Single Class View
+                const yearLessons = events
+                  .filter(e => 
+                    e.start_date.startsWith(currentDate.getFullYear().toString()) &&
+                    e.class_id === printFilters.class_id && 
+                    ['class_day', 'exam', 'excused_class'].includes(e.type) &&
+                    !events.some(h => (h.type?.includes('holiday') || h.type === 'cancelled_class') && h.start_date === e.start_date)
+                  )
+                  .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+                const specificCount = autoEvents.filter(e => ['class_day', 'exam', 'excused_class'].includes(e.type)).length;
 
                 return (
                   <div key={`print-month-${month}`} className="page-break pb-4">
@@ -3337,6 +3414,9 @@ export function AcademicCalendar() {
                         const isImportant = ['start_term', 'end_term', 'exam'].includes(event.type);
                         const isHoliday = event.type === 'holiday' || event.title.toLowerCase().includes('férias') || event.title.toLowerCase().includes('feriado');
                         
+                        const lessonIdx = yearLessons.findIndex(l => l.id === event.id);
+                        const lessonNumber = lessonIdx !== -1 ? lessonIdx + 1 : null;
+
                         return (
                           <div key={event.id} className={cn("avoid-break grid grid-cols-[50px,1fr] gap-4 py-2 items-start", isHoliday && "bg-slate-50 px-2 rounded")}>
                             <div className="flex flex-col items-center justify-center border-r border-slate-100 pr-2">
@@ -3345,12 +3425,19 @@ export function AcademicCalendar() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <div className="min-w-0 flex-1">
-                                <p className={cn("text-[10px] font-bold whitespace-normal break-words leading-tight", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
-                                  {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').trim()}
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  {lessonNumber && (
+                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[7px] font-black uppercase shrink-0">Aula {lessonNumber}</span>
+                                  )}
+                                  <p className={cn("text-[10px] font-bold whitespace-normal break-words leading-tight", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
+                                    {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').trim()}
+                                  </p>
+                                </div>
                                 <p className="text-[8px] font-medium text-slate-400 uppercase">
                                   {event.type === 'class_day' ? 'Aula Regular' : 
                                    event.type === 'exam' ? 'Avaliação' : 
+                                   event.type === 'excused_class' ? 'Aula Abonada' :
+                                   event.type === 'cancelled_class' ? 'Aula Cancelada' :
                                    isHoliday ? 'Recesso Escolar' : 'Atividade Especial'}
                                 </p>
                               </div>
@@ -3470,12 +3557,8 @@ export function AcademicCalendar() {
                       <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Nacional</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-full bg-purple-600 shadow-sm border border-purple-700" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Estadual</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-full bg-orange-600 shadow-sm border border-orange-700" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Municipal</span>
+                      <div className="w-3.5 h-3.5 rounded-full bg-amber-600 shadow-sm border border-amber-700" />
+                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Local</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-full bg-blue-400 shadow-sm border border-blue-500" />

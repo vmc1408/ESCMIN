@@ -31,6 +31,8 @@ export const getTypeStyle = (type: CalendarEvent['type'], startDate?: string, ti
     }
     case 'excused_class': 
       return 'bg-slate-50/80 text-slate-400 border-slate-200/50 opacity-90 font-black text-[9px] uppercase tracking-tighter';
+    case 'cancelled_class':
+      return 'bg-rose-50 text-rose-400 border-rose-100 opacity-80 font-black text-[9px] uppercase tracking-tighter';
     default: return 'bg-slate-50 text-slate-600 border-slate-100 font-black text-[9px] uppercase tracking-wider';
   }
 };
@@ -45,7 +47,8 @@ export const getTypeText = (type: CalendarEvent['type'], description?: string) =
     case 'start_term': return 'Início Letivo';
     case 'end_term': return 'Cierre Letivo';
     case 'class_day': return 'Dia de Aula';
-    case 'excused_class': return 'Dia de Aula';
+    case 'excused_class': return 'Abonada';
+    case 'cancelled_class': return 'Cancelada';
     default: return 'Evento';
   }
 };
@@ -69,6 +72,7 @@ export const getTypeColor = (type: CalendarEvent['type'], startDate?: string) =>
       return 'bg-emerald-600';
     }
     case 'excused_class': return 'bg-slate-400';
+    case 'cancelled_class': return 'bg-rose-500';
     default: return 'bg-slate-400';
   }
 };

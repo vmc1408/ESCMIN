@@ -267,7 +267,7 @@ export interface CalendarEvent {
   description: string;
   start_date: string;
   end_date: string;
-  type: 'holiday' | 'holiday_nac' | 'holiday_est' | 'holiday_mun' | 'exam' | 'start_term' | 'end_term' | 'class_day' | 'event' | 'excused_class';
+  type: 'holiday' | 'holiday_nac' | 'holiday_est' | 'holiday_mun' | 'exam' | 'start_term' | 'end_term' | 'class_day' | 'event' | 'excused_class' | 'cancelled_class';
   class_id?: string;
   subject_id?: string;
   user_id: string;
