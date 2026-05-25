@@ -355,39 +355,43 @@ export function Attendance() {
       targetDayIndices = classInfo!.days_of_week.map(d => dayMap[d]).filter(d => d !== undefined);
     }
     
-    // Sort all class events chronologically
-    const allDays = [...classEvents]
-      .filter(e => {
-        const date = new Date(e.start_date + 'T12:00:00');
-        const isCorrectMonth = date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
-        
-        // Filter by subject if specified on the event
-        const isCorrectSubject = !selectedSubject || e.subject_id === selectedSubject;
-        
-        // Strictly follow class schedule if indices exist
-        const isScheduledWeekday = targetDayIndices.length === 0 || targetDayIndices.includes(date.getDay());
-        
-        return isCorrectMonth && isCorrectSubject && isScheduledWeekday;
-      })
-      .sort((a, b) => a.start_date.localeCompare(b.start_date));
-
-    // Otherwise, generate ALL scheduled weekdays for that month
     const days: any[] = [];
-    const date = new Date(selectedYear, selectedMonth, 1);
-    while (date.getMonth() === selectedMonth) {
-      if (targetDayIndices.length === 0 || targetDayIndices.includes(date.getDay())) {
-        const dbValue = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        days.push({
-          dbValue,
-          dayNumber: date.getDate(),
-          weekday: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase()
-        });
+    
+    // Determine start point for the annual sequence
+    // Use class start_date if available and in the current year, otherwise start of year
+    let sequenceStart = new Date(selectedYear, 0, 1);
+    if (classInfo?.start_date) {
+      const cStart = new Date(classInfo.start_date + 'T12:00:00');
+      if (cStart.getFullYear() === selectedYear) {
+        sequenceStart = cStart;
       }
-      date.setDate(date.getDate() + 1);
+    }
+
+    const iterDate = new Date(sequenceStart);
+    const endOfTargetMonth = new Date(selectedYear, selectedMonth + 1, 0);
+    let lessonCounter = 1;
+
+    while (iterDate <= endOfTargetMonth) {
+      const isTargetWeekday = targetDayIndices.length === 0 || targetDayIndices.includes(iterDate.getDay());
+      
+      if (isTargetWeekday) {
+        // If it's in the selected month, add it to our list
+        if (iterDate.getMonth() === selectedMonth && iterDate.getFullYear() === selectedYear) {
+          const dbValue = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(iterDate.getDate()).padStart(2, '0')}`;
+          days.push({
+            dbValue,
+            dayNumber: iterDate.getDate(),
+            weekday: iterDate.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase(),
+            lessonNumber: lessonCounter
+          });
+        }
+        lessonCounter++;
+      }
+      iterDate.setDate(iterDate.getDate() + 1);
     }
     
     return days;
-  }, [selectedClass, classEvents, selectedMonth, selectedYear, selectedSubject, classes]);
+  }, [selectedClass, selectedMonth, selectedYear, classes]);
 
   const availableDates = React.useMemo(() => {
     // 1. Get class info
@@ -1130,9 +1134,16 @@ export function Attendance() {
                             <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">Nº</th>
                             <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-96">Nome do Aluno</th>
                             {monthlyClassDays.map(day => (
-                              <th key={day.dbValue} className="px-3 py-4 text-center border-l border-slate-200 min-w-[60px]">
-                                <p className="text-[12px] font-black text-slate-900 leading-none">{String(day.dayNumber).padStart(2, '0')}</p>
-                                <p className="text-[10px] font-black text-slate-400 uppercase mt-1.5 tracking-tight">{day.weekday}</p>
+                              <th key={day.dbValue} className="px-4 py-4 text-center border-l border-slate-200 min-w-[70px]">
+                                <div className="flex flex-col items-center justify-center gap-1">
+                                  <p className="text-[13px] font-black text-slate-900 leading-none flex items-center">
+                                    {String(day.dayNumber).padStart(2, '0')}
+                                    <span className="text-[10px] text-slate-400 ml-0.5">/{new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
+                                  </p>
+                                  <div className="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-500 uppercase tracking-tighter">
+                                    Aula {day.lessonNumber}
+                                  </div>
+                                </div>
                               </th>
                             ))}
                           </tr>
@@ -1243,7 +1254,7 @@ export function Attendance() {
                   }
                 `}</style>
                 {(() => {
-                  const itemsPerPage = 25;
+                  const itemsPerPage = 10;
                   const totalStudents = students.length;
                   const studentChunks = [];
                   for (let i = 0; i < Math.max(totalStudents, 1); i += itemsPerPage) {
@@ -1254,71 +1265,72 @@ export function Attendance() {
                   return studentChunks.map((chunk, pageIdx) => (
                     <div 
                       key={pageIdx}
-                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[15mm] border border-slate-100 print:shadow-none print:border-none print:p-0 print:mb-0"
+                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[10mm] border border-slate-100 print:shadow-none print:border-none print:p-0 print:mb-0"
                       style={{ width: '297mm', height: '210mm', minWidth: '297mm', minHeight: '210mm' }}
                     >
-                      {/* OFFICIAL SYSTEM HEADER - MATCHING FICHA DE INSCRIÇÃO STYLE */}
-                      <div className="flex items-center gap-8 mb-6 pb-4 border-b-2 border-black">
-                        <div className="flex-shrink-0 w-28 h-28 flex items-center justify-center">
+                      {/* OFFICIAL SYSTEM HEADER - OPTIMIZED SIZE */}
+                      <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black">
+                        <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
                           {institution?.logo || institution?.logo_url ? (
                             <img 
                               src={institution.logo || institution.logo_url} 
-                              className="w-full h-full object-contain max-h-28" 
+                              className="w-full h-full object-contain max-h-20" 
                               referrerPolicy="no-referrer" 
                               alt="Logo" 
                             />
                           ) : (
-                            <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                            <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-300 font-black uppercase">
                               <span className="leading-none">SEM</span>
                               <span className="leading-none">LOGO</span>
                             </div>
                           )}
                         </div>
                         <div className="flex-1 flex flex-col">
-                          <p className="text-[11pt] font-semibold tracking-[0.2em] text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-                          <h1 className="text-[22pt] font-black uppercase tracking-tight text-black leading-tight my-1">
+                          <p className="text-[9pt] font-semibold tracking-[0.2em] text-slate-800 leading-tight uppercase">DIOCESE DE GUARULHOS</p>
+                          <h1 className="text-[17pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
                             {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                           </h1>
-                          <p className="text-[13pt] font-bold text-slate-700 tracking-wide uppercase">
+                          <p className="text-[11pt] font-bold text-slate-600 tracking-wide uppercase">
                             {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                           </p>
                         </div>
-                        <div className="text-right flex flex-col justify-center border-l-2 border-black/5 pl-8 h-20">
-                          <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Página</p>
-                          <p className="text-[20pt] font-black text-black leading-none">{pageIdx + 1}<span className="text-[12pt] text-slate-300 mx-1">/</span>{totalPages}</p>
+                        <div className="text-right flex flex-col justify-center border-l-2 border-black/5 pl-6 h-16">
+                          <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Página</p>
+                          <p className="text-[16pt] font-black text-black leading-none">{pageIdx + 1}<span className="text-[10pt] text-slate-300 mx-1">/</span>{totalPages}</p>
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-end mb-8">
-                        <div>
-                          <h2 className="text-[18pt] font-black uppercase tracking-[0.05em] text-black">Lista de Presença Mensal</h2>
-                          <div className="mt-2 flex gap-12 text-[10pt] font-bold text-slate-500 uppercase tracking-wide">
-                            <p>Mês de Referência: <span className="text-black font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span></p>
-                            <p>Disciplina: <span className="text-black font-black truncate max-w-[400px] inline-block">{currentSubject?.name || 'Todas as Disciplinas'}</span></p>
+                      {/* COMPACT UNIFIED INFORMATION BOX */}
+                      <div className="bg-slate-50/40 border-y border-slate-200 p-3 mb-3 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-6 bg-black rounded-full"></div>
+                            <h2 className="text-[12pt] font-black uppercase tracking-[0.1em] text-black">Lista de Presença Mensal</h2>
+                          </div>
+                          <div className="text-right text-[8pt] font-bold text-slate-400 uppercase tracking-widest">
+                            Mês Referência: <span className="text-slate-900 font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span>
                           </div>
                         </div>
-                        <div className="text-right text-[9pt] font-bold text-slate-400 uppercase tracking-widest space-y-1">
-                          <p>Emissão: <span className="text-slate-800 font-bold">{new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span></p>
-                        </div>
-                      </div>
 
-                      {/* SUMMARY BOX - MATCHING EXTRATO DE CONCILIAÇÃO LAYOUT */}
-                      <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-6 mb-8 flex items-center justify-between">
-                        <div className="flex items-center gap-24">
-                          <div className="space-y-1">
-                            <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest">Turma / Código</p>
-                            <p className="text-[12pt] font-black text-black uppercase">
-                              {currentClass?.name || 'N/A'} <span className="text-slate-400 font-bold ml-1">({currentClass?.code || '---'})</span>
+                        <div className="grid grid-cols-4 gap-6 items-end pt-2 border-t border-slate-100">
+                          <div className="col-span-1 space-y-0.5">
+                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest">Turma / Código</p>
+                            <p className="text-[10pt] font-black text-black uppercase truncate">
+                              {currentClass?.name || 'N/A'} <span className="text-slate-400 font-bold">({currentClass?.code || '---'})</span>
                             </p>
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest">Sala Permanente</p>
-                            <p className="text-[12pt] font-black text-black uppercase">{currentClass?.room || '002'}</p>
+                          <div className="col-span-1 space-y-0.5">
+                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest">Sala / Local</p>
+                            <p className="text-[10pt] font-black text-black uppercase">{currentClass?.room || '002'}</p>
                           </div>
-                        </div>
-                        <div className="text-right space-y-1">
-                          <p className="text-[8pt] font-black text-slate-400 uppercase tracking-widest">Total de Alunos Matriculados</p>
-                          <p className="text-[22pt] font-black text-black leading-none">{students.length}</p>
+                          <div className="col-span-1 space-y-0.5">
+                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest">Disciplina</p>
+                            <p className="text-[10pt] font-black text-black uppercase truncate">{currentSubject?.name || 'Todas as Categorias'}</p>
+                          </div>
+                          <div className="col-span-1 text-right">
+                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest mb-0.5">Total de Alunos</p>
+                            <p className="text-[18pt] font-black text-black leading-none">{students.length}</p>
+                          </div>
                         </div>
                       </div>
 
@@ -1338,23 +1350,30 @@ export function Attendance() {
                               <th className="px-1 text-center font-bold text-[8.5pt] uppercase border border-slate-800">Nº</th>
                               <th className="px-3 text-left font-bold text-[8.5pt] uppercase border border-slate-800 tracking-tighter">Matrícula</th>
                               <th className="px-4 text-left font-bold text-[9.5pt] uppercase border border-slate-800">Nome Completo do Aluno</th>
-                              {monthlyClassDays.map((day, i) => (
-                                <th key={i} className="border border-slate-800 text-center p-0 align-middle">
-                                  <div className="flex flex-col items-center justify-center leading-none">
-                                    <span className="text-[8pt] font-black mb-0.5">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
-                                    <span className="text-[5pt] font-bold uppercase opacity-60">{day ? day.weekday : '--'}</span>
-                                  </div>
-                                </th>
-                              ))}
+                               {monthlyClassDays.map((day, i) => (
+                                 <th key={i} className="border border-slate-800 text-center p-1 align-middle">
+                                   <div className="flex flex-col items-center justify-center leading-none">
+                                     <div className="flex items-center gap-0.5 whitespace-nowrap">
+                                       <span className="text-[8pt] font-black">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
+                                       <span className="text-[6.5pt] font-black uppercase text-slate-400">
+                                         /{day ? new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase() : '--'}
+                                       </span>
+                                     </div>
+                                     <span className="text-[5.5pt] font-bold uppercase text-slate-500 mt-1">
+                                       Aula {day?.lessonNumber ? `Nº ${day.lessonNumber}` : '--'}
+                                     </span>
+                                   </div>
+                                 </th>
+                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {chunk.map((student, idx) => {
                               const overallIndex = pageIdx * itemsPerPage + idx;
                               return (
-                                <tr key={student.id} className={cn("h-[9.5mm] border-b border-slate-100", idx % 2 === 0 ? "bg-white" : "bg-slate-50/20")}>
+                                <tr key={student.id} className={cn("h-[9mm] border-b border-slate-100", idx % 2 === 0 ? "bg-white" : "bg-slate-50/20")}>
                                   <td className="px-1 text-center text-[9pt] font-bold border-x border-slate-100 text-slate-300">{overallIndex + 1}</td>
-                                  <td className="px-3 text-left text-[8.5pt] font-mono font-bold border-x border-slate-100 text-slate-400 tracking-tighter">{student.registration_number}</td>
+                                  <td className="px-3 text-left text-[10pt] font-mono font-black border-x border-slate-100 text-slate-600 tracking-tighter">{student.registration_number}</td>
                                   <td className="px-4 text-left text-[10.5pt] font-black uppercase border-x border-slate-100 truncate text-slate-900 tracking-tight">{student.name}</td>
                                   {monthlyClassDays.map((day, i) => (
                                     <td key={i} className="border-x border-slate-100 p-0 text-center text-[13pt] font-black">
@@ -1369,7 +1388,7 @@ export function Attendance() {
                             })}
                             {/* Fill empty rows for consistency if last page is short */}
                             {chunk.length < itemsPerPage && pageIdx === totalPages - 1 && Array.from({ length: itemsPerPage - chunk.length }).map((_, i) => (
-                              <tr key={`empty-${i}`} className="h-[9.5mm] border-b border-slate-50 opacity-20">
+                              <tr key={`empty-${i}`} className="h-[9mm] border-b border-slate-50 opacity-20">
                                 <td className="px-1 text-center text-[9pt] border-x border-slate-50"></td>
                                 <td className="px-3 border-x border-slate-50"></td>
                                 <td className="px-4 border-x border-slate-50"></td>
@@ -1382,31 +1401,12 @@ export function Attendance() {
                         </table>
                       </div>
 
-                      {/* STANDARDIZED SYSTEM FOOTER - MATCHING FICHA DE INSCRIÇÃO EXACTLY */}
-                      <div className="mt-6">
-                        <div className="border-t-2 border-black pt-4 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight">
-                          <div className="flex-1 space-y-1">
-                            <p className="leading-none text-[9.5pt] font-black">
-                              {institution?.address || 'AV. VENUS, 195 - ITAPECICA - GUARULHOS - CEP 07044-170'}
-                            </p>
-                            <div className="flex items-center gap-4 leading-none font-bold text-[9pt]">
-                              {(institution?.phone || institution?.email) && (
-                                <p className="leading-none">
-                                  {institution?.phone ? `TEL: ${institution.phone}` : ''}
-                                  {institution?.phone && institution?.email ? ' | ' : ''}
-                                  {institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''}
-                                </p>
-                              )}
-                            </div>
-                            <p className="text-[7pt] text-slate-400 font-bold mt-1">ESCMIN Intelligence • GESTÃO ACADÊMICA INTEGRADA • DIOCESE DE GUARULHOS</p>
-                          </div>
-                          <div className="text-right flex flex-col items-end gap-1.5">
-                            {institution?.secretary && (
-                              <div className="text-[7.5pt] max-w-[400px] leading-tight">
-                                <p className="underline underline-offset-2 mb-0.5">ATENDIMENTO SECRETARIA:</p>
-                                <p className="font-bold text-slate-600 normal-case">{institution.secretary.toLowerCase()}</p>
-                              </div>
-                            )}
+                      <div className="mt-auto pt-2">
+                        <div className="border-t border-black/20 pt-2 flex justify-between items-center text-[7.5pt] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                          <p>{institution?.address || 'AV. VENUS, 195 - ITAPECICA - GUARULHOS'}</p>
+                          <div className="flex items-center gap-6">
+                            <p>Emissão: <span className="text-slate-900 font-bold">{new Date().toLocaleDateString('pt-BR')}</span></p>
+                            <p className="text-slate-900 font-black">Página {pageIdx + 1}/{totalPages}</p>
                           </div>
                         </div>
                       </div>
