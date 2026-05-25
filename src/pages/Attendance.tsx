@@ -169,21 +169,18 @@ export function Attendance() {
       return;
     }
     try {
-      // Fetch ALL related events (holidays, class days, cancelled, etc.)
-      const [globalEvents, classSpecificEvents] = await Promise.all([
-        fetchQuery('calendar_events', [
-          { field: 'class_id', operator: 'is', value: null }
-        ]),
-        fetchQuery('calendar_events', [
-          { field: 'class_id', operator: '==', value: selectedClass }
-        ])
+      // Fetch ALL calendar events for the selected year
+      // This ensures we catch global holidays/cancellations and class-specific ones
+      const events = await fetchQuery('calendar_events', [
+        { field: 'start_date', operator: '>=', value: `${selectedYear}-01-01` },
+        { field: 'start_date', operator: '<=', value: `${selectedYear}-12-31` }
       ]);
       
-      setClassEvents([...(globalEvents || []), ...(classSpecificEvents || [])]);
+      setClassEvents(events || []);
     } catch (error) {
       console.error('Error fetching class events:', error);
     }
-  }, [selectedClass]);
+  }, [selectedClass, selectedYear]);
 
   useEffect(() => {
     fetchData();
@@ -338,75 +335,10 @@ export function Attendance() {
     return classEvents.some(event => event.start_date === dbDate);
   }, [selectedDate, classEvents, selectedClass]);
   
-  const monthlyClassDays = React.useMemo(() => {
-    if (!selectedClass) return [];
-    
-    // 1. Get all academic events for this class in the current year
-    const academicEvents = classEvents.filter(e => 
-      e.start_date.startsWith(selectedYear.toString()) &&
-      (e.class_id === selectedClass || (!e.class_id && e.type?.includes('holiday')))
-    );
-
-    // 2. Identify holidays/cancellations that should BLOCK counting
-    const blockedDates = new Set(
-      academicEvents
-        .filter(e => e.type?.includes('holiday') || e.type === 'cancelled_class')
-        .map(e => e.start_date)
-    );
-
-    // 3. Extract and sort ALL valid lesson events (including those from other months for numbering)
-    // We count: class_day, exam, excused_class
-    // DEDUPLICATE BY DATE: Only one lesson per day
-    const uniqueDayLessons = new Map();
-    academicEvents
-      .filter(e => 
-        ['class_day', 'exam', 'excused_class'].includes(e.type) &&
-        !blockedDates.has(e.start_date)
-      )
-      .forEach(e => {
-        // Prioritize: exam > class_day > excused_class
-        const existing = uniqueDayLessons.get(e.start_date);
-        if (!existing) {
-          uniqueDayLessons.set(e.start_date, e);
-        } else {
-          const typePriority = { 'exam': 3, 'class_day': 2, 'excused_class': 1 };
-          if ((typePriority[e.type as keyof typeof typePriority] || 0) > (typePriority[existing.type as keyof typeof typePriority] || 0)) {
-            uniqueDayLessons.set(e.start_date, e);
-          }
-        }
-      });
-
-    const allLessons = Array.from(uniqueDayLessons.values())
-      .sort((a, b) => a.start_date.localeCompare(b.start_date));
-
-    // 4. Extract only those belonging to the selected month and assign their global lesson number
-    const monthStr = String(selectedMonth + 1).padStart(2, '0');
-    const prefix = `${selectedYear}-${monthStr}-`;
-    
-    return allLessons
-      .filter(e => e.start_date.startsWith(prefix))
-      .map(e => {
-        const date = new Date(e.start_date + 'T12:00:00');
-        // Find index in the global list for the year
-        const lessonIndex = allLessons.findIndex(l => l.id === e.id);
-        
-        return {
-          dbValue: e.start_date,
-          dayNumber: date.getDate(),
-          weekday: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase(),
-          lessonNumber: lessonIndex + 1,
-          isExcused: e.type === 'excused_class'
-        };
-      })
-      .sort((a, b) => a.dbValue.localeCompare(b.dbValue));
-  }, [selectedClass, selectedMonth, selectedYear, classEvents]);
-
-  const availableDates = React.useMemo(() => {
-    // 1. Get class info
+  const selectedClassWeekdays = React.useMemo(() => {
     const classInfo = classes.find(c => c.id === selectedClass);
     if (!classInfo) return [];
 
-    // 2. Identify target days (WEEKDAYS)
     const dayMap: Record<string, number> = {
       'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6,
       'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6,
@@ -440,22 +372,131 @@ export function Attendance() {
       });
     }
 
-    // C. Fallback: Check most frequent day in class-specific events
+    // C. Fallback: Check significant days in class-specific events
     if (targetDayIndices.length === 0) {
-      const classSpecific = classEvents.filter(e => e.class_id === selectedClass);
+      const classSpecific = classEvents.filter(e => String(e.class_id) === String(selectedClass));
       if (classSpecific.length > 0) {
         const dayCounts: Record<number, number> = {};
         classSpecific.forEach(e => {
           const d = new Date(e.start_date + 'T12:00:00').getDay();
           dayCounts[d] = (dayCounts[d] || 0) + 1;
         });
-        const entries = Object.entries(dayCounts).sort((a, b) => b[1] - a[1]);
+        
+        const entries = Object.entries(dayCounts).sort((a: any, b: any) => b[1] - a[1]);
         if (entries.length > 0) {
-          targetDayIndices = [parseInt(entries[0][0])];
+          const maxCount = entries[0][1];
+          // Include any day that has at least 25% of the frequency of the most frequent day
+          targetDayIndices = entries
+            .filter(e => e[1] >= maxCount * 0.25)
+            .map(e => parseInt(e[0]));
         }
       }
     }
 
+    return targetDayIndices;
+  }, [classes, selectedClass, classEvents]);
+
+  const monthlyClassDays = React.useMemo(() => {
+    if (!selectedClass) return [];
+    
+    // 1. Get all academic events for this class in the current year
+    const academicEvents = classEvents.filter(e => 
+      e.start_date.startsWith(selectedYear.toString()) &&
+      (
+        String(e.class_id) === String(selectedClass) || 
+        !e.class_id || 
+        e.type === 'cancelled_class' || 
+        e.type === 'excused_class' ||
+        e.type?.includes('holiday')
+      )
+    );
+
+    // 2. Identify holidays
+    const holidayDates = new Set(
+      academicEvents
+        .filter(e => e.type?.includes('holiday'))
+        .map(e => e.start_date)
+    );
+
+    // 3. Extract and sort ALL valid lesson events (those that contribute to counting)
+    // We count: class_day, exam, excused_class (EXCEPT holidays and cancelled_class)
+    const lessonMap = new Map();
+    academicEvents
+      .filter(e => 
+        ['class_day', 'exam', 'excused_class'].includes(e.type) &&
+        !holidayDates.has(e.start_date) &&
+        !academicEvents.some(ce => ce.type === 'cancelled_class' && ce.start_date === e.start_date)
+      )
+      .forEach(e => {
+        // STRICT FILTER: Only show days that match identified target weekdays
+        if (selectedClassWeekdays.length > 0) {
+          const dateObj = new Date(e.start_date + 'T12:00:00');
+          if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
+        }
+
+        const existing = lessonMap.get(e.start_date);
+        if (!existing) {
+          lessonMap.set(e.start_date, e);
+        } else {
+          const typePriority = { 'exam': 3, 'class_day': 2, 'excused_class': 1 };
+          if ((typePriority[e.type as keyof typeof typePriority] || 0) > (typePriority[existing.type as keyof typeof typePriority] || 0)) {
+            lessonMap.set(e.start_date, e);
+          }
+        }
+      });
+
+    const sortedLessons = Array.from(lessonMap.values())
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+    // 4. Extract ALL events intended for display in the columns (Lessons + Cancelled)
+    const displayMap = new Map();
+    academicEvents
+      .filter(e => 
+        ['class_day', 'exam', 'excused_class', 'cancelled_class'].includes(e.type) &&
+        !holidayDates.has(e.start_date)
+      )
+      .forEach(e => {
+        // STRICT FILTER: Only show days that match identified target weekdays
+        if (selectedClassWeekdays.length > 0) {
+          const dateObj = new Date(e.start_date + 'T12:00:00');
+          if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
+        }
+
+        const existing = displayMap.get(e.start_date);
+        if (!existing) {
+          displayMap.set(e.start_date, e);
+        } else {
+          // Priority: cancelled_class > exam > class_day > excused_class
+          const typePriority = { 'cancelled_class': 4, 'exam': 3, 'class_day': 2, 'excused_class': 1 };
+          if ((typePriority[e.type as keyof typeof typePriority] || 0) > (typePriority[existing.type as keyof typeof typePriority] || 0)) {
+            displayMap.set(e.start_date, e);
+          }
+        }
+      });
+
+    const monthStr = String(selectedMonth + 1).padStart(2, '0');
+    const prefix = `${selectedYear}-${monthStr}-`;
+    
+    return Array.from(displayMap.values())
+      .filter(e => e.start_date.startsWith(prefix))
+      .map(e => {
+        const date = new Date(e.start_date + 'T12:00:00');
+        // Find index in the global lesson list (if it is a lesson)
+        const lessonIndex = sortedLessons.findIndex(l => l.start_date === e.start_date);
+        
+        return {
+          dbValue: e.start_date,
+          dayNumber: date.getDate(),
+          weekday: date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase(),
+          lessonNumber: lessonIndex !== -1 ? lessonIndex + 1 : null,
+          isExcused: e.type === 'excused_class',
+          isCancelled: e.type === 'cancelled_class'
+        };
+      })
+      .sort((a, b) => a.dbValue.localeCompare(b.dbValue));
+  }, [selectedClass, selectedMonth, selectedYear, classEvents, selectedClassWeekdays]);
+
+  const availableDates = React.useMemo(() => {
     // 3. Process events into display dates
     const uniqueMap = new Map();
     const sortedEvents = [...classEvents].sort((a, b) => {
@@ -468,10 +509,19 @@ export function Attendance() {
     sortedEvents.forEach(event => {
       const dateKey = event.start_date;
       if (!uniqueMap.has(dateKey)) {
+        // Filter which days to show in the dropdown:
+        // Include events specific to this class OR global holidays/cancellations
+        if (
+          String(event.class_id) !== String(selectedClass) && 
+          !(!event.class_id || event.type === 'cancelled_class' || event.type === 'excused_class' || event.type?.includes('holiday'))
+        ) {
+          return;
+        }
+
         // STRICT FILTER: Only show days that match identified target weekdays
-        if (targetDayIndices.length > 0) {
+        if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(dateKey + 'T12:00:00');
-          if (!targetDayIndices.includes(dateObj.getDay())) return;
+          if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
         }
 
         // Filter by subject if specified on the event
@@ -495,7 +545,7 @@ export function Attendance() {
           label: `${event.start_date.split('-').reverse().join('/')} (${weekdayName.split('-')[0]})`
         };
       });
-  }, [classEvents, selectedClass, classes, selectedSubject]);
+  }, [classEvents, selectedClass, selectedSubject, selectedClassWeekdays]);
 
   // Auto-select logic
   useEffect(() => {
@@ -1129,7 +1179,7 @@ export function Attendance() {
                       <div className="flex items-center gap-4 relative z-10">
                         <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                           {monthlyClassDays.length} Aulas
+                           {monthlyClassDays.filter(d => !d.isCancelled).length} Aulas
                         </div>
                         <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -1153,9 +1203,9 @@ export function Attendance() {
                                   </p>
                                   <div className={cn(
                                     "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter",
-                                    day.isExcused ? "bg-slate-500 text-white" : "bg-slate-100 text-slate-500"
+                                    day.isCancelled ? "bg-red-500 text-white" : day.isExcused ? "bg-slate-500 text-white" : "bg-slate-100 text-slate-500"
                                   )}>
-                                    {day.isExcused ? 'Abonada' : `Aula ${day.lessonNumber}`}
+                                    {day.isCancelled ? 'Cancelada' : day.isExcused ? 'Abonada' : `Aula ${day.lessonNumber}`}
                                   </div>
                                 </div>
                               </th>
@@ -1171,6 +1221,15 @@ export function Attendance() {
                               </td>
                               {monthlyClassDays.map(day => {
                                 const status = monthlyAttendance[student.id]?.[day.dbValue];
+                                if (day.isCancelled) {
+                                  return (
+                                    <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100 bg-red-50/20">
+                                      <div className="w-7 h-7 mx-auto flex items-center justify-center text-[8px] font-black text-red-300/50 uppercase rotate-[-45deg]">
+                                        Canc
+                                      </div>
+                                    </td>
+                                  );
+                                }
                                 return (
                                   <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100">
                                     <div className={cn(
@@ -1268,7 +1327,7 @@ export function Attendance() {
                   }
                 `}</style>
                 {(() => {
-                  const itemsPerPage = 10;
+                  const itemsPerPage = 18;
                   const totalStudents = students.length;
                   const studentChunks = [];
                   for (let i = 0; i < Math.max(totalStudents, 1); i += itemsPerPage) {
@@ -1283,74 +1342,74 @@ export function Attendance() {
                       style={{ width: '297mm', height: '210mm', minWidth: '297mm', minHeight: '210mm' }}
                     >
                       {/* OFFICIAL SYSTEM HEADER - OPTIMIZED SIZE */}
-                      <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black">
-                        <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+                      <div className="flex items-center gap-6 mb-2 pb-1 border-b-2 border-black">
+                        <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
                           {institution?.logo || institution?.logo_url ? (
                             <img 
                               src={institution.logo || institution.logo_url} 
-                              className="w-full h-full object-contain max-h-20" 
+                              className="w-full h-full object-contain max-h-16" 
                               referrerPolicy="no-referrer" 
                               alt="Logo" 
                             />
                           ) : (
-                            <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-300 font-black uppercase">
+                            <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[6pt] text-slate-300 font-black uppercase">
                               <span className="leading-none">SEM</span>
                               <span className="leading-none">LOGO</span>
                             </div>
                           )}
                         </div>
                         <div className="flex-1 flex flex-col">
-                          <p className="text-[9pt] font-semibold tracking-[0.2em] text-slate-800 leading-tight uppercase">DIOCESE DE GUARULHOS</p>
-                          <h1 className="text-[17pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
+                          <p className="text-[8pt] font-semibold tracking-[0.2em] text-slate-800 leading-tight uppercase">DIOCESE DE GUARULHOS</p>
+                          <h1 className="text-[15pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
                             {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                           </h1>
-                          <p className="text-[11pt] font-bold text-slate-600 tracking-wide uppercase">
+                          <p className="text-[10pt] font-bold text-slate-600 tracking-wide uppercase">
                             {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                           </p>
                         </div>
-                        <div className="text-right flex flex-col justify-center border-l-2 border-black/5 pl-6 h-16">
-                          <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Página</p>
-                          <p className="text-[16pt] font-black text-black leading-none">{pageIdx + 1}<span className="text-[10pt] text-slate-300 mx-1">/</span>{totalPages}</p>
+                        <div className="text-right flex flex-col justify-center border-l-2 border-black/5 pl-6 h-12">
+                          <p className="text-[6pt] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Página</p>
+                          <p className="text-[14pt] font-black text-black leading-none">{pageIdx + 1}<span className="text-[9pt] text-slate-300 mx-1">/</span>{totalPages}</p>
                         </div>
                       </div>
 
                       {/* COMPACT UNIFIED INFORMATION BOX */}
-                      <div className="bg-slate-50/40 border-y border-slate-200 p-3 mb-3 flex flex-col gap-2">
+                      <div className="bg-slate-50/40 border-y border-slate-200 p-1.5 mb-1.5 flex flex-col gap-1">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-1.5 h-6 bg-black rounded-full"></div>
-                            <h2 className="text-[12pt] font-black uppercase tracking-[0.1em] text-black">Lista de Presença Mensal</h2>
+                          <div className="flex items-center gap-2">
+                            <div className="w-1 h-4 bg-black rounded-full"></div>
+                            <h2 className="text-[10pt] font-black uppercase tracking-[0.05em] text-black">Lista de Presença Mensal</h2>
                           </div>
-                          <div className="text-right text-[8pt] font-bold text-slate-400 uppercase tracking-widest">
+                          <div className="text-right text-[7.5pt] font-bold text-slate-400 uppercase tracking-wider">
                             Mês Referência: <span className="text-slate-900 font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-6 items-end pt-2 border-t border-slate-100">
-                          <div className="col-span-1 space-y-0.5">
-                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest">Turma / Código</p>
-                            <p className="text-[10pt] font-black text-black uppercase truncate">
+                        <div className="grid grid-cols-4 gap-4 items-end pt-1 border-t border-slate-100">
+                          <div className="col-span-1 space-y-0">
+                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Turma / Código</p>
+                            <p className="text-[9pt] font-black text-black uppercase truncate">
                               {currentClass?.name || 'N/A'} <span className="text-slate-400 font-bold">({currentClass?.code || '---'})</span>
                             </p>
                           </div>
-                          <div className="col-span-1 space-y-0.5">
-                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest">Sala / Local</p>
-                            <p className="text-[10pt] font-black text-black uppercase">{currentClass?.room || '002'}</p>
+                          <div className="col-span-1 space-y-0">
+                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Sala / Local</p>
+                            <p className="text-[9pt] font-black text-black uppercase">{currentClass?.room || '002'}</p>
                           </div>
-                          <div className="col-span-1 space-y-0.5">
-                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest">Disciplina</p>
-                            <p className="text-[10pt] font-black text-black uppercase truncate">{currentSubject?.name || 'Todas as Categorias'}</p>
+                          <div className="col-span-1 space-y-0">
+                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Disciplina</p>
+                            <p className="text-[9pt] font-black text-black uppercase truncate">{currentSubject?.name || 'Todas as Categorias'}</p>
                           </div>
                           <div className="col-span-1 text-right">
-                            <p className="text-[7pt] font-black text-slate-400 uppercase tracking-widest mb-0.5">Total de Alunos</p>
-                            <p className="text-[18pt] font-black text-black leading-none">{students.length}</p>
+                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Total de Alunos</p>
+                            <p className="text-[16pt] font-black text-black leading-none">{students.length}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* MAIN ATTENDANCE TABLE - REFINED STYLING */}
                       <div className="w-full flex-1 overflow-hidden">
-                        <table className="w-full border-collapse table-fixed text-black border-slate-200 border">
+                        <table className="w-full border-collapse table-fixed text-black border-slate-300 border">
                           <colgroup>
                             <col className="w-[3.5%]" />
                             <col className="w-[10%]" />
@@ -1360,24 +1419,24 @@ export function Attendance() {
                             ))}
                           </colgroup>
                           <thead>
-                            <tr className="bg-slate-900 text-white h-12">
-                              <th className="px-1 text-center font-bold text-[8.5pt] uppercase border border-slate-800">Nº</th>
-                              <th className="px-3 text-left font-bold text-[8.5pt] uppercase border border-slate-800 tracking-tighter">Matrícula</th>
-                              <th className="px-4 text-left font-bold text-[9.5pt] uppercase border border-slate-800">Nome Completo do Aluno</th>
+                            <tr className="bg-gray-200 text-black h-8">
+                              <th className="px-1 text-center font-bold text-[9pt] uppercase border border-gray-400">Nº</th>
+                              <th className="px-3 text-left font-bold text-[9pt] uppercase border border-gray-400 tracking-tighter">Matrícula</th>
+                              <th className="px-4 text-left font-bold text-[10pt] uppercase border border-gray-400">Nome Completo do Aluno</th>
                                {monthlyClassDays.map((day, i) => (
-                                 <th key={i} className="border border-slate-800 text-center p-1 align-middle">
+                                 <th key={i} className="border border-gray-400 text-center p-0.5 align-middle">
                                    <div className="flex flex-col items-center justify-center leading-none">
                                      <div className="flex items-center gap-0.5 whitespace-nowrap">
-                                       <span className="text-[8pt] font-black">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
-                                       <span className="text-[6.5pt] font-black uppercase text-slate-400">
+                                       <span className="text-[9pt] font-black">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
+                                       <span className="text-[7pt] font-black uppercase text-gray-500">
                                          /{day ? new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase() : '--'}
                                        </span>
                                      </div>
                                      <span className={cn(
-                                       "text-[5.5pt] font-bold uppercase mt-1",
-                                       day?.isExcused ? "text-slate-400" : "text-slate-500"
+                                       "text-[5.5pt] font-bold uppercase mt-0.5",
+                                       day?.isCancelled ? "text-red-600" : day?.isExcused ? "text-gray-500" : "text-gray-600"
                                      )}>
-                                       {day?.isExcused ? 'Abonada' : `Aula ${day?.lessonNumber ? `Nº ${day.lessonNumber}` : '--'}`}
+                                       {day?.isCancelled ? 'Cancelada' : day?.isExcused ? 'Abonada' : `Aula ${day?.lessonNumber ? `Nº ${day.lessonNumber}` : '--'}`}
                                      </span>
                                    </div>
                                  </th>
@@ -1388,13 +1447,14 @@ export function Attendance() {
                             {chunk.map((student, idx) => {
                               const overallIndex = pageIdx * itemsPerPage + idx;
                               return (
-                                <tr key={student.id} className={cn("h-[9mm] border-b border-slate-100", idx % 2 === 0 ? "bg-white" : "bg-slate-50/20")}>
-                                  <td className="px-1 text-center text-[9pt] font-bold border-x border-slate-100 text-slate-300">{overallIndex + 1}</td>
-                                  <td className="px-3 text-left text-[10pt] font-mono font-black border-x border-slate-100 text-slate-600 tracking-tighter">{student.registration_number}</td>
-                                  <td className="px-4 text-left text-[10.5pt] font-black uppercase border-x border-slate-100 truncate text-slate-900 tracking-tight">{student.name}</td>
+                                <tr key={student.id} className={cn("h-[7mm] border-b border-slate-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/20")}>
+                                  <td className="px-1 text-center text-[9pt] font-bold border-x border-slate-200 text-gray-400">{overallIndex + 1}</td>
+                                  <td className="px-3 text-left text-[10pt] font-mono font-black border-x border-slate-200 text-black tracking-tighter">{student.registration_number}</td>
+                                  <td className="px-4 text-left text-[10.5pt] font-black uppercase border-x border-slate-200 truncate text-black tracking-tight">{student.name}</td>
                                   {monthlyClassDays.map((day, i) => (
-                                    <td key={i} className="border-x border-slate-100 p-0 text-center text-[13pt] font-black">
+                                    <td key={i} className={cn("border-x border-slate-200 p-0 text-center text-[12.5pt] font-black", day?.isCancelled && "bg-gray-50")}>
                                       {(() => {
+                                        if (day?.isCancelled) return <span className="text-gray-300 text-[8pt] font-black rotate-[-45deg] inline-block opacity-40">CANCELADA</span>;
                                         const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
                                         return status === 'P' ? '●' : status === 'F' ? 'F' : status === 'J' ? 'J' : '';
                                       })()}
@@ -1405,12 +1465,12 @@ export function Attendance() {
                             })}
                             {/* Fill empty rows for consistency if last page is short */}
                             {chunk.length < itemsPerPage && pageIdx === totalPages - 1 && Array.from({ length: itemsPerPage - chunk.length }).map((_, i) => (
-                              <tr key={`empty-${i}`} className="h-[9mm] border-b border-slate-50 opacity-20">
-                                <td className="px-1 text-center text-[9pt] border-x border-slate-50"></td>
+                              <tr key={`empty-${i}`} className="h-[7mm] border-b border-slate-50 opacity-20">
+                                <td className="px-1 text-center text-[8pt] border-x border-slate-50"></td>
                                 <td className="px-3 border-x border-slate-50"></td>
                                 <td className="px-4 border-x border-slate-50"></td>
-                                {monthlyClassDays.map((_, j) => (
-                                  <td key={j} className="border-x border-slate-50"></td>
+                                {monthlyClassDays.map((_, i) => (
+                                  <td key={i} className="border-x border-slate-50"></td>
                                 ))}
                               </tr>
                             ))}

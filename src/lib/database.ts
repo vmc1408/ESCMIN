@@ -106,6 +106,7 @@ export const fetchQuery = async (
       fieldOrFilters.forEach(filter => {
         const op = filter.operator === '==' ? 'eq' : filter.operator;
         if (op === 'eq') queryBuilder = queryBuilder.eq(filter.field, filter.value);
+        else if (op === 'is') queryBuilder = queryBuilder.is(filter.field, filter.value);
         else if (op === '>=') queryBuilder = queryBuilder.gte(filter.field, filter.value);
         else if (op === '<=') queryBuilder = queryBuilder.lte(filter.field, filter.value);
         else if (op === 'in') queryBuilder = queryBuilder.in(filter.field, filter.value);
