@@ -713,21 +713,24 @@ export function Attendance() {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          #print-root-content, #print-root-content * { 
+          #attendance-print-area, #attendance-print-area * { 
             visibility: visible !important; 
           }
-          #print-root-content { 
-            position: absolute !important; 
+          #attendance-print-area { 
+            position: fixed !important; 
             left: 0 !important; 
             top: 0 !important; 
-            width: 100% !important;
+            width: 297mm !important;
+            height: 210mm !important;
             margin: 0 !important;
             padding: 0 !important;
             transform: none !important;
             display: block !important;
-            z-index: 99999 !important;
+            z-index: 9999999 !important;
+            background: white !important;
           }
-          .no-print, [role="dialog"], button, .backdrop-blur-md, header, nav, aside {
+          /* Hide everything else */
+          #root, [role="dialog"]:not(:has(#attendance-print-area)), .no-print, header, nav, aside {
             display: none !important;
             visibility: hidden !important;
           }
@@ -739,9 +742,6 @@ export function Attendance() {
             position: relative !important;
             display: flex !important;
             flex-direction: column !important;
-            margin: 0 !important;
-            padding: 10mm !important;
-            border: none !important;
             background: white !important;
           }
         }
@@ -1354,8 +1354,8 @@ export function Attendance() {
             {/* Preview Content */}
             <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300">
               <div 
-                id="print-root-content"
-                className="shrink-0 scale-[0.7] xl:scale-[0.75] 2xl:scale-95 origin-top transform"
+                id="attendance-print-area"
+                className="shrink-0 scale-[0.7] xl:scale-[0.75] 2xl:scale-95 origin-top transform print:transform-none"
               >
                 {(() => {
                   const itemsPerPage = 18;
