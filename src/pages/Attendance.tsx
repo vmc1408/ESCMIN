@@ -701,6 +701,52 @@ export function Attendance() {
 
   return (
     <>
+      <style>{`
+        @media print {
+          @page { 
+            size: A4 landscape; 
+            margin: 0; 
+          }
+          body { 
+            visibility: hidden !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #print-root-content, #print-root-content * { 
+            visibility: visible !important; 
+          }
+          #print-root-content { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            transform: none !important;
+            display: block !important;
+            z-index: 99999 !important;
+          }
+          .no-print, [role="dialog"], button, .backdrop-blur-md, header, nav, aside {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          .print-page {
+            width: 297mm !important;
+            height: 210mm !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            position: relative !important;
+            display: flex !important;
+            flex-direction: column !important;
+            margin: 0 !important;
+            padding: 10mm !important;
+            border: none !important;
+            background: white !important;
+          }
+        }
+      `}</style>
+
       <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8 no-print">
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -1308,52 +1354,9 @@ export function Attendance() {
             {/* Preview Content */}
             <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300">
               <div 
-                id="printable-attendance"
+                id="print-root-content"
                 className="shrink-0 scale-[0.7] xl:scale-[0.75] 2xl:scale-95 origin-top transform"
               >
-                <style>{`
-                  @media print {
-                    @page { 
-                      size: A4 landscape; 
-                      margin: 0; 
-                    }
-                    body { 
-                      visibility: hidden !important; 
-                      background: white !important;
-                    }
-                    #printable-attendance, #printable-attendance * { 
-                      visibility: visible !important; 
-                    }
-                    #printable-attendance { 
-                      position: absolute !important; 
-                      left: 0 !important; 
-                      top: 0 !important; 
-                      width: 297mm !important; 
-                      height: auto !important;
-                      margin: 0 !important;
-                      padding: 0 !important;
-                      transform: none !important;
-                      background: white !important;
-                      z-index: 99999 !important;
-                    }
-                    .print-page {
-                      width: 297mm !important;
-                      height: 210mm !important;
-                      page-break-after: always !important;
-                      break-after: page !important;
-                      position: relative !important;
-                      display: flex !important;
-                      flex-direction: column !important;
-                      margin: 0 !important;
-                      padding: 10mm !important;
-                      border: none !important;
-                      background: white !important;
-                    }
-                    .no-print, [role="dialog"], .backdrop-blur-md, button {
-                      display: none !important;
-                    }
-                  }
-                `}</style>
                 {(() => {
                   const itemsPerPage = 18;
                   const totalStudents = students.length;
