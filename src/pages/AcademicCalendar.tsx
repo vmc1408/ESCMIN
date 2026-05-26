@@ -1821,6 +1821,10 @@ export function AcademicCalendar() {
                         const orderB = typeOrder[b.type] || 99;
                         return orderA - orderB;
                       });
+
+                    const rawDayEvents = events.filter(e => 
+                      e.start_date === dateStr || (e.end_date && dateStr >= e.start_date && dateStr <= e.end_date)
+                    );
                     const isToday = todayStr === dateStr;
                     const periodType = getPeriodType(dateStr, academicSettings);
                     const isExcused = dayEvents.some(e => e.type === 'excused_class');
@@ -1853,19 +1857,56 @@ export function AcademicCalendar() {
                           }
                         }}
                         className={cn(
-                          "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-hidden cursor-pointer relative border-r border-b border-slate-100",
+                          "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-100",
                           isToday && "bg-blue-50/20",
                           isVacation && "bg-stripes-slate",
                           isHolidayCell && "bg-stripes-red"
                         )}
                       >
                         <div className="flex justify-between items-start">
-                          <span className={cn(
-                            "w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-all",
-                            isToday ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-slate-500 group-hover/cell:text-blue-600"
-                          )}>
-                            {day}
-                          </span>
+                          <div className="relative group/date">
+                            <span className={cn(
+                              "w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-all",
+                              isToday ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-slate-500 group-hover/cell:text-blue-600"
+                            )}>
+                              {day}
+                            </span>
+
+                            {/* Tooltip do Dia (Resumo) - Agora vinculado apenas ao número do dia */}
+                            {dayEvents.length > 0 && (
+                              <div className="absolute left-0 bottom-full mb-2 w-max min-w-[160px] max-w-[240px] z-[250] pointer-events-none hidden group-hover/date:block animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="bg-white border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] rounded-2xl p-4 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                  <div className="text-slate-400 text-[8px] uppercase tracking-[0.2em] mb-3 pb-2 border-b border-slate-50 flex justify-between items-center">
+                                    <span>Resumo do Dia {day}</span>
+                                    <Calendar size={10} />
+                                  </div>
+                                  <div className="space-y-3">
+                                    {dayEvents.map(de => {
+                                      const cls = classes.find(c => c.id === de.class_id);
+                                      const isH = de.type.includes('holiday');
+                                      return (
+                                        <div key={`summary-${de.id}`} className="space-y-1.5">
+                                          <div className="flex items-center gap-2">
+                                            <div className={cn("w-2 h-2 rounded-full shrink-0", isH ? "bg-red-500" : "bg-blue-500")} />
+                                            <span className={cn("uppercase", isH ? "text-red-600" : "text-blue-600")}>
+                                              {de.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').split(' - ')[0]}
+                                            </span>
+                                          </div>
+                                          {cls && (
+                                            <div className="flex items-center gap-2 pl-4 text-slate-500 font-medium text-[9px]">
+                                              <School size={10} className="text-slate-300" />
+                                              <span>Turma: {cls.name}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                <div className="absolute -bottom-1.5 left-3 w-3 h-3 bg-white border-r border-b border-slate-200 rotate-45" />
+                              </div>
+                            )}
+                          </div>
                           {(isAdmin || isDirector) && (
                             <button 
                               onClick={() => {
@@ -1884,7 +1925,7 @@ export function AcademicCalendar() {
                         </div>
 
                         {/* Resumo de Eventos */}
-                        <div className="flex flex-col gap-1 mt-1 overflow-y-auto custom-scrollbar flex-1 pb-1">
+                        <div className="flex flex-col gap-1 mt-1 overflow-visible flex-1 pb-1">
                           {dayEvents
                             .filter(e => e.type !== 'event')
                             .map(event => (
@@ -1895,10 +1936,9 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                                 className={cn(
-                                  "px-1.5 py-0.5 rounded-md text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
+                                  "relative group px-1.5 py-0.5 rounded-md text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
                                   getTypeStyle(event.type, event.start_date, event.title)
                                 )}
-                              title={event.title}
                             >
                               {event.type === 'excused_class' || event.type === 'cancelled_class' ? (
                                 <div className="flex flex-col py-0.5">
@@ -1906,7 +1946,7 @@ export function AcademicCalendar() {
                                     "line-through block",
                                     event.type === 'excused_class' ? "text-slate-400" : "text-rose-400"
                                   )}>
-                                    {event.title}
+                                    {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                   </span>
                                   <span className="text-[6px] font-black opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
                                     {event.type === 'excused_class' ? 'ABONADA' : 'CANCELADA'}
@@ -1914,9 +1954,73 @@ export function AcademicCalendar() {
                                 </div>
                               ) : (
                                 <span className="block">
-                                  {event.title.toUpperCase()}
+                                  {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                 </span>
                               )}
+
+                              {/* Tooltip Detalhado no Calendar Grid */}
+                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[140px] max-w-[220px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                <div className="bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] rounded-2xl p-3.5 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                  <div className="text-blue-600 mb-2.5 border-b border-blue-50 pb-2 flex items-center gap-2">
+                                    <div className={cn(
+                                      "w-2 h-2 rounded-full shrink-0 shadow-sm", 
+                                      event.type?.includes('holiday') ? "bg-red-500" : event.type === 'exam' ? "bg-orange-500" : "bg-blue-500"
+                                    )} />
+                                    <span className="truncate max-w-[170px] uppercase tracking-wide">
+                                      {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
+                                    </span>
+                                  </div>
+                                  <div className="space-y-1.5 text-slate-600">
+                                    {(() => {
+                                      const norm = (t: string) => t
+                                        .replace(/^Dia de Aula - /, '')
+                                        .replace(/^Aula - /, '')
+                                        .replace(/^Aula Normal - /, '')
+                                        .split(' - ')[0]
+                                        .trim();
+                                      
+                                      const normalizedTitle = norm(event.title);
+                                      const relatedEvents = rawDayEvents.filter(re => norm(re.title) === normalizedTitle && re.type === event.type);
+                                      
+                                      const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
+                                      const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
+                                      const sbj = subjects.find(s => s.id === event.subject_id);
+                                      
+                                      return (
+                                        <>
+                                          {relatedClasses.length > 0 && (
+                                            <div className="space-y-1">
+                                              <div className="flex items-center gap-2 text-slate-400 text-[8px] uppercase tracking-wider">
+                                                <School size={9} /> {relatedClasses.length > 1 ? 'Turmas' : 'Turma'}
+                                              </div>
+                                              <div className="flex flex-wrap gap-1">
+                                                {relatedClasses.map(c => (
+                                                  <span key={c!.id} className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-600">
+                                                    {c!.name}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {sbj && (
+                                            <div className="flex items-center gap-2 border-t border-slate-50 pt-1.5">
+                                              <BookOpen size={10} className="text-slate-400" />
+                                              <span className="truncate">{sbj.name}</span>
+                                            </div>
+                                          )}
+                                          {event.description && (
+                                            <div className="text-slate-400 font-medium text-[9px] mt-1.5 border-t border-slate-50 pt-1.5 leading-snug italic">
+                                              {event.description}
+                                            </div>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                                {/* Seta do Tooltip */}
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-r border-b border-slate-200 rotate-45" />
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1994,17 +2098,45 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-hidden",
+                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer",
                                     holiday 
-                                      ? "bg-red-50 text-red-600 border-red-100 cursor-pointer shadow-sm bg-stripes-red"
+                                      ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
-                                        ? "bg-slate-50 text-slate-600 border-slate-100 cursor-pointer shadow-sm bg-stripes-slate"
+                                        ? "bg-slate-50 text-slate-600 border-slate-100 shadow-sm bg-stripes-slate"
                                         : dayEvents.length > 0 
-                                          ? "bg-blue-50 text-blue-600 border-blue-100 cursor-pointer shadow-sm"
+                                          ? "bg-blue-50 text-blue-600 border-blue-100 shadow-sm"
                                           : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
                                 >
                                   {day}
+
+                                  {/* Tooltip no Year View */}
+                                  {dayEvents.length > 0 && (
+                                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[125px] max-w-[185px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                        <div className="space-y-2.5">
+                                          {dayEvents.slice(0, 3).map(de => (
+                                            <div key={de.id} className="border-b border-slate-50 last:border-0 pb-2 last:pb-0">
+                                              <div className="text-blue-600 flex items-center gap-2 mb-1">
+                                                <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", de.type.includes('holiday') ? "bg-red-500" : "bg-blue-500")} />
+                                                <span className="truncate uppercase tracking-tight">{de.title.split(' - ')[0]}</span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5 text-[8px] text-slate-400 font-medium">
+                                                <School size={8} />
+                                                {classes.find(c => c.id === de.class_id)?.name || 'Geral'}
+                                              </div>
+                                            </div>
+                                          ))}
+                                          {dayEvents.length > 3 && (
+                                            <div className="text-[7px] text-slate-300 text-center uppercase tracking-widest pt-1 border-t border-slate-50">
+                                              + {dayEvents.length - 3} outros
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-r border-b border-slate-200 rotate-45" />
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -2047,17 +2179,45 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-hidden",
+                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer",
                                     holiday 
-                                      ? "bg-red-50 text-red-600 border-red-100 cursor-pointer shadow-sm bg-stripes-red"
+                                      ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
-                                        ? "bg-slate-50 text-slate-600 border-slate-100 cursor-pointer shadow-sm bg-stripes-slate"
+                                        ? "bg-slate-50 text-slate-600 border-slate-100 shadow-sm bg-stripes-slate"
                                         : dayEvents.length > 0 
-                                          ? "bg-blue-50 text-blue-600 border-blue-100 cursor-pointer shadow-sm"
+                                          ? "bg-blue-50 text-blue-600 border-blue-100 shadow-sm"
                                           : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
                                 >
                                   {day}
+
+                                  {/* Tooltip no Year View (Semestre 2) */}
+                                  {dayEvents.length > 0 && (
+                                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[125px] max-w-[185px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                        <div className="space-y-2.5">
+                                          {dayEvents.slice(0, 3).map(de => (
+                                            <div key={de.id} className="border-b border-slate-50 last:border-0 pb-2 last:pb-0">
+                                              <div className="text-blue-600 flex items-center gap-2 mb-1">
+                                                <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", de.type.includes('holiday') ? "bg-red-500" : "bg-blue-500")} />
+                                                <span className="truncate uppercase tracking-tight">{de.title.split(' - ')[0]}</span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5 text-[8px] text-slate-400 font-medium">
+                                                <School size={8} />
+                                                {classes.find(c => c.id === de.class_id)?.name || 'Geral'}
+                                              </div>
+                                            </div>
+                                          ))}
+                                          {dayEvents.length > 3 && (
+                                            <div className="text-[7px] text-slate-300 text-center uppercase tracking-widest pt-1 border-t border-slate-50">
+                                              + {dayEvents.length - 3} outros
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white border-r border-b border-slate-200 rotate-45" />
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -3724,7 +3884,7 @@ export function AcademicCalendar() {
                           <div 
                             key={`grid-day-${monthIndex}-${day}`} 
                             className={cn(
-                              "bg-white min-h-[125px] print:min-h-[115px] p-2 border-r border-b border-slate-100 overflow-hidden group hover:bg-slate-50/50 transition-colors",
+                              "bg-white min-h-[125px] print:min-h-[115px] p-2 border-r border-b border-slate-100 overflow-visible relative group/day hover:bg-slate-50/50 transition-colors",
                               isVacation && "bg-stripes-slate",
                               isHolidayGrid && "bg-stripes-red"
                             )}
@@ -3736,12 +3896,14 @@ export function AcademicCalendar() {
                         const isFacultative = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'].some(nb => titleLower.includes(nb));
                         const isHoliday = !isFacultative && (e.type?.includes('holiday') || e.title?.toLowerCase().includes('férias') || e.title?.toLowerCase().includes('feriado') || e.title?.toLowerCase().includes('recesso'));
                         const isExam = e.type === 'exam';
+                        const cls = classes.find(c => c.id === e.class_id);
+                        const sbj = subjects.find(s => s.id === e.subject_id);
                         
                         return (
                           <div 
                             key={e.id} 
                             className={cn(
-                              "text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm",
+                              "relative group text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm transition-all hover:scale-[1.02] hover:shadow-md cursor-help",
                               isHoliday ? "bg-red-500 text-white border-red-600" : 
                               isExam ? "bg-orange-500 text-white border-orange-600" :
                               isFacultative ? "bg-indigo-500 text-white border-indigo-600" :
@@ -3749,6 +3911,66 @@ export function AcademicCalendar() {
                             )}
                           >
                             {(e.title || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
+
+                            {/* Tooltip Detalhado */}
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[200px] z-[100] pointer-events-none hidden group-hover:block animate-in fade-in zoom-in duration-200">
+                              <div className="bg-white border border-slate-200 shadow-xl rounded-xl p-3 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                <div className="text-blue-600 mb-2 border-b border-blue-50 pb-1.5 flex items-center gap-2">
+                                  <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isHoliday ? "bg-red-500" : isExam ? "bg-orange-500" : "bg-blue-500")} />
+                                  <span className="truncate max-w-[160px]">
+                                    {e.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
+                                  </span>
+                                </div>
+                                <div className="space-y-1.5 text-slate-600">
+                                  {(() => {
+                                    const norm = (t: string) => t
+                                      .replace(/^Dia de Aula - /, '')
+                                      .replace(/^Aula - /, '')
+                                      .replace(/^Aula Normal - /, '')
+                                      .split(' - ')[0]
+                                      .trim();
+                                    
+                                    const normalizedTitle = norm(e.title);
+                                    const relatedEvents = rawDayEvents.filter(re => norm(re.title) === normalizedTitle && re.type === e.type);
+                                    
+                                    const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
+                                    const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
+                                    
+                                    return (
+                                      <>
+                                        {relatedClasses.length > 0 && (
+                                          <div className="space-y-1">
+                                            <div className="flex items-center gap-2 text-slate-400 text-[8px] uppercase tracking-wider">
+                                              <School size={9} /> {relatedClasses.length > 1 ? 'Turmas' : 'Turma'}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {relatedClasses.map(c => (
+                                                <span key={c!.id} className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] text-slate-600">
+                                                  {c!.name}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        {sbj && (
+                                          <div className="flex items-center gap-2 border-t border-slate-50 pt-1.5">
+                                            <BookOpen size={10} className="text-slate-400" />
+                                            <span className="truncate">{sbj.name}</span>
+                                          </div>
+                                        )}
+                                        {e.description && (
+                                          <div className="text-slate-400 font-medium text-[9px] mt-1.5 border-t border-slate-50 pt-1.5 leading-snug italic">
+                                            {e.description}
+                                          </div>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                              {/* Seta do Tooltip */}
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-r border-b border-slate-200 rotate-45" />
+                            </div>
                           </div>
                         );
                       })}
