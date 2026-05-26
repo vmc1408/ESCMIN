@@ -93,7 +93,7 @@ export function Documents() {
       setFormData({
         student_id: '',
         type: 'conclusão',
-        issuance_date: formatDateForDisplay(new Date().toISOString().split('T')[0]),
+        issuance_date: new Date().toISOString().split('T')[0],
         course: ''
       });
       fetchData();
@@ -281,10 +281,9 @@ export function Documents() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Data de Emissão</label>
                     <input 
                       required
-                      type="text"
-                      placeholder="DD/MM/AAAA"
+                      type="date"
                       value={formData.issuance_date}
-                      onChange={e => setFormData({...formData, issuance_date: maskDate(e.target.value)})}
+                      onChange={e => setFormData({...formData, issuance_date: e.target.value})}
                       className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                     />
                   </div>

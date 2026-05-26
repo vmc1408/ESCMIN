@@ -235,8 +235,8 @@ export function Students() {
         setFormData({
           ...INITIAL_STUDENT_STATE,
           ...student,
-          birth_date: formatDateForDisplay(student.birth_date),
-          start_date: formatDateForDisplay(student.start_date)
+          birth_date: student.birth_date,
+          start_date: student.start_date
         });
         setIsEditing(false);
         fetchEnrollments(student.id);
@@ -252,12 +252,12 @@ export function Students() {
     if (isEditing && formData.class_id) {
       const targetClass = classes.find(c => c.id === formData.class_id);
       if (targetClass?.start_date) {
-        const formattedDate = formatDateForDisplay(targetClass.start_date);
+        const rawDate = targetClass.start_date;
         
         // Se a data da turma for diferente da data no formulário, atualizamos
         // para garantir que o aluno esteja sincronizado com a turma selecionada
-        if (formData.start_date !== formattedDate) {
-          setFormData(prev => ({ ...prev, start_date: formattedDate }));
+        if (formData.start_date !== rawDate) {
+          setFormData(prev => ({ ...prev, start_date: rawDate }));
         }
       }
     }
@@ -388,7 +388,7 @@ export function Students() {
       phone_residential: student.phone_residential || '',
       cpf: student.cpf || '',
       rg: student.rg || '',
-      birth_date: formatDateForDisplay(student.birth_date),
+      birth_date: student.birth_date,
       address_street: student.address_street || '',
       address_neighborhood: student.address_neighborhood || '',
       address_city: student.address_city || 'Guarulhos',
@@ -398,7 +398,7 @@ export function Students() {
       forania: student.forania || '',
       course: student.course || '',
       pastoral_participates: student.pastoral_participates || '',
-      start_date: formatDateForDisplay(student.start_date),
+      start_date: student.start_date,
       photo_url: student.photo_url || ''
     });
     setIsEditing(false);
@@ -1250,11 +1250,10 @@ export function Students() {
                       <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Data de Nascimento</label>
                         <input 
-                          type="text"
+                          type="date"
                           disabled={!isEditing}
-                          placeholder="DD/MM/AAAA"
                           value={formData.birth_date || ''}
-                          onChange={(e) => setFormData({...formData, birth_date: maskDate(e.target.value)})}
+                          onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={6}
@@ -1282,11 +1281,10 @@ export function Students() {
                       <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Data de inicio da TURMA</label>
                         <input 
-                          type="text"
+                          type="date"
                           disabled={!isEditing}
-                          placeholder="DD/MM/AAAA"
                           value={formData.start_date || ''}
-                          onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
+                          onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                           tabIndex={8}

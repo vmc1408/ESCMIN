@@ -523,7 +523,7 @@ export function Diocese() {
         address_state: 'SP',
         cnpj: '',
         ...item,
-        foundation_date: formatDateForDisplay(item.foundation_date)
+        foundation_date: item.foundation_date
       });
     } else {
       setClergyForm({
@@ -1453,10 +1453,9 @@ export function Diocese() {
                           <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Data de Fundação</label>
                             <input 
-                              type="text"
-                              placeholder="DD/MM/AAAA"
+                              type="date"
                               value={parishForm.foundation_date || ''}
-                              onChange={e => setParishForm({...parishForm, foundation_date: maskDate(e.target.value)})}
+                              onChange={e => setParishForm({...parishForm, foundation_date: e.target.value})}
                               className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold"
                             />
                           </div>

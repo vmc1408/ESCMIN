@@ -242,12 +242,9 @@ export function Classes() {
   const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
     
-    // Ensure accurate date formatting for display (DD/MM/YYYY)
-    const displayDate = cls.start_date ? formatDateForDisplay(cls.start_date) : '';
-    
     setFormData({
       ...cls,
-      start_date: displayDate
+      start_date: cls.start_date || ''
     });
     setIsEditing(false);
   }, []);
@@ -400,7 +397,7 @@ export function Classes() {
       const updatedData = { 
         ...syncData, 
         id: savedId,
-        start_date: formatDateForDisplay(syncData.start_date)
+        start_date: syncData.start_date
       } as Class;
       setSelectedClass(updatedData);
       setFormData(updatedData);
@@ -846,11 +843,10 @@ export function Classes() {
                         <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Prevista de Início</label>
                         <div className="relative group">
                           <input 
-                            type="text"
-                            placeholder="DD/MM/AAAA"
+                            type="date"
                             disabled={!isEditing}
                             value={formData.start_date || ''}
-                            onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
+                            onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                             onKeyDown={handleKeyDown}
                             className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 shadow-sm outline-none transition-all"
                             tabIndex={5}

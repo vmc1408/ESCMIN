@@ -329,12 +329,6 @@ export function Attendance() {
     setAttendance(newAttendance);
   };
 
-  const isScheduledDay = React.useMemo(() => {
-    if (!selectedClass || !selectedDate || classEvents.length === 0) return false;
-    const dbDate = parseDateToDB(selectedDate);
-    return classEvents.some(event => event.start_date === dbDate);
-  }, [selectedDate, classEvents, selectedClass]);
-  
   const selectedClassWeekdays = React.useMemo(() => {
     const classInfo = classes.find(c => c.id === selectedClass);
     if (!classInfo) return [];
@@ -348,9 +342,20 @@ export function Attendance() {
 
     let targetDayIndices: number[] = [];
 
-    // A. Use explicit days_of_week if available
-    if (Array.isArray(classInfo.days_of_week) && classInfo.days_of_week.length > 0) {
-      targetDayIndices = classInfo.days_of_week.map(d => dayMap[d]).filter(d => d !== undefined);
+    // A. Use explicit days_of_week if available (handling string/JSON/array)
+    let rawDays: any = classInfo.days_of_week;
+    if (typeof rawDays === 'string') {
+      try {
+        rawDays = JSON.parse(rawDays);
+      } catch (e) {
+        rawDays = rawDays.split(',').map((s: string) => s.trim());
+      }
+    }
+
+    if (Array.isArray(rawDays) && rawDays.length > 0) {
+      targetDayIndices = rawDays
+        .map(d => dayMap[d] !== undefined ? dayMap[d] : dayMap[d.charAt(0).toUpperCase() + d.slice(1).toLowerCase()])
+        .filter(d => d !== undefined);
     }
 
     // B. Fallback: Parse class name for weekday keywords
@@ -395,6 +400,29 @@ export function Attendance() {
 
     return targetDayIndices;
   }, [classes, selectedClass, classEvents]);
+
+  const isScheduledDay = React.useMemo(() => {
+    if (!selectedClass || !selectedDate || classEvents.length === 0) return false;
+    const dbDate = parseDateToDB(selectedDate);
+    
+    return classEvents.some(event => {
+      const isCorrectDate = event.start_date === dbDate;
+      const isForThisClass = String(event.class_id) === String(selectedClass);
+      const isGlobal = !event.class_id;
+      
+      if (!isCorrectDate) return false;
+      if (isForThisClass) return true;
+      if (isGlobal) {
+        // For global events, only count as scheduled if it matches the class weekdays
+        if (selectedClassWeekdays.length > 0) {
+          const dateObj = new Date(dbDate + 'T12:00:00');
+          return selectedClassWeekdays.includes(dateObj.getDay());
+        }
+        return true;
+      }
+      return false;
+    });
+  }, [selectedDate, classEvents, selectedClass, selectedClassWeekdays]);
 
   const monthlyClassDays = React.useMemo(() => {
     if (!selectedClass) return [];
@@ -511,21 +539,19 @@ export function Attendance() {
       if (!uniqueMap.has(dateKey)) {
         // Filter which days to show in the dropdown:
         // Include events specific to this class OR global holidays/cancellations
-        if (
-          String(event.class_id) !== String(selectedClass) && 
-          !(!event.class_id || event.type === 'cancelled_class' || event.type === 'excused_class' || event.type?.includes('holiday'))
-        ) {
-          return;
-        }
+        const isGlobal = !event.class_id;
+        const isThisClass = String(event.class_id) === String(selectedClass);
+        
+        if (!isGlobal && !isThisClass) return;
 
-        // STRICT FILTER: Only show days that match identified target weekdays
+        // STRICT FILTER: Only show if it matches identified target weekdays
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(dateKey + 'T12:00:00');
           if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
         }
 
         // Filter by subject if specified on the event
-        if (selectedSubject && event.subject_id !== selectedSubject) return;
+        if (selectedSubject && event.subject_id && String(event.subject_id) !== String(selectedSubject)) return;
 
         // Skip cancelled classes or holidays for markings
         if (event.type === 'cancelled_class' || event.type?.includes('holiday')) return;
@@ -535,7 +561,7 @@ export function Attendance() {
     });
 
     return Array.from(uniqueMap.values())
-      .sort((a, b) => a.start_date.localeCompare(b.start_date))
+      .sort((a: any, b: any) => a.start_date.localeCompare(b.start_date)) // Sort ascending for auto-select logic
       .map((event: any) => {
         const date = new Date(event.start_date + 'T12:00:00');
         const weekdayName = date.toLocaleDateString('pt-BR', { weekday: 'long' });
@@ -547,12 +573,16 @@ export function Attendance() {
       });
   }, [classEvents, selectedClass, selectedSubject, selectedClassWeekdays]);
 
-  // Auto-select logic
+  // Auto-select logic: Choose next class, today's class, or the most recent one
   useEffect(() => {
     if (availableDates.length > 0 && selectedClass) {
       const today = new Date().toISOString().split('T')[0];
-      const bestDate = availableDates.find(d => d.dbValue >= today) || availableDates[0];
-      if (bestDate) setSelectedDate(bestDate.displayValue);
+      const nextDates = availableDates.filter(d => d.dbValue >= today);
+      const bestDate = nextDates.length > 0 ? nextDates[0] : availableDates[availableDates.length - 1];
+      
+      if (bestDate && bestDate.displayValue !== selectedDate) {
+        setSelectedDate(bestDate.displayValue);
+      }
     }
   }, [availableDates, selectedClass]);
 
@@ -654,8 +684,10 @@ export function Attendance() {
   };
 
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [printType, setPrintType] = useState<'marking' | 'report'>('report');
 
   const handlePrint = () => {
+    setPrintType(activeTab === 'marking' ? 'marking' : 'report');
     setShowPrintPreview(true);
   };
 
@@ -905,27 +937,40 @@ export function Attendance() {
                     </motion.div>
                   )}
                 </div>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
-                    <CalendarIcon size={18} />
-                  </div>
-                  <select
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="col-span-3 relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
+                      <CalendarIcon size={18} />
+                    </div>
+                    <select
                     disabled={!selectedClass || availableDates.length === 0}
                     value={parseDateToDB(selectedDate)}
                     onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
                     className={cn(
-                      "w-full pl-16 pr-12 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:border-slate-400 appearance-none transition-all outline-none",
+                      "w-full pl-16 pr-10 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:border-slate-400 appearance-none transition-all outline-none",
                       availableDates.length > 0 ? "focus:ring-slate-500/5" : "ring-4 ring-red-50/50"
                     )}
                   >
                     <option value="">DATA...</option>
-                    {availableDates.map(date => (
+                    {[...availableDates].reverse().map(date => (
                       <option key={date.dbValue} value={date.dbValue}>
                         {date.label.toUpperCase()}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                  </div>
+                  <div className="col-span-1 relative group">
+                    <select
+                      value={selectedYear}
+                      onChange={e => setSelectedYear(parseInt(e.target.value))}
+                      className="w-full px-2 py-4 bg-white border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:ring-4 focus:border-slate-400 appearance-none transition-all outline-none text-center"
+                    >
+                      {[2024, 2025, 2026, 2027, 2028].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
@@ -1272,6 +1317,28 @@ export function Attendance() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Padrão A4 Paisagem (Landscape)</p>
                 </div>
               </div>
+              
+              <div className="flex bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setPrintType('marking')}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                    printType === 'marking' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  Lista de Chamada
+                </button>
+                <button
+                  onClick={() => setPrintType('report')}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                    printType === 'report' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  Relatório Mensal
+                </button>
+              </div>
+
               <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setShowPrintPreview(false)}
@@ -1378,7 +1445,9 @@ export function Attendance() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-1 h-4 bg-black rounded-full"></div>
-                            <h2 className="text-[10pt] font-black uppercase tracking-[0.05em] text-black">Lista de Presença Mensal</h2>
+                            <h2 className="text-[10pt] font-black uppercase tracking-[0.05em] text-black">
+                              {printType === 'marking' ? 'Lista de Chamada' : 'Lista de Presença Mensal'}
+                            </h2>
                           </div>
                           <div className="text-right text-[7.5pt] font-bold text-slate-400 uppercase tracking-wider">
                             Mês Referência: <span className="text-slate-900 font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span>
@@ -1455,6 +1524,7 @@ export function Attendance() {
                                     <td key={i} className={cn("border-x border-slate-200 p-0 text-center text-[12.5pt] font-black", day?.isCancelled && "bg-gray-50")}>
                                       {(() => {
                                         if (day?.isCancelled) return <span className="text-gray-300 text-[8pt] font-black rotate-[-45deg] inline-block opacity-40">CANCELADA</span>;
+                                        if (printType === 'marking') return '';
                                         const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
                                         return status === 'P' ? '●' : status === 'F' ? 'F' : status === 'J' ? 'J' : '';
                                       })()}
