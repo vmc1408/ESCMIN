@@ -718,13 +718,13 @@ export function Attendance() {
           body * {
             visibility: hidden !important;
           }
-          #print-root, #printable-area, #printable-area * {
+          #printable-attendance, #printable-attendance * {
             visibility: visible !important;
           }
           #root {
             display: none !important;
           }
-          #printable-area {
+          #printable-attendance {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
@@ -1304,10 +1304,10 @@ export function Attendance() {
     </div>
       {/* Print Preview Modal */}
           {showPrintPreview && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4 no-print">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-[1200px] h-[95vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10 no-print">
               <div className="flex items-center gap-5">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
                   <Printer size={24} />
@@ -1359,15 +1359,15 @@ export function Attendance() {
             {/* Preview Content */}
             <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300">
               <div 
-                id="attendance-print-container"
+                id="printable-attendance"
                 className="shrink-0 scale-[0.7] xl:scale-[0.75] 2xl:scale-95 origin-top transform"
               >
                 <style>{`
                   @media print {
                     @page { size: A4 landscape; margin: 0; }
                     body { visibility: hidden !important; }
-                    #attendance-print-container, #attendance-print-container * { visibility: visible !important; }
-                    #attendance-print-container { 
+                    #printable-attendance, #printable-attendance * { visibility: visible !important; }
+                    #printable-attendance { 
                       position: absolute !important; 
                       left: 0 !important; 
                       top: 0 !important; 
