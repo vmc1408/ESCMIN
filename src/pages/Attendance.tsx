@@ -701,57 +701,6 @@ export function Attendance() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page { 
-            size: A4 landscape;
-            margin: 0;
-          }
-          html, body {
-            width: 297mm !important;
-            height: 210mm !important;
-            background: #fff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: hidden !important;
-          }
-          body * {
-            visibility: hidden !important;
-          }
-          #printable-attendance, #printable-attendance * {
-            visibility: visible !important;
-          }
-          #root {
-            display: none !important;
-          }
-          #printable-attendance {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 297mm !important;
-            margin: 0 !important;
-            display: block !important;
-            background: white !important;
-            z-index: 99999 !important;
-          }
-          .print-page {
-            width: 297mm !important;
-            height: 210mm !important;
-            padding: 15mm !important;
-            overflow: hidden !important;
-            break-after: page !important;
-            background: white !important;
-            position: relative !important;
-            display: flex !important;
-            flex-direction: column !important;
-          }
-          .no-print, [role="dialog"], .backdrop-blur-sm {
-            display: none !important;
-            visibility: hidden !important;
-          }
-        }
-      `}} />
-
       <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8 no-print">
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -1364,9 +1313,17 @@ export function Attendance() {
               >
                 <style>{`
                   @media print {
-                    @page { size: A4 landscape; margin: 0; }
-                    body { visibility: hidden !important; }
-                    #printable-attendance, #printable-attendance * { visibility: visible !important; }
+                    @page { 
+                      size: A4 landscape; 
+                      margin: 0; 
+                    }
+                    body { 
+                      visibility: hidden !important; 
+                      background: white !important;
+                    }
+                    #printable-attendance, #printable-attendance * { 
+                      visibility: visible !important; 
+                    }
                     #printable-attendance { 
                       position: absolute !important; 
                       left: 0 !important; 
@@ -1375,6 +1332,9 @@ export function Attendance() {
                       height: auto !important;
                       margin: 0 !important;
                       padding: 0 !important;
+                      transform: none !important;
+                      background: white !important;
+                      z-index: 99999 !important;
                     }
                     .print-page {
                       width: 297mm !important;
@@ -1387,9 +1347,10 @@ export function Attendance() {
                       margin: 0 !important;
                       padding: 10mm !important;
                       border: none !important;
+                      background: white !important;
                     }
-                    .shadow-xl, .shadow-2xl, .shadow-[0_30px_60px_rgba(0,0,0,0.12)] {
-                      box-shadow: none !important;
+                    .no-print, [role="dialog"], .backdrop-blur-md, button {
+                      display: none !important;
                     }
                   }
                 `}</style>
