@@ -247,17 +247,30 @@ export function Students() {
     }
   }, [students, location.state]);
 
-  // Auto-fill student start date based on selected class
+  // Auto-fill student start date and course based on selected class
   useEffect(() => {
     if (isEditing && formData.class_id) {
       const targetClass = classes.find(c => c.id === formData.class_id);
-      if (targetClass?.start_date) {
-        const rawDate = targetClass.start_date;
+      
+      if (targetClass) {
+        const updates: any = {};
         
-        // Se a data da turma for diferente da data no formulário, atualizamos
-        // para garantir que o aluno esteja sincronizado com a turma selecionada
-        if (formData.start_date !== rawDate) {
-          setFormData(prev => ({ ...prev, start_date: rawDate }));
+        // Auto-fill date
+        if (targetClass.start_date && formData.start_date !== targetClass.start_date) {
+          updates.start_date = targetClass.start_date;
+        }
+
+        // Auto-detect course if not already selected
+        if (!formData.course) {
+          const className = (targetClass.name || '').toLowerCase();
+          if (className.includes('teologia')) updates.course = 'Teologia';
+          else if (className.includes('latim')) updates.course = 'Latim';
+          else if (className.includes('doutrina social')) updates.course = 'Doutrina Social da Igreja';
+          else if (className.includes('negros') || className.includes('história')) updates.course = 'História dos Santos Negros';
+        }
+
+        if (Object.keys(updates).length > 0) {
+          setFormData(prev => ({ ...prev, ...updates }));
         }
       }
     }
@@ -1256,7 +1269,7 @@ export function Students() {
                           value={formData.class_id || ''}
                           onChange={(e) => setFormData({...formData, class_id: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
                           tabIndex={7}
                         >
                           <option value="">Selecione uma turma</option>
@@ -1265,6 +1278,25 @@ export function Students() {
                               {c.name} ({c.code}) - {c.period}
                             </option>
                           ))}
+                        </select>
+                      </div>
+
+                      <div className="col-span-4 space-y-1">
+                        <label className="text-xs font-bold text-slate-700 font-bold text-blue-600">Curso / Identificação</label>
+                        <select 
+                          disabled={!isEditing}
+                          value={formData.course || ''}
+                          onChange={(e) => setFormData({...formData, course: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          className="w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold text-blue-800"
+                          tabIndex={7.5}
+                        >
+                          <option value="">Identificar Curso...</option>
+                          <option value="Teologia">Teologia</option>
+                          <option value="Latim">Latim</option>
+                          <option value="Doutrina Social da Igreja">Doutrina Social da Igreja</option>
+                          <option value="História dos Santos Negros">História dos Santos Negros</option>
+                          <option value="Outros">Outros</option>
                         </select>
                       </div>
 
