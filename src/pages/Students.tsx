@@ -1016,7 +1016,7 @@ export function Students() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
                 <div className="relative group">
-                  <div className="w-20 h-28 rounded-md bg-white shadow-sm flex items-center justify-center text-indigo-200 overflow-hidden border border-slate-200 relative">
+                  <div className="w-20 h-28 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-200 overflow-hidden border border-slate-200 relative">
                     {formData.photo_url ? (
                       <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -1065,17 +1065,39 @@ export function Students() {
                   <>
                     <button 
                       onClick={handlePrint}
-                      className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-md hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center shadow-sm"
+                      className="h-10 w-10 bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center shadow-sm"
                       title="Imprimir Ficha"
                     >
-                      <Printer size={16} />
+                      <Printer size={18} />
                     </button>
+                    
+                    <button 
+                      onClick={() => navigate('/contributions', { state: { studentId: selectedStudent.id } })}
+                      className="h-10 px-4 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2 uppercase tracking-wide"
+                    >
+                      <CreditCard size={16} />
+                      Financeiro
+                    </button>
+
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="h-10 px-4 bg-indigo-50 text-indigo-600 rounded-md text-[11px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm shadow-indigo-100/50 uppercase tracking-widest"
+                      className="h-10 px-5 bg-[#00174b] text-white rounded-xl text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-md flex items-center gap-2 uppercase tracking-wide"
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={16} />
                       Editar
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="h-10 w-10 text-red-500 hover:bg-red-300 hover:text-red-700 bg-red-50 rounded-xl transition-all flex items-center justify-center border border-red-100 shadow-sm"
+                      title="Excluir Aluno"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   </>
                 )}
@@ -1094,7 +1116,7 @@ export function Students() {
                     <button 
                       onClick={handleSave}
                       disabled={loading}
-                      className="h-10 px-5 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
+                      className="h-10 px-5 bg-[#00174b] text-white rounded-xl text-[11px] font-bold hover:scale-[1.02] transition-all flex items-center gap-2 shadow-sm shadow-blue-900/10 uppercase tracking-widest"
                     >
                       <Save size={14} />
                       Confirmar
@@ -1103,39 +1125,7 @@ export function Students() {
                 )}
               </div>
             </div>
-                {!isEditing && selectedStudent && (
-                  <button 
-                    onClick={() => navigate('/contributions', { state: { studentId: selectedStudent.id } })}
-                    className="h-10 px-4 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all flex items-center gap-2"
-                  >
-                    <CreditCard size={16} />
-                    Financeiro
-                  </button>
-                 )}
-                {!isEditing && selectedStudent && (
-                  <button 
-                    onClick={() => setIsEditing(true)}
-                    className="h-10 px-6 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-md flex items-center gap-2"
-                  >
-                    <Edit2 size={16} />
-                    Editar
-                  </button>
-                )}
-                {!isEditing && selectedStudent && (
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="h-10 w-10 text-red-500 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center bg-white border border-slate-100"
-                    title="Excluir Aluno"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                )}
-              </div>
+          </div>
 
           <div className="flex-1 overflow-y-auto">
               <div className="p-3 pb-24">
@@ -1577,7 +1567,7 @@ export function Students() {
                           setIsEditing(false);
                           setUploadingPhoto(false);
                         }}
-                        className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                        className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
                         tabIndex={18}
                       >
                         <X size={18} />
@@ -1586,7 +1576,7 @@ export function Students() {
                       <button 
                         onClick={handleSave}
                         disabled={loading || uploadingPhoto}
-                        className="flex-[2] h-12 bg-[#00174b] text-white rounded-2xl text-sm font-bold hover:scale-[1.01] active:scale-95 transition-all shadow-xl shadow-blue-900/10 disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-[2] h-12 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.01] active:scale-95 transition-all shadow-xl shadow-blue-900/10 disabled:opacity-50 flex items-center justify-center gap-2"
                         tabIndex={19}
                       >
                         {loading ? (
