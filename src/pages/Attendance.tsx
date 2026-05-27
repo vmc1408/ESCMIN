@@ -707,32 +707,42 @@ export function Attendance() {
             size: A4 landscape; 
             margin: 0; 
           }
-          body { 
-            visibility: hidden !important;
-            background: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+          /* Hide the main app root and other utilities */
+          #root, .no-print {
+            display: none !important;
           }
+          /* Ensure the dialog/modal container is visible for the browser to reach the print area */
+          div[role="dialog"], .fixed.inset-0 {
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          /* Hide all children of the dialog except the one containing the printable content */
+          div[role="dialog"] > div > div:not(:has(#attendance-print-area)) {
+            display: none !important;
+          }
+          /* Isolation of the print area */
           #attendance-print-area, #attendance-print-area * { 
             visibility: visible !important; 
           }
           #attendance-print-area { 
-            position: fixed !important; 
+            display: block !important;
+            visibility: visible !important;
+            position: absolute !important; 
             left: 0 !important; 
             top: 0 !important; 
             width: 297mm !important;
-            height: 210mm !important;
             margin: 0 !important;
             padding: 0 !important;
             transform: none !important;
-            display: block !important;
             z-index: 9999999 !important;
             background: white !important;
-          }
-          /* Hide everything else */
-          #root, [role="dialog"]:not(:has(#attendance-print-area)), .no-print, header, nav, aside {
-            display: none !important;
-            visibility: hidden !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .print-page {
             width: 297mm !important;
@@ -743,6 +753,8 @@ export function Attendance() {
             display: flex !important;
             flex-direction: column !important;
             background: white !important;
+            margin: 0 !important;
+            padding: 10mm !important;
           }
         }
       `}</style>
