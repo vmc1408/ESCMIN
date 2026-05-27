@@ -707,31 +707,18 @@ export function Attendance() {
             size: A4 landscape; 
             margin: 0; 
           }
-          /* Hide the main app root and other utilities */
-          #root, .no-print {
-            display: none !important;
+          /* NUCLEAR FIX: Don't use display: none on parent elements of the print area */
+          body * { 
+            visibility: hidden !important; 
           }
-          /* Ensure the dialog/modal container is visible for the browser to reach the print area */
-          div[role="dialog"], .fixed.inset-0 {
-            display: block !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          /* Hide all children of the dialog except the one containing the printable content */
-          div[role="dialog"] > div > div:not(:has(#attendance-print-area)) {
-            display: none !important;
-          }
-          /* Isolation of the print area */
+          
+          /* Show ONLY the attendance print area and its ancestors must NOT have display: none */
           #attendance-print-area, #attendance-print-area * { 
             visibility: visible !important; 
           }
+          
           #attendance-print-area { 
             display: block !important;
-            visibility: visible !important;
             position: absolute !important; 
             left: 0 !important; 
             top: 0 !important; 
@@ -739,11 +726,12 @@ export function Attendance() {
             margin: 0 !important;
             padding: 0 !important;
             transform: none !important;
-            z-index: 9999999 !important;
             background: white !important;
+            z-index: 1000000 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+
           .print-page {
             width: 297mm !important;
             height: 210mm !important;
@@ -755,6 +743,15 @@ export function Attendance() {
             background: white !important;
             margin: 0 !important;
             padding: 10mm !important;
+            visibility: visible !important;
+          }
+
+          /* Ensure root or dialog doesn't block printing but isn't visible */
+          #root, div[role="dialog"], .fixed.inset-0 {
+            display: block !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
           }
         }
       `}</style>
