@@ -739,9 +739,6 @@ export function Attendance() {
         if (pageIdx > 0) doc.addPage();
 
         // Header - Modern Design
-        // Logo (if available) - we'll skip image loading for now to avoid async issues in this call
-        // but we'll leave space for it or try to load it if institution logo is provided
-        
         doc.setFontSize(8);
         doc.setTextColor(100);
         doc.setFont('helvetica', 'bold');
@@ -757,13 +754,13 @@ export function Attendance() {
         doc.setFont('helvetica', 'bold');
         doc.text(institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO', margin + 20, margin + 15);
 
-        // Page info
+        // Page info (Top Right)
         doc.setFontSize(7);
         doc.setTextColor(150);
-        doc.text('PÁGINA', pageWidth - margin - 15, margin + 5);
+        doc.text('PÁGINA', pageWidth - margin - 20, margin + 5, { align: 'right' });
         doc.setFontSize(14);
         doc.setTextColor(0);
-        doc.text(`${pageIdx + 1} / ${totalPages}`, pageWidth - margin - 15, margin + 12);
+        doc.text(`${pageIdx + 1} / ${totalPages}`, pageWidth - margin - 5, margin + 12, { align: 'right' });
 
         // Underline
         doc.setDrawColor(0);
@@ -772,7 +769,7 @@ export function Attendance() {
 
         // Info Box
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(margin, margin + 20, contentWidth, 15, 1, 1, 'F');
+        doc.roundedRect(margin, margin + 20, contentWidth, 18, 1, 1, 'F');
         
         doc.setFontSize(10);
         doc.setTextColor(0);
@@ -781,37 +778,38 @@ export function Attendance() {
         
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text('MÊS REFERÊNCIA:', margin + 130, margin + 26);
+        doc.text('MÊS REFERÊNCIA:', pageWidth - margin - 60, margin + 26, { align: 'right' });
         doc.setTextColor(0);
-        doc.text(`${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / ${selectedYear}`.toUpperCase(), margin + 158, margin + 26);
+        const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth];
+        doc.text(`${monthName} / ${selectedYear}`.toUpperCase(), pageWidth - margin - 4, margin + 26, { align: 'right' });
 
         // Second line of Info Box
         doc.setFontSize(7);
         doc.setTextColor(150);
         doc.text('TURMA / CÓDIGO', margin + 4, margin + 31);
-        doc.text('SALA / LOCAL', margin + 55, margin + 31);
-        doc.text('DISCIPLINA', margin + 85, margin + 31);
-        doc.text('TOTAL DE ALUNOS', pageWidth - margin - 35, margin + 31);
+        doc.text('SALA / LOCAL', margin + 65, margin + 31);
+        doc.text('DISCIPLINA', margin + 105, margin + 31);
+        doc.text('TOTAL DE ALUNOS', pageWidth - margin - 4, margin + 31, { align: 'right' });
 
         doc.setFontSize(8);
         doc.setTextColor(0);
-        doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 34);
-        doc.text(currentClassObj?.room || '002', margin + 55, margin + 34);
-        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 85, margin + 34);
+        doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 35);
+        doc.text(currentClassObj?.room || '002', margin + 65, margin + 35);
+        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 105, margin + 35);
         
-        doc.setFontSize(12);
-        doc.text(String(students.length), pageWidth - margin - 15, margin + 34, { align: 'right' });
+        doc.setFontSize(14);
+        doc.text(String(students.length), pageWidth - margin - 4, margin + 36, { align: 'right' });
 
         // Table Head
         const head: any[] = [
           [
-            { content: 'Nº', styles: { halign: 'center' } },
-            'MATRÍCULA',
-            'NOME COMPLETO DO ALUNO',
+            { content: 'Nº', styles: { halign: 'center', valign: 'middle' } },
+            { content: 'MATRÍCULA', styles: { valign: 'middle' } },
+            { content: 'NOME COMPLETO DO ALUNO', styles: { valign: 'middle' } },
             ...monthlyClassDays.map(day => {
-              const dateStr = day ? `${day.dayNumber}/${new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}` : '';
-              const typeStr = day?.isCancelled ? 'CANC' : day?.isExcused ? 'ABON' : `AULA ${day?.lessonNumber}`;
-              return { content: `${dateStr}\n${typeStr}`, styles: { halign: 'center' } };
+              const dateStr = day ? `${day.dayNumber.toString().padStart(2, '0')}/${new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}` : '';
+              const typeStr = day?.isCancelled ? 'CANC' : day?.isExcused ? 'ABON' : `AULA ${day?.lessonNumber || ''}`;
+              return { content: `${dateStr}\n${typeStr}`, styles: { halign: 'center', fontSize: 6 } };
             })
           ]
         ];
@@ -822,49 +820,59 @@ export function Attendance() {
           const overallIndex = pageIdx * itemsPerPage + idx;
           return [
             { content: String(overallIndex + 1), styles: { halign: 'center' } },
-            student.registration_number,
+            { content: student.registration_number, styles: { font: 'courier' } },
             student.name.toUpperCase(),
             ...monthlyClassDays.map(day => {
-              if (day?.isCancelled) return '---';
+              if (day?.isCancelled) return { content: '---', styles: { halign: 'center', textColor: [200, 200, 200] } };
               if (printType === 'marking') return '';
               const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
-              return status === 'P' ? 'OK' : status === 'F' ? 'F' : status === 'J' ? 'J' : '';
+              return { 
+                content: status === 'P' ? 'OK' : status === 'F' ? 'F' : status === 'J' ? 'J' : '',
+                styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal' }
+              };
             })
           ];
         });
 
         autoTable(doc, {
-          startY: margin + 38,
+          startY: margin + 40,
           head: head,
           body: body,
           theme: 'grid',
           headStyles: { 
-            fillColor: [220, 220, 220],
+            fillColor: [240, 240, 240],
             textColor: [0, 0, 0],
             fontSize: 7,
             lineWidth: 0.1,
-            lineColor: [150, 150, 150]
+            lineColor: [100, 100, 100],
+            fontStyle: 'bold'
           },
           styles: { 
             fontSize: 8,
-            cellPadding: 1,
+            cellPadding: 1.5,
             lineWidth: 0.1,
-            lineColor: [200, 200, 200],
-            minCellHeight: 7
+            lineColor: [180, 180, 180],
+            minCellHeight: 8,
+            valign: 'middle'
           },
           columnStyles: {
             0: { cellWidth: 8 },
-            1: { cellWidth: 20, font: 'courier' },
-            2: { cellWidth: 70 }
+            1: { cellWidth: 28 }, // Increased from 20
+            2: { cellWidth: 75 }
           },
           didDrawPage: (data) => {
-            // Footer on each page
+            // Footer
             doc.setFontSize(7);
             doc.setTextColor(150);
             const footerY = pageHeight - margin + 3;
             doc.text(institution?.address || 'AV. VENUS, 195 - GUARULHOS', margin, footerY);
-            doc.text(`EMISSÃO: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - margin - 40, footerY);
-            doc.text(`PÁGINA ${pageIdx + 1}/${totalPages}`, pageWidth - margin - 10, footerY, { align: 'right' });
+            
+            // Fixed overlap in footer
+            const emissionDate = `EMISSÃO: ${new Date().toLocaleDateString('pt-BR')}`;
+            const pageText = `PÁGINA ${pageIdx + 1}/${totalPages}`;
+            
+            doc.text(emissionDate, pageWidth - margin - 45, footerY, { align: 'right' });
+            doc.text(pageText, pageWidth - margin, footerY, { align: 'right' });
           }
         });
       }
