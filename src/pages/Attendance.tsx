@@ -708,68 +708,93 @@ export function Attendance() {
             margin: 0; 
           }
           
-          /* Isolate print area by hiding everything else */
-          body * { 
-            visibility: hidden !important; 
-          }
-          
-          /* Show print area and its ancestors */
-          #attendance-print-area, 
-          #attendance-print-area *,
-          div[role="dialog"],
-          div[role="dialog"] *,
-          .fixed.inset-0,
-          .fixed.inset-0 * { 
-            visibility: visible !important; 
-          }
-
-          /* Force display: none on elements that consume page space while hidden */
-          #root, nav, header, aside, .no-print:not([role="dialog"]), .backdrop-blur-md:not([role="dialog"]) {
-            display: none !important;
-            height: 0 !important;
-            overflow: hidden !important;
-          }
-
-          /* Container isolation */
-          #attendance-print-area { 
-            display: block !important;
-            position: absolute !important; 
-            left: 0 !important; 
-            top: 0 !important; 
-            width: 297mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            transform: none !important;
-            background: white !important;
-            z-index: 1000000 !important;
+          /* Force color printing */
+          * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
 
-          /* Page break and sizing */
+          /* Hide all UI elements marked with .no-print */
+          .no-print, 
+          button, 
+          header, 
+          nav, 
+          aside,
+          #root > div:not(:has(.print-modal-container)) {
+            display: none !important;
+          }
+
+          /* Reset body and html */
+          body, html {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+
+          /* Ensure the print area is the only thing visible */
+          .print-modal-container {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            background: white !important;
+            display: block !important;
+            z-index: 1 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            backdrop-filter: none !important;
+          }
+
+          .print-modal-content {
+            max-width: none !important;
+            width: 100% !important;
+            height: auto !important;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+          }
+
+          .print-preview-scroll-area {
+            background: white !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            display: block !important;
+          }
+
+          /* Root of printable content */
+          #attendance-print-area {
+            transform: none !important;
+            display: block !important;
+            width: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+
+          /* Individual page formatting */
           .print-page {
             width: 297mm !important;
             height: 210mm !important;
             page-break-after: always !important;
             break-after: page !important;
-            position: relative !important;
-            display: flex !important;
-            flex-direction: column !important;
             background: white !important;
             margin: 0 !important;
             padding: 10mm !important;
             box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+            border: none !important;
+            visibility: visible !important;
           }
 
-          /* Hide modal specific UI elements */
-          div[role="dialog"] button, 
-          div[role="dialog"] .no-print {
-            display: none !important;
+          /* Fix for items inside the page */
+          .print-page * {
+            visibility: visible !important;
           }
-          
-          /* Remove backdrop/shadows */
-          .fixed.inset-0 { background: white !important; }
-          div[role="dialog"] { box-shadow: none !important; border: none !important; }
         }
       `}</style>
 
@@ -1325,8 +1350,8 @@ export function Attendance() {
     </div>
       {/* Print Preview Modal */}
           {showPrintPreview && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-[1200px] h-[95vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4 print-modal-container">
+          <div className="bg-white w-full max-w-[1200px] h-[95vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 print-modal-content">
             {/* Modal Header */}
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10 no-print">
               <div className="flex items-center gap-5">
@@ -1378,7 +1403,7 @@ export function Attendance() {
             </div>
 
             {/* Preview Content */}
-            <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300">
+            <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300 print-preview-scroll-area">
               <div 
                 id="attendance-print-area"
                 className="shrink-0 scale-[0.7] xl:scale-[0.75] 2xl:scale-95 origin-top transform print:transform-none"
