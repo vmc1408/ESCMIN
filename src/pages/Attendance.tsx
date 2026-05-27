@@ -707,16 +707,30 @@ export function Attendance() {
             size: A4 landscape; 
             margin: 0; 
           }
-          /* NUCLEAR FIX: Don't use display: none on parent elements of the print area */
+          
+          /* Isolate print area by hiding everything else */
           body * { 
             visibility: hidden !important; 
           }
           
-          /* Show ONLY the attendance print area and its ancestors must NOT have display: none */
-          #attendance-print-area, #attendance-print-area * { 
+          /* Show print area and its ancestors */
+          #attendance-print-area, 
+          #attendance-print-area *,
+          div[role="dialog"],
+          div[role="dialog"] *,
+          .fixed.inset-0,
+          .fixed.inset-0 * { 
             visibility: visible !important; 
           }
-          
+
+          /* Force display: none on elements that consume page space while hidden */
+          #root, nav, header, aside, .no-print:not([role="dialog"]), .backdrop-blur-md:not([role="dialog"]) {
+            display: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
+          }
+
+          /* Container isolation */
           #attendance-print-area { 
             display: block !important;
             position: absolute !important; 
@@ -732,6 +746,7 @@ export function Attendance() {
             print-color-adjust: exact !important;
           }
 
+          /* Page break and sizing */
           .print-page {
             width: 297mm !important;
             height: 210mm !important;
@@ -743,16 +758,18 @@ export function Attendance() {
             background: white !important;
             margin: 0 !important;
             padding: 10mm !important;
-            visibility: visible !important;
+            box-sizing: border-box !important;
           }
 
-          /* Ensure root or dialog doesn't block printing but isn't visible */
-          #root, div[role="dialog"], .fixed.inset-0 {
-            display: block !important;
-            background: transparent !important;
-            box-shadow: none !important;
-            border: none !important;
+          /* Hide modal specific UI elements */
+          div[role="dialog"] button, 
+          div[role="dialog"] .no-print {
+            display: none !important;
           }
+          
+          /* Remove backdrop/shadows */
+          .fixed.inset-0 { background: white !important; }
+          div[role="dialog"] { box-shadow: none !important; border: none !important; }
         }
       `}</style>
 
@@ -1378,7 +1395,7 @@ export function Attendance() {
                   return studentChunks.map((chunk, pageIdx) => (
                     <div 
                       key={pageIdx}
-                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[10mm] border border-slate-100 print:shadow-none print:border-none print:p-0 print:mb-0"
+                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[10mm] border border-slate-100 print:shadow-none print:border-none print:p-[10mm] print:mb-0"
                       style={{ width: '297mm', height: '210mm', minWidth: '297mm', minHeight: '210mm' }}
                     >
                       {/* OFFICIAL SYSTEM HEADER - OPTIMIZED SIZE */}
