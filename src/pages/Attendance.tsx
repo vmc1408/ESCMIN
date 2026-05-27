@@ -708,43 +708,40 @@ export function Attendance() {
             margin: 0; 
           }
           
-          /* Force color printing */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          /* Hide all UI elements marked with .no-print */
-          .no-print, 
-          button, 
-          header, 
-          nav, 
-          aside,
-          #root > div:not(:has(.print-modal-container)) {
+          /* Nuclear Print Reset */
+          html, body, #root, .no-print, [role="dialog"], .fixed {
             display: none !important;
-          }
-
-          /* Reset body and html */
-          body, html {
-            background: white !important;
+            visibility: hidden !important;
+            height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
-            height: auto !important;
-            overflow: visible !important;
           }
 
-          /* Ensure the print area is the only thing visible */
-          .print-modal-container {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            background: white !important;
+          body {
             display: block !important;
-            z-index: 1 !important;
+            visibility: visible !important;
+            background: white !important;
+          }
+
+          .print-modal-container,
+          .print-modal-container *,
+          .print-modal-content,
+          .print-modal-content *,
+          .print-preview-scroll-area,
+          .print-preview-scroll-area *,
+          #attendance-print-area,
+          #attendance-print-area * {
+            display: block !important;
+            visibility: visible !important;
+            height: auto !important;
+          }
+
+          .print-modal-container {
+            position: static !important;
+            width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
-            backdrop-filter: none !important;
+            background: white !important;
           }
 
           .print-modal-content {
@@ -754,46 +751,44 @@ export function Attendance() {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            display: block !important;
-            overflow: visible !important;
           }
 
           .print-preview-scroll-area {
-            background: white !important;
             padding: 0 !important;
+            background: white !important;
             overflow: visible !important;
-            display: block !important;
           }
 
-          /* Root of printable content */
           #attendance-print-area {
             transform: none !important;
-            display: block !important;
-            width: 297mm !important;
+            width: 100% !important;
+            max-width: none !important;
             margin: 0 !important;
             padding: 0 !important;
-            overflow: visible !important;
           }
 
-          /* Individual page formatting */
           .print-page {
             width: 297mm !important;
-            height: 210mm !important;
-            page-break-after: always !important;
-            break-after: page !important;
-            background: white !important;
+            height: 209.8mm !important; 
             margin: 0 !important;
             padding: 10mm !important;
-            box-sizing: border-box !important;
+            page-break-after: always !important;
+            break-after: page !important;
             display: flex !important;
             flex-direction: column !important;
-            border: none !important;
-            visibility: visible !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            position: relative !important;
+            overflow: hidden !important;
           }
 
-          /* Fix for items inside the page */
-          .print-page * {
-            visibility: visible !important;
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .print-page .mt-auto {
+            margin-top: auto !important;
           }
         }
       `}</style>
@@ -1420,7 +1415,7 @@ export function Attendance() {
                   return studentChunks.map((chunk, pageIdx) => (
                     <div 
                       key={pageIdx}
-                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[10mm] border border-slate-100 print:shadow-none print:border-none print:p-[10mm] print:mb-0"
+                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[10mm] border border-slate-100 print:shadow-none print:border-none print:mb-0"
                       style={{ width: '297mm', height: '210mm', minWidth: '297mm', minHeight: '210mm' }}
                     >
                       {/* OFFICIAL SYSTEM HEADER - OPTIMIZED SIZE */}
