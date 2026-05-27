@@ -15,12 +15,15 @@ import {
   BookOpen,
   School,
   Save,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Student {
   id: string;
@@ -77,6 +80,7 @@ export function Attendance() {
   const [monthlyAttendance, setMonthlyAttendance] = useState<Record<string, Record<string, string>>>({});
   
   const [institution, setInstitution] = useState<any>(null);
+  const [attendancePdfBlobUrl, setAttendancePdfBlobUrl] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
@@ -687,13 +691,189 @@ export function Attendance() {
   const [printType, setPrintType] = useState<'marking' | 'report'>('report');
 
   const handlePrint = () => {
-    setPrintType(activeTab === 'marking' ? 'marking' : 'report');
-    setShowPrintPreview(true);
+    const type = activeTab === 'marking' ? 'marking' : 'report';
+    setPrintType(type);
+    
+    // Generate PDF immediately
+    const blobUrl = generateAttendancePDF();
+    if (blobUrl) {
+      // If there was a previous blob, revoke it to free memory
+      if (attendancePdfBlobUrl) {
+        URL.revokeObjectURL(attendancePdfBlobUrl);
+      }
+      setAttendancePdfBlobUrl(blobUrl);
+      setShowPrintPreview(true);
+    } else {
+      setNotification({ type: 'err', message: 'Erro ao gerar visualização do documento.' });
+    }
   };
 
   const confirmPrint = () => {
-    window.print();
-    setShowPrintPreview(false);
+    const iframe = document.getElementById('attendance-preview-iframe') as HTMLIFrameElement;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }
+  };
+
+  const generateAttendancePDF = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = doc.internal.pageSize.width; // 297mm
+      const pageHeight = doc.internal.pageSize.height; // 210mm
+      const margin = 10;
+      const contentWidth = pageWidth - (margin * 2);
+
+      const itemsPerPage = 20;
+      const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
+
+      const currentClassObj = classes.find(c => c.id === selectedClass);
+      const currentSubjectObj = subjects.find(s => s.id === selectedSubject);
+
+      for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+        if (pageIdx > 0) doc.addPage();
+
+        // Header - Modern Design
+        // Logo (if available) - we'll skip image loading for now to avoid async issues in this call
+        // but we'll leave space for it or try to load it if institution logo is provided
+        
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DIOCESE DE GUARULHOS', margin + 20, margin + 4);
+        
+        doc.setFontSize(16);
+        doc.setTextColor(0);
+        doc.setFont('helvetica', 'bold');
+        doc.text(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS', margin + 20, margin + 10);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(80);
+        doc.setFont('helvetica', 'bold');
+        doc.text(institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO', margin + 20, margin + 15);
+
+        // Page info
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text('PÁGINA', pageWidth - margin - 15, margin + 5);
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text(`${pageIdx + 1} / ${totalPages}`, pageWidth - margin - 15, margin + 12);
+
+        // Underline
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.5);
+        doc.line(margin, margin + 18, pageWidth - margin, margin + 18);
+
+        // Info Box
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(margin, margin + 20, contentWidth, 15, 1, 1, 'F');
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+        doc.setFont('helvetica', 'bold');
+        doc.text(printType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL', margin + 4, margin + 26);
+        
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text('MÊS REFERÊNCIA:', margin + 130, margin + 26);
+        doc.setTextColor(0);
+        doc.text(`${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / ${selectedYear}`.toUpperCase(), margin + 158, margin + 26);
+
+        // Second line of Info Box
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text('TURMA / CÓDIGO', margin + 4, margin + 31);
+        doc.text('SALA / LOCAL', margin + 55, margin + 31);
+        doc.text('DISCIPLINA', margin + 85, margin + 31);
+        doc.text('TOTAL DE ALUNOS', pageWidth - margin - 35, margin + 31);
+
+        doc.setFontSize(8);
+        doc.setTextColor(0);
+        doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 34);
+        doc.text(currentClassObj?.room || '002', margin + 55, margin + 34);
+        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 85, margin + 34);
+        
+        doc.setFontSize(12);
+        doc.text(String(students.length), pageWidth - margin - 15, margin + 34, { align: 'right' });
+
+        // Table Head
+        const head: any[] = [
+          [
+            { content: 'Nº', styles: { halign: 'center' } },
+            'MATRÍCULA',
+            'NOME COMPLETO DO ALUNO',
+            ...monthlyClassDays.map(day => {
+              const dateStr = day ? `${day.dayNumber}/${new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}` : '';
+              const typeStr = day?.isCancelled ? 'CANC' : day?.isExcused ? 'ABON' : `AULA ${day?.lessonNumber}`;
+              return { content: `${dateStr}\n${typeStr}`, styles: { halign: 'center' } };
+            })
+          ]
+        ];
+
+        // Table Body
+        const chunk = students.slice(pageIdx * itemsPerPage, (pageIdx + 1) * itemsPerPage);
+        const body: any[] = chunk.map((student, idx) => {
+          const overallIndex = pageIdx * itemsPerPage + idx;
+          return [
+            { content: String(overallIndex + 1), styles: { halign: 'center' } },
+            student.registration_number,
+            student.name.toUpperCase(),
+            ...monthlyClassDays.map(day => {
+              if (day?.isCancelled) return '---';
+              if (printType === 'marking') return '';
+              const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
+              return status === 'P' ? 'OK' : status === 'F' ? 'F' : status === 'J' ? 'J' : '';
+            })
+          ];
+        });
+
+        autoTable(doc, {
+          startY: margin + 38,
+          head: head,
+          body: body,
+          theme: 'grid',
+          headStyles: { 
+            fillColor: [220, 220, 220],
+            textColor: [0, 0, 0],
+            fontSize: 7,
+            lineWidth: 0.1,
+            lineColor: [150, 150, 150]
+          },
+          styles: { 
+            fontSize: 8,
+            cellPadding: 1,
+            lineWidth: 0.1,
+            lineColor: [200, 200, 200],
+            minCellHeight: 7
+          },
+          columnStyles: {
+            0: { cellWidth: 8 },
+            1: { cellWidth: 20, font: 'courier' },
+            2: { cellWidth: 70 }
+          },
+          didDrawPage: (data) => {
+            // Footer on each page
+            doc.setFontSize(7);
+            doc.setTextColor(150);
+            const footerY = pageHeight - margin + 3;
+            doc.text(institution?.address || 'AV. VENUS, 195 - GUARULHOS', margin, footerY);
+            doc.text(`EMISSÃO: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - margin - 40, footerY);
+            doc.text(`PÁGINA ${pageIdx + 1}/${totalPages}`, pageWidth - margin - 10, footerY, { align: 'right' });
+          }
+        });
+      }
+
+      return doc.output('bloburl') as any;
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      return null;
+    }
   };
 
   const currentClass = classes.find(c => c.id === selectedClass);
@@ -1343,239 +1523,87 @@ export function Attendance() {
         </div>
       </div>
     </div>
-      {/* Print Preview Modal */}
-          {showPrintPreview && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4 print-modal-container">
-          <div className="bg-white w-full max-w-[1200px] h-[95vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 print-modal-content">
+    
+    {/* PDF Print Preview Modal */}
+      {showPrintPreview && attendancePdfBlobUrl && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-6xl rounded-[2.5rem] shadow-2xl flex flex-col h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-300 border border-slate-100">
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white relative z-10 no-print">
+            <div className="p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/50 gap-6">
               <div className="flex items-center gap-5">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
-                  <Printer size={24} />
+                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-200">
+                  <Printer size={28} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-800 tracking-tight">Visualização de Impressão</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Padrão A4 Paisagem (Landscape)</p>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Visualização de Documento</h3>
+                  <p className="text-sm font-medium text-slate-500 uppercase tracking-widest mt-1">Conferência final antes da impressão</p>
                 </div>
               </div>
               
-              <div className="flex bg-slate-100 p-1 rounded-xl">
+              <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
                 <button
                   onClick={() => setPrintType('marking')}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                    printType === 'marking' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    printType === 'marking' ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                   )}
                 >
-                  Lista de Chamada
+                  Lista Chamada
                 </button>
                 <button
                   onClick={() => setPrintType('report')}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                    printType === 'report' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    printType === 'report' ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                   )}
                 >
                   Relatório Mensal
                 </button>
               </div>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button 
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = attendancePdfBlobUrl;
+                    link.download = `Chamada_${currentClass?.name || 'Lista'}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
+                    link.click();
+                  }}
+                  className="p-4 bg-white text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all border border-slate-200 shadow-sm"
+                  title="Baixar PDF"
+                >
+                  <Download size={24} />
+                </button>
                 <button 
                   onClick={() => setShowPrintPreview(false)}
-                  className="px-6 py-2.5 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95"
+                  className="px-6 py-4 bg-white text-slate-900 border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all active:scale-95 shadow-sm"
                 >
                   Fechar
                 </button>
                 <button 
                   onClick={confirmPrint}
-                  className="px-8 py-2.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 active:scale-95 flex items-center gap-2"
+                  className="flex-1 sm:flex-none px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 active:scale-95 flex items-center justify-center gap-3"
                 >
-                  <Printer size={18} />
-                  Confirmar Impressão
+                  <Printer size={20} />
+                  Imprimir Agora
                 </button>
               </div>
             </div>
 
-            {/* Preview Content */}
-            <div className="flex-1 overflow-auto bg-slate-100/50 p-12 flex flex-col items-center gap-10 scrollbar-thin scrollbar-thumb-slate-300 print-preview-scroll-area">
-              <div 
-                id="attendance-print-area"
-                className="shrink-0 scale-[0.7] xl:scale-[0.75] 2xl:scale-95 origin-top transform print:transform-none"
-              >
-                {(() => {
-                  const itemsPerPage = 18;
-                  const totalStudents = students.length;
-                  const studentChunks = [];
-                  for (let i = 0; i < Math.max(totalStudents, 1); i += itemsPerPage) {
-                    studentChunks.push(students.slice(i, i + itemsPerPage));
-                  }
-                  const totalPages = studentChunks.length;
-
-                  return studentChunks.map((chunk, pageIdx) => (
-                    <div 
-                      key={pageIdx}
-                      className="print-page bg-white shadow-[0_30px_60px_rgba(0,0,0,0.12)] mb-12 last:mb-0 flex flex-col font-sans text-black pointer-events-none select-none p-[10mm] border border-slate-100 print:shadow-none print:border-none print:mb-0"
-                      style={{ width: '297mm', height: '210mm', minWidth: '297mm', minHeight: '210mm' }}
-                    >
-                      {/* OFFICIAL SYSTEM HEADER - OPTIMIZED SIZE */}
-                      <div className="flex items-center gap-6 mb-2 pb-1 border-b-2 border-black">
-                        <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
-                          {institution?.logo || institution?.logo_url ? (
-                            <img 
-                              src={institution.logo || institution.logo_url} 
-                              className="w-full h-full object-contain max-h-16" 
-                              referrerPolicy="no-referrer" 
-                              alt="Logo" 
-                            />
-                          ) : (
-                            <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[6pt] text-slate-300 font-black uppercase">
-                              <span className="leading-none">SEM</span>
-                              <span className="leading-none">LOGO</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 flex flex-col">
-                          <p className="text-[8pt] font-semibold tracking-[0.2em] text-slate-800 leading-tight uppercase">DIOCESE DE GUARULHOS</p>
-                          <h1 className="text-[15pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
-                            {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                          </h1>
-                          <p className="text-[10pt] font-bold text-slate-600 tracking-wide uppercase">
-                            {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
-                          </p>
-                        </div>
-                        <div className="text-right flex flex-col justify-center border-l-2 border-black/5 pl-6 h-12">
-                          <p className="text-[6pt] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Página</p>
-                          <p className="text-[14pt] font-black text-black leading-none">{pageIdx + 1}<span className="text-[9pt] text-slate-300 mx-1">/</span>{totalPages}</p>
-                        </div>
-                      </div>
-
-                      {/* COMPACT UNIFIED INFORMATION BOX */}
-                      <div className="bg-slate-50/40 border-y border-slate-200 p-1.5 mb-1.5 flex flex-col gap-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-1 h-4 bg-black rounded-full"></div>
-                            <h2 className="text-[10pt] font-black uppercase tracking-[0.05em] text-black">
-                              {printType === 'marking' ? 'Lista de Chamada' : 'Lista de Presença Mensal'}
-                            </h2>
-                          </div>
-                          <div className="text-right text-[7.5pt] font-bold text-slate-400 uppercase tracking-wider">
-                            Mês Referência: <span className="text-slate-900 font-black">{['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} / {selectedYear}</span>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-4 items-end pt-1 border-t border-slate-100">
-                          <div className="col-span-1 space-y-0">
-                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Turma / Código</p>
-                            <p className="text-[9pt] font-black text-black uppercase truncate">
-                              {currentClass?.name || 'N/A'} <span className="text-slate-400 font-bold">({currentClass?.code || '---'})</span>
-                            </p>
-                          </div>
-                          <div className="col-span-1 space-y-0">
-                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Sala / Local</p>
-                            <p className="text-[9pt] font-black text-black uppercase">{currentClass?.room || '002'}</p>
-                          </div>
-                          <div className="col-span-1 space-y-0">
-                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Disciplina</p>
-                            <p className="text-[9pt] font-black text-black uppercase truncate">{currentSubject?.name || 'Todas as Categorias'}</p>
-                          </div>
-                          <div className="col-span-1 text-right">
-                            <p className="text-[6.5pt] font-black text-slate-400 uppercase tracking-widest">Total de Alunos</p>
-                            <p className="text-[16pt] font-black text-black leading-none">{students.length}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* MAIN ATTENDANCE TABLE - REFINED STYLING */}
-                      <div className="w-full flex-1 overflow-hidden">
-                        <table className="w-full border-collapse table-fixed text-black border-slate-300 border">
-                          <colgroup>
-                            <col className="w-[3.5%]" />
-                            <col className="w-[10%]" />
-                            <col className="w-[34%]" />
-                            {monthlyClassDays.map((_, i) => (
-                              <col key={i} />
-                            ))}
-                          </colgroup>
-                          <thead>
-                            <tr className="bg-gray-200 text-black h-8">
-                              <th className="px-1 text-center font-bold text-[9pt] uppercase border border-gray-400">Nº</th>
-                              <th className="px-3 text-left font-bold text-[9pt] uppercase border border-gray-400 tracking-tighter">Matrícula</th>
-                              <th className="px-4 text-left font-bold text-[10pt] uppercase border border-gray-400">Nome Completo do Aluno</th>
-                               {monthlyClassDays.map((day, i) => (
-                                 <th key={i} className="border border-gray-400 text-center p-0.5 align-middle">
-                                   <div className="flex flex-col items-center justify-center leading-none">
-                                     <div className="flex items-center gap-0.5 whitespace-nowrap">
-                                       <span className="text-[9pt] font-black">{day ? day.dayNumber.toString().padStart(2, '0') : '--'}</span>
-                                       <span className="text-[7pt] font-black uppercase text-gray-500">
-                                         /{day ? new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase() : '--'}
-                                       </span>
-                                     </div>
-                                     <span className={cn(
-                                       "text-[5.5pt] font-bold uppercase mt-0.5",
-                                       day?.isCancelled ? "text-red-600" : day?.isExcused ? "text-gray-500" : "text-gray-600"
-                                     )}>
-                                       {day?.isCancelled ? 'Cancelada' : day?.isExcused ? 'Abonada' : `Aula ${day?.lessonNumber ? `Nº ${day.lessonNumber}` : '--'}`}
-                                     </span>
-                                   </div>
-                                 </th>
-                               ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {chunk.map((student, idx) => {
-                              const overallIndex = pageIdx * itemsPerPage + idx;
-                              return (
-                                <tr key={student.id} className={cn("h-[7mm] border-b border-slate-200", idx % 2 === 0 ? "bg-white" : "bg-gray-50/20")}>
-                                  <td className="px-1 text-center text-[9pt] font-bold border-x border-slate-200 text-gray-400">{overallIndex + 1}</td>
-                                  <td className="px-3 text-left text-[10pt] font-mono font-black border-x border-slate-200 text-black tracking-tighter">{student.registration_number}</td>
-                                  <td className="px-4 text-left text-[10.5pt] font-black uppercase border-x border-slate-200 truncate text-black tracking-tight">{student.name}</td>
-                                  {monthlyClassDays.map((day, i) => (
-                                    <td key={i} className={cn("border-x border-slate-200 p-0 text-center text-[12.5pt] font-black", day?.isCancelled && "bg-gray-50")}>
-                                      {(() => {
-                                        if (day?.isCancelled) return <span className="text-gray-300 text-[8pt] font-black rotate-[-45deg] inline-block opacity-40">CANCELADA</span>;
-                                        if (printType === 'marking') return '';
-                                        const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
-                                        return status === 'P' ? '●' : status === 'F' ? 'F' : status === 'J' ? 'J' : '';
-                                      })()}
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
-                            })}
-                            {/* Fill empty rows for consistency if last page is short */}
-                            {chunk.length < itemsPerPage && pageIdx === totalPages - 1 && Array.from({ length: itemsPerPage - chunk.length }).map((_, i) => (
-                              <tr key={`empty-${i}`} className="h-[7mm] border-b border-slate-50 opacity-20">
-                                <td className="px-1 text-center text-[8pt] border-x border-slate-50"></td>
-                                <td className="px-3 border-x border-slate-50"></td>
-                                <td className="px-4 border-x border-slate-50"></td>
-                                {monthlyClassDays.map((_, i) => (
-                                  <td key={i} className="border-x border-slate-50"></td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="mt-auto pt-2">
-                        <div className="border-t border-black/20 pt-2 flex justify-between items-center text-[7.5pt] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                          <p>{institution?.address || 'AV. VENUS, 195 - ITAPECICA - GUARULHOS'}</p>
-                          <div className="flex items-center gap-6">
-                            <p>Emissão: <span className="text-slate-900 font-bold">{new Date().toLocaleDateString('pt-BR')}</span></p>
-                            <p className="text-slate-900 font-black">Página {pageIdx + 1}/{totalPages}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
+            {/* Preview Content Area (iFrame) */}
+            <div className="flex-1 bg-slate-200/50 p-6 flex items-center justify-center relative">
+              <iframe 
+                id="attendance-preview-iframe" 
+                src={attendancePdfBlobUrl} 
+                className="w-full h-full rounded-2xl border border-slate-300 bg-white shadow-2xl" 
+                title="Attendance PDF Preview"
+              />
             </div>
-
           </div>
         </div>
       )}
     </>
   );
 }
+
+export default Attendance;
