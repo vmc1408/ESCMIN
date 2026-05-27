@@ -81,6 +81,7 @@ export function Attendance() {
   
   const [institution, setInstitution] = useState<any>(null);
   const [attendancePdfBlobUrl, setAttendancePdfBlobUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
@@ -693,20 +694,25 @@ export function Attendance() {
   const handlePrint = () => {
     const type = activeTab === 'marking' ? 'marking' : 'report';
     setPrintType(type);
-    
-    // Generate PDF immediately
-    const blobUrl = generateAttendancePDF();
-    if (blobUrl) {
-      // If there was a previous blob, revoke it to free memory
-      if (attendancePdfBlobUrl) {
-        URL.revokeObjectURL(attendancePdfBlobUrl);
-      }
-      setAttendancePdfBlobUrl(blobUrl);
-      setShowPrintPreview(true);
-    } else {
-      setNotification({ type: 'err', message: 'Erro ao gerar visualização do documento.' });
-    }
+    setShowPrintPreview(true);
   };
+
+  useEffect(() => {
+    let active = true;
+    if (showPrintPreview) {
+      const updatePDF = async () => {
+        setPdfLoading(true);
+        const blobUrl = await generateAttendancePDF();
+        if (active && blobUrl) {
+          if (attendancePdfBlobUrl) URL.revokeObjectURL(attendancePdfBlobUrl);
+          setAttendancePdfBlobUrl(blobUrl);
+        }
+        if (active) setPdfLoading(false);
+      };
+      updatePDF();
+    }
+    return () => { active = false; };
+  }, [showPrintPreview, printType, students, institution, selectedMonth, selectedYear, activeTab, monthlyAttendance, attendance]);
 
   const confirmPrint = () => {
     const iframe = document.getElementById('attendance-preview-iframe') as HTMLIFrameElement;
@@ -716,7 +722,7 @@ export function Attendance() {
     }
   };
 
-  const generateAttendancePDF = () => {
+  const generateAttendancePDF = async () => {
     try {
       const doc = new jsPDF({
         orientation: 'landscape',
@@ -735,10 +741,42 @@ export function Attendance() {
       const currentClassObj = classes.find(c => c.id === selectedClass);
       const currentSubjectObj = subjects.find(s => s.id === selectedSubject);
 
+      // Pre-load logo if available
+      let logoData: string | null = null;
+      if (institution?.logo || institution?.logo_url) {
+        try {
+          const logoUrl = institution.logo || institution.logo_url;
+          logoData = await new Promise<string>((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+              } else {
+                reject(new Error('Canvas context error'));
+              }
+            };
+            img.onerror = () => reject(new Error('Image load error'));
+            img.src = logoUrl;
+          });
+        } catch (e) {
+          console.error("Error loading logo for PDF:", e);
+        }
+      }
+
       for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
         if (pageIdx > 0) doc.addPage();
 
         // Header - Modern Design
+        if (logoData) {
+          doc.addImage(logoData, 'PNG', margin, margin, 15, 15);
+        }
+
         doc.setFontSize(8);
         doc.setTextColor(100);
         doc.setFont('helvetica', 'bold');
@@ -1548,7 +1586,12 @@ export function Attendance() {
                 </div>
               </div>
               
-              <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm relative">
+                {pdfLoading && (
+                  <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center z-20 rounded-2xl">
+                    <Loader2 size={16} className="animate-spin text-indigo-600" />
+                  </div>
+                )}
                 <button
                   onClick={() => setPrintType('marking')}
                   className={cn(
