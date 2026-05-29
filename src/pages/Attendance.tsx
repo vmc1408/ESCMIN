@@ -888,6 +888,7 @@ export function Attendance() {
           head: head,
           body: body,
           theme: 'grid',
+          margin: { left: margin, right: margin },
           headStyles: { 
             fillColor: [240, 240, 240],
             textColor: [0, 0, 0],
