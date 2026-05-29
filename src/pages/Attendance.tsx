@@ -845,9 +845,7 @@ export function Attendance() {
             { content: 'MATRÍCULA', styles: { valign: 'middle' } },
             { content: 'NOME COMPLETO DO ALUNO', styles: { valign: 'middle' } },
             ...monthlyClassDays.map(day => {
-              const dateStr = day ? `${day.dayNumber.toString().padStart(2, '0')}/${new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}` : '';
-              const typeStr = day?.isCancelled ? 'CANC' : day?.isExcused ? 'ABON' : `AULA ${day?.lessonNumber || ''}`;
-              return { content: `${dateStr}\n${typeStr}`, styles: { halign: 'center', fontSize: 6 } };
+              return { content: '', styles: { halign: 'center' } };
             })
           ]
         ];
@@ -872,6 +870,19 @@ export function Attendance() {
           ];
         });
 
+        const colStyles: any = {
+          0: { cellWidth: 8 },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 80 }
+        };
+        const extraColCount = monthlyClassDays.length;
+        if (extraColCount > 0) {
+          const extraColWidth = (contentWidth - 8 - 28 - 80) / extraColCount;
+          for (let i = 0; i < extraColCount; i++) {
+            colStyles[3 + i] = { cellWidth: extraColWidth };
+          }
+        }
+
         autoTable(doc, {
           startY: margin + 33,
           head: head,
@@ -883,7 +894,8 @@ export function Attendance() {
             fontSize: 7.5,
             lineWidth: 0.1,
             lineColor: [100, 100, 100],
-            fontStyle: 'bold'
+            fontStyle: 'bold',
+            minCellHeight: 11
           },
           styles: { 
             fontSize: 8.2,
@@ -893,10 +905,27 @@ export function Attendance() {
             minCellHeight: 6.8,
             valign: 'middle'
           },
-          columnStyles: {
-            0: { cellWidth: 8 },
-            1: { cellWidth: 28 },
-            2: { cellWidth: 80 }
+          columnStyles: colStyles,
+          didDrawCell: (data) => {
+            if (data.row.section === 'head' && data.column.index >= 3) {
+              const cell = data.cell;
+              const dayIndex = data.column.index - 3;
+              const day = monthlyClassDays[dayIndex];
+              if (day) {
+                const dateStr = `${day.dayNumber.toString().padStart(2, '0')}/${new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}`;
+                const typeStr = day?.isCancelled ? 'CANC' : day?.isExcused ? 'ABON' : `AULA ${day?.lessonNumber || ''}`;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                doc.setTextColor(0, 0, 0);
+                doc.text(dateStr, cell.x + cell.width / 2, cell.y + 4.2, { align: 'center' });
+                
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(5.5);
+                doc.setTextColor(110, 110, 110);
+                doc.text(typeStr, cell.x + cell.width / 2, cell.y + 8.2, { align: 'center' });
+              }
+            }
           },
           didDrawPage: (data) => {
             // Footer
