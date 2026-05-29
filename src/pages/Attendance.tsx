@@ -88,6 +88,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [closedSessionsCount, setClosedSessionsCount] = useState<number>(0);
   const [closedDates, setClosedDates] = useState<Set<string>>(new Set());
   const [monthlyAttendance, setMonthlyAttendance] = useState<Record<string, Record<string, string>>>({});
+  const [initialMonthlyAttendance, setInitialMonthlyAttendance] = useState<Record<string, Record<string, string>>>({});
+  const [modifiedRecords, setModifiedRecords] = useState<Record<string, { studentId: string; date: string; status: string | null }>>({});
+  const [savingMonthly, setSavingMonthly] = useState(false);
   
   const [institution, setInstitution] = useState<any>(null);
   const [attendancePdfBlobUrl, setAttendancePdfBlobUrl] = useState<string | null>(null);
@@ -282,28 +285,123 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       const end = `${selectedYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
 
-      const allRecords = await fetchQuery('attendances', [
+      const filters: any[] = [
         { field: 'class_id', operator: '==', value: selectedClass },
         { field: 'date', operator: '>=', value: start },
         { field: 'date', operator: '<=', value: end }
-      ]);
+      ];
+
+      if (selectedSubject) {
+        filters.push({ field: 'subject_id', operator: '==', value: selectedSubject });
+      }
+
+      const allRecords = await fetchQuery('attendances', filters);
 
       const map: Record<string, Record<string, string>> = {};
       (allRecords || []).forEach(record => {
         if (!map[record.student_id]) map[record.student_id] = {};
         map[record.student_id][record.date] = record.status;
       });
+      setInitialMonthlyAttendance(JSON.parse(JSON.stringify(map)));
       setMonthlyAttendance(map);
+      setModifiedRecords({});
     } catch (error) {
       console.error('Error fetching monthly data:', error);
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, selectedMonth, selectedYear, activeTab]);
+  }, [selectedClass, selectedMonth, selectedYear, activeTab, selectedSubject]);
 
   useEffect(() => {
     fetchMonthlyData();
   }, [fetchMonthlyData]);
+
+  const getCellStatus = React.useCallback((studentId: string, date: string) => {
+    const modKey = `${studentId}_${date}`;
+    if (modifiedRecords[modKey] !== undefined) {
+      return modifiedRecords[modKey].status;
+    }
+    return monthlyAttendance[studentId]?.[date] || null;
+  }, [monthlyAttendance, modifiedRecords]);
+
+  const handleMonthlyCellClick = (studentId: string, date: string) => {
+    if (!selectedSubject) {
+      setNotification({ type: 'err', message: 'Selecione uma disciplina antes.' });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    
+    const modKey = `${studentId}_${date}`;
+    const initialStatus = initialMonthlyAttendance[studentId]?.[date] || null;
+    const currentStatus = modifiedRecords[modKey] !== undefined ? modifiedRecords[modKey].status : initialStatus;
+    
+    let nextStatus: string | null = null;
+    if (!currentStatus) {
+      nextStatus = 'P';
+    } else if (currentStatus === 'P') {
+      nextStatus = 'F';
+    } else if (currentStatus === 'F') {
+      nextStatus = 'J';
+    } else if (currentStatus === 'J') {
+      nextStatus = null;
+    }
+    
+    setModifiedRecords(prev => {
+      const next = { ...prev };
+      if (nextStatus === initialStatus) {
+        delete next[modKey];
+      } else {
+        next[modKey] = { studentId, date, status: nextStatus };
+      }
+      return next;
+    });
+  };
+
+  const saveMonthlyEdits = async () => {
+    if (!userAuth || !selectedClass || !selectedSubject) return;
+
+    setSavingMonthly(true);
+    try {
+      const payloads: any[] = [];
+      const keysToDelete: string[] = [];
+
+      Object.entries(modifiedRecords).forEach(([key, record]) => {
+        const docId = `${selectedClass}_${selectedSubject}_${record.date}_${record.studentId}`;
+        if (record.status) {
+          payloads.push({
+            id: docId,
+            student_id: record.studentId,
+            class_id: selectedClass,
+            subject_id: selectedSubject,
+            date: record.date,
+            status: record.status,
+            observations: ""
+          });
+        } else {
+          keysToDelete.push(docId);
+        }
+      });
+
+      if (payloads.length > 0) {
+        await saveBatch('attendances', payloads);
+      }
+
+      if (keysToDelete.length > 0) {
+        await Promise.all(keysToDelete.map(id => deleteData('attendances', id)));
+      }
+
+      setNotification({ type: 'success', message: 'Lançamentos mensais salvos com sucesso!' });
+      setTimeout(() => setNotification(null), 3000);
+
+      await fetchMonthlyData();
+    } catch (error) {
+      console.error("Error saving monthly edits:", error);
+      setNotification({ type: 'err', message: 'Erro ao salvar lançamentos.' });
+      setTimeout(() => setNotification(null), 3000);
+    } finally {
+      setSavingMonthly(false);
+    }
+  };
 
   const handleStatusChange = (studentId: string, status: 'P' | 'F' | 'J') => {
     if (!selectedSubject) {
@@ -722,7 +820,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       updatePDF();
     }
     return () => { active = false; };
-  }, [showPrintPreview, printType, students, institution, selectedMonth, selectedYear, activeTab, monthlyAttendance, attendance]);
+  }, [showPrintPreview, printType, students, institution, selectedMonth, selectedYear, activeTab, monthlyAttendance, attendance, getCellStatus, modifiedRecords]);
 
   const confirmPrint = () => {
     const iframe = document.getElementById('attendance-preview-iframe') as HTMLIFrameElement;
@@ -871,7 +969,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             ...monthlyClassDays.map(day => {
               if (day?.isCancelled) return { content: '---', styles: { halign: 'center', textColor: [200, 200, 200] } };
               if (printType === 'marking') return '';
-              const status = day ? (activeTab === 'monthly' ? monthlyAttendance[student.id]?.[day.dbValue] : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
+              const status = day ? (activeTab === 'monthly' ? getCellStatus(student.id, day.dbValue) : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
               return { 
                 content: status === 'P' ? 'OK' : status === 'F' ? 'F' : status === 'J' ? 'J' : '',
                 styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal' }
@@ -1500,111 +1598,153 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-200">
-                      <div>
-                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Lista de Presença Mensal</h4>
-                        <p className="text-xs font-bold text-slate-500 uppercase mt-1 tracking-widest">Gere formulários para assinatura manual ou visualize registros</p>
+                    {!selectedSubject ? (
+                      <div className="bg-white border border-amber-100 p-12 rounded-[3.5rem] flex items-center gap-10 text-amber-900 shadow-2xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
+                        <div className="w-20 h-20 bg-amber-50 rounded-[2rem] flex items-center justify-center text-amber-500 shadow-sm group-hover:scale-110 transition-transform duration-500">
+                          <Info size={40} />
+                        </div>
+                        <div className="space-y-3">
+                           <p className="text-2xl font-black uppercase tracking-tight">Etapa Pendente</p>
+                           <p className="text-[12px] font-bold text-amber-700/60 uppercase tracking-[0.1em] leading-loose">Selecione a disciplina correspondente no menu superior para carregar a grade de frequência mensal.</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <button 
-                          onClick={() => {
-                            setShowPrintPreview(true);
-                          }}
-                          className="flex items-center gap-3 px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
-                        >
-                          <Printer size={16} />
-                          Imprimir Lista de Chamada
-                        </button>
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                          <div>
+                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Lista de Presença Mensal</h4>
+                            <p className="text-xs font-bold text-slate-500 uppercase mt-1 tracking-widest leading-relaxed">Clique diretamente nas células da tabela para registrar ou alterar a frequência e salve suas alterações.</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            {Object.keys(modifiedRecords).length > 0 && (
+                              <>
+                                <button 
+                                  onClick={() => setModifiedRecords({})}
+                                  disabled={savingMonthly}
+                                  className="flex items-center gap-2 h-12 px-5 bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 duration-300"
+                                >
+                                  Descartar
+                                </button>
+                                <button 
+                                  onClick={saveMonthlyEdits}
+                                  disabled={savingMonthly}
+                                  className="flex items-center gap-3 h-12 px-6 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 shadow-lg shadow-amber-100 duration-300"
+                                >
+                                  {savingMonthly ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                  Salvar {Object.keys(modifiedRecords).length} Lançamentos
+                                </button>
+                              </>
+                            )}
+                            <button 
+                              onClick={() => {
+                                setShowPrintPreview(true);
+                              }}
+                              className="flex items-center gap-3 h-12 px-8 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg shadow-slate-200"
+                            >
+                              <Printer size={16} />
+                              Imprimir Lista de Chamada
+                            </button>
+                          </div>
+                        </div>
 
-                    <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8 group relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-50" />
-                      <div className="flex items-center gap-6 relative z-10">
-                        <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center text-blue-400 shadow-inner border border-slate-700/50">
-                          <CalendarIcon size={32} />
+                        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8 group relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-50" />
+                          <div className="flex items-center gap-6 relative z-10">
+                            <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center text-blue-400 shadow-inner border border-slate-700/50">
+                              <CalendarIcon size={32} />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Relatório Mensal</p>
+                              <h4 className="text-2xl font-black text-white tracking-tight mt-1 uppercase">
+                                {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} {selectedYear}
+                              </h4>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 relative z-10">
+                            <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                               {monthlyClassDays.filter(d => !d.isCancelled).length} Aulas
+                            </div>
+                            <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                               {students.length} Alunos
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Relatório Mensal</p>
-                          <h4 className="text-2xl font-black text-white tracking-tight mt-1 uppercase">
-                            {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} {selectedYear}
-                          </h4>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 relative z-10">
-                        <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                           {monthlyClassDays.filter(d => !d.isCancelled).length} Aulas
-                        </div>
-                        <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                           {students.length} Alunos
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto overflow-hidden">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">Nº</th>
-                            <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-96">Nome do Aluno</th>
-                            {monthlyClassDays.map(day => (
-                              <th key={day.dbValue} className="px-4 py-4 text-center border-l border-slate-200 min-w-[70px]">
-                                <div className="flex flex-col items-center justify-center gap-1">
-                                  <p className="text-[13px] font-black text-slate-900 leading-none flex items-center">
-                                    {String(day.dayNumber).padStart(2, '0')}
-                                    <span className="text-[10px] text-slate-400 ml-0.5">/{new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
-                                  </p>
-                                  <div className={cn(
-                                    "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter",
-                                    day.isCancelled ? "bg-red-500 text-white" : day.isExcused ? "bg-slate-500 text-white" : "bg-slate-100 text-slate-500"
-                                  )}>
-                                    {day.isCancelled ? 'Cancelada' : day.isExcused ? 'Abonada' : `Aula ${day.lessonNumber}`}
-                                  </div>
-                                </div>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {students.map((student, idx) => (
-                            <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
-                              <td className="px-6 py-4 text-xs font-black text-slate-400">{String(idx + 1).padStart(2, '0')}</td>
-                              <td className="px-6 py-4">
-                                <p className="text-xs font-black text-slate-800 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{student.name}</p>
-                              </td>
-                              {monthlyClassDays.map(day => {
-                                const status = monthlyAttendance[student.id]?.[day.dbValue];
-                                if (day.isCancelled) {
-                                  return (
-                                    <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100 bg-red-50/20">
-                                      <div className="w-7 h-7 mx-auto flex items-center justify-center text-[8px] font-black text-red-300/50 uppercase rotate-[-45deg]">
-                                        Canc
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto overflow-hidden">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">Nº</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-96">Nome do Aluno</th>
+                                {monthlyClassDays.map(day => (
+                                  <th key={day.dbValue} className="px-4 py-4 text-center border-l border-slate-200 min-w-[70px]">
+                                    <div className="flex flex-col items-center justify-center gap-1">
+                                      <p className="text-[13px] font-black text-slate-900 leading-none flex items-center">
+                                        {String(day.dayNumber).padStart(2, '0')}
+                                        <span className="text-[10px] text-slate-400 ml-0.5">/{new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
+                                      </p>
+                                      <div className={cn(
+                                        "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter",
+                                        day.isCancelled ? "bg-red-500 text-white" : day.isExcused ? "bg-slate-500 text-white" : "bg-slate-100 text-slate-500"
+                                      )}>
+                                        {day.isCancelled ? 'Cancelada' : day.isExcused ? 'Abonada' : `Aula ${day.lessonNumber}`}
                                       </div>
-                                    </td>
-                                  );
-                                }
-                                return (
-                                  <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100">
-                                    <div className={cn(
-                                      "w-7 h-7 mx-auto rounded-lg flex items-center justify-center text-[10px] font-black",
-                                      status === 'P' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                                      status === 'F' ? "bg-red-50 text-red-600 border border-red-100" :
-                                      status === 'J' ? "bg-amber-50 text-amber-600 border border-amber-100" :
-                                      "bg-slate-50 text-slate-300 border border-slate-100"
-                                    )}>
-                                       {status || '—'}
                                     </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {students.map((student, idx) => (
+                                <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
+                                  <td className="px-6 py-4 text-xs font-black text-slate-400">{String(idx + 1).padStart(2, '0')}</td>
+                                  <td className="px-6 py-4">
+                                    <p className="text-xs font-black text-slate-800 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{student.name}</p>
                                   </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                  {monthlyClassDays.map(day => {
+                                    const status = getCellStatus(student.id, day.dbValue);
+                                    const isDirty = modifiedRecords[`${student.id}_${day.dbValue}`] !== undefined;
+                                    if (day.isCancelled) {
+                                      return (
+                                        <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100 bg-red-50/20">
+                                          <div className="w-7 h-7 mx-auto flex items-center justify-center text-[8px] font-black text-red-300/50 uppercase rotate-[-45deg]">
+                                            Canc
+                                          </div>
+                                        </td>
+                                      );
+                                    }
+                                    return (
+                                      <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100">
+                                        <div 
+                                          onClick={() => handleMonthlyCellClick(student.id, day.dbValue)}
+                                          className={cn(
+                                            "w-7 h-7 mx-auto rounded-lg flex items-center justify-center text-[10px] font-black cursor-pointer transition-all active:scale-90 select-none relative",
+                                            status === 'P' ? "bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100" :
+                                            status === 'F' ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100" :
+                                            status === 'J' ? "bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100" :
+                                            "bg-slate-50 text-slate-300 border border-slate-100 hover:bg-slate-100 hover:text-slate-500",
+                                            isDirty && "ring-2 ring-amber-500/80 ring-offset-1"
+                                          )}
+                                          title="Clique para alternar presença (P -> F -> J -> Vazio)"
+                                        >
+                                           {status || '—'}
+                                           {isDirty && (
+                                             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500 shadow-md" />
+                                           )}
+                                        </div>
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </motion.div>
