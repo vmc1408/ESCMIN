@@ -19,6 +19,7 @@ import {
   ClipboardCheck as AttendanceIcon,
   FileSpreadsheet as GradesIcon,
   FileCheck as CertificateIcon,
+  CalendarCheck,
   ChevronDown,
   ChevronRight,
   GraduationCap,
@@ -51,7 +52,8 @@ const navItems = [
           { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
           { icon: CalendarIcon, label: 'Calendário', path: '/calendar' },
-          { icon: AttendanceIcon, label: 'Presença', path: '/attendance' },
+          { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
+          { icon: CalendarCheck, label: 'Frequência', path: '/monthly-attendance' },
           { 
             label: 'Notas',
             icon: GradesIcon,
