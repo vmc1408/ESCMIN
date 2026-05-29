@@ -735,7 +735,7 @@ export function Attendance() {
       const margin = 10;
       const contentWidth = pageWidth - (margin * 2);
 
-      const itemsPerPage = 20;
+      const itemsPerPage = 22;
       const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
 
       const currentClassObj = classes.find(c => c.id === selectedClass);
@@ -807,36 +807,36 @@ export function Attendance() {
 
         // Info Box
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(margin, margin + 20, contentWidth, 18, 1, 1, 'F');
+        doc.roundedRect(margin, margin + 20, contentWidth, 14, 1, 1, 'F');
         
         doc.setFontSize(10);
         doc.setTextColor(0);
         doc.setFont('helvetica', 'bold');
-        doc.text(printType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL', margin + 4, margin + 26);
+        doc.text(printType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL', margin + 4, margin + 24);
         
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text('MÊS REFERÊNCIA:', pageWidth - margin - 60, margin + 26, { align: 'right' });
+        doc.text('MÊS REFERÊNCIA:', pageWidth - margin - 60, margin + 24, { align: 'right' });
         doc.setTextColor(0);
         const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth];
-        doc.text(`${monthName} / ${selectedYear}`.toUpperCase(), pageWidth - margin - 4, margin + 26, { align: 'right' });
+        doc.text(`${monthName} / ${selectedYear}`.toUpperCase(), pageWidth - margin - 4, margin + 24, { align: 'right' });
 
         // Second line of Info Box
         doc.setFontSize(7);
         doc.setTextColor(150);
-        doc.text('TURMA / CÓDIGO', margin + 4, margin + 31);
-        doc.text('SALA / LOCAL', margin + 65, margin + 31);
-        doc.text('DISCIPLINA', margin + 105, margin + 31);
-        doc.text('TOTAL DE ALUNOS', pageWidth - margin - 4, margin + 31, { align: 'right' });
+        doc.text('TURMA / CÓDIGO', margin + 4, margin + 29);
+        doc.text('SALA / LOCAL', margin + 65, margin + 29);
+        doc.text('DISCIPLINA', margin + 105, margin + 29);
+        doc.text('TOTAL DE ALUNOS', pageWidth - margin - 4, margin + 29, { align: 'right' });
 
         doc.setFontSize(8);
         doc.setTextColor(0);
-        doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 35);
-        doc.text(currentClassObj?.room || '002', margin + 65, margin + 35);
-        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 105, margin + 35);
+        doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 33);
+        doc.text(currentClassObj?.room || '002', margin + 65, margin + 33);
+        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 105, margin + 33);
         
         doc.setFontSize(14);
-        doc.text(String(students.length), pageWidth - margin - 4, margin + 36, { align: 'right' });
+        doc.text(String(students.length), pageWidth - margin - 4, margin + 34, { align: 'right' });
 
         // Table Head
         const head: any[] = [
@@ -873,7 +873,7 @@ export function Attendance() {
         });
 
         autoTable(doc, {
-          startY: margin + 40,
+          startY: margin + 36,
           head: head,
           body: body,
           theme: 'grid',
@@ -886,17 +886,17 @@ export function Attendance() {
             fontStyle: 'bold'
           },
           styles: { 
-            fontSize: 8,
-            cellPadding: 1.5,
+            fontSize: 7.5,
+            cellPadding: 1.0,
             lineWidth: 0.1,
             lineColor: [180, 180, 180],
-            minCellHeight: 8,
+            minCellHeight: 5.8,
             valign: 'middle'
           },
           columnStyles: {
             0: { cellWidth: 8 },
             1: { cellWidth: 28 }, // Increased from 20
-            2: { cellWidth: 75 }
+            2: { cellWidth: 70 } // Reduced slightly from 75 to give extra breathing room for date columns
           },
           didDrawPage: (data) => {
             // Footer
