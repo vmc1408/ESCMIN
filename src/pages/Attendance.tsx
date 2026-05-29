@@ -1605,56 +1605,19 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         </div>
                         <div className="space-y-3">
                            <p className="text-2xl font-black uppercase tracking-tight">Etapa Pendente</p>
-                           <p className="text-[12px] font-bold text-amber-700/60 uppercase tracking-[0.1em] leading-loose">Selecione a disciplina correspondente no menu superior para carregar a grade de frequência mensal.</p>
+                           <p className="text-[12px] font-bold text-amber-700/60 uppercase tracking-[0.1em] leading-loose">Selecione a disciplina correspondente no menu superior para carregar os relatórios de frequência.</p>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-200">
-                          <div>
-                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Lista de Presença Mensal</h4>
-                            <p className="text-xs font-bold text-slate-500 uppercase mt-1 tracking-widest leading-relaxed">Clique diretamente nas células da tabela para registrar ou alterar a frequência e salve suas alterações.</p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-3">
-                            {Object.keys(modifiedRecords).length > 0 && (
-                              <>
-                                <button 
-                                  onClick={() => setModifiedRecords({})}
-                                  disabled={savingMonthly}
-                                  className="flex items-center gap-2 h-12 px-5 bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 duration-300"
-                                >
-                                  Descartar
-                                </button>
-                                <button 
-                                  onClick={saveMonthlyEdits}
-                                  disabled={savingMonthly}
-                                  className="flex items-center gap-3 h-12 px-6 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all active:scale-95 shadow-lg shadow-amber-100 duration-300"
-                                >
-                                  {savingMonthly ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                                  Salvar {Object.keys(modifiedRecords).length} Lançamentos
-                                </button>
-                              </>
-                            )}
-                            <button 
-                              onClick={() => {
-                                setShowPrintPreview(true);
-                              }}
-                              className="flex items-center gap-3 h-12 px-8 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg shadow-slate-200"
-                            >
-                              <Printer size={16} />
-                              Imprimir Lista de Chamada
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8 group relative overflow-hidden">
+                        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8 group relative overflow-hidden shadow-xl">
                           <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-50" />
                           <div className="flex items-center gap-6 relative z-10">
                             <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center text-blue-400 shadow-inner border border-slate-700/50">
                               <CalendarIcon size={32} />
                             </div>
                             <div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Relatório Mensal</p>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Painel de Documentos</p>
                               <h4 className="text-2xl font-black text-white tracking-tight mt-1 uppercase">
                                 {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} {selectedYear}
                               </h4>
@@ -1664,84 +1627,73 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           <div className="flex items-center gap-4 relative z-10">
                             <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                               {monthlyClassDays.filter(d => !d.isCancelled).length} Aulas
+                               {monthlyClassDays.filter(d => !d.isCancelled).length} Aulas Agendadas
                             </div>
                             <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                               {students.length} Alunos
+                               {students.length} Alunos Inscritos
                             </div>
                           </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto overflow-hidden">
-                          <table className="w-full border-collapse">
-                            <thead>
-                              <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-20">Nº</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest w-96">Nome do Aluno</th>
-                                {monthlyClassDays.map(day => (
-                                  <th key={day.dbValue} className="px-4 py-4 text-center border-l border-slate-200 min-w-[70px]">
-                                    <div className="flex flex-col items-center justify-center gap-1">
-                                      <p className="text-[13px] font-black text-slate-900 leading-none flex items-center">
-                                        {String(day.dayNumber).padStart(2, '0')}
-                                        <span className="text-[10px] text-slate-400 ml-0.5">/{new Date(day.dbValue + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
-                                      </p>
-                                      <div className={cn(
-                                        "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter",
-                                        day.isCancelled ? "bg-red-500 text-white" : day.isExcused ? "bg-slate-500 text-white" : "bg-slate-100 text-slate-500"
-                                      )}>
-                                        {day.isCancelled ? 'Cancelada' : day.isExcused ? 'Abonada' : `Aula ${day.lessonNumber}`}
-                                      </div>
-                                    </div>
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {students.map((student, idx) => (
-                                <tr key={student.id} className="hover:bg-slate-50 transition-colors group">
-                                  <td className="px-6 py-4 text-xs font-black text-slate-400">{String(idx + 1).padStart(2, '0')}</td>
-                                  <td className="px-6 py-4">
-                                    <p className="text-xs font-black text-slate-800 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{student.name}</p>
-                                  </td>
-                                  {monthlyClassDays.map(day => {
-                                    const status = getCellStatus(student.id, day.dbValue);
-                                    const isDirty = modifiedRecords[`${student.id}_${day.dbValue}`] !== undefined;
-                                    if (day.isCancelled) {
-                                      return (
-                                        <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100 bg-red-50/20">
-                                          <div className="w-7 h-7 mx-auto flex items-center justify-center text-[8px] font-black text-red-300/50 uppercase rotate-[-45deg]">
-                                            Canc
-                                          </div>
-                                        </td>
-                                      );
-                                    }
-                                    return (
-                                      <td key={day.dbValue} className="px-3 py-4 border-l border-slate-100">
-                                        <div 
-                                          onClick={() => handleMonthlyCellClick(student.id, day.dbValue)}
-                                          className={cn(
-                                            "w-7 h-7 mx-auto rounded-lg flex items-center justify-center text-[10px] font-black cursor-pointer transition-all active:scale-90 select-none relative",
-                                            status === 'P' ? "bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100" :
-                                            status === 'F' ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100" :
-                                            status === 'J' ? "bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100" :
-                                            "bg-slate-50 text-slate-300 border border-slate-100 hover:bg-slate-100 hover:text-slate-500",
-                                            isDirty && "ring-2 ring-amber-500/80 ring-offset-1"
-                                          )}
-                                          title="Clique para alternar presença (P -> F -> J -> Vazio)"
-                                        >
-                                           {status || '—'}
-                                           {isDirty && (
-                                             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500 shadow-md" />
-                                           )}
-                                        </div>
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {/* Card 1: Relatório de Lançamentos */}
+                          <div className="bg-white border border-slate-250 p-8 rounded-[2.5rem] flex flex-col justify-between hover:border-indigo-400 group transition-all duration-300 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8 text-slate-50/80 group-hover:text-indigo-50/30 transition-colors pointer-events-none">
+                              <FileText size={140} className="-mr-14 -mt-14" />
+                            </div>
+                            <div className="relative z-10">
+                              <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-inner border border-indigo-100/50">
+                                <FileText size={32} />
+                              </div>
+                              <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Frequência Consolidada</h4>
+                              <p className="text-xs font-bold text-slate-400 uppercase mt-2 tracking-widest">Lançamentos do Mês</p>
+                              <p className="text-sm font-medium text-slate-500 mt-4 leading-relaxed max-w-sm">
+                                Documento que consolida todas as presenças, faltas e justificativas já registradas no sistema ao longo de todo o mês para fins de avaliação de presença.
+                              </p>
+                            </div>
+                            <div className="mt-8 pt-6 border-t border-slate-105 relative z-10">
+                              <button 
+                                onClick={() => {
+                                  setPrintType('report');
+                                  setShowPrintPreview(true);
+                                }}
+                                className="w-full flex items-center justify-center gap-3 h-14 bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-indigo-100 duration-300 active:scale-95"
+                              >
+                                <Printer size={16} />
+                                Imprimir Relatório Mensal
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Card 2: Lista Chamada em Branco (Gabarito) */}
+                          <div className="bg-white border border-slate-250 p-8 rounded-[2.5rem] flex flex-col justify-between hover:border-emerald-400 group transition-all duration-300 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8 text-slate-50/80 group-hover:text-emerald-50/30 transition-colors pointer-events-none">
+                              <ClipboardCheck size={140} className="-mr-14 -mt-14" />
+                            </div>
+                            <div className="relative z-10">
+                              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-inner border border-emerald-100/50">
+                                <ClipboardCheck size={32} />
+                              </div>
+                              <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Ficha para Visto Manual</h4>
+                              <p className="text-xs font-bold text-slate-400 uppercase mt-2 tracking-widest">Cédula em Branco</p>
+                              <p className="text-sm font-medium text-slate-500 mt-4 leading-relaxed max-w-sm">
+                                Imprime a folha de presença mestre em branco, contendo a lista completa de alunos e o calendário de datas, ideal para preenchimento manual em sala.
+                              </p>
+                            </div>
+                            <div className="mt-8 pt-6 border-t border-slate-105 relative z-10">
+                              <button 
+                                onClick={() => {
+                                  setPrintType('marking');
+                                  setShowPrintPreview(true);
+                                }}
+                                className="w-full flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-emerald-100 duration-300 active:scale-95"
+                              >
+                                <Printer size={16} />
+                                Imprimir Lista em Branco
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </>
                     )}
