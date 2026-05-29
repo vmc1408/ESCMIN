@@ -1738,46 +1738,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                   <p className="text-sm font-medium text-slate-500 uppercase tracking-widest mt-1">Conferência final antes da impressão</p>
                 </div>
               </div>
-              
-            <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm relative">
-                {pdfLoading && (
-                  <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center z-20 rounded-2xl">
-                    <Loader2 size={16} className="animate-spin text-indigo-600" />
-                  </div>
-                )}
-                <button
-                  onClick={() => setPrintType('marking')}
-                  className={cn(
-                    "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    printType === 'marking' ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                  )}
-                >
-                  Lista Chamada
-                </button>
-                <button
-                  onClick={() => setPrintType('report')}
-                  className={cn(
-                    "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    printType === 'report' ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-                  )}
-                >
-                  Relatório Mensal
-                </button>
-              </div>
 
               <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button 
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = attendancePdfBlobUrl;
-                    link.download = `Chamada_${currentClass?.name || 'Lista'}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
-                    link.click();
-                  }}
-                  className="p-4 bg-white text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all border border-slate-200 shadow-sm"
-                  title="Baixar PDF"
-                >
-                  <Download size={24} />
-                </button>
                 <button 
                   onClick={() => setShowPrintPreview(false)}
                   className="px-6 py-4 bg-white text-slate-900 border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all active:scale-95 shadow-sm"
@@ -1795,11 +1757,17 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             </div>
 
             {/* Preview Content Area (iFrame) */}
-            <div className="flex-1 bg-slate-200/50 p-6 flex items-center justify-center relative">
+            <div className="flex-1 bg-slate-100 p-6 flex items-center justify-center relative">
+              {pdfLoading && (
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
+                  <Loader2 size={40} className="animate-spin text-indigo-600 mb-3" />
+                  <p className="text-xs font-black text-indigo-900/60 uppercase tracking-[0.2em]">Gerando Documento...</p>
+                </div>
+              )}
               <iframe 
                 id="attendance-preview-iframe" 
                 src={attendancePdfBlobUrl} 
-                className="w-full h-full rounded-2xl border border-slate-300 bg-white shadow-2xl" 
+                className="w-full h-full rounded-2xl border border-slate-200 bg-white shadow-2xl" 
                 title="Attendance PDF Preview"
               />
             </div>
