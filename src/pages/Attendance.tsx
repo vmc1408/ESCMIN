@@ -732,10 +732,10 @@ export function Attendance() {
 
       const pageWidth = doc.internal.pageSize.width; // 297mm
       const pageHeight = doc.internal.pageSize.height; // 210mm
-      const margin = 10;
+      const margin = 8;
       const contentWidth = pageWidth - (margin * 2);
 
-      const itemsPerPage = 22;
+      const itemsPerPage = 21;
       const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
 
       const currentClassObj = classes.find(c => c.id === selectedClass);
@@ -803,40 +803,40 @@ export function Attendance() {
         // Underline
         doc.setDrawColor(0);
         doc.setLineWidth(0.5);
-        doc.line(margin, margin + 18, pageWidth - margin, margin + 18);
+        doc.line(margin, margin + 17, pageWidth - margin, margin + 17);
 
         // Info Box
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(margin, margin + 20, contentWidth, 14, 1, 1, 'F');
+        doc.roundedRect(margin, margin + 18, contentWidth, 13.5, 1, 1, 'F');
         
         doc.setFontSize(10);
         doc.setTextColor(0);
         doc.setFont('helvetica', 'bold');
-        doc.text(printType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL', margin + 4, margin + 24);
+        doc.text(printType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL', margin + 4, margin + 22.5);
         
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text('MÊS REFERÊNCIA:', pageWidth - margin - 60, margin + 24, { align: 'right' });
+        doc.text('MÊS REFERÊNCIA:', pageWidth - margin - 60, margin + 22.5, { align: 'right' });
         doc.setTextColor(0);
         const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth];
-        doc.text(`${monthName} / ${selectedYear}`.toUpperCase(), pageWidth - margin - 4, margin + 24, { align: 'right' });
+        doc.text(`${monthName} / ${selectedYear}`.toUpperCase(), pageWidth - margin - 4, margin + 22.5, { align: 'right' });
 
         // Second line of Info Box
         doc.setFontSize(7);
         doc.setTextColor(150);
-        doc.text('TURMA / CÓDIGO', margin + 4, margin + 29);
-        doc.text('SALA / LOCAL', margin + 65, margin + 29);
-        doc.text('DISCIPLINA', margin + 105, margin + 29);
-        doc.text('TOTAL DE ALUNOS', pageWidth - margin - 4, margin + 29, { align: 'right' });
+        doc.text('TURMA / CÓDIGO', margin + 4, margin + 26.5);
+        doc.text('SALA / LOCAL', margin + 65, margin + 26.5);
+        doc.text('DISCIPLINA', margin + 105, margin + 26.5);
+        doc.text('TOTAL DE ALUNOS', pageWidth - margin - 4, margin + 26.5, { align: 'right' });
 
         doc.setFontSize(8);
         doc.setTextColor(0);
-        doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 33);
-        doc.text(currentClassObj?.room || '002', margin + 65, margin + 33);
-        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 105, margin + 33);
+        doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 30.2);
+        doc.text(currentClassObj?.room || '002', margin + 65, margin + 30.2);
+        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 105, margin + 30.2);
         
         doc.setFontSize(14);
-        doc.text(String(students.length), pageWidth - margin - 4, margin + 34, { align: 'right' });
+        doc.text(String(students.length), pageWidth - margin - 4, margin + 30.7, { align: 'right' });
 
         // Table Head
         const head: any[] = [
@@ -873,43 +873,43 @@ export function Attendance() {
         });
 
         autoTable(doc, {
-          startY: margin + 36,
+          startY: margin + 33,
           head: head,
           body: body,
           theme: 'grid',
           headStyles: { 
             fillColor: [240, 240, 240],
             textColor: [0, 0, 0],
-            fontSize: 7,
+            fontSize: 7.5,
             lineWidth: 0.1,
             lineColor: [100, 100, 100],
             fontStyle: 'bold'
           },
           styles: { 
-            fontSize: 7.5,
-            cellPadding: 1.0,
+            fontSize: 8.2,
+            cellPadding: 1.4,
             lineWidth: 0.1,
             lineColor: [180, 180, 180],
-            minCellHeight: 5.8,
+            minCellHeight: 6.8,
             valign: 'middle'
           },
           columnStyles: {
             0: { cellWidth: 8 },
-            1: { cellWidth: 28 }, // Increased from 20
-            2: { cellWidth: 70 } // Reduced slightly from 75 to give extra breathing room for date columns
+            1: { cellWidth: 28 },
+            2: { cellWidth: 80 }
           },
           didDrawPage: (data) => {
             // Footer
             doc.setFontSize(7);
             doc.setTextColor(150);
-            const footerY = pageHeight - margin + 3;
+            const footerY = pageHeight - 6;
             doc.text(institution?.address || 'AV. VENUS, 195 - GUARULHOS', margin, footerY);
             
             // Fixed overlap in footer
             const emissionDate = `EMISSÃO: ${new Date().toLocaleDateString('pt-BR')}`;
             const pageText = `PÁGINA ${pageIdx + 1}/${totalPages}`;
             
-            doc.text(emissionDate, pageWidth - margin - 45, footerY, { align: 'right' });
+            doc.text(emissionDate, pageWidth - margin - 35, footerY, { align: 'right' });
             doc.text(pageText, pageWidth - margin, footerY, { align: 'right' });
           }
         });
