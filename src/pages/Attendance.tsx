@@ -1277,6 +1277,27 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               </div>
             </div>
 
+            {(activeTab === 'marking' || activeTab === 'monthly') && (
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Disciplina</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
+                    <BookOpen size={18} />
+                   </div>
+                  <select
+                    value={selectedSubject}
+                    onChange={e => setSelectedSubject(e.target.value)}
+                    disabled={!selectedClass}
+                    className="w-full pl-16 pr-8 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
+                  >
+                    <option value="">SELECIONAR DISCIPLINA...</option>
+                    {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
+                </div>
+              </div>
+            )}
+
             {activeTab === 'monthly' && (
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Período</label>
@@ -1305,27 +1326,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     </select>
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={18} />
                   </div>
-                </div>
-              </div>
-            )}
-            
-            {(activeTab === 'marking' || activeTab === 'monthly') && (
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Disciplina</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
-                    <BookOpen size={18} />
-                  </div>
-                  <select
-                    value={selectedSubject}
-                    onChange={e => setSelectedSubject(e.target.value)}
-                    disabled={!selectedClass}
-                    className="w-full pl-16 pr-8 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
-                  >
-                    <option value="">SELECIONAR DISCIPLINA...</option>
-                    {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
                 </div>
               </div>
             )}
@@ -1610,28 +1610,45 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       </div>
                     ) : (
                       <>
-                        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8 group relative overflow-hidden shadow-xl">
-                          <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-50" />
+                        <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-indigo-950 p-8 rounded-[2rem] border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8 group relative overflow-hidden shadow-2xl shadow-slate-950/20">
+                          {/* Radial Ambient Glow Effects */}
+                          <div className="absolute top-0 left-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none -translate-x-1/2 -translate-y-1/2 group-hover:bg-indigo-500/15 transition-colors duration-700" />
+                          <div className="absolute bottom-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none translate-x-1/3 translate-y-1/3" />
+                          
+                          {/* Linear Accent Border Top */}
+                          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-60" />
+
                           <div className="flex items-center gap-6 relative z-10">
-                            <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center text-blue-400 shadow-inner border border-slate-700/50">
-                              <CalendarIcon size={32} />
+                            <div className="w-14 h-14 bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center text-indigo-400 shadow-inner border border-slate-700/50 group-hover:scale-105 transition-transform duration-300">
+                              <CalendarIcon size={26} className="text-indigo-400" />
                             </div>
-                            <div>
-                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Painel de Documentos</p>
-                              <h4 className="text-2xl font-black text-white tracking-tight mt-1 uppercase">
-                                {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} {selectedYear}
-                              </h4>
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-black text-indigo-400/80 uppercase tracking-[0.25em] leading-none mb-1">Célula de Relatórios</p>
+                              <div className="flex items-center gap-3">
+                                <h4 className="text-2xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">
+                                  {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth]} {selectedYear}
+                                </h4>
+                                <div className="hidden sm:inline-flex px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-md text-[9px] font-black uppercase text-indigo-300 tracking-wider">
+                                  Mensal
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-4 relative z-10">
-                            <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                               {monthlyClassDays.filter(d => !d.isCancelled).length} Aulas Agendadas
+                          <div className="flex flex-wrap items-center gap-4 relative z-10 w-full md:w-auto">
+                            <div className="flex-1 md:flex-initial px-5 py-3.5 bg-white/[0.02] hover:bg-white/[0.04] text-slate-300 rounded-xl border border-white/5 text-[10px] font-black uppercase tracking-[0.12em] flex items-center justify-center md:justify-start gap-3 transition-colors duration-300">
+                               <span className="relative flex h-2 w-2">
+                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                               </span>
+                               <span>{monthlyClassDays.filter(d => !d.isCancelled).length} Aulas Agendadas</span>
                             </div>
-                            <div className="px-5 py-3 bg-slate-800 text-white rounded-xl border border-slate-700/50 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                               {students.length} Alunos Inscritos
+                            <div className="flex-1 md:flex-initial px-5 py-3.5 bg-white/[0.02] hover:bg-white/[0.04] text-slate-300 rounded-xl border border-white/5 text-[10px] font-black uppercase tracking-[0.12em] flex items-center justify-center md:justify-start gap-3 transition-colors duration-300">
+                               <span className="relative flex h-2 w-2">
+                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                               </span>
+                               <span>{students.length} Alunos Inscritos</span>
                             </div>
                           </div>
                         </div>
