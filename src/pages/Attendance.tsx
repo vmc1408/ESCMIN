@@ -884,7 +884,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const margin = 8;
       const contentWidth = pageWidth - (margin * 2);
 
-      const itemsPerPage = 21;
+      const itemsPerPage = 18;
       const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
 
       const currentClassObj = classes.find(c => c.id === selectedClass);
