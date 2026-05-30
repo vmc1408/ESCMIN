@@ -820,7 +820,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       updatePDF();
     }
     return () => { active = false; };
-  }, [showPrintPreview, printType, students, institution, selectedMonth, selectedYear, activeTab, monthlyAttendance, attendance, getCellStatus, modifiedRecords]);
+  }, [showPrintPreview, printType, students, institution, selectedMonth, selectedYear, activeTab, monthlyAttendance, attendance, getCellStatus, modifiedRecords, teachers, subjects, classes]);
 
   const confirmPrint = () => {
     const iframe = document.getElementById('attendance-preview-iframe') as HTMLIFrameElement;
@@ -922,29 +922,54 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         doc.setFont('helvetica', 'bold');
         doc.text(printType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL', margin + 4, margin + 22.5);
         
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text('MÊS REFERÊNCIA:', pageWidth - margin - 60, margin + 22.5, { align: 'right' });
-        doc.setTextColor(0);
         const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth];
-        doc.text(`${monthName} / ${selectedYear}`.toUpperCase(), pageWidth - margin - 4, margin + 22.5, { align: 'right' });
+        const monthString = `${monthName} / ${selectedYear}`.toUpperCase();
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0);
+        const monthWidth = doc.getTextWidth(monthString);
+        
+        // Print month name at the right edge
+        doc.text(monthString, pageWidth - margin - 4, margin + 22.5, { align: 'right' });
+        
+        // Print label immediately before it (closer)
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150);
+        doc.text('MÊS REFERÊNCIA: ', pageWidth - margin - 4 - monthWidth - 1, margin + 22.5, { align: 'right' });
+
+        // Retrieve teacher name
+        const teacherObj = teachers.find(t => t.id === currentSubjectObj?.teacher_id);
+        const teacherStr = teacherObj ? ` | PROF: ${teacherObj.name.toUpperCase()}` : ' | PROF: NÃO DEFINIDO';
+        const disciplineStr = `${currentSubjectObj?.name || 'Todas as Categorias'}${teacherStr}`.toUpperCase();
 
         // Second line of Info Box
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(7);
         doc.setTextColor(150);
         doc.text('TURMA / CÓDIGO', margin + 4, margin + 26.5);
-        doc.text('SALA / LOCAL', margin + 65, margin + 26.5);
-        doc.text('DISCIPLINA', margin + 105, margin + 26.5);
+        doc.text('DISCIPLINA / PROFESSOR', margin + 60, margin + 26.5);
+        doc.text('SALA / LOCAL', pageWidth - margin - 50, margin + 26.5);
         doc.text('TOTAL DE ALUNOS', pageWidth - margin - 4, margin + 26.5, { align: 'right' });
 
         doc.setFontSize(8);
         doc.setTextColor(0);
         doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 30.2);
-        doc.text(currentClassObj?.room || '002', margin + 65, margin + 30.2);
-        doc.text((currentSubjectObj?.name || 'Todas as Categorias').toUpperCase(), margin + 105, margin + 30.2);
         
-        doc.setFontSize(14);
-        doc.text(String(students.length), pageWidth - margin - 4, margin + 30.7, { align: 'right' });
+        // Limit the width of the discipline & professor text to fit nicely in the layout
+        const maxDisciplineWidth = pageWidth - margin - 50 - (margin + 60) - 4; // around 165mm
+        let truncatedDiscipline = disciplineStr;
+        if (doc.getTextWidth(truncatedDiscipline) > maxDisciplineWidth) {
+          while (doc.getTextWidth(truncatedDiscipline + '...') > maxDisciplineWidth && truncatedDiscipline.length > 5) {
+            truncatedDiscipline = truncatedDiscipline.slice(0, -1);
+          }
+          truncatedDiscipline += '...';
+        }
+        doc.text(truncatedDiscipline, margin + 60, margin + 30.2);
+        doc.text(currentClassObj?.room || '---', pageWidth - margin - 50, margin + 30.2);
+        
+        doc.setFontSize(10); // Decreased font size for total students
+        doc.text(String(students.length), pageWidth - margin - 4, margin + 30.5, { align: 'right' });
 
         // Table Head
         const head: any[] = [
