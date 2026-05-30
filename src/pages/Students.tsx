@@ -1288,7 +1288,7 @@ export function Students() {
                           value={formData.course || ''}
                           onChange={(e) => setFormData({...formData, course: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border border-slate-205 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold text-slate-850"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-205 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold text-slate-800"
                           tabIndex={7.5}
                         >
                           <option value="">Identificar Curso...</option>

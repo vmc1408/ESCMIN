@@ -104,7 +104,7 @@ export function AcademicCalendar() {
   const dayColors = [
     'text-slate-600',   // Dom
     'text-slate-800',     // Seg
-    'text-slate-850',  // Ter
+    'text-slate-800',  // Ter
     'text-emerald-600', // Qua
     'text-yellow-500',  // Qui
     'text-rose-600',     // Sex
@@ -1198,7 +1198,7 @@ export function AcademicCalendar() {
                 {(() => {
                   const count = getEventCount('class_day', 4);
                   const days = typeof count === 'object' ? count.days : 0;
-                  return <span className="text-xl font-bold text-slate-850 leading-none">{days}</span>;
+                  return <span className="text-xl font-bold text-slate-800 leading-none">{days}</span>;
                 })()}
                 <span className="text-[9px] font-bold text-indigo-400 uppercase">Aulas</span>
               </div>
@@ -1718,7 +1718,7 @@ export function AcademicCalendar() {
                         return (
                           <div className="bg-white p-6 rounded-none border border-slate-200 shadow-sm space-y-4">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-850">
+                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-800">
                                 <Bookmark size={24} />
                               </div>
                               <div>

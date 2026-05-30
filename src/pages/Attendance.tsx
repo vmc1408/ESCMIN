@@ -1428,7 +1428,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     setSelectedClass(e.target.value);
                     setSelectedSubject('');
                   }}
-                  className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 appearance-none transition-all outline-none"
+                  className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                 >
                   <option value="">SELECIONAR TURMA...</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
@@ -1448,7 +1448,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
                     disabled={!selectedClass}
-                    className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
+                    className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
                   >
                     <option value="">SELECIONAR DISCIPLINA...</option>
                     {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
@@ -1515,7 +1515,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       disabled={!selectedClass || availableDates.length === 0}
                       value={parseDateToDB(selectedDate)}
                       onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
-                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 outline-none"
+                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 outline-none"
                     >
                       <option value="">DATA...</option>
                       {[...availableDates].reverse().map(date => (
@@ -1530,7 +1530,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <select
                       value={selectedYear}
                       onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-2 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 outline-none text-center"
+                      className="w-full px-2 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 outline-none text-center"
                     >
                       {[2024, 2025, 2026, 2027, 2028].map(y => (
                         <option key={y} value={y}>{y}</option>
@@ -1763,9 +1763,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Card 1: Relatório de Lançamentos */}
                           <div className="bg-white border border-slate-200 p-6 rounded-none flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-6 text-slate-100/40 pointer-events-none">
-                              <FileText size={120} className="-mr-12 -mt-12" />
-                            </div>
                             <div className="relative z-10">
                               <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
                                 <FileText size={24} />
@@ -1780,7 +1777,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <button 
                                 onClick={() => processPrint('report')}
                                 disabled={isPrinting}
-                                className="w-full h-11 bg-slate-850 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
                                   <>
@@ -1799,9 +1796,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
                           {/* Card 2: Lista Chamada em Branco (Gabarito) */}
                           <div className="bg-white border border-slate-200 p-6 rounded-none flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-6 text-slate-100/40 pointer-events-none">
-                              <ClipboardCheck size={120} className="-mr-12 -mt-12" />
-                            </div>
                             <div className="relative z-10">
                               <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
                                 <ClipboardCheck size={24} />
@@ -1816,7 +1810,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <button 
                                 onClick={() => processPrint('marking')}
                                 disabled={isPrinting}
-                                className="w-full h-11 bg-slate-850 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                                className="w-full h-11 bg-slate-800 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
                                   <>
