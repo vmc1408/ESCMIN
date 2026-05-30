@@ -884,12 +884,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const margin = 8;
       const contentWidth = pageWidth - (margin * 2);
 
-      // Dynamically calculate the optimal items per page (up to 20 per page).
-      // This distributes students evenly across the minimum required pages so that
-      // we never get a single trailing student on an empty last page.
-      const maxPossiblePerPage = 20;
-      const totalPages = Math.ceil(students.length / maxPossiblePerPage) || 1;
-      const itemsPerPage = Math.ceil(students.length / totalPages) || 1;
+      // Standard pagination filled to capacity up to 20 items per page
+      const itemsPerPage = 20;
+      const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
 
       const currentClassObj = classes.find(c => c.id === selectedClass);
       const currentSubjectObj = subjects.find(s => s.id === selectedSubject);
@@ -1144,7 +1141,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           head: head,
           body: body,
           theme: 'grid',
-          margin: { left: margin, right: margin },
+          margin: { left: margin, right: margin, bottom: 10 },
           headStyles: { 
             fillColor: [240, 240, 240],
             textColor: [0, 0, 0],
@@ -1155,11 +1152,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             minCellHeight: 11
           },
           styles: { 
-            fontSize: 8.2,
-            cellPadding: 1.4,
+            fontSize: 8.0,
+            cellPadding: 1.2,
             lineWidth: 0.1,
             lineColor: [180, 180, 180],
-            minCellHeight: 6.8,
+            minCellHeight: 6.5,
             valign: 'middle'
           },
           columnStyles: colStyles,
