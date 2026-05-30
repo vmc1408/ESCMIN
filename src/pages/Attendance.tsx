@@ -46,11 +46,15 @@ interface Subject {
   id: string;
   name: string;
   teacher_id?: string;
+  program_content?: string;
+  semester?: string;
+  year?: number | string;
 }
 
 interface Teacher {
   id: string;
   name: string;
+  subject_ids?: string[];
 }
 
 interface AttendanceRecord {
@@ -115,14 +119,32 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchAll('academic_parameters', '*', ''),
         fetchAll('institution_settings'),
-        fetchAll('teachers', 'id, name', 'name', true)
+        fetchAll('teachers', 'id, name, subject_ids, status', 'name', true)
       ]);
 
       if (instData && instData.length > 0) {
         setInstitution(instData[0]);
       }
       
-      setTeachers(teachersData || []);
+      const normalizedTeachers = (teachersData || []).map((t: any) => {
+        let normalized = { ...t };
+        let sIds = normalized.subject_ids || [];
+        if (typeof sIds === 'string') {
+          if (sIds.startsWith('{')) {
+            sIds = sIds.replace(/[{}]/g, '').split(',').filter(Boolean);
+          } else {
+            try {
+              const parsed = JSON.parse(sIds);
+              sIds = Array.isArray(parsed) ? parsed : [parsed];
+            } catch (e) {
+              sIds = sIds ? [sIds] : [];
+            }
+          }
+        }
+        normalized.subject_ids = sIds;
+        return normalized;
+      });
+      setTeachers(normalizedTeachers);
 
       const normalizedClasses = (classesData || []).map((cls: any) => {
         let normalized = { ...cls };
@@ -171,8 +193,26 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         return infoB.yr - infoA.yr;
       });
 
+      const normalizedSubjects = (subjectsData || []).map((s: any) => {
+        let normalized = { ...s };
+        if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
+          const match = normalized.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.semester) normalized.semester = meta.semester;
+              if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
+              if (!normalized.year) normalized.year = meta.year;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+        return normalized;
+      });
+
       setClasses(sortedClasses);
-      setSubjects(subjectsData || []);
+      setSubjects(normalizedSubjects);
       if (paramsData && paramsData.length > 0) {
         setAcademicParams(paramsData[0]);
       }
@@ -939,8 +979,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         doc.text('MÊS REFERÊNCIA: ', pageWidth - margin - 4 - monthWidth - 1, margin + 22.5, { align: 'right' });
 
         // Retrieve teacher name
-        const teacherObj = teachers.find(t => t.id === currentSubjectObj?.teacher_id);
-        const teacherStr = teacherObj ? ` | PROF: ${teacherObj.name.toUpperCase()}` : ' | PROF: NÃO DEFINIDO';
+        const teacherObj = teachers.find(t => 
+          t.id === currentSubjectObj?.teacher_id || 
+          (Array.isArray(t.subject_ids) && t.subject_ids.includes(selectedSubject))
+        );
+        const teacherStr = teacherObj ? ` | PROF: ${teacherObj.name.toUpperCase()}` : '';
         const disciplineStr = `${currentSubjectObj?.name || 'Todas as Categorias'}${teacherStr}`.toUpperCase();
 
         // Second line of Info Box
@@ -949,7 +992,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         doc.setTextColor(150);
         doc.text('TURMA / CÓDIGO', margin + 4, margin + 26.5);
         doc.text('DISCIPLINA / PROFESSOR', margin + 60, margin + 26.5);
-        doc.text('SALA / LOCAL', pageWidth - margin - 50, margin + 26.5);
+        doc.text('SALA / LOCAL', pageWidth - margin - 50, margin + 26.5, { align: 'center' });
         doc.text('TOTAL DE ALUNOS', pageWidth - margin - 4, margin + 26.5, { align: 'right' });
 
         doc.setFontSize(8);
@@ -957,7 +1000,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         doc.text(`${currentClassObj?.name || 'N/A'} (${currentClassObj?.code || '---'})`.toUpperCase(), margin + 4, margin + 30.2);
         
         // Limit the width of the discipline & professor text to fit nicely in the layout
-        const maxDisciplineWidth = pageWidth - margin - 50 - (margin + 60) - 4; // around 165mm
+        const maxDisciplineWidth = pageWidth - margin - 75 - (margin + 60) - 4;
         let truncatedDiscipline = disciplineStr;
         if (doc.getTextWidth(truncatedDiscipline) > maxDisciplineWidth) {
           while (doc.getTextWidth(truncatedDiscipline + '...') > maxDisciplineWidth && truncatedDiscipline.length > 5) {
@@ -966,7 +1009,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           truncatedDiscipline += '...';
         }
         doc.text(truncatedDiscipline, margin + 60, margin + 30.2);
-        doc.text(currentClassObj?.room || '---', pageWidth - margin - 50, margin + 30.2);
+        doc.text(currentClassObj?.room || '---', pageWidth - margin - 50, margin + 30.2, { align: 'center' });
         
         doc.setFontSize(10); // Decreased font size for total students
         doc.text(String(students.length), pageWidth - margin - 4, margin + 30.5, { align: 'right' });
