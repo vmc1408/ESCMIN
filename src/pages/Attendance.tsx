@@ -884,8 +884,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const margin = 8;
       const contentWidth = pageWidth - (margin * 2);
 
-      const itemsPerPage = 18;
-      const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
+      // Dynamically calculate the optimal items per page (up to 20 per page).
+      // This distributes students evenly across the minimum required pages so that
+      // we never get a single trailing student on an empty last page.
+      const maxPossiblePerPage = 20;
+      const totalPages = Math.ceil(students.length / maxPossiblePerPage) || 1;
+      const itemsPerPage = Math.ceil(students.length / totalPages) || 1;
 
       const currentClassObj = classes.find(c => c.id === selectedClass);
       const currentSubjectObj = subjects.find(s => s.id === selectedSubject);
@@ -1054,11 +1058,29 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         const metaStr = metaParts.length > 0 ? `   (${metaParts.join('  •  ')})` : '';
         const rawDiscVal = `${subCode}   ${subName}${metaStr}`.toUpperCase();
 
-        const col3X = pageWidth - margin - 25;
-        const maxDiscColWidth = col3X - col2X - discLabelWidth - 4;
-        let truncatedDisc = rawDiscVal;
+        // Row 2 - Col 3: Sala (Right-aligned to match the right edge of the table and the month reference)
+        const rawSalaVal = (currentClassObj?.room || '---').toUpperCase();
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        
+        const salaLabel = 'Sala  ';
+        const salaLabelWidth = doc.getTextWidth(salaLabel);
+        const salaValWidth = doc.getTextWidth(rawSalaVal);
+        const salaTotalWidth = salaLabelWidth + salaValWidth;
+        const salaStartX = pageWidth - margin - salaTotalWidth;
+
+        // Draw "Sala" label
+        doc.text('Sala', salaStartX, row2Y);
+
+        // Draw Room value in bold at the correct offset to end at margin
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0);
+        doc.text(rawSalaVal, salaStartX + salaLabelWidth, row2Y);
+
+        // Limit the width of the discipline to not overlap with the Sala on the right
+        const maxDiscColWidth = salaStartX - col2X - discLabelWidth - 4;
+        let truncatedDisc = rawDiscVal;
         if (doc.getTextWidth(truncatedDisc) > maxDiscColWidth) {
           while (doc.getTextWidth(truncatedDisc + '...') > maxDiscColWidth && truncatedDisc.length > 5) {
             truncatedDisc = truncatedDisc.slice(0, -1);
@@ -1066,25 +1088,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           truncatedDisc += '...';
         }
         doc.text(truncatedDisc, col2X + discLabelWidth, row2Y);
-
-        // Row 2 - Col 3: Sala
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
-        doc.text('Sala', col3X, row2Y);
-        const salaLabelWidth = doc.getTextWidth('Sala   ');
-
-        const rawSalaVal = (currentClassObj?.room || '---').toUpperCase();
-        const maxSalaWidth = pageWidth - margin - (col3X + salaLabelWidth);
-        let truncatedSala = rawSalaVal;
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0);
-        if (doc.getTextWidth(truncatedSala) > maxSalaWidth) {
-          while (doc.getTextWidth(truncatedSala + '...') > maxSalaWidth && truncatedSala.length > 1) {
-            truncatedSala = truncatedSala.slice(0, -1);
-          }
-          truncatedSala += '...';
-        }
-        doc.text(truncatedSala, col3X + salaLabelWidth, row2Y);
 
         // Decorative horizontal separator line under row 2 before the table
         doc.setDrawColor(200);
