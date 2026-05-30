@@ -837,41 +837,47 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
   };
 
-  const [showPrintPreview, setShowPrintPreview] = useState(false);
-  const [printType, setPrintType] = useState<'marking' | 'report'>('report');
+  const [isPrinting, setIsPrinting] = useState(false);
 
-  const handlePrint = () => {
-    const type = activeTab === 'marking' ? 'marking' : 'report';
-    setPrintType(type);
-    setShowPrintPreview(true);
+  const processPrint = async (targetType: 'marking' | 'report') => {
+    setIsPrinting(true);
+    try {
+      const blobUrl = await generateAttendancePDF(targetType);
+      if (blobUrl) {
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.src = blobUrl;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          setTimeout(() => {
+            try {
+              iframe.contentWindow?.focus();
+              iframe.contentWindow?.print();
+            } catch (e) {
+              console.error('Print window error:', e);
+            }
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+              }
+            }, 60000);
+          }, 150);
+        };
+      }
+    } catch (err) {
+      console.error('Printing process error:', err);
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
-  useEffect(() => {
-    let active = true;
-    if (showPrintPreview) {
-      const updatePDF = async () => {
-        setPdfLoading(true);
-        const blobUrl = await generateAttendancePDF();
-        if (active && blobUrl) {
-          if (attendancePdfBlobUrl) URL.revokeObjectURL(attendancePdfBlobUrl);
-          setAttendancePdfBlobUrl(blobUrl);
-        }
-        if (active) setPdfLoading(false);
-      };
-      updatePDF();
-    }
-    return () => { active = false; };
-  }, [showPrintPreview, printType, students, institution, selectedMonth, selectedYear, activeTab, monthlyAttendance, attendance, getCellStatus, modifiedRecords, teachers, subjects, classes]);
-
-  const confirmPrint = () => {
-    const iframe = document.getElementById('attendance-preview-iframe') as HTMLIFrameElement;
-    if (iframe && iframe.contentWindow) {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    }
-  };
-
-  const generateAttendancePDF = async () => {
+  const generateAttendancePDF = async (overridePrintType?: 'marking' | 'report') => {
+    const activePrintType = overridePrintType || 'report';
     try {
       const doc = new jsPDF({
         orientation: 'landscape',
@@ -978,7 +984,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         const semesterStr = currentSubjectObj?.semester ? formatSemester(currentSubjectObj.semester) : '';
 
         // Header Title (centered)
-        const mainTitle = (printType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL').toUpperCase();
+        const mainTitle = (activePrintType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL').toUpperCase();
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10.5);
         doc.setTextColor(0);
@@ -1113,7 +1119,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             student.name.toUpperCase(),
             ...monthlyClassDays.map(day => {
               if (day?.isCancelled) return { content: '---', styles: { halign: 'center', textColor: [200, 200, 200] } };
-              if (printType === 'marking') return '';
+              if (activePrintType === 'marking') return '';
               const status = day ? (activeTab === 'monthly' ? getCellStatus(student.id, day.dbValue) : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
               return { 
                 content: status === 'P' ? 'OK' : status === 'F' ? 'F' : status === 'J' ? 'J' : '',
@@ -1785,14 +1791,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             </div>
                             <div className="mt-8 pt-6 border-t border-slate-105 relative z-10">
                               <button 
-                                onClick={() => {
-                                  setPrintType('report');
-                                  setShowPrintPreview(true);
-                                }}
-                                className="w-full flex items-center justify-center gap-3 h-14 bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-indigo-100 duration-300 active:scale-95"
+                                onClick={() => processPrint('report')}
+                                disabled={isPrinting}
+                                className="w-full flex items-center justify-center gap-3 h-14 bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-indigo-100 duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <Printer size={16} />
-                                Imprimir Relatório Mensal
+                                {isPrinting ? (
+                                  <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Preparando Documento...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Printer size={16} />
+                                    Imprimir Relatório Mensal
+                                  </>
+                                )}
                               </button>
                             </div>
                           </div>
@@ -1814,14 +1827,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             </div>
                             <div className="mt-8 pt-6 border-t border-slate-105 relative z-10">
                               <button 
-                                onClick={() => {
-                                  setPrintType('marking');
-                                  setShowPrintPreview(true);
-                                }}
-                                className="w-full flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-emerald-100 duration-300 active:scale-95"
+                                onClick={() => processPrint('marking')}
+                                disabled={isPrinting}
+                                className="w-full flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-emerald-100 duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <Printer size={16} />
-                                Imprimir Lista em Branco
+                                {isPrinting ? (
+                                  <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Preparando Documento...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Printer size={16} />
+                                    Imprimir Lista em Branco
+                                  </>
+                                )}
                               </button>
                             </div>
                           </div>
@@ -1837,54 +1857,18 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       </div>
     </div>
     
-    {/* PDF Print Preview Modal */}
-      {showPrintPreview && attendancePdfBlobUrl && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-6xl rounded-[2.5rem] shadow-2xl flex flex-col h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-300 border border-slate-100">
-            {/* Modal Header */}
-            <div className="p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/50 gap-6">
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-200">
-                  <Printer size={28} />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight">Visualização de Documento</h3>
-                  <p className="text-sm font-medium text-slate-500 uppercase tracking-widest mt-1">Conferência final antes da impressão</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button 
-                  onClick={() => setShowPrintPreview(false)}
-                  className="px-6 py-4 bg-white text-slate-900 border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all active:scale-95 shadow-sm"
-                >
-                  Fechar
-                </button>
-                <button 
-                  onClick={confirmPrint}
-                  className="flex-1 sm:flex-none px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 active:scale-95 flex items-center justify-center gap-3"
-                >
-                  <Printer size={20} />
-                  Imprimir Agora
-                </button>
-              </div>
+    {/* PDF Printing Overlay Backdrop */}
+      {isPrinting && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+          <div className="bg-white px-8 py-10 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center max-w-sm w-full text-center border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-6 shadow-inner border border-indigo-100/50">
+              <Loader2 size={32} className="animate-spin" />
             </div>
-
-            {/* Preview Content Area (iFrame) */}
-            <div className="flex-1 bg-slate-100 p-6 flex items-center justify-center relative">
-              {pdfLoading && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
-                  <Loader2 size={40} className="animate-spin text-indigo-600 mb-3" />
-                  <p className="text-xs font-black text-indigo-900/60 uppercase tracking-[0.2em]">Gerando Documento...</p>
-                </div>
-              )}
-              <iframe 
-                id="attendance-preview-iframe" 
-                src={attendancePdfBlobUrl} 
-                className="w-full h-full rounded-2xl border border-slate-200 bg-white shadow-2xl" 
-                title="Attendance PDF Preview"
-              />
-            </div>
+            <h3 className="text-lg font-black text-slate-950 tracking-tight uppercase">Gerando Relatório</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase mt-1 tracking-wider">Aguarde um instante</p>
+            <p className="text-sm font-medium text-slate-500 mt-4 leading-relaxed">
+              O documento está sendo consolidado e a tela de impressão do seu navegador abrirá automaticamente em instantes.
+            </p>
           </div>
         </div>
       )}
