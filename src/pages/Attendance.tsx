@@ -1308,7 +1308,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         }
       `}</style>
 
-      <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8 no-print">
+      <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-6 space-y-6 no-print">
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
@@ -1417,7 +1417,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       {/* Main Content Area */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/30 overflow-hidden text-slate-900">
         {/* Filter Bar */}
-        <div className="p-8 border-b border-slate-100 bg-slate-50/30">
+        <div className="p-5 md:p-6 border-b border-slate-100 bg-slate-50/40">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Turma</label>
@@ -1587,7 +1587,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         )}
 
         {/* Content Area */}
-        <div className="p-8 bg-white">
+        <div className="p-5 md:p-6 bg-white">
           <AnimatePresence mode="wait">
             {!selectedClass ? (
               <motion.div 
@@ -1595,17 +1595,17 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="py-48 flex flex-col items-center text-center space-y-10"
+                className="py-10 md:py-16 flex flex-col items-center text-center space-y-6"
               >
                 <div className="relative">
                   <div className="absolute inset-0 bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
-                  <div className="relative w-40 h-40 bg-white text-slate-200 rounded-[3.5rem] flex items-center justify-center shadow-2xl border border-slate-50 group hover:border-emerald-100 transition-colors duration-700">
-                    <ClipboardCheck size={80} className="relative group-hover:text-emerald-500 group-hover:scale-110 transition-all duration-700" />
+                  <div className="relative w-32 h-32 bg-white text-slate-200 rounded-[3rem] flex items-center justify-center shadow-2xl border border-slate-50 group hover:border-emerald-100 transition-colors duration-700">
+                    <ClipboardCheck size={64} className="relative group-hover:text-emerald-500 group-hover:scale-110 transition-all duration-700" />
                   </div>
                 </div>
-                <div className="max-w-md space-y-4">
-                  <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Painel de Assiduidade</h3>
-                  <p className="text-[12px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-loose">
+                <div className="max-w-md space-y-3">
+                  <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase">Painel de Assiduidade</h3>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-loose">
                     Selecione o grupo acadêmico no seletor principal para carregar o quadro de frequências dinâmico.
                   </p>
                 </div>
@@ -1615,18 +1615,18 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 key="loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="py-48 flex flex-col items-center justify-center gap-8"
+                className="py-12 md:py-16 flex flex-col items-center justify-center gap-6"
               >
-                <div className="relative w-24 h-24">
-                   <div className="absolute inset-0 border-[8px] border-slate-100 rounded-full" />
-                   <div className="absolute inset-0 border-[8px] border-emerald-600 rounded-full animate-spin border-t-transparent shadow-xl" />
+                <div className="relative w-20 h-20">
+                   <div className="absolute inset-0 border-[6px] border-slate-100 rounded-full" />
+                   <div className="absolute inset-0 border-[6px] border-emerald-600 rounded-full animate-spin border-t-transparent shadow-xl" />
                    <div className="absolute inset-0 flex items-center justify-center">
-                     <div className="w-3 h-3 bg-emerald-600 rounded-full animate-ping" />
+                     <div className="w-2.5 h-2.5 bg-emerald-600 rounded-full animate-ping" />
                    </div>
                 </div>
-                <div className="text-center space-y-3">
-                  <p className="text-[14px] font-black text-slate-900 uppercase tracking-[0.4em] animate-pulse">Sincronizando</p>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none">Acessando registros criptografados...</p>
+                <div className="text-center space-y-2">
+                  <p className="text-[13px] font-black text-slate-900 uppercase tracking-[0.4em] animate-pulse">Sincronizando</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Acessando registros criptografados...</p>
                 </div>
               </motion.div>
             ) : (
@@ -1666,25 +1666,25 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 {activeTab === 'marking' ? (
                   <div className="space-y-8">
                     {!selectedSubject && (
-                      <div className="bg-white border border-amber-100 p-12 rounded-[3.5rem] flex items-center gap-10 text-amber-900 shadow-2xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
-                        <div className="w-20 h-20 bg-amber-50 rounded-[2rem] flex items-center justify-center text-amber-500 shadow-sm group-hover:scale-110 transition-transform duration-500">
-                          <Info size={40} />
+                      <div className="bg-white border border-amber-100 p-6 md:p-8 rounded-[2rem] flex items-center gap-6 text-amber-900 shadow-xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
+                        <div className="w-14 h-14 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-500">
+                          <Info size={28} />
                         </div>
-                        <div className="space-y-3">
-                           <p className="text-2xl font-black uppercase tracking-tight">Etapa Pendente</p>
-                           <p className="text-[12px] font-bold text-amber-700/60 uppercase tracking-[0.1em] leading-loose">Selecione a disciplina correspondente no menu superior para carregar a grade de frequência.</p>
+                        <div className="space-y-1">
+                           <p className="text-lg font-black uppercase tracking-tight">Etapa Pendente</p>
+                           <p className="text-[11px] font-bold text-amber-700/70 uppercase tracking-[0.1em] leading-relaxed">Selecione a disciplina correspondente no menu superior para carregar a grade de frequência.</p>
                         </div>
                       </div>
                     )}
 
                     {!isScheduledDay && selectedClass && (
-                      <div className="bg-red-50/20 border border-red-100 p-12 rounded-[3.5rem] flex items-center gap-10 text-red-900 shadow-2xl shadow-red-50/50">
-                        <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center text-red-500 shadow-sm animate-pulse">
-                          <Clock size={40} />
+                      <div className="bg-red-50/20 border border-red-100 p-6 md:p-8 rounded-[2rem] flex items-center gap-6 text-red-900 shadow-xl shadow-red-50/50">
+                        <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center text-red-500 flex-shrink-0 shadow-sm animate-pulse">
+                          <Clock size={28} />
                         </div>
-                        <div className="space-y-3">
-                          <p className="text-2xl font-black uppercase tracking-tight">Data Inválida</p>
-                          <p className="text-[12px] font-bold text-red-600/60 uppercase tracking-[0.1em] leading-loose">A data selecionada não foi identificada no cronograma acadêmico oficial desta turma.</p>
+                        <div className="space-y-1">
+                          <p className="text-lg font-black uppercase tracking-tight">Data Inválida</p>
+                          <p className="text-[11px] font-bold text-red-600/70 uppercase tracking-[0.1em] leading-relaxed">A data selecionada não foi identificada no cronograma acadêmico oficial desta turma.</p>
                         </div>
                       </div>
                     )}
@@ -1762,13 +1762,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 ) : (
                   <div className="space-y-8">
                     {!selectedSubject ? (
-                      <div className="bg-white border border-amber-100 p-12 rounded-[3.5rem] flex items-center gap-10 text-amber-900 shadow-2xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
-                        <div className="w-20 h-20 bg-amber-50 rounded-[2rem] flex items-center justify-center text-amber-500 shadow-sm group-hover:scale-110 transition-transform duration-500">
-                          <Info size={40} />
+                      <div className="bg-white border border-amber-100 p-6 md:p-8 rounded-[2rem] flex items-center gap-6 text-amber-900 shadow-xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
+                        <div className="w-14 h-14 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-500">
+                          <Info size={28} />
                         </div>
-                        <div className="space-y-3">
-                           <p className="text-2xl font-black uppercase tracking-tight">Etapa Pendente</p>
-                           <p className="text-[12px] font-bold text-amber-700/60 uppercase tracking-[0.1em] leading-loose">Selecione a disciplina correspondente no menu superior para carregar os relatórios de frequência.</p>
+                        <div className="space-y-1">
+                           <p className="text-lg font-black uppercase tracking-tight">Etapa Pendente</p>
+                           <p className="text-[11px] font-bold text-amber-700/70 uppercase tracking-[0.1em] leading-relaxed">Selecione a disciplina correspondente no menu superior para carregar os relatórios de frequência.</p>
                         </div>
                       </div>
                     ) : (
