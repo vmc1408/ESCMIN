@@ -94,17 +94,17 @@ const TeacherItem = React.memo(({
     <button
       onClick={() => onSelect(teacher)}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        "w-full flex items-center gap-3 p-3 rounded-none transition-all text-left",
         isSelected 
-          ? "bg-blue-50 border-blue-100" 
+          ? "bg-slate-50 border-slate-200" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
+      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
         {teacher.code}
         <div className={cn(
-          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
+          "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2 border-white",
           teacher.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
         )} />
       </div>
@@ -112,7 +112,7 @@ const TeacherItem = React.memo(({
         <div className="flex items-center gap-2">
           <p className="text-sm font-bold text-[#131b2e] truncate">{teacher.name}</p>
           <span className={cn(
-            "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
+            "px-1.5 py-0.5 text-[8px] font-bold rounded uppercase",
             teacher.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
           )}>
             {teacher.status || 'Ativo'}
@@ -525,7 +525,7 @@ export function Teachers() {
               {inst?.logo_url ? (
                 <img src={inst.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
               ) : (
-                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
                   <span className="leading-none">SEM</span>
                   <span className="leading-none">LOGO</span>
                 </div>
@@ -533,7 +533,7 @@ export function Teachers() {
             </div>
             <div className="flex-1 flex flex-col">
               <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[19pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
+              <h1 className="text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
                 {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
               <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
@@ -561,7 +561,7 @@ export function Teachers() {
             <div className="col-span-5 border border-black/40 p-3 h-32">
               <p className="text-[10pt] font-bold mb-3 uppercase border-b border-black/10 pb-1 tracking-tight">Disciplinas:</p>
               <div className="overflow-y-auto h-20 pr-1 custom-scrollbar-mini">
-                <p className="text-[9pt] font-bold leading-tight uppercase text-blue-900">
+                <p className="text-[9pt] font-bold leading-tight uppercase text-slate-900">
                   {teacherSubjects || 'NENHUMA SELECIONADA'}
                 </p>
               </div>
@@ -570,7 +570,7 @@ export function Teachers() {
             <div className="col-span-3 border border-black/40 p-3 flex flex-col justify-between items-center bg-white h-32">
               <p className="text-[8pt] font-bold uppercase opacity-50 text-center">Situação</p>
               <div className={cn(
-                "w-full py-2 text-center font-black text-[12pt] uppercase rounded",
+                "w-full py-2 text-center font-bold text-[12pt] uppercase rounded",
                 selectedTeacher.status === 'Ativo' ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-800"
               )}>
                 {selectedTeacher.status}
@@ -580,11 +580,11 @@ export function Teachers() {
           </div>
 
           {/* Teacher Detailed Info */}
-          <div className="border border-black/40 p-6 rounded-sm space-y-6">
+          <div className="border border-black/40 p-6 rounded-none space-y-6">
             <div className="grid grid-cols-1 gap-6">
               <div className="space-y-1">
                 <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Nome Completo do Professor</p>
-                <p className="text-[14pt] font-black uppercase border-b border-black/20 pb-1">{selectedTeacher.name}</p>
+                <p className="text-[14pt] font-bold uppercase border-b border-black/20 pb-1">{selectedTeacher.name}</p>
               </div>
             </div>
 
@@ -639,7 +639,7 @@ export function Teachers() {
           </div>
 
           {/* Institutional Footer */}
-          <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight mb-2">
+          <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-bold text-black uppercase tracking-tight mb-2">
             <div className="flex-1 space-y-1">
               <p className="leading-none text-[9pt]">
                 {inst?.address}
@@ -667,7 +667,7 @@ export function Teachers() {
               </div>
             </div>
             {inst?.secretary && (
-              <div className="text-right max-w-[450px] leading-tight text-black font-black uppercase text-[8pt]">
+              <div className="text-right max-w-[450px] leading-tight text-black font-bold uppercase text-[8pt]">
                 <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
                 <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{inst.secretary}</p>
               </div>
@@ -705,25 +705,25 @@ export function Teachers() {
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-2">
       {/* Sidebar List */}
-      <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
+      <div className="w-[432px] bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-50 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Professores</h2>
             <div className="flex gap-2">
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100 flex items-center">
+              <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-none border border-slate-200 flex items-center">
                 {filteredTeachers.length}
               </div>
               <button 
                 onClick={generateTeacherListPDF}
-                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm"
+                className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
                 title="Imprimir Listagem Completa"
               >
                 <Printer size={16} />
-                <span className="text-[10px] font-black uppercase tracking-tight">Listagem</span>
+                <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>
               </button>
               <button 
                 onClick={handleNew}
-                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                className="p-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-colors"
                 title="Novo Professor"
               >
                 <Plus size={18} />
@@ -737,18 +737,18 @@ export function Teachers() {
               placeholder="Buscar professor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10"
             />
           </div>
-          <div className="flex bg-slate-50 p-1 rounded-xl">
+          <div className="flex bg-slate-50 p-1 rounded-none">
             {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={cn(
-                  "flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all",
+                  "flex-1 py-1.5 text-[10px] font-bold rounded-none transition-all",
                   statusFilter === status 
-                    ? "bg-white text-blue-600 shadow-sm" 
+                    ? "bg-white text-slate-800 shadow-sm" 
                     : "text-slate-500 hover:text-slate-700"
                 )}
               >
@@ -761,7 +761,7 @@ export function Teachers() {
             <select
               value={subjectFilter}
               onChange={(e) => setSubjectFilter(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+              className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
             >
               <option value="all">Filtrar Disciplina (Ativas)</option>
               {subjects.filter(s => s.status === 'Ativo').map(s => (
@@ -771,7 +771,7 @@ export function Teachers() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 bg-slate-50 border-none rounded-lg text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-blue-500/20"
+              className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
             >
               <option value="name">Ordenar por Nome</option>
               <option value="code">Ordenar por Código</option>
@@ -783,7 +783,7 @@ export function Teachers() {
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {loading ? (
             <div className="flex items-center justify-center h-32">
-              <Loader2 className="animate-spin text-blue-500" />
+              <Loader2 className="animate-spin text-slate-705" />
             </div>
           ) : filteredTeachers.map((teacher) => (
             <TeacherItem
@@ -797,13 +797,13 @@ export function Teachers() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden">
         {selectedTeacher || isEditing ? (
           <>
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
               <div className="max-w-4xl mx-auto flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
+                <div className="w-16 h-16 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-800">
                   <UserIcon size={32} />
                 </div>
                 <div>
@@ -817,7 +817,7 @@ export function Teachers() {
                 {!isEditing && selectedTeacher && (
                   <button 
                     onClick={handlePrint}
-                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
                   >
                     <Printer size={16} />
                     Imprimir
@@ -826,7 +826,7 @@ export function Teachers() {
                 {!isEditing && selectedTeacher && (
                   <button 
                     onClick={() => generateTeacherPDF(selectedTeacher)}
-                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
                   >
                     <FileText size={16} />
                     Gerar PDF
@@ -840,7 +840,7 @@ export function Teachers() {
                       e.stopPropagation();
                       setShowDeleteConfirm(true);
                     }}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group"
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-none transition-all cursor-pointer flex items-center justify-center group"
                     title="Excluir Professor"
                   >
                     <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
@@ -850,13 +850,13 @@ export function Teachers() {
                   <>
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-bold transition-all"
+                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-none text-sm font-bold transition-all"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-6 py-2 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                      className="px-6 py-2 bg-[#00174b] text-white rounded-none text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
                     >
                       Salvar Professor
                     </button>
@@ -865,7 +865,7 @@ export function Teachers() {
                   <div className="flex gap-2">
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
                     >
                       <Edit2 size={16} />
                       Editar Cadastro
@@ -893,7 +893,7 @@ export function Teachers() {
                         value={formData.name || ''}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={1}
                       />
                     </div>
@@ -905,7 +905,7 @@ export function Teachers() {
                         value={formData.email || ''}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={2}
                       />
                     </div>
@@ -917,7 +917,7 @@ export function Teachers() {
                         value={formData.cpf || ''}
                         onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="000.000.000-00"
                         tabIndex={3}
                       />
@@ -930,7 +930,7 @@ export function Teachers() {
                         value={formData.rg || ''}
                         onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="00.000.000-0"
                         tabIndex={4}
                       />
@@ -942,7 +942,7 @@ export function Teachers() {
                         value={formData.status || 'Ativo'}
                         onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={11}
                       >
                         <option value="Ativo">Ativo</option>
@@ -967,7 +967,7 @@ export function Teachers() {
                         value={formData.address_street || ''}
                         onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={5}
                       />
                     </div>
@@ -979,7 +979,7 @@ export function Teachers() {
                         value={formData.address_zip || ''}
                         onChange={(e) => setFormData({...formData, address_zip: maskCEP(e.target.value)})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="00000-000"
                         tabIndex={6}
                       />
@@ -992,7 +992,7 @@ export function Teachers() {
                         value={formData.address_city || ''}
                         onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={7}
                       />
                     </div>
@@ -1004,7 +1004,7 @@ export function Teachers() {
                         value={formData.address_state || ''}
                         onChange={(e) => setFormData({...formData, address_state: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={8}
                       />
                     </div>
@@ -1017,7 +1017,7 @@ export function Teachers() {
                           value={formData.phone_mobile || ''}
                           onChange={(e) => setFormData({...formData, phone_mobile: maskPhone(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 pr-10"
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
                           placeholder="(00) 00000-0000"
                           tabIndex={9}
                         />
@@ -1026,7 +1026,7 @@ export function Teachers() {
                           disabled={!isEditing}
                           onClick={() => setFormData({ ...formData, phone_mobile_is_whatsapp: !formData.phone_mobile_is_whatsapp })}
                           className={cn(
-                            "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-md",
+                            "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-none",
                             formData.phone_mobile_is_whatsapp ? "text-green-500 bg-green-50" : "text-slate-300 hover:text-slate-400"
                           )}
                           title={formData.phone_mobile_is_whatsapp ? "Número com WhatsApp" : "Marcar como WhatsApp"}
@@ -1055,7 +1055,7 @@ export function Teachers() {
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={4}
-                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 resize-none"
+                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
                     tabIndex={10}
                   />
                 </section>
@@ -1066,7 +1066,7 @@ export function Teachers() {
                     <BookOpen size={14} />
                     Disciplinas Lecionadas
                   </h4>
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                  <div className="bg-slate-50 rounded-none p-4 border border-slate-100">
                     {subjects.length === 0 ? (
                       <p className="text-xs text-slate-500 py-4 text-center">Nenhuma disciplina cadastrada no sistema.</p>
                     ) : (
@@ -1075,9 +1075,9 @@ export function Teachers() {
                           <label 
                             key={subject.id}
                             className={cn(
-                              "flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-all border border-transparent",
+                              "flex items-center gap-2 p-2 rounded-none cursor-pointer transition-all border border-transparent",
                               (formData.subject_ids || []).includes(subject.id) 
-                                ? "bg-blue-50 border-blue-100 text-blue-700" 
+                                ? "bg-slate-50 border-slate-200 text-slate-900" 
                                 : "hover:bg-white hover:border-slate-200 text-slate-600",
                               !isEditing && "cursor-default opacity-80"
                             )}
@@ -1099,7 +1099,7 @@ export function Teachers() {
                             <div className={cn(
                               "w-4 h-4 rounded border flex items-center justify-center transition-all",
                               (formData.subject_ids || []).includes(subject.id)
-                                ? "bg-blue-600 border-blue-600 text-white"
+                                ? "bg-slate-800 border-slate-500 text-white"
                                 : "bg-white border-slate-300"
                             )}>
                               {(formData.subject_ids || []).includes(subject.id) && <Plus size={10} className="stroke-[4]" />}
@@ -1122,7 +1122,7 @@ export function Teachers() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
               <UserIcon size={40} />
             </div>
             <p className="text-sm font-medium">Selecione um professor para ver os detalhes</p>
@@ -1134,8 +1134,8 @@ export function Teachers() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedTeacher && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
               <Trash2 size={32} />
             </div>
             <div className="text-center space-y-2">
@@ -1148,14 +1148,14 @@ export function Teachers() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
               >
                 {loading ? 'Excluindo...' : 'Sim, Excluir'}
               </button>
@@ -1166,7 +1166,7 @@ export function Teachers() {
       {/* Notification Toast */}
       {notification && (
         <div className={cn(
-          "fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-[300]",
+          "fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-none shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-[300]",
           notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
         )}>
           {notification.type === 'success' ? <Loader2 className="animate-spin" size={20} /> : <X size={20} />}

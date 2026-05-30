@@ -103,8 +103,8 @@ export function AcademicCalendar() {
 
   const dayColors = [
     'text-slate-600',   // Dom
-    'text-blue-600',     // Seg
-    'text-indigo-600',  // Ter
+    'text-slate-800',     // Seg
+    'text-slate-850',  // Ter
     'text-emerald-600', // Qua
     'text-yellow-500',  // Qui
     'text-rose-600',     // Sex
@@ -113,8 +113,8 @@ export function AcademicCalendar() {
 
   const dayBgColors = [
     'bg-slate-50',
-    'bg-blue-50',
-    'bg-indigo-50',
+    'bg-slate-50',
+    'bg-slate-50',
     'bg-emerald-50',
     'bg-yellow-50',
     'bg-rose-50',
@@ -123,8 +123,8 @@ export function AcademicCalendar() {
 
   const dayActiveColors = [
     'bg-slate-600 text-white border-slate-600 shadow-slate-100',
-    'bg-blue-600 text-white border-blue-600 shadow-blue-100',
-    'bg-indigo-600 text-white border-indigo-600 shadow-indigo-100',
+    'bg-slate-800 text-white border-blue-600 shadow-none',
+    'bg-slate-800 text-white border-indigo-600 shadow-none',
     'bg-emerald-600 text-white border-emerald-600 shadow-emerald-100',
     'bg-yellow-300 text-slate-800 border-yellow-300 shadow-yellow-100',
     'bg-rose-600 text-white border-rose-600 shadow-rose-100',
@@ -1094,12 +1094,12 @@ export function AcademicCalendar() {
         {/* Lado Esquerdo: Controles de Navegação e Visão */}
         <div className="flex flex-col gap-3 shrink-0">
           {/* Seletor de Visão - Aumentado */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner w-fit">
+          <div className="flex bg-slate-100 p-1.5 rounded-none border border-slate-200/50 shadow-inner w-fit">
             <button 
               onClick={() => setViewMode('month')}
               className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'month' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
+                "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                viewMode === 'month' ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
               )}
             >
               Mês
@@ -1107,8 +1107,8 @@ export function AcademicCalendar() {
             <button 
               onClick={() => setViewMode('year')}
               className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'year' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
+                "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                viewMode === 'year' ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
               )}
             >
               Ano
@@ -1116,8 +1116,8 @@ export function AcademicCalendar() {
             <button 
               onClick={() => setViewMode('list')}
               className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'list' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
+                "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                viewMode === 'list' ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
               )}
             >
               Lista
@@ -1128,8 +1128,8 @@ export function AcademicCalendar() {
                 setActiveTab('record');
               }}
               className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'management' ? "bg-white text-blue-600 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
+                "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                viewMode === 'management' ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-500 hover:text-slate-700"
               )}
             >
               Registro
@@ -1137,16 +1137,16 @@ export function AcademicCalendar() {
           </div>
 
           {/* Navegação de Data Contextual - Aumentado */}
-          <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-sm w-fit self-start">
+          <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 shadow-sm w-fit self-start">
             <button 
               onClick={viewMode === 'month' ? prevMonth : prevYear}
-              className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-blue-600 active:scale-90"
+              className="p-2 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
             >
               <ChevronLeft size={20} />
             </button>
             
             <div className="px-5 min-w-[120px] text-center border-x border-slate-100">
-              <span className="text-xs font-black text-slate-800 uppercase tracking-[0.1em]">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-[0.1em]">
                 {viewMode === 'month' 
                   ? currentDate.toLocaleDateString('pt-BR', { month: 'long' }).replace('.', '')
                   : currentDate.getFullYear()
@@ -1161,7 +1161,7 @@ export function AcademicCalendar() {
 
             <button 
               onClick={viewMode === 'month' ? nextMonth : nextYear}
-              className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-blue-600 active:scale-90"
+              className="p-2 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
             >
               <ChevronRight size={20} />
             </button>
@@ -1172,12 +1172,12 @@ export function AcademicCalendar() {
         <div className="flex-1 flex flex-col md:flex-row items-center justify-end gap-8 min-w-0">
           <div className="flex flex-col gap-3 shrink-0 border-l border-slate-100 pl-8 min-w-[220px]">
             <div className="flex items-center justify-end gap-4">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quarta</span>
-              <div className="flex items-baseline gap-1.5 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quarta</span>
+              <div className="flex items-baseline gap-1.5 bg-slate-50 px-3 py-1.5 rounded-none border border-slate-200">
                 {(() => {
                   const count = getEventCount('class_day', 3);
                   const days = typeof count === 'object' ? count.days : 0;
-                  return <span className="text-xl font-black text-blue-600 leading-none">{days}</span>;
+                  return <span className="text-xl font-bold text-slate-800 leading-none">{days}</span>;
                 })()}
                 <span className="text-[9px] font-bold text-blue-400 uppercase">Aulas</span>
               </div>
@@ -1185,7 +1185,7 @@ export function AcademicCalendar() {
                 const progress = getClassProgress(3);
                 return (
                   <div className="flex flex-col items-end min-w-[50px]">
-                    <span className="text-[10px] font-black text-orange-600 leading-none">-{progress.remaining}</span>
+                    <span className="text-[10px] font-bold text-orange-600 leading-none">-{progress.remaining}</span>
                     <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Restam</span>
                   </div>
                 );
@@ -1193,12 +1193,12 @@ export function AcademicCalendar() {
             </div>
 
             <div className="flex items-center justify-end gap-4">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quinta</span>
-              <div className="flex items-baseline gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quinta</span>
+              <div className="flex items-baseline gap-1.5 bg-slate-50 px-3 py-1.5 rounded-none border border-slate-200">
                 {(() => {
                   const count = getEventCount('class_day', 4);
                   const days = typeof count === 'object' ? count.days : 0;
-                  return <span className="text-xl font-black text-indigo-600 leading-none">{days}</span>;
+                  return <span className="text-xl font-bold text-slate-850 leading-none">{days}</span>;
                 })()}
                 <span className="text-[9px] font-bold text-indigo-400 uppercase">Aulas</span>
               </div>
@@ -1206,7 +1206,7 @@ export function AcademicCalendar() {
                 const progress = getClassProgress(4);
                 return (
                   <div className="flex flex-col items-end min-w-[50px]">
-                    <span className="text-[10px] font-black text-orange-600 leading-none">-{progress.remaining}</span>
+                    <span className="text-[10px] font-bold text-orange-600 leading-none">-{progress.remaining}</span>
                     <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">Restam</span>
                   </div>
                 );
@@ -1230,14 +1230,14 @@ export function AcademicCalendar() {
                   });
                   setIsEditing(true);
                 }}
-                className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white hover:bg-blue-700 transition-all rounded-xl shadow-lg shadow-blue-100 active:scale-95"
+                className="w-10 h-10 flex items-center justify-center bg-slate-800 text-white hover:bg-slate-900 transition-all rounded-none shadow-lg shadow-none active:scale-95"
                 title="Novo Registro"
               >
                 <Plus size={18} />
               </button>
               <button 
                 onClick={() => setShowSettings(true)}
-                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-xl border border-slate-100 shadow-sm active:scale-95"
+                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-100 shadow-sm active:scale-95"
                 title="Ajuste do Calendário Anual"
               >
                 <Settings size={16} />
@@ -1256,7 +1256,7 @@ export function AcademicCalendar() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Calendar className="text-blue-600" size={20} />
+            <Calendar className="text-slate-800" size={20} />
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cronograma Acadêmico</h1>
           </div>
           <p className="text-slate-500 text-xs font-medium">Gestão de ciclos letivos e atividades escolares.</p>
@@ -1265,7 +1265,7 @@ export function AcademicCalendar() {
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowPrintOptions(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all active:scale-95 border border-slate-200"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all active:scale-95 border border-slate-200"
           >
             <Printer size={16} />
             Imprimir Relatórios
@@ -1290,11 +1290,11 @@ export function AcademicCalendar() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center"
+              className="bg-white rounded-none p-8 max-w-sm w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center"
             >
-              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 relative">
-                <RefreshCw size={24} className="text-blue-600 animate-spin" />
-                <div className="absolute inset-0 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" style={{ animationDuration: '3s' }} />
+              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-6 relative">
+                <RefreshCw size={24} className="text-slate-800 animate-spin" />
+                <div className="absolute inset-0 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" style={{ animationDuration: '3s' }} />
               </div>
               
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest mb-2">Processando...</h3>
@@ -1304,14 +1304,14 @@ export function AcademicCalendar() {
 
               <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-2">
                 <motion.div 
-                  className="h-full bg-blue-600"
+                  className="h-full bg-slate-800"
                   initial={{ width: 0 }}
                   animate={{ width: `${isNaN(Number(syncProgress)) ? 0 : syncProgress}%` }}
                   transition={{ type: 'spring', bounce: 0, duration: 0.5 }}
                 />
               </div>
               <div className="flex justify-between w-full">
-                <span className="text-[10px] font-bold text-blue-600">{syncProgress}%</span>
+                <span className="text-[10px] font-bold text-slate-800">{syncProgress}%</span>
                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Aguarde</span>
               </div>
             </motion.div>
@@ -1326,7 +1326,7 @@ export function AcademicCalendar() {
               initial={{ opacity: 0, y: -20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className={cn(
-                "px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-2xl",
+                "px-8 py-4 rounded-none text-[10px] font-bold uppercase tracking-widest flex items-center gap-3 shadow-2xl",
                 notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
               )}
             >
@@ -1350,12 +1350,12 @@ export function AcademicCalendar() {
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={() => setInspectingClassId(null)}
-                        className="w-10 h-10 flex items-center justify-center bg-white text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-xl border border-slate-200"
+                        className="w-10 h-10 flex items-center justify-center bg-white text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-200"
                       >
                         <ChevronLeft size={18} />
                       </button>
                       <div>
-                        <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
                           {classes.find(c => c.id === inspectingClassId)?.name}
                         </h2>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cronograma de Aulas Detalhado</p>
@@ -1370,7 +1370,7 @@ export function AcademicCalendar() {
                           }));
                           setShowSettings(true);
                         }}
-                        className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
+                        className="px-4 py-2 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
                       >
                         <Settings size={14} />
                         Ajustar Regras
@@ -1380,16 +1380,16 @@ export function AcademicCalendar() {
 
                   <div className="grid grid-cols-1 gap-4">
                     {/* Lista Cronológica */}
-                    <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">#</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Semana</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Título do Registro</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest w-16">#</th>
+                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data</th>
+                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Semana</th>
+                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Título do Registro</th>
+                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                            <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1451,7 +1451,7 @@ export function AcademicCalendar() {
                                     </td>
                                     <td className="px-8 py-4">
                                       <div className="flex flex-col">
-                                        <span className="text-sm font-black text-slate-900">{formatDateForDisplay(ev.start_date)}</span>
+                                        <span className="text-sm font-bold text-slate-900">{formatDateForDisplay(ev.start_date)}</span>
                                         <span className="text-[10px] font-bold text-slate-500 uppercase">{weekday}</span>
                                       </div>
                                     </td>
@@ -1465,8 +1465,8 @@ export function AcademicCalendar() {
                                     </td>
                                     <td className="px-8 py-4">
                                       <span className={cn(
-                                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
-                                        ev.type === 'class_day' ? "bg-blue-50 text-blue-700 border-blue-100" : 
+                                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                                        ev.type === 'class_day' ? "bg-slate-50 text-blue-700 border-slate-200" : 
                                         ev.type === 'cancelled_class' ? "bg-rose-50 text-rose-700 border-rose-100" :
                                         "bg-slate-100 text-slate-500 border-slate-200"
                                       )}>
@@ -1513,10 +1513,10 @@ export function AcademicCalendar() {
                                             fetchData();
                                           }}
                                           className={cn(
-                                            "p-2 rounded-lg transition-all",
+                                            "p-2 rounded-none transition-all",
                                             ev.type === 'class_day' ? "bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white" : 
                                             ev.type === 'cancelled_class' ? "bg-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white" :
-                                            "bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white"
+                                            "bg-blue-100 text-slate-800 hover:bg-slate-800 hover:text-white"
                                           )}
                                           title={ev.type === 'class_day' ? 'Abonar Aula' : ev.type === 'excused_class' ? 'Cancelar Aula' : 'Retornar para Letivo'}
                                         >
@@ -1524,7 +1524,7 @@ export function AcademicCalendar() {
                                         </button>
                                         <button 
                                           onClick={() => handleDelete(ev.id, true)}
-                                          className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-all"
+                                          className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-none transition-all"
                                           title="Remover Data"
                                         >
                                           <Trash2 size={16} />
@@ -1546,20 +1546,20 @@ export function AcademicCalendar() {
                   <div className="xl:col-span-2 space-y-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h2 className="text-xl font-black text-slate-900 tracking-tight">Registro de Calendários por Turma</h2>
+                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Registro de Calendários por Turma</h2>
                         <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo anual e ajuste individual de datas</p>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Turma</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Início/Fim</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Dias Letivos</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Concluídas</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Turma</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Início/Fim</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Dias Letivos</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Concluídas</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Ações</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -1633,8 +1633,8 @@ export function AcademicCalendar() {
                                 <td className="px-6 py-4 text-center">
                                   <div className="flex flex-col items-center gap-0.5">
                                     <span className={cn(
-                                      "px-3 py-1 rounded-full text-[11px] font-black border",
-                                      letivos > 0 ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-slate-50 text-slate-400 border-slate-100"
+                                      "px-3 py-1 rounded-full text-[11px] font-bold border",
+                                      letivos > 0 ? "bg-slate-50 text-blue-700 border-slate-200" : "bg-slate-50 text-slate-400 border-slate-100"
                                     )}>
                                       {letivos} DIAS
                                     </span>
@@ -1660,7 +1660,7 @@ export function AcademicCalendar() {
                                   <div className="flex items-center justify-end gap-2">
                                     <button 
                                       onClick={() => setInspectingClassId(cls.id)}
-                                      className="px-4 py-2 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200"
+                                      className="px-4 py-2 bg-white text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95 border border-slate-200"
                                     >
                                       Ver Lista
                                     </button>
@@ -1673,7 +1673,7 @@ export function AcademicCalendar() {
                                         setLastLoadedKey('custom'); // Prevents override from useEffect
                                         setShowSettings(true);
                                       }}
-                                      className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all border border-slate-200"
+                                      className="p-2 bg-slate-100 text-slate-400 rounded-none hover:bg-slate-900 hover:text-white transition-all border border-slate-200"
                                       title="Configurações"
                                     >
                                       <Settings2 size={16} />
@@ -1690,7 +1690,7 @@ export function AcademicCalendar() {
 
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-xl font-black text-slate-900 tracking-tight">Estatísticas de {currentDate.getFullYear()}</h2>
+                      <h2 className="text-xl font-bold text-slate-900 tracking-tight">Estatísticas de {currentDate.getFullYear()}</h2>
                       <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Resumo geral da instituição</p>
                     </div>
                     
@@ -1716,34 +1716,34 @@ export function AcademicCalendar() {
                         const totalInstances = academicEvents.length;
 
                         return (
-                          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                          <div className="bg-white p-6 rounded-none border border-slate-200 shadow-sm space-y-4">
                             <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-850">
                                 <Bookmark size={24} />
                               </div>
                               <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Feriados Únicos</p>
-                                <p className="text-2xl font-black text-slate-900">{holidayDates.size}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Feriados Únicos</p>
+                                <p className="text-2xl font-bold text-slate-900">{holidayDates.size}</p>
                               </div>
                             </div>
                             <div className="h-px bg-slate-100 w-full" />
                             <div className="grid grid-cols-2 gap-4">
                               <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                                <div className="w-12 h-12 bg-emerald-50 rounded-none flex items-center justify-center text-emerald-600">
                                   <Calendar size={24} />
                                 </div>
                                 <div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dias Letivos</p>
-                                  <p className="text-lg font-black text-slate-900">{uniqueDatesCount}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dias Letivos</p>
+                                  <p className="text-lg font-bold text-slate-900">{uniqueDatesCount}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                                <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-800">
                                   <GraduationCap size={24} />
                                 </div>
                                 <div>
-                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Aulas</p>
-                                  <p className="text-lg font-black text-slate-900">{totalInstances}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Aulas</p>
+                                  <p className="text-lg font-bold text-slate-900">{totalInstances}</p>
                                 </div>
                               </div>
                             </div>
@@ -1754,7 +1754,7 @@ export function AcademicCalendar() {
                       <div className="bg-slate-900 p-8 rounded-[40px] text-white relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-white/10 transition-all duration-700" />
                         <Settings className="mb-6 opacity-40" size={32} />
-                        <h3 className="text-xl font-black leading-tight mb-4 pr-12">Deseja reiniciar o calendário?</h3>
+                        <h3 className="text-xl font-bold leading-tight mb-4 pr-12">Deseja reiniciar o calendário?</h3>
                         <p className="text-slate-400 text-xs font-medium leading-relaxed mb-6">
                           Você pode excluir todos os registros de aula e gerar novamente com novos parâmetros.
                         </p>
@@ -1768,7 +1768,7 @@ export function AcademicCalendar() {
                             setLastLoadedKey('custom'); // Prevents override from useEffect
                             setShowSettings(true);
                           }}
-                          className="w-full py-4 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl shadow-black/20"
+                          className="w-full py-4 bg-white text-slate-900 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-xl shadow-black/20"
                         >
                           Abrir Ferramenta de Geração
                         </button>
@@ -1780,13 +1780,13 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'month' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm overflow-hidden border border-slate-100">
+              <div className="bg-white p-8 rounded-none shadow-sm overflow-hidden border border-slate-100">
               <div className="pb-8 border-b border-slate-50 mb-8">
                 {renderIntegratedToolbar()}
               </div>
 
               {/* Calendário Mensal Estilizado */}
-                <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-2xl overflow-hidden shadow-inner">
+                <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-none overflow-hidden shadow-inner">
                   {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
                     <div key={day} className="bg-slate-50 py-3 text-center border-b border-slate-100">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{day.substring(0, 3)}</span>
@@ -1858,7 +1858,7 @@ export function AcademicCalendar() {
                         }}
                         className={cn(
                           "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-100",
-                          isToday && "bg-blue-50/20",
+                          isToday && "bg-slate-50/20",
                           isVacation && "bg-stripes-slate",
                           isHolidayCell && "bg-stripes-red"
                         )}
@@ -1866,8 +1866,8 @@ export function AcademicCalendar() {
                         <div className="flex justify-between items-start">
                           <div className="relative group/date">
                             <span className={cn(
-                              "w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold transition-all",
-                              isToday ? "bg-blue-600 text-white shadow-lg shadow-blue-100" : "text-slate-500 group-hover/cell:text-blue-600"
+                              "w-7 h-7 flex items-center justify-center rounded-none text-xs font-bold transition-all",
+                              isToday ? "bg-slate-800 text-white shadow-lg shadow-none" : "text-slate-500 group-hover/cell:text-slate-800"
                             )}>
                               {day}
                             </span>
@@ -1875,7 +1875,7 @@ export function AcademicCalendar() {
                             {/* Tooltip do Dia (Resumo) - Agora vinculado apenas ao número do dia */}
                             {dayEvents.length > 0 && (
                               <div className="absolute left-0 bottom-full mb-2 w-max min-w-[160px] max-w-[240px] z-[250] pointer-events-none hidden group-hover/date:block animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div className="bg-white border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] rounded-2xl p-4 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                <div className="bg-white border border-slate-200 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] rounded-none p-4 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
                                   <div className="text-slate-400 text-[8px] uppercase tracking-[0.2em] mb-3 pb-2 border-b border-slate-50 flex justify-between items-center">
                                     <span>Resumo do Dia {day}</span>
                                     <Calendar size={10} />
@@ -1887,8 +1887,8 @@ export function AcademicCalendar() {
                                       return (
                                         <div key={`summary-${de.id}`} className="space-y-1.5">
                                           <div className="flex items-center gap-2">
-                                            <div className={cn("w-2 h-2 rounded-full shrink-0", isH ? "bg-red-500" : "bg-blue-500")} />
-                                            <span className={cn("uppercase", isH ? "text-red-600" : "text-blue-600")}>
+                                            <div className={cn("w-2 h-2 rounded-full shrink-0", isH ? "bg-red-500" : "bg-slate-500")} />
+                                            <span className={cn("uppercase", isH ? "text-red-600" : "text-slate-800")}>
                                               {de.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').split(' - ')[0]}
                                             </span>
                                           </div>
@@ -1917,7 +1917,7 @@ export function AcademicCalendar() {
                                 });
                                 setIsEditing(true);
                               }}
-                              className="opacity-0 group-hover/cell:opacity-100 p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
+                              className="opacity-0 group-hover/cell:opacity-100 p-1 text-slate-800 hover:bg-blue-100 rounded-none transition-all"
                             >
                               <Plus size={14} />
                             </button>
@@ -1936,7 +1936,7 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                                 className={cn(
-                                  "relative group px-1.5 py-0.5 rounded-md text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
+                                  "relative group px-1.5 py-0.5 rounded-none text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border",
                                   getTypeStyle(event.type, event.start_date, event.title)
                                 )}
                             >
@@ -1948,7 +1948,7 @@ export function AcademicCalendar() {
                                   )}>
                                     {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                   </span>
-                                  <span className="text-[6px] font-black opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
+                                  <span className="text-[6px] font-bold opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
                                     {event.type === 'excused_class' ? 'ABONADA' : 'CANCELADA'}
                                   </span>
                                 </div>
@@ -1960,11 +1960,11 @@ export function AcademicCalendar() {
 
                               {/* Tooltip Detalhado no Calendar Grid */}
                               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[140px] max-w-[220px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                <div className="bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] rounded-2xl p-3.5 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
-                                  <div className="text-blue-600 mb-2.5 border-b border-blue-50 pb-2 flex items-center gap-2">
+                                <div className="bg-white border border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] rounded-none p-3.5 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                  <div className="text-slate-800 mb-2.5 border-b border-blue-50 pb-2 flex items-center gap-2">
                                     <div className={cn(
                                       "w-2 h-2 rounded-full shrink-0 shadow-sm", 
-                                      event.type?.includes('holiday') ? "bg-red-500" : event.type === 'exam' ? "bg-orange-500" : "bg-blue-500"
+                                      event.type?.includes('holiday') ? "bg-red-500" : event.type === 'exam' ? "bg-orange-500" : "bg-slate-500"
                                     )} />
                                     <span className="truncate max-w-[170px] uppercase tracking-wide">
                                       {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
@@ -2042,16 +2042,16 @@ export function AcademicCalendar() {
                   {[
                     { type: 'holiday_nac', label: 'Feriado Nacional', color: 'bg-red-600' },
                     { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-600' },
-                    { type: 'class_day', label: 'Dia de Aula', color: 'bg-blue-600' },
+                    { type: 'class_day', label: 'Dia de Aula', color: 'bg-slate-800' },
                     { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
                     { type: 'excused_class', label: 'Aula Abonada', color: 'bg-slate-400' },
                     { type: 'cancelled_class', label: 'Aula Cancelada', color: 'bg-rose-500' },
-                    { type: 'start_term', label: 'Início', color: 'bg-blue-600' },
+                    { type: 'start_term', label: 'Início', color: 'bg-slate-800' },
                     { type: 'end_term', label: 'Final', color: 'bg-slate-800' },
                   ].map(item => (
                     <div key={item.type} className="flex items-center gap-2">
                       <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", item.color)} />
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{item.label}</span>
                     </div>
                   ))}
                 </div>
@@ -2059,21 +2059,21 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'year' ? (
             <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white p-6 rounded-none border border-slate-100 shadow-sm overflow-hidden">
                 {renderIntegratedToolbar()}
               </div>
 
-              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="bg-white p-8 rounded-none border border-slate-100 shadow-sm">
                 <div className="space-y-12">
                       {/* Primeiro Semestre */}
                   <div className="space-y-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                      <div className="w-1.5 h-6 bg-slate-800 rounded-full" />
                       <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Fluxo do Primeiro Semestre</h4>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {[0, 1, 2, 3, 4, 5].map(monthIndex => (
-                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
+                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-none border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
                           <h5 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest text-center mb-6 border-b border-slate-200 pb-4">
                             {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                           </h5>
@@ -2098,14 +2098,14 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer",
+                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer",
                                     holiday 
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
                                         ? "bg-slate-50 text-slate-600 border-slate-100 shadow-sm bg-stripes-slate"
                                         : dayEvents.length > 0 
-                                          ? "bg-blue-50 text-blue-600 border-blue-100 shadow-sm"
-                                          : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
+                                          ? "bg-slate-50 text-slate-800 border-slate-200 shadow-sm"
+                                          : isToday ? "bg-slate-800 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
                                 >
                                   {day}
@@ -2113,12 +2113,12 @@ export function AcademicCalendar() {
                                   {/* Tooltip no Year View */}
                                   {dayEvents.length > 0 && (
                                     <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[125px] max-w-[185px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-none p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
                                         <div className="space-y-2.5">
                                           {dayEvents.slice(0, 3).map(de => (
                                             <div key={de.id} className="border-b border-slate-50 last:border-0 pb-2 last:pb-0">
-                                              <div className="text-blue-600 flex items-center gap-2 mb-1">
-                                                <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", de.type.includes('holiday') ? "bg-red-500" : "bg-blue-500")} />
+                                              <div className="text-slate-800 flex items-center gap-2 mb-1">
+                                                <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", de.type.includes('holiday') ? "bg-red-500" : "bg-slate-500")} />
                                                 <span className="truncate uppercase tracking-tight">{de.title.split(' - ')[0]}</span>
                                               </div>
                                               <div className="flex items-center gap-1.5 text-[8px] text-slate-400 font-medium">
@@ -2154,7 +2154,7 @@ export function AcademicCalendar() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                        {[6, 7, 8, 9, 10, 11].map(monthIndex => (
-                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
+                        <div key={monthIndex} className="p-6 bg-slate-50/50 rounded-none border border-slate-100 hover:bg-white hover:shadow-xl transition-all duration-300">
                           <h5 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest text-center mb-6 border-b border-slate-200 pb-4">
                             {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                           </h5>
@@ -2179,14 +2179,14 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-lg text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer",
+                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer",
                                     holiday 
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
                                         ? "bg-slate-50 text-slate-600 border-slate-100 shadow-sm bg-stripes-slate"
                                         : dayEvents.length > 0 
-                                          ? "bg-blue-50 text-blue-600 border-blue-100 shadow-sm"
-                                          : isToday ? "bg-blue-600 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
+                                          ? "bg-slate-50 text-slate-800 border-slate-200 shadow-sm"
+                                          : isToday ? "bg-slate-800 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
                                 >
                                   {day}
@@ -2194,12 +2194,12 @@ export function AcademicCalendar() {
                                   {/* Tooltip no Year View (Semestre 2) */}
                                   {dayEvents.length > 0 && (
                                     <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max min-w-[125px] max-w-[185px] z-[200] pointer-events-none hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 duration-200">
-                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                      <div className="bg-white border border-slate-200 shadow-2xl rounded-none p-3 text-[9px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
                                         <div className="space-y-2.5">
                                           {dayEvents.slice(0, 3).map(de => (
                                             <div key={de.id} className="border-b border-slate-50 last:border-0 pb-2 last:pb-0">
-                                              <div className="text-blue-600 flex items-center gap-2 mb-1">
-                                                <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", de.type.includes('holiday') ? "bg-red-500" : "bg-blue-500")} />
+                                              <div className="text-slate-800 flex items-center gap-2 mb-1">
+                                                <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", de.type.includes('holiday') ? "bg-red-500" : "bg-slate-500")} />
                                                 <span className="truncate uppercase tracking-tight">{de.title.split(' - ')[0]}</span>
                                               </div>
                                               <div className="flex items-center gap-1.5 text-[8px] text-slate-400 font-medium">
@@ -2232,7 +2232,7 @@ export function AcademicCalendar() {
                   {[
                     { type: 'holiday_nac', label: 'Feriado Nacional', color: 'bg-red-500' },
                     { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-500' },
-                    { type: 'class_day', label: 'Dia de Aula', color: 'bg-blue-600' },
+                    { type: 'class_day', label: 'Dia de Aula', color: 'bg-slate-800' },
                     { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
                     { type: 'excused_class', label: 'Aula Abonada', color: 'bg-slate-400' },
                     { type: 'cancelled_class', label: 'Aula Cancelada', color: 'bg-rose-500' },
@@ -2247,13 +2247,13 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'list' && Object.keys(groupedEvents).length > 0 ? (
             <div className="space-y-12 animate-in fade-in duration-500">
-              <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white p-6 rounded-none border border-slate-100 shadow-sm overflow-hidden">
                 {renderIntegratedToolbar()}
               </div>
 
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
+              <div className="bg-white p-6 rounded-none border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100/50">
+                  <div className="p-2.5 bg-slate-50 text-slate-800 rounded-none border border-slate-200/50">
                     <ListFilter size={18} />
                   </div>
                   <div>
@@ -2262,12 +2262,12 @@ export function AcademicCalendar() {
                 </div>
                 
                 <div className="flex items-center gap-4">
-                  <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
+                  <div className="flex bg-slate-50 p-1 rounded-none border border-slate-100">
                     <button 
                       onClick={() => setSortBy('date')}
                       className={cn(
-                        "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                        sortBy === 'date' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                        sortBy === 'date' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
                       Data
@@ -2275,8 +2275,8 @@ export function AcademicCalendar() {
                     <button 
                       onClick={() => setSortBy('title')}
                       className={cn(
-                        "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                        sortBy === 'title' ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                        "px-4 py-2 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+                        sortBy === 'title' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
                       Título
@@ -2287,8 +2287,8 @@ export function AcademicCalendar() {
                     <button 
                       onClick={() => setSortOrder('asc')}
                       className={cn(
-                        "p-2.5 rounded-xl transition-all border",
-                        sortOrder === 'asc' ? "bg-blue-600 border-blue-700 text-white shadow-lg shadow-blue-100 scale-105" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
+                        "p-2.5 rounded-none transition-all border",
+                        sortOrder === 'asc' ? "bg-slate-800 border-blue-700 text-white shadow-lg shadow-none scale-105" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
                       )}
                       title="Ordem Crescente"
                     >
@@ -2297,8 +2297,8 @@ export function AcademicCalendar() {
                     <button 
                       onClick={() => setSortOrder('desc')}
                       className={cn(
-                        "p-2.5 rounded-xl transition-all border",
-                        sortOrder === 'desc' ? "bg-blue-600 border-blue-700 text-white shadow-lg shadow-blue-100 scale-105" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
+                        "p-2.5 rounded-none transition-all border",
+                        sortOrder === 'desc' ? "bg-slate-800 border-blue-700 text-white shadow-lg shadow-none scale-105" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
                       )}
                       title="Ordem Decrescente"
                     >
@@ -2312,7 +2312,7 @@ export function AcademicCalendar() {
               {(Object.entries(groupedEvents) as [string, CalendarEvent[]][]).some(([_, events]) => events.some(e => e.type !== 'class_day' && !e.description?.includes('Cronograma automático'))) && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 px-2">
-                    <h2 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em] bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">Eventos de Referência</h2>
+                    <h2 className="text-[10px] font-bold text-slate-800 uppercase tracking-[0.3em] bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200">Eventos de Referência</h2>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   
@@ -2321,10 +2321,10 @@ export function AcademicCalendar() {
                     if (manualEvents.length === 0) return null;
 
                     return (
-                      <div key={`manual-${month}`} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div key={`manual-${month}`} className="bg-white rounded-none border border-slate-100 shadow-sm overflow-hidden">
                         <div className="bg-slate-50/50 px-6 py-3 border-b border-slate-100">
-                          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                            <CalendarIcon size={12} className="text-blue-500" />
+                          <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <CalendarIcon size={12} className="text-slate-700" />
                             {month}
                           </h3>
                         </div>
@@ -2335,13 +2335,13 @@ export function AcademicCalendar() {
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               key={event.id} 
-                              className="px-6 py-4 hover:bg-blue-50/30 transition-all group cursor-pointer flex items-center justify-between gap-6"
+                              className="px-6 py-4 hover:bg-slate-50/30 transition-all group cursor-pointer flex items-center justify-between gap-6"
                               onClick={() => handleEdit(event)}
                             >
                               <div className="flex items-center gap-6 flex-1 min-w-0">
                                 {/* Data Compacta */}
-                                <div className="flex flex-col items-center justify-center min-w-[50px] py-1 bg-slate-50 rounded-xl border border-slate-100 group-hover:bg-white group-hover:border-blue-200 transition-colors">
-                                  <span className="text-[14px] font-black text-slate-800 leading-none">
+                                <div className="flex flex-col items-center justify-center min-w-[50px] py-1 bg-slate-50 rounded-none border border-slate-100 group-hover:bg-white group-hover:border-slate-200 transition-colors">
+                                  <span className="text-[14px] font-bold text-slate-800 leading-none">
                                     {new Date(event.start_date + 'T00:00:00').getDate()}
                                   </span>
                                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
@@ -2352,7 +2352,7 @@ export function AcademicCalendar() {
                                 <div className="flex flex-col gap-1 flex-1 min-w-0">
                                   <div className="flex items-center gap-3">
                                     <span className={cn(
-                                      "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border shrink-0",
+                                      "px-2 py-0.5 rounded-none text-[8px] font-bold uppercase tracking-widest border shrink-0",
                                       getTypeStyle(event.type, event.start_date, event.title)
                                     )}>
                                       {getTypeText(event.type, event.description)}
@@ -2364,7 +2364,7 @@ export function AcademicCalendar() {
                                   
                                   <div className="flex items-center gap-4">
                                     {event.end_date && event.end_date !== event.start_date && (
-                                      <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                      <span className="text-[9px] font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                                         Até {new Date(event.end_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                                       </span>
                                     )}
@@ -2398,7 +2398,7 @@ export function AcademicCalendar() {
                                       e.stopPropagation();
                                       handleEdit(event);
                                     }}
-                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-blue-100 shadow-sm hover:shadow-md"
+                                    className="p-2 text-slate-400 hover:text-slate-800 hover:bg-white rounded-none transition-all border border-transparent hover:border-slate-200 shadow-sm hover:shadow-md"
                                   >
                                     <Edit2 size={14} />
                                   </button>
@@ -2408,7 +2408,7 @@ export function AcademicCalendar() {
                                       handleDelete(event.id, confirmDeleteId === event.id);
                                     }}
                                     className={cn(
-                                      "p-2 rounded-lg transition-all border border-transparent",
+                                      "p-2 rounded-none transition-all border border-transparent",
                                       confirmDeleteId === event.id 
                                         ? "bg-red-600 text-white animate-pulse shadow-lg" 
                                         : "text-slate-400 hover:text-red-600 hover:bg-white hover:border-red-100 hover:shadow-md"
@@ -2431,7 +2431,7 @@ export function AcademicCalendar() {
               {(Object.entries(groupedEvents) as [string, CalendarEvent[]][]).some(([_, events]) => events.some(e => e.type === 'class_day' || e.description?.includes('Cronograma automático'))) && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-4 px-2">
-                    <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200">Cronograma de Aulas</h2>
+                    <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200">Cronograma de Aulas</h2>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   
@@ -2440,9 +2440,9 @@ export function AcademicCalendar() {
                     if (autoEvents.length === 0) return null;
 
                     return (
-                      <div key={`auto-${month}`} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div key={`auto-${month}`} className="bg-white rounded-none border border-slate-100 shadow-sm overflow-hidden">
                         <div className="bg-slate-50/50 px-6 py-3 border-b border-slate-100">
-                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                             <BookOpen size={12} />
                             {month}
                           </h3>
@@ -2459,8 +2459,8 @@ export function AcademicCalendar() {
                                 className="p-4 hover:bg-slate-50 transition-all group cursor-pointer flex items-center gap-4"
                                 onClick={() => handleEdit(event)}
                               >
-                              <div className="w-10 h-10 flex flex-col items-center justify-center bg-slate-100 border border-slate-200 p-0.5 rounded-xl group-hover:bg-white group-hover:border-blue-200 transition-all">
-                                <span className="text-[13px] font-black text-slate-700 leading-none">
+                              <div className="w-10 h-10 flex flex-col items-center justify-center bg-slate-100 border border-slate-200 p-0.5 rounded-none group-hover:bg-white group-hover:border-slate-200 transition-all">
+                                <span className="text-[13px] font-bold text-slate-700 leading-none">
                                   {new Date(event.start_date + 'T00:00:00').getDate()}
                                 </span>
                                 <span className="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">
@@ -2468,11 +2468,11 @@ export function AcademicCalendar() {
                                 </span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-[11px] font-black text-slate-800 truncate uppercase tracking-tight">
+                                <h4 className="text-[11px] font-bold text-slate-800 truncate uppercase tracking-tight">
                                   {event.title.replace(/^Dia de Aula - /, '')}
                                 </h4>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[8px] font-bold text-blue-500 uppercase tracking-widest">Aula Normal</span>
+                                  <span className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">Aula Normal</span>
                                   <div className="w-1 h-1 bg-slate-100 rounded-full" />
                                   <span className="text-[8px] font-bold text-slate-400 uppercase truncate">
                                     {event._count && event._count > 1 ? 'Múltiplas Turmas' : (classes.find(c => c.id === event.class_id)?.name || 'Geral')}
@@ -2490,8 +2490,8 @@ export function AcademicCalendar() {
               )}
             </div>
           ) : (
-            <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 text-center flex flex-col items-center gap-4">
-              <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center">
+            <div className="bg-white p-8 rounded-none border-2 border-dashed border-slate-200 text-center flex flex-col items-center gap-4">
+              <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-none flex items-center justify-center">
                 <CalendarIcon size={24} />
               </div>
               <div>
@@ -2511,19 +2511,19 @@ export function AcademicCalendar() {
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white max-w-lg w-full rounded-2xl shadow-2xl overflow-hidden border border-slate-200 max-h-[96vh] flex flex-col"
+              className="bg-white max-w-lg w-full rounded-none shadow-2xl overflow-hidden border border-slate-200 max-h-[96vh] flex flex-col"
             >
               <div className="px-6 py-5 border-b border-slate-100 relative shrink-0">
                 <button 
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="absolute top-5 right-6 p-1.5 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+                  className="absolute top-5 right-6 p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-600"
                 >
                   <X size={18} />
                 </button>
                 <div className="flex items-center gap-3">
                   <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border",
+                    "w-10 h-10 rounded-none flex items-center justify-center shadow-sm border",
                     getTypeStyle(formData.type)
                   )}>
                     <CalendarPlus size={20} />
@@ -2539,7 +2539,7 @@ export function AcademicCalendar() {
 
               <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 custom-scrollbar">
                 {!(isAdmin || isDirector) && (
-                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start gap-2">
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-none flex items-start gap-2">
                     <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
                     <p className="text-[10px] font-bold text-amber-800 leading-tight text-left">Somente leitura. Apenas administradores podem fazer alterações.</p>
                   </div>
@@ -2573,20 +2573,20 @@ export function AcademicCalendar() {
                               }
                             }}
                             className={cn(
-                              "relative flex flex-col p-2.5 rounded-xl border-2 transition-all text-left group",
+                              "relative flex flex-col p-2.5 rounded-none border-2 transition-all text-left group",
                               formData.type === type.id 
                                 ? `bg-${type.color === 'red' ? 'rose' : type.color}-50 border-${type.color === 'red' ? 'rose' : type.color}-600 ring-2 ring-${type.color === 'red' ? 'rose' : type.color}-50` 
                                 : "bg-white border-slate-100 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 hover:border-slate-200"
                             )}
                           >
                             <div className={cn(
-                              "w-7 h-7 rounded-lg flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110",
+                              "w-7 h-7 rounded-none flex items-center justify-center mb-1.5 transition-transform group-hover:scale-110",
                               formData.type === type.id ? `bg-${type.color === 'red' ? 'rose' : type.color}-600 text-white` : "bg-slate-100 text-slate-400"
                             )}>
                               {type.icon}
                             </div>
                             <p className={cn(
-                              "text-[11px] font-black uppercase tracking-tight leading-tight",
+                              "text-[11px] font-bold uppercase tracking-tight leading-tight",
                               formData.type === type.id ? `text-${type.color === 'red' ? 'rose' : type.color}-700` : "text-slate-500"
                             )}>{type.label}</p>
                             <p className="text-[8.5px] font-medium text-slate-400 leading-none mt-0.5">{type.desc}</p>
@@ -2614,7 +2614,7 @@ export function AcademicCalendar() {
                           onChange={e => {
                             setFormData({...formData, start_date: e.target.value, end_date: formData.end_date || e.target.value});
                           }}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                         />
                         <span className="absolute -top-2 left-3 px-1 bg-white text-[7px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Início</span>
                       </div>
@@ -2624,7 +2624,7 @@ export function AcademicCalendar() {
                           type="date"
                           value={formData.end_date}
                           onChange={e => setFormData({...formData, end_date: e.target.value})}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                         />
                         <span className="absolute -top-2 left-3 px-1 bg-white text-[7px] font-bold text-slate-400 uppercase border border-slate-100 rounded">Término</span>
                       </div>
@@ -2642,7 +2642,7 @@ export function AcademicCalendar() {
                         placeholder="Título do evento..."
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -2651,7 +2651,7 @@ export function AcademicCalendar() {
                         disabled={!(isAdmin || isDirector)}
                         value={formData.class_id}
                         onChange={e => setFormData({...formData, class_id: e.target.value})}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-blue-100 focus:bg-white focus:border-blue-500 transition-all outline-none"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                       >
                         <option value="">Todas</option>
                         {classes.map(c => (
@@ -2676,7 +2676,7 @@ export function AcademicCalendar() {
                         }
                       }}
                       className={cn(
-                        "p-3 rounded-xl transition-all border",
+                        "p-3 rounded-none transition-all border",
                         confirmDeleteId === selectedEvent.id 
                           ? "bg-red-600 text-white border-red-700 shadow-lg shadow-red-100" 
                           : "bg-white text-red-500 border-red-100 hover:bg-red-50 shadow-sm"
@@ -2688,7 +2688,7 @@ export function AcademicCalendar() {
                   <button 
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 py-3 px-4 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                    className="flex-1 py-3 px-4 bg-white border border-slate-200 text-slate-500 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
                   >
                     Fechar
                   </button>
@@ -2720,7 +2720,7 @@ export function AcademicCalendar() {
                             setIsSyncing(false);
                           }
                         }}
-                        className="flex-1 py-3 px-1.5 bg-slate-600 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-slate-700 transition-all shadow-sm"
+                        className="flex-1 py-3 px-1.5 bg-slate-600 text-white rounded-none text-[9px] font-bold uppercase tracking-widest hover:bg-slate-700 transition-all shadow-sm"
                       >
                         Abonar Tudo
                       </button>
@@ -2750,7 +2750,7 @@ export function AcademicCalendar() {
                             setIsSyncing(false);
                           }
                         }}
-                        className="flex-1 py-3 px-1.5 bg-rose-600 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-rose-700 transition-all shadow-sm"
+                        className="flex-1 py-3 px-1.5 bg-rose-600 text-white rounded-none text-[9px] font-bold uppercase tracking-widest hover:bg-rose-700 transition-all shadow-sm"
                       >
                         Cancelar Tudo
                       </button>
@@ -2760,7 +2760,7 @@ export function AcademicCalendar() {
                     <button 
                       type="submit"
                       disabled={isSyncing}
-                      className="flex-[2] py-3 px-4 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                      className="flex-[2] py-3 px-4 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-none transition-all flex items-center justify-center gap-2"
                     >
                       {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                       {selectedEvent ? 'Confirmar' : 'Criar'}
@@ -2780,7 +2780,7 @@ export function AcademicCalendar() {
               initial={{ scale: 0.99, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.99, opacity: 0 }}
-              className="bg-white max-w-xl w-full h-[85vh] md:h-[80vh] rounded-lg shadow-2xl overflow-hidden border border-slate-200 flex flex-col"
+              className="bg-white max-w-xl w-full h-[85vh] md:h-[80vh] rounded-none shadow-2xl overflow-hidden border border-slate-200 flex flex-col"
             >
               {/* Header */}
               <div className="px-6 py-4 border-b border-slate-100 relative bg-white">
@@ -2812,21 +2812,21 @@ export function AcademicCalendar() {
                       <div className="flex flex-col items-center gap-1.5">
                         <div className={cn(
                           "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all",
-                          activeStep === item.s ? "bg-blue-600 text-white shadow-sm" : 
+                          activeStep === item.s ? "bg-slate-800 text-white shadow-sm" : 
                           activeStep > item.s ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400"
                         )}>
                           {activeStep > item.s ? <Check size={12} /> : item.s}
                         </div>
                         <span className={cn(
                           "text-[9px] font-bold uppercase tracking-wider",
-                          activeStep === item.s ? "text-blue-600" : "text-slate-400"
+                          activeStep === item.s ? "text-slate-800" : "text-slate-400"
                         )}>
                           {item.label}
                         </span>
                       </div>
                       {idx < 2 && (
                         <div className="flex-1 h-[1px] mx-4 bg-slate-100">
-                          <div className={cn("h-full bg-blue-600 transition-all", activeStep > item.s ? "w-full" : "w-0")} />
+                          <div className={cn("h-full bg-slate-800 transition-all", activeStep > item.s ? "w-full" : "w-0")} />
                         </div>
                       )}
                     </React.Fragment>
@@ -2856,13 +2856,13 @@ export function AcademicCalendar() {
                               setEditingDayIndex(i);
                             }}
                             className={cn(
-                              "p-4 rounded-xl border flex flex-col items-center gap-2 transition-all",
+                              "p-4 rounded-none border flex flex-col items-center gap-2 transition-all",
                               isSelected 
                                 ? "bg-slate-900 text-white border-slate-900 shadow-xl scale-105" 
-                                : "bg-white text-slate-500 border-slate-100 hover:border-blue-200"
+                                : "bg-white text-slate-500 border-slate-100 hover:border-slate-200"
                             )}
                           >
-                            <span className="text-[10px] font-black uppercase tracking-widest">{day}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest">{day}</span>
                             <div className={cn(
                               "w-2 h-2 rounded-full",
                               isSelected ? "bg-blue-400" : "bg-slate-100"
@@ -2874,7 +2874,7 @@ export function AcademicCalendar() {
 
                     {settingsForm.class_weekdays.length > 0 && (
                       <div className="space-y-2 pt-4 animate-in fade-in zoom-in-95">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Configuração do Título</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Configuração do Título</label>
                         <input 
                           type="text"
                           placeholder="Ex: Dia de Aula, Aula Teórica..."
@@ -2886,7 +2886,7 @@ export function AcademicCalendar() {
                               [settingsForm.class_weekdays[0]]: e.target.value 
                             }
                           })}
-                          className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                          className="w-full bg-white border border-slate-200 rounded-none py-4 px-5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 transition-all"
                         />
                       </div>
                     )}
@@ -2904,7 +2904,7 @@ export function AcademicCalendar() {
                               // Filter classes that have this day or generic
                               setSettingsForm({ ...settingsForm, target_class_ids: classes.map(c => c.id) });
                             }}
-                            className="text-[9px] font-bold text-blue-600 uppercase tracking-wider hover:underline"
+                            className="text-[9px] font-bold text-slate-800 uppercase tracking-wider hover:underline"
                           >
                             Toda Turma
                           </button>
@@ -2922,7 +2922,7 @@ export function AcademicCalendar() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {classes.length === 0 ? (
-                        <div className="col-span-2 py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <div className="col-span-2 py-8 text-center bg-slate-50 rounded-none border border-dashed border-slate-200">
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhuma turma ativa encontrada</p>
                         </div>
                       ) : (
@@ -2945,15 +2945,15 @@ export function AcademicCalendar() {
                                 }
                               }}
                               className={cn(
-                                "flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                                "flex items-center gap-3 p-4 rounded-none border transition-all text-left",
                                 isSelected 
-                                  ? "bg-blue-50 border-blue-200 text-blue-700" 
+                                  ? "bg-slate-50 border-slate-200 text-blue-700" 
                                   : "bg-white border-slate-100 text-slate-600 hover:border-slate-200"
                               )}
                             >
                               <div className={cn(
                                 "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                isSelected ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200"
+                                isSelected ? "bg-slate-800 border-blue-600 text-white" : "bg-white border-slate-200"
                               )}>
                                 {isSelected && <Check size={10} />}
                               </div>
@@ -2981,7 +2981,7 @@ export function AcademicCalendar() {
                          { term: 1, label: '1º Semestre' },
                          { term: 2, label: '2º Semestre' }
                        ].map((t) => (
-                        <div key={t.term} className="bg-white p-5 rounded-xl border border-slate-100 space-y-4">
+                        <div key={t.term} className="bg-white p-5 rounded-none border border-slate-100 space-y-4">
                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.label}</span>
                            <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1">
@@ -2993,7 +2993,7 @@ export function AcademicCalendar() {
                                       ...settingsForm, 
                                       [t.term === 1 ? 'term1_start' : 'term2_start']: e.target.value
                                     })}
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-lg py-3 px-4 text-xs font-bold text-slate-600 focus:bg-white focus:border-blue-300 outline-none"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-none py-3 px-4 text-xs font-bold text-slate-600 focus:bg-white focus:border-slate-300 outline-none"
                                  />
                               </div>
                               <div className="space-y-1">
@@ -3005,7 +3005,7 @@ export function AcademicCalendar() {
                                       ...settingsForm, 
                                       [t.term === 1 ? 'term1_end' : 'term2_end']: e.target.value
                                     })}
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-lg py-3 px-4 text-xs font-bold text-slate-600 focus:bg-white focus:border-blue-300 outline-none"
+                                    className="w-full bg-slate-50 border border-slate-100 rounded-none py-3 px-4 text-xs font-bold text-slate-600 focus:bg-white focus:border-slate-300 outline-none"
                                  />
                               </div>
                            </div>
@@ -3148,19 +3148,19 @@ export function AcademicCalendar() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white max-w-sm w-full rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100"
+              className="bg-white max-w-sm w-full rounded-none shadow-2xl overflow-hidden border border-slate-100"
             >
               <div className="p-8 text-center space-y-6">
                 <div className={cn(
                   "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-2 shadow-inner",
-                  confirmModalConfig.type === 'danger' ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"
+                  confirmModalConfig.type === 'danger' ? "bg-red-50 text-red-600" : "bg-slate-50 text-slate-800"
                 )}>
                   {confirmModalConfig.type === 'danger' ? <Trash2 size={32} /> : <Info size={32} />}
                 </div>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">{confirmModalConfig.title}</h3>
+                    <h3 className="text-lg font-bold text-slate-800 uppercase tracking-tight">{confirmModalConfig.title}</h3>
                     <p className="text-xs font-medium text-slate-500 leading-relaxed">
                       {confirmModalConfig.message}
                     </p>
@@ -3181,7 +3181,7 @@ export function AcademicCalendar() {
                               }
                             }}
                             className={cn(
-                              "px-3 py-2 rounded-xl flex items-center justify-center text-[9px] font-black uppercase transition-all shadow-sm border",
+                              "px-3 py-2 rounded-none flex items-center justify-center text-[9px] font-bold uppercase transition-all shadow-sm border",
                               isSelected 
                                 ? "bg-red-600 border-red-600 text-white shadow-red-100" 
                                 : "bg-white border-slate-100 text-slate-400"
@@ -3201,7 +3201,7 @@ export function AcademicCalendar() {
                       setShowConfirmModal(false);
                       setIsClassDeletionMode(false);
                     }}
-                    className="py-4 bg-slate-50 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95"
+                    className="py-4 bg-slate-50 text-slate-400 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95"
                   >
                     Cancelar
                   </button>
@@ -3218,8 +3218,8 @@ export function AcademicCalendar() {
                       }
                     }}
                     className={cn(
-                      "py-4 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95",
-                      confirmModalConfig.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-100" : "bg-blue-600 hover:bg-blue-700 shadow-blue-100"
+                      "py-4 text-white rounded-none text-[10px] font-bold uppercase tracking-widest shadow-lg transition-all active:scale-95",
+                      confirmModalConfig.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-100" : "bg-slate-800 hover:bg-slate-900 shadow-none"
                     )}
                   >
                     Confirmar
@@ -3239,15 +3239,15 @@ export function AcademicCalendar() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[2.5rem] p-8 max-w-2xl w-full shadow-2xl border border-slate-100"
+              className="bg-white rounded-none p-8 max-w-2xl w-full shadow-2xl border border-slate-100"
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                  <div className="p-3 bg-slate-50 text-slate-800 rounded-none">
                     <Printer size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter leading-none">Centro de Impressão</h2>
+                    <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tighter leading-none">Centro de Impressão</h2>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Selecione o formato de relatório desejado</p>
                   </div>
                 </div>
@@ -3256,7 +3256,7 @@ export function AcademicCalendar() {
                     setShowPrintOptions(false);
                     setPrintType(null);
                   }}
-                  className="p-2 hover:bg-slate-50 rounded-xl transition-all"
+                  className="p-2 hover:bg-slate-50 rounded-none transition-all"
                 >
                   <X size={20} className="text-slate-400" />
                 </button>
@@ -3273,15 +3273,15 @@ export function AcademicCalendar() {
                     key={option.id}
                     onClick={() => setPrintType(option.id as any)}
                     className={cn(
-                      "p-6 rounded-3xl border-2 transition-all text-left flex flex-col gap-3 group",
+                      "p-6 rounded-none border-2 transition-all text-left flex flex-col gap-3 group",
                       printType === option.id 
-                        ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-100 scale-105" 
-                        : "bg-slate-50 border-slate-100 hover:border-blue-300 text-slate-600"
+                        ? "bg-slate-800 border-blue-600 text-white shadow-xl shadow-none scale-105" 
+                        : "bg-slate-50 border-slate-100 hover:border-slate-300 text-slate-600"
                     )}
                   >
-                    <option.icon size={24} className={printType === option.id ? "text-white" : "text-blue-500"} />
+                    <option.icon size={24} className={printType === option.id ? "text-white" : "text-slate-700"} />
                     <div>
-                      <h3 className="text-[11px] font-black uppercase tracking-widest leading-tight">{option.title}</h3>
+                      <h3 className="text-[11px] font-bold uppercase tracking-widest leading-tight">{option.title}</h3>
                       <p className={cn("text-[8.5px] mt-2 font-medium leading-relaxed", printType === option.id ? "text-blue-100" : "text-slate-400")}>
                         {option.desc}
                       </p>
@@ -3294,18 +3294,18 @@ export function AcademicCalendar() {
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 p-6 bg-slate-50 rounded-3xl border border-slate-100 mb-8"
+                  className="space-y-4 p-6 bg-slate-50 rounded-none border border-slate-100 mb-8"
                 >
-                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <Filter size={14} /> Filtros de Relatório
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
+                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
                       <select 
                         value={printFilters.class_id}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, class_id: e.target.value }))}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                        className="w-full bg-white border border-slate-200 rounded-none px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todas as Turmas Ativas</option>
                         {classes.map(c => (
@@ -3314,11 +3314,11 @@ export function AcademicCalendar() {
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Período de Exibição</label>
+                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Período de Exibição</label>
                       <select 
                         value={printFilters.month}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, month: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                        className="w-full bg-white border border-slate-200 rounded-none px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todo o Ano Letivo</option>
                         {Array.from({ length: 12 }, (_, i) => (
@@ -3329,11 +3329,11 @@ export function AcademicCalendar() {
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Dia da Semana</label>
+                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Dia da Semana</label>
                       <select 
                         value={printFilters.weekday}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, weekday: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                        className="w-full bg-white border border-slate-200 rounded-none px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todos os Dias de Aula</option>
                         <option value="1">Segunda-feira</option>
@@ -3353,14 +3353,14 @@ export function AcademicCalendar() {
                     setShowPrintOptions(false);
                     setPrintType(null);
                   }}
-                  className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                  className="flex-1 py-4 px-6 bg-slate-100 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
                 >
                   Cancelar
                 </button>
                 <button 
                   disabled={!printType}
                   onClick={() => window.print()}
-                  className="flex-3 py-4 px-6 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
+                  className="flex-3 py-4 px-6 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-none transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
                 >
                   Gerar Impressão Agora
                 </button>
@@ -3466,7 +3466,7 @@ export function AcademicCalendar() {
                       </div>
                     </div>
                     <div className="text-right flex flex-col justify-center">
-                      <h2 className="text-[13px] font-black text-slate-800 uppercase tracking-widest">
+                      <h2 className="text-[13px] font-bold text-slate-800 uppercase tracking-widest">
                         {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
                          printType === 'holiday_list' ? 'Listagem de Feriados' :
                          printType === 'annual_poster' ? 'Calendário Anual' : 'Grade de Eventos'}
@@ -3598,7 +3598,7 @@ export function AcademicCalendar() {
                                         </div>
                                         <div className={cn(
                                           "text-[7px] font-bold px-1.5 py-0 rounded border uppercase shrink-0",
-                                          event.type === 'class_day' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                          event.type === 'class_day' ? "bg-slate-50 text-slate-800 border-slate-200" :
                                           event.type === 'exam' ? "bg-rose-50 text-rose-600 border-rose-100" :
                                           event.type === 'start_term' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
                                           event.type === 'excused_class' ? "bg-slate-100 text-slate-500 border-slate-200" :
@@ -3664,7 +3664,7 @@ export function AcademicCalendar() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   {lessonNumber && (
-                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[7px] font-black uppercase shrink-0">Aula {lessonNumber}</span>
+                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[7px] font-bold uppercase shrink-0">Aula {lessonNumber}</span>
                                   )}
                                   <p className={cn("text-[10px] font-bold whitespace-normal break-words leading-tight", isImportant ? "text-amber-800" : isHoliday ? "text-slate-600 italic" : "text-slate-700")}>
                                     {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').trim()}
@@ -3725,13 +3725,13 @@ export function AcademicCalendar() {
             <div className="flex flex-col h-full max-h-[85vh]">
               <div className="grid grid-cols-3 gap-x-4 gap-y-2 mb-2">
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(monthIndex => (
-                  <div key={`poster-${monthIndex}`} className="avoid-break p-2 border-2 border-slate-100 rounded-lg bg-white shadow-sm">
-                    <h4 className="text-[9px] font-black text-center uppercase tracking-[0.15em] mb-1.5 border-b border-slate-50 pb-0.5 text-slate-900">
+                  <div key={`poster-${monthIndex}`} className="avoid-break p-2 border-2 border-slate-100 rounded-none bg-white shadow-sm">
+                    <h4 className="text-[9px] font-bold text-center uppercase tracking-[0.15em] mb-1.5 border-b border-slate-50 pb-0.5 text-slate-900">
                       {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                     </h4>
                     <div className="grid grid-cols-7 gap-0.5">
                       {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => (
-                        <div key={`header-${monthIndex}-${d}`} className="text-center text-[6px] font-black text-slate-300">{d}</div>
+                        <div key={`header-${monthIndex}-${d}`} className="text-center text-[6px] font-bold text-slate-300">{d}</div>
                       ))}
                       {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
                         <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
@@ -3765,16 +3765,16 @@ export function AcademicCalendar() {
                         else if (isHolidayGeneral) { bgColor = "bg-red-500"; textColor = "text-white"; borderColor = "border-red-600"; stripeStyle = "bg-stripes-red"; }
                         else if (isVacation) { bgColor = "bg-slate-50"; textColor = "text-slate-600"; borderColor = "border-slate-100"; stripeStyle = "bg-stripes-slate"; }
                         else if (isExam) { bgColor = "bg-amber-400"; textColor = "text-white"; borderColor = "border-amber-500"; }
-                        else if (isStart) { bgColor = "bg-blue-600"; textColor = "text-white"; borderColor = "border-blue-700"; }
+                        else if (isStart) { bgColor = "bg-slate-800"; textColor = "text-white"; borderColor = "border-blue-700"; }
                         else if (isEnd) { bgColor = "bg-slate-900"; textColor = "text-white"; borderColor = "border-slate-950"; }
-                        else if (isClass) { bgColor = "bg-blue-400"; textColor = "text-white"; borderColor = "border-blue-500"; }
+                        else if (isClass) { bgColor = "bg-blue-400"; textColor = "text-white"; borderColor = "border-slate-400"; }
                         else if (dayEvents.length > 0) { bgColor = "bg-slate-100"; textColor = "text-slate-700"; borderColor = "border-slate-200"; }
 
                         return (
                           <div 
                             key={`${monthIndex}-${day}`}
                             className={cn(
-                              "aspect-square flex items-center justify-center rounded-sm text-[7.5px] font-black border transition-all overflow-hidden",
+                              "aspect-square flex items-center justify-center rounded-sm text-[7.5px] font-bold border transition-all overflow-hidden",
                               bgColor, textColor, borderColor, stripeStyle
                             )}
                           >
@@ -3791,27 +3791,27 @@ export function AcademicCalendar() {
                   <div className="mt-4 border-t border-slate-200 pt-3 flex flex-wrap justify-center gap-x-6 gap-y-2 pb-2">
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-full bg-red-600 shadow-sm border border-red-700" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Nacional</span>
+                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Feriado Nacional</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-full bg-amber-600 shadow-sm border border-amber-700" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Feriado Local</span>
+                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Feriado Local</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-full bg-blue-400 shadow-sm border border-blue-500" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Dia de Aula Letivo</span>
+                      <div className="w-3.5 h-3.5 rounded-full bg-blue-400 shadow-sm border border-slate-400" />
+                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Dia de Aula Letivo</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-full bg-amber-400 shadow-sm border border-amber-500" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Avaliação / Prova</span>
+                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Avaliação / Prova</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-full bg-blue-600 shadow-sm border border-blue-700" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Início</span>
+                      <div className="w-3.5 h-3.5 rounded-full bg-slate-800 shadow-sm border border-blue-700" />
+                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Início</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-full bg-slate-900 shadow-sm border border-slate-950" />
-                      <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest">Final</span>
+                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Final</span>
                     </div>
                   </div>
                 </div>
@@ -3831,13 +3831,13 @@ export function AcademicCalendar() {
 
                 return (
                   <div key={`grid-month-${monthIndex}`} className="page-break space-y-8 print:space-y-6">
-                    <h2 className="text-2xl font-black text-center uppercase tracking-[0.3em] mb-6 text-slate-800 print:text-xl">
+                    <h2 className="text-2xl font-bold text-center uppercase tracking-[0.3em] mb-6 text-slate-800 print:text-xl">
                       {monthName}
                     </h2>
                     
-                    <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-none overflow-hidden">
                       {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                        <div key={day} className="bg-slate-50 py-4 text-center text-[11px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
+                        <div key={day} className="bg-slate-50 py-4 text-center text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
                       ))}
                       {Array.from({ length: firstDay }).map((_, i) => (
                         <div key={`grid-empty-${monthIndex}-${i}`} className="bg-white min-h-[120px] print:min-h-[110px]" />
@@ -3889,7 +3889,7 @@ export function AcademicCalendar() {
                               isHolidayGrid && "bg-stripes-red"
                             )}
                           >
-                            <span className="text-[14px] font-black text-slate-900">{day}</span>
+                            <span className="text-[14px] font-bold text-slate-900">{day}</span>
                             <div className="mt-1 space-y-0.5">
                       {dayEvents.map(e => {
                         const titleLower = e.title?.toLowerCase() || '';
@@ -3906,17 +3906,17 @@ export function AcademicCalendar() {
                               "relative group text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm transition-all hover:scale-[1.02] hover:shadow-md cursor-help",
                               isHoliday ? "bg-red-500 text-white border-red-600" : 
                               isExam ? "bg-orange-500 text-white border-orange-600" :
-                              isFacultative ? "bg-indigo-500 text-white border-indigo-600" :
-                              "bg-blue-400 text-white border-blue-500"
+                              isFacultative ? "bg-slate-500 text-white border-indigo-600" :
+                              "bg-blue-400 text-white border-slate-400"
                             )}
                           >
                             {(e.title || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
 
                             {/* Tooltip Detalhado */}
                             <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[200px] z-[100] pointer-events-none hidden group-hover:block animate-in fade-in zoom-in duration-200">
-                              <div className="bg-white border border-slate-200 shadow-xl rounded-xl p-3 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
-                                <div className="text-blue-600 mb-2 border-b border-blue-50 pb-1.5 flex items-center gap-2">
-                                  <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isHoliday ? "bg-red-500" : isExam ? "bg-orange-500" : "bg-blue-500")} />
+                              <div className="bg-white border border-slate-200 shadow-xl rounded-none p-3 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
+                                <div className="text-slate-800 mb-2 border-b border-blue-50 pb-1.5 flex items-center gap-2">
+                                  <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isHoliday ? "bg-red-500" : isExam ? "bg-orange-500" : "bg-slate-500")} />
                                   <span className="truncate max-w-[160px]">
                                     {e.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                   </span>
@@ -3984,15 +3984,15 @@ export function AcademicCalendar() {
                     <div className="mt-4 flex flex-wrap justify-center gap-x-10 gap-y-2 pb-2 border-t border-slate-200 pt-3 no-print-break">
                       <div className="flex items-center gap-3">
                         <div className="w-4 h-4 rounded bg-red-500 border border-red-600" />
-                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Feriado / Recesso</span>
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Feriado / Recesso</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-4 h-4 rounded bg-amber-400 border border-amber-500" />
-                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Avaliação / Prova</span>
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Avaliação / Prova</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded bg-blue-400 border border-blue-500" />
-                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Dia de Aula Letivo</span>
+                        <div className="w-4 h-4 rounded bg-blue-400 border border-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Dia de Aula Letivo</span>
                       </div>
                     </div>
                   </div>

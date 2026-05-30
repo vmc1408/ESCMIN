@@ -92,39 +92,39 @@ const ClassItem = React.memo(({
     <button
       onClick={() => onSelect(cls)}
       className={cn(
-        "w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left relative overflow-hidden group",
+        "w-full flex items-center gap-4 p-4 rounded-none transition-all text-left relative overflow-hidden group",
         isSelected 
-          ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100 ring-1 ring-indigo-600" 
+          ? "bg-slate-800 text-white shadow-xl shadow-none ring-1 ring-slate-400" 
           : "hover:bg-slate-50 text-slate-600 border border-transparent hover:border-slate-200",
         className
       )}
     >
       <div className={cn(
-        "w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs relative flex-shrink-0 transition-transform group-hover:scale-110",
+        "w-12 h-12 rounded-none flex items-center justify-center font-bold text-xs relative flex-shrink-0 transition-transform group-hover:scale-110",
         isSelected ? "bg-white/20 text-white shadow-inner" : "bg-slate-100 text-slate-500 border border-slate-200"
       )}>
         {cls.code}
         <div className={cn(
-          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2",
-          isSelected ? "border-indigo-600 shadow-sm" : "border-white",
+          "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2",
+          isSelected ? "border-slate-500 shadow-sm" : "border-white",
           cls.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
         )} />
       </div>
       <div className="flex-1 min-w-0 pr-4">
         <div className="flex items-center gap-2">
           <p className={cn(
-            "text-sm font-black truncate tracking-tight uppercase",
+            "text-sm font-bold truncate tracking-tight uppercase",
             isSelected ? "text-white" : "text-slate-900"
           )}>{cls.name}</p>
         </div>
         <div className={cn(
-          "flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-black uppercase tracking-[0.15em] mt-1 pr-2",
-          isSelected ? "text-indigo-100" : "text-slate-400"
+          "flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-bold uppercase tracking-[0.15em] mt-1 pr-2",
+          isSelected ? "text-slate-300" : "text-slate-400"
         )}>
           <span>{cls.period}</span>
-          <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-indigo-300" : "bg-slate-300")} />
+          <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-slate-300" : "bg-slate-300")} />
           <span>{cls.year || '---'}</span>
-          <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-indigo-300" : "bg-slate-300")} />
+          <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-slate-300" : "bg-slate-300")} />
           <span>{cls.semester || '---'}</span>
         </div>
       </div>
@@ -482,20 +482,20 @@ export function Classes() {
   return (
     <div className="h-[calc(100vh-6rem)] flex gap-6 p-4">
       {/* Sidebar List */}
-      <div className="w-[440px] bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden order-last">
+      <div className="w-[440px] bg-white rounded-none shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden order-last">
         <div className="p-8 border-b border-slate-100 space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Turmas</h2>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Gestão de Grupos Acadêmicos</p>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Turmas</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Gestão de Grupos Acadêmicos</p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg border border-slate-200 shadow-sm uppercase tracking-widest leading-none">
+              <div className="px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-none border border-slate-200 shadow-sm uppercase tracking-widest leading-none">
                 {filteredClasses.length}
               </div>
               <button 
                 onClick={handleNew}
-                className="w-10 h-10 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100 active:scale-90"
+                className="w-10 h-10 bg-slate-800 text-white rounded-none hover:bg-slate-900 transition-all flex items-center justify-center shadow-lg shadow-none active:scale-90"
                 title="NOVA TURMA"
               >
                 <Plus size={20} />
@@ -505,13 +505,13 @@ export function Classes() {
           
           <div className="space-y-4">
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={16} />
               <input 
                 type="text"
                 placeholder="Buscar por nome ou código..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+                className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 outline-none transition-all placeholder:text-slate-400"
               />
             </div>
             
@@ -519,7 +519,7 @@ export function Classes() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all cursor-pointer"
+                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-[10px] font-bold text-slate-600 uppercase tracking-widest focus:ring-4 focus:ring-slate-500/5 outline-none transition-all cursor-pointer"
               >
                 <option value="name_year">Nome e Ano (Recente Primeiro)</option>
                 <option value="name">Ordenar por Nome (A-Z)</option>
@@ -528,15 +528,15 @@ export function Classes() {
                 <option value="period">Ordenar por Período</option>
               </select>
               
-              <div className="flex bg-slate-100/50 p-1.5 rounded-xl border border-slate-200">
+              <div className="flex bg-slate-100/50 p-1.5 rounded-none border border-slate-200">
                 {(['Ativo', 'Todos'] as const).map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status === 'Todos' ? 'Todos' : 'Ativo')}
                     className={cn(
-                      "flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all",
+                      "flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all",
                       (status === 'Todos' && statusFilter === 'Todos') || (status === 'Ativo' && statusFilter === 'Ativo')
-                        ? "bg-white text-indigo-600 shadow-sm border border-slate-100" 
+                        ? "bg-white text-slate-800 shadow-sm border border-slate-100" 
                         : "text-slate-400 hover:text-slate-600"
                     )}
                   >
@@ -552,12 +552,12 @@ export function Classes() {
           {loading ? (
             <div className="flex flex-col items-center justify-center h-48 space-y-3 opacity-50">
               <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-              <p className="text-[10px] font-black uppercase tracking-widest">Sincronizando...</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest">Sincronizando...</p>
             </div>
           ) : filteredClasses.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-4">
               <Search size={40} />
-              <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma turma encontrada</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest">Nenhuma turma encontrada</p>
             </div>
           ) : (
             filteredClasses.map((cls) => (
@@ -574,36 +574,36 @@ export function Classes() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden relative">
+      <div className="flex-1 bg-white rounded-none shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden relative">
         {selectedClass || isEditing ? (
           <>
             {notification && (
               <div className={cn(
-                "fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-[1.5rem] shadow-2xl animate-in fade-in slide-in-from-top-12 duration-500 flex items-center gap-4 border",
+                "fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-none shadow-2xl animate-in fade-in slide-in-from-top-12 duration-500 flex items-center gap-4 border",
                 notification.type === 'success' ? "bg-emerald-600 text-white border-emerald-500" : "bg-red-600 text-white border-red-500"
               )}>
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-none bg-white/20 flex items-center justify-center">
                   {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
                 </div>
-                <p className="text-xs font-black uppercase tracking-[0.1em]">{notification.message}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.1em]">{notification.message}</p>
               </div>
             )}
             <div className="px-10 py-8 border-b border-slate-100 bg-slate-50/20">
               <div className="flex items-center justify-between gap-8">
                 <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white shadow-xl shadow-indigo-100 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-none bg-slate-800 text-white shadow-xl shadow-none flex items-center justify-center">
                   <School size={32} />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-none uppercase">
+                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight leading-none uppercase">
                     {isEditing ? (selectedClass ? 'Editar Registro' : 'Novo Lançamento') : formData.name}
                   </h3>
                   <div className="flex items-center gap-3 mt-3">
-                    <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest shadow-sm">
+                    <span className="px-3 py-1 bg-white border border-slate-200 rounded-none text-[10px] font-bold text-slate-500 uppercase tracking-widest shadow-sm">
                       ID: {formData.code || '---'}
                     </span>
                     <div className={cn(
-                      "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm",
+                      "flex items-center gap-1.5 px-3 py-1 rounded-none text-[9px] font-bold uppercase tracking-widest border shadow-sm",
                       formData.status === 'Inativo' ? "bg-slate-50 text-slate-500 border-slate-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
                     )}>
                       <div className={cn("w-1.5 h-1.5 rounded-full", formData.status === 'Inativo' ? "bg-slate-400" : "bg-emerald-500 animate-pulse")} />
@@ -622,21 +622,21 @@ export function Classes() {
                         e.stopPropagation();
                         setShowDeleteConfirm(true);
                       }}
-                      className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all group border border-transparent hover:border-red-100 shadow-sm hover:shadow-lg active:scale-90"
+                      className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all group border border-transparent hover:border-red-100 shadow-sm hover:shadow-lg active:scale-90"
                       title="Excluir Turma"
                     >
                       <Trash2 size={24} className="group-hover:rotate-12 transition-transform" />
                     </button>
                     <button 
                       onClick={() => window.print()}
-                      className="w-12 h-12 bg-white border border-slate-200 text-slate-500 rounded-2xl hover:text-indigo-600 hover:border-indigo-400 transition-all flex items-center justify-center shadow-sm hover:shadow-lg active:scale-90"
+                      className="w-12 h-12 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:border-slate-300 transition-all flex items-center justify-center shadow-sm hover:shadow-lg active:scale-90"
                       title="Imprimir"
                     >
                       <Printer size={20} />
                     </button>
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="h-14 px-8 bg-indigo-600 text-white rounded-2xl text-[11px] font-black hover:bg-indigo-700 transition-all flex items-center gap-3 shadow-xl shadow-indigo-100 uppercase tracking-widest active:scale-95 group"
+                      className="h-14 px-8 bg-slate-800 text-white rounded-none text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center gap-3 shadow-xl shadow-none uppercase tracking-widest active:scale-95 group"
                     >
                       <Edit2 size={18} className="group-hover:rotate-12 transition-transform" />
                       Editar Turma
@@ -647,13 +647,13 @@ export function Classes() {
                   <>
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-6 py-4 text-slate-500 hover:text-slate-900 text-[11px] font-black uppercase tracking-widest transition-colors"
+                      className="px-6 py-4 text-slate-500 hover:text-slate-900 text-[11px] font-bold uppercase tracking-widest transition-colors"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-10 py-4 bg-emerald-600 text-white rounded-2xl text-[11px] font-black hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 uppercase tracking-widest active:scale-95 flex items-center gap-3"
+                      className="px-10 py-4 bg-emerald-600 text-white rounded-none text-[11px] font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 uppercase tracking-widest active:scale-95 flex items-center gap-3"
                     >
                       <Save size={18} />
                       Salvar Cadastro
@@ -669,10 +669,10 @@ export function Classes() {
                 {/* Basic Info */}
                 <section className="space-y-6">
                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                     <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-400">
                       <School size={20} />
                      </div>
-                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                     <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest">
                         Informações Principais
                       </h4>
                       <div className="flex-1 h-px bg-slate-100" />
@@ -682,8 +682,8 @@ export function Classes() {
                     <div className="col-span-12 space-y-6">
                        <div className="grid grid-cols-12 gap-8">
                          <div className="col-span-8 space-y-3">
-                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Ano Acadêmico</label>
-                          <div className="flex bg-slate-100 rounded-[1.25rem] p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
+                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Ano Acadêmico</label>
+                          <div className="flex bg-slate-100 rounded-none p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
                             {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
                               <button
                                 key={year}
@@ -703,9 +703,9 @@ export function Classes() {
                                   setFormData({...formData, year: newYear, subject_ids: validSubjects});
                                 }}
                                 className={cn(
-                                  "flex-1 py-3 text-[10px] font-black rounded-xl uppercase tracking-widest transition-all duration-300",
+                                  "flex-1 py-3 text-[10px] font-bold rounded-none uppercase tracking-widest transition-all duration-300",
                                   formData.year === year 
-                                    ? "bg-white text-indigo-600 shadow-md border border-slate-100" 
+                                    ? "bg-white text-slate-800 shadow-md border border-slate-100" 
                                     : "text-slate-400 hover:text-slate-600 disabled:opacity-30"
                                 )}
                               >
@@ -715,8 +715,8 @@ export function Classes() {
                           </div>
                         </div>
                         <div className="col-span-4 space-y-3">
-                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Semestre Atual</label>
-                          <div className="flex bg-slate-100 rounded-[1.25rem] p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
+                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Semestre Atual</label>
+                          <div className="flex bg-slate-100 rounded-none p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
                             {(formData.year === 'Curso Extra' ? ['1º Semestre', '2º Semestre', 'Ano Inteiro'] : ['1º Semestre', '2º Semestre']).map((sem) => (
                               <button
                                 key={sem}
@@ -737,9 +737,9 @@ export function Classes() {
                                   setFormData({...formData, semester: newSemester, subject_ids: validSubjects});
                                 }}
                                 className={cn(
-                                  "flex-1 py-3 text-[10px] font-black rounded-xl uppercase tracking-widest transition-all duration-300",
+                                  "flex-1 py-3 text-[10px] font-bold rounded-none uppercase tracking-widest transition-all duration-300",
                                   formData.semester === sem 
-                                    ? "bg-white text-indigo-600 shadow-md border border-slate-100" 
+                                    ? "bg-white text-slate-800 shadow-md border border-slate-100" 
                                     : "text-slate-400 hover:text-slate-600 disabled:opacity-30"
                                 )}
                               >
@@ -753,7 +753,7 @@ export function Classes() {
 
                     <div className="col-span-12 space-y-4 pt-4">
                       <div className="flex items-baseline justify-between ml-1">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Matriz Curricular Ativa</label>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Matriz Curricular Ativa</label>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                           {formData.year === 'Curso Extra' ? 'Permitido até 4 disciplinas' : 'Permitido até 2 disciplinas por ciclo'}
                         </p>
@@ -769,7 +769,7 @@ export function Classes() {
                                 newIds[index] = e.target.value;
                                 setFormData({...formData, subject_ids: newIds.filter(Boolean)});
                               }}
-                              className="w-full pl-6 pr-12 py-5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed outline-none transition-all shadow-sm appearance-none group-hover:border-slate-300"
+                              className="w-full pl-6 pr-12 py-5 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 focus:border-slate-400 disabled:opacity-60 disabled:cursor-not-allowed outline-none transition-all shadow-sm appearance-none group-hover:border-slate-300"
                             >
                               <option value="">{index === 0 ? 'Selecionar Disciplina Primária...' : 'Selecionar Disciplina Secundária...'}</option>
                               {subjects
@@ -800,19 +800,19 @@ export function Classes() {
 
                     <div className="col-span-12 grid grid-cols-12 gap-8 pt-8">
                        <div className="col-span-3 space-y-3">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Código</label>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Código</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
                           value={formData.code || ''}
                           onChange={(e) => setFormData({...formData, code: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50 transition-all shadow-sm outline-none"
+                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 focus:border-slate-400 disabled:bg-slate-100 disabled:opacity-50 transition-all shadow-sm outline-none"
                           tabIndex={1}
                         />
                       </div>
                       <div className="col-span-6 space-y-3">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Nome Identificador do Curso</label>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nome Identificador do Curso</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
@@ -820,19 +820,19 @@ export function Classes() {
                           value={formData.name || ''}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-sm outline-none transition-all uppercase placeholder:text-slate-300"
+                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 focus:border-slate-400 shadow-sm outline-none transition-all uppercase placeholder:text-slate-300"
                           tabIndex={2}
                         />
                       </div>
                       <div className="col-span-3 space-y-3">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Sala / Local</label>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Sala / Local</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
                           value={formData.room || ''}
                           onChange={(e) => setFormData({...formData, room: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 shadow-sm outline-none transition-all"
+                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 shadow-sm outline-none transition-all"
                           tabIndex={3}
                         />
                       </div>
@@ -840,7 +840,7 @@ export function Classes() {
 
                     <div className="col-span-12 grid grid-cols-12 gap-8">
                        <div className="col-span-4 space-y-3 pt-2">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Prevista de Início</label>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Data Prevista de Início</label>
                         <div className="relative group">
                           <input 
                             type="date"
@@ -848,24 +848,24 @@ export function Classes() {
                             value={formData.start_date || ''}
                             onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                             onKeyDown={handleKeyDown}
-                            className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 focus:ring-8 focus:ring-indigo-500/10 shadow-sm outline-none transition-all"
+                            className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 shadow-sm outline-none transition-all"
                             tabIndex={5}
                           />
                           <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
                       </div>
                       <div className="col-span-8 space-y-3 pt-2">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Turno de Aula</label>
-                        <div className="flex bg-slate-100 rounded-[1.25rem] p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Turno de Aula</label>
+                        <div className="flex bg-slate-100 rounded-none p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
                           {['Manhã', 'Tarde', 'Noite'].map(p => (
                             <button
                               key={p}
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, period: p as any})}
                               className={cn(
-                                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                "flex-1 py-3 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
                                 formData.period === p 
-                                  ? "bg-white text-indigo-600 shadow-md border border-slate-100" 
+                                  ? "bg-white text-slate-800 shadow-md border border-slate-100" 
                                   : "text-slate-400 hover:text-slate-600"
                               )}
                             >
@@ -881,10 +881,10 @@ export function Classes() {
                 {/* Days of Week */}
                 <section className="space-y-6">
                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                     <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-400">
                       <Clock size={20} />
                      </div>
-                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                     <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest">
                         Cronograma da Semana
                       </h4>
                       <div className="flex-1 h-px bg-slate-100" />
@@ -896,10 +896,10 @@ export function Classes() {
                         disabled={!isEditing}
                         onClick={() => toggleDay(day.value)}
                         className={cn(
-                          "px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-500 flex items-center gap-3 border shadow-sm",
+                          "px-6 py-4 rounded-none text-xs font-bold uppercase tracking-widest transition-all duration-500 flex items-center gap-3 border shadow-sm",
                           formData.days_of_week?.includes(day.value)
-                            ? "bg-indigo-600 border-indigo-500 text-white shadow-xl shadow-indigo-100 scale-105"
-                            : "bg-white border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-600"
+                            ? "bg-slate-800 border-slate-400 text-white shadow-xl shadow-none scale-105"
+                            : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-800"
                         )}
                       >
                         {formData.days_of_week?.includes(day.value) ? <CheckCircle2 size={18} /> : <div className="w-4.5 h-4.5 rounded-full border-2 border-slate-200" />}
@@ -912,10 +912,10 @@ export function Classes() {
                 {/* Additional Info */}
                 <section className="space-y-6">
                   <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                     <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-400">
                       <FileText size={20} />
                      </div>
-                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                     <h4 className="text-sm font-bold text-slate-900 uppercase tracking-widest">
                         Observações Complementares
                       </h4>
                       <div className="flex-1 h-px bg-slate-100" />
@@ -930,7 +930,7 @@ export function Classes() {
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
                     rows={6}
-                    className="w-full px-8 py-6 bg-white border border-slate-200 rounded-[2rem] text-sm font-medium text-slate-700 focus:ring-8 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:bg-slate-100/50 outline-none transition-all resize-none shadow-sm placeholder:text-slate-300"
+                    className="w-full px-8 py-6 bg-white border border-slate-200 rounded-none text-sm font-medium text-slate-700 focus:ring-8 focus:ring-slate-500/5 focus:border-slate-400 disabled:bg-slate-100/50 outline-none transition-all resize-none shadow-sm placeholder:text-slate-300"
                     tabIndex={6}
                   />
                 </section>
@@ -941,13 +941,13 @@ export function Classes() {
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50/20 p-20">
             <div className="flex flex-col items-center text-center max-w-sm space-y-10">
               <div className="relative">
-                <div className="absolute inset-0 bg-indigo-500/10 blur-3xl rounded-full" />
-                <div className="relative w-32 h-32 bg-white rounded-[3rem] shadow-2xl flex items-center justify-center text-slate-200 border border-slate-50">
+                <div className="absolute inset-0 bg-slate-600/10 blur-3xl rounded-full" />
+                <div className="relative w-32 h-32 bg-white rounded-none shadow-2xl flex items-center justify-center text-slate-200 border border-slate-50">
                   <School size={64} className="animate-pulse" />
                 </div>
               </div>
               <div className="space-y-3">
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Base de Conhecimento</h3>
+                <h3 className="text-2xl font-bold text-slate-900 tracking-tight uppercase">Base de Conhecimento</h3>
                 <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest leading-loose">
                   Navegue pela listagem lateral para visualizar os detalhes cadastrais ou criar novos grupos de ensino.
                 </p>
@@ -960,8 +960,8 @@ export function Classes() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedClass && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
               <Trash2 size={32} />
             </div>
             <div className="text-center space-y-2">
@@ -974,14 +974,14 @@ export function Classes() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
               >
                 {loading ? 'Excluindo...' : 'Sim, Excluir'}
               </button>
@@ -1000,7 +1000,7 @@ export function Classes() {
                 {inst?.logo_url ? (
                   <img src={inst.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
                 ) : (
-                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
                     <span className="leading-none">SEM</span>
                     <span className="leading-none">LOGO</span>
                   </div>
@@ -1008,7 +1008,7 @@ export function Classes() {
               </div>
               <div className="flex-1 flex flex-col">
                 <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-                <h1 className="text-[19pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
+                <h1 className="text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
                   {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                 </h1>
                 <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
@@ -1019,7 +1019,7 @@ export function Classes() {
 
             {/* Document Title */}
             <div className="bg-black text-white py-2 px-4 mb-6 flex justify-between items-center">
-              <h2 className="text-[14pt] font-black uppercase tracking-widest">FICHA DA TURMA</h2>
+              <h2 className="text-[14pt] font-bold uppercase tracking-widest">FICHA DA TURMA</h2>
               <span className="text-[10pt] font-bold">Turma: {selectedClass.code}</span>
             </div>
 
@@ -1028,7 +1028,7 @@ export function Classes() {
               <div className="grid grid-cols-1 gap-4">
                 <div className="border-b border-black/10 pb-2">
                   <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Nome do Curso / Turma</p>
-                  <p className="text-[12pt] font-black uppercase text-[#00174b]">{selectedClass.name}</p>
+                  <p className="text-[12pt] font-bold uppercase text-[#00174b]">{selectedClass.name}</p>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-4">
@@ -1067,7 +1067,7 @@ export function Classes() {
                   <div className="space-y-1 mt-2">
                     {selectedClass.subject_ids?.map(sid => (
                       <p key={sid} className="text-[10pt] font-bold text-[#00174b] uppercase flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
                         {subjects.find(s => s.id === sid)?.name || '---'}
                       </p>
                     ))}
@@ -1093,14 +1093,14 @@ export function Classes() {
                 </div>
                 <div className="flex flex-col items-center">
                   <div className="w-[85mm] border-t-2 border-black mb-1"></div>
-                  <p className="text-[10pt] font-black uppercase tracking-widest text-[#00174b]">Assinatura da Secretaria</p>
+                  <p className="text-[10pt] font-bold uppercase tracking-widest text-[#00174b]">Assinatura da Secretaria</p>
                   <p className="text-[7pt] text-slate-400 font-bold mt-1 tracking-tighter">Escola Diocesana de Ministérios - ESMIN</p>
                 </div>
               </div>
             </div>
 
             {/* Institutional Footer */}
-            <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight mb-2">
+            <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-bold text-black uppercase tracking-tight mb-2">
               <div className="flex-1 space-y-1">
                 <p className="leading-none text-[9pt]">
                   {inst?.address}
@@ -1128,7 +1128,7 @@ export function Classes() {
                 </div>
               </div>
               {inst?.secretary && (
-                <div className="text-right max-w-[450px] leading-tight text-black font-black uppercase text-[8pt]">
+                <div className="text-right max-w-[450px] leading-tight text-black font-bold uppercase text-[8pt]">
                   <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
                   <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{inst.secretary}</p>
                 </div>

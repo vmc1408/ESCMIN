@@ -1311,26 +1311,25 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-6 space-y-6 no-print">
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 p-3 bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 no-print flex items-center justify-center group overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-white" />
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 p-2 bg-white rounded-none border border-slate-200 no-print flex items-center justify-center group overflow-hidden relative">
             {institution?.logo ? (
-              <img src={institution.logo} alt="Logo" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700 relative z-10" />
+              <img src={institution.logo} alt="Logo" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 relative z-10" />
             ) : (
-              <School size={28} className="text-emerald-600 relative z-10" />
+              <School size={20} className="text-slate-605 relative z-10" />
             )}
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight uppercase">
               {activeTab === 'marking' ? 'Chamada Diária' : 'Frequência Mensal'}
             </h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-200 animate-pulse" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{institution?.name || 'CENTRO DE ENSINO'}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-slate-400" />
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{institution?.name || 'CENTRO DE ENSINO'}</p>
               </div>
-              <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-300" />
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-100/50 px-3 py-1 rounded-full border border-slate-200/50">Diário Digital de Classe</p>
+              <div className="hidden sm:block w-1 h-1 bg-slate-300" />
+              <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest bg-slate-100/60 px-3 py-1 rounded-none border border-slate-200/50">Diário Digital de Classe</p>
             </div>
           </div>
         </div>
@@ -1339,18 +1338,16 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           {selectedClass && (
             <div className="flex flex-wrap items-center gap-3">
               {activeTab === 'monthly' && (
-                <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
-                   <span className="relative flex h-2 w-2">
-                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-none text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
+                   <span className="relative flex h-1.5 w-1.5">
+                     <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                    </span>
                    <span>{monthlyClassDays.filter(d => !d.isCancelled).length} Aulas Agendadas</span>
                 </div>
               )}
-              <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
-                 <span className="relative flex h-2 w-2">
-                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                   <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              <div className="px-4 py-2 bg-slate-50 border border-slate-200 text-slate-700 rounded-none text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm">
+                 <span className="relative flex h-1.5 w-1.5">
+                   <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
                  </span>
                  <span>{students.length} Alunos Inscritos</span>
               </div>
@@ -1358,19 +1355,19 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           )}
 
           {!initialMode && (
-            <div className="flex bg-slate-100/50 backdrop-blur-xl p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
+            <div className="flex bg-slate-150 p-1 rounded-none border border-slate-200/60 shadow-inner">
               {[
-                { id: 'marking', label: 'Chamada', color: 'emerald' },
-                { id: 'monthly', label: 'Mensal', color: 'indigo' }
+                { id: 'marking', label: 'Chamada' },
+                { id: 'monthly', label: 'Mensal' }
               ].map((tab) => (
                 <button 
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={cn(
-                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300",
+                    "px-5 py-2 rounded-none text-[10px] font-bold uppercase tracking-[0.1em] transition-all duration-300",
                     activeTab === tab.id 
-                      ? "bg-white text-slate-900 shadow-lg border border-slate-100" 
-                      : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
+                      ? "bg-slate-800 text-white shadow border border-slate-700" 
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
                   )}
                 >
                   {tab.label}
@@ -1388,23 +1385,23 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <button 
                       disabled={saving || closing || !selectedSubject || !isScheduledDay}
                       onClick={saveAttendance}
-                      className="group relative flex items-center gap-3 h-12 px-6 bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white hover:border-slate-400 transition-all active:scale-95 disabled:opacity-50 overflow-hidden"
+                      className="group relative flex items-center gap-2 h-10 px-4 bg-slate-100 text-slate-700 border border-slate-350 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50"
                     >
-                      {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                       <span>Salvar Rascunho</span>
                     </button>
                     <button 
                       disabled={saving || closing || !selectedSubject || !isScheduledDay}
                       onClick={closeAttendance}
-                      className="group relative flex items-center gap-3 h-12 px-8 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black shadow-xl shadow-slate-200/50 transition-all active:scale-95 disabled:opacity-50 overflow-hidden"
+                      className="group relative flex items-center gap-2 h-10 px-5 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 border border-slate-800 transition-all active:scale-95 disabled:opacity-50"
                     >
-                      {closing ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                      {closing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                       <span>Fechar Lançamentos</span>
                     </button>
                   </>
                 ) : (
-                  <div className="flex items-center gap-3 h-12 px-8 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-100">
-                    <Check size={16} />
+                  <div className="flex items-center gap-2 h-10 px-5 bg-slate-100 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-200">
+                    <Check size={14} />
                     <span>Lançamentos Finalizados</span>
                   </div>
                 )}
@@ -1415,15 +1412,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/30 overflow-hidden text-slate-900">
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden text-slate-900">
         {/* Filter Bar */}
-        <div className="p-5 md:p-6 border-b border-slate-100 bg-slate-50/40">
+        <div className="p-4 md:p-5 border-b border-slate-200 bg-slate-50/50">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Turma</label>
+            <div className="space-y-2">
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Turma</label>
               <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
-                  <School size={18} />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                  <School size={16} />
                 </div>
                 <select
                   value={selectedClass}
@@ -1431,78 +1428,78 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     setSelectedClass(e.target.value);
                     setSelectedSubject('');
                   }}
-                  className="w-full pl-16 pr-8 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all outline-none"
+                  className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 appearance-none transition-all outline-none"
                 >
                   <option value="">SELECIONAR TURMA...</option>
                   {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </select>
-                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
+                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
               </div>
             </div>
 
             {(activeTab === 'marking' || activeTab === 'monthly') && (
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Disciplina</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Disciplina</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
-                    <BookOpen size={18} />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                    <BookOpen size={16} />
                    </div>
                   <select
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
                     disabled={!selectedClass}
-                    className="w-full pl-16 pr-8 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
+                    className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
                   >
                     <option value="">SELECIONAR DISCIPLINA...</option>
                     {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
                   </select>
-                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={20} />
+                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                 </div>
               </div>
             )}
 
             {activeTab === 'monthly' && (
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Período</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Período</label>
                 <div className="grid grid-cols-5 gap-3">
                   <div className="col-span-3 relative group">
                     <select
                       value={selectedMonth}
                       onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                      className="w-full px-6 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all outline-none"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 outline-none"
                     >
                       {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
                         <option key={i} value={i}>{m.toUpperCase()}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={18} />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                   </div>
                   <div className="col-span-2 relative group">
                     <select
                       value={selectedYear}
                       onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-6 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 appearance-none transition-all outline-none text-center"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 outline-none text-center"
                     >
                       {[2024, 2025, 2026, 2027, 2028].map(y => (
                         <option key={y} value={y}>{y}</option>
                       ))}
                     </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={18} />
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'marking' && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Data</label>
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Data</label>
                   {selectedClass && (
                     <motion.div 
                       layout
                       className={cn(
-                        "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border",
-                        availableDates.length > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"
+                        "px-2.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest border",
+                        availableDates.length > 0 ? "bg-slate-50 text-slate-600 border-slate-200" : "bg-slate-50 text-slate-400 border-slate-200"
                       )}
                     >
                       {availableDates.length > 0 ? `${availableDates.length} AGENDADOS` : 'FORA DO CALENDÁRIO'}
@@ -1511,32 +1508,29 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   <div className="col-span-3 relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 transition-all duration-300 shadow-sm">
-                      <CalendarIcon size={18} />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                      <CalendarIcon size={16} />
                     </div>
                     <select
-                    disabled={!selectedClass || availableDates.length === 0}
-                    value={parseDateToDB(selectedDate)}
-                    onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
-                    className={cn(
-                      "w-full pl-16 pr-10 py-4 bg-white border border-slate-200 rounded-xl text-[13px] font-bold text-slate-900 focus:ring-4 focus:border-slate-400 appearance-none transition-all outline-none",
-                      availableDates.length > 0 ? "focus:ring-slate-500/5" : "ring-4 ring-red-50/50"
-                    )}
-                  >
-                    <option value="">DATA...</option>
-                    {[...availableDates].reverse().map(date => (
-                      <option key={date.dbValue} value={date.dbValue}>
-                        {date.label.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      disabled={!selectedClass || availableDates.length === 0}
+                      value={parseDateToDB(selectedDate)}
+                      onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
+                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 outline-none"
+                    >
+                      <option value="">DATA...</option>
+                      {[...availableDates].reverse().map(date => (
+                        <option key={date.dbValue} value={date.dbValue}>
+                          {date.label.toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                   </div>
                   <div className="col-span-1 relative group">
                     <select
                       value={selectedYear}
                       onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-2 py-4 bg-white border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:ring-4 focus:border-slate-400 appearance-none transition-all outline-none text-center"
+                      className="w-full px-2 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 outline-none text-center"
                     >
                       {[2024, 2025, 2026, 2027, 2028].map(y => (
                         <option key={y} value={y}>{y}</option>
@@ -1551,15 +1545,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
         {/* Action Strip for Marking */}
         {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
-          <div className="px-8 py-6 bg-white border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-slate-200">
+          <div className="px-5 py-3.5 bg-white border-b border-slate-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-800 text-white rounded-none flex items-center justify-center font-bold text-lg">
                 <span>{students.length}</span>
               </div>
               <div>
-                <p className="text-xs font-black text-slate-900 uppercase tracking-tight leading-none">Matriculados</p>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
-                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-tight leading-none">Matriculados</p>
+                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 bg-slate-400" />
                    Sessão ativa
                 </div>
               </div>
@@ -1569,15 +1563,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               <button
                 disabled={isClosed}
                 onClick={() => handleMarkAll('P')}
-                className="flex items-center gap-3 px-6 py-3 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-emerald-600 hover:text-white transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-705 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-300 hover:bg-slate-100 transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
-                <Check size={16} />
+                <Check size={14} />
                 Presença Geral
               </button>
               <button
                 disabled={isClosed}
                 onClick={() => handleMarkAll('F')}
-                className="flex items-center gap-3 px-6 py-3 bg-red-50 text-red-700 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-red-600 hover:text-white transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-705 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-300 hover:bg-slate-100 transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 <X size={16} />
                 Falta Geral
@@ -1587,25 +1581,24 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         )}
 
         {/* Content Area */}
-        <div className="p-5 md:p-6 bg-white">
+        <div className="p-4 md:p-5 bg-white">
           <AnimatePresence mode="wait">
             {!selectedClass ? (
               <motion.div 
                 key="empty"
-                initial={{ opacity: 0, y: 40 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="py-10 md:py-16 flex flex-col items-center text-center space-y-6"
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="py-12 md:py-16 flex flex-col items-center text-center space-y-4"
               >
                 <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-500/10 blur-[120px] rounded-full animate-pulse" />
-                  <div className="relative w-32 h-32 bg-white text-slate-200 rounded-[3rem] flex items-center justify-center shadow-2xl border border-slate-50 group hover:border-emerald-100 transition-colors duration-700">
-                    <ClipboardCheck size={64} className="relative group-hover:text-emerald-500 group-hover:scale-110 transition-all duration-700" />
+                  <div className="relative w-20 h-20 bg-white text-slate-300 rounded-none flex items-center justify-center border border-slate-200 group hover:border-slate-300 transition-colors duration-500">
+                    <ClipboardCheck size={32} className="relative group-hover:text-slate-500 transition-all duration-500" />
                   </div>
                 </div>
-                <div className="max-w-md space-y-3">
-                  <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase">Painel de Assiduidade</h3>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-loose">
+                <div className="max-w-md space-y-2">
+                  <h3 className="text-base font-bold text-slate-800 uppercase tracking-wider">Painel de Assiduidade</h3>
+                  <p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest leading-relaxed">
                     Selecione o grupo acadêmico no seletor principal para carregar o quadro de frequências dinâmico.
                   </p>
                 </div>
@@ -1615,18 +1608,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 key="loading"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="py-12 md:py-16 flex flex-col items-center justify-center gap-6"
+                className="py-12 md:py-16 flex flex-col items-center justify-center gap-4"
               >
-                <div className="relative w-20 h-20">
-                   <div className="absolute inset-0 border-[6px] border-slate-100 rounded-full" />
-                   <div className="absolute inset-0 border-[6px] border-emerald-600 rounded-full animate-spin border-t-transparent shadow-xl" />
-                   <div className="absolute inset-0 flex items-center justify-center">
-                     <div className="w-2.5 h-2.5 bg-emerald-600 rounded-full animate-ping" />
-                   </div>
+                <div className="relative w-12 h-12">
+                   <div className="absolute inset-0 border-[4px] border-slate-100 rounded-full" />
+                   <div className="absolute inset-0 border-[4px] border-slate-650 rounded-full animate-spin border-t-transparent" />
                 </div>
-                <div className="text-center space-y-2">
-                  <p className="text-[13px] font-black text-slate-900 uppercase tracking-[0.4em] animate-pulse">Sincronizando</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Acessando registros criptografados...</p>
+                <div className="text-center space-y-1">
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-widest animate-pulse">Sincronizando</p>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest leading-none">Acessando registros...</p>
                 </div>
               </motion.div>
             ) : (
@@ -1634,96 +1624,93 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 key={activeTab}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-12"
+                className="space-y-8"
               >
                 {notification && (
                   <motion.div 
-                    initial={{ opacity: 0, x: -30 }}
+                    initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={cn(
-                      "p-8 rounded-[2rem] flex items-center gap-8 border shadow-2xl animate-in slide-in-from-left-12 duration-700",
+                      "p-4 rounded-none flex items-center gap-4 border shadow-sm",
                       notification.type === 'success' 
                         ? "bg-slate-900 text-white border-slate-800" 
-                        : "bg-red-600 text-white border-red-500"
+                        : "bg-rose-950 text-white border-rose-900"
                     )}
                   >
-                    <div className={cn(
-                      "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner text-white",
-                      notification.type === 'success' ? "bg-emerald-500" : "bg-red-500"
-                    )}>
-                      {notification.type === 'success' ? <Check size={30} /> : <X size={30} />}
+                    <div className="w-8 h-8 rounded-none bg-slate-800 flex items-center justify-center flex-shrink-0 text-white">
+                      {notification.type === 'success' ? <Check size={16} /> : <X size={16} />}
                     </div>
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">Notificação do Sistema</p>
-                      <p className="text-sm font-black uppercase tracking-[0.05em]">{notification.message}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-0.5">Notificação do Sistema</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide">{notification.message}</p>
                     </div>
-                    <button onClick={() => setNotification(null)} className="ml-auto w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-                      <X size={20} />
+                    <button onClick={() => setNotification(null)} className="ml-auto w-8 h-8 rounded-none bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                      <X size={16} />
                     </button>
                   </motion.div>
                 )}
 
                 {activeTab === 'marking' ? (
-                  <div className="space-y-8">
+                  <div className="space-y-4">
                     {!selectedSubject && (
-                      <div className="bg-white border border-amber-100 p-6 md:p-8 rounded-[2rem] flex items-center gap-6 text-amber-900 shadow-xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
-                        <div className="w-14 h-14 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-500">
-                          <Info size={28} />
+                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-none flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
+                        <div className="w-10 h-10 bg-slate-100 rounded-none flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
+                          <Info size={18} />
                         </div>
-                        <div className="space-y-1">
-                           <p className="text-lg font-black uppercase tracking-tight">Etapa Pendente</p>
-                           <p className="text-[11px] font-bold text-amber-700/70 uppercase tracking-[0.1em] leading-relaxed">Selecione a disciplina correspondente no menu superior para carregar a grade de frequência.</p>
+                        <div className="space-y-0.5">
+                           <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Etapa Pendente</p>
+                           <p className="text-[11px] font-medium text-slate-505 uppercase tracking-widest leading-relaxed">Selecione a disciplina correspondente no menu superior para carregar a grade de frequência.</p>
                         </div>
                       </div>
                     )}
 
                     {!isScheduledDay && selectedClass && (
-                      <div className="bg-red-50/20 border border-red-100 p-6 md:p-8 rounded-[2rem] flex items-center gap-6 text-red-900 shadow-xl shadow-red-50/50">
-                        <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center text-red-500 flex-shrink-0 shadow-sm animate-pulse">
-                          <Clock size={28} />
+                      <div className="bg-slate-50 border-l-4 border-l-rose-500 border-y border-r border-slate-200 p-5 rounded-none flex items-center gap-4 text-slate-700 shadow-sm animate-pulse">
+                        <div className="w-10 h-10 bg-white border border-rose-100 rounded-none flex items-center justify-center text-rose-500 flex-shrink-0 shadow-sm">
+                          <Clock size={18} />
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-lg font-black uppercase tracking-tight">Data Inválida</p>
-                          <p className="text-[11px] font-bold text-red-600/70 uppercase tracking-[0.1em] leading-relaxed">A data selecionada não foi identificada no cronograma acadêmico oficial desta turma.</p>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold uppercase tracking-wider text-rose-950">Data Inválida</p>
+                          <p className="text-[11px] font-medium text-rose-800/80 uppercase tracking-widest leading-relaxed">A data selecionada não foi identificada no cronograma acadêmico oficial desta turma.</p>
                         </div>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 gap-4 mt-8">
+                    <div className="grid grid-cols-1 gap-2 mt-4">
                       {students.map((student, idx) => (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.03 }}
+                          transition={{ delay: idx * 0.02 }}
                           key={student.id} 
                           className={cn(
-                            "group flex flex-col lg:flex-row lg:items-center justify-between p-6 rounded-2xl border transition-all duration-300 relative overflow-hidden",
-                            attendance[student.id]?.status === 'P' ? "bg-emerald-50/30 border-emerald-100 shadow-sm" :
-                            attendance[student.id]?.status === 'F' ? "bg-red-50/30 border-red-100 shadow-sm" :
-                            attendance[student.id]?.status === 'J' ? "bg-amber-50/30 border-amber-100 shadow-sm" :
-                            "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
+                            "group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-none border transition-all duration-200 relative overflow-hidden",
+                            attendance[student.id]?.status === 'P' ? "bg-slate-50/50 border-slate-300 shadow-none" :
+                            attendance[student.id]?.status === 'F' ? "bg-rose-50/20 border-rose-200 shadow-none" :
+                            attendance[student.id]?.status === 'J' ? "bg-amber-50/20 border-amber-200 shadow-none" :
+                            "bg-white border-slate-200 hover:border-slate-350 shadow-none"
                           )}
                         >
-                          <div className="flex items-center gap-6 mb-6 lg:mb-0 relative z-10">
+                          <div className="flex items-center gap-4 mb-4 md:mb-0 relative z-10">
                             <div className={cn(
-                              "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black shadow-sm transition-all duration-300",
-                              attendance[student.id]?.status === 'P' ? "bg-emerald-600 text-white" :
-                              attendance[student.id]?.status === 'F' ? "bg-red-600 text-white" :
-                              attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white" :
-                              "bg-slate-900 text-white"
+                              "w-8 h-8 rounded-none flex items-center justify-center text-xs font-bold transition-all duration-300",
+                              attendance[student.id]?.status === 'P' ? "bg-slate-800 text-white" :
+                              attendance[student.id]?.status === 'F' ? "bg-rose-850 text-white" :
+                              attendance[student.id]?.status === 'J' ? "bg-amber-705 text-white" :
+                              "bg-slate-205 text-slate-700 animate-none"
                             )}>
                               {String(idx + 1).padStart(2, '0')}
                             </div>
                             <div>
-                              <p className="text-lg font-black text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
-                              <div className="flex flex-wrap items-center gap-3 mt-2">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 py-0.5 bg-slate-50 border border-slate-100 rounded-md">RA: {student.registration_number}</span>
+                              <p className="text-sm font-semibold text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
+                              <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-none">RA: {student.registration_number}</span>
                                 {attendance[student.id]?.status && (
                                   <span className={cn(
-                                    "text-[9px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full border shadow-sm",
-                                    attendance[student.id]?.status === 'P' ? "bg-emerald-500 text-white border-emerald-400" :
-                                    attendance[student.id]?.status === 'F' ? "bg-red-500 text-white border-red-400" :
-                                    "bg-amber-500 text-white border-amber-400"
+                                    "text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-none border shadow-sm",
+                                    attendance[student.id]?.status === 'P' ? "bg-slate-100 text-slate-700 border-slate-300" :
+                                    attendance[student.id]?.status === 'F' ? "bg-rose-50 text-rose-705 border-rose-200" :
+                                    "bg-amber-50 text-amber-705 border-amber-200"
                                   )}>
                                     {attendance[student.id]?.status === 'P' ? 'Presente' : attendance[student.id]?.status === 'F' ? 'Falta' : 'Justificado'}
                                   </span>
@@ -1732,26 +1719,26 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 relative z-10">
+                          <div className="flex items-center gap-1.5 relative z-10">
                             {[
-                              { id: 'P', label: 'Presente', icon: Check, color: 'emerald' },
-                              { id: 'F', label: 'Falta', icon: X, color: 'red' },
-                              { id: 'J', label: 'Justificar', icon: Info, color: 'amber' }
+                              { id: 'P', label: 'Presente', icon: Check },
+                              { id: 'F', label: 'Falta', icon: X },
+                              { id: 'J', label: 'Justificar', icon: Info }
                             ].map((btn) => (
                               <button
                                 key={btn.id}
                                 disabled={isClosed}
                                 onClick={() => handleStatusChange(student.id, btn.id as any)}
                                 className={cn(
-                                  "flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300 border",
+                                  "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all duration-200 border",
                                   attendance[student.id]?.status === btn.id
-                                    ? `bg-slate-900 text-white border-slate-900 shadow-lg`
-                                    : `bg-white border-slate-200 text-slate-400 hover:border-slate-400 hover:text-slate-900`,
+                                    ? `bg-slate-800 text-white border-slate-800 shadow-sm`
+                                    : `bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-805`,
                                   isClosed && attendance[student.id]?.status !== btn.id && "opacity-20 grayscale cursor-not-allowed"
                                 )}
                               >
-                                <btn.icon size={14} />
-                                <span className="hidden xl:block">{btn.label}</span>
+                                <btn.icon size={12} />
+                                <span className="hidden sm:block">{btn.label}</span>
                               </button>
                             ))}
                           </div>
@@ -1760,49 +1747,49 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-8">
+                  <div className="space-y-6">
                     {!selectedSubject ? (
-                      <div className="bg-white border border-amber-100 p-6 md:p-8 rounded-[2rem] flex items-center gap-6 text-amber-900 shadow-xl shadow-amber-50/50 group hover:border-amber-400 transition-all duration-700">
-                        <div className="w-14 h-14 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-500">
-                          <Info size={28} />
+                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-none flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
+                        <div className="w-10 h-10 bg-slate-100 rounded-none flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
+                          <Info size={18} />
                         </div>
-                        <div className="space-y-1">
-                           <p className="text-lg font-black uppercase tracking-tight">Etapa Pendente</p>
-                           <p className="text-[11px] font-bold text-amber-700/70 uppercase tracking-[0.1em] leading-relaxed">Selecione a disciplina correspondente no menu superior para carregar os relatórios de frequência.</p>
+                        <div className="space-y-0.5">
+                           <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Etapa Pendente</p>
+                           <p className="text-[11px] font-medium text-slate-505 uppercase tracking-widest leading-relaxed">Selecione a disciplina correspondente no menu superior para carregar os relatórios de frequência.</p>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Card 1: Relatório de Lançamentos */}
-                          <div className="bg-white border border-slate-250 p-8 rounded-[2.5rem] flex flex-col justify-between hover:border-indigo-400 group transition-all duration-300 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 text-slate-50/80 group-hover:text-indigo-50/30 transition-colors pointer-events-none">
-                              <FileText size={140} className="-mr-14 -mt-14" />
+                          <div className="bg-white border border-slate-200 p-6 rounded-none flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-6 text-slate-100/40 pointer-events-none">
+                              <FileText size={120} className="-mr-12 -mt-12" />
                             </div>
                             <div className="relative z-10">
-                              <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-inner border border-indigo-100/50">
-                                <FileText size={32} />
+                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
+                                <FileText size={24} />
                               </div>
-                              <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Frequência Consolidada</h4>
-                              <p className="text-xs font-bold text-slate-400 uppercase mt-2 tracking-widest">Lançamentos do Mês</p>
-                              <p className="text-sm font-medium text-slate-500 mt-4 leading-relaxed max-w-sm">
+                              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Frequência Consolidada</h4>
+                              <p className="text-[10px] font-semibold text-slate-400 uppercase mt-1 tracking-widest">Lançamentos do Mês</p>
+                              <p className="text-xs font-medium text-slate-550 mt-3 leading-relaxed max-w-sm">
                                 Documento que consolida todas as presenças, faltas e justificativas já registradas no sistema ao longo de todo o mês para fins de avaliação de presença.
                               </p>
                             </div>
-                            <div className="mt-8 pt-6 border-t border-slate-105 relative z-10">
+                            <div className="mt-6 pt-4 border-t border-slate-100 relative z-10">
                               <button 
                                 onClick={() => processPrint('report')}
                                 disabled={isPrinting}
-                                className="w-full flex items-center justify-center gap-3 h-14 bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-indigo-100 duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full h-11 bg-slate-850 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
                                   <>
-                                    <Loader2 size={16} className="animate-spin" />
+                                    <Loader2 size={14} className="animate-spin" />
                                     Preparando Documento...
                                   </>
                                 ) : (
                                   <>
-                                    <Printer size={16} />
+                                    <Printer size={14} />
                                     Imprimir Relatório Mensal
                                   </>
                                 )}
@@ -1811,34 +1798,34 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           </div>
 
                           {/* Card 2: Lista Chamada em Branco (Gabarito) */}
-                          <div className="bg-white border border-slate-250 p-8 rounded-[2.5rem] flex flex-col justify-between hover:border-emerald-400 group transition-all duration-300 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-8 text-slate-50/80 group-hover:text-emerald-50/30 transition-colors pointer-events-none">
-                              <ClipboardCheck size={140} className="-mr-14 -mt-14" />
+                          <div className="bg-white border border-slate-200 p-6 rounded-none flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-6 text-slate-100/40 pointer-events-none">
+                              <ClipboardCheck size={120} className="-mr-12 -mt-12" />
                             </div>
                             <div className="relative z-10">
-                              <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 transition-transform duration-300 shadow-inner border border-emerald-100/50">
-                                <ClipboardCheck size={32} />
+                              <div className="w-12 h-12 bg-slate-50 rounded-none flex items-center justify-center text-slate-705 mb-4 border border-slate-200">
+                                <ClipboardCheck size={24} />
                               </div>
-                              <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Ficha para Visto Manual</h4>
-                              <p className="text-xs font-bold text-slate-400 uppercase mt-2 tracking-widest">Cédula em Branco</p>
-                              <p className="text-sm font-medium text-slate-500 mt-4 leading-relaxed max-w-sm">
+                              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Ficha para Visto Manual</h4>
+                              <p className="text-[10px] font-semibold text-slate-400 uppercase mt-1 tracking-widest">Cédula em Branco</p>
+                              <p className="text-xs font-medium text-slate-550 mt-3 leading-relaxed max-w-sm">
                                 Imprime a folha de presença mestre em branco, contendo a lista completa de alunos e o calendário de datas, ideal para preenchimento manual em sala.
                               </p>
                             </div>
-                            <div className="mt-8 pt-6 border-t border-slate-105 relative z-10">
+                            <div className="mt-6 pt-4 border-t border-slate-100 relative z-10">
                               <button 
                                 onClick={() => processPrint('marking')}
                                 disabled={isPrinting}
-                                className="w-full flex items-center justify-center gap-3 h-14 bg-emerald-600 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:shadow-xl hover:shadow-emerald-100 duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full h-11 bg-slate-850 hover:bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                               >
                                 {isPrinting ? (
                                   <>
-                                    <Loader2 size={16} className="animate-spin" />
+                                    <Loader2 size={14} className="animate-spin" />
                                     Preparando Documento...
                                   </>
                                 ) : (
                                   <>
-                                    <Printer size={16} />
+                                    <Printer size={14} />
                                     Imprimir Lista em Branco
                                   </>
                                 )}
@@ -1859,14 +1846,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     
     {/* PDF Printing Overlay Backdrop */}
       {isPrinting && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[500] flex items-center justify-center p-4">
-          <div className="bg-white px-8 py-10 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center max-w-sm w-full text-center border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-6 shadow-inner border border-indigo-100/50">
-              <Loader2 size={32} className="animate-spin" />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
+          <div className="bg-white px-6 py-8 rounded-none shadow-xl flex flex-col items-center justify-center max-w-sm w-full text-center border border-slate-200">
+            <div className="w-12 h-12 rounded-none bg-slate-50 text-slate-800 flex items-center justify-center mb-4 border border-slate-200">
+              <Loader2 size={24} className="animate-spin" />
             </div>
-            <h3 className="text-lg font-black text-slate-950 tracking-tight uppercase">Gerando Relatório</h3>
-            <p className="text-xs font-bold text-slate-400 uppercase mt-1 tracking-wider">Aguarde um instante</p>
-            <p className="text-sm font-medium text-slate-500 mt-4 leading-relaxed">
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight uppercase">Gerando Relatório</h3>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase mt-1 tracking-wider">Aguarde um instante</p>
+            <p className="text-xs font-medium text-slate-500 mt-4 leading-relaxed">
               O documento está sendo consolidado e a tela de impressão do seu navegador abrirá automaticamente em instantes.
             </p>
           </div>

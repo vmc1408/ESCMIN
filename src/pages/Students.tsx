@@ -53,14 +53,14 @@ const StudentItem = React.memo(({
     <button
       onClick={() => onSelect(student)}
       className={cn(
-        "w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left",
+        "w-full flex items-center gap-3 p-2.5 rounded-none transition-all text-left",
         isSelected 
-          ? "bg-indigo-50 border-indigo-100 shadow-sm" 
+          ? "bg-slate-50 border-slate-200 shadow-sm" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-md bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200">
+      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200">
         {student.photo_url ? (
           <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
@@ -71,7 +71,7 @@ const StudentItem = React.memo(({
         <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{student.name}</p>
         <div className="flex items-center gap-2">
           <span className={cn(
-            "text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider",
+            "text-[9px] font-bold px-1.5 py-0.5 rounded-none uppercase tracking-wider",
             student.status === 'Inativo' ? "bg-red-50 text-red-700 border border-red-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
           )}>
             {student.status || 'Ativo'}
@@ -599,7 +599,7 @@ export function Students() {
               {institution?.logo_url ? (
                 <img src={institution.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
               ) : (
-                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
                   <span className="leading-none">SEM</span>
                   <span className="leading-none">LOGO</span>
                 </div>
@@ -607,7 +607,7 @@ export function Students() {
             </div>
             <div className="flex-1 flex flex-col">
               <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[19pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
+              <h1 className="text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
                 {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
               <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
@@ -646,7 +646,7 @@ export function Students() {
                   return (
                     <div key={course} className="flex items-center gap-3">
                       <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white relative shrink-0">
-                        {isChecked && <span className="text-[10pt] font-black leading-none text-black">X</span>}
+                        {isChecked && <span className="text-[10pt] font-bold leading-none text-black">X</span>}
                       </div>
                       <span className="text-[9.5pt] font-medium leading-none uppercase">{course === 'S. Negros' ? 'História dos Santos Negros' : course}</span>
                     </div>
@@ -657,7 +657,7 @@ export function Students() {
                 {(studentEnrollments.length > 0) && (
                   <div className="mt-2 pt-2 border-t border-black/10">
                     <p className="text-[7pt] font-bold uppercase mb-1">Turmas Ativas:</p>
-                    <p className="text-[8.5pt] font-black leading-tight uppercase">
+                    <p className="text-[8.5pt] font-bold leading-tight uppercase">
                       {[
                         currentClass?.name,
                         ...studentEnrollments
@@ -725,7 +725,7 @@ export function Students() {
                   <div className="flex items-center gap-1">
                     <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
                        {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
-                         <span className="text-[10pt] font-black leading-none text-black">X</span>
+                         <span className="text-[10pt] font-bold leading-none text-black">X</span>
                        )}
                     </div>
                     <span className="font-bold uppercase text-[8pt]">Sim</span>
@@ -733,7 +733,7 @@ export function Students() {
                   <div className="flex items-center gap-1">
                     <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
                        {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
-                         <span className="text-[10pt] font-black leading-none text-black">X</span>
+                         <span className="text-[10pt] font-bold leading-none text-black">X</span>
                        )}
                     </div>
                     <span className="font-bold uppercase text-[8pt]">Não</span>
@@ -785,7 +785,7 @@ export function Students() {
           </div>
 
           {/* BASIC INFORMATION SECTION */}
-          <div className="mb-2 p-3 bg-white border border-black/20 rounded-xl">
+          <div className="mb-2 p-3 bg-white border border-black/20 rounded-none">
             <h4 className="text-[10pt] font-bold uppercase text-center mb-3 tracking-wider">Normas Básicas para Admissão</h4>
             <div className="text-[8.5pt] leading-relaxed space-y-1 font-normal text-slate-800">
               <p>1) O(a) aluno(a) concorda em priorizar a frequência no curso escolhido.</p>
@@ -809,7 +809,7 @@ export function Students() {
           <div className="mt-auto mb-4 scale-[0.95] origin-bottom">
             <div className="flex justify-between items-end px-6">
               <div className="flex flex-col pb-2">
-                <p className="text-[11pt] font-black text-black">
+                <p className="text-[11pt] font-bold text-black">
                   Guarulhos, <span>
                     {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
                   </span>
@@ -817,13 +817,13 @@ export function Students() {
               </div>
               <div className="flex flex-col items-center">
                 <div className="w-[90mm] border-t-2 border-black mb-1"></div>
-                <p className="text-[10pt] font-black uppercase tracking-[0.2em] text-black">Assinatura do Aluno(a)</p>
+                <p className="text-[10pt] font-bold uppercase tracking-[0.2em] text-black">Assinatura do Aluno(a)</p>
               </div>
             </div>
           </div>
 
           {/* RODAPÉ */}
-          <div className="border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight mb-2">
+          <div className="border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-bold text-black uppercase tracking-tight mb-2">
             <div className="flex-1 space-y-1">
               <p className="leading-none text-[9pt]">
                 {institution?.address}
@@ -851,7 +851,7 @@ export function Students() {
               </div>
             </div>
             {institution?.secretary && (
-              <div className="text-right max-w-[450px] leading-tight text-black font-black uppercase text-[8pt]">
+              <div className="text-right max-w-[450px] leading-tight text-black font-bold uppercase text-[8pt]">
                 <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
                 <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{institution.secretary}</p>
               </div>
@@ -908,7 +908,7 @@ export function Students() {
   return (
     <div className="h-[calc(100vh-6rem)] flex gap-4">
       {/* Sidebar List */}
-      <div className="w-[380px] bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden order-last">
+      <div className="w-[380px] bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -919,7 +919,7 @@ export function Students() {
             </div>
             <button 
               onClick={handleNew}
-              className="px-3 h-8 bg-indigo-600 text-white rounded-md text-[11px] font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
+              className="px-3 h-8 bg-slate-800 text-white rounded-none text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20 uppercase tracking-widest"
             >
               <Plus size={14} />
               Novo
@@ -933,7 +933,7 @@ export function Students() {
                 placeholder="Buscar por nome, RA ou CPF..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] focus:ring-1 focus:ring-indigo-500/20 focus:bg-white transition-all outline-none"
+                className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-none text-[11px] focus:ring-1 focus:ring-slate-500/10 focus:bg-white transition-all outline-none"
               />
             </div>
             <div className="flex gap-1.5">
@@ -942,7 +942,7 @@ export function Students() {
                   key={status}
                   onClick={() => setStatusFilter(status)}
                   className={cn(
-                    "flex-1 py-1.5 text-[9px] font-bold rounded-md transition-all border uppercase tracking-wider",
+                    "flex-1 py-1.5 text-[9px] font-bold rounded-none transition-all border uppercase tracking-wider",
                     statusFilter === status 
                       ? "bg-slate-800 border-slate-800 text-white shadow-sm" 
                       : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
@@ -957,7 +957,7 @@ export function Students() {
               <select 
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-indigo-500/20 outline-none"
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-none text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-slate-500/10 outline-none"
               >
                 <option value="">Todas as Turmas</option>
                 {classes.filter(c => c.status === 'Ativo').map(c => (
@@ -968,7 +968,7 @@ export function Students() {
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-indigo-500/20 outline-none"
+                  className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-none text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-slate-500/10 outline-none"
                 >
                   <option value="">Escolha um ano</option>
                   <option value="all">Todos os Anos</option>
@@ -976,7 +976,7 @@ export function Students() {
                 </select>
                 <button
                   onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
-                  className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded-md hover:bg-slate-50 transition-colors"
+                  className="p-1.5 bg-white border border-slate-200 text-slate-500 rounded-none hover:bg-slate-50 transition-colors"
                   title={sortBy === 'name' ? "Ordering by RA" : "Ordering by Name"}
                 >
                   <ArrowUpDown size={14} />
@@ -989,7 +989,7 @@ export function Students() {
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {loading ? (
             <div className="flex items-center justify-center h-32">
-              <Loader2 className="animate-spin text-blue-500" />
+              <Loader2 className="animate-spin text-slate-705" />
             </div>
           ) : !selectedYear ? (
             <div className="flex flex-col items-center justify-center h-48 text-slate-400 p-6 text-center">
@@ -1013,12 +1013,12 @@ export function Students() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-lg shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden">
         {selectedStudent || isEditing ? (
           <>
             {notification && (
               <div className={cn(
-                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-md shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2",
+                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-none shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2",
                 notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
               )}>
                 {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
@@ -1029,7 +1029,7 @@ export function Students() {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
                 <div className="relative group">
-                  <div className="w-20 h-28 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-200 overflow-hidden border border-slate-200 relative">
+                  <div className="w-20 h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
                     {formData.photo_url ? (
                       <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -1037,21 +1037,21 @@ export function Students() {
                     )}
                     
                     {uploadingPhoto && (
-                      <div className="absolute inset-0 bg-indigo-900/40 backdrop-blur-[1px] flex items-center justify-center">
+                      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex items-center justify-center">
                         <Loader2 className="text-white animate-spin" size={20} />
                       </div>
                     )}
                   </div>
                   {isEditing && !uploadingPhoto && (
-                    <div className="absolute inset-0 bg-black/40 rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <div className="absolute inset-0 bg-black/40 rounded-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button 
                         onClick={() => setShowWebcam(true)}
-                        className="p-1.5 bg-white text-indigo-600 rounded hover:scale-105 transition-transform"
+                        className="p-1.5 bg-white text-slate-800 rounded hover:scale-105 transition-transform"
                         title="Tirar Foto"
                       >
                         <Camera size={14} />
                       </button>
-                      <label className="p-1.5 bg-white text-indigo-600 rounded hover:scale-105 transition-transform cursor-pointer" title="Upload Foto">
+                      <label className="p-1.5 bg-white text-slate-800 rounded hover:scale-105 transition-transform cursor-pointer" title="Upload Foto">
                         <Upload size={14} />
                         <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                       </label>
@@ -1078,7 +1078,7 @@ export function Students() {
                   <>
                     <button 
                       onClick={handlePrint}
-                      className="h-10 w-10 bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center shadow-sm"
+                      className="h-10 w-10 bg-white border border-slate-200 text-slate-400 rounded-none hover:text-slate-800 hover:border-slate-205 transition-all flex items-center justify-center shadow-sm"
                       title="Imprimir Ficha"
                     >
                       <Printer size={18} />
@@ -1086,7 +1086,7 @@ export function Students() {
                     
                     <button 
                       onClick={() => navigate('/contributions', { state: { studentId: selectedStudent.id } })}
-                      className="h-10 px-4 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-all flex items-center gap-2 uppercase tracking-wide"
+                      className="h-10 px-4 bg-slate-50 border border-slate-200 text-slate-800 rounded-none text-xs font-bold hover:bg-slate-100 transition-all flex items-center gap-2 uppercase tracking-wide"
                     >
                       <CreditCard size={16} />
                       Financeiro
@@ -1094,7 +1094,7 @@ export function Students() {
 
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="h-10 px-5 bg-[#00174b] text-white rounded-xl text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-md flex items-center gap-2 uppercase tracking-wide"
+                      className="h-10 px-5 bg-[#00174b] text-white rounded-none text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-md flex items-center gap-2 uppercase tracking-wide"
                     >
                       <Edit2 size={16} />
                       Editar
@@ -1107,7 +1107,7 @@ export function Students() {
                         e.stopPropagation();
                         setShowDeleteConfirm(true);
                       }}
-                      className="h-10 w-10 text-red-500 hover:bg-red-300 hover:text-red-700 bg-red-50 rounded-xl transition-all flex items-center justify-center border border-red-100 shadow-sm"
+                      className="h-10 w-10 text-red-500 hover:bg-red-300 hover:text-red-700 bg-red-50 rounded-none transition-all flex items-center justify-center border border-red-100 shadow-sm"
                       title="Excluir Aluno"
                     >
                       <Trash2 size={18} />
@@ -1129,7 +1129,7 @@ export function Students() {
                     <button 
                       onClick={handleSave}
                       disabled={loading}
-                      className="h-10 px-5 bg-[#00174b] text-white rounded-xl text-[11px] font-bold hover:scale-[1.02] transition-all flex items-center gap-2 shadow-sm shadow-blue-900/10 uppercase tracking-widest"
+                      className="h-10 px-5 bg-[#00174b] text-white rounded-none text-[11px] font-bold hover:scale-[1.02] transition-all flex items-center gap-2 shadow-sm shadow-blue-900/10 uppercase tracking-widest"
                     >
                       <Save size={14} />
                       Confirmar
@@ -1144,7 +1144,7 @@ export function Students() {
               <div className="p-3 pb-24">
                 {showWebcam ? (
                 <div className="max-w-md mx-auto space-y-4">
-                  <div className="aspect-video bg-black rounded-3xl overflow-hidden relative">
+                  <div className="aspect-video bg-black rounded-none overflow-hidden relative">
                     <Webcam
                       audio={false}
                       ref={webcamRef}
@@ -1162,13 +1162,13 @@ export function Students() {
                   <div className="flex justify-center gap-4">
                     <button 
                       onClick={() => setShowWebcam(false)}
-                      className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm"
+                      className="px-4 py-2 bg-slate-100 text-slate-600 rounded-none font-bold text-sm"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={capturePhoto}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2"
+                      className="px-6 py-2 bg-slate-800 text-white rounded-none font-bold text-sm flex items-center gap-2"
                     >
                       <Camera size={18} />
                       Capturar Foto
@@ -1192,7 +1192,7 @@ export function Students() {
                           value={formData.registration_number || ''}
                           onChange={(e) => setFormData({...formData, registration_number: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={1}
                         />
                       </div>
@@ -1204,7 +1204,7 @@ export function Students() {
                           value={formData.name || ''}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={2}
                         />
                       </div>
@@ -1215,7 +1215,7 @@ export function Students() {
                           value={formData.status || 'Ativo'}
                           onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={3}
                         >
                           <option value="Ativo">Ativo</option>
@@ -1232,7 +1232,7 @@ export function Students() {
                           value={formData.cpf || ''}
                           onChange={(e) => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           placeholder="000.000.000-00"
                           tabIndex={4}
                         />
@@ -1245,7 +1245,7 @@ export function Students() {
                           value={formData.rg || ''}
                           onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           placeholder="00.000.000-0"
                           tabIndex={5}
                         />
@@ -1258,7 +1258,7 @@ export function Students() {
                           value={formData.birth_date || ''}
                           onChange={(e) => setFormData({...formData, birth_date: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={6}
                         />
                       </div>
@@ -1269,7 +1269,7 @@ export function Students() {
                           value={formData.class_id || ''}
                           onChange={(e) => setFormData({...formData, class_id: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={7}
                         >
                           <option value="">Selecione uma turma</option>
@@ -1282,13 +1282,13 @@ export function Students() {
                       </div>
 
                       <div className="col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700 font-bold text-blue-600">Curso / Identificação</label>
+                        <label className="text-xs font-bold text-slate-700 font-bold text-slate-800">Curso / Identificação</label>
                         <select 
                           disabled={!isEditing}
                           value={formData.course || ''}
                           onChange={(e) => setFormData({...formData, course: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold text-blue-800"
+                          className="w-full px-4 py-2 bg-slate-50 border border-slate-205 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold text-slate-850"
                           tabIndex={7.5}
                         >
                           <option value="">Identificar Curso...</option>
@@ -1308,16 +1308,16 @@ export function Students() {
                           value={formData.start_date || ''}
                           onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={8}
                         />
                       </div>
 
                       {/* Enrollment Management - Integrated directly */}
                       {selectedStudent?.id ? (
-                        <div className="col-span-12 p-5 bg-indigo-50/30 border border-indigo-100 rounded-lg space-y-4 mt-2 mb-6 shadow-sm">
+                        <div className="col-span-12 p-5 bg-slate-50/30 border border-slate-200 rounded-none space-y-4 mt-2 mb-6 shadow-sm">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                            <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
                               <BookOpen size={14} />
                               Matrículas em Outras Turmas
                             </h4>
@@ -1328,7 +1328,7 @@ export function Students() {
                               disabled={!isEditing}
                               value={enrollClassId}
                               onChange={(e) => setEnrollClassId(e.target.value)}
-                              className="flex-1 px-3 py-2 bg-white border border-indigo-100 rounded-md text-xs focus:ring-1 focus:ring-indigo-500/20 outline-none shadow-sm disabled:opacity-50"
+                              className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-none text-xs focus:ring-1 focus:ring-slate-500/10 outline-none shadow-sm disabled:opacity-50"
                             >
                               <option value="">Matricular em outra turma...</option>
                               {classes.filter(c => c.status === 'Ativo' && c.id !== formData.class_id).map(c => (
@@ -1341,7 +1341,7 @@ export function Students() {
                                 setEnrollClassId('');
                               }}
                               disabled={!enrollClassId || !isEditing}
-                              className="px-4 py-2 bg-slate-800 text-white rounded-md text-[10px] font-bold uppercase hover:bg-slate-900 transition-all disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                              className="px-4 py-2 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase hover:bg-slate-900 transition-all disabled:opacity-50 flex items-center gap-1 shadow-sm"
                             >
                               <Plus size={14} />
                               Matricular
@@ -1350,16 +1350,16 @@ export function Students() {
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
                             {studentEnrollments.length === 0 ? (
-                              <div className="col-span-full py-4 text-center bg-white/50 rounded-md border border-dashed border-indigo-100">
-                                <p className="text-[10px] text-indigo-400 font-medium uppercase tracking-tight">Nenhuma matrícula adicional</p>
+                              <div className="col-span-full py-4 text-center bg-white/50 rounded-none border border-dashed border-slate-200">
+                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">Nenhuma matrícula adicional</p>
                               </div>
                             ) : (
                               studentEnrollments.map(enrollment => {
                                 const targetClass = classes.find(c => c.id === enrollment.class_id);
                                 return (
-                                  <div key={enrollment.id} className="flex items-center justify-between p-2.5 bg-white rounded-md border border-indigo-50 shadow-sm group hover:border-indigo-200 transition-all">
+                                  <div key={enrollment.id} className="flex items-center justify-between p-2.5 bg-white rounded-none border border-slate-100 shadow-sm group hover:border-slate-205 transition-all">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                      <div className="w-8 h-8 rounded bg-slate-50 flex items-center justify-center text-slate-800">
                                         <GraduationCap size={14} />
                                       </div>
                                       <div className="leading-tight">
@@ -1385,7 +1385,7 @@ export function Students() {
                           </div>
                         </div>
                       ) : (
-                        <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-md mb-6 text-center">
+                        <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-none mb-6 text-center">
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                             Salve o registro para habilitar matrículas em outras turmas
                           </p>
@@ -1409,7 +1409,7 @@ export function Students() {
                           value={formData.address_street || ''}
                           onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={9}
                         />
                       </div>
@@ -1421,7 +1421,7 @@ export function Students() {
                           value={formData.address_neighborhood || ''}
                           onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={10}
                         />
                       </div>
@@ -1433,7 +1433,7 @@ export function Students() {
                           value={formData.address_city || ''}
                           onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={11}
                         />
                       </div>
@@ -1445,7 +1445,7 @@ export function Students() {
                           value={formData.address_state || ''}
                           onChange={(e) => setFormData({...formData, address_state: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={12}
                         />
                       </div>
@@ -1457,7 +1457,7 @@ export function Students() {
                           value={formData.address_zip || ''}
                           onChange={(e) => setFormData({...formData, address_zip: maskCEP(e.target.value)})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           placeholder="00000-000"
                           tabIndex={13}
                         />
@@ -1470,7 +1470,7 @@ export function Students() {
                           value={formData.email || ''}
                           onChange={(e) => setFormData({...formData, email: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={14}
                         />
                       </div>
@@ -1483,7 +1483,7 @@ export function Students() {
                             value={formData.phone_mobile || ''}
                             onChange={(e) => setFormData({...formData, phone_mobile: maskPhone(e.target.value)})}
                             onKeyDown={handleKeyDown}
-                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-normal focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 pr-10"
+                            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm font-normal focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
                             placeholder="(00) 00000-0000"
                             tabIndex={15}
                           />
@@ -1492,7 +1492,7 @@ export function Students() {
                             disabled={!isEditing}
                             onClick={() => setFormData({ ...formData, phone_mobile_is_whatsapp: !formData.phone_mobile_is_whatsapp })}
                             className={cn(
-                              "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-md",
+                              "absolute right-3 top-1/2 -translate-y-1/2 transition-all p-1 rounded-none",
                               formData.phone_mobile_is_whatsapp ? "text-green-500 bg-green-50" : "text-slate-300 hover:text-slate-400"
                             )}
                             title={formData.phone_mobile_is_whatsapp ? "Número com WhatsApp" : "Marcar como WhatsApp"}
@@ -1531,7 +1531,7 @@ export function Students() {
                             setFormData({...formData, ...updates});
                           }}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={16}
                         >
                           <option value="">Selecione...</option>
@@ -1547,7 +1547,7 @@ export function Students() {
                           value={formData.forania || ''}
                           onChange={(e) => setFormData({...formData, forania: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 font-bold"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={16}
                         >
                           <option value="">Selecione...</option>
@@ -1564,7 +1564,7 @@ export function Students() {
                           value={formData.pastoral_participates || ''}
                           onChange={(e) => setFormData({...formData, pastoral_participates: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                           tabIndex={17}
                         />
                       </div>
@@ -1576,10 +1576,10 @@ export function Students() {
                     <div className="grid grid-cols-12 gap-4">
                       <div className="col-span-6 space-y-1">
                         <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-help" title="Data em que o aluno foi cadastrado pela primeira vez">
-                          <AlertCircle size={12} className="text-blue-500" />
+                          <AlertCircle size={12} className="text-slate-705" />
                           Data da Inscrição
                         </label>
-                        <div className="w-full px-4 py-2 bg-slate-100/50 text-slate-500 rounded-xl text-sm border border-dashed border-slate-200 flex items-center gap-2">
+                        <div className="w-full px-4 py-2 bg-slate-100/50 text-slate-500 rounded-none text-sm border border-dashed border-slate-200 flex items-center gap-2">
                           <Calendar size={14} />
                           {formData.created_at ? (
                             <span className="font-bold">{formatDateForDisplay(formData.created_at)}</span>
@@ -1599,7 +1599,7 @@ export function Students() {
                           setIsEditing(false);
                           setUploadingPhoto(false);
                         }}
-                        className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                        className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
                         tabIndex={18}
                       >
                         <X size={18} />
@@ -1608,7 +1608,7 @@ export function Students() {
                       <button 
                         onClick={handleSave}
                         disabled={loading || uploadingPhoto}
-                        className="flex-[2] h-12 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.01] active:scale-95 transition-all shadow-xl shadow-blue-900/10 disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-[2] h-12 bg-[#00174b] text-white rounded-none text-sm font-bold hover:scale-[1.01] active:scale-95 transition-all shadow-xl shadow-blue-900/10 disabled:opacity-50 flex items-center justify-center gap-2"
                         tabIndex={19}
                       >
                         {loading ? (
@@ -1632,7 +1632,7 @@ export function Students() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
               <GraduationCap size={40} />
             </div>
             <p className="text-sm font-medium">Selecione um aluno para ver os detalhes</p>
@@ -1644,8 +1644,8 @@ export function Students() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedStudent && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
               <Trash2 size={32} />
             </div>
             <div className="text-center space-y-2">
@@ -1658,14 +1658,14 @@ export function Students() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
               >
                 {loading ? 'Excluindo...' : 'Sim, Excluir'}
               </button>

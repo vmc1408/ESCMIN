@@ -60,17 +60,17 @@ const SubjectItem = React.memo(({
     <button
       onClick={() => onSelect(subject)}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left",
+        "w-full flex items-center gap-3 p-3 rounded-none transition-all text-left",
         isSelected 
-          ? "bg-blue-50 border-blue-100" 
+          ? "bg-slate-50 border-slate-200" 
           : "hover:bg-slate-50 border-transparent",
         className
       )}
     >
-      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
+      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
         {subject.code}
         <div className={cn(
-          "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white",
+          "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2 border-white",
           subject.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
         )} />
       </div>
@@ -78,7 +78,7 @@ const SubjectItem = React.memo(({
         <div className="flex items-center gap-2">
           <p className="text-sm font-bold text-[#131b2e] truncate">{subject.name}</p>
           <span className={cn(
-            "px-1.5 py-0.5 text-[8px] font-black rounded uppercase",
+            "px-1.5 py-0.5 text-[8px] font-bold rounded uppercase",
             subject.status === 'Inativo' ? "bg-slate-100 text-slate-500" : "bg-green-100 text-green-700"
           )}>
             {subject.status || 'Ativo'}
@@ -385,25 +385,25 @@ export function Subjects() {
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-2">
       {/* Sidebar List */}
-      <div className="w-[432px] bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
+      <div className="w-[432px] bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
         <div className="p-4 border-b border-slate-50 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Disciplinas</h2>
             <div className="flex gap-2">
-              <div className="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg border border-blue-100 flex items-center">
+              <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-none border border-slate-200 flex items-center">
                 {filteredSubjects.length}
               </div>
               <button 
                 onClick={generateSubjectListPDF}
-                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2 border border-indigo-100 shadow-sm"
+                className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
                 title="Imprimir Listagem Completa"
               >
                 <Printer size={16} />
-                <span className="text-[10px] font-black uppercase tracking-tight">Listagem</span>
+                <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>
               </button>
               <button 
                 onClick={handleNew}
-                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                className="p-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-colors"
                 title="Nova Disciplina"
               >
                 <Plus size={18} />
@@ -417,12 +417,12 @@ export function Subjects() {
               placeholder="Buscar disciplina..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10"
             />
           </div>
           <div className="flex flex-col gap-4">
             <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 ml-1">Período</label>
+              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 ml-1">Período</label>
               <select
                 value={semesterFilter}
                 onChange={(e) => {
@@ -430,7 +430,7 @@ export function Subjects() {
                   setStatusFilter('');
                   setSearchTerm('');
                 }}
-                className="w-full px-3 py-2 bg-slate-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
               >
                 <option value="Todos">Todos Semestres</option>
                 <option value="1º Sem.">1º Semestre</option>
@@ -439,16 +439,16 @@ export function Subjects() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 ml-1">Situação</label>
-              <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 ml-1">Situação</label>
+              <div className="flex bg-slate-50 p-1 rounded-none border border-slate-100">
                 {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(statusFilter === status ? '' : status)}
                     className={cn(
-                      "flex-1 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all",
+                      "flex-1 py-1.5 text-[9px] font-bold uppercase rounded-none transition-all",
                       statusFilter === status 
-                        ? "bg-white text-blue-600 shadow-sm" 
+                        ? "bg-white text-slate-800 shadow-sm" 
                         : "text-slate-400 hover:text-slate-600"
                     )}
                   >
@@ -459,11 +459,11 @@ export function Subjects() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 ml-1">Ordenação</label>
+              <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 ml-1">Ordenação</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full px-3 py-2 bg-slate-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-slate-500/10"
               >
                 <option value="year">Ordenar por Ano</option>
                 <option value="name">Ordenar por Nome</option>
@@ -476,7 +476,7 @@ export function Subjects() {
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {loading ? (
             <div className="flex items-center justify-center h-32">
-              <Loader2 className="animate-spin text-blue-500" />
+              <Loader2 className="animate-spin text-slate-705" />
             </div>
           ) : filteredSubjects.map((subject) => {
             const teacher = teachers.find(t => t.id === subject.teacher_id);
@@ -494,14 +494,14 @@ export function Subjects() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden">
         {notification && (
           <div className={cn(
-            "fixed top-6 right-6 z-[60] px-6 py-4 rounded-2xl shadow-2xl border text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-4",
+            "fixed top-6 right-6 z-[60] px-6 py-4 rounded-none shadow-2xl border text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-4",
             notification.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-600" : "bg-red-50 border-red-100 text-red-600"
           )}>
             <div className={cn(
-              "w-8 h-8 rounded-xl flex items-center justify-center",
+              "w-8 h-8 rounded-none flex items-center justify-center",
               notification.type === 'success' ? "bg-emerald-100" : "bg-red-100"
             )}>
               {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
@@ -515,7 +515,7 @@ export function Subjects() {
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
               <div className="max-w-4xl mx-auto flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
+                <div className="w-16 h-16 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-800">
                   <BookOpen size={32} />
                 </div>
                   <div>
@@ -527,13 +527,13 @@ export function Subjects() {
                       {formData.year && (
                         <>
                           <span className="w-1 h-1 rounded-full bg-slate-300" />
-                          <span className="text-blue-700 font-bold">{formData.year}</span>
+                          <span className="text-slate-900 font-bold">{formData.year}</span>
                         </>
                       )}
                       {formData.semester && (
                         <>
                           <span className="w-1 h-1 rounded-full bg-slate-300" />
-                          <span className="text-blue-600 font-bold">{formData.semester}</span>
+                          <span className="text-slate-800 font-bold">{formData.semester}</span>
                         </>
                       )}
                       {formData.teacher_id && (
@@ -554,7 +554,7 @@ export function Subjects() {
                       e.stopPropagation();
                       setShowDeleteConfirm(true);
                     }}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex items-center justify-center group"
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-none transition-all cursor-pointer flex items-center justify-center group"
                     title="Excluir Disciplina"
                   >
                     <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
@@ -564,13 +564,13 @@ export function Subjects() {
                   <>
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-sm font-bold transition-all"
+                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-none text-sm font-bold transition-all"
                     >
                       Cancelar
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-6 py-2 bg-[#00174b] text-white rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                      className="px-6 py-2 bg-[#00174b] text-white rounded-none text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
                     >
                       Salvar Disciplina
                     </button>
@@ -579,14 +579,14 @@ export function Subjects() {
                   <div className="flex gap-2">
                     <button 
                       onClick={() => window.print()}
-                      className="px-4 py-2 bg-slate-50 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
+                      className="px-4 py-2 bg-slate-50 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
                     >
                       <Printer size={16} />
                       Imprimir Ficha
                     </button>
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-xl text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
+                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
                     >
                       <Edit2 size={16} />
                       Editar Cadastro
@@ -614,7 +614,7 @@ export function Subjects() {
                         value={formData.code || ''}
                         onChange={(e) => setFormData({...formData, code: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={1}
                       />
                     </div>
@@ -626,14 +626,14 @@ export function Subjects() {
                         value={formData.name || ''}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={2}
                       />
                     </div>
                     <div className="col-span-12 grid grid-cols-12 gap-3 pt-2">
                       <div className="col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Ano</label>
-                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1 flex-wrap">
+                        <div className="flex bg-slate-50 p-1 rounded-none gap-1 flex-wrap">
                           {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
                             <button
                               key={year}
@@ -641,9 +641,9 @@ export function Subjects() {
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, year})}
                               className={cn(
-                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-lg transition-all",
+                                "flex-1 min-w-[60px] py-2 text-[10px] font-bold rounded-none transition-all",
                                 formData.year === year 
-                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  ? "bg-white text-slate-800 shadow-sm" 
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
                               )}
                             >
@@ -654,7 +654,7 @@ export function Subjects() {
                       </div>
                       <div className="col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Semestre</label>
-                        <div className="flex bg-slate-50 p-1 rounded-xl gap-1">
+                        <div className="flex bg-slate-50 p-1 rounded-none gap-1">
                           {['1º Sem.', '2º Sem.'].map((sem) => (
                             <button
                               key={sem}
@@ -662,9 +662,9 @@ export function Subjects() {
                               disabled={!isEditing}
                               onClick={() => setFormData({...formData, semester: sem})}
                               className={cn(
-                                "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                "flex-1 py-2 text-[10px] font-bold rounded-none transition-all",
                                 formData.semester === sem 
-                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  ? "bg-white text-slate-800 shadow-sm" 
                                   : "text-slate-500 hover:text-slate-700 disabled:opacity-50"
                               )}
                             >
@@ -681,7 +681,7 @@ export function Subjects() {
                         value={formData.teacher_id || ''}
                         onChange={(e) => setFormData({...formData, teacher_id: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={4}
                       >
                         <option value="">Selecione um professor</option>
@@ -742,7 +742,7 @@ export function Subjects() {
                         value={formData.status || 'Ativo'}
                         onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
+                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={11}
                       >
                         <option value="Ativo">Ativo</option>
@@ -768,7 +768,7 @@ export function Subjects() {
                     onKeyDown={handleKeyDown}
                     rows={12}
                     placeholder="Descreva aqui o conteúdo programático da disciplina..."
-                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 resize-none"
+                    className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
                     tabIndex={3}
                   />
                 </section>
@@ -777,7 +777,7 @@ export function Subjects() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
               <BookOpen size={40} />
             </div>
             <p className="text-sm font-medium">Selecione uma disciplina para ver os detalhes</p>
@@ -788,8 +788,8 @@ export function Subjects() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedSubject && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
               <Trash2 size={32} />
             </div>
             <div className="text-center space-y-2">
@@ -802,14 +802,14 @@ export function Subjects() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
               >
                 {loading ? 'Excluindo...' : 'Sim, Excluir'}
               </button>
@@ -828,7 +828,7 @@ export function Subjects() {
                 {inst?.logo_url ? (
                   <img src={inst.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
                 ) : (
-                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-black uppercase">
+                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
                     <span className="leading-none">SEM</span>
                     <span className="leading-none">LOGO</span>
                   </div>
@@ -836,7 +836,7 @@ export function Subjects() {
               </div>
               <div className="flex-1 flex flex-col">
                 <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-                <h1 className="text-[19pt] font-black uppercase tracking-tight text-black leading-tight my-0.5">
+                <h1 className="text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
                   {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                 </h1>
                 <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
@@ -847,7 +847,7 @@ export function Subjects() {
 
             {/* Document Title */}
             <div className="bg-black text-white py-2 px-4 mb-6 flex justify-between items-center">
-              <h2 className="text-[14pt] font-black uppercase tracking-widest">FICHA DA DISCIPLINA</h2>
+              <h2 className="text-[14pt] font-bold uppercase tracking-widest">FICHA DA DISCIPLINA</h2>
               <span className="text-[10pt] font-bold">CÓD: {selectedSubject.code}</span>
             </div>
 
@@ -856,7 +856,7 @@ export function Subjects() {
               <div className="grid grid-cols-1 gap-4">
                 <div className="border-b border-black/10 pb-2">
                   <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Nome da Disciplina</p>
-                  <p className="text-[12pt] font-black uppercase text-[#00174b]">{selectedSubject.name}</p>
+                  <p className="text-[12pt] font-bold uppercase text-[#00174b]">{selectedSubject.name}</p>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -891,14 +891,14 @@ export function Subjects() {
                 </div>
                 <div className="flex flex-col items-center">
                   <div className="w-[85mm] border-t-2 border-black mb-1"></div>
-                  <p className="text-[10pt] font-black uppercase tracking-widest text-[#00174b]">Assinatura do Coordenador</p>
+                  <p className="text-[10pt] font-bold uppercase tracking-widest text-[#00174b]">Assinatura do Coordenador</p>
                   <p className="text-[7pt] text-slate-400 font-bold mt-1 tracking-tighter">Escola Diocesana de Ministérios - ESMIN</p>
                 </div>
               </div>
             </div>
 
             {/* Institutional Footer */}
-            <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-black text-black uppercase tracking-tight mb-2">
+            <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-bold text-black uppercase tracking-tight mb-2">
               <div className="flex-1 space-y-1">
                 <p className="leading-none text-[9pt]">
                   {inst?.address}
@@ -926,7 +926,7 @@ export function Subjects() {
                 </div>
               </div>
               {inst?.secretary && (
-                <div className="text-right max-w-[450px] leading-tight text-black font-black uppercase text-[8pt]">
+                <div className="text-right max-w-[450px] leading-tight text-black font-bold uppercase text-[8pt]">
                   <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
                   <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{inst.secretary}</p>
                 </div>
