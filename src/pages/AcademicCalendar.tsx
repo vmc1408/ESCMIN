@@ -2083,13 +2083,13 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'month' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-white p-8 rounded-none shadow-sm overflow-hidden border border-slate-100">
+              <div className="bg-white p-8 rounded-none shadow-sm overflow-visible border border-slate-100">
               <div className="pb-8 border-b border-slate-50 mb-8">
                 {renderIntegratedToolbar()}
               </div>
 
               {/* Calendário Mensal Estilizado */}
-                <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-none overflow-hidden shadow-inner">
+                <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-none overflow-visible shadow-inner">
                   {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
                     <div key={day} className="bg-slate-50 py-3 text-center border-b border-slate-100">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{day.substring(0, 3)}</span>
