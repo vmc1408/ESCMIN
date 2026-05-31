@@ -23,6 +23,7 @@ import {
   Layout,
   Flag,
   MapPin,
+  AlertCircle,
   Map,
   ArrowUpAZ,
   ArrowDownZA,
@@ -342,6 +343,7 @@ export function AcademicCalendar() {
   const [inspectingClassId, setInspectingClassId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editingDayIndex, setEditingDayIndex] = useState<number>(1);
+  const [selectedWeekdayDetail, setSelectedWeekdayDetail] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState<{
     id?: string;
@@ -368,7 +370,7 @@ export function AcademicCalendar() {
     term2_start: `${new Date().getFullYear()}-08-04`,
     term2_end: `${new Date().getFullYear()}-11-28`,
     class_weekdays: [3], 
-    weekday_titles: { 3: 'Dia de Aula' },
+    weekday_titles: { 3: 'Aula, Classe(s) Turma(s) de Quarta-feira' },
     target_class_ids: []
   });
 
@@ -419,7 +421,7 @@ export function AcademicCalendar() {
     term2_start: '',
     term2_end: '',
     class_weekdays: [3],
-    weekday_titles: { 3: 'Dia de Aula' },
+    weekday_titles: { 3: 'Aula, Classe(s) Turma(s) de Quarta-feira' },
     target_class_ids: []
   });
 
@@ -442,7 +444,8 @@ export function AcademicCalendar() {
           term2_end: data.term2_end,
           class_weekdays: Array.isArray(data.class_weekdays) ? data.class_weekdays.map(Number) : [Number(data.class_weekdays || 3)],
           weekday_titles: data.weekday_titles || {},
-          target_class_ids: Array.isArray(data.target_class_ids) ? data.target_class_ids : []
+          target_class_ids: Array.isArray(data.target_class_ids) ? data.target_class_ids : [],
+          weekday_classes: data.weekday_classes || {}
         };
         
         if (targetId === 'current') {
@@ -457,8 +460,11 @@ export function AcademicCalendar() {
   };
 
   useEffect(() => {
-    if (showSettings && lastLoadedKey === '') {
-      loadSettings('current');
+    if (showSettings) {
+      setSelectedWeekdayDetail(null);
+      if (lastLoadedKey === '') {
+        loadSettings('current');
+      }
     }
   }, [showSettings]);
 
@@ -785,33 +791,13 @@ export function AcademicCalendar() {
       // First, ensure holidays are up to date for the current year
       await syncHolidays(true);
 
-      const targetIds = (settings.target_class_ids && settings.target_class_ids.length > 0) 
-        ? settings.target_class_ids 
-        : [];
-
-      // Se estiver vazio, usa [null] para calendário geral/base (um único loop)
-      // Se tiver turmas, gera especificamente para cada uma
-      const finalTargetIds = targetIds.length > 0 ? targetIds : [null];
-
       setSyncProgress(25);
       setSyncMessage('Limpando registros anteriores...');
-      // --- SURGICAL CLEAR: Only delete events for the classes being updated ---
-      for (let i = 0; i < finalTargetIds.length; i++) {
-        const tid = finalTargetIds[i];
-        setSyncMessage(`Limpando histórico: ${i+1}/${finalTargetIds.length}`);
-        const filters: any[] = [
-          { field: 'description', operator: 'ilike', value: '%Cronograma automático%' }
-        ];
-        
-        if (tid) {
-          filters.push({ field: 'class_id', operator: '==', value: tid });
-        } else {
-          filters.push({ field: 'class_id', operator: 'is', value: null });
-        }
-        
-        await deleteQuery('calendar_events', filters);
-        setSyncProgress(25 + Math.floor((i / targetIds.length) * 15));
-      }
+      // --- SURGICAL CLEAR: Clear prior automatically generated events ---
+      const filters = [
+        { field: 'description', operator: 'ilike', value: '%Cronograma automático%' }
+      ];
+      await deleteQuery('calendar_events', filters);
 
       setSyncProgress(40);
       setSyncMessage('Preparando novos eventos...');
@@ -825,124 +811,106 @@ export function AcademicCalendar() {
       ];
 
       const newEvents: any[] = [];
+      const activeWeekdays = Array.isArray(settings.class_weekdays) ? settings.class_weekdays : [];
 
-      for (let i = 0; i < finalTargetIds.length; i++) {
-        const tid = finalTargetIds[i];
-        const targetClass = tid ? classes.find(c => c.id === tid) : null;
-        const classLabel = targetClass ? ` - ${targetClass.name}` : '';
-        const eventSignature = `Cronograma automático${classLabel}`;
-        setSyncMessage(`Calculando aulas: ${targetClass?.name || 'Geral'}`);
-        setSyncProgress(45 + Math.floor((i / finalTargetIds.length) * 30));
-
-        // Add Term Start/End
-        const termEvents = [
-          { date: settings.term1_start, title: `Início do 1º Semestre${classLabel}`, type: 'start_term' },
-          { date: settings.term1_end, title: `Término do 1º Semestre${classLabel}`, type: 'end_term' },
-          { date: settings.term2_start, title: `Início do 2º Semestre${classLabel}`, type: 'start_term' },
-          { date: settings.term2_end, title: `Término do Ano Letivo${classLabel}`, type: 'end_term' }
-        ];
-
-        for (const te of termEvents) {
-          if (!te.date) continue;
-          newEvents.push({
-            title: te.title,
-            start_date: te.date,
-            end_date: te.date,
-            type: te.type,
-            description: eventSignature,
-            class_id: tid,
-            user_id: userAuth.uid,
-            created_at: new Date().toISOString()
-          });
+      // Fetch holiday dates once to reuse
+      const holidayDates = new Set();
+      const NON_BLOCKING_TITLES = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'];
+      
+      currentEvents.filter(e => {
+        const isH = e.type?.includes('holiday');
+        if (!isH) return false;
+        const titleLower = e.title?.toLowerCase() || '';
+        return !NON_BLOCKING_TITLES.some(nb => titleLower.includes(nb));
+      }).forEach(h => {
+        holidayDates.add(h.start_date);
+        if (h.end_date && h.end_date !== h.start_date) {
+          let curr = new Date(h.start_date + 'T00:00:00');
+          const end = new Date(h.end_date + 'T00:00:00');
+          while (curr <= end) {
+            holidayDates.add(curr.toISOString().split('T')[0]);
+            curr.setDate(curr.getDate() + 1);
+          }
         }
+      });
 
-        // --- REMOVIDO GERAÇÃO DE EVENTOS DE FÉRIAS E RECESSO ---
-        // A visualização agora é feita via lógica no renderizador
-        
-        const holidayDates = new Set();
-        const NON_BLOCKING_TITLES = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'];
-        
-        currentEvents.filter(e => {
-          const isH = e.type?.includes('holiday');
-          if (!isH) return false;
-          const titleLower = e.title?.toLowerCase() || '';
-          return !NON_BLOCKING_TITLES.some(nb => titleLower.includes(nb));
-        }).forEach(h => {
-          holidayDates.add(h.start_date);
-          if (h.end_date && h.end_date !== h.start_date) {
-            let curr = new Date(h.start_date + 'T00:00:00');
-            const end = new Date(h.end_date + 'T00:00:00');
-            while (curr <= end) {
-              holidayDates.add(curr.toISOString().split('T')[0]);
-              curr.setDate(curr.getDate() + 1);
-            }
-          }
-        });
+      // Generation loop per registered weekday
+      for (let wIdx = 0; wIdx < activeWeekdays.length; wIdx++) {
+        const weekdayNum = Number(activeWeekdays[wIdx]);
+        // Retrieve class links for this weekday or default to unified
+        const linkedClassIds = settings.weekday_classes?.[weekdayNum] || [];
+        const finalTargetIds = linkedClassIds.length > 0 ? linkedClassIds : [null];
 
-        // Specific holiday/excused dates for THIS class
-        const classExcusedDates = new Set(
-          currentEvents
-            .filter(e => e.type === 'excused_class' && e.class_id === tid)
-            .map(e => e.start_date)
-        );
-
-        for (const range of ranges) {
-          if (isNaN(range.start.getTime()) || isNaN(range.end.getTime())) continue;
-          let currentDateObj = new Date(range.start);
+        for (let i = 0; i < finalTargetIds.length; i++) {
+          const tid = finalTargetIds[i];
+          const targetClass = tid ? classes.find(c => c.id === tid) : null;
+          const classLabel = targetClass ? ` - ${targetClass.name}` : '';
+          const eventSignature = `Cronograma automático`; // Class name REMOVED after 'Cronograma automático' as requested!
           
-          // Determine which weekdays to use for THIS specific class iteration
-          const dayMap: Record<string, number> = { 
-            'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6,
-            'domingo': 0, 'segunda': 1, 'terça': 2, 'quarta': 3, 'quinta': 4, 'sexta': 5, 'sábado': 6,
-            'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3, 'Quinta-feira': 4, 'Sexta-feira': 5, 'Sábado-feira': 6,
-            'segunda-feira': 1, 'terça-feira': 2, 'quarta-feira': 3, 'quinta-feira': 4, 'sexta-feira': 5,
-            'Terca': 2, 'terca': 2, 'Sabado': 6, 'sabado': 6
-          };
+          setSyncMessage(`Calculando aulas: ${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][weekdayNum]} - ${targetClass?.name || 'Geral'}`);
+          setSyncProgress(45 + Math.floor(((wIdx * finalTargetIds.length + i) / (activeWeekdays.length * finalTargetIds.length)) * 30));
 
-          let classSpecificWeekdays: number[] | null = null;
-          let rawDays: any = targetClass?.days_of_week;
-          
-          // Handle stringified JSON or comma-separated strings
-          if (typeof rawDays === 'string') {
-            try {
-              rawDays = JSON.parse(rawDays);
-            } catch (e) {
-              rawDays = (rawDays as string).split(',').map(s => s.trim());
-            }
+          // Add Term Start/End
+          const termEvents = [
+            { date: settings.term1_start, title: `Início do 1º Semestre${classLabel}`, type: 'start_term' },
+            { date: settings.term1_end, title: `Término do 1º Semestre${classLabel}`, type: 'end_term' },
+            { date: settings.term2_start, title: `Início do 2º Semestre${classLabel}`, type: 'start_term' },
+            { date: settings.term2_end, title: `Término do Ano Letivo${classLabel}`, type: 'end_term' }
+          ];
+
+          for (const te of termEvents) {
+            if (!te.date) continue;
+            newEvents.push({
+              title: te.title,
+              start_date: te.date,
+              end_date: te.date,
+              type: te.type,
+              description: eventSignature,
+              class_id: tid,
+              user_id: userAuth.uid,
+              created_at: new Date().toISOString()
+            });
           }
 
-          if (Array.isArray(rawDays) && rawDays.length > 0) {
-            classSpecificWeekdays = rawDays
-              .map((d: string) => dayMap[d] !== undefined ? dayMap[d] : dayMap[d.charAt(0).toUpperCase() + d.slice(1).toLowerCase()])
-              .filter((d: any) => d !== undefined);
-          }
+          // Specific holiday/excused dates for THIS class
+          const classExcusedDates = new Set(
+            currentEvents
+              .filter(e => e.type === 'excused_class' && e.class_id === tid)
+              .map(e => e.start_date)
+          );
 
-          const globalWeekdays = Array.isArray(settings.class_weekdays) ? settings.class_weekdays : [Number(settings.class_weekdays || 3)];
-          
-          // PRIORITY: Use the weekdays defined in the current generation settings (Wizard choice)
-          const effectiveWeekdays = globalWeekdays;
+          for (const range of ranges) {
+            if (isNaN(range.start.getTime()) || isNaN(range.end.getTime())) continue;
+            let currentDateObj = new Date(range.start);
 
-          while (currentDateObj <= range.end) {
-            const weekday = currentDateObj.getDay();
-            // Verificação do dia da semana
-            if (effectiveWeekdays.map((d: any) => Number(d)).includes(weekday)) {
-              const dateStr = currentDateObj.toISOString().split('T')[0];
-              const dayTitle = (settings.weekday_titles?.[weekday] || 'Dia de Aula') + classLabel;
+            while (currentDateObj <= range.end) {
+              const weekday = currentDateObj.getDay();
               
-              if (!holidayDates.has(dateStr) && !classExcusedDates.has(dateStr)) {
-                newEvents.push({
-                  title: dayTitle,
-                  start_date: dateStr,
-                  end_date: dateStr,
-                  type: 'class_day',
-                  description: eventSignature,
-                  class_id: tid,
-                  user_id: userAuth.uid,
-                  created_at: new Date().toISOString()
-                });
+              if (weekday === weekdayNum) {
+                // Timezone-safe year, month, and day strings from local date parts
+                const yr = currentDateObj.getFullYear();
+                const mo = String(currentDateObj.getMonth() + 1).padStart(2, '0');
+                const dy = String(currentDateObj.getDate()).padStart(2, '0');
+                const dateStr = `${yr}-${mo}-${dy}`;
+
+                const defaultName = `Aula, Classe(s) Turma(s) de ${['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][weekday]}`;
+                const dayTitle = (settings.weekday_titles?.[weekday] || defaultName) + classLabel;
+
+                if (!holidayDates.has(dateStr) && !classExcusedDates.has(dateStr)) {
+                  newEvents.push({
+                    title: dayTitle,
+                    start_date: dateStr,
+                    end_date: dateStr,
+                    type: 'class_day',
+                    description: eventSignature,
+                    class_id: tid,
+                    user_id: userAuth.uid,
+                    created_at: new Date().toISOString()
+                  });
+                }
               }
+              currentDateObj.setDate(currentDateObj.getDate() + 1);
             }
-            currentDateObj.setDate(currentDateObj.getDate() + 1);
           }
         }
       }
@@ -994,9 +962,10 @@ export function AcademicCalendar() {
       };
 
       const isAcademic = ['class_day', 'excused_class', 'cancelled_class', 'exam', 'start_term', 'end_term'].includes(formData.type);
+      const activeEditScope = formData.type === 'excused_class' ? 'specific' : editScope;
       
       if (selectedEvent && isAcademic) {
-        if (editScope === 'all') {
+        if (activeEditScope === 'all') {
           // Update ALL events on that day of academic types
           const relatedEvents = events.filter(ev => 
             ev.start_date === selectedEvent.start_date && 
@@ -1024,6 +993,11 @@ export function AcademicCalendar() {
           }
         } else {
           // Salva apenas esse evento específico (Classe / Turma)
+          if (formData.type === 'excused_class' && !formData.class_id) {
+            setNotification({ type: 'err', message: 'Por favor, selecione uma turma de aula para abonar.' });
+            setIsSyncing(false);
+            return;
+          }
           await saveData('calendar_events', selectedEvent.id, {
             ...data,
             class_id: formData.class_id || null
@@ -1031,13 +1005,18 @@ export function AcademicCalendar() {
         }
       } else {
         // Criando novo ou não acadêmico
-        if (!selectedEvent && editScope === 'all' && isAcademic) {
+        if (!selectedEvent && activeEditScope === 'all' && isAcademic) {
           // Criando um novo evento com classe_id null (Período Total)
           await saveData('calendar_events', null, {
             ...data,
             class_id: null
           });
         } else {
+          if (formData.type === 'excused_class' && !formData.class_id) {
+            setNotification({ type: 'err', message: 'Por favor, selecione uma turma de aula para abonar.' });
+            setIsSyncing(false);
+            return;
+          }
           await saveData('calendar_events', selectedEvent?.id || null, {
             ...data,
             class_id: formData.class_id || null
@@ -1093,7 +1072,7 @@ export function AcademicCalendar() {
 
   const handleEdit = (event: CalendarEvent & { _count?: number }) => {
     setSelectedEvent(event);
-    setEditScope(event.class_id ? 'specific' : 'all');
+    setEditScope((event.class_id || event.type === 'excused_class') ? 'specific' : 'all');
     // Remove os contadores "(x turmas)" do título ao editar
     const cleanTitle = event.title
       .replace(/^Dia de Aula - /, '')
@@ -2153,7 +2132,7 @@ export function AcademicCalendar() {
                     const periodType = getPeriodType(dateStr, academicSettings);
                     const isCancelled = dayEvents.some(e => e.type === 'cancelled_class');
                     const isExcused = dayEvents.some(e => e.type === 'excused_class');
-                    const isVacation = periodType === 'vacation' || periodType === 'recess' || isExcused || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
+                    const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                     const isHolidayCell = dayEvents.some(e => {
                       const isH = e.type?.includes('holiday');
                       if (!isH) return false;
@@ -2161,7 +2140,7 @@ export function AcademicCalendar() {
                       return !['servidor público', 'santo antônio', 'dia do professor'].some(nb => titleLower.includes(nb));
                     });
 
-                    const hasClassDay = dayEvents.some(e => e.type === 'class_day');
+                    const hasClassDay = dayEvents.some(e => e.type === 'class_day' || e.type === 'excused_class');
                     const wDay = getWeekdayIndex(dateStr);
                     const classDayBg = hasClassDay
                       ? (wDay === 3 ? "bg-sky-50/60" : wDay === 4 ? "bg-amber-50/60" : "")
@@ -2177,8 +2156,8 @@ export function AcademicCalendar() {
                             setFormData({
                               title: 'Dia de Aula',
                               description: '',
-                              start_date: formatDateForDisplay(dateStr),
-                              end_date: formatDateForDisplay(dateStr),
+                              start_date: dateStr,
+                              end_date: dateStr,
                               type: 'class_day',
                               class_id: '',
                               subject_id: ''
@@ -2263,11 +2242,12 @@ export function AcademicCalendar() {
                           </div>
                           {(isAdmin || isDirector) && (
                             <button 
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setFormData({
                                   ...formData,
-                                  start_date: formatDateForDisplay(dateStr),
-                                  end_date: formatDateForDisplay(dateStr)
+                                  start_date: dateStr,
+                                  end_date: dateStr
                                 });
                                 setIsEditing(true);
                               }}
@@ -2297,8 +2277,8 @@ export function AcademicCalendar() {
                               {event.type === 'excused_class' || event.type === 'cancelled_class' ? (
                                 <div className="flex flex-col py-0.5">
                                   <span className={cn(
-                                    "line-through block",
-                                    event.type === 'excused_class' ? "text-slate-400" : "text-rose-400"
+                                    "block",
+                                    event.type === 'cancelled_class' ? "line-through text-rose-400" : "text-slate-600"
                                   )}>
                                     {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                   </span>
@@ -2929,11 +2909,16 @@ export function AcademicCalendar() {
                               if (formData.type === type.id) {
                                 setFormData({ ...formData, type: 'class_day', title: 'Aula Normal' });
                               } else {
+                                const isExcused = type.id === 'excused_class';
                                 setFormData({
                                   ...formData, 
                                   type: type.id as any,
-                                  title: type.label
+                                  title: type.label,
+                                  class_id: (isExcused && !formData.class_id && classes.length > 0) ? classes[0].id : formData.class_id
                                 });
+                                if (isExcused) {
+                                  setEditScope('specific');
+                                }
                               }
                             }}
                             className={cn(
@@ -3016,7 +3001,7 @@ export function AcademicCalendar() {
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
-                            disabled={!(isAdmin || isDirector)}
+                            disabled={!(isAdmin || isDirector) || formData.type === 'excused_class'}
                             onClick={() => {
                               setEditScope('all');
                               setFormData(prev => ({ ...prev, class_id: '' }));
@@ -3025,7 +3010,8 @@ export function AcademicCalendar() {
                               "py-2.5 px-3 text-[10px] font-bold uppercase tracking-wider border rounded-none transition-all flex items-center justify-center gap-1.5",
                               editScope === 'all'
                                 ? "bg-slate-900 border-slate-900 text-white shadow-md"
-                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
+                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100",
+                              formData.type === 'excused_class' && "opacity-50 cursor-not-allowed bg-slate-50 border-slate-100 text-slate-300"
                             )}
                           >
                             Período Total
@@ -3061,6 +3047,7 @@ export function AcademicCalendar() {
                           </div>
                         ) : (
                           <select
+                            required={editScope === 'specific'}
                             disabled={!(isAdmin || isDirector)}
                             value={formData.class_id}
                             onChange={e => setFormData({...formData, class_id: e.target.value})}
@@ -3098,36 +3085,6 @@ export function AcademicCalendar() {
                   </button>
                   {(isAdmin || isDirector) && selectedEvent && formData.type === 'class_day' && (
                     <>
-                      <button 
-                        type="button"
-                        onClick={async () => {
-                          setIsSyncing(true);
-                          setSyncMessage('Abonando turmas...');
-                          try {
-                            const sameDayEvents = events.filter(e => 
-                              e.start_date === selectedEvent.start_date && 
-                              e.type === 'class_day'
-                            );
-                            await Promise.all(sameDayEvents.map(ev => 
-                              saveData('calendar_events', ev.id, {
-                                ...ev,
-                                type: 'excused_class',
-                                description: 'Dia de aula abonado/dispensado'
-                              })
-                            ));
-                            setNotification({ type: 'success', message: `${sameDayEvents.length} turmas abonadas com sucesso!` });
-                            setIsEditing(false);
-                            fetchData();
-                          } catch (err) {
-                            console.error(err);
-                          } finally {
-                            setIsSyncing(false);
-                          }
-                        }}
-                        className="flex-1 py-3 px-1.5 bg-slate-600 text-white rounded-none text-[9px] font-bold uppercase tracking-widest hover:bg-slate-700 transition-all shadow-sm"
-                      >
-                        Abonar Tudo
-                      </button>
                       <button 
                         type="button"
                         onClick={async () => {
@@ -3249,40 +3206,190 @@ export function AcademicCalendar() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((day, i) => {
                         const isSelected = settingsForm.class_weekdays.includes(i);
+                        const isAlreadyRegistered = academicSettings.class_weekdays.includes(i);
                         return (
                           <button
                             key={day}
                             type="button"
                             onClick={() => {
-                              // For Day-First wizard, we usually generate for one specific day configuration at a time
-                              // to avoid the "multiplying" confusion.
-                              setSettingsForm({ ...settingsForm, class_weekdays: [i] });
-                              setEditingDayIndex(i);
+                              if (isAlreadyRegistered) {
+                                setSelectedWeekdayDetail(i);
+                              } else {
+                                const weekdayName = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][i];
+                                const defaultTitle = `Aula, Classe(s) Turma(s) de ${weekdayName}`;
+                                setSelectedWeekdayDetail(null);
+                                setSettingsForm({
+                                  ...settingsForm,
+                                  class_weekdays: [i],
+                                  weekday_titles: {
+                                    ...(settingsForm.weekday_titles || {}),
+                                    [i]: (settingsForm.weekday_titles || {})[i] || defaultTitle
+                                  }
+                                });
+                                setEditingDayIndex(i);
+                              }
                             }}
                             className={cn(
-                              "p-4 rounded-none border flex flex-col items-center gap-2 transition-all",
+                              "p-4 rounded-none border flex flex-col items-center gap-2 transition-all relative",
                               isSelected 
                                 ? "bg-slate-900 text-white border-slate-900 shadow-xl scale-105" 
-                                : "bg-white text-slate-500 border-slate-100 hover:border-slate-200"
+                                : isAlreadyRegistered
+                                  ? "bg-slate-50 text-indigo-750 border-indigo-200 hover:border-indigo-300"
+                                  : "bg-white text-slate-500 border-slate-100 hover:border-slate-200"
                             )}
                           >
                             <span className="text-[10px] font-bold uppercase tracking-widest">{day}</span>
                             <div className={cn(
                               "w-2 h-2 rounded-full",
-                              isSelected ? "bg-blue-400" : "bg-slate-100"
+                              isSelected ? "bg-blue-400" : isAlreadyRegistered ? "bg-indigo-600 animate-pulse" : "bg-slate-100"
                             )} />
+                            {isAlreadyRegistered && (
+                              <span className="absolute top-1 right-2 text-[8px] text-indigo-600 font-bold uppercase tracking-tighter">
+                                REGR
+                              </span>
+                            )}
                           </button>
                         );
                       })}
                     </div>
 
-                    {settingsForm.class_weekdays.length > 0 && (
+                    {selectedWeekdayDetail !== null && (
+                      <div className="bg-slate-50 border border-slate-200 p-5 rounded-none space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle size={16} className="text-indigo-600" />
+                            <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                              Configuração Existente: {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][selectedWeekdayDetail]}
+                            </h5>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => setSelectedWeekdayDetail(null)}
+                            className="text-slate-400 hover:text-slate-600 text-[10px] font-bold uppercase transition-all"
+                          >
+                            Fechar
+                          </button>
+                        </div>
+
+                        <div className="space-y-3.5 border-t border-b border-slate-200/60 py-3.5 text-xs text-slate-600">
+                           <div>
+                             <span className="font-semibold text-slate-400 uppercase text-[9px] tracking-wider block">Título Configurado</span>
+                             <span className="font-bold text-slate-700">
+                               {(academicSettings.weekday_titles || {})[selectedWeekdayDetail] || `Aula, Classe(s) Turma(s) de ${['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][selectedWeekdayDetail]}`}
+                             </span>
+                           </div>
+                           
+                           <div>
+                             <span className="font-semibold text-slate-400 uppercase text-[9px] tracking-wider block">Turmas Vinculadas</span>
+                             <div className="flex flex-wrap gap-1 mt-1">
+                               {academicSettings.weekday_classes?.[selectedWeekdayDetail] && academicSettings.weekday_classes[selectedWeekdayDetail].length > 0 ? (
+                                 classes
+                                   .filter(c => academicSettings.weekday_classes?.[selectedWeekdayDetail]?.includes(c.id))
+                                   .map(c => (
+                                     <span key={c.id} className="px-2 py-0.5 bg-slate-200 text-slate-800 text-[9px] font-bold uppercase">
+                                       {c.name}
+                                     </span>
+                                   ))
+                               ) : (
+                                 <span className="text-slate-400 italic">Nenhuma turma selecionada (Calendário Geral)</span>
+                               )}
+                             </div>
+                           </div>
+
+                           <div className="grid grid-cols-2 gap-2 mt-2">
+                             <div>
+                               <span className="font-semibold text-slate-400 uppercase text-[9px] tracking-wider block">1º Semestre</span>
+                               <span className="font-medium text-slate-700">
+                                 {academicSettings.term1_start ? formatDateForDisplay(academicSettings.term1_start) : '-'} até {academicSettings.term1_end ? formatDateForDisplay(academicSettings.term1_end) : '-'}
+                               </span>
+                             </div>
+                             <div>
+                               <span className="font-semibold text-slate-400 uppercase text-[9px] tracking-wider block">2º Semestre</span>
+                               <span className="font-medium text-slate-700">
+                                 {academicSettings.term2_start ? formatDateForDisplay(academicSettings.term2_start) : '-'} até {academicSettings.term2_end ? formatDateForDisplay(academicSettings.term2_end) : '-'}
+                               </span>
+                             </div>
+                           </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const i = selectedWeekdayDetail;
+                              const weekdayName = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][i];
+                              const defaultTitle = `Aula, Classe(s) Turma(s) de ${weekdayName}`;
+                              const weekdayClasses = academicSettings.weekday_classes?.[i] || [];
+                              setSettingsForm({
+                                ...academicSettings,
+                                class_weekdays: [i],
+                                weekday_titles: {
+                                  ...(academicSettings.weekday_titles || {}),
+                                  [i]: (academicSettings.weekday_titles || {})[i] || defaultTitle
+                                },
+                                target_class_ids: weekdayClasses
+                              });
+                              setSelectedWeekdayDetail(null);
+                            }}
+                            className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+                          >
+                            Editar Registro
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const i = selectedWeekdayDetail;
+                              setIsSyncing(true);
+                              try {
+                                const updatedWeekdays = academicSettings.class_weekdays.filter(x => x !== i);
+                                const updatedTitles = { ...academicSettings.weekday_titles };
+                                delete updatedTitles[i];
+
+                                const updatedClasses = { ...academicSettings.weekday_classes };
+                                delete updatedClasses[i];
+
+                                const updatedSettings = {
+                                  ...academicSettings,
+                                  class_weekdays: updatedWeekdays,
+                                  weekday_titles: updatedTitles,
+                                  weekday_classes: updatedClasses
+                                };
+                                await saveData('academic_settings', 'current', updatedSettings);
+                                setAcademicSettings(updatedSettings);
+                                setSettingsForm(updatedSettings);
+
+                                await clearClassDays([i]);
+                                setNotification({ type: 'success', message: 'Marcação do dia da semana excluída com sucesso!' });
+                              } catch (err) {
+                                console.error("Error deleting:", err);
+                                setNotification({ type: 'err', message: 'Erro ao excluir.' });
+                              } finally {
+                                setIsSyncing(false);
+                                setSelectedWeekdayDetail(null);
+                              }
+                            }}
+                            className="py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+                          >
+                            Excluir Registro
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {settingsForm.class_weekdays.length > 0 && selectedWeekdayDetail === null && (
                       <div className="space-y-2 pt-4 animate-in fade-in zoom-in-95">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Configuração do Título</label>
+                        <div className="flex justify-between items-center ml-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 block mb-1">Configuração do Título</label>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            {((settingsForm.weekday_titles || {})[settingsForm.class_weekdays[0]] || `Aula, Classe(s) Turma(s) de ${['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][settingsForm.class_weekdays[0]]}`).length}/45
+                          </span>
+                        </div>
                         <input 
                           type="text"
-                          placeholder="Ex: Dia de Aula, Aula Teórica..."
-                          value={(settingsForm.weekday_titles || {})[settingsForm.class_weekdays[0]] || 'Dia de Aula'}
+                          maxLength={45}
+                          placeholder="Ex: Aula, Classe(s) Turma(s) de Quarta-feira..."
+                          value={(settingsForm.weekday_titles || {})[settingsForm.class_weekdays[0]] !== undefined ? (settingsForm.weekday_titles || {})[settingsForm.class_weekdays[0]] : `Aula, Classe(s) Turma(s) de ${['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][settingsForm.class_weekdays[0]]}`}
                           onChange={(e) => setSettingsForm({
                             ...settingsForm,
                             weekday_titles: { 
@@ -3290,8 +3397,11 @@ export function AcademicCalendar() {
                               [settingsForm.class_weekdays[0]]: e.target.value 
                             }
                           })}
-                          className="w-full bg-white border border-slate-200 rounded-none py-4 px-5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                          className="w-full bg-white border border-slate-200 rounded-none py-4 px-5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 transition-all font-sans"
                         />
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider pl-1 mt-1">
+                          Limite de tamanho ativado para evitar excesso no calendário (máx. 45 caracteres).
+                        </p>
                       </div>
                     )}
                   </div>
@@ -3467,15 +3577,35 @@ export function AcademicCalendar() {
 
                         setIsSyncing(true);
                         try {
+                          const currentWeekdays = Array.isArray(academicSettings.class_weekdays)
+                            ? academicSettings.class_weekdays
+                            : [];
+                          const activeDay = settingsForm.class_weekdays[0];
+                          
+                          const nextWeekdays = currentWeekdays.includes(activeDay)
+                            ? currentWeekdays
+                            : [...currentWeekdays, activeDay];
+
+                          const nextTitles = {
+                            ...(academicSettings.weekday_titles || {}),
+                            [activeDay]: (settingsForm.weekday_titles || {})[activeDay] || `Aula, Classe(s) Turma(s) de ${['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][activeDay]}`
+                          };
+
+                          const nextWeekdayClasses = {
+                            ...(academicSettings.weekday_classes || {}),
+                            [activeDay]: settingsForm.target_class_ids || []
+                          };
+
                           const updatedSettings: AcademicSettings = {
                             id: 'current',
                             term1_start: t1Start,
                             term1_end: t1End,
                             term2_start: t2Start,
                             term2_end: t2End,
-                            class_weekdays: settingsForm.class_weekdays,
-                            weekday_titles: settingsForm.weekday_titles,
-                            target_class_ids: settingsForm.target_class_ids
+                            class_weekdays: nextWeekdays.map(Number),
+                            weekday_titles: nextTitles,
+                            target_class_ids: settingsForm.target_class_ids,
+                            weekday_classes: nextWeekdayClasses
                           };
                           
                           // Salva globalmente e para cada turma selecionada para garantir persistência
@@ -4134,8 +4264,8 @@ export function AcademicCalendar() {
                       {new Date(currentDate.getFullYear(), monthIndex).toLocaleDateString('pt-BR', { month: 'long' })}
                     </h4>
                     <div className="grid grid-cols-7 gap-0.5">
-                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => (
-                        <div key={`header-${monthIndex}-${d}`} className="text-center text-[6px] font-bold text-slate-300">{d}</div>
+                      {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
+                        <div key={`header-${monthIndex}-${d}-${i}`} className="text-center text-[6px] font-bold text-slate-300">{d}</div>
                       ))}
                       {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), monthIndex) }).map((_, i) => (
                         <div key={`empty-${monthIndex}-${i}`} className="aspect-square" />
