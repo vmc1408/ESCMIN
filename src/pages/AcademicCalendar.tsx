@@ -4224,10 +4224,6 @@ export function AcademicCalendar() {
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Quinta-feira (Laranja)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 rounded-none bg-blue-400 border border-slate-400 shadow-sm" />
-                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Outro Letivo</span>
-                    </div>
-                    <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-none bg-amber-400 border border-amber-500 shadow-sm" />
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Avaliação</span>
                     </div>
@@ -4451,10 +4447,7 @@ export function AcademicCalendar() {
                          <div className="w-4 h-4 rounded bg-amber-600 border border-amber-700 shadow-sm" />
                          <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Quinta-feira (Laranja)</span>
                        </div>
-                       <div className="flex items-center gap-2">
-                         <div className="w-4 h-4 rounded bg-blue-400 border border-slate-400 shadow-sm" />
-                         <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Outro Letivo</span>
-                       </div>
+
                        <div className="flex items-center gap-2">
                          <div className="w-4 h-4 rounded bg-rose-50 border border-rose-300 relative overflow-hidden flex items-center justify-center text-[8px] font-extrabold text-rose-500 shadow-sm">
                            X
