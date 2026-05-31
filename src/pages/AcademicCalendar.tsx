@@ -4169,10 +4169,6 @@ export function AcademicCalendar() {
                         else if (isState) { bgColor = "bg-purple-600"; textColor = "text-white"; borderColor = "border-purple-700"; stripeStyle = "bg-stripes-red"; }
                         else if (isMunicipal) { bgColor = "bg-orange-600"; textColor = "text-white"; borderColor = "border-orange-700"; stripeStyle = "bg-stripes-red"; }
                         else if (isHolidayGeneral) { bgColor = "bg-red-500"; textColor = "text-white"; borderColor = "border-red-600"; stripeStyle = "bg-stripes-red"; }
-                        else if (isVacation) { bgColor = "bg-slate-50"; textColor = "text-slate-600"; borderColor = "border-slate-100"; stripeStyle = "bg-stripes-slate"; }
-                        else if (isExam) { bgColor = "bg-amber-400"; textColor = "text-white"; borderColor = "border-amber-500"; }
-                        else if (isStart) { bgColor = "bg-slate-800"; textColor = "text-white"; borderColor = "border-blue-700"; }
-                        else if (isEnd) { bgColor = "bg-slate-900"; textColor = "text-white"; borderColor = "border-slate-950"; }
                         else if (isClass) {
                           if (wDay === 3) {
                             bgColor = "bg-sky-50"; textColor = "text-sky-800"; borderColor = "border-sky-200";
@@ -4182,6 +4178,10 @@ export function AcademicCalendar() {
                             bgColor = "bg-blue-400"; textColor = "text-white"; borderColor = "border-slate-400";
                           }
                         }
+                        else if (isVacation) { bgColor = "bg-slate-50"; textColor = "text-slate-600"; borderColor = "border-slate-100"; stripeStyle = "bg-stripes-slate"; }
+                        else if (isExam) { bgColor = "bg-amber-400"; textColor = "text-white"; borderColor = "border-amber-500"; }
+                        else if (isStart) { bgColor = "bg-slate-800"; textColor = "text-white"; borderColor = "border-blue-700"; }
+                        else if (isEnd) { bgColor = "bg-slate-900"; textColor = "text-white"; borderColor = "border-slate-950"; }
                         else if (dayEvents.length > 0) { bgColor = "bg-slate-100"; textColor = "text-slate-700"; borderColor = "border-slate-200"; }
 
                         return (
@@ -4189,7 +4189,9 @@ export function AcademicCalendar() {
                             key={`${monthIndex}-${day}`}
                             className={cn(
                               "aspect-square flex items-center justify-center rounded-sm text-[7.5px] font-bold border transition-all overflow-hidden relative",
-                              bgColor, textColor, borderColor, stripeStyle
+                              bgColor, textColor, borderColor, stripeStyle,
+                              isStart && "ring-1 ring-inset ring-slate-800 border-slate-800 border-[1.2px] font-extrabold shadow-sm",
+                              isEnd && "ring-1 ring-inset ring-slate-900 border-slate-900 border-[1.2px] font-extrabold shadow-sm"
                             )}
                           >
                             {day}
@@ -4226,6 +4228,10 @@ export function AcademicCalendar() {
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-none bg-amber-400 border border-amber-500 shadow-sm" />
                       <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Avaliação</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 rounded-none border-[1.2px] border-slate-800 ring-1 ring-inset ring-slate-800 bg-white shadow-sm" />
+                      <span className="text-[8px] font-bold text-slate-800 uppercase tracking-widest">Início/Final de Semestre</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3.5 h-3.5 rounded-none bg-white border border-slate-200 relative shadow-sm overflow-hidden flex items-center justify-center text-[7px]">
