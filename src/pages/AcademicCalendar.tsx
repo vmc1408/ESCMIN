@@ -84,6 +84,258 @@ export function AcademicCalendar() {
     }
     return '';
   };
+
+  const getWeekdayIndex = (dateStr: string) => {
+    if (!dateStr) return -1;
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day).getDay();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return -1;
+  };
+
+  const getLiturgicalColorObj = (dateStr: string) => {
+    if (!dateStr) return { color: '#10b981', label: 'Tempo Comum' };
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return { color: '#10b981', label: 'Tempo Comum' };
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexed
+      const day = parseInt(parts[2], 10);
+      
+      const targetDate = new Date(year, month, day);
+      targetDate.setHours(0, 0, 0, 0);
+      const targetTime = targetDate.getTime();
+
+      // Algoritmo Computus para cálculo do Domingo de Páscoa (Meeus/Jones/Butcher)
+      const a = year % 19;
+      const b = Math.floor(year / 100);
+      const c = year % 100;
+      const d = Math.floor(b / 4);
+      const e = b % 4;
+      const f = Math.floor((b + 8) / 25);
+      const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4);
+      const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7;
+      const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const monthE = Math.floor((h + l - 7 * m + 114) / 31);
+      const dayE = ((h + l - 7 * m + 114) % 31) + 1;
+      
+      const easterDate = new Date(year, monthE - 1, dayE);
+      easterDate.setHours(0, 0, 0, 0);
+      const easterTime = easterDate.getTime();
+
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+
+      // Datas móveis liturgicamente referenciadas
+      const ashWednesdayTime = easterTime - 46 * ONE_DAY;
+      const holyThursdayTime = easterTime - 3 * ONE_DAY;
+      const goodFridayTime = easterTime - 2 * ONE_DAY;
+      const HolySaturdayTime = easterTime - 1 * ONE_DAY;
+      const pentecostTime = easterTime + 49 * ONE_DAY;
+      const corpusChristiTime = easterTime + 60 * ONE_DAY;
+
+      // Advento e Natal do ano corrente
+      const christmas = new Date(year, 11, 25);
+      christmas.setHours(0, 0, 0, 0);
+      const christmasTime = christmas.getTime();
+
+      const christmasDay = christmas.getDay();
+      const daysToSubtract = (christmasDay === 0 ? 7 : christmasDay) + 21;
+      const adventStartDate = new Date(year, 11, 25 - daysToSubtract);
+      adventStartDate.setHours(0, 0, 0, 0);
+      const adventStartTime = adventStartDate.getTime();
+
+      // Fim do tempo do Natal (geralmente Epifania / Batismo do Senhor, simplificado para 13 de Janeiro)
+      const endOfChristmasDate = new Date(year, 0, 13);
+      endOfChristmasDate.setHours(0, 0, 0, 0);
+      const endOfChristmasTime = endOfChristmasDate.getTime();
+
+      // Fim do tempo de Natal do ano anterior, caso estejamos em Janeiro
+      const endOfPrevChristmasTime = new Date(year, 0, 13).getTime();
+
+      // 1. Quaresma (Quarta-feira de Cinzas até Quarta-feira Santa, roxo/violeta)
+      if (targetTime >= ashWednesdayTime && targetTime < holyThursdayTime) {
+        return { color: '#8b5cf6', label: 'Quaresma (Roxo)' };
+      }
+
+      // 2. Sexta-feira Santa (Vermelho)
+      if (targetTime === goodFridayTime) {
+        return { color: '#ef4444', label: 'Sexta-feira Santa (Vermelho)' };
+      }
+
+      // 3. Tríduo Pascal (Quinta-feira Santa e Sábado de Aleluia, Branco)
+      if (targetTime === holyThursdayTime || targetTime === HolySaturdayTime) {
+        return { color: '#f59e0b', label: 'Tríduo Pascal (Branco)' };
+      }
+
+      // 4. Tempo Pascal (Páscoa até o Sábado antes de Pentecostes, Branco)
+      if (targetTime >= easterTime && targetTime < pentecostTime) {
+        return { color: '#f59e0b', label: 'Tempo Pascal (Branco)' };
+      }
+
+      // 5. Pentecostes (Vermelho)
+      if (targetTime === pentecostTime) {
+        return { color: '#ef4444', label: 'Pentecostes (Vermelho)' };
+      }
+
+      // 6. Corpus Christi (Branco)
+      if (targetTime === corpusChristiTime) {
+        return { color: '#f59e0b', label: 'Corpus Christi (Branco)' };
+      }
+
+      // 7. Advento (Início do Advento até 24 de Dezembro, Roxo)
+      if (targetTime >= adventStartTime && targetTime < christmasTime) {
+        return { color: '#8b5cf6', label: 'Advento (Roxo)' };
+      }
+
+      // 8. Natal (25 de Dezembro até o Batismo do Senhor em Janeiro do ano seguinte, Branco)
+      if (targetTime >= christmasTime || (targetTime <= endOfPrevChristmasTime)) {
+        return { color: '#f59e0b', label: 'Tempo do Natal (Branco)' };
+      }
+
+      // 9. Tempo Comum (Verde)
+      return { color: '#10b981', label: 'Tempo Comum (Verde)' };
+    } catch (e) {
+      console.error(e);
+    }
+    return { color: '#10b981', label: 'Tempo Comum' };
+  };
+
+  const renderCalendarLegend = () => (
+    <div className="mt-8 pt-6 border-t border-slate-100 space-y-4">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-1.5 h-4 bg-slate-400 rounded-full" />
+        <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Legenda do Calendário e Referências</h5>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Coluna 1: Status de Aula */}
+        <div className="space-y-3 bg-slate-50/40 p-4 border border-slate-100 rounded-none">
+          <h6 className="text-[9px] font-extrabold text-slate-700 uppercase tracking-widest pb-1 border-b border-slate-150">
+            Estrutura & Status de Aula
+          </h6>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 flex items-center justify-center bg-sky-50 border border-sky-100 text-sky-800 font-bold text-[9px] shadow-sm shrink-0">
+                Q
+              </div>
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Turmas de Quarta-feira</span>
+                <span className="text-slate-400 text-[9px] font-medium">Fundo azul claro</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 flex items-center justify-center bg-amber-50 border border-amber-100 text-amber-800 font-bold text-[9px] shadow-sm shrink-0">
+                Q
+              </div>
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Turmas de Quinta-feira</span>
+                <span className="text-slate-400 text-[9px] font-medium">Fundo laranja/âmbar claro</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 flex items-center justify-center bg-white border border-slate-200 text-slate-700 font-bold text-[9px] relative shadow-sm overflow-hidden shrink-0">
+                X
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
+                  <svg className="w-full h-full stroke-rose-500/55" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <line x1="15" y1="15" x2="85" y2="85" strokeWidth="6" strokeLinecap="round" />
+                    <line x1="85" y1="15" x2="15" y2="85" strokeWidth="6" strokeLinecap="round" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Aula Cancelada / Suspensa</span>
+                <span className="text-slate-400 text-[9px] font-medium">Marcada com "X" (mantém os dados)</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 flex items-center justify-center bg-slate-50 border border-slate-100 text-slate-600 font-bold text-[10px] shadow-sm shrink-0">
+                A
+              </div>
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Aula Abonada / Dispensa / Recesso</span>
+                <span className="text-slate-400 text-[9px] font-medium">Fundo cinza e texto cinza dão destaque neutro</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 bg-red-50 text-red-600 border border-red-100 bg-stripes-red flex items-center justify-center text-[10px] font-extrabold shadow-sm shrink-0">
+                F
+              </div>
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Feriados Principais / Nacionais</span>
+                <span className="text-slate-400 text-[9px] font-medium">Listrado vermelho com destaque claro</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 bg-orange-50 text-orange-600 border border-orange-100 flex items-center justify-center text-[10px] font-extrabold shadow-sm shrink-0">
+                P
+              </div>
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Período de Avaliação / Exames</span>
+                <span className="text-slate-400 text-[9px] font-medium">Identificado por alertas laranja-pêssego</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Coluna 2: Anos Litúrgicos Católicos */}
+        <div className="space-y-3 bg-slate-50/40 p-4 border border-slate-100 rounded-none">
+          <h6 className="text-[9px] font-extrabold text-slate-700 uppercase tracking-widest pb-1 border-b border-slate-150">
+            Contornos do Ano Litúrgico (Passar Mouse ou Visualizar Dia)
+          </h6>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-4 h-4 rounded-none border-[2px] border-[#10b981] bg-white shrink-0 shadow-sm" />
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Tempo Comum (Verde)</span>
+                <span className="text-slate-400 text-[9px] font-medium">Esperança, maturidade e caminhada da Igreja</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-4 h-4 rounded-none border-[2px] border-[#8b5cf6] bg-white shrink-0 shadow-sm" />
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Quaresma / Advento (Roxo)</span>
+                <span className="text-slate-400 text-[9px] font-medium">Preparação espiritual, conversão e expectativa</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-4 h-4 rounded-none border-[2px] border-[#f59e0b] bg-white shrink-0 shadow-sm" />
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Natal / Páscoa / Corpus Christi (Branco)</span>
+                <span className="text-slate-400 text-[9px] font-medium">Glória divina, comemoração e Ressurreição</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-4 h-4 rounded-none border-[2px] border-[#ef4444] bg-white shrink-0 shadow-sm" />
+              <div className="text-[10px]">
+                <span className="font-bold text-slate-700 block">Sexta-feira da Paixão / Pentecostes (Vermelho)</span>
+                <span className="text-slate-400 text-[9px] font-medium">Martírio, fogo do Espírito Santo e amor extremo</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'year' | 'list' | 'month' | 'management'>('month');
   const [activeTab, setActiveTab] = useState<'calendar' | 'record'>('calendar');
@@ -1899,6 +2151,7 @@ export function AcademicCalendar() {
                     );
                     const isToday = todayStr === dateStr;
                     const periodType = getPeriodType(dateStr, academicSettings);
+                    const isCancelled = dayEvents.some(e => e.type === 'cancelled_class');
                     const isExcused = dayEvents.some(e => e.type === 'excused_class');
                     const isVacation = periodType === 'vacation' || periodType === 'recess' || isExcused || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                     const isHolidayCell = dayEvents.some(e => {
@@ -1907,6 +2160,12 @@ export function AcademicCalendar() {
                       const titleLower = e.title?.toLowerCase() || '';
                       return !['servidor público', 'santo antônio', 'dia do professor'].some(nb => titleLower.includes(nb));
                     });
+
+                    const hasClassDay = dayEvents.some(e => e.type === 'class_day');
+                    const wDay = getWeekdayIndex(dateStr);
+                    const classDayBg = hasClassDay
+                      ? (wDay === 3 ? "bg-sky-50/60" : wDay === 4 ? "bg-amber-50/60" : "")
+                      : "";
 
                     return (
                       <motion.div 
@@ -1929,22 +2188,34 @@ export function AcademicCalendar() {
                           }
                         }}
                         className={cn(
-                          "bg-white aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-100",
+                          "aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-100",
+                          !isToday && !isVacation && !isHolidayCell && !classDayBg ? "bg-white" : "",
+                          classDayBg,
                           isToday && "bg-slate-50/20",
                           isVacation && "bg-stripes-slate",
                           isHolidayCell && "bg-stripes-red"
                         )}
                       >
-                        {/* Contorno em degradê das cores litúrgicas católicas ao passar o mouse */}
+                        {/* Contorno da cor litúrgica católica do dia ao passar o mouse */}
                         <div 
                           className="absolute inset-0 pointer-events-none opacity-0 group-hover/cell:opacity-100 transition-opacity duration-300 z-10 -m-[1px]"
                           style={{
-                            borderImageSource: 'linear-gradient(135deg, #10b981 0%, #ef4444 33%, #8b5cf6 66%, #f59e0b 100%)',
-                            borderImageSlice: 1,
+                            borderColor: getLiturgicalColorObj(dateStr).color,
                             borderWidth: '2px',
                             borderStyle: 'solid'
                           }}
+                          title={getLiturgicalColorObj(dateStr).label}
                         />
+
+                        {/* Indicador visual de Aula Cancelada (um "X" translúcido sobre a célula) */}
+                        {isCancelled && (
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
+                            <svg className="w-full h-full stroke-rose-500/40" viewBox="0 0 100 100" preserveAspectRatio="none">
+                              <line x1="5" y1="5" x2="95" y2="95" strokeWidth="3" strokeLinecap="round" />
+                              <line x1="95" y1="5" x2="5" y2="95" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          </div>
+                        )}
 
                         <div className="flex justify-between items-start">
                           <div className="relative group/date">
@@ -2121,23 +2392,7 @@ export function AcademicCalendar() {
                   })()}
                 </div>
 
-                <div className="flex flex-wrap gap-4 pt-6 mt-6 border-t border-slate-50">
-                  {[
-                    { type: 'holiday_nac', label: 'Feriado Nacional', color: 'bg-red-600' },
-                    { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-600' },
-                    { type: 'class_day', label: 'Dia de Aula', color: 'bg-slate-800' },
-                    { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
-                    { type: 'excused_class', label: 'Aula Abonada', color: 'bg-slate-400' },
-                    { type: 'cancelled_class', label: 'Aula Cancelada', color: 'bg-rose-500' },
-                    { type: 'start_term', label: 'Início', color: 'bg-slate-800' },
-                    { type: 'end_term', label: 'Final', color: 'bg-slate-800' },
-                  ].map(item => (
-                    <div key={item.type} className="flex items-center gap-2">
-                      <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", item.color)} />
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
+                {renderCalendarLegend()}
               </div>
             </div>
           ) : viewMode === 'year' ? (
@@ -2175,6 +2430,9 @@ export function AcademicCalendar() {
                               const periodType = getPeriodType(dateStr, academicSettings);
                               const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                               const isToday = todayStr === dateStr;
+                              const hasClassDay = dayEvents.some(e => e.type === 'class_day');
+                              const isCancelled = dayEvents.some(e => e.type === 'cancelled_class');
+                              const wDay = getWeekdayIndex(dateStr);
 
                               return (
                                 <div 
@@ -2186,12 +2444,29 @@ export function AcademicCalendar() {
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
                                         ? "bg-slate-50 text-slate-600 border-slate-100 shadow-sm bg-stripes-slate"
-                                        : dayEvents.length > 0 
-                                          ? "bg-slate-50 text-slate-800 border-slate-200 shadow-sm"
-                                          : isToday ? "bg-slate-800 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
+                                        : hasClassDay
+                                          ? (wDay === 3 ? "bg-sky-50 text-sky-800 border-sky-100 shadow-sm" : wDay === 4 ? "bg-amber-50 text-amber-800 border-amber-100 shadow-sm" : "bg-slate-50 text-slate-800 border-slate-200 shadow-sm")
+                                          : dayEvents.length > 0 
+                                            ? "bg-slate-50 text-slate-800 border-slate-200 shadow-sm"
+                                            : isToday ? "bg-slate-800 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
+                                  style={isToday ? {} : {
+                                    borderColor: getLiturgicalColorObj(dateStr).color,
+                                    borderWidth: '1.5px',
+                                    borderStyle: 'solid'
+                                  }}
+                                  title={getLiturgicalColorObj(dateStr).label}
                                 >
                                   {day}
+
+                                  {isCancelled && (
+                                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
+                                      <svg className="w-full h-full stroke-rose-500/50" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                        <line x1="15" y1="15" x2="85" y2="85" strokeWidth="6" strokeLinecap="round" />
+                                        <line x1="85" y1="15" x2="15" y2="85" strokeWidth="6" strokeLinecap="round" />
+                                      </svg>
+                                    </div>
+                                  )}
 
                                   {/* Tooltip no Year View */}
                                   {dayEvents.length > 0 && (
@@ -2256,6 +2531,9 @@ export function AcademicCalendar() {
                               const periodType = getPeriodType(dateStr, academicSettings);
                               const isVacation = periodType === 'vacation' || periodType === 'recess' || dayEvents.some(e => e.title.toLowerCase().includes('férias') || e.title.toLowerCase().includes('recesso'));
                               const isToday = todayStr === dateStr;
+                              const hasClassDay = dayEvents.some(e => e.type === 'class_day');
+                              const isCancelled = dayEvents.some(e => e.type === 'cancelled_class');
+                              const wDay = getWeekdayIndex(dateStr);
 
                               return (
                                 <div 
@@ -2267,12 +2545,29 @@ export function AcademicCalendar() {
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
                                         ? "bg-slate-50 text-slate-600 border-slate-100 shadow-sm bg-stripes-slate"
-                                        : dayEvents.length > 0 
-                                          ? "bg-slate-50 text-slate-800 border-slate-200 shadow-sm"
-                                          : isToday ? "bg-slate-800 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
+                                        : hasClassDay
+                                          ? (wDay === 3 ? "bg-sky-50 text-sky-800 border-sky-100 shadow-sm" : wDay === 4 ? "bg-amber-50 text-amber-800 border-amber-100 shadow-sm" : "bg-slate-50 text-slate-800 border-slate-200 shadow-sm")
+                                          : dayEvents.length > 0 
+                                            ? "bg-slate-50 text-slate-800 border-slate-200 shadow-sm"
+                                            : isToday ? "bg-slate-800 text-white border-blue-700 shadow-md scale-110 z-10" : "bg-transparent text-slate-400 border-transparent hover:bg-white hover:border-slate-200"
                                   )}
+                                  style={isToday ? {} : {
+                                    borderColor: getLiturgicalColorObj(dateStr).color,
+                                    borderWidth: '1.5px',
+                                    borderStyle: 'solid'
+                                  }}
+                                  title={getLiturgicalColorObj(dateStr).label}
                                 >
                                   {day}
+
+                                  {isCancelled && (
+                                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
+                                      <svg className="w-full h-full stroke-rose-500/50" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                        <line x1="15" y1="15" x2="85" y2="85" strokeWidth="6" strokeLinecap="round" />
+                                        <line x1="85" y1="15" x2="15" y2="85" strokeWidth="6" strokeLinecap="round" />
+                                      </svg>
+                                    </div>
+                                  )}
 
                                   {/* Tooltip no Year View (Semestre 2) */}
                                   {dayEvents.length > 0 && (
@@ -2311,21 +2606,7 @@ export function AcademicCalendar() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-6 pt-5 mt-8 border-t border-slate-100">
-                  {[
-                    { type: 'holiday_nac', label: 'Feriado Nacional', color: 'bg-red-500' },
-                    { type: 'holiday_mun', label: 'Feriado Municipal', color: 'bg-amber-500' },
-                    { type: 'class_day', label: 'Dia de Aula', color: 'bg-slate-800' },
-                    { type: 'exam', label: 'Avaliação', color: 'bg-orange-500' },
-                    { type: 'excused_class', label: 'Aula Abonada', color: 'bg-slate-400' },
-                    { type: 'cancelled_class', label: 'Aula Cancelada', color: 'bg-rose-500' },
-                  ].map(item => (
-                    <div key={item.type} className="flex items-center gap-2">
-                      <div className={cn("w-2 h-2 rounded-full", item.color)} />
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
+                {renderCalendarLegend()}
               </div>
             </div>
           ) : viewMode === 'list' && Object.keys(groupedEvents).length > 0 ? (
