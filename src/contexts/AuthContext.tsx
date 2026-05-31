@@ -39,7 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(() => {
+    return localStorage.getItem('app_locked') === 'true';
+  });
   const [lockTimer, setLockTimer] = useState(300); // 5 minutes in seconds
   const [isConnected, setIsConnected] = useState(true);
   const [connError, setConnError] = useState<string | null>(null);
@@ -146,18 +148,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
     setIsLocked(false);
+    localStorage.removeItem('app_locked');
+    localStorage.setItem('app_last_activity', Date.now().toString());
     return true;
   }, [profile]);
 
   const lock = useCallback(() => {
     if (profile?.pin) {
       setIsLocked(true);
+      localStorage.setItem('app_locked', 'true');
     }
   }, [profile]);
 
   // Bloqueio por inatividade
   useEffect(() => {
-    if (!profile?.pin || isLocked) {
+    if (!profile?.pin) {
+      setLockTimer(300);
+      setIsLocked(false);
+      localStorage.removeItem('app_locked');
+      localStorage.removeItem('app_last_activity');
+      return;
+    }
+
+    if (isLocked) {
       setLockTimer(300);
       return;
     }
@@ -167,17 +180,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const resetTimer = () => {
       setLockTimer(INACTIVITY_TIMEOUT);
+      localStorage.setItem('app_last_activity', Date.now().toString());
     };
 
     // Events to reset the timer
     const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(event => window.addEventListener(event, resetTimer));
 
+    // Initialize timer based on remaining time from last activity to prevent refresh-bypass
+    const lastActivity = localStorage.getItem('app_last_activity');
+    let initialTimerVal = INACTIVITY_TIMEOUT;
+    
+    if (lastActivity) {
+      const elapsedSeconds = Math.floor((Date.now() - parseInt(lastActivity, 10)) / 1000);
+      if (elapsedSeconds >= INACTIVITY_TIMEOUT) {
+        setIsLocked(true);
+        localStorage.setItem('app_locked', 'true');
+        return;
+      } else {
+        initialTimerVal = INACTIVITY_TIMEOUT - elapsedSeconds;
+        setLockTimer(initialTimerVal);
+      }
+    } else {
+      localStorage.setItem('app_last_activity', Date.now().toString());
+    }
+
     // Countdown interval
     countdownInterval = setInterval(() => {
       setLockTimer(prev => {
         if (prev <= 1) {
           setIsLocked(true);
+          localStorage.setItem('app_locked', 'true');
+          return INACTIVITY_TIMEOUT;
+        }
+        // Sync timestamp occasionally to prevent stale timers on background/inactive tabs
+        const now = Date.now();
+        const last = parseInt(localStorage.getItem('app_last_activity') || '0', 10);
+        if (now - last >= INACTIVITY_TIMEOUT * 1000) {
+          setIsLocked(true);
+          localStorage.setItem('app_locked', 'true');
           return INACTIVITY_TIMEOUT;
         }
         return prev - 1;

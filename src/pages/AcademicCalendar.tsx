@@ -65,6 +65,25 @@ export function AcademicCalendar() {
   const [weekdayFilter, setWeekdayFilter] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [editScope, setEditScope] = useState<'all' | 'specific'>('specific');
+
+  const getWeekdayName = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const dateObj = new Date(year, month, day);
+        const weekdays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        return weekdays[dateObj.getDay()];
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return '';
+  };
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'year' | 'list' | 'month' | 'management'>('month');
   const [activeTab, setActiveTab] = useState<'calendar' | 'record'>('calendar');
@@ -698,8 +717,7 @@ export function AcademicCalendar() {
   };
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     if (!userAuth) return;
     setIsSyncing(true);
 
@@ -723,35 +741,56 @@ export function AcademicCalendar() {
         updated_at: new Date().toISOString()
       };
 
-      // Se estamos editando um evento já existente que faz parte de um grupo acadêmico,
-      // devemos atualizar todos os registros vinculados para manter a integridade do calendário unificado.
       const isAcademic = ['class_day', 'excused_class', 'cancelled_class', 'exam', 'start_term', 'end_term'].includes(formData.type);
       
       if (selectedEvent && isAcademic) {
-        const baseTitle = selectedEvent.title.split(' - ')[0].trim();
-        const relatedEvents = events.filter(ev => 
-          ev.start_date === selectedEvent.start_date && 
-          ['class_day', 'excused_class', 'cancelled_class', 'exam', 'start_term', 'end_term'].includes(ev.type) &&
-          ev.title.split(' - ')[0].trim() === baseTitle
-        );
+        if (editScope === 'all') {
+          // Update ALL events on that day of academic types
+          const relatedEvents = events.filter(ev => 
+            ev.start_date === selectedEvent.start_date && 
+            ['class_day', 'excused_class', 'cancelled_class', 'exam', 'start_term', 'end_term'].includes(ev.type)
+          );
 
-        if (relatedEvents.length > 1) {
-          // Atualização em lote
-          const updates = relatedEvents.map(re => saveData('calendar_events', re.id, {
-            ...re,
-            title: data.title + (re.title.includes(' - ') ? ' - ' + re.title.split(' - ')[1] : ''),
-            type: data.type,
-            description: data.description,
-            start_date: data.start_date,
-            end_date: data.end_date,
-            updated_at: data.updated_at
-          }));
-          await Promise.all(updates);
+          if (relatedEvents.length > 1) {
+            // Atualização de todas as turmas do dia em lote
+            const updates = relatedEvents.map(re => saveData('calendar_events', re.id, {
+              ...re,
+              title: data.title + (re.title.includes(' - ') ? ' - ' + re.title.split(' - ')[1] : ''),
+              type: data.type,
+              description: data.description,
+              start_date: data.start_date,
+              end_date: data.end_date,
+              updated_at: data.updated_at
+            }));
+            await Promise.all(updates);
+          } else {
+            // Apenas um evento, salve como Geral (class_id: null)
+            await saveData('calendar_events', selectedEvent.id, {
+              ...data,
+              class_id: null
+            });
+          }
         } else {
-          await saveData('calendar_events', selectedEvent.id, data);
+          // Salva apenas esse evento específico (Classe / Turma)
+          await saveData('calendar_events', selectedEvent.id, {
+            ...data,
+            class_id: formData.class_id || null
+          });
         }
       } else {
-        await saveData('calendar_events', selectedEvent?.id, data);
+        // Criando novo ou não acadêmico
+        if (!selectedEvent && editScope === 'all' && isAcademic) {
+          // Criando um novo evento com classe_id null (Período Total)
+          await saveData('calendar_events', null, {
+            ...data,
+            class_id: null
+          });
+        } else {
+          await saveData('calendar_events', selectedEvent?.id || null, {
+            ...data,
+            class_id: formData.class_id || null
+          });
+        }
       }
       
       setNotification({ type: 'success', message: `Evento ${selectedEvent ? 'atualizado' : 'criado'} com sucesso!` });
@@ -776,8 +815,33 @@ export function AcademicCalendar() {
     }
   };
 
+  const handlePreSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userAuth) return;
+    if (!(isAdmin || isDirector)) return;
+
+    const isEditingMode = !!selectedEvent;
+    const scopeLabel = editScope === 'all' ? 'Período Total (Todas as turmas do dia)' : `Classe/Turma Específica (${classes.find(c => c.id === formData.class_id)?.name || 'Geral'})`;
+
+    setConfirmModalConfig({
+      type: 'info',
+      title: isEditingMode ? 'Confirmar Alteração' : 'Criar Novo Registro',
+      message: `Deseja realmente ${isEditingMode ? 'salvar as alterações no' : 'criar este'} registro "${formData.title}" para o dia ${formData.start_date} (${getWeekdayName(formData.start_date)})?\n\nEscopo de aplicação: ${scopeLabel}\n\nVocê tem certeza que deseja prosseguir com esta ação?`,
+      action: async () => {
+        await executeSave();
+        setShowConfirmModal(false);
+      }
+    });
+    setShowConfirmModal(true);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    handlePreSubmit(e);
+  };
+
   const handleEdit = (event: CalendarEvent & { _count?: number }) => {
     setSelectedEvent(event);
+    setEditScope(event.class_id ? 'specific' : 'all');
     // Remove os contadores "(x turmas)" do título ao editar
     const cleanTitle = event.title
       .replace(/^Dia de Aula - /, '')
@@ -803,10 +867,18 @@ export function AcademicCalendar() {
     const eventToDelete = events.find(e => e.id === id);
     if (!eventToDelete) return;
 
-    if (!bypassConfirm && confirmDeleteId !== id) {
-      setConfirmDeleteId(id);
-      // Reset after 3 seconds
-      setTimeout(() => setConfirmDeleteId(null), 3000);
+    if (!bypassConfirm) {
+      setConfirmModalConfig({
+        type: 'danger',
+        title: 'Excluir Lançamento',
+        message: `Deseja realmente excluir permanentemente o registro "${eventToDelete.title}" para o dia ${eventToDelete.start_date} (${getWeekdayName(eventToDelete.start_date)})?\n\nEsta ação removerá o registro para todas as turmas vinculadas e não poderá ser desfeita.`,
+        action: async () => {
+          await handleDelete(id, true);
+          setShowConfirmModal(false);
+          setIsEditing(false);
+        }
+      });
+      setShowConfirmModal(true);
       return;
     }
 
@@ -1523,7 +1595,7 @@ export function AcademicCalendar() {
                                           <CheckCircle2 size={16} />
                                         </button>
                                         <button 
-                                          onClick={() => handleDelete(ev.id, true)}
+                                          onClick={() => handleDelete(ev.id)}
                                           className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-none transition-all"
                                           title="Remover Data"
                                         >
@@ -1863,6 +1935,17 @@ export function AcademicCalendar() {
                           isHolidayCell && "bg-stripes-red"
                         )}
                       >
+                        {/* Contorno em degradê das cores litúrgicas católicas ao passar o mouse */}
+                        <div 
+                          className="absolute inset-0 pointer-events-none opacity-0 group-hover/cell:opacity-100 transition-opacity duration-300 z-10 -m-[1px]"
+                          style={{
+                            borderImageSource: 'linear-gradient(135deg, #10b981 0%, #ef4444 33%, #8b5cf6 66%, #f59e0b 100%)',
+                            borderImageSlice: 1,
+                            borderWidth: '2px',
+                            borderStyle: 'solid'
+                          }}
+                        />
+
                         <div className="flex justify-between items-start">
                           <div className="relative group/date">
                             <span className={cn(
@@ -2631,8 +2714,8 @@ export function AcademicCalendar() {
                     </div>
                   </div>
 
-                  {/* Título e Turma */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Título e Escopo de Aplicação */}
+                  <div className="space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Identificação</label>
                       <input 
@@ -2645,19 +2728,70 @@ export function AcademicCalendar() {
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Vincular Turma</label>
-                      <select
-                        disabled={!(isAdmin || isDirector)}
-                        value={formData.class_id}
-                        onChange={e => setFormData({...formData, class_id: e.target.value})}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
-                      >
-                        <option value="">Todas</option>
-                        {classes.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 block mb-1">Escopo do Registro</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            disabled={!(isAdmin || isDirector)}
+                            onClick={() => {
+                              setEditScope('all');
+                              setFormData(prev => ({ ...prev, class_id: '' }));
+                            }}
+                            className={cn(
+                              "py-2.5 px-3 text-[10px] font-bold uppercase tracking-wider border rounded-none transition-all flex items-center justify-center gap-1.5",
+                              editScope === 'all'
+                                ? "bg-slate-900 border-slate-900 text-white shadow-md"
+                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
+                            )}
+                          >
+                            Período Total
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!(isAdmin || isDirector)}
+                            onClick={() => {
+                              setEditScope('specific');
+                              if (!formData.class_id && classes.length > 0) {
+                                setFormData(prev => ({ ...prev, class_id: classes[0].id }));
+                              }
+                            }}
+                            className={cn(
+                              "py-2.5 px-3 text-[10px] font-bold uppercase tracking-wider border rounded-none transition-all flex items-center justify-center gap-1.5",
+                              editScope === 'specific'
+                                ? "bg-slate-900 border-slate-900 text-white shadow-md"
+                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-100"
+                            )}
+                          >
+                            Classe / Turma
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
+                          {editScope === 'all' ? 'Dia de Aula Afetado' : 'Vincular Turma'}
+                        </label>
+                        {editScope === 'all' ? (
+                          <div className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-none text-xs font-bold text-slate-400 cursor-not-allowed uppercase">
+                            Todas as Turmas ({getWeekdayName(formData.start_date) || 'Dia Selecionado'})
+                          </div>
+                        ) : (
+                          <select
+                            disabled={!(isAdmin || isDirector)}
+                            value={formData.class_id}
+                            onChange={e => setFormData({...formData, class_id: e.target.value})}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
+                          >
+                            <option value="">Selecione a Turma...</option>
+                            {classes.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2667,22 +2801,11 @@ export function AcademicCalendar() {
                   {selectedEvent && (isAdmin || isDirector) && (
                     <button 
                       type="button"
-                      onClick={async () => {
-                        if (confirmDeleteId === selectedEvent.id) {
-                          await handleDelete(selectedEvent.id, true);
-                          setIsEditing(false);
-                        } else {
-                          handleDelete(selectedEvent.id);
-                        }
-                      }}
-                      className={cn(
-                        "p-3 rounded-none transition-all border",
-                        confirmDeleteId === selectedEvent.id 
-                          ? "bg-red-600 text-white border-red-700 shadow-lg shadow-red-100" 
-                          : "bg-white text-red-500 border-red-100 hover:bg-red-50 shadow-sm"
-                      )}
+                      onClick={() => handleDelete(selectedEvent.id)}
+                      className="p-3 rounded-none transition-all border bg-white text-red-500 border-red-100 hover:bg-red-50 hover:border-red-200 shadow-sm"
+                      title="Excluir Lançamento"
                     >
-                      {confirmDeleteId === selectedEvent.id ? <Trash2 size={18} /> : <Trash2 size={18} />}
+                      <Trash2 size={18} />
                     </button>
                   )}
                   <button 
