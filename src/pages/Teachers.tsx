@@ -289,12 +289,27 @@ export function Teachers() {
       document.body.appendChild(iframe);
       iframe.onload = () => {
         setTimeout(() => {
-          iframe.contentWindow?.print();
-          // Remove iframe and revoke URL after some time
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            URL.revokeObjectURL(url);
-          }, 1000);
+          try {
+            if (!iframe.contentWindow) {
+              throw new Error("No contentWindow available");
+            }
+            iframe.contentWindow.print();
+          } catch (err) {
+            console.warn("Iframe printing blocked, downloading PDF instead:", err);
+            doc.save(`Lista_Professores_${new Date().getFullYear()}.pdf`);
+            setNotification({
+              type: 'success',
+              message: 'A impressão direta em iframe foi bloqueada pelo navegador. O arquivo PDF foi baixado para você imprimir manualmente.'
+            });
+            setTimeout(() => setNotification(null), 5000);
+          } finally {
+            setTimeout(() => {
+              try {
+                document.body.removeChild(iframe);
+              } catch (e) {}
+              URL.revokeObjectURL(url);
+            }, 1000);
+          }
         }, 300);
       };
     } catch (error) {
@@ -504,7 +519,16 @@ export function Teachers() {
   };
 
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch (err) {
+      console.error("Print failed:", err);
+      setNotification({
+        type: 'error',
+        message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
+      });
+      setTimeout(() => setNotification(null), 5000);
+    }
   };
 
   const PrintableTeacher = () => {

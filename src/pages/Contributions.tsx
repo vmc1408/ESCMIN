@@ -1127,7 +1127,15 @@ export function Contributions() {
                       setIsPrintingStatement(true);
                       setTimeout(() => {
                         window.focus();
-                        window.print();
+                        try {
+                          window.print();
+                        } catch (err) {
+                          console.error("Print failed:", err);
+                          setNotification({
+                            type: 'error',
+                            message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
+                          });
+                        }
                       }, 600);
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
@@ -1938,7 +1946,17 @@ export function Contributions() {
             
             <div className="flex items-center flex-wrap justify-center gap-3">
               <button 
-                onMouseDown={() => window.print()}
+                onMouseDown={() => {
+                  try {
+                    window.print();
+                  } catch (err) {
+                    console.error("Print failed:", err);
+                    setNotification({
+                      type: 'error',
+                      message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
+                    });
+                  }
+                }}
                 className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"
               >
                 <Printer size={16} /> Abrir Impressora
@@ -2119,7 +2137,17 @@ export function Contributions() {
             
             <div className="flex items-center flex-wrap justify-center gap-3">
               <button 
-                onMouseDown={() => window.print()}
+                onMouseDown={() => {
+                  try {
+                    window.print();
+                  } catch (err) {
+                    console.error("Print failed:", err);
+                    setNotification({
+                      type: 'error',
+                      message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
+                    });
+                  }
+                }}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-2 active:scale-95"
               >
                 <Printer size={16} /> Imprimir

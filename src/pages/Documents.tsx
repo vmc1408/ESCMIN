@@ -113,7 +113,12 @@ export function Documents() {
   };
 
   const printCertificate = () => {
-    window.print();
+    try {
+      window.print();
+    } catch (err) {
+      console.error("Print failed:", err);
+      alert('A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.');
+    }
   };
 
   return (

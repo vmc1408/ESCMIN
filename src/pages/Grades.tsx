@@ -408,8 +408,21 @@ export function Grades() {
     const className = classes.find(c => c.id === selectedClass)?.name || '';
     const subjectName = subjects.find(s => s.id === selectedSubject)?.name || '';
     
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    let printWindow;
+    try {
+      printWindow = window.open('', '_blank');
+    } catch (err) {
+      console.error("Failed to open print window:", err);
+    }
+
+    if (!printWindow) {
+      setNotification({
+        type: 'err',
+        message: 'A abertura de novas janelas para impressão está bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba (botão no canto superior direito) para gerar o relatório.'
+      });
+      setTimeout(() => setNotification(null), 5000);
+      return;
+    }
 
     const html = `
       <html>

@@ -558,11 +558,29 @@ export function Reports() {
         document.body.appendChild(iframe);
         iframe.onload = () => {
           setTimeout(() => {
-            iframe.contentWindow?.print();
-            setTimeout(() => {
-              URL.revokeObjectURL(url);
-              document.body.removeChild(iframe);
-            }, 1000);
+            try {
+              if (!iframe.contentWindow) {
+                throw new Error("No contentWindow available");
+              }
+              iframe.contentWindow.print();
+            } catch (err) {
+              console.warn("Iframe printing blocked by sandbox or browser security policies, falling back to download:", err);
+              // Fallback to downloading the files
+              doc.save(`Relatorio_${type}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+              setNotification({ 
+                type: 'success', 
+                message: 'A impressão direta em iframe foi bloqueada pelo navegador. O arquivo PDF foi baixado para você imprimir manualmente.' 
+              });
+            } finally {
+              setTimeout(() => {
+                URL.revokeObjectURL(url);
+                try {
+                  document.body.removeChild(iframe);
+                } catch (e) {
+                  // Ignore if already removed
+                }
+              }, 1000);
+            }
           }, 500);
         };
       } else {

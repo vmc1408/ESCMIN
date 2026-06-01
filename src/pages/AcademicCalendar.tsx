@@ -488,6 +488,43 @@ export function AcademicCalendar() {
     subject_id: ''
   });
 
+  const isFormChanged = useMemo(() => {
+    if (!selectedEvent) {
+      return formData.title.trim() !== '' && formData.start_date !== '';
+    }
+
+    const cleanEventTitle = selectedEvent.title
+      .replace(/^Dia de Aula - /, '')
+      .replace(/\s*\(\d+\s*turmas\)$/i, '')
+      .split(' - ')[0]
+      .trim();
+      
+    const originalDescription = selectedEvent.description || '';
+    const originalStartDate = selectedEvent.start_date || '';
+    const originalEndDate = selectedEvent.end_date || selectedEvent.start_date || '';
+    const originalType = selectedEvent.type || 'class_day';
+    const originalClassId = selectedEvent.class_id || '';
+    const originalSubjectId = selectedEvent.subject_id || '';
+
+    const currentDescription = formData.description || '';
+    const currentEndDate = formData.end_date || formData.start_date || '';
+    const currentClassId = formData.class_id || '';
+    const currentSubjectId = formData.subject_id || '';
+
+    const originalScope = (selectedEvent.class_id || selectedEvent.type === 'excused_class') ? 'specific' : 'all';
+
+    return (
+      formData.title.trim() !== cleanEventTitle ||
+      currentDescription !== originalDescription ||
+      formData.start_date !== originalStartDate ||
+      currentEndDate !== originalEndDate ||
+      formData.type !== originalType ||
+      currentClassId !== originalClassId ||
+      currentSubjectId !== originalSubjectId ||
+      editScope !== originalScope
+    );
+  }, [formData, selectedEvent, editScope]);
+
   const fetchData = React.useCallback(async () => {
     try {
       const fetchResults = await Promise.allSettled([
@@ -1115,9 +1152,10 @@ export function AcademicCalendar() {
         title: 'Excluir Lançamento',
         message: `Deseja realmente excluir permanentemente o registro "${eventToDelete.title}" para o dia ${eventToDelete.start_date} (${getWeekdayName(eventToDelete.start_date)})?\n\nEsta ação removerá o registro para todas as turmas vinculadas e não poderá ser desfeita.`,
         action: async () => {
-          await handleDelete(id, true);
+          // Close the confirmation and edit modals instantly so the UI responds immediately!
           setShowConfirmModal(false);
           setIsEditing(false);
+          await handleDelete(id, true);
         }
       });
       setShowConfirmModal(true);
@@ -1125,6 +1163,19 @@ export function AcademicCalendar() {
     }
 
     try {
+      // Optimistic UI Update: instantly remove matching events from local state so they disappear in 0ms!
+      const targetStartDate = eventToDelete.start_date;
+      const targetType = eventToDelete.type;
+      const targetTitle = eventToDelete.title;
+
+      setEvents(prev => prev.filter(e => {
+        const isSameDayAndType = e.start_date === targetStartDate && e.type === targetType;
+        if (targetType === 'event' || targetType === 'exam') {
+          return !(isSameDayAndType && e.title === targetTitle);
+        }
+        return !isSameDayAndType;
+      }));
+
       // Realiza a remoção cirúrgica de todos os eventos agrupados no mesmo dia e tipo
       // Se for feriado ou dia de aula, remove todos do mesmo dia
       // Se for evento customizado, remove pelo título também para garantir
@@ -1141,6 +1192,7 @@ export function AcademicCalendar() {
       
       setNotification({ type: 'success', message: 'Registros removidos com sucesso!' });
       setConfirmDeleteId(null);
+      // Quietly fetch fresh data from the server in the background to sync up
       fetchData();
     } catch (error: any) {
       console.error('Erro ao excluir:', error);
@@ -1148,6 +1200,8 @@ export function AcademicCalendar() {
         type: 'err', 
         message: 'Erro ao excluir instâncias: Verifique sua conexão ou permissões.' 
       });
+      // Restore events in case of database failure by refetching
+      fetchData();
     }
   };
 
@@ -3098,8 +3152,13 @@ export function AcademicCalendar() {
                   {(isAdmin || isDirector) && (
                     <button 
                       type="submit"
-                      disabled={isSyncing}
-                      className="flex-[2] py-3 px-4 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-none transition-all flex items-center justify-center gap-2"
+                      disabled={isSyncing || !isFormChanged}
+                      className={cn(
+                        "flex-[2] py-3 px-4 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                        (isSyncing || !isFormChanged)
+                          ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                          : "bg-slate-800 text-white hover:bg-slate-900 shadow-xl"
+                      )}
                     >
                       {isSyncing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                       {selectedEvent ? 'Confirmar' : 'Criar'}
@@ -3780,7 +3839,17 @@ export function AcademicCalendar() {
                 </button>
                 <button 
                   disabled={!printType}
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    try {
+                      window.print();
+                    } catch (err) {
+                      console.error("Print failed:", err);
+                      setNotification({
+                        type: 'err',
+                        message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba (botão no canto superior direito) para imprimir com sucesso.'
+                      });
+                    }
+                  }}
                   className="flex-3 py-4 px-6 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 shadow-xl shadow-none transition-all active:scale-95 disabled:opacity-50 disabled:grayscale"
                 >
                   Gerar Impressão Agora

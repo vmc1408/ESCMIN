@@ -250,11 +250,26 @@ export function Subjects() {
       document.body.appendChild(iframe);
       iframe.onload = () => {
         setTimeout(() => {
-          iframe.contentWindow?.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            URL.revokeObjectURL(url);
-          }, 1000);
+          try {
+            if (!iframe.contentWindow) {
+              throw new Error("No contentWindow available");
+            }
+            iframe.contentWindow.print();
+          } catch (err) {
+            console.warn("Iframe printing blocked, downloading PDF instead:", err);
+            doc.save(`Lista_Disciplinas_${new Date().getFullYear()}.pdf`);
+            setNotification({
+              type: 'success',
+              message: 'A impressão direta em iframe foi bloqueada pelo navegador. O arquivo PDF foi baixado para você imprimir manualmente.'
+            });
+          } finally {
+            setTimeout(() => {
+              try {
+                document.body.removeChild(iframe);
+              } catch (e) {}
+              URL.revokeObjectURL(url);
+            }, 1000);
+          }
         }, 300);
       };
     } catch (error) {
@@ -578,7 +593,17 @@ export function Subjects() {
                 ) : (
                   <div className="flex gap-2">
                     <button 
-                      onClick={() => window.print()}
+                      onClick={() => {
+                        try {
+                          window.print();
+                        } catch (err) {
+                          console.error("Print failed:", err);
+                          setNotification({
+                            type: 'error',
+                            message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
+                          });
+                        }
+                      }}
                       className="px-4 py-2 bg-slate-50 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
                     >
                       <Printer size={16} />

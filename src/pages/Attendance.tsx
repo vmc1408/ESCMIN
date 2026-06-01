@@ -698,6 +698,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         
         if (!isGlobal && !isThisClass) return;
 
+        // Only include actual lesson days (class_day, exam, excused_class)
+        if (!['class_day', 'exam', 'excused_class'].includes(event.type)) return;
+
         // STRICT FILTER: Only show if it matches identified target weekdays
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(dateKey + 'T12:00:00');
@@ -1466,7 +1469,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <select
                       value={selectedMonth}
                       onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 outline-none"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none"
                     >
                       {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
                         <option key={i} value={i}>{m.toUpperCase()}</option>
@@ -1478,7 +1481,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <select
                       value={selectedYear}
                       onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 outline-none text-center"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none text-center"
                     >
                       {[2024, 2025, 2026, 2027, 2028].map(y => (
                         <option key={y} value={y}>{y}</option>
@@ -1515,7 +1518,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       disabled={!selectedClass || availableDates.length === 0}
                       value={parseDateToDB(selectedDate)}
                       onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
-                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 outline-none"
+                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none"
                     >
                       <option value="">DATA...</option>
                       {[...availableDates].reverse().map(date => (
@@ -1530,12 +1533,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <select
                       value={selectedYear}
                       onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-2 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 outline-none text-center"
+                      className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
                     >
                       {[2024, 2025, 2026, 2027, 2028].map(y => (
                         <option key={y} value={y}>{y}</option>
                       ))}
                     </select>
+                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                   </div>
                 </div>
               </div>
