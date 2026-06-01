@@ -24,7 +24,8 @@ import {
   ArrowUpDown,
   CreditCard,
   Info,
-  BookOpen
+  BookOpen,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
@@ -176,6 +177,7 @@ export function Students() {
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isListCollapsed, setIsListCollapsed] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Student>>(INITIAL_STUDENT_STATE);
   const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -192,6 +194,34 @@ export function Students() {
   const [institution, setInstitution] = useState<any>(null);
   const webcamRef = useRef<Webcam>(null);
   const { user, profile, refreshProfile } = useAuth();
+
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsListCollapsed(prev => !prev);
+    };
+    window.addEventListener('toggle-student-list', handleToggle);
+    return () => {
+      window.removeEventListener('toggle-student-list', handleToggle);
+    };
+  }, []);
+
+  useEffect(() => {
+    const hasActiveStudentOrEdit = !!(selectedStudent || isEditing);
+    const dispatchState = () => {
+      window.dispatchEvent(new CustomEvent('students-state-updated', {
+        detail: {
+          canCollapse: hasActiveStudentOrEdit,
+          isCollapsed: isListCollapsed
+        }
+      }));
+    };
+    dispatchState();
+    
+    window.addEventListener('request-students-state', dispatchState);
+    return () => {
+      window.removeEventListener('request-students-state', dispatchState);
+    };
+  }, [selectedStudent, isEditing, isListCollapsed]);
 
 
   const fetchStudents = useCallback(async () => {
@@ -415,6 +445,7 @@ export function Students() {
       photo_url: student.photo_url || ''
     });
     setIsEditing(false);
+    setIsListCollapsed(true);
     fetchEnrollments(student.id);
   }, []);
 
@@ -428,6 +459,7 @@ export function Students() {
       registration_number: nextReg,
     });
     setIsEditing(true);
+    setIsListCollapsed(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -905,11 +937,17 @@ export function Students() {
     return Array.from(new Set(students.map(s => getYearFromRegistration(s.registration_number)).filter(Boolean))).sort().reverse();
   }, [students]);
 
+  const actualListCollapsed = isListCollapsed && (selectedStudent !== null || isEditing);
+
   return (
     <div className="h-[calc(100vh-6rem)] flex gap-4">
       {/* Sidebar List */}
-      <div className="w-[380px] bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden order-last">
-        <div className="p-4 border-b border-slate-100 space-y-4">
+      <div className={cn(
+        "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border-y border-slate-200",
+        actualListCollapsed ? "w-0 opacity-0 border-l-0 pointer-events-none" : "w-[380px] opacity-100 border-l border-slate-200"
+      )}>
+        <div className="w-[380px] flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <h2 className="text-base font-bold text-slate-800 tracking-tight">Alunos</h2>
@@ -1011,9 +1049,13 @@ export function Students() {
           ))}
         </div>
       </div>
+    </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+      <div className={cn(
+        "flex-1 bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
+        actualListCollapsed ? "max-w-5xl w-[100%] mx-auto" : ""
+      )}>
         {selectedStudent || isEditing ? (
           <>
             {notification && (
@@ -1119,20 +1161,31 @@ export function Students() {
                     <button 
                       onClick={() => {
                         setIsEditing(false);
+                        setUploadingPhoto(false);
                         if (!selectedStudent) setFormData(INITIAL_STUDENT_STATE);
                         else handleSelectStudent(selectedStudent);
                       }}
-                      className="h-10 px-4 text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-all uppercase tracking-widest"
+                      className="h-10 px-4 bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 text-amber-800 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
-                      Descartar
+                      <X size={15} />
+                      <span className="uppercase tracking-wider text-[10px]">Cancelar Alterações</span>
                     </button>
                     <button 
                       onClick={handleSave}
-                      disabled={loading}
-                      className="h-10 px-5 bg-[#00174b] text-white rounded-none text-[11px] font-bold hover:scale-[1.02] transition-all flex items-center gap-2 shadow-sm shadow-blue-900/10 uppercase tracking-widest"
+                      disabled={loading || uploadingPhoto}
+                      className="h-10 px-5 bg-[#00174b] hover:bg-indigo-950 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-95 disabled:opacity-50"
                     >
-                      <Save size={14} />
-                      Confirmar
+                      {loading ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          <span className="uppercase tracking-wider text-[10px]">Processando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save size={15} />
+                          <span className="uppercase tracking-wider text-[10px]">Salvar Dados da Ficha</span>
+                        </>
+                      )}
                     </button>
                   </>
                 )}
@@ -1591,40 +1644,7 @@ export function Students() {
                     </div>
                   </section>
 
-                  {/* Action Buttons in Footer */}
-                  {isEditing && (
-                    <div className="pt-10 flex items-center gap-4 border-t border-slate-100 mt-12 pb-12">
-                      <button 
-                        onClick={() => {
-                          setIsEditing(false);
-                          setUploadingPhoto(false);
-                        }}
-                        className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-                        tabIndex={18}
-                      >
-                        <X size={18} />
-                        Cancelar Alterações
-                      </button>
-                      <button 
-                        onClick={handleSave}
-                        disabled={loading || uploadingPhoto}
-                        className="flex-[2] h-12 bg-[#00174b] text-white rounded-none text-sm font-bold hover:scale-[1.01] active:scale-95 transition-all shadow-xl shadow-blue-900/10 disabled:opacity-50 flex items-center justify-center gap-2"
-                        tabIndex={19}
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 size={18} className="animate-spin" />
-                            Processando...
-                          </>
-                        ) : (
-                          <>
-                            <Save size={18} />
-                            Salvar Dados da Ficha
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  {/* Action Buttons removed from footer and moved to the persistent top header actions bar */}
                 </div>
               )}
               </div>
