@@ -135,6 +135,7 @@ export function Teachers() {
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'subject'>('name');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [hoverShowList, setHoverShowList] = useState(false);
   const [formData, setFormData] = useState<Partial<Teacher>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -206,6 +207,7 @@ export function Teachers() {
     setSelectedTeacher(normalizedTeacher);
     setFormData(normalizedTeacher);
     setIsEditing(false);
+    setHoverShowList(false);
   }, []);
 
   const generateTeacherListPDF = async () => {
@@ -335,6 +337,7 @@ export function Teachers() {
       subject_ids: [],
     });
     setIsEditing(true);
+    setHoverShowList(false);
   };
 
   const handleSave = async () => {
@@ -726,102 +729,146 @@ export function Teachers() {
     });
   }, [teachers, searchTerm, statusFilter, subjectFilter, sortBy, subjects]);
 
+  const actualListCollapsed = selectedTeacher !== null || isEditing;
+
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-2">
-      {/* Sidebar List */}
-      <div className="w-[432px] bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
-        <div className="p-4 border-b border-slate-50 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#131b2e]">Professores</h2>
-            <div className="flex gap-2">
-              <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-none border border-slate-200 flex items-center">
-                {filteredTeachers.length}
-              </div>
-              <button 
-                onClick={generateTeacherListPDF}
-                className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
-                title="Imprimir Listagem Completa"
-              >
-                <Printer size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>
-              </button>
-              <button 
-                onClick={handleNew}
-                className="p-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-colors"
-                title="Novo Professor"
-              >
-                <Plus size={18} />
-              </button>
-            </div>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text"
-              placeholder="Buscar professor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10"
-            />
-          </div>
-          <div className="flex bg-slate-50 p-1 rounded-none">
-            {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={cn(
-                  "flex-1 py-1.5 text-[10px] font-bold rounded-none transition-all",
-                  statusFilter === status 
-                    ? "bg-white text-slate-800 shadow-sm" 
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
+    <div className={cn(
+      "h-[calc(100vh-8rem)] relative flex gap-4 w-full transition-all duration-300",
+      actualListCollapsed ? "justify-center" : "justify-end"
+    )}>
+      {/* Green Hover Sensor / Marker */}
+      {actualListCollapsed && !hoverShowList && (
+        <div 
+          onMouseEnter={() => setHoverShowList(true)}
+          onClick={() => setHoverShowList(true)}
+          className="absolute right-0 top-1/4 h-1/2 w-3 bg-emerald-500 hover:bg-emerald-600 cursor-pointer rounded-l-md shadow-md transition-all duration-200 flex flex-col justify-center items-center group z-[45]"
+          title="Aproxime o mouse para ver a Lista de Professores"
+        >
+          {/* Subtle glowing accent */}
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
           
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={subjectFilter}
-              onChange={(e) => setSubjectFilter(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
-            >
-              <option value="all">Filtrar Disciplina (Ativas)</option>
-              {subjects.filter(s => s.status === 'Ativo').map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
-            >
-              <option value="name">Ordenar por Nome</option>
-              <option value="code">Ordenar por Código</option>
-              <option value="subject">Ordenar por Disciplina</option>
-            </select>
+          {/* Hover instruction tooltip */}
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            ➔ Lista de Professores <span className="text-slate-300">(Passe o mouse)</span>
           </div>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="animate-spin text-slate-705" />
+      {/* Sidebar/Full List */}
+      <div 
+        onMouseLeave={() => {
+          if (actualListCollapsed) {
+            setHoverShowList(false);
+          }
+        }}
+        className={cn(
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          actualListCollapsed 
+            ? (hoverShowList 
+                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
+                : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
+              )
+            : "w-[432px] opacity-100"
+        )}
+      >
+        <div className="flex-[1] flex flex-col overflow-hidden w-full">
+          <div className="p-4 border-b border-slate-50 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-[#131b2e]">Professores</h2>
+              <div className="flex gap-2">
+                <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-none border border-slate-200 flex items-center">
+                  {filteredTeachers.length}
+                </div>
+                <button 
+                  onClick={generateTeacherListPDF}
+                  className="px-3 py-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-all flex items-center gap-2 border border-slate-200 shadow-sm"
+                  title="Imprimir Listagem Completa"
+                >
+                  <Printer size={16} />
+                  <span className="text-[10px] font-bold uppercase tracking-tight">Listagem</span>
+                </button>
+                <button 
+                  onClick={handleNew}
+                  className="p-1.5 bg-slate-50 text-slate-800 rounded-none hover:bg-slate-100 transition-colors"
+                  title="Novo Professor"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
             </div>
-          ) : filteredTeachers.map((teacher) => (
-            <TeacherItem
-              key={teacher.id}
-              teacher={teacher}
-              isSelected={selectedTeacher?.id === teacher.id}
-              onSelect={handleSelectTeacher}
-            />
-          ))}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input 
+                type="text"
+                placeholder="Buscar professor..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10"
+              />
+            </div>
+            <div className="flex bg-slate-50 p-1 rounded-none">
+              {(['Ativo', 'Inativo', 'Todos'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={cn(
+                    "flex-1 py-1.5 text-[10px] font-bold rounded-none transition-all",
+                    statusFilter === status 
+                      ? "bg-white text-slate-800 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={subjectFilter}
+                onChange={(e) => setSubjectFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
+              >
+                <option value="all">Filtrar Disciplina (Ativas)</option>
+                {subjects.filter(s => s.status === 'Ativo').map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
+              >
+                <option value="name">Ordenar por Nome</option>
+                <option value="code">Ordenar por Código</option>
+                <option value="subject">Ordenar por Disciplina</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="animate-spin text-slate-705" />
+              </div>
+            ) : filteredTeachers.map((teacher) => (
+              <TeacherItem
+                key={teacher.id}
+                teacher={teacher}
+                isSelected={selectedTeacher?.id === teacher.id}
+                onSelect={handleSelectTeacher}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className={cn(
+        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
+        actualListCollapsed ? "flex-grow flex-1 max-w-5xl w-[100%] mx-auto opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+      )}>
         {selectedTeacher || isEditing ? (
           <>
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
@@ -837,64 +884,72 @@ export function Teachers() {
                   <p className="text-sm text-slate-500">Código: {formData.code}</p>
                 </div>
               </div>
-              <div className="flex gap-3">
-                {!isEditing && selectedTeacher && (
-                  <button 
-                    onClick={handlePrint}
-                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                  >
-                    <Printer size={16} />
-                    Imprimir
-                  </button>
-                )}
-                {!isEditing && selectedTeacher && (
-                  <button 
-                    onClick={() => generateTeacherPDF(selectedTeacher)}
-                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                  >
-                    <FileText size={16} />
-                    Gerar PDF
-                  </button>
-                )}
-                {!isEditing && selectedTeacher && (
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-none transition-all cursor-pointer flex items-center justify-center group"
-                    title="Excluir Professor"
-                  >
-                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
-                  </button>
-                )}
+              <div className="flex gap-3 items-center">
                 {isEditing ? (
                   <>
+                    {selectedTeacher && (
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowDeleteConfirm(true);
+                        }}
+                        className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                        title="Excluir Professor"
+                      >
+                        <Trash2 size={16} />
+                        <span>Excluir</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-none text-sm font-bold transition-all"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
-                      Cancelar
+                      <X size={15} />
+                      <span>Cancelar</span>
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-6 py-2 bg-[#00174b] text-white rounded-none text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
-                      Salvar Professor
+                      <Save size={16} />
+                      <span>Salvar Professor</span>
                     </button>
                   </>
                 ) : (
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                    >
-                      <Edit2 size={16} />
-                      Editar Cadastro
-                    </button>
-                  </div>
+                  selectedTeacher && (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setSelectedTeacher(null);
+                          setIsEditing(false);
+                        }}
+                        className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                        title="Fechar Ficha"
+                      >
+                        <X size={15} />
+                        <span className="hidden sm:inline">Fechar Ficha</span>
+                      </button>
+
+                      <button 
+                        onClick={handlePrint}
+                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        title="Imprimir"
+                      >
+                        <Printer size={16} />
+                      </button>
+
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="h-10 px-4 bg-slate-800 border border-slate-800 hover:bg-slate-900 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                        title="Editar"
+                      >
+                        <Edit2 size={14} />
+                        <span>Editar</span>
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             </div>

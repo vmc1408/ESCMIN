@@ -148,6 +148,7 @@ export function Classes() {
   const [sortBy, setSortBy] = useState<'name_year' | 'name' | 'code' | 'year' | 'period'>('name_year');
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [hoverShowList, setHoverShowList] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [formData, setFormData] = useState<Partial<Class>>({
@@ -247,6 +248,7 @@ export function Classes() {
       start_date: cls.start_date || ''
     });
     setIsEditing(false);
+    setHoverShowList(false);
   }, []);
 
   const generateClassListPDF = async () => {
@@ -348,6 +350,7 @@ export function Classes() {
       subject_ids: []
     });
     setIsEditing(true);
+    setHoverShowList(false);
   };
 
   const toggleDay = (day: string) => {
@@ -479,102 +482,146 @@ export function Classes() {
     });
   }, [classes, searchTerm, statusFilter, sortBy]);
 
+  const actualListCollapsed = selectedClass !== null || isEditing;
+
   return (
-    <div className="h-[calc(100vh-6rem)] flex gap-6 p-4">
-      {/* Sidebar List */}
-      <div className="w-[440px] bg-white rounded-none shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden order-last">
-        <div className="p-8 border-b border-slate-100 space-y-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Turmas</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Gestão de Grupos Acadêmicos</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-none border border-slate-200 shadow-sm uppercase tracking-widest leading-none">
-                {filteredClasses.length}
-              </div>
-              <button 
-                onClick={handleNew}
-                className="w-10 h-10 bg-slate-800 text-white rounded-none hover:bg-slate-900 transition-all flex items-center justify-center shadow-lg shadow-none active:scale-90"
-                title="NOVA TURMA"
-              >
-                <Plus size={20} />
-              </button>
-            </div>
-          </div>
+    <div className={cn(
+      "h-[calc(100vh-6rem)] relative flex gap-4 w-full transition-all duration-300 p-4",
+      actualListCollapsed ? "justify-center" : "justify-end"
+    )}>
+      {/* Green Hover Sensor / Marker */}
+      {actualListCollapsed && !hoverShowList && (
+        <div 
+          onMouseEnter={() => setHoverShowList(true)}
+          onClick={() => setHoverShowList(true)}
+          className="absolute right-0 top-1/4 h-1/2 w-4 bg-emerald-500 hover:bg-emerald-600 cursor-pointer rounded-l-md shadow-md transition-all duration-200 flex flex-col justify-center items-center group z-[45]"
+          title="Aproxime o mouse para ver a Lista de Turmas"
+        >
+          {/* Subtle glowing accent */}
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
           
-          <div className="space-y-4">
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={16} />
-              <input 
-                type="text"
-                placeholder="Buscar por nome ou código..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 outline-none transition-all placeholder:text-slate-400"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-[10px] font-bold text-slate-600 uppercase tracking-widest focus:ring-4 focus:ring-slate-500/5 outline-none transition-all cursor-pointer"
-              >
-                <option value="name_year">Nome e Ano (Recente Primeiro)</option>
-                <option value="name">Ordenar por Nome (A-Z)</option>
-                <option value="code">Ordenar por Código</option>
-                <option value="year">Ordenar por Ano</option>
-                <option value="period">Ordenar por Período</option>
-              </select>
-              
-              <div className="flex bg-slate-100/50 p-1.5 rounded-none border border-slate-200">
-                {(['Ativo', 'Todos'] as const).map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status === 'Todos' ? 'Todos' : 'Ativo')}
-                    className={cn(
-                      "flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all",
-                      (status === 'Todos' && statusFilter === 'Todos') || (status === 'Ativo' && statusFilter === 'Ativo')
-                        ? "bg-white text-slate-800 shadow-sm border border-slate-100" 
-                        : "text-slate-400 hover:text-slate-600"
-                    )}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Hover instruction tooltip */}
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            ➔ Lista de Turmas <span className="text-slate-300">(Passe o mouse)</span>
           </div>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/30">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-48 space-y-3 opacity-50">
-              <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-              <p className="text-[10px] font-bold uppercase tracking-widest">Sincronizando...</p>
+      {/* Sidebar/Full List */}
+      <div 
+        onMouseLeave={() => {
+          if (actualListCollapsed) {
+            setHoverShowList(false);
+          }
+        }}
+        className={cn(
+          "bg-white rounded-none shadow-2xl flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          actualListCollapsed 
+            ? (hoverShowList 
+                ? "absolute right-0 top-4 bottom-4 h-[calc(100%-2rem)] z-50 w-[440px] opacity-100 shadow-2xl border-l border-slate-200" 
+                : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
+              )
+            : "w-[440px] opacity-100"
+        )}
+      >
+        <div className="flex-[1] flex flex-col overflow-hidden w-full bg-white">
+          <div className="p-8 border-b border-slate-100 space-y-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Turmas</h2>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Gestão de Grupos Acadêmicos</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-none border border-slate-200 shadow-sm uppercase tracking-widest leading-none">
+                  {filteredClasses.length}
+                </div>
+                <button 
+                  onClick={handleNew}
+                  className="w-10 h-10 bg-slate-800 text-white rounded-none hover:bg-slate-900 transition-all flex items-center justify-center shadow-lg shadow-none active:scale-90"
+                  title="NOVA TURMA"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
             </div>
-          ) : filteredClasses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-4">
-              <Search size={40} />
-              <p className="text-[10px] font-bold uppercase tracking-widest">Nenhuma turma encontrada</p>
+            
+            <div className="space-y-4">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={16} />
+                <input 
+                  type="text"
+                  placeholder="Buscar por nome ou código..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold focus:ring-4 focus:ring-slate-500/5 focus:border-slate-400 outline-none transition-all placeholder:text-slate-400"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-[10px] font-bold text-slate-600 uppercase tracking-widest focus:ring-4 focus:ring-slate-500/5 outline-none transition-all cursor-pointer"
+                >
+                  <option value="name_year">Nome e Ano (Recente Primeiro)</option>
+                  <option value="name">Ordenar por Nome (A-Z)</option>
+                  <option value="code">Ordenar por Código</option>
+                  <option value="year">Ordenar por Ano</option>
+                  <option value="period">Ordenar por Período</option>
+                </select>
+                
+                <div className="flex bg-slate-100/50 p-1.5 rounded-none border border-slate-200">
+                  {(['Ativo', 'Todos'] as const).map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setStatusFilter(status === 'Todos' ? 'Todos' : 'Ativo')}
+                      className={cn(
+                        "flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all",
+                        (status === 'Todos' && statusFilter === 'Todos') || (status === 'Ativo' && statusFilter === 'Ativo')
+                          ? "bg-white text-slate-800 shadow-sm border border-slate-100" 
+                          : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          ) : (
-            filteredClasses.map((cls) => (
-              <ClassItem
-                key={cls.id}
-                cls={cls}
-                subjects={subjects}
-                isSelected={selectedClass?.id === cls.id}
-                onSelect={handleSelectClass}
-              />
-            ))
-          )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/30">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-48 space-y-3 opacity-50">
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Sincronizando...</p>
+              </div>
+            ) : filteredClasses.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-300 gap-4">
+                <Search size={40} />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Nenhuma turma encontrada</p>
+              </div>
+            ) : (
+              filteredClasses.map((cls) => (
+                <ClassItem
+                  key={cls.id}
+                  cls={cls}
+                  subjects={subjects}
+                  isSelected={selectedClass?.id === cls.id}
+                  onSelect={handleSelectClass}
+                />
+              ))
+            )}
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-none shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col overflow-hidden relative">
+      <div className={cn(
+        "bg-white rounded-none shadow-2xl border border-slate-200 flex flex-col overflow-hidden relative transition-all duration-300",
+        actualListCollapsed ? "flex-grow flex-1 max-w-5xl w-[100%] mx-auto opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+      )}>
         {selectedClass || isEditing ? (
           <>
             {notification && (
@@ -612,53 +659,82 @@ export function Classes() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                {!isEditing && selectedClass && (
+              <div className="flex gap-3 items-center">
+                {isEditing ? (
                   <>
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowDeleteConfirm(true);
-                      }}
-                      className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all group border border-transparent hover:border-red-100 shadow-sm hover:shadow-lg active:scale-90"
-                      title="Excluir Turma"
-                    >
-                      <Trash2 size={24} className="group-hover:rotate-12 transition-transform" />
-                    </button>
-                    <button 
-                      onClick={() => window.print()}
-                      className="w-12 h-12 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:border-slate-300 transition-all flex items-center justify-center shadow-sm hover:shadow-lg active:scale-90"
-                      title="Imprimir"
-                    >
-                      <Printer size={20} />
-                    </button>
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="h-14 px-8 bg-slate-800 text-white rounded-none text-[11px] font-bold hover:bg-slate-900 transition-all flex items-center gap-3 shadow-xl shadow-none uppercase tracking-widest active:scale-95 group"
-                    >
-                      <Edit2 size={18} className="group-hover:rotate-12 transition-transform" />
-                      Editar Turma
-                    </button>
-                  </>
-                )}
-                {isEditing && (
-                  <>
+                    {selectedClass && (
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowDeleteConfirm(true);
+                        }}
+                        className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                        title="Excluir Turma"
+                      >
+                        <Trash2 size={16} />
+                        <span>Excluir</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-6 py-4 text-slate-500 hover:text-slate-900 text-[11px] font-bold uppercase tracking-widest transition-colors"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
-                      Cancelar
+                      <X size={15} />
+                      <span>Cancelar</span>
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-10 py-4 bg-emerald-600 text-white rounded-none text-[11px] font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 uppercase tracking-widest active:scale-95 flex items-center gap-3"
+                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
-                      <Save size={18} />
-                      Salvar Cadastro
+                      <Save size={16} />
+                      <span>Salvar Cadastro</span>
                     </button>
                   </>
+                ) : (
+                  selectedClass && (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setSelectedClass(null);
+                          setIsEditing(false);
+                        }}
+                        className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                        title="Fechar Ficha"
+                      >
+                        <X size={15} />
+                        <span className="hidden sm:inline">Fechar Ficha</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          try {
+                            window.print();
+                          } catch (err) {
+                            console.error("Print failed:", err);
+                            setNotification({
+                              type: 'error',
+                              message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
+                            });
+                          }
+                        }}
+                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        title="Imprimir"
+                      >
+                        <Printer size={16} />
+                      </button>
+
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="h-10 px-4 bg-slate-800 border border-slate-800 hover:bg-slate-900 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                        title="Editar"
+                      >
+                        <Edit2 size={14} />
+                        <span>Editar</span>
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             </div>

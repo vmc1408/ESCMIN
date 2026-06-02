@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle, ShieldCheck, Clock, Lock, Users } from 'lucide-react';
+import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle, ShieldCheck, Clock, Lock } from 'lucide-react';
 import { getInstitutionSettings } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,9 +17,6 @@ export function Navbar() {
     isSupabaseConfigured ? (isDbConnected ? 'connected' : 'checking') : 'disconnected'
   );
   const [latency, setLatency] = useState<number | null>(null);
-
-  const [studentsState, setStudentsState] = useState({ canCollapse: false, isCollapsed: false });
-  const isStudentsPage = location.pathname === '/students';
 
   const fetchInstitution = async () => {
     try {
@@ -56,21 +53,6 @@ export function Navbar() {
       window.removeEventListener('supabase-status-change', handleStatusChange);
     };
   }, []);
-
-  useEffect(() => {
-    if (!isStudentsPage) return;
-    
-    const handleStateChange = (e: any) => {
-      setStudentsState(e.detail);
-    };
-    
-    window.addEventListener('students-state-updated', handleStateChange);
-    window.dispatchEvent(new CustomEvent('request-students-state'));
-    
-    return () => {
-      window.removeEventListener('students-state-updated', handleStateChange);
-    };
-  }, [isStudentsPage]);
 
   const userName = profile?.name || 'Usuário';
   const userRole = profile?.role === 'admin' ? 'Administrador' : 
@@ -139,19 +121,6 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-5">
-        {isStudentsPage && studentsState.canCollapse && (
-          <button 
-            onClick={() => window.dispatchEvent(new CustomEvent('toggle-student-list'))}
-            className="h-9 px-3 bg-emerald-50/40 border border-emerald-100 hover:bg-emerald-50 hover:border-emerald-200 text-emerald-800 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm mr-1 uppercase tracking-wider"
-            title={studentsState.isCollapsed ? "Exibir lista de alunos" : "Recolher lista de alunos"}
-          >
-            <Users size={15} />
-            <span className="hidden sm:inline text-[10px] tracking-wide">
-              {studentsState.isCollapsed ? "Mostrar Lista" : "Recolher Lista"}
-            </span>
-          </button>
-        )}
-
         {profile?.pin && !isLocked && (
           <div className="hidden md:flex items-center gap-1">
             <div 

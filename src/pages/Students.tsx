@@ -23,9 +23,11 @@ import {
   RotateCcw,
   ArrowUpDown,
   CreditCard,
+  DollarSign,
   Info,
   BookOpen,
-  Users
+  Users,
+  ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
@@ -177,7 +179,7 @@ export function Students() {
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isListCollapsed, setIsListCollapsed] = useState(false);
+  const [hoverShowList, setHoverShowList] = useState(false);
   
   const [formData, setFormData] = useState<Partial<Student>>(INITIAL_STUDENT_STATE);
   const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -195,33 +197,7 @@ export function Students() {
   const webcamRef = useRef<Webcam>(null);
   const { user, profile, refreshProfile } = useAuth();
 
-  useEffect(() => {
-    const handleToggle = () => {
-      setIsListCollapsed(prev => !prev);
-    };
-    window.addEventListener('toggle-student-list', handleToggle);
-    return () => {
-      window.removeEventListener('toggle-student-list', handleToggle);
-    };
-  }, []);
-
-  useEffect(() => {
-    const hasActiveStudentOrEdit = !!(selectedStudent || isEditing);
-    const dispatchState = () => {
-      window.dispatchEvent(new CustomEvent('students-state-updated', {
-        detail: {
-          canCollapse: hasActiveStudentOrEdit,
-          isCollapsed: isListCollapsed
-        }
-      }));
-    };
-    dispatchState();
-    
-    window.addEventListener('request-students-state', dispatchState);
-    return () => {
-      window.removeEventListener('request-students-state', dispatchState);
-    };
-  }, [selectedStudent, isEditing, isListCollapsed]);
+  // Automatic list collapsing and showing is based on active selected student state.
 
 
   const fetchStudents = useCallback(async () => {
@@ -445,7 +421,7 @@ export function Students() {
       photo_url: student.photo_url || ''
     });
     setIsEditing(false);
-    setIsListCollapsed(true);
+    setHoverShowList(false);
     fetchEnrollments(student.id);
   }, []);
 
@@ -459,7 +435,7 @@ export function Students() {
       registration_number: nextReg,
     });
     setIsEditing(true);
-    setIsListCollapsed(true);
+    setHoverShowList(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -529,14 +505,8 @@ export function Students() {
       setNotification({ type: 'success', message: 'Ficha do aluno salva com sucesso!' });
       setIsEditing(false);
       setUploadingPhoto(false); // Reset upload state on save success
+      setSelectedStudent(null);
       fetchStudents();
-      
-      // Update selected student with local data (including UI-only fields if fallback occurred)
-      if (savedId) {
-        setSelectedStudent({ ...dataToSave, id: savedId } as Student);
-      } else {
-        setSelectedStudent({ ...dataToSave, id: selectedStudent?.id } as Student);
-      }
     } catch (error: any) {
       console.error('Error saving student:', error);
       setNotification({ type: 'error', message: 'Erro ao salvar aluno: ' + error.message });
@@ -937,16 +907,52 @@ export function Students() {
     return Array.from(new Set(students.map(s => getYearFromRegistration(s.registration_number)).filter(Boolean))).sort().reverse();
   }, [students]);
 
-  const actualListCollapsed = isListCollapsed && (selectedStudent !== null || isEditing);
+  const actualListCollapsed = selectedStudent !== null || isEditing;
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex gap-4">
-      {/* Sidebar List */}
-      <div className={cn(
-        "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border-y border-slate-200",
-        actualListCollapsed ? "w-0 opacity-0 border-l-0 pointer-events-none" : "w-[380px] opacity-100 border-l border-slate-200"
-      )}>
-        <div className="w-[380px] flex-1 flex flex-col overflow-hidden">
+    <div className={cn(
+      "h-[calc(100vh-6rem)] relative flex gap-4 w-full transition-all duration-300",
+      actualListCollapsed ? "justify-center" : "justify-end"
+    )}>
+      {/* Green Hover Sensor / Marker */}
+      {actualListCollapsed && !hoverShowList && (
+        <div 
+          onMouseEnter={() => setHoverShowList(true)}
+          onClick={() => setHoverShowList(true)}
+          className="absolute right-0 top-1/4 h-1/2 w-3 bg-emerald-500 hover:bg-emerald-600 cursor-pointer rounded-l-md shadow-md transition-all duration-200 flex flex-col justify-center items-center group z-[45]"
+          title="Aproxime o mouse para ver a Lista de Alunos"
+        >
+          {/* Subtle glowing accent */}
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          
+          {/* Hover instruction tooltip */}
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            ➔ Lista de Alunos <span className="text-slate-300">(Passe o mouse)</span>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar/Full List */}
+      <div 
+        onMouseLeave={() => {
+          if (actualListCollapsed) {
+            setHoverShowList(false);
+          }
+        }}
+        className={cn(
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          actualListCollapsed 
+            ? (hoverShowList 
+                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-[380px] opacity-100 shadow-2xl border-l border-slate-200" 
+                : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
+              )
+            : "w-[380px] opacity-100"
+        )}
+      >
+        <div className={cn(
+          "flex-[1] flex flex-col overflow-hidden w-full",
+        )}>
           <div className="p-4 border-b border-slate-100 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -1024,18 +1030,18 @@ export function Students() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-grow flex-1 overflow-y-auto p-2 space-y-1">
           {loading ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="animate-spin text-slate-705" />
             </div>
           ) : !selectedYear ? (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-400 p-6 text-center">
+            <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
               <GraduationCap size={32} className="mb-2 opacity-20" />
               <p className="text-xs font-medium">Selecione uma turma para visualizar os alunos</p>
             </div>
           ) : filteredStudents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-400 p-6 text-center">
+            <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
               <Search size={32} className="mb-2 opacity-20" />
               <p className="text-xs font-medium">Nenhum aluno encontrado</p>
             </div>
@@ -1051,10 +1057,10 @@ export function Students() {
       </div>
     </div>
 
-      {/* Main Content */}
+      {/* Main Content (Student Details or Registration Form) */}
       <div className={cn(
-        "flex-1 bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
-        actualListCollapsed ? "max-w-5xl w-[100%] mx-auto" : ""
+        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
+        actualListCollapsed ? "flex-grow flex-1 max-w-5xl w-[100%] mx-auto opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
       )}>
         {selectedStudent || isEditing ? (
           <>
@@ -1119,56 +1125,71 @@ export function Students() {
                 {!isEditing && selectedStudent && (
                   <>
                     <button 
-                      onClick={handlePrint}
-                      className="h-10 w-10 bg-white border border-slate-200 text-slate-400 rounded-none hover:text-slate-800 hover:border-slate-205 transition-all flex items-center justify-center shadow-sm"
-                      title="Imprimir Ficha"
+                      onClick={() => {
+                        setSelectedStudent(null);
+                        setIsEditing(false);
+                      }}
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                      title="Fechar Ficha"
                     >
-                      <Printer size={18} />
+                      <X size={15} />
+                      <span className="hidden sm:inline">Fechar Ficha</span>
+                    </button>
+
+                    <button 
+                      onClick={handlePrint}
+                      className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                      title="Imprimir"
+                    >
+                      <Printer size={16} />
                     </button>
                     
                     <button 
                       onClick={() => navigate('/contributions', { state: { studentId: selectedStudent.id } })}
-                      className="h-10 px-4 bg-slate-50 border border-slate-200 text-slate-800 rounded-none text-xs font-bold hover:bg-slate-100 transition-all flex items-center gap-2 uppercase tracking-wide"
+                      className="h-10 w-10 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-none hover:text-emerald-800 hover:bg-emerald-100/50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                      title="Financeiro"
                     >
-                      <CreditCard size={16} />
-                      Financeiro
+                      <DollarSign size={18} />
                     </button>
 
                     <button 
                       onClick={() => setIsEditing(true)}
-                      className="h-10 px-5 bg-[#00174b] text-white rounded-none text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-md flex items-center gap-2 uppercase tracking-wide"
+                      className="h-10 px-4 bg-slate-800 border border-slate-800 hover:bg-slate-900 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                      title="Editar"
                     >
-                      <Edit2 size={16} />
-                      Editar
-                    </button>
-
-                    <button 
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowDeleteConfirm(true);
-                      }}
-                      className="h-10 w-10 text-red-500 hover:bg-red-300 hover:text-red-700 bg-red-50 rounded-none transition-all flex items-center justify-center border border-red-100 shadow-sm"
-                      title="Excluir Aluno"
-                    >
-                      <Trash2 size={18} />
+                      <Edit2 size={14} />
+                      <span>Editar</span>
                     </button>
                   </>
                 )}
                 {isEditing && (
                   <>
+                    {selectedStudent && (
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowDeleteConfirm(true);
+                        }}
+                        className="h-10 px-4 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                        title="Excluir Aluno"
+                      >
+                        <Trash2 size={16} />
+                        <span className="hidden sm:inline">Excluir Aluno</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => {
                         setIsEditing(false);
                         setUploadingPhoto(false);
-                        if (!selectedStudent) setFormData(INITIAL_STUDENT_STATE);
-                        else handleSelectStudent(selectedStudent);
+                        setSelectedStudent(null);
+                        setFormData(INITIAL_STUDENT_STATE);
                       }}
-                      className="h-10 px-4 bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 text-amber-800 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 text-rose-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                       <X size={15} />
-                      <span className="uppercase tracking-wider text-[10px]">Cancelar Alterações</span>
+                      <span className="uppercase tracking-wider text-[10px]">Cancelar Inscrição</span>
                     </button>
                     <button 
                       onClick={handleSave}

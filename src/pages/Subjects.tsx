@@ -107,6 +107,7 @@ export function Subjects() {
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'year'>('year');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [hoverShowList, setHoverShowList] = useState(false);
   const [formData, setFormData] = useState<Partial<Subject>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
@@ -181,6 +182,7 @@ export function Subjects() {
     setSelectedSubject(subject);
     setFormData(subject);
     setIsEditing(false);
+    setHoverShowList(false);
   }, []);
   
   const generateSubjectListPDF = async () => {
@@ -297,6 +299,7 @@ export function Subjects() {
       teacher_id: '',
     });
     setIsEditing(true);
+    setHoverShowList(false);
   };
 
   const handleSave = async () => {
@@ -397,10 +400,50 @@ export function Subjects() {
     });
   }, [subjects, searchTerm, statusFilter, sortBy]);
 
+  const actualListCollapsed = selectedSubject !== null || isEditing;
+
   return (
-    <div className="h-[calc(100vh-8rem)] flex gap-2">
-      {/* Sidebar List */}
-      <div className="w-[432px] bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden order-last">
+    <div className={cn(
+      "h-[calc(100vh-8rem)] relative flex gap-4 w-full transition-all duration-300",
+      actualListCollapsed ? "justify-center" : "justify-end"
+    )}>
+      {/* Green Hover Sensor / Marker */}
+      {actualListCollapsed && !hoverShowList && (
+        <div 
+          onMouseEnter={() => setHoverShowList(true)}
+          onClick={() => setHoverShowList(true)}
+          className="absolute right-0 top-1/4 h-1/2 w-3 bg-emerald-500 hover:bg-emerald-600 cursor-pointer rounded-l-md shadow-md transition-all duration-200 flex flex-col justify-center items-center group z-[45]"
+          title="Aproxime o mouse para ver a Lista de Disciplinas"
+        >
+          {/* Subtle glowing accent */}
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          
+          {/* Hover instruction tooltip */}
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            ➔ Lista de Disciplinas <span className="text-slate-300">(Passe o mouse)</span>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar/Full List */}
+      <div 
+        onMouseLeave={() => {
+          if (actualListCollapsed) {
+            setHoverShowList(false);
+          }
+        }}
+        className={cn(
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          actualListCollapsed 
+            ? (hoverShowList 
+                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
+                : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
+              )
+            : "w-[432px] opacity-100"
+        )}
+      >
+        <div className="flex-[1] flex flex-col overflow-hidden w-full">
         <div className="p-4 border-b border-slate-50 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#131b2e]">Disciplinas</h2>
@@ -507,9 +550,13 @@ export function Subjects() {
           })}
         </div>
       </div>
+    </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-white rounded-none shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+      <div className={cn(
+        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
+        actualListCollapsed ? "flex-grow flex-1 max-w-5xl w-[100%] mx-auto opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+      )}>
         {notification && (
           <div className={cn(
             "fixed top-6 right-6 z-[60] px-6 py-4 rounded-none shadow-2xl border text-sm font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-4",
@@ -560,63 +607,82 @@ export function Subjects() {
                     </div>
                   </div>
               </div>
-              <div className="flex gap-3">
-                {!isEditing && selectedSubject && (
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-none transition-all cursor-pointer flex items-center justify-center group"
-                    title="Excluir Disciplina"
-                  >
-                    <Trash2 size={20} className="group-hover:scale-110 transition-transform" />
-                  </button>
-                )}
+              <div className="flex gap-3 items-center">
                 {isEditing ? (
                   <>
+                    {selectedSubject && (
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowDeleteConfirm(true);
+                        }}
+                        className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                        title="Excluir Disciplina"
+                      >
+                        <Trash2 size={16} />
+                        <span>Excluir</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-none text-sm font-bold transition-all"
+                      className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                     >
-                      Cancelar
+                      <X size={15} />
+                      <span>Cancelar</span>
                     </button>
                     <button 
                       onClick={handleSave}
-                      className="px-6 py-2 bg-[#00174b] text-white rounded-none text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                      className="h-10 px-6 bg-[#00174b] text-white hover:bg-[#000f33] rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md uppercase tracking-wider"
                     >
-                      Salvar Disciplina
+                      <Save size={16} />
+                      <span>Salvar Disciplina</span>
                     </button>
                   </>
                 ) : (
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => {
-                        try {
-                          window.print();
-                        } catch (err) {
-                          console.error("Print failed:", err);
-                          setNotification({
-                            type: 'error',
-                            message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
-                          });
-                        }
-                      }}
-                      className="px-4 py-2 bg-slate-50 text-slate-600 rounded-none text-sm font-bold hover:bg-slate-100 transition-all flex items-center gap-2"
-                    >
-                      <Printer size={16} />
-                      Imprimir Ficha
-                    </button>
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="px-6 py-2 bg-white border border-slate-200 text-[#131b2e] rounded-none text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2"
-                    >
-                      <Edit2 size={16} />
-                      Editar Cadastro
-                    </button>
-                  </div>
+                  selectedSubject && (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setSelectedSubject(null);
+                          setIsEditing(false);
+                        }}
+                        className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                        title="Fechar Ficha"
+                      >
+                        <X size={15} />
+                        <span className="hidden sm:inline">Fechar Ficha</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          try {
+                            window.print();
+                          } catch (err) {
+                            console.error("Print failed:", err);
+                            setNotification({
+                              type: 'error',
+                              message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
+                            });
+                          }
+                        }}
+                        className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        title="Imprimir"
+                      >
+                        <Printer size={16} />
+                      </button>
+
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="h-10 px-4 bg-slate-800 border border-slate-800 hover:bg-slate-900 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                        title="Editar"
+                      >
+                        <Edit2 size={14} />
+                        <span>Editar</span>
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             </div>
