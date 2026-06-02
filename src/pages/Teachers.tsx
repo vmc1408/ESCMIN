@@ -176,6 +176,15 @@ export function Teachers() {
           }
         }
         normalized.subject_ids = Array.isArray(sIds) ? sIds : [];
+
+        // FALLBACK: Extract photo_url if stored in observations metadata
+        if (!normalized.photo_url && normalized.observations) {
+          const match = normalized.observations.match(/\[PHOTO_URL:([\s\S]*?)\]/);
+          if (match && match[1]) {
+            normalized.photo_url = match[1].trim();
+          }
+        }
+
         return normalized;
       });
 
@@ -212,10 +221,20 @@ export function Teachers() {
         }
       }
     }
+
+    // FALLBACK: Extract photo_url if stored in observations metadata
+    let photoUrl = teacher.photo_url;
+    if (!photoUrl && teacher.observations) {
+      const match = teacher.observations.match(/\[PHOTO_URL:([\s\S]*?)\]/);
+      if (match && match[1]) {
+        photoUrl = match[1].trim();
+      }
+    }
     
     const normalizedTeacher = {
       ...teacher,
-      subject_ids: Array.isArray(subjectIds) ? subjectIds : []
+      subject_ids: Array.isArray(subjectIds) ? subjectIds : [],
+      photo_url: photoUrl
     };
     setSelectedTeacher(normalizedTeacher);
     setFormData(normalizedTeacher);
@@ -344,7 +363,7 @@ export function Teachers() {
         const blob = await res.blob();
         const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
 
-        const url = await uploadImage(file, 'teachers', 'teachers');
+        const url = await uploadImage(file, 'students', 'teachers');
         setFormData(prev => ({ ...prev, photo_url: url }));
         setShowWebcam(false);
         setNotification({ type: 'success', message: 'Foto capturada com sucesso!' });
@@ -365,7 +384,7 @@ export function Teachers() {
     try {
       setUploadingPhoto(true);
       setNotification({ type: 'success', message: 'Carregando foto...' });
-      const url = await uploadImage(file, 'teachers', 'teachers');
+      const url = await uploadImage(file, 'students', 'teachers');
       setFormData(prev => ({ ...prev, photo_url: url }));
       setNotification({ type: 'success', message: 'Foto carregada com sucesso!' });
     } catch (error: any) {
@@ -407,17 +426,28 @@ export function Teachers() {
       };
 
       // PROACTIVE METADATA SYNC:
-      // Always sync subject_ids into observations metadata before saving.
+      // Always sync subject_ids and photo_url into observations metadata before saving.
       // This ensures data persistence even if the Supabase column is missing.
-        if (syncData.subject_ids && syncData.subject_ids.length > 0) {
-          const metadataStr = `[SUBJECTS:${JSON.stringify(syncData.subject_ids)}]`;
-          // Clean up existing metadata first, handled more robustly
-          let cleanObs = (syncData.observations || '')
-            .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
-            .replace(/\]\]$/g, '') // Clean up any orphaned trailing brackets
-            .trim();
-          syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
-        }
+      let baseObs = (syncData.observations || '')
+        .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
+        .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
+        .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
+        .replace(/\]\]$/g, '')
+        .trim();
+
+      let metadataParts: string[] = [];
+      if (syncData.subject_ids && syncData.subject_ids.length > 0) {
+        metadataParts.push(`[SUBJECTS:${JSON.stringify(syncData.subject_ids)}]`);
+      }
+      if (syncData.photo_url) {
+        metadataParts.push(`[PHOTO_URL:${syncData.photo_url}]`);
+      }
+
+      if (metadataParts.length > 0) {
+        syncData.observations = (baseObs + (baseObs ? '\n' : '') + metadataParts.join('\n')).trim();
+      } else {
+        syncData.observations = baseObs;
+      }
 
       console.log('[Teachers] Saving data:', syncData);
       
@@ -564,7 +594,17 @@ export function Teachers() {
         
         doc.setFontSize(10);
         doc.setTextColor(0);
-        doc.text(teacher.observations.replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').replace(/\s*\]\]\s*$/g, '').trim(), margin, obsY + 10, { maxWidth: pageWidth - (margin * 2) });
+        doc.text(
+          (teacher.observations || '')
+            .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
+            .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
+            .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
+            .replace(/\]\]$/g, '')
+            .trim(),
+          margin,
+          obsY + 10,
+          { maxWidth: pageWidth - (margin * 2) }
+        );
       }
 
       doc.setFontSize(8);
@@ -716,7 +756,12 @@ export function Teachers() {
               <div className="space-y-1 pt-4">
                 <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Observações Gerais</p>
                 <div className="text-[10pt] font-medium border border-black/10 p-4 rounded bg-slate-50/20 whitespace-pre-wrap leading-relaxed min-h-[100px]">
-                  {selectedTeacher.observations.replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '').replace(/\s*\]\]\s*$/g, '').trim()}
+                  {(selectedTeacher.observations || '')
+                    .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
+                    .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
+                    .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
+                    .replace(/\]\]$/g, '')
+                    .trim()}
                 </div>
               </div>
             )}
@@ -1258,8 +1303,10 @@ export function Teachers() {
                   <textarea 
                     disabled={!isEditing}
                     value={(formData.observations || '')
+                      .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
                       .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
-                      .replace(/\s*\]\]\s*$/g, '')
+                      .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
+                      .replace(/\]\]$/g, '')
                       .trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
