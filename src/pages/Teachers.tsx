@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, 
   UserPlus, 
@@ -15,12 +15,17 @@ import {
   Loader2,
   Plus,
   BookOpen,
-  Printer
+  Printer,
+  Camera,
+  Upload,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
+import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn } from '../lib/utils';
-import { fetchAll, saveData, deleteData } from '../lib/database';
+import { fetchAll, saveData, deleteData, uploadImage } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
 interface Teacher {
@@ -43,6 +48,7 @@ interface Teacher {
   subject_ids?: string[];
   created_at: string;
   user_id: string;
+  photo_url?: string;
 }
 
 interface Subject {
@@ -101,8 +107,12 @@ const TeacherItem = React.memo(({
         className
       )}
     >
-      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs relative">
-        {teacher.code}
+      <div className="w-10 h-10 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px] overflow-hidden border border-slate-200 relative">
+        {teacher.photo_url ? (
+          <img src={teacher.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        ) : (
+          teacher.code || '---'
+        )}
         <div className={cn(
           "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2 border-white",
           teacher.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
@@ -135,6 +145,9 @@ export function Teachers() {
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'subject'>('name');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showWebcam, setShowWebcam] = useState(false);
+  const webcamRef = useRef<Webcam>(null);
   const [hoverShowList, setHoverShowList] = useState(false);
   const [formData, setFormData] = useState<Partial<Teacher>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -317,6 +330,50 @@ export function Teachers() {
     } catch (error) {
       console.error('Error generating teacher list PDF:', error);
       alert('Erro ao gerar relatório de professores');
+    }
+  };
+
+  const capturePhoto = useCallback(async () => {
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (imageSrc) {
+      try {
+        setUploadingPhoto(true);
+        setNotification({ type: 'success', message: 'Processando foto...' });
+        // Convert base64 to blob
+        const res = await fetch(imageSrc);
+        const blob = await res.blob();
+        const file = new File([blob], "photo.jpg", { type: "image/jpeg" });
+
+        const url = await uploadImage(file, 'teachers', 'teachers');
+        setFormData(prev => ({ ...prev, photo_url: url }));
+        setShowWebcam(false);
+        setNotification({ type: 'success', message: 'Foto capturada com sucesso!' });
+      } catch (error: any) {
+        console.error('Error capturing/uploading photo:', error.message);
+        setNotification({ type: 'error', message: 'Erro ao capturar foto: ' + error.message });
+      } finally {
+        setUploadingPhoto(false);
+        setTimeout(() => setNotification(null), 3000);
+      }
+    }
+  }, [webcamRef]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingPhoto(true);
+      setNotification({ type: 'success', message: 'Carregando foto...' });
+      const url = await uploadImage(file, 'teachers', 'teachers');
+      setFormData(prev => ({ ...prev, photo_url: url }));
+      setNotification({ type: 'success', message: 'Foto carregada com sucesso!' });
+    } catch (error: any) {
+      console.error('Error uploading photo:', error.message);
+      setNotification({ type: 'error', message: 'Erro ao carregar foto: ' + error.message });
+    } finally {
+      setUploadingPhoto(false);
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
@@ -871,17 +928,53 @@ export function Teachers() {
       )}>
         {selectedTeacher || isEditing ? (
           <>
-            <div className="p-4 border-b border-slate-50 bg-slate-50/50">
-              <div className="max-w-4xl mx-auto flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-800">
-                  <UserIcon size={32} />
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-5">
+                <div className="relative group">
+                  <div className="w-20 h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
+                    {formData.photo_url ? (
+                      <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <UserIcon size={32} />
+                    )}
+                    
+                    {uploadingPhoto && (
+                      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px] flex items-center justify-center">
+                        <Loader2 className="text-white animate-spin" size={20} />
+                      </div>
+                    )}
+                  </div>
+                  {isEditing && !uploadingPhoto && (
+                    <div className="absolute inset-0 bg-black/40 rounded-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                       <button 
+                         type="button"
+                         onClick={() => setShowWebcam(true)}
+                         className="p-1.5 bg-white text-slate-800 rounded hover:scale-105 transition-transform"
+                         title="Tirar Foto"
+                       >
+                         <Camera size={14} />
+                       </button>
+                       <label className="p-1.5 bg-white text-slate-800 rounded hover:scale-105 transition-transform cursor-pointer" title="Upload Foto">
+                         <Upload size={14} />
+                         <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                       </label>
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-[#131b2e]">
+                  <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
                     {isEditing ? (selectedTeacher ? 'Editar Professor' : 'Novo Professor') : formData.name}
                   </h3>
-                  <p className="text-sm text-slate-500">Código: {formData.code}</p>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Código: {formData.code || '---'}</span>
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border tracking-wider",
+                      formData.status === 'Ativo' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-500 border-slate-200"
+                    )}>
+                      {formData.status || 'Ativo'}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-3 items-center">
@@ -955,8 +1048,45 @@ export function Teachers() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
-              <div className="max-w-4xl mx-auto space-y-4">
+          <div className="flex-1 overflow-y-auto">
+              <div className="p-3 pb-24">
+                {showWebcam ? (
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="aspect-video bg-black rounded-none overflow-hidden relative">
+                    <Webcam
+                      audio={false}
+                      ref={webcamRef}
+                      screenshotFormat="image/jpeg"
+                      className="w-full h-full object-cover"
+                      mirrored={false}
+                      imageSmoothing={true}
+                      forceScreenshotSourceSize={false}
+                      disablePictureInPicture={true}
+                      onUserMedia={() => {}}
+                      onUserMediaError={() => {}}
+                      screenshotQuality={1}
+                    />
+                  </div>
+                  <div className="flex justify-center gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setShowWebcam(false)}
+                      className="px-4 py-2 bg-slate-100 text-slate-600 rounded-none font-bold text-sm"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={capturePhoto}
+                      className="px-6 py-2 bg-slate-800 text-white rounded-none font-bold text-sm flex items-center gap-2"
+                    >
+                      <Camera size={18} />
+                      Capturar Foto
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="max-w-4xl mx-auto space-y-4">
                 {/* Basic Info */}
                 <section className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -1197,8 +1327,10 @@ export function Teachers() {
                   </div>
                 </section>
               </div>
-            </div>
-          </>
+            )}
+          </div>
+        </div>
+      </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
             <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
