@@ -260,6 +260,7 @@ export interface AcademicSettings {
   weekday_titles?: Record<number, string>;
   target_class_ids: string[];
   weekday_classes?: Record<number, string[]>;
+  weekday_terms?: Record<number, { term1_start: string; term1_end: string; term2_start: string; term2_end: string }>;
 }
 
 export interface CalendarEvent {

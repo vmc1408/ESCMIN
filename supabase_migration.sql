@@ -353,6 +353,11 @@ CREATE TABLE IF NOT EXISTS public.academic_settings (
     term2_end TEXT,
     class_weekday INTEGER,
     skip_holiday_neighbors BOOLEAN,
+    class_weekdays JSONB,
+    weekday_titles JSONB,
+    target_class_ids JSONB,
+    weekday_classes JSONB,
+    weekday_terms JSONB,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
