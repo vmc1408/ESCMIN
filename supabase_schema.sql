@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS public.teachers (
     birth_date DATE,
     observations TEXT,
     subject_ids TEXT[],
+    photo_url TEXT,
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())

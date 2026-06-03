@@ -220,6 +220,7 @@ CREATE TABLE IF NOT EXISTS public.teachers (
     birth_date DATE,
     observations TEXT,
     subject_ids TEXT[],
+    photo_url TEXT,
     user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
