@@ -460,7 +460,7 @@ export function Dashboard() {
               <div className="grid grid-cols-2 gap-2">
                  {[
                    { label: 'Matricular', icon: Users, path: '/students' },
-                   { label: 'Calendário', icon: Activity, path: '/calendar' },
+                   { label: 'Cronograma Acadêmico', icon: Activity, path: '/calendar' },
                    { label: 'Turmas', icon: GraduationCap, path: '/classes' },
                    { label: 'Docentes', icon: UserCheck, path: '/teachers' }
                  ].map((item, i) => (

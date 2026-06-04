@@ -27,7 +27,8 @@ import {
   Church,
   XCircle,
   FileText,
-  Lock
+  Lock,
+  Printer
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
@@ -51,7 +52,16 @@ const navItems = [
           { icon: TeachersIcon, label: 'Professores', path: '/teachers' },
           { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
-          { icon: CalendarIcon, label: 'Calendário', path: '/calendar' },
+          {
+            label: 'Cronograma Acadêmico',
+            icon: CalendarIcon,
+            children: [
+              { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month' },
+              { icon: FileText, label: 'Cronograma', path: '/calendar?view=management' },
+              { icon: Printer, label: 'Relatórios', path: '/calendar?view=reports' },
+              { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters' },
+            ]
+          },
           { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
           { icon: CalendarCheck, label: 'Frequência', path: '/monthly-attendance' },
           { 
@@ -101,7 +111,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     return items
       .filter(item => {
         if (item.requiredRole && item.requiredRole === 'admin' && !isAdmin) return false;
-        if (item.path && !canAccess(item.path)) return false;
+        if (item.path && !canAccess(item.path.split('?')[0])) return false;
         return true;
       })
       .map(item => {
@@ -154,7 +164,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Acadêmico', 'Financeiro']);
+  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Acadêmico', 'Financeiro', 'Cronograma Acadêmico']);
 
   const toggleGroup = (label: string) => {
     setOpenGroups(prev => 
@@ -162,7 +172,20 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     );
   };
 
-  const isPathActive = (path: string) => location.pathname === path;
+  const isPathActive = (path: string) => {
+    if (path.includes('?')) {
+      const [pathname, search] = path.split('?');
+      if (location.pathname === pathname) {
+        const currentSearch = location.search.replace('?', '');
+        if (search === 'view=month' && !currentSearch) {
+          return true; // monthly calendar is active if no query parameter
+        }
+        return currentSearch === search;
+      }
+      return false;
+    }
+    return location.pathname === path;
+  };
   
   const isGroupActive = (item: any): boolean => {
     if (item.path && isPathActive(item.path)) return true;
