@@ -2125,20 +2125,20 @@ export function Reports() {
                     <div className="absolute inset-4 border-2 border-amber-300 pointer-events-none opacity-50" />
                     
                                          {/* Header with Logo */}
-                     <div className="flex items-center justify-center gap-3 mt-4">
+                     <div className="flex items-center justify-center gap-4 md:gap-6 mt-4">
                         {institution?.logo_url && (
                            <img 
                               src={institution.logo_url} 
                               alt="Logo" 
-                              className="h-10 w-10 object-contain" 
+                              className="h-16 w-16 md:h-20 md:w-20 object-contain" 
                               referrerPolicy="no-referrer" 
                            />
                         )}
-                        <div className="text-left space-y-0.5">
-                           <h2 className="text-base font-bold uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                        <div className="text-left space-y-1">
+                           <h2 className="text-lg md:text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
                               {institution?.name || 'ESCMIN - SISTEMA DE ENSINO'}
                            </h2>
-                           <p className="text-[8px] font-sans font-bold uppercase text-amber-500 tracking-widest leading-none">
+                           <p className="text-[10px] md:text-xs font-sans font-bold uppercase text-amber-500 tracking-widest leading-none">
                               {institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}
                            </p>
                         </div>
@@ -2201,12 +2201,15 @@ export function Reports() {
               size: A4 landscape !important;
               margin: 0 !important;
             }
-            nav, aside, header, footer, #printable-report, [id^="non-printable-"], .print-hide {
+            body {
+              background: white !important;
+            }
+            nav, aside, header, footer, #printable-report, [id^="non-printable-"], .print-hide, .print-hidden {
               display: none !important;
               visibility: hidden !important;
             }
             [id="printable-certificate"] {
-              position: absolute !important;
+              position: fixed !important;
               left: 0 !important;
               top: 0 !important;
               width: 297mm !important;
@@ -2228,24 +2231,24 @@ export function Reports() {
         `}} />
       )}
 
-            {/* Printable Certificate (A4 Landscape Frame) */}
+      {/* Printable Certificate (A4 Landscape Frame) */}
       {viewingCertificate && (
-        <div id="printable-certificate" className="hidden print:block fixed inset-0 bg-white text-black font-serif p-16 flex flex-col justify-between text-center min-h-screen z-[99999]">
+        <div id="printable-certificate" className="hidden print:flex fixed inset-0 bg-white text-black font-serif p-16 flex flex-col justify-between text-center min-h-screen z-[99999]">
           <div className="border-[12px] border-double border-black p-12 flex-1 flex flex-col justify-between">
-             <div className="flex items-center justify-center gap-4">
+             <div className="flex items-center justify-center gap-6">
                 {institution?.logo_url && (
                    <img 
                       src={institution.logo_url} 
                       alt="Logo" 
-                      className="h-14 w-14 object-contain" 
+                      className="h-24 w-24 object-contain" 
                       referrerPolicy="no-referrer" 
                    />
                 )}
-                <div className="text-left space-y-1">
-                   <h2 className="text-xl font-bold uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                <div className="text-left space-y-1.5">
+                   <h2 className="text-3xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
                       {institution?.name || 'SISTEMA DE ENSINO'}
                    </h2>
-                   <p className="text-[10px] font-sans font-bold uppercase text-slate-500 tracking-wider">
+                   <p className="text-xs font-sans font-bold uppercase text-slate-500 tracking-wider">
                       {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
                    </p>
                 </div>
