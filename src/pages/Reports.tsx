@@ -2130,12 +2130,12 @@ export function Reports() {
                            <img 
                               src={institution.logo_url} 
                               alt="Logo" 
-                              className="h-16 w-16 md:h-20 md:w-20 object-contain" 
+                              className="h-20 w-20 md:h-24 md:w-24 object-contain" 
                               referrerPolicy="no-referrer" 
                            />
                         )}
                         <div className="text-left space-y-1">
-                           <h2 className="text-lg md:text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                           <h2 className="text-xl md:text-3xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
                               {institution?.name || 'ESCMIN - SISTEMA DE ENSINO'}
                            </h2>
                            <p className="text-[10px] md:text-xs font-sans font-bold uppercase text-amber-500 tracking-widest leading-none">
@@ -2216,7 +2216,7 @@ export function Reports() {
               height: 210mm !important;
               box-sizing: border-box !important;
               margin: 0 !important;
-              padding: 16mm !important;
+              padding: 10mm !important;
               background: white !important;
               z-index: 9999999 !important;
               display: flex !important;
@@ -2233,19 +2233,19 @@ export function Reports() {
 
       {/* Printable Certificate (A4 Landscape Frame) */}
       {viewingCertificate && (
-        <div id="printable-certificate" className="hidden print:flex fixed inset-0 bg-white text-black font-serif p-16 flex flex-col justify-between text-center min-h-screen z-[99999]">
-          <div className="border-[12px] border-double border-black p-12 flex-1 flex flex-col justify-between">
+        <div id="printable-certificate" className="hidden print:flex fixed inset-0 bg-white text-black font-serif p-10 flex flex-col justify-between text-center min-h-screen z-[99999]">
+          <div className="border-[12px] border-double border-black p-8 flex-1 flex flex-col justify-between">
              <div className="flex items-center justify-center gap-6">
                 {institution?.logo_url && (
                    <img 
                       src={institution.logo_url} 
                       alt="Logo" 
-                      className="h-24 w-24 object-contain" 
+                      className="h-28 w-28 object-contain" 
                       referrerPolicy="no-referrer" 
                    />
                 )}
                 <div className="text-left space-y-1.5">
-                   <h2 className="text-3xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                   <h2 className="text-4xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
                       {institution?.name || 'SISTEMA DE ENSINO'}
                    </h2>
                    <p className="text-xs font-sans font-bold uppercase text-slate-500 tracking-wider">
@@ -2254,8 +2254,8 @@ export function Reports() {
                 </div>
              </div>
 
-             <div className="my-12 space-y-6">
-                <h1 className="text-5xl font-extrabold italic text-black tracking-widest uppercase mb-6 leading-tight">
+             <div className="my-4 space-y-4">
+                <h1 className="text-3xl font-extrabold italic text-black tracking-widest uppercase mb-3 leading-tight">
                    {getCertificateTitle(viewingCertificate.type)}
                 </h1>
                 
@@ -2264,7 +2264,7 @@ export function Reports() {
                 </p>
 
                 <div className="py-4">
-                   <h2 className="text-4xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-16 pb-2">
+                   <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-12 pb-1.5 bg-amber-50/10">
                       {getStudentName(viewingCertificate, students)}
                    </h2>
                 </div>
@@ -2278,12 +2278,12 @@ export function Reports() {
                    }
                 </p>
 
-                <p className="text-xs text-slate-800 font-bold uppercase tracking-widest mt-8 font-sans">
+                <p className="text-xs text-slate-800 font-bold uppercase tracking-widest mt-4 font-sans">
                    {formatLongDate(viewingCertificate.issuance_date)}
                 </p>
              </div>
 
-             <div className="flex items-end justify-between px-12 mb-6 font-sans text-xs">
+             <div className="flex items-end justify-between px-12 mb-2 font-sans text-xs mt-4">
                 <div className="flex flex-col items-center gap-1">
                    <div className="w-40 border-b border-black" />
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Diretor Escola</p>
