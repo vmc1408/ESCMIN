@@ -1260,15 +1260,29 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
         const colStyles: any = {
           0: { cellWidth: 8 },
-          1: { cellWidth: 28 },
-          2: { cellWidth: 80 }
+          1: { cellWidth: 28 }
         };
         const extraColCount = monthlyClassDays.length;
         if (extraColCount > 0) {
-          const extraColWidth = (contentWidth - 8 - 28 - 80) / extraColCount;
-          for (let i = 0; i < extraColCount; i++) {
-            colStyles[3 + i] = { cellWidth: extraColWidth };
+          // Standard width for a date column is 33mm (perfect visual balance)
+          const targetDateColWidth = 33;
+          const minNameColWidth = 60;
+          
+          let nameColWidth = contentWidth - 8 - 28 - (extraColCount * targetDateColWidth);
+          let dateColWidth = targetDateColWidth;
+          
+          if (nameColWidth < minNameColWidth) {
+            // If the name column gets too narrow, scale the dates down proportionally
+            nameColWidth = minNameColWidth;
+            dateColWidth = (contentWidth - 8 - 28 - minNameColWidth) / extraColCount;
           }
+          
+          colStyles[2] = { cellWidth: nameColWidth };
+          for (let i = 0; i < extraColCount; i++) {
+            colStyles[3 + i] = { cellWidth: dateColWidth };
+          }
+        } else {
+          colStyles[2] = { cellWidth: contentWidth - 8 - 28 };
         }
 
         autoTable(doc, {
