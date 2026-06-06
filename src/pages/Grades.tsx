@@ -43,6 +43,7 @@ export function Grades() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [grades, setGrades] = useState<Record<string, GradeRecord>>({});
+  const [dbGrades, setDbGrades] = useState<any[]>([]);
   const [academicParams, setAcademicParams] = useState<AcademicParameters>({
     approval_grade: 5.0,
     recovery_grade: 5.0,
@@ -56,9 +57,15 @@ export function Grades() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('Resultado Final');
 
   const availablePeriods = React.useMemo(() => {
-    const assessmentTitles = assessments.map(a => a.title);
-    // Removemos os períodos base e mantemos apenas os cadastrados + Resultado Final
-    return Array.from(new Set([...assessmentTitles, 'Resultado Final'])) as string[];
+    const list = assessments.map(a => ({
+      id: a.id,
+      title: a.title,
+      label: `${a.period || '1º Bimestre'} - ${a.title} (${new Date(a.date).toLocaleDateString('pt-BR')} - Peso: ${a.weight})`
+    }));
+    return [
+      ...list,
+      { id: 'Resultado Final', title: 'Resultado Final', label: 'Resultado Final' }
+    ];
   }, [assessments]);
   
   const [loading, setLoading] = useState(false);
@@ -121,8 +128,24 @@ export function Grades() {
     fetchData();
   }, [fetchData]);
 
+  // Handle redirect from Assessments page to automatically filter Class, Subject, and Assessment
+  useEffect(() => {
+    const redirectDataStr = sessionStorage.getItem('grades_redirect');
+    if (redirectDataStr) {
+      try {
+        const data = JSON.parse(redirectDataStr);
+        if (data.classId) setSelectedClass(data.classId);
+        if (data.subjectId) setSelectedSubject(data.subjectId);
+        if (data.periodId) setSelectedPeriod(data.periodId);
+        sessionStorage.removeItem('grades_redirect');
+      } catch (e) {
+        console.error('Error parsing grades redirect session cache:', e);
+      }
+    }
+  }, [classes, subjects]);
+
   const fetchStudentsAndGrades = React.useCallback(async () => {
-    if (!selectedClass || !selectedSubject || !selectedPeriod) return;
+    if (!selectedClass || !selectedSubject) return;
     
     setLoading(true);
     setLoadingAssessments(true);
@@ -134,8 +157,7 @@ export function Grades() {
         ]),
         fetchQuery('grades', [
           { field: 'class_id', operator: '==', value: selectedClass },
-          { field: 'subject_id', operator: '==', value: selectedSubject },
-          { field: 'period', operator: '==', value: selectedPeriod }
+          { field: 'subject_id', operator: '==', value: selectedSubject }
         ]),
         fetchQuery('assessments', [
           { field: 'class_id', operator: '==', value: selectedClass },
@@ -145,18 +167,7 @@ export function Grades() {
 
       setStudents((studentsList || []).sort((a, b) => a.name.localeCompare(b.name)));
       setAssessments(assessmentsList as Assessment[] || []);
-
-        const gradesListFiltered = (gradesList || []).filter(g => g.value !== null && g.value !== undefined && g.value !== '');
-        
-        const gradesMap: Record<string, GradeRecord> = {};
-        gradesListFiltered.forEach(data => {
-          const record = data as GradeRecord;
-          if (typeof record.value === 'number') {
-            record.value = record.value.toString().replace('.', ',');
-          }
-          gradesMap[data.student_id] = record;
-        });
-        setGrades(gradesMap);
+      setDbGrades(gradesList || []);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       const errorMsg = error.message || '';
@@ -170,7 +181,7 @@ export function Grades() {
       setLoading(false);
       setLoadingAssessments(false);
     }
-  }, [selectedClass, selectedSubject, selectedPeriod]);
+  }, [selectedClass, selectedSubject]);
 
   useEffect(() => {
     fetchStudentsAndGrades();
@@ -184,10 +195,38 @@ export function Grades() {
   }, [fetchStudentsAndGrades]);
 
   useEffect(() => {
-    if (availablePeriods.length > 0 && !availablePeriods.includes(selectedPeriod)) {
-      setSelectedPeriod(availablePeriods[0]);
+    if (availablePeriods.length > 0 && !loadingAssessments) {
+      const exists = availablePeriods.some(p => p.id === selectedPeriod);
+      if (!exists) {
+        setSelectedPeriod(availablePeriods[0].id);
+      }
     }
-  }, [availablePeriods, selectedPeriod]);
+  }, [availablePeriods, selectedPeriod, loadingAssessments]);
+
+  // Handle client-side mapping of loaded grades into local active edit state
+  useEffect(() => {
+    if (!selectedPeriod) return;
+
+    const currentAssessment = assessments.find(a => a.id === selectedPeriod);
+    const periodGrades = dbGrades.filter(g => {
+      if (selectedPeriod === 'Resultado Final') {
+        return g.period === 'Resultado Final';
+      }
+      // Support matching by ID (current perfect design) or title (for backwards compatibility)
+      return g.period === selectedPeriod || (currentAssessment && g.period === currentAssessment.title);
+    });
+
+    const gradesMap: Record<string, GradeRecord> = {};
+    periodGrades.forEach(data => {
+      const record = { ...data } as GradeRecord;
+      if (typeof record.value === 'number') {
+        record.value = record.value.toString().replace('.', ',');
+      }
+      gradesMap[data.student_id] = record;
+    });
+
+    setGrades(gradesMap);
+  }, [selectedPeriod, dbGrades, students, assessments]);
 
   const filteredSubjects = React.useMemo(() => {
     if (!selectedClass) return [];
@@ -275,12 +314,13 @@ export function Grades() {
       const numAssessments = assessmentsList?.length || 0;
       
       const assessmentTitles = (assessmentsList || []).map(a => a.title);
+      const assessmentIds = (assessmentsList || []).map(a => a.id);
       
       students.forEach(student => {
-        // Filter grades specifically for assessments (title matching)
+        // Filter grades specifically for assessments (title or ID matching)
         const studentGrades = (allGrades || []).filter(g => 
           g.student_id === student.id && 
-          assessmentTitles.includes(g.period) &&
+          (assessmentTitles.includes(g.period) || assessmentIds.includes(g.period)) &&
           g.value !== null && g.value !== undefined && g.value !== ''
         );
         
@@ -642,14 +682,11 @@ export function Grades() {
                 onChange={e => setSelectedPeriod(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
-                {availablePeriods.map(p => {
-                  const assessment = assessments.find(a => a.title === p);
-                  return (
-                    <option key={p} value={p}>
-                      {p} {assessment ? `(${new Date(assessment.date).toLocaleDateString('pt-BR')} - Peso: ${assessment.weight})` : ''}
-                    </option>
-                  );
-                })}
+                {availablePeriods.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
