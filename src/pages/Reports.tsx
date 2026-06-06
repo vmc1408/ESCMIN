@@ -35,7 +35,10 @@ import {
   CalendarDays,
   ShieldCheck,
   UserMinus,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  School,
+  Info
 } from 'lucide-react';
 import { 
   BarChart as ReBarChart, 
@@ -64,12 +67,27 @@ import autoTable from 'jspdf-autotable';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, isSameMonth, startOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Student, Class, PixTransaction, Teacher, Subject, AcademicParameters } from '../types';
+import { useSearchParams } from 'react-router-dom';
 
 type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational' | 'attendance' | 'diario_consolidado';
 
 export function Reports() {
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<ReportCategory>('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as ReportCategory | null;
+  const initialCategory = (tabParam && ['dashboard', 'financial', 'academic', 'operational', 'attendance', 'diario_consolidado'].includes(tabParam))
+    ? tabParam
+    : 'dashboard';
+  const [activeCategory, setActiveCategory] = useState<ReportCategory>(initialCategory);
+
+  useEffect(() => {
+    if (tabParam && ['dashboard', 'financial', 'academic', 'operational', 'attendance', 'diario_consolidado'].includes(tabParam)) {
+      if (activeCategory !== tabParam) {
+        setActiveCategory(tabParam);
+      }
+    }
+  }, [tabParam, activeCategory]);
+
   const [institution, setInstitution] = useState<any>(null);
   const [academicParams, setAcademicParams] = useState<AcademicParameters>({
     approval_grade: 7.0,
@@ -821,58 +839,63 @@ export function Reports() {
       )}
 
       {/* Modern Sticky Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-6 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
-        <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-[#00174b] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
-              <BarChart3 size={32} />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black text-[#00174b] tracking-tighter">ESCMIN Intelligence</h1>
-              <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">
-                <Activity size={12} className="text-emerald-500" />
-                Monitoramento em Tempo Real
+      {activeCategory !== 'diario_consolidado' && (
+        <div className="bg-white border-b border-slate-200 px-8 py-6 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
+          <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-[#00174b] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+                <BarChart3 size={32} />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black text-[#00174b] tracking-tighter">ESCMIN Intelligence</h1>
+                <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">
+                  <Activity size={12} className="text-emerald-500" />
+                  Monitoramento em Tempo Real
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-              {(['dashboard', 'financial', 'academic', 'attendance', 'diario_consolidado', 'operational'] as ReportCategory[]).map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={cn(
-                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                    activeCategory === cat 
-                      ? "bg-white text-[#00174b] shadow-md" 
-                      : "text-slate-500 hover:text-slate-700"
-                  )}
-                >
-                  {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : cat === 'diario_consolidado' ? 'Diário de Classe' : 'Professores'}
-                </button>
-              ))}
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setActiveCategory(cat);
+                      setSearchParams({ tab: cat });
+                    }}
+                    className={cn(
+                      "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      activeCategory === cat 
+                        ? "bg-white text-[#00174b] shadow-md" 
+                        : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : 'Professores'}
+                  </button>
+                ))}
+              </div>
+              <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden lg:block"></div>
+              <button 
+                onClick={handlePrint}
+                className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                title="Imprimir Relatório"
+              >
+                <Printer size={20} />
+              </button>
+              <button 
+                onClick={() => generateReport(activeCategory)}
+                className="px-8 py-3.5 bg-[#00174b] text-white text-[11px] font-black uppercase tracking-[0.15em] rounded-2xl flex items-center gap-3 hover:opacity-95 transition-all shadow-2xl shadow-blue-900/30 active:scale-95"
+              >
+                <FileDown size={20} />
+                Exportar Relatório
+              </button>
             </div>
-            <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden lg:block"></div>
-            <button 
-              onClick={handlePrint}
-              className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-              title="Imprimir Relatório"
-            >
-              <Printer size={20} />
-            </button>
-            <button 
-              onClick={() => generateReport(activeCategory)}
-              className="px-8 py-3.5 bg-[#00174b] text-white text-[11px] font-black uppercase tracking-[0.15em] rounded-2xl flex items-center gap-3 hover:opacity-95 transition-all shadow-2xl shadow-blue-900/30 active:scale-95"
-            >
-              <FileDown size={20} />
-              Exportar Relatório
-            </button>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-[1920px] mx-auto px-8 space-y-4 print:hidden">
+      <div className={cn("max-w-[1920px] mx-auto px-8 space-y-4 print:hidden", activeCategory === 'diario_consolidado' && "pt-8")}>
         {activeCategory === 'dashboard' && (
           <>
         {/* KPI Grid */}
@@ -1521,386 +1544,434 @@ export function Reports() {
         )}
 
         {activeCategory === 'diario_consolidado' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 print:hidden justify-center items-center">
-             {/* Main Class Selector & Search */}
-             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-xl font-black text-[#00174b] tracking-tight">Diário de Classe Integrado</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Conexão em tempo real de notas, frequência e certificações</p>
-                </div>
-                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                   <div className="relative w-full md:w-64">
-                     <select
-                       value={selectedDiarioClass}
-                       onChange={(e) => {
-                         setSelectedDiarioClass(e.target.value);
-                         setDiarioSearch('');
-                       }}
-                       className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-[#00174b] focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all appearance-none"
-                     >
-                       <option value="">Selecione uma Turma...</option>
-                       {classes.filter(c => c.status === 'Ativo' || !c.status).map(c => (
-                         <option key={c.id} value={c.id}>{c.name}</option>
-                       ))}
-                     </select>
-                     <ChevronRight size={14} className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none text-slate-400" />
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 print:hidden">
+             {/* Unified Style Header */}
+             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200 no-print">
+                <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 p-2 bg-white rounded-none border border-slate-200 no-print flex items-center justify-center group overflow-hidden relative">
+                      {institution?.logo_url ? (
+                         <img src={institution.logo_url} alt="Logo" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 relative z-10" referrerPolicy="no-referrer" />
+                      ) : (
+                         <School size={20} className="text-slate-600 relative z-10" />
+                      )}
                    </div>
-
-                   {selectedDiarioClass && (
-                     <div className="relative w-full md:w-64">
-                       <input
-                         type="text"
-                         value={diarioSearch}
-                         onChange={(e) => setDiarioSearch(e.target.value)}
-                         placeholder="Buscar aluno..."
-                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                       />
-                       <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                     </div>
-                   )}
+                   <div>
+                      <h2 className="text-xl font-bold text-slate-900 tracking-tight uppercase">
+                         Diário de Classe Consolidado
+                      </h2>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+                         <div className="flex items-center gap-1.5 font-sans">
+                            <span className="w-1.5 h-1.5 bg-slate-400" />
+                            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{institution?.name || 'CENTRO DE ENSINO'}</p>
+                         </div>
+                         <div className="hidden sm:block w-1 h-1 bg-slate-300" />
+                         <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest bg-slate-100/60 px-3 py-1 rounded-none border border-slate-200/50">Boletim Escolar & Rendimento</p>
+                      </div>
+                   </div>
                 </div>
+
+                {selectedDiarioClass && (
+                   <div className="flex flex-wrap items-center gap-4">
+                      <div className="px-4 py-2 bg-slate-100/60 border border-slate-200 text-slate-700 rounded-none text-[10px] font-semibold uppercase tracking-[0.12em] flex items-center gap-2.5 transition-all shadow-sm leading-none">
+                         <span className="relative flex h-1.5 w-1.5">
+                            <span className="relative inline-flex bg-slate-400 h-1.5 w-1.5"></span>
+                         </span>
+                         <span>{students.filter(s => s.class_id === selectedDiarioClass && (s.status === 'Ativo' || !s.status)).length} Alunos Ativos</span>
+                      </div>
+                   </div>
+                )}
              </div>
 
-             {/* Dynamic Render Based on Class Selection */}
-             {!selectedDiarioClass ? (
-               <div className="bg-white rounded-[2.5rem] border border-slate-100 p-20 text-center space-y-6">
-                 <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto shadow-sm">
-                   <Award size={36} />
-                 </div>
-                 <div className="max-w-md mx-auto space-y-2">
-                   <h3 className="text-lg font-black text-[#00174b] tracking-tight">Primeiras Informações</h3>
-                   <p className="text-sm font-medium text-slate-400 leading-relaxed">Selecione uma turma ativa no filtro acima para visualizar o boletim integrado de notas, presença e emitir os certificados de conclusão de curso.</p>
-                 </div>
-               </div>
-             ) : (
-               (() => {
-                 const classObj = classes.find(c => c.id === selectedDiarioClass);
-                 const classStudentIds = students.filter(s => s.class_id === selectedDiarioClass).map(s => s.id);
-                 
-                 // Normalize class subject_ids
-                 let sIds: string[] = [];
-                 if (classObj) {
-                   if (Array.isArray(classObj.subject_ids)) {
-                     sIds = classObj.subject_ids;
-                   } else if (typeof classObj.subject_ids === 'string') {
-                     try {
-                       const parsed = JSON.parse(classObj.subject_ids);
-                       sIds = Array.isArray(parsed) ? parsed : [parsed];
-                     } catch (e) {
-                       sIds = classObj.subject_ids ? [classObj.subject_ids] : [];
-                     }
-                   } else if ((classObj as any).subject_id) {
-                     sIds = [(classObj as any).subject_id];
-                   }
-                 }
+             {/* Main Content Card Frame */}
+             <div className="bg-white rounded-none border border-slate-200 shadow-sm text-slate-900 overflow-hidden">
+                {/* Filter Bar */}
+                <div className="p-4 md:p-5 border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-none">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Turma</label>
+                         <div className="relative group">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                               <School size={16} />
+                            </div>
+                            <select
+                              value={selectedDiarioClass}
+                              onChange={(e) => {
+                                setSelectedDiarioClass(e.target.value);
+                                setDiarioSearch('');
+                              }}
+                              className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
+                            >
+                              <option value="">SELECIONAR TURMA...</option>
+                              {classes.filter(c => c.status === 'Ativo' || !c.status).map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
+                         </div>
+                      </div>
 
-                 const classSubjects = subjects.filter(sub => {
-                   if (sIds.length > 0) return sIds.includes(sub.id);
-                   return assessments.some(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
-                 });
-
-                 // Calculations per student
-                 const results = students
-                   .filter(student => student.class_id === selectedDiarioClass && (student.status === 'Ativo' || !student.status))
-                   .map(student => {
-                     // 1. Attendance percentage
-                     const totalDays = totalClassDays > 0 ? totalClassDays : 30; // 30 is fallback
-                     const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedDiarioClass && a.status === 'F').length;
-                     const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
-                     const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
-                     const isAttendanceApproved = presencePercentage >= minPresence;
-
-                     // 2. Grades per subject
-                     const subjectGradesArray = classSubjects.map(sub => {
-                       const finalGradeRecord = dbGrades.find(g => 
-                         g.student_id === student.id && 
-                         g.class_id === selectedDiarioClass && 
-                         g.subject_id === sub.id && 
-                         g.period === 'Resultado Final'
-                       );
-
-                       let gradeValue: number | null = null;
-                       let isCalculated = false;
-
-                       if (finalGradeRecord && finalGradeRecord.value !== null && finalGradeRecord.value !== undefined && finalGradeRecord.value !== '') {
-                         gradeValue = typeof finalGradeRecord.value === 'string' 
-                           ? parseFloat(finalGradeRecord.value.replace(',', '.')) 
-                           : finalGradeRecord.value;
-                       } else {
-                         // Compute average dynamically
-                         const subAssessments = assessments.filter(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
-                         const subAssessmentIds = subAssessments.map(a => a.id);
-                         const subAssessmentTitles = subAssessments.map(a => a.title);
-
-                         const studentSubGrades = dbGrades.filter(g => 
-                           g.student_id === student.id && 
-                           g.class_id === selectedDiarioClass && 
-                           g.subject_id === sub.id && 
-                           (subAssessmentIds.includes(g.period) || subAssessmentTitles.includes(g.period)) &&
-                           g.value !== null && g.value !== undefined && g.value !== ''
-                         );
-
-                         if (subAssessments.length > 0 && studentSubGrades.length > 0) {
-                           const sum = studentSubGrades.reduce((acc, curr) => {
-                             const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
-                             return acc + (v || 0);
-                           }, 0);
-                           gradeValue = sum / subAssessments.length;
-                           isCalculated = true;
-                         }
-                       }
-
-                       const minApp = academicParams.approval_grade || 7.0;
-                       const isApproved = gradeValue !== null && gradeValue >= minApp;
-
-                       return {
-                         subjectId: sub.id,
-                         subjectName: sub.name,
-                         grade: gradeValue,
-                         isCalculated,
-                         isApproved
-                       };
-                     });
-
-                     // Determine Final Status
-                     let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' = 'Aprovado';
-                     const hasMissingGrades = subjectGradesArray.some(sg => sg.grade === null);
-                     const minApp = academicParams.approval_grade || 7.0;
-
-                     if (!isAttendanceApproved) {
-                       finalStatus = 'Reprovado';
-                     } else if (hasMissingGrades) {
-                       finalStatus = 'Pendente';
-                     } else {
-                       const failedCount = subjectGradesArray.filter(sg => sg.grade !== null && sg.grade < minApp).length;
-                       if (failedCount > 0) {
-                         finalStatus = failedCount <= 2 ? 'Recuperação' : 'Reprovado';
-                       }
-                     }
-
-                     // Check if certificate issued
-                     const studentCertificate = certificates.find(cert => 
-                       cert.student_id === student.id && 
-                       (cert.type === 'conclusão' || cert.course.includes(classObj?.name || ''))
-                     );
-
-                     return {
-                       student,
-                       absences: studentAbsences,
-                       presencePercentage,
-                       isAttendanceApproved,
-                       subjectGrades: subjectGradesArray,
-                       finalStatus,
-                       certificate: studentCertificate
-                     };
-                   });
-
-                 // Filtering results for display
-                 const filteredResults = diarioSearch ? results.filter(r => 
-                   r.student.name.toLowerCase().includes(diarioSearch.toLowerCase()) ||
-                   (r.student.registration_number && r.student.registration_number.toLowerCase().includes(diarioSearch.toLowerCase()))
-                 ) : results;
-
-                 // Summary stats calculation
-                 const total = results.length;
-                 const approved = results.filter(r => r.finalStatus === 'Aprovado').length;
-                 const recuperation = results.filter(r => r.finalStatus === 'Recuperação').length;
-                 const failed = results.filter(r => r.finalStatus === 'Reprovado').length;
-                 const pending = results.filter(r => r.finalStatus === 'Pendente').length;
-                 const issuedCerts = results.filter(r => r.certificate).length;
-
-                 return (
-                   <div className="space-y-6">
-                     {/* Class Summary widgets */}
-                     <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alunos Ativos</p>
-                          <h4 className="text-2xl font-black text-[#00174b] mt-1">{total}</h4>
-                        </div>
-                        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-emerald-500">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aprovados</p>
-                          <h4 className="text-2xl font-black text-emerald-600 mt-1">{approved}</h4>
-                        </div>
-                        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-amber-500">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Em Recuperação</p>
-                          <h4 className="text-2xl font-black text-amber-500 mt-1">{recuperation}</h4>
-                        </div>
-                        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-rose-500">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reprovados</p>
-                          <h4 className="text-2xl font-black text-rose-500 mt-1">{failed + pending}</h4>
-                        </div>
-                        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm border-l-4 border-l-indigo-500 col-span-2 lg:col-span-1">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Certificados</p>
-                          <h4 className="text-2xl font-black text-indigo-600 mt-1">{issuedCerts} de {approved}</h4>
-                        </div>
-                     </div>
-
-                     {/* Diário de Classe Table */}
-                     <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden border-slate-50 border">
-                        <div className="px-8 py-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                           <h4 className="text-md font-black text-[#00174b] uppercase tracking-tight">Quadro Geral de Rendimento e Presença</h4>
-                           <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl uppercase tracking-widest">
-                             {classSubjects.length} Disciplinas Ativas nesta Turma
-                           </span>
-                        </div>
-
-                        {filteredResults.length === 0 ? (
-                          <div className="py-12 text-center text-slate-400 font-bold">Nenhum aluno correspondente encontrado.</div>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                               <thead>
-                                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider">Aluno</th>
-                                     {classSubjects.map(sub => (
-                                       <th key={sub.id} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center" title={sub.name}>
-                                         {sub.code || sub.name.substring(0, 8)}
-                                       </th>
-                                     ))}
-                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Presença (%)</th>
-                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">Status</th>
-                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-wider text-right">Diplomar / Doc</th>
-                                  </tr>
-                               </thead>
-                               <tbody className="divide-y divide-slate-50">
-                                  {filteredResults.map(res => {
-                                    const minPresenceRequired = 100 - (academicParams.absence_limit_percentage || 25);
-                                    
-                                    return (
-                                      <tr key={res.student.id} className="hover:bg-slate-50/50 transition-colors group">
-                                         <td className="px-6 py-4">
-                                            <p className="text-sm font-black text-[#00174b] uppercase">{res.student.name}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">Reg: {res.student.registration_number || 'N/D'}</p>
-                                         </td>
-                                         {res.subjectGrades.map((sg, i) => (
-                                           <td key={i} className="px-6 py-4 text-center">
-                                              {sg.grade !== null ? (
-                                                <span className={cn(
-                                                  "px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono inline-block min-w-10 text-center",
-                                                  sg.isApproved ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-rose-50 text-rose-700 border border-rose-100"
-                                                )}>
-                                                  {sg.grade.toFixed(1).replace('.', ',')}
-                                                </span>
-                                              ) : (
-                                                <span className="text-xs font-bold text-slate-300 uppercase">-</span>
-                                              )}
-                                           </td>
-                                         ))}
-                                         <td className="px-6 py-4 text-center">
-                                            <div className="inline-flex flex-col items-center">
-                                               <span className={cn(
-                                                 "text-xs font-black font-mono",
-                                                 res.presencePercentage >= minPresenceRequired ? "text-slate-700" : "text-rose-600"
-                                               )}>
-                                                 {Math.round(res.presencePercentage)}%
-                                               </span>
-                                               <span className="text-[8px] font-bold text-slate-400 uppercase">({res.absences} faltas)</span>
-                                            </div>
-                                         </td>
-                                         <td className="px-6 py-4 text-center">
-                                            <span className={cn(
-                                               "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest inline-block w-28 text-center",
-                                               res.finalStatus === 'Aprovado' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
-                                               res.finalStatus === 'Recuperação' ? "bg-amber-50 text-amber-600 border border-amber-100" :
-                                               res.finalStatus === 'Pendente' ? "bg-slate-100 text-slate-500" :
-                                               "bg-rose-50 text-rose-600 border border-slate-100"
-                                            )}>
-                                               {res.finalStatus === 'Aprovado' ? 'Aprovado' :
-                                                res.finalStatus === 'Recuperação' ? 'Recuperação' :
-                                                res.finalStatus === 'Pendente' ? 'Pendente' : 'Reprovado'}
-                                            </span>
-                                         </td>
-                                         <td className="px-6 py-4 text-right">
-                                            {res.certificate ? (
-                                              <div className="flex items-center justify-end gap-2">
-                                                 <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100 uppercase tracking-tight flex items-center gap-1">
-                                                    <CheckCircle2 size={10} /> Emitido
-                                                 </span>
-                                                 <button
-                                                   onClick={() => setViewingCertificate(res.certificate)}
-                                                   className="p-2 text-[#00174b] bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
-                                                   title="Reimprimir Diploma"
-                                                 >
-                                                    <Printer size={14} />
-                                                 </button>
-                                              </div>
-                                            ) : (
-                                              <button
-                                                disabled={res.finalStatus !== 'Aprovado'}
-                                                onClick={() => {
-                                                  setCertificateForm({
-                                                    course: `${classObj?.name || 'Curso Conciliar'}`,
-                                                    type: 'conclusão',
-                                                    issuance_date: new Date().toISOString().split('T')[0]
-                                                  });
-                                                  setIssuingStudent(res);
-                                                }}
-                                                className={cn(
-                                                  "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-                                                  res.finalStatus === 'Aprovado' 
-                                                    ? "bg-[#00174b] text-white hover:bg-blue-900 shadow-md cursor-pointer" 
-                                                    : "bg-slate-100 text-slate-300 cursor-not-allowed"
-                                                )}
-                                              >
-                                                Emitir Doc
-                                              </button>
-                                            )}
-                                         </td>
-                                      </tr>
-                                    );
-                                  })}
-                               </tbody>
-                            </table>
-                          </div>
-                        )}
-                     </div>
+                      {selectedDiarioClass && (
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Buscar Aluno</label>
+                            <div className="relative group">
+                               <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                                  <Search size={16} />
+                               </div>
+                               <input
+                                 type="text"
+                                 value={diarioSearch}
+                                 onChange={(e) => setDiarioSearch(e.target.value)}
+                                 placeholder="BUSCAR POR NOME OU RA..."
+                                 className="w-full pl-13 pr-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-850 appearance-none outline-none transition-all placeholder:text-slate-400"
+                               />
+                            </div>
+                         </div>
+                      )}
                    </div>
-                 );
-               })()
-             )}
+                </div>
+
+                {/* Display Body */}
+                {!selectedDiarioClass ? (
+                   <div className="p-8">
+                      <div className="bg-slate-50 border border-slate-205 p-5 rounded-none flex items-center gap-4 text-slate-700 shadow-sm transition-all duration-500">
+                         <div className="w-10 h-10 bg-slate-100 rounded-none flex items-center justify-center text-slate-500 flex-shrink-0 shadow-sm">
+                            <Info size={18} />
+                         </div>
+                         <div>
+                            <h4 className="text-[11px] font-bold text-slate-800 uppercase tracking-widest leading-normal">Nenhuma seleção ativa</h4>
+                            <p className="text-[10px] text-slate-500 leading-relaxed font-semibold uppercase tracking-wider mt-0.5">Selecione uma turma ativa no filtro acima para visualizar o boletim integrado de notas, presença e emitir os certificados de conclusão de curso.</p>
+                         </div>
+                      </div>
+                   </div>
+                ) : (
+                  (() => {
+                    const classObj = classes.find(c => c.id === selectedDiarioClass);
+                    const classStudentIds = students.filter(s => s.class_id === selectedDiarioClass).map(s => s.id);
+                    
+                    // Normalize class subject_ids
+                    let sIds: string[] = [];
+                    if (classObj) {
+                      if (Array.isArray(classObj.subject_ids)) {
+                        sIds = classObj.subject_ids;
+                      } else if (typeof classObj.subject_ids === 'string') {
+                        try {
+                          const parsed = JSON.parse(classObj.subject_ids);
+                          sIds = Array.isArray(parsed) ? parsed : [parsed];
+                        } catch (e) {
+                          sIds = classObj.subject_ids ? [classObj.subject_ids] : [];
+                        }
+                      } else if ((classObj as any).subject_id) {
+                        sIds = [(classObj as any).subject_id];
+                      }
+                    }
+
+                    const classSubjects = subjects.filter(sub => {
+                      if (sIds.length > 0) return sIds.includes(sub.id);
+                      return assessments.some(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
+                    });
+
+                    // Calculations per student
+                    const results = students
+                      .filter(student => student.class_id === selectedDiarioClass && (student.status === 'Ativo' || !student.status))
+                      .map(student => {
+                        // 1. Attendance percentage
+                        const totalDays = totalClassDays > 0 ? totalClassDays : 30; // 30 is fallback
+                        const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedDiarioClass && a.status === 'F').length;
+                        const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
+                        const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
+                        const isAttendanceApproved = presencePercentage >= minPresence;
+
+                        // 2. Grades per subject
+                        const subjectGradesArray = classSubjects.map(sub => {
+                          const finalGradeRecord = dbGrades.find(g => 
+                            g.student_id === student.id && 
+                            g.class_id === selectedDiarioClass && 
+                            g.subject_id === sub.id && 
+                            g.period === 'Resultado Final'
+                          );
+
+                          let gradeValue: number | null = null;
+                          let isCalculated = false;
+
+                          if (finalGradeRecord && finalGradeRecord.value !== null && finalGradeRecord.value !== undefined && finalGradeRecord.value !== '') {
+                            gradeValue = typeof finalGradeRecord.value === 'string' 
+                              ? parseFloat(finalGradeRecord.value.replace(',', '.')) 
+                              : finalGradeRecord.value;
+                          } else {
+                            // Compute average dynamically
+                            const subAssessments = assessments.filter(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
+                            const subAssessmentIds = subAssessments.map(a => a.id);
+                            const subAssessmentTitles = subAssessments.map(a => a.title);
+
+                            const studentSubGrades = dbGrades.filter(g => 
+                              g.student_id === student.id && 
+                              g.class_id === selectedDiarioClass && 
+                              g.subject_id === sub.id && 
+                              (subAssessmentIds.includes(g.period) || subAssessmentTitles.includes(g.period)) &&
+                              g.value !== null && g.value !== undefined && g.value !== ''
+                            );
+
+                            if (subAssessments.length > 0 && studentSubGrades.length > 0) {
+                              const sum = studentSubGrades.reduce((acc, curr) => {
+                                const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
+                                return acc + (v || 0);
+                              }, 0);
+                              gradeValue = sum / subAssessments.length;
+                              isCalculated = true;
+                            }
+                          }
+
+                          const minApp = academicParams.approval_grade || 7.0;
+                          const isApproved = gradeValue !== null && gradeValue >= minApp;
+
+                          return {
+                            subjectId: sub.id,
+                            subjectName: sub.name,
+                            grade: gradeValue,
+                            isCalculated,
+                            isApproved
+                          };
+                        });
+
+                        // Determine Final Status
+                        let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' = 'Aprovado';
+                        const hasMissingGrades = subjectGradesArray.some(sg => sg.grade === null);
+                        const minApp = academicParams.approval_grade || 7.0;
+
+                        if (!isAttendanceApproved) {
+                          finalStatus = 'Reprovado';
+                        } else if (hasMissingGrades) {
+                          finalStatus = 'Pendente';
+                        } else {
+                          const failedCount = subjectGradesArray.filter(sg => sg.grade !== null && sg.grade < minApp).length;
+                          if (failedCount > 0) {
+                            finalStatus = failedCount <= 2 ? 'Recuperação' : 'Reprovado';
+                          }
+                        }
+
+                        // Check if certificate issued
+                        const studentCertificate = certificates.find(cert => 
+                          cert.student_id === student.id && 
+                          (cert.type === 'conclusão' || cert.course.includes(classObj?.name || ''))
+                        );
+
+                        return {
+                          student,
+                          absences: studentAbsences,
+                          presencePercentage,
+                          isAttendanceApproved,
+                          subjectGrades: subjectGradesArray,
+                          finalStatus,
+                          certificate: studentCertificate
+                        };
+                      });
+
+                    // Filtering results for display
+                    const filteredResults = diarioSearch ? results.filter(r => 
+                      r.student.name.toLowerCase().includes(diarioSearch.toLowerCase()) ||
+                      (r.student.registration_number && r.student.registration_number.toLowerCase().includes(diarioSearch.toLowerCase()))
+                    ) : results;
+
+                    // Summary stats calculation
+                    const total = results.length;
+                    const approved = results.filter(r => r.finalStatus === 'Aprovado').length;
+                    const recuperation = results.filter(r => r.finalStatus === 'Recuperação').length;
+                    const failed = results.filter(r => r.finalStatus === 'Reprovado').length;
+                    const pending = results.filter(r => r.finalStatus === 'Pendente').length;
+                    const issuedCerts = results.filter(r => r.certificate).length;
+
+                    return (
+                      <div className="p-6 space-y-6">
+                        {/* Class Summary widgets */}
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                           <div className="bg-slate-50 border border-slate-200 p-5 rounded-none shadow-none">
+                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
+                             <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
+                           </div>
+                           <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-none shadow-none border-l-4 border-l-emerald-600">
+                             <p className="text-[10px] font-bold text-emerald-805 uppercase tracking-widest">Aprovados</p>
+                             <h4 className="text-2xl font-bold text-emerald-600 mt-1">{approved}</h4>
+                           </div>
+                           <div className="bg-amber-50/50 border border-amber-250 p-5 rounded-none shadow-none border-l-4 border-l-amber-600">
+                             <p className="text-[10px] font-bold text-amber-805 uppercase tracking-widest">Em Recuperação</p>
+                             <h4 className="text-2xl font-bold text-amber-500 mt-1">{recuperation}</h4>
+                           </div>
+                           <div className="bg-rose-50/50 border border-rose-250 p-5 rounded-none shadow-none border-l-4 border-l-rose-600">
+                             <p className="text-[10px] font-bold text-rose-805 uppercase tracking-widest">Reprovados</p>
+                             <h4 className="text-2xl font-bold text-rose-500 mt-1">{failed + pending}</h4>
+                           </div>
+                           <div className="bg-indigo-50/30 border border-indigo-250 p-5 rounded-none shadow-none border-l-4 border-l-indigo-600 col-span-2 lg:col-span-1">
+                             <p className="text-[10px] font-bold text-indigo-805 uppercase tracking-widest">Certificados</p>
+                             <h4 className="text-2xl font-bold text-indigo-600 mt-1">{issuedCerts} de {approved}</h4>
+                           </div>
+                        </div>
+
+                        {/* Diário de Classe Table */}
+                        <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden">
+                           <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                              <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">Quadro Geral de Rendimento e Presença</h4>
+                              <span className="text-[9px] font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-none border border-slate-300 uppercase tracking-widest">
+                                {classSubjects.length} Disciplinas Ativas nesta Turma
+                              </span>
+                           </div>
+
+                           {filteredResults.length === 0 ? (
+                             <div className="py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">Nenhum aluno correspondente encontrado.</div>
+                           ) : (
+                             <div className="overflow-x-auto">
+                               <table className="w-full text-left border-collapse">
+                                  <thead>
+                                     <tr className="bg-slate-50/50 border-b border-slate-200">
+                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Aluno</th>
+                                        {classSubjects.map(sub => (
+                                          <th key={sub.id} className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center" title={sub.name}>
+                                            {sub.code || sub.name.substring(0, 8).toUpperCase()}
+                                          </th>
+                                        ))}
+                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">Presença</th>
+                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
+                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-right">Diplomar / Doc</th>
+                                     </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                     {filteredResults.map(res => {
+                                       const minPresenceRequired = 100 - (academicParams.absence_limit_percentage || 25);
+                                       
+                                       return (
+                                         <tr key={res.student.id} className="hover:bg-slate-50/40 transition-colors group">
+                                            <td className="px-6 py-4">
+                                               <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">{res.student.name}</p>
+                                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">RA: {res.student.registration_number || 'N/D'}</p>
+                                            </td>
+                                            {res.subjectGrades.map((sg, i) => (
+                                              <td key={i} className="px-6 py-4 text-center">
+                                                 {sg.grade !== null ? (
+                                                   <span className={cn(
+                                                     "px-2 py-1 text-xs font-bold font-mono inline-block min-w-10 text-center rounded-none border shadow-sm",
+                                                     sg.isApproved ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+                                                   )}>
+                                                     {sg.grade.toFixed(1).replace('.', ',')}
+                                                   </span>
+                                                 ) : (
+                                                   <span className="text-xs font-bold text-slate-350 uppercase">-</span>
+                                                 )}
+                                              </td>
+                                            ))}
+                                            <td className="px-6 py-4 text-center">
+                                               <div className="inline-flex flex-col items-center">
+                                                  <span className={cn(
+                                                    "text-xs font-bold font-mono tracking-tight",
+                                                    res.presencePercentage >= minPresenceRequired ? "text-slate-800" : "text-rose-600"
+                                                  )}>
+                                                    {Math.round(res.presencePercentage)}%
+                                                  </span>
+                                                  <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider">({res.absences} faltas)</span>
+                                               </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                               <span className={cn(
+                                                  "px-2.5 py-1 rounded-none text-[9px] font-bold uppercase tracking-widest inline-block w-28 text-center border shadow-sm",
+                                                  res.finalStatus === 'Aprovado' ? "bg-emerald-50 text-emerald-600 border-emerald-200" :
+                                                  res.finalStatus === 'Recuperação' ? "bg-amber-50 text-amber-600 border-amber-200" :
+                                                  res.finalStatus === 'Pendente' ? "bg-slate-50 text-slate-550 border-slate-200" :
+                                                  "bg-rose-50 text-rose-600 border-rose-200"
+                                               )}>
+                                                  {res.finalStatus === 'Aprovado' ? 'Aprovado' :
+                                                   res.finalStatus === 'Recuperação' ? 'Recuperação' :
+                                                   res.finalStatus === 'Pendente' ? 'Pendente' : 'Reprovado'}
+                                               </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                               {res.certificate ? (
+                                                 <div className="flex items-center justify-end gap-2">
+                                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-none border border-emerald-200 uppercase tracking-widest flex items-center gap-1 shadow-sm select-none">
+                                                       <CheckCircle2 size={10} /> Emitido
+                                                    </span>
+                                                    <button
+                                                      onClick={() => setViewingCertificate(res.certificate)}
+                                                      className="p-1.5 text-slate-600 bg-white border border-slate-200 hover:border-slate-400 rounded-none transition-all cursor-pointer shadow-sm"
+                                                      title="Reimprimir Diploma"
+                                                    >
+                                                       <Printer size={13} />
+                                                    </button>
+                                                 </div>
+                                               ) : (
+                                                 <button
+                                                   disabled={res.finalStatus !== 'Aprovado'}
+                                                   onClick={() => {
+                                                     setCertificateForm({
+                                                       course: `${classObj?.name || 'Curso Conciliar'}`,
+                                                       type: 'conclusão',
+                                                       issuance_date: new Date().toISOString().split('T')[0]
+                                                     });
+                                                     setIssuingStudent(res);
+                                                   }}
+                                                   className={cn(
+                                                     "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
+                                                     res.finalStatus === 'Aprovado' 
+                                                       ? "bg-slate-800 text-white hover:bg-slate-900 border border-slate-800 cursor-pointer shadow-sm text-center relative tracking-widest active:scale-95" 
+                                                       : "bg-slate-50 text-slate-300 border border-slate-200 cursor-not-allowed select-none"
+                                                   )}
+                                                 >
+                                                   Emitir Doc
+                                                 </button>
+                                               )}
+                                            </td>
+                                         </tr>
+                                       );
+                                     })}
+                                  </tbody>
+                               </table>
+                             </div>
+                           )}
+                        </div>
+                     </div>
+                    );
+                  })()
+                )}
+             </div>
           </div>
         )}
       </div>
 
       {/* Interactive Modal: Issue Certificate (issuingStudent) */}
       {issuingStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300">
-           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 max-w-md w-full overflow-hidden p-8 space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300">
+           <div className="bg-white rounded-none shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-200 text-slate-850">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-                       <Award size={20} />
+                    <div className="w-8 h-8 rounded-none bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-700">
+                       <Award size={16} />
                     </div>
                     <div>
-                      <h4 className="text-md font-black text-[#00174b]">Emitir Certificado</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Documento oficial de conclusão</p>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Emitir Certificado</h4>
                     </div>
                  </div>
                  <button
                    onClick={() => setIssuingStudent(null)}
-                   className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+                   className="text-slate-400 hover:text-slate-600 transition-colors"
                  >
-                   <X size={16} />
+                   <X size={15} />
                  </button>
               </div>
 
               <form onSubmit={handleIssueCertificate} className="space-y-4">
                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-1.5">Nome do Aluno</label>
+                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Nome do Aluno</label>
                     <input
                       type="text"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-slate-500 cursor-not-allowed"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-semibold text-slate-500 cursor-not-allowed select-none outline-none"
                       disabled
                       value={issuingStudent.student.name}
                     />
                  </div>
 
                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-1.5">Curso / Turma</label>
+                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Curso / Turma</label>
                     <input
                       type="text"
                       required
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 focus:border-indigo-500 focus:bg-white rounded-2xl text-xs font-bold text-[#00174b] transition-all"
+                      className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 transition-all outline-none"
                       value={certificateForm.course}
                       onChange={(e) => setCertificateForm({ ...certificateForm, course: e.target.value })}
                     />
@@ -1908,10 +1979,10 @@ export function Reports() {
 
                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                       <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-1.5">Tipo do Documento</label>
+                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Tipo do Documento</label>
                        <select
                          required
-                         className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-[#00174b]"
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 outline-none"
                          value={certificateForm.type}
                          onChange={(e) => setCertificateForm({ ...certificateForm, type: e.target.value as 'conclusão' | 'participação' | 'honra' })}
                        >
@@ -1922,22 +1993,22 @@ export function Reports() {
                     </div>
 
                     <div>
-                       <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block mb-1.5">Data de Emissão</label>
+                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Data de Emissão</label>
                        <input
                          type="date"
                          required
-                         className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-bold text-[#00174b]"
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none"
                          value={certificateForm.issuance_date}
                          onChange={(e) => setCertificateForm({ ...certificateForm, issuance_date: e.target.value })}
                        />
                     </div>
                  </div>
 
-                 <div className="flex gap-3 pt-4">
+                 <div className="flex gap-3 pt-3">
                     <button
                       type="button"
                       onClick={() => setIssuingStudent(null)}
-                      className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-2xl text-xs font-bold uppercase tracking-wider transition-colors"
+                      className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all"
                     >
                       Cancelar
                     </button>
@@ -1945,11 +2016,11 @@ export function Reports() {
                       type="submit"
                       disabled={isSubmittingCert}
                       className={cn(
-                        "flex-1 py-3 bg-[#00174b] text-white hover:bg-blue-900 rounded-2xl text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-2 cursor-pointer",
+                        "flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer",
                         isSubmittingCert && "opacity-50 cursor-not-allowed"
                       )}
                     >
-                      {isSubmittingCert ? 'Salvando...' : 'Confirmar e Salvar'}
+                      {isSubmittingCert ? 'Salvando...' : 'Confirmar'}
                     </button>
                  </div>
               </form>
@@ -1959,16 +2030,18 @@ export function Reports() {
 
       {/* Interactive Modal: View Certificate (viewingCertificate) */}
       {viewingCertificate && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300 print:hidden">
-           <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 max-w-4xl w-full overflow-hidden flex flex-col h-[90vh]">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300 print:hidden">
+           <div className="bg-white rounded-none shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[90vh]">
               
               {/* Modal Actions Bar */}
-              <div className="bg-slate-50 px-8 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                  <div className="flex items-center gap-3">
-                    <Award className="text-[#00174b]" size={24} />
+                    <div className="w-8 h-8 bg-white border border-slate-200 flex items-center justify-center text-slate-705">
+                       <Award size={16} />
+                    </div>
                     <div>
-                       <h4 className="text-sm font-black text-[#00174b] uppercase tracking-tight">Visualizar Certificado Gerado</h4>
-                       <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Código de Veracidade: {viewingCertificate.verification_code}</p>
+                       <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-widest">Visualizar Certificado Gerado</h4>
+                       <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Código de Veracidade: {viewingCertificate.verification_code}</p>
                     </div>
                  </div>
                  <div className="flex items-center gap-3">
@@ -1976,15 +2049,15 @@ export function Reports() {
                       onClick={() => {
                         window.print();
                       }}
-                      className="px-4 py-2 bg-[#00174b] text-white hover:bg-blue-900 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors uppercase tracking-tight shadow-md cursor-pointer"
+                      className="px-4 py-2 bg-slate-805 hover:bg-slate-900 text-white rounded-none border border-slate-800 text-[9px] font-bold flex items-center gap-1.5 transition-colors uppercase tracking-widest shadow-md cursor-pointer active:scale-95"
                     >
-                      <Printer size={14} /> Imprimir Certificado
+                      <Printer size={13} /> Imprimir Certificado
                     </button>
                     <button
                       onClick={() => setViewingCertificate(null)}
-                      className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-slate-600 rounded-none transition-colors border border-transparent hover:border-slate-200 hover:bg-white"
                     >
-                      <X size={18} />
+                      <X size={15} />
                     </button>
                  </div>
               </div>

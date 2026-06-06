@@ -70,6 +70,7 @@ const navItems = [
             children: [
               { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
               { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
+              { icon: ReportsIcon, label: 'Diário de Classe', path: '/reports?tab=diario_consolidado' },
             ]
           },
           { icon: CertificateIcon, label: 'Documentos', path: '/documents' },
