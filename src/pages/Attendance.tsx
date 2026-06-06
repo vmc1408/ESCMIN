@@ -1107,98 +1107,96 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
         const rawSalaVal = (currentClassObj?.room || '---').toUpperCase();
 
-        if (activePrintType !== 'marking') {
-          const row1Y = margin + 27;
+        const row1Y = margin + 27;
 
-          // Row 1 - Left: Professor
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(100);
-          doc.text('Professor', margin, row1Y);
-          const profLabelWidth = doc.getTextWidth('Professor   ');
+        // Row 1 - Left: Professor
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text('Professor', margin, row1Y);
+        const profLabelWidth = doc.getTextWidth('Professor   ');
 
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0);
-          const limitProfWidth = pageWidth - margin - 60 - (margin + profLabelWidth);
-          let truncatedProf = teacherName;
-          if (doc.getTextWidth(truncatedProf) > limitProfWidth) {
-            while (doc.getTextWidth(truncatedProf + '...') > limitProfWidth && truncatedProf.length > 5) {
-              truncatedProf = truncatedProf.slice(0, -1);
-            }
-            truncatedProf += '...';
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0);
+        const limitProfWidth = pageWidth - margin - 60 - (margin + profLabelWidth);
+        let truncatedProf = teacherName;
+        if (doc.getTextWidth(truncatedProf) > limitProfWidth) {
+          while (doc.getTextWidth(truncatedProf + '...') > limitProfWidth && truncatedProf.length > 5) {
+            truncatedProf = truncatedProf.slice(0, -1);
           }
-          doc.text(truncatedProf, margin + profLabelWidth, row1Y);
-
-          // Row 1 - Right: Month/Year Referencia (e.g. MAIO / 2026)
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8);
-          doc.setTextColor(0);
-          doc.text(monthString, pageWidth - margin, row1Y, { align: 'right' });
-
-          const row2Y = margin + 32;
-
-          // Row 2 - Col 1: Turma
-          const col1X = margin;
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(100);
-          doc.text('Turma', col1X, row2Y);
-          const turmaLabelWidth = doc.getTextWidth('Turma   ');
-
-          const col2X = margin + 80;
-          const maxTurmaWidth = col2X - col1X - turmaLabelWidth - 4;
-          let truncatedTurma = rawTurmaVal;
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0);
-          if (doc.getTextWidth(truncatedTurma) > maxTurmaWidth) {
-            while (doc.getTextWidth(truncatedTurma + '...') > maxTurmaWidth && truncatedTurma.length > 5) {
-              truncatedTurma = truncatedTurma.slice(0, -1);
-            }
-            truncatedTurma += '...';
-          }
-          doc.text(truncatedTurma, col1X + turmaLabelWidth, row2Y);
-
-          // Row 2 - Col 2: Disciplina (including Semester & Year metadata)
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(100);
-          doc.text('Disciplina', col2X, row2Y);
-          const discLabelWidth = doc.getTextWidth('Disciplina   ');
-
-          // Row 2 - Col 3: Sala (Right-aligned to match the right edge of the table and the month reference)
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(100);
-          
-          const salaLabel = 'Sala  ';
-          const salaLabelWidth = doc.getTextWidth(salaLabel);
-          const salaValWidth = doc.getTextWidth(rawSalaVal);
-          const salaTotalWidth = salaLabelWidth + salaValWidth;
-          const salaStartX = pageWidth - margin - salaTotalWidth;
-
-          // Draw "Sala" label
-          doc.text('Sala', salaStartX, row2Y);
-
-          // Draw Room value in bold at the correct offset to end at margin
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0);
-          doc.text(rawSalaVal, salaStartX + salaLabelWidth, row2Y);
-
-          // Limit the width of the discipline to not overlap with the Sala on the right
-          const maxDiscColWidth = salaStartX - col2X - discLabelWidth - 4;
-          let truncatedDisc = rawDiscVal;
-          if (doc.getTextWidth(truncatedDisc) > maxDiscColWidth) {
-            while (doc.getTextWidth(truncatedDisc + '...') > maxDiscColWidth && truncatedDisc.length > 5) {
-              truncatedDisc = truncatedDisc.slice(0, -1);
-            }
-            truncatedDisc += '...';
-          }
-          doc.text(truncatedDisc, col2X + discLabelWidth, row2Y);
-
-          // Decorative horizontal separator line under row 2 before the table
-          doc.setDrawColor(200);
-          doc.setLineWidth(0.3);
-          doc.line(margin, margin + 35, pageWidth - margin, margin + 35);
+          truncatedProf += '...';
         }
+        doc.text(truncatedProf, margin + profLabelWidth, row1Y);
+
+        // Row 1 - Right: Month/Year Referencia (e.g. MAIO / 2026)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(0);
+        doc.text(monthString, pageWidth - margin, row1Y, { align: 'right' });
+
+        const row2Y = margin + 32;
+
+        // Row 2 - Col 1: Turma
+        const col1X = margin;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text('Turma', col1X, row2Y);
+        const turmaLabelWidth = doc.getTextWidth('Turma   ');
+
+        const col2X = margin + 80;
+        const maxTurmaWidth = col2X - col1X - turmaLabelWidth - 4;
+        let truncatedTurma = rawTurmaVal;
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0);
+        if (doc.getTextWidth(truncatedTurma) > maxTurmaWidth) {
+          while (doc.getTextWidth(truncatedTurma + '...') > maxTurmaWidth && truncatedTurma.length > 5) {
+            truncatedTurma = truncatedTurma.slice(0, -1);
+          }
+          truncatedTurma += '...';
+        }
+        doc.text(truncatedTurma, col1X + turmaLabelWidth, row2Y);
+
+        // Row 2 - Col 2: Disciplina (including Semester & Year metadata)
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100);
+        doc.text('Disciplina', col2X, row2Y);
+        const discLabelWidth = doc.getTextWidth('Disciplina   ');
+
+        // Row 2 - Col 3: Sala (Right-aligned to match the right edge of the table and the month reference)
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        
+        const salaLabel = 'Sala  ';
+        const salaLabelWidth = doc.getTextWidth(salaLabel);
+        const salaValWidth = doc.getTextWidth(rawSalaVal);
+        const salaTotalWidth = salaLabelWidth + salaValWidth;
+        const salaStartX = pageWidth - margin - salaTotalWidth;
+
+        // Draw "Sala" label
+        doc.text('Sala', salaStartX, row2Y);
+
+        // Draw Room value in bold at the correct offset to end at margin
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0);
+        doc.text(rawSalaVal, salaStartX + salaLabelWidth, row2Y);
+
+        // Limit the width of the discipline to not overlap with the Sala on the right
+        const maxDiscColWidth = salaStartX - col2X - discLabelWidth - 4;
+        let truncatedDisc = rawDiscVal;
+        if (doc.getTextWidth(truncatedDisc) > maxDiscColWidth) {
+          while (doc.getTextWidth(truncatedDisc + '...') > maxDiscColWidth && truncatedDisc.length > 5) {
+            truncatedDisc = truncatedDisc.slice(0, -1);
+          }
+          truncatedDisc += '...';
+        }
+        doc.text(truncatedDisc, col2X + discLabelWidth, row2Y);
+
+        // Decorative horizontal separator line under row 2 before the table
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.3);
+        doc.line(margin, margin + 35, pageWidth - margin, margin + 35);
 
         // Table Head
         const head: any[] = [
@@ -1246,7 +1244,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         }
 
         autoTable(doc, {
-          startY: activePrintType === 'marking' ? (margin + 25) : (margin + 38),
+          startY: margin + 38,
           head: head,
           body: body,
           theme: 'grid',
@@ -1305,64 +1303,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             doc.text(pageText, pageWidth - margin, footerY, { align: 'right' });
           }
         });
-
-        // DRAW CONFIG INFORMATION AT THE END OF THE LAST PAGE ONLY (yellow circled items):
-        if (activePrintType === 'marking' && pageIdx === totalPages - 1) {
-          const infoBlockY = pageHeight - 27; // positioned near the bottom of A4 landscape (height 210mm)
-          const contentLeft = margin;
-          const contentRight = pageWidth - margin;
-          
-          // Draw solid bounding line at bottom
-          doc.setDrawColor(210, 214, 219);
-          doc.setLineWidth(0.4);
-          doc.line(contentLeft, infoBlockY, contentRight, infoBlockY);
-
-          // Render labels and values elegantly
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8);
-          doc.setTextColor(110, 115, 125);
-          
-          // Column 1: Professor
-          doc.text('PROFESSOR', contentLeft, infoBlockY + 5.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(30, 35, 45);
-          doc.text(teacherName, contentLeft, infoBlockY + 11.5);
-          
-          // Column 2: Turma
-          const colWidth1 = 90;
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(110, 115, 125);
-          doc.text('TURMA', contentLeft + colWidth1, infoBlockY + 5.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(30, 35, 45);
-          doc.text(rawTurmaVal, contentLeft + colWidth1, infoBlockY + 11.5);
-
-          // Column 3: Disciplina
-          const colWidth2 = 170;
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(110, 115, 125);
-          doc.text('DISCIPLINA', contentLeft + colWidth2, infoBlockY + 5.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(30, 35, 45);
-          // Limit discipline title length if necessary to avoid overlapping
-          let truncatedDisc = rawDiscVal;
-          if (doc.getTextWidth(truncatedDisc) > 70) {
-            while (doc.getTextWidth(truncatedDisc + '...') > 70 && truncatedDisc.length > 5) {
-              truncatedDisc = truncatedDisc.slice(0, -1);
-            }
-            truncatedDisc += '...';
-          }
-          doc.text(truncatedDisc, contentLeft + colWidth2, infoBlockY + 11.5);
-
-          // Column 4: Sala / Período
-          const colWidth3 = 250;
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(110, 115, 125);
-          doc.text('SALA / REF', contentLeft + colWidth3, infoBlockY + 5.5);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(30, 35, 45);
-          doc.text(`${rawSalaVal}  •  ${monthString}`, contentLeft + colWidth3, infoBlockY + 11.5);
-        }
       }
 
       return doc.output('bloburl') as any;
