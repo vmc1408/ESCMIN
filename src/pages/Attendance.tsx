@@ -1228,6 +1228,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
         // Table Head
         const noClassDays = monthlyClassDays.length === 0;
+        const hasSingleClassDay = monthlyClassDays.length === 1;
         const head: any[] = [
           [
             { content: 'Nº', styles: { halign: 'center', valign: 'middle' } },
@@ -1235,9 +1236,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             { content: 'NOME COMPLETO DO ALUNO', styles: { valign: 'middle' } },
             ...(noClassDays
               ? [{ content: 'OBSERVAÇÃO', styles: { halign: 'center', valign: 'middle' } }]
-              : monthlyClassDays.map(day => {
-                  return { content: '', styles: { halign: 'center' } };
-                })
+              : [
+                  ...monthlyClassDays.map(day => {
+                    return { content: '', styles: { halign: 'center' } };
+                  }),
+                  ...(hasSingleClassDay
+                    ? [{ content: 'OBSERVAÇÃO', styles: { halign: 'center', valign: 'middle' } }]
+                    : []
+                  )
+                ]
             )
           ]
         ];
@@ -1252,15 +1259,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             student.name.toUpperCase(),
             ...(noClassDays
               ? ['']
-              : monthlyClassDays.map(day => {
-                  if (day?.isCancelled) return { content: '---', styles: { halign: 'center', textColor: [200, 200, 200] } };
-                  if (activePrintType === 'marking') return '';
-                  const status = day ? (activeTab === 'monthly' ? getCellStatus(student.id, day.dbValue) : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
-                  return { 
-                    content: status === 'P' ? 'PRESENTE' : status === 'F' ? 'FALTOU' : status === 'J' ? 'ABONADA' : '',
-                    styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal', fontSize: 5.5 }
-                  };
-                })
+              : [
+                  ...monthlyClassDays.map(day => {
+                    if (day?.isCancelled) return { content: '---', styles: { halign: 'center', textColor: [200, 200, 200] } };
+                    if (activePrintType === 'marking') return '';
+                    const status = day ? (activeTab === 'monthly' ? getCellStatus(student.id, day.dbValue) : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
+                    return { 
+                      content: status === 'P' ? 'PRESENTE' : status === 'F' ? 'FALTOU' : status === 'J' ? 'ABONADA' : '',
+                      styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal', fontSize: 5.5 }
+                    };
+                  }),
+                  ...(hasSingleClassDay
+                    ? ['']
+                    : []
+                  )
+                ]
             )
           ];
         });
@@ -1271,22 +1284,34 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         };
         const extraColCount = monthlyClassDays.length;
         if (extraColCount > 0) {
-          // Standard width for a date column is 33mm (perfect visual balance)
-          const targetDateColWidth = 33;
-          const minNameColWidth = 60;
-          
-          let nameColWidth = contentWidth - 8 - 28 - (extraColCount * targetDateColWidth);
-          let dateColWidth = targetDateColWidth;
-          
-          if (nameColWidth < minNameColWidth) {
-            // If the name column gets too narrow, scale the dates down proportionally
-            nameColWidth = minNameColWidth;
-            dateColWidth = (contentWidth - 8 - 28 - minNameColWidth) / extraColCount;
-          }
-          
-          colStyles[2] = { cellWidth: nameColWidth };
-          for (let i = 0; i < extraColCount; i++) {
-            colStyles[3 + i] = { cellWidth: dateColWidth };
+          if (extraColCount === 1) {
+            // When there is exactly 1 scheduled class day, split the space:
+            // 80mm for the Name column, 33mm for the single class day column,
+            // and the remaining space goes to the "OBSERVAÇÃO" column (index 4)
+            const nameColWidth = 80;
+            const targetDateColWidth = 33;
+            const obsColWidth = contentWidth - 8 - 28 - nameColWidth - targetDateColWidth;
+            colStyles[2] = { cellWidth: nameColWidth };
+            colStyles[3] = { cellWidth: targetDateColWidth };
+            colStyles[4] = { cellWidth: obsColWidth };
+          } else {
+            // Standard width for a date column is 33mm (perfect visual balance)
+            const targetDateColWidth = 33;
+            const minNameColWidth = 60;
+            
+            let nameColWidth = contentWidth - 8 - 28 - (extraColCount * targetDateColWidth);
+            let dateColWidth = targetDateColWidth;
+            
+            if (nameColWidth < minNameColWidth) {
+              // If the name column gets too narrow, scale the dates down proportionally
+              nameColWidth = minNameColWidth;
+              dateColWidth = (contentWidth - 8 - 28 - minNameColWidth) / extraColCount;
+            }
+            
+            colStyles[2] = { cellWidth: nameColWidth };
+            for (let i = 0; i < extraColCount; i++) {
+              colStyles[3 + i] = { cellWidth: dateColWidth };
+            }
           }
         } else {
           // When there are no scheduled class days, add an "OBSERVAÇÃO" column (index 3)
