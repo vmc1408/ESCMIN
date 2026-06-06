@@ -98,6 +98,13 @@ const getCertificateTitle = (type: string) => {
   return 'DIPLOMA DE CONCLUSÃO';
 };
 
+const getStudentName = (cert: any, studentsList: any[]) => {
+  if (!cert) return '';
+  if (cert.student_name && cert.student_name.trim()) return cert.student_name;
+  const found = studentsList.find(s => s.id === cert.student_id);
+  return found ? found.name : 'Estudante';
+};
+
 type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational' | 'attendance' | 'diario_consolidado';
 
 export function Reports() {
@@ -205,7 +212,7 @@ export function Reports() {
       const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
       const newDocId = crypto.randomUUID();
 
-      await saveData('certificates', newDocId, {
+      const newCert = {
         id: newDocId,
         student_id: issuingStudent.student.id,
         student_name: issuingStudent.student.name,
@@ -215,7 +222,9 @@ export function Reports() {
         verification_code: verificationCode,
         user_id: 'default_manager',
         created_at: new Date().toISOString()
-      });
+      };
+
+      await saveData('certificates', newDocId, newCert);
 
       setNotification({
         type: 'success',
@@ -226,6 +235,7 @@ export function Reports() {
       const certs = await fetchAll('certificates');
       setCertificates(certs || []);
       setIssuingStudent(null);
+      setViewingCertificate(newCert);
     } catch (error) {
       console.error('Error saving diploma in Reports:', error);
       setNotification({
@@ -1917,7 +1927,7 @@ export function Reports() {
                                                        <CheckCircle2 size={10} /> Emitido
                                                     </span>
                                                     <button
-                                                      onClick={() => setViewingCertificate(res.certificate)}
+                                                      onClick={() => setViewingCertificate({ ...res.certificate, student_name: res.certificate.student_name || res.student.name })}
                                                       className="p-1.5 text-slate-600 bg-white border border-slate-200 hover:border-slate-400 rounded-none transition-all cursor-pointer shadow-sm"
                                                       title="Reimprimir Diploma"
                                                     >
@@ -2118,7 +2128,7 @@ export function Reports() {
                        
                        <div className="py-2">
                           <span className="text-2xl font-black uppercase tracking-wider text-[#00174b] font-serif border-b border-amber-300 inline-block px-12 pb-1 bg-amber-50/30">
-                             {viewingCertificate.student_name}
+                             {getStudentName(viewingCertificate, students)}
                           </span>
                        </div>
 
@@ -2180,7 +2190,7 @@ export function Reports() {
 
                 <div className="py-4">
                    <h2 className="text-3xl font-black uppercase tracking-widest text-[#00174b] font-serif border-b-2 border-amber-300 inline-block px-16 pb-2">
-                      {viewingCertificate.student_name}
+                      {getStudentName(viewingCertificate, students)}
                    </h2>
                 </div>
 
@@ -2222,7 +2232,7 @@ export function Reports() {
       )}
 
       {/* Professional Print Layout (Figma Style) */}
-      <div id="printable-report" className="hidden print:block p-12 bg-white text-black font-sans">
+      <div id="printable-report" className={cn("hidden p-12 bg-white text-black font-sans", viewingCertificate ? "print:hidden" : "print:block")}>
         <div className="flex flex-col items-center text-center relative mb-10">
           {institution?.logo_url && (
             <div className="absolute left-0 top-0">
