@@ -1227,14 +1227,18 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         doc.line(margin, margin + 35, pageWidth - margin, margin + 35);
 
         // Table Head
+        const noClassDays = monthlyClassDays.length === 0;
         const head: any[] = [
           [
             { content: 'Nº', styles: { halign: 'center', valign: 'middle' } },
             { content: 'MATRÍCULA', styles: { valign: 'middle' } },
             { content: 'NOME COMPLETO DO ALUNO', styles: { valign: 'middle' } },
-            ...monthlyClassDays.map(day => {
-              return { content: '', styles: { halign: 'center' } };
-            })
+            ...(noClassDays
+              ? [{ content: 'OBSERVAÇÃO', styles: { halign: 'center', valign: 'middle' } }]
+              : monthlyClassDays.map(day => {
+                  return { content: '', styles: { halign: 'center' } };
+                })
+            )
           ]
         ];
 
@@ -1246,15 +1250,18 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             { content: String(overallIndex + 1), styles: { halign: 'center' } },
             { content: student.registration_number, styles: { font: 'courier' } },
             student.name.toUpperCase(),
-            ...monthlyClassDays.map(day => {
-              if (day?.isCancelled) return { content: '---', styles: { halign: 'center', textColor: [200, 200, 200] } };
-              if (activePrintType === 'marking') return '';
-              const status = day ? (activeTab === 'monthly' ? getCellStatus(student.id, day.dbValue) : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
-              return { 
-                content: status === 'P' ? 'PRESENTE' : status === 'F' ? 'FALTOU' : status === 'J' ? 'ABONADA' : '',
-                styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal', fontSize: 5.5 }
-              };
-            })
+            ...(noClassDays
+              ? ['']
+              : monthlyClassDays.map(day => {
+                  if (day?.isCancelled) return { content: '---', styles: { halign: 'center', textColor: [200, 200, 200] } };
+                  if (activePrintType === 'marking') return '';
+                  const status = day ? (activeTab === 'monthly' ? getCellStatus(student.id, day.dbValue) : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
+                  return { 
+                    content: status === 'P' ? 'PRESENTE' : status === 'F' ? 'FALTOU' : status === 'J' ? 'ABONADA' : '',
+                    styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal', fontSize: 5.5 }
+                  };
+                })
+            )
           ];
         });
 
@@ -1282,7 +1289,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             colStyles[3 + i] = { cellWidth: dateColWidth };
           }
         } else {
-          colStyles[2] = { cellWidth: contentWidth - 8 - 28 };
+          // When there are no scheduled class days, add an "OBSERVAÇÃO" column (index 3)
+          const nameColWidth = 120;
+          const obsColWidth = contentWidth - 8 - 28 - nameColWidth;
+          colStyles[2] = { cellWidth: nameColWidth };
+          colStyles[3] = { cellWidth: obsColWidth };
         }
 
         autoTable(doc, {
