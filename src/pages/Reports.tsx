@@ -2146,7 +2146,7 @@ export function Reports() {
 
                     {/* Core text */}
                     <div className="my-6 space-y-4">
-                       <h1 className="text-xl md:text-2xl font-extrabold italic text-black tracking-wider uppercase">
+                       <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-widest uppercase">
                           {getCertificateTitle(viewingCertificate.type)}
                        </h1>
                        <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
@@ -2154,7 +2154,7 @@ export function Reports() {
                        </p>
                        
                        <div className="py-2">
-                          <span className="text-xl md:text-2xl font-black uppercase tracking-wider text-black font-serif border-b border-amber-300 inline-block px-12 pb-1 bg-amber-50/30">
+                          <span className="text-2xl md:text-3xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-12 pb-1.5 bg-amber-50/30">
                              {getStudentName(viewingCertificate, students)}
                           </span>
                        </div>
@@ -2201,7 +2201,7 @@ export function Reports() {
               size: A4 landscape !important;
               margin: 0 !important;
             }
-            main, nav, aside, header, footer, #printable-report, [id^="non-printable-"], .print-hide {
+            nav, aside, header, footer, #printable-report, [id^="non-printable-"], .print-hide {
               display: none !important;
               visibility: hidden !important;
             }
@@ -2251,8 +2251,8 @@ export function Reports() {
                 </div>
              </div>
 
-             <div className="my-12 space-y-4">
-                <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-wider uppercase mb-4">
+             <div className="my-12 space-y-6">
+                <h1 className="text-5xl font-extrabold italic text-black tracking-widest uppercase mb-6 leading-tight">
                    {getCertificateTitle(viewingCertificate.type)}
                 </h1>
                 
@@ -2260,8 +2260,8 @@ export function Reports() {
                    A <strong className="text-black font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-805 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
                 </p>
 
-                <div className="py-3">
-                   <h2 className="text-2xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-12 pb-2">
+                <div className="py-4">
+                   <h2 className="text-4xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-16 pb-2">
                       {getStudentName(viewingCertificate, students)}
                    </h2>
                 </div>
