@@ -1632,17 +1632,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between ml-1">
                   <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Data</label>
-                  {selectedClass && (
-                    <motion.div 
-                      layout
-                      className={cn(
-                        "px-2.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest border",
-                        availableDates.length > 0 ? "bg-slate-50 text-slate-600 border-slate-200" : "bg-slate-50 text-slate-400 border-slate-200"
-                      )}
-                    >
-                      {availableDates.length > 0 ? `${availableDates.length} AGENDADOS` : 'FORA DO CALENDÁRIO'}
-                    </motion.div>
-                  )}
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   <div className="col-span-3 relative group">
