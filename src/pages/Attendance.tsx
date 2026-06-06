@@ -989,7 +989,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       const contentWidth = pageWidth - (margin * 2);
 
       // Standard pagination filled to capacity up to 20 items per page
-      const itemsPerPage = activePrintType === 'report' ? 18 : 20;
+      const itemsPerPage = 20;
       const totalPages = Math.ceil(students.length / itemsPerPage) || 1;
 
       const currentClassObj = classes.find(c => c.id === selectedClass);
@@ -1303,128 +1303,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             doc.text(pageText, pageWidth - margin, footerY, { align: 'right' });
           }
         });
-
-        if (activePrintType === 'report' && pageIdx === totalPages - 1) {
-          const cardsY = 182; // Height 10mm. Stretches to 192mm.
-          const cardWidth = 42;
-          const cardHeight = 10;
-          const gap = 4;
-          let startX = margin;
-
-          // CARD 1: Matriculados
-          // Left box (Colored block)
-          doc.setFillColor(30, 41, 59); // slate-800
-          doc.rect(startX, cardsY, 10, cardHeight, 'F');
-          
-          // Number inside block
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(10);
-          doc.setTextColor(255, 255, 255);
-          doc.text(String(attendanceStats.total), startX + 5, cardsY + 7, { align: 'center' });
-          
-          // Right box (white with border)
-          doc.setDrawColor(226, 232, 240); // border-slate-200
-          doc.setFillColor(255, 255, 255);
-          doc.rect(startX + 10, cardsY, cardWidth - 10, cardHeight, 'FD');
-          
-          // Labels inside right box
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(6);
-          doc.setTextColor(30, 41, 59); // text-slate-800
-          doc.text('MATRICULADOS', startX + 13, cardsY + 4);
-          
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(5);
-          doc.setTextColor(148, 163, 184); // text-slate-400
-          doc.text('TOTAL', startX + 13, cardsY + 7.8);
-
-          startX += cardWidth + gap;
-
-          // CARD 2: Presentes
-          // Left box
-          doc.setFillColor(71, 85, 105); // slate-600
-          doc.rect(startX, cardsY, 10, cardHeight, 'F');
-          
-          // Number
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(10);
-          doc.setTextColor(255, 255, 255);
-          doc.text(String(attendanceStats.present), startX + 5, cardsY + 7, { align: 'center' });
-          
-          // Right box
-          doc.setDrawColor(226, 232, 240); // border-slate-200
-          doc.setFillColor(255, 255, 255);
-          doc.rect(startX + 10, cardsY, cardWidth - 10, cardHeight, 'FD');
-          
-          // Labels
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(6);
-          doc.setTextColor(51, 65, 85); // text-slate-700
-          doc.text('PRESENTES', startX + 13, cardsY + 4);
-          
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(5);
-          doc.setTextColor(148, 163, 184); // text-slate-400
-          doc.text('LANÇADOS P', startX + 13, cardsY + 7.8);
-
-          startX += cardWidth + gap;
-
-          // CARD 3: Faltantes
-          // Left box
-          doc.setFillColor(190, 18, 60); // rose-700
-          doc.rect(startX, cardsY, 10, cardHeight, 'F');
-          
-          // Number
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(10);
-          doc.setTextColor(255, 255, 255);
-          doc.text(String(attendanceStats.absent), startX + 5, cardsY + 7, { align: 'center' });
-          
-          // Right box
-          doc.setDrawColor(254, 205, 211); // border-rose-200
-          doc.setFillColor(255, 255, 255);
-          doc.rect(startX + 10, cardsY, cardWidth - 10, cardHeight, 'FD');
-          
-          // Labels
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(6);
-          doc.setTextColor(159, 18, 57); // text-rose-800
-          doc.text('FALTANTES', startX + 13, cardsY + 4);
-          
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(5);
-          doc.setTextColor(244, 63, 94); // text-rose-500
-          doc.text('LANÇADOS F', startX + 13, cardsY + 7.8);
-
-          startX += cardWidth + gap;
-
-          // CARD 4: Abonados
-          // Left box
-          doc.setFillColor(217, 119, 6); // amber-600
-          doc.rect(startX, cardsY, 10, cardHeight, 'F');
-          
-          // Number
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(10);
-          doc.setTextColor(255, 255, 255);
-          doc.text(String(attendanceStats.justified), startX + 5, cardsY + 7, { align: 'center' });
-          
-          // Right box
-          doc.setDrawColor(253, 230, 138); // border-amber-200
-          doc.setFillColor(255, 255, 255);
-          doc.rect(startX + 10, cardsY, cardWidth - 10, cardHeight, 'FD');
-          
-          // Labels
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(6);
-          doc.setTextColor(146, 64, 14); // text-amber-800
-          doc.text('ABONADOS', startX + 13, cardsY + 4);
-          
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(5);
-          doc.setTextColor(217, 119, 6); // text-amber-600
-          doc.text('LANÇADOS J', startX + 13, cardsY + 7.8);
-        }
       }
 
       return doc.output('bloburl') as any;
