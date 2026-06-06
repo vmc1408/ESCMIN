@@ -2104,7 +2104,7 @@ export function Reports() {
                       onClick={() => {
                         window.print();
                       }}
-                      className="px-4 py-2 bg-[#00174b] hover:bg-slate-900 text-white rounded-none border border-[#00174b] text-[9px] font-bold flex items-center gap-1.5 transition-colors uppercase tracking-widest shadow-md cursor-pointer active:scale-95"
+                      className="px-4 py-2 bg-black hover:bg-slate-950 text-white rounded-none border border-black text-[9px] font-bold flex items-center gap-1.5 transition-colors uppercase tracking-widest shadow-md cursor-pointer active:scale-95"
                     >
                       <Printer size={13} /> Imprimir Certificado
                     </button>
@@ -2119,24 +2119,34 @@ export function Reports() {
 
               {/* Certificate layout visualizer (A4 Landscape aspect ratio mockup) */}
               <div className="flex-1 bg-slate-100 overflow-y-auto p-8 flex items-center justify-center">
-                 <div className="bg-white border-[16px] border-[#00174b] shadow-xl w-full aspect-[1.414/1] max-w-3xl p-12 flex flex-col justify-between text-center relative font-serif text-slate-800">
+                 <div className="bg-white border-[16px] border-black shadow-xl w-full aspect-[1.414/1] max-w-3xl p-12 flex flex-col justify-between text-center relative font-serif text-slate-800">
                     
                     {/* Background absolute elegant lines */}
                     <div className="absolute inset-4 border-2 border-amber-300 pointer-events-none opacity-50" />
                     
-                    {/* Header */}
-                    <div className="space-y-2 mt-4">
-                       <h2 className="text-2xl font-bold uppercase tracking-[0.2em] text-[#00174b] font-sans">
-                          {institution?.name || 'ESCMIN - SISTEMA DE ENSINO'}
-                       </h2>
-                       <p className="text-[9px] font-sans font-bold uppercase text-amber-500 tracking-widest">
-                          {institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}
-                       </p>
-                    </div>
+                                         {/* Header with Logo */}
+                     <div className="flex items-center justify-center gap-3 mt-4">
+                        {institution?.logo_url && (
+                           <img 
+                              src={institution.logo_url} 
+                              alt="Logo" 
+                              className="h-10 w-10 object-contain" 
+                              referrerPolicy="no-referrer" 
+                           />
+                        )}
+                        <div className="text-left space-y-0.5">
+                           <h2 className="text-base font-bold uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                              {institution?.name || 'ESCMIN - SISTEMA DE ENSINO'}
+                           </h2>
+                           <p className="text-[8px] font-sans font-bold uppercase text-amber-500 tracking-widest leading-none">
+                              {institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}
+                           </p>
+                        </div>
+                     </div>
 
                     {/* Core text */}
                     <div className="my-6 space-y-4">
-                       <h1 className="text-3xl font-extrabold italic text-[#00174b] tracking-wider uppercase">
+                       <h1 className="text-xl md:text-2xl font-extrabold italic text-black tracking-wider uppercase">
                           {getCertificateTitle(viewingCertificate.type)}
                        </h1>
                        <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
@@ -2144,7 +2154,7 @@ export function Reports() {
                        </p>
                        
                        <div className="py-2">
-                          <span className="text-2xl font-black uppercase tracking-wider text-[#00174b] font-serif border-b border-amber-300 inline-block px-12 pb-1 bg-amber-50/30">
+                          <span className="text-xl md:text-2xl font-black uppercase tracking-wider text-black font-serif border-b border-amber-300 inline-block px-12 pb-1 bg-amber-50/30">
                              {getStudentName(viewingCertificate, students)}
                           </span>
                        </div>
@@ -2218,21 +2228,31 @@ export function Reports() {
         `}} />
       )}
 
-      {/* Printable Certificate (A4 Landscape Frame) */}
+            {/* Printable Certificate (A4 Landscape Frame) */}
       {viewingCertificate && (
         <div id="printable-certificate" className="hidden print:block fixed inset-0 bg-white text-black font-serif p-16 flex flex-col justify-between text-center min-h-screen z-[99999]">
-          <div className="border-[12px] border-double border-[#00174b] p-12 flex-1 flex flex-col justify-between">
-             <div className="space-y-4">
-                <h2 className="text-3xl font-bold uppercase tracking-[0.2em] text-[#00174b] font-sans">
-                   {institution?.name || 'SISTEMA DE ENSINO'}
-                </h2>
-                <p className="text-xs font-sans font-bold uppercase text-slate-500 tracking-wider">
-                   {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
-                </p>
+          <div className="border-[12px] border-double border-black p-12 flex-1 flex flex-col justify-between">
+             <div className="flex items-center justify-center gap-4">
+                {institution?.logo_url && (
+                   <img 
+                      src={institution.logo_url} 
+                      alt="Logo" 
+                      className="h-14 w-14 object-contain" 
+                      referrerPolicy="no-referrer" 
+                   />
+                )}
+                <div className="text-left space-y-1">
+                   <h2 className="text-xl font-bold uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                      {institution?.name || 'SISTEMA DE ENSINO'}
+                   </h2>
+                   <p className="text-[10px] font-sans font-bold uppercase text-slate-500 tracking-wider">
+                      {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
+                   </p>
+                </div>
              </div>
 
-             <div className="my-16 space-y-6">
-                <h1 className="text-4xl font-extrabold italic text-[#00174b] tracking-wider uppercase mb-6">
+             <div className="my-12 space-y-4">
+                <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-wider uppercase mb-4">
                    {getCertificateTitle(viewingCertificate.type)}
                 </h1>
                 
@@ -2240,8 +2260,8 @@ export function Reports() {
                    A <strong className="text-black font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-805 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
                 </p>
 
-                <div className="py-4">
-                   <h2 className="text-3xl font-black uppercase tracking-widest text-[#00174b] font-serif border-b-2 border-amber-300 inline-block px-16 pb-2">
+                <div className="py-3">
+                   <h2 className="text-2xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-12 pb-2">
                       {getStudentName(viewingCertificate, students)}
                    </h2>
                 </div>
