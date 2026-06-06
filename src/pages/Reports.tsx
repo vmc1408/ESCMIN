@@ -92,6 +92,12 @@ const formatLongDate = (dateString: string) => {
   }
 };
 
+const getCertificateTitle = (type: string) => {
+  if (type === 'participação') return 'CERTIFICADO DE PARTICIPAÇÃO';
+  if (type === 'honra') return 'CERTIFICADO DE HONRA AO MÉRITO';
+  return 'DIPLOMA DE CONCLUSÃO';
+};
+
 type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational' | 'attendance' | 'diario_consolidado';
 
 export function Reports() {
@@ -2102,12 +2108,27 @@ export function Reports() {
                     </div>
 
                     {/* Core text */}
-                    <div className="my-6 space-y-6">
-                       <h1 className="text-4xl font-extrabold italic text-[#00174b] tracking-wider">
-                          DIPLOMA DE CONCLUSÃO
+                    <div className="my-6 space-y-4">
+                       <h1 className="text-3xl font-extrabold italic text-[#00174b] tracking-wider uppercase">
+                          {getCertificateTitle(viewingCertificate.type)}
                        </h1>
                        <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
-                          A <strong className="text-slate-900 font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-700 italic">{institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}</span>) certifica que o estudante <strong className="text-slate-900 uppercase font-serif text-md">{viewingCertificate.student_name}</strong> concluiu com as devidas qualificações o curso <strong className="text-slate-900">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.
+                          A <strong className="text-slate-900 font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-700 italic">{institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}</span>) certifica que o(a) estudante:
+                       </p>
+                       
+                       <div className="py-2">
+                          <span className="text-2xl font-black uppercase tracking-wider text-[#00174b] font-serif border-b border-amber-300 inline-block px-12 pb-1 bg-amber-50/30">
+                             {viewingCertificate.student_name}
+                          </span>
+                       </div>
+
+                       <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
+                          {viewingCertificate.type === 'participação' 
+                            ? <>participou com as devidas qualificações do curso <strong className="text-slate-950 font-semibold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                            : viewingCertificate.type === 'honra'
+                            ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-slate-950 font-semibold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                            : <>concluiu com as devidas qualificações o curso <strong className="text-slate-950 font-semibold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                          }
                        </p>
                        
                        {/* Yellow highlight is centered here, month by extenso */}
@@ -2148,15 +2169,32 @@ export function Reports() {
                 </p>
              </div>
 
-             <div className="my-16 space-y-8">
-                <h1 className="text-5xl font-extrabold italic text-[#00174b] tracking-wider">
-                   DIPLOMA DE CONCLUSÃO
+             <div className="my-16 space-y-6">
+                <h1 className="text-4xl font-extrabold italic text-[#00174b] tracking-wider uppercase mb-6">
+                   {getCertificateTitle(viewingCertificate.type)}
                 </h1>
-                <p className="text-md max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
-                   A <strong className="text-black">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-805 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o estudante <strong className="text-black uppercase font-serif text-lg">{viewingCertificate.student_name}</strong> concluiu com as devidas qualificações o curso <strong className="text-black">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.
-                 </p>
-                 <p className="text-xs text-slate-800 font-bold uppercase tracking-widest mt-8 font-sans">
-                    {formatLongDate(viewingCertificate.issuance_date)}
+                
+                <p className="text-sm max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
+                   A <strong className="text-black font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-805 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
+                </p>
+
+                <div className="py-4">
+                   <h2 className="text-3xl font-black uppercase tracking-widest text-[#00174b] font-serif border-b-2 border-amber-300 inline-block px-16 pb-2">
+                      {viewingCertificate.student_name}
+                   </h2>
+                </div>
+
+                <p className="text-sm max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
+                   {viewingCertificate.type === 'participação' 
+                     ? <>participou com as devidas qualificações do curso <strong className="text-black font-bold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                     : viewingCertificate.type === 'honra'
+                     ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-black font-bold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                     : <>concluiu com as devidas qualificações o curso <strong className="text-black font-bold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                   }
+                </p>
+
+                <p className="text-xs text-slate-800 font-bold uppercase tracking-widest mt-8 font-sans">
+                   {formatLongDate(viewingCertificate.issuance_date)}
                 </p>
              </div>
 
