@@ -9,10 +9,10 @@ export function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
 
-  // Fechar sidebar ao mudar de rota no mobile
+  // Fechar sidebar ao mudar de rota ou parâmetros no mobile
   useEffect(() => {
     setIsSidebarOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   // Prevenir scroll quando sidebar aberto no mobile
   useEffect(() => {

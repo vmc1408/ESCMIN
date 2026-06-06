@@ -186,6 +186,29 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     }
     return location.pathname === path;
   };
+
+  // Synchronize and auto-collapse non-active submenus when a route is selected
+  useEffect(() => {
+    const activeAncestors: string[] = [];
+
+    const findAncestors = (items: any[], currentPathAncestors: string[] = []): boolean => {
+      for (const item of items) {
+        if (item.path && isPathActive(item.path)) {
+          activeAncestors.push(...currentPathAncestors);
+          return true;
+        }
+        if (item.children) {
+          if (findAncestors(item.children, [...currentPathAncestors, item.label])) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    findAncestors(filteredNavItems);
+    setOpenGroups(activeAncestors);
+  }, [location.pathname, location.search]);
   
   const isGroupActive = (item: any): boolean => {
     if (item.path && isPathActive(item.path)) return true;
@@ -249,6 +272,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         <Link
           key={item.path}
           to={item.path}
+          onClick={() => onClose?.()}
           className={cn(
             "flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200",
             isActive 

@@ -16,7 +16,9 @@ import {
   School,
   Save,
   Loader2,
-  Download
+  Download,
+  Edit,
+  Unlock
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
@@ -111,7 +113,17 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
+  const [reopenConfirm, setReopenConfirm] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
+  const [abonoModal, setAbonoModal] = useState<{
+    isOpen: boolean;
+    studentId: string;
+    studentName: string;
+    type: 'atraso' | 'ausencia' | 'outros';
+    customReason: string;
+    isMonthly?: boolean;
+    date?: string;
+  } | null>(null);
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -259,6 +271,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
     
     setLoading(true);
+    setReopenConfirm(false);
     try {
       const dbDate = parseDateToDB(selectedDate);
       const [studentsList, attendanceList, closureData] = await Promise.all([
@@ -578,6 +591,29 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     });
   }, [selectedDate, classEvents, selectedClass, selectedClassWeekdays]);
 
+  const attendanceStats = React.useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let justified = 0;
+    let missing = 0;
+
+    students.forEach(student => {
+      const status = attendance[student.id]?.status;
+      if (status === 'P') present++;
+      else if (status === 'F') absent++;
+      else if (status === 'J') justified++;
+      else missing++;
+    });
+
+    return {
+      present,
+      absent,
+      justified,
+      missing,
+      total: students.length
+    };
+  }, [students, attendance]);
+
   const monthlyClassDays = React.useMemo(() => {
     if (!selectedClass) return [];
     
@@ -756,25 +792,36 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
     setSaving(true);
     try {
-      const recordsToSave = Object.values(attendance) as AttendanceRecord[];
       const dbDate = parseDateToDB(selectedDate);
-      
-      const payloads = recordsToSave.map(record => {
-        const studentId = record.student_id;
-        const docId = record.id || `${selectedClass}_${selectedSubject}_${dbDate}_${studentId}`;
-        return {
-          id: docId,
-          student_id: studentId,
-          class_id: selectedClass,
-          subject_id: selectedSubject,
-          date: dbDate,
-          status: record.status,
-          observations: record.observations || ""
-        };
+      const payloads: any[] = [];
+      const keysToDelete: string[] = [];
+
+      students.forEach(student => {
+        const docId = `${selectedClass}_${selectedSubject}_${dbDate}_${student.id}`;
+        const record = attendance[student.id];
+
+        if (record && record.status) {
+          payloads.push({
+            id: docId,
+            student_id: student.id,
+            class_id: selectedClass,
+            subject_id: selectedSubject,
+            date: dbDate,
+            status: record.status,
+            observations: record.observations || ""
+          });
+        } else {
+          // Se o status da marcação foi limpo por duplo clique, remove do banco de dados
+          keysToDelete.push(docId);
+        }
       });
       
       if (payloads.length > 0) {
         await saveBatch('attendances', payloads);
+      }
+
+      if (keysToDelete.length > 0) {
+        await Promise.all(keysToDelete.map(id => deleteData('attendances', id)));
       }
 
       await fetchStudentsAndAttendance();
@@ -792,7 +839,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     if (!userAuth || !selectedSubject || !selectedClass || !selectedDate) return;
     
     // Check if everything is marked
-    const markedCount = Object.keys(attendance).length;
+    const markedCount = students.filter(s => attendance[s.id]?.status).length;
     if (markedCount < students.length) {
       setNotification({ 
         type: 'err', 
@@ -840,6 +887,30 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
   };
 
+  const reopenAttendance = async () => {
+    if (!userAuth || !selectedSubject || !selectedClass || !selectedDate) return;
+
+    setClosing(true);
+    try {
+      const dbDate = parseDateToDB(selectedDate);
+      const closureId = `CLOSURE_${selectedClass}_${selectedSubject}_${dbDate}`;
+      
+      await deleteData('calendar_events', closureId);
+      
+      setIsClosed(false);
+      setReopenConfirm(false);
+      
+      setNotification({ type: 'success', message: 'Chamada reaberta com sucesso! Agora você pode editar os lançamentos.' });
+      setTimeout(() => setNotification(null), 4000);
+    } catch (error) {
+      console.error("Error reopening attendance:", error);
+      setNotification({ type: 'err', message: 'Erro ao reabrir a chamada.' });
+      setTimeout(() => setNotification(null), 4000);
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const [isPrinting, setIsPrinting] = useState(false);
 
   const processPrint = async (targetType: 'marking' | 'report') => {
@@ -847,6 +918,26 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     try {
       const blobUrl = await generateAttendancePDF(targetType);
       if (blobUrl) {
+        // Fallback function to download the generated PDF directly
+        const triggerDownload = () => {
+          try {
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `frequencia_${targetType === 'marking' ? 'manual' : 'consolidada'}_${new Date().getFullYear()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            setNotification({
+              type: 'success',
+              message: 'Inserção direta de impressão bloqueada pelo navegador no ambiente simulado. O PDF foi gerado e baixado automaticamente.'
+            });
+            setTimeout(() => setNotification(null), 6000);
+          } catch (downloadErr) {
+            console.warn('Erro silencioso ao baixar PDF:', downloadErr);
+          }
+        };
+
         const iframe = document.createElement('iframe');
         iframe.style.position = 'fixed';
         iframe.style.right = '0';
@@ -859,21 +950,25 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         iframe.onload = () => {
           setTimeout(() => {
             try {
-              iframe.contentWindow?.focus();
-              iframe.contentWindow?.print();
+              if (!iframe.contentWindow) {
+                throw new Error("Acesso ao Iframe bloqueado");
+              }
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
             } catch (e) {
-              console.error('Print window error:', e);
+              console.warn('Impressão direta bloqueada por segurança do frameset. Baixando PDF diretamente...', e);
+              triggerDownload();
             }
             setTimeout(() => {
               if (iframe.parentNode) {
                 document.body.removeChild(iframe);
               }
-            }, 60000);
+            }, 15000);
           }, 150);
         };
       }
     } catch (err) {
-      console.error('Printing process error:', err);
+      console.warn('Processo de geração/impressão de frequência falhou:', err);
     } finally {
       setIsPrinting(false);
     }
@@ -1125,8 +1220,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               if (activePrintType === 'marking') return '';
               const status = day ? (activeTab === 'monthly' ? getCellStatus(student.id, day.dbValue) : (day.dbValue === parseDateToDB(selectedDate) ? attendance[student.id]?.status : null)) : null;
               return { 
-                content: status === 'P' ? 'OK' : status === 'F' ? 'F' : status === 'J' ? 'J' : '',
-                styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal' }
+                content: status === 'P' ? 'PRESENTE' : status === 'F' ? 'FALTOU' : status === 'J' ? 'ABONADA' : '',
+                styles: { halign: 'center', fontStyle: status === 'P' ? 'bold' : 'normal', fontSize: 5.5 }
               };
             })
           ];
@@ -1403,9 +1498,46 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     </button>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 h-10 px-5 bg-slate-100 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-200">
-                    <Check size={14} />
-                    <span>Lançamentos Finalizados</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 h-10 px-5 bg-slate-100 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-200 select-none">
+                      <Check size={14} className="text-emerald-600" />
+                      <span>Lançamentos Finalizados</span>
+                    </div>
+
+                    {!reopenConfirm ? (
+                      <button
+                        type="button"
+                        disabled={closing}
+                        onClick={() => setReopenConfirm(true)}
+                        className="group flex items-center gap-1.5 h-10 px-4 bg-rose-50 text-rose-700 hover:bg-rose-100/80 border border-rose-200 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-200 hover:shadow-sm"
+                        title="Reabrir chamada finalizada para novas edições"
+                      >
+                        <Unlock size={13} className="transition-transform group-hover:rotate-12" />
+                        <span>Reabrir Chamada</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 p-1">
+                        <span className="text-[9px] font-bold text-rose-700 uppercase tracking-widest px-2 font-sans">
+                          Confirmar?
+                        </span>
+                        <button
+                          type="button"
+                          disabled={closing}
+                          onClick={reopenAttendance}
+                          className="h-8 px-3 bg-rose-700 hover:bg-rose-800 text-white rounded-none text-[9px] font-bold uppercase tracking-widest transition-all"
+                        >
+                          {closing ? <Loader2 size={10} className="animate-spin" /> : "Reabrir"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={closing}
+                          onClick={() => setReopenConfirm(false)}
+                          className="h-8 px-2.5 bg-white hover:bg-slate-100 text-slate-600 rounded-none text-[9px] font-bold uppercase tracking-widest border border-slate-200 transition-all"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1545,44 +1677,71 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Action Strip for Marking */}
-        {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
-          <div className="px-5 py-3.5 bg-white border-b border-slate-200 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-800 text-white rounded-none flex items-center justify-center font-bold text-lg">
-                <span>{students.length}</span>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-tight leading-none">Matriculados</p>
-                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-2">
-                   <div className="w-1.5 h-1.5 bg-slate-400" />
-                   Sessão ativa
+          {/* Placar em Tempo Real centralizado no formulário */}
+          {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-slate-200 flex justify-center w-full">
+              <div className="flex flex-wrap items-center justify-center gap-3.5 select-none">
+                {/* Matriculados */}
+                <div className="flex items-center border border-slate-200 bg-white pr-4">
+                  <div className="w-10 h-10 bg-slate-800 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
+                    {attendanceStats.total}
+                  </div>
+                  <div className="pl-3 text-left">
+                    <p className="text-[9px] font-bold text-slate-800 uppercase tracking-wider leading-none">Matriculados</p>
+                    <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Total</p>
+                  </div>
                 </div>
+
+                {/* Presentes */}
+                <div className="flex items-center border border-slate-200 bg-white pr-4">
+                  <div className="w-10 h-10 bg-slate-600 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
+                    {attendanceStats.present}
+                  </div>
+                  <div className="pl-3 text-left">
+                    <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider leading-none">Presentes</p>
+                    <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Lançados P</p>
+                  </div>
+                </div>
+
+                {/* Faltantes */}
+                <div className="flex items-center border border-rose-200 bg-white pr-4">
+                  <div className="w-10 h-10 bg-rose-700 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
+                    {attendanceStats.absent}
+                  </div>
+                  <div className="pl-3 text-left">
+                    <p className="text-[9px] font-bold text-rose-800 uppercase tracking-wider leading-none">Faltantes</p>
+                    <p className="text-[8px] font-semibold text-rose-500 uppercase tracking-widest mt-0.5">Lançados F</p>
+                  </div>
+                </div>
+
+                {/* Abonados */}
+                <div className="flex items-center border border-amber-200 bg-white pr-4">
+                  <div className="w-10 h-10 bg-amber-600 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
+                    {attendanceStats.justified}
+                  </div>
+                  <div className="pl-3 text-left">
+                    <p className="text-[9px] font-bold text-amber-805 uppercase tracking-wider leading-none">Abonados</p>
+                    <p className="text-[8px] font-semibold text-amber-600 uppercase tracking-widest mt-0.5">Lançados J</p>
+                  </div>
+                </div>
+
+                {/* Pendentes */}
+                {attendanceStats.missing > 0 && (
+                  <div className="flex items-center border border-dashed border-slate-300 bg-white pr-4">
+                    <div className="w-10 h-10 bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-sm md:text-base">
+                      {attendanceStats.missing}
+                    </div>
+                    <div className="pl-3 text-left">
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none">Pendentes</p>
+                      <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">A Marcar</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                disabled={isClosed}
-                onClick={() => handleMarkAll('P')}
-                className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-705 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-300 hover:bg-slate-100 transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              >
-                <Check size={14} />
-                Presença Geral
-              </button>
-              <button
-                disabled={isClosed}
-                onClick={() => handleMarkAll('F')}
-                className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-705 rounded-none text-[10px] font-bold uppercase tracking-widest border border-slate-300 hover:bg-slate-100 transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              >
-                <X size={16} />
-                Falta Geral
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Content Area */}
         <div className="p-4 md:p-5 bg-white">
@@ -1692,16 +1851,16 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             attendance[student.id]?.status === 'P' ? "bg-slate-50/50 border-slate-300 shadow-none" :
                             attendance[student.id]?.status === 'F' ? "bg-rose-50/20 border-rose-200 shadow-none" :
                             attendance[student.id]?.status === 'J' ? "bg-amber-50/20 border-amber-200 shadow-none" :
-                            "bg-white border-slate-200 hover:border-slate-350 shadow-none"
+                            "bg-white border-slate-200 hover:border-slate-300 shadow-none"
                           )}
                         >
                           <div className="flex items-center gap-4 mb-4 md:mb-0 relative z-10">
                             <div className={cn(
                               "w-8 h-8 rounded-none flex items-center justify-center text-xs font-bold transition-all duration-300",
                               attendance[student.id]?.status === 'P' ? "bg-slate-800 text-white" :
-                              attendance[student.id]?.status === 'F' ? "bg-rose-850 text-white" :
-                              attendance[student.id]?.status === 'J' ? "bg-amber-705 text-white" :
-                              "bg-slate-205 text-slate-700 animate-none"
+                              attendance[student.id]?.status === 'F' ? "bg-rose-700 text-white" :
+                              attendance[student.id]?.status === 'J' ? "bg-amber-600 text-white" :
+                              "bg-slate-200 text-slate-705 animate-none"
                             )}>
                               {String(idx + 1).padStart(2, '0')}
                             </div>
@@ -1709,15 +1868,65 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <p className="text-sm font-semibold text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
                               <div className="flex flex-wrap items-center gap-2 mt-1.5">
                                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-none">RA: {student.registration_number}</span>
-                                {attendance[student.id]?.status && (
-                                  <span className={cn(
-                                    "text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-none border shadow-sm",
-                                    attendance[student.id]?.status === 'P' ? "bg-slate-100 text-slate-700 border-slate-300" :
-                                    attendance[student.id]?.status === 'F' ? "bg-rose-50 text-rose-705 border-rose-200" :
-                                    "bg-amber-50 text-amber-705 border-amber-200"
-                                  )}>
-                                    {attendance[student.id]?.status === 'P' ? 'Presente' : attendance[student.id]?.status === 'F' ? 'Falta' : 'Justificado'}
-                                  </span>
+                                {attendance[student.id]?.status === 'J' ? (
+                                  <button
+                                    type="button"
+                                    disabled={isClosed}
+                                    title="Clique para editar as observações do abono"
+                                    onClick={() => {
+                                      const existingRecord = attendance[student.id];
+                                      let type: 'atraso' | 'ausencia' | 'outros' = 'ausencia';
+                                      let customReason = '';
+                                      if (existingRecord?.status === 'J' && existingRecord?.observations) {
+                                        const obs = existingRecord.observations.trim();
+                                        if (/^ATRASO/i.test(obs)) {
+                                          type = 'atraso';
+                                          customReason = obs.replace(/^ATRASO(\s*-\s*)?/i, '');
+                                        } else if (/^AUS[ÊE]NCIA/i.test(obs)) {
+                                          type = 'ausencia';
+                                          customReason = obs.replace(/^AUS[ÊE]NCIA(\s*-\s*)?/i, '');
+                                        } else if (/^OUTROS/i.test(obs)) {
+                                          type = 'outros';
+                                          customReason = obs.replace(/^OUTROS(\s*-\s*)?/i, '');
+                                        } else {
+                                          type = 'outros';
+                                          customReason = obs;
+                                        }
+                                      }
+                                      setAbonoModal({
+                                        isOpen: true,
+                                        studentId: student.id,
+                                        studentName: student.name,
+                                        type,
+                                        customReason,
+                                        isMonthly: false
+                                      });
+                                    }}
+                                    className={cn(
+                                      "flex items-center gap-1.5 transition-all text-left",
+                                      !isClosed && "hover:bg-amber-100 hover:border-amber-300 cursor-pointer text-amber-850 bg-amber-50 border border-amber-205 px-2 py-0.5 shadow-sm"
+                                    )}
+                                  >
+                                    <span className="text-[9px] font-extrabold uppercase tracking-widest flex items-center gap-1 text-amber-800">
+                                      ABONADA
+                                      {!isClosed && <Edit size={9} className="text-amber-600 ml-0.5" />}
+                                    </span>
+                                    {attendance[student.id]?.observations && (
+                                      <span className="text-[9px] font-semibold uppercase tracking-wider text-amber-700 max-w-[120px] sm:max-w-[200px] truncate border-l border-amber-200/60 pl-1.5">
+                                        {attendance[student.id]?.observations}
+                                      </span>
+                                    )}
+                                  </button>
+                                ) : (
+                                  attendance[student.id]?.status && (
+                                    <span className={cn(
+                                      "text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-none border shadow-sm",
+                                      attendance[student.id]?.status === 'P' ? "bg-slate-100 text-slate-700 border-slate-300" :
+                                      "bg-rose-50 text-rose-700 border-rose-200"
+                                    )}>
+                                      {attendance[student.id]?.status === 'P' ? 'PRESENTE' : 'FALTOU'}
+                                    </span>
+                                  )
                                 )}
                               </div>
                             </div>
@@ -1727,17 +1936,62 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             {[
                               { id: 'P', label: 'Presente', icon: Check },
                               { id: 'F', label: 'Falta', icon: X },
-                              { id: 'J', label: 'Justificar', icon: Info }
+                              { id: 'J', label: 'Abonar', icon: Info }
                             ].map((btn) => (
                               <button
                                 key={btn.id}
                                 disabled={isClosed}
-                                onClick={() => handleStatusChange(student.id, btn.id as any)}
+                                title={isClosed ? undefined : "Dê um clique simples para marcar ou duplo clique para limpar a seleção"}
+                                onClick={() => {
+                                  if (btn.id === 'J') {
+                                    const existingRecord = attendance[student.id];
+                                    let type: 'atraso' | 'ausencia' | 'outros' = 'ausencia';
+                                    let customReason = '';
+                                    if (existingRecord?.status === 'J' && existingRecord?.observations) {
+                                      const obs = existingRecord.observations.trim();
+                                      if (/^ATRASO/i.test(obs)) {
+                                        type = 'atraso';
+                                        customReason = obs.replace(/^ATRASO(\s*-\s*)?/i, '');
+                                      } else if (/^AUS[ÊE]NCIA/i.test(obs)) {
+                                        type = 'ausencia';
+                                        customReason = obs.replace(/^AUS[ÊE]NCIA(\s*-\s*)?/i, '');
+                                      } else if (/^OUTROS/i.test(obs)) {
+                                        type = 'outros';
+                                        customReason = obs.replace(/^OUTROS(\s*-\s*)?/i, '');
+                                      } else {
+                                        type = 'outros';
+                                        customReason = obs;
+                                      }
+                                    }
+                                    setAbonoModal({
+                                      isOpen: true,
+                                      studentId: student.id,
+                                      studentName: student.name,
+                                      type,
+                                      customReason,
+                                      isMonthly: false
+                                    });
+                                  } else {
+                                    handleStatusChange(student.id, btn.id as any);
+                                  }
+                                }}
+                                onDoubleClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (isClosed) return;
+                                  
+                                  // Limpa totalmente a seleção do aluno
+                                  setAttendance(prev => {
+                                    const copy = { ...prev };
+                                    delete copy[student.id];
+                                    return copy;
+                                  });
+                                }}
                                 className={cn(
-                                  "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all duration-200 border",
+                                  "flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all duration-200 border select-none",
                                   attendance[student.id]?.status === btn.id
                                     ? `bg-slate-800 text-white border-slate-800 shadow-sm`
-                                    : `bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-805`,
+                                    : `bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800`,
                                   isClosed && attendance[student.id]?.status !== btn.id && "opacity-20 grayscale cursor-not-allowed"
                                 )}
                               >
@@ -1854,6 +2108,98 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             <p className="text-xs font-medium text-slate-500 mt-4 leading-relaxed">
               O documento está sendo consolidado e a tela de impressão do seu navegador abrirá automaticamente em instantes.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Abono/Justification Modal (Atraso ou Ausencia) */}
+      {abonoModal && abonoModal.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
+          <div className="bg-white p-6 max-w-sm w-full border border-slate-200 shadow-2xl rounded-none flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Justificar Abono de Falta</h3>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mt-0.5 tracking-wider">Aluno(a): {abonoModal.studentName}</p>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block mb-1">Qual o motivo do abono?</label>
+              
+              <div className="flex flex-col gap-2">
+                {[
+                  { id: 'atraso', label: 'Atraso', icon: Clock },
+                  { id: 'ausencia', label: 'Ausência', icon: Info },
+                  { id: 'outros', label: 'Outro Motivo', icon: FileText }
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setAbonoModal(prev => prev ? { ...prev, type: opt.id as any } : null)}
+                    className={cn(
+                      "flex items-center gap-2.5 p-3 border text-[10px] font-bold uppercase tracking-widest transition-all duration-200 rounded-none w-full text-left",
+                      abonoModal.type === opt.id
+                        ? "bg-slate-800 text-white border-slate-800 shadow-sm"
+                        : "bg-slate-50 border-slate-205 text-slate-600 hover:bg-slate-100/80"
+                    )}
+                  >
+                    <opt.icon size={14} className="flex-shrink-0" />
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block font-sans">Observações / Detalhes (Opcional)</label>
+                <span className="text-[9px] font-bold text-slate-400 font-sans uppercase">
+                  {120 - (abonoModal.customReason || '').length} restam
+                </span>
+              </div>
+              <textarea
+                value={abonoModal.customReason}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val.length <= 120) {
+                    setAbonoModal(prev => prev ? { ...prev, customReason: val } : null);
+                  }
+                }}
+                maxLength={120}
+                placeholder="Exemplo: Apresentou atestado de saúde ou justificativa oficial de trabalho..."
+                className="w-full h-24 p-3 bg-slate-50 border border-slate-205 rounded-none text-xs text-slate-850 focus:bg-white focus:border-slate-400 outline-none resize-none transition-all placeholder:text-slate-400"
+              />
+            </div>
+
+            <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setAbonoModal(null)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const finalObs = `${abonoModal.type === 'atraso' ? 'ATRASO' : abonoModal.type === 'ausencia' ? 'AUSÊNCIA' : 'OUTROS'}${abonoModal.customReason ? ` - ${abonoModal.customReason.toUpperCase()}` : ''}`;
+                  setAttendance(prev => ({
+                    ...prev,
+                    [abonoModal.studentId]: {
+                      ...prev[abonoModal.studentId],
+                      student_id: abonoModal.studentId,
+                      class_id: selectedClass,
+                      subject_id: selectedSubject,
+                      date: selectedDate,
+                      status: 'J',
+                      observations: finalObs
+                    }
+                  }));
+                  setAbonoModal(null);
+                }}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md"
+              >
+                Confirmar Abono
+              </button>
+            </div>
           </div>
         </div>
       )}
