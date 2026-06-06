@@ -69,6 +69,29 @@ import { ptBR } from 'date-fns/locale';
 import { Student, Class, PixTransaction, Teacher, Subject, AcademicParameters } from '../types';
 import { useSearchParams } from 'react-router-dom';
 
+const formatLongDate = (dateString: string) => {
+  if (!dateString) return '';
+  const dateStr = dateString.split('T')[0];
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return `${day < 10 ? '0' + day : day} de ${months[monthIndex]} de ${year}`;
+  }
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  } catch (e) {
+    return dateString;
+  }
+};
+
 type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational' | 'attendance' | 'diario_consolidado';
 
 export function Reports() {
@@ -2020,15 +2043,14 @@ export function Reports() {
                         isSubmittingCert && "opacity-50 cursor-not-allowed"
                       )}
                     >
-                      {isSubmittingCert ? 'Salvando...' : 'Confirmar'}
+                       {isSubmittingCert ? 'Salvando...' : 'Confirmar'}
                     </button>
                  </div>
               </form>
            </div>
         </div>
       )}
-
-      {/* Interactive Modal: View Certificate (viewingCertificate) */}
+                    {/* Interactive Modal: View Certificate (viewingCertificate) */}
       {viewingCertificate && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300 print:hidden">
            <div className="bg-white rounded-none shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[90vh]">
@@ -2049,7 +2071,7 @@ export function Reports() {
                       onClick={() => {
                         window.print();
                       }}
-                      className="px-4 py-2 bg-slate-805 hover:bg-slate-900 text-white rounded-none border border-slate-800 text-[9px] font-bold flex items-center gap-1.5 transition-colors uppercase tracking-widest shadow-md cursor-pointer active:scale-95"
+                      className="px-4 py-2 bg-[#00174b] hover:bg-slate-900 text-white rounded-none border border-[#00174b] text-[9px] font-bold flex items-center gap-1.5 transition-colors uppercase tracking-widest shadow-md cursor-pointer active:scale-95"
                     >
                       <Printer size={13} /> Imprimir Certificado
                     </button>
@@ -2075,38 +2097,34 @@ export function Reports() {
                           {institution?.name || 'ESCMIN - SISTEMA DE ENSINO'}
                        </h2>
                        <p className="text-[9px] font-sans font-bold uppercase text-amber-500 tracking-widest">
-                          Secretaria Escolar & Registro de Diplomas
+                          {institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}
                        </p>
                     </div>
 
                     {/* Core text */}
-                    <div className="my-8 space-y-6">
+                    <div className="my-6 space-y-6">
                        <h1 className="text-4xl font-extrabold italic text-[#00174b] tracking-wider">
                           DIPLOMA DE CONCLUSÃO
                        </h1>
-                       <p className="text-sm max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
-                          A Reitoria Escolar certifica que o estudante <strong className="text-slate-900 uppercase font-serif text-md">{viewingCertificate.student_name}</strong> concluiu com as devidas qualificações o curso <strong className="text-slate-900">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.
+                       <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
+                          A <strong className="text-slate-900 font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-700 italic">{institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}</span>) certifica que o estudante <strong className="text-slate-900 uppercase font-serif text-md">{viewingCertificate.student_name}</strong> concluiu com as devidas qualificações o curso <strong className="text-slate-900">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.
+                       </p>
+                       
+                       {/* Yellow highlight is centered here, month by extenso */}
+                       <p className="text-[10px] text-slate-800 font-bold uppercase tracking-widest mt-6 font-sans">
+                          {formatLongDate(viewingCertificate.issuance_date)}
                        </p>
                     </div>
 
-                    {/* Signatures & Certification verification footer */}
-                    <div className="flex items-end justify-between px-6 mb-4 font-sans">
+                    {/* Signatures & Certification verification footer - removed orange highlights, renamed left and right */}
+                    <div className="flex items-end justify-between px-12 mb-4 font-sans">
                        <div className="flex flex-col items-center gap-1">
-                          <div className="w-32 border-b border-slate-300" />
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Secretaria Acadêmica</p>
-                       </div>
-                       <div className="flex flex-col items-center text-center">
-                          <p className="text-[10px] font-black font-mono text-slate-700 bg-slate-100 px-3 py-1 rounded">
-                             COD: {viewingCertificate.verification_code}
-                          </p>
-                          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Validação Digital</p>
+                          <div className="w-40 border-b border-slate-300" />
+                          <p className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest">Diretor Escola</p>
                        </div>
                        <div className="flex flex-col items-center gap-1">
-                          <p className="text-[10px] text-slate-800 font-bold italic mb-1">
-                             {new Date(viewingCertificate.issuance_date).toLocaleDateString('pt-BR')}
-                          </p>
-                          <div className="w-32 border-b border-slate-300" />
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Diretoria de Ensino</p>
+                          <div className="w-40 border-b border-slate-300" />
+                          <p className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest">Bispo Diocesano</p>
                        </div>
                     </div>
 
@@ -2126,7 +2144,7 @@ export function Reports() {
                    {institution?.name || 'SISTEMA DE ENSINO'}
                 </h2>
                 <p className="text-xs font-sans font-bold uppercase text-slate-500 tracking-wider">
-                   SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS
+                   {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
                 </p>
              </div>
 
@@ -2135,27 +2153,30 @@ export function Reports() {
                    DIPLOMA DE CONCLUSÃO
                 </h1>
                 <p className="text-md max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
-                   A Reitoria Escolar certifica que o estudante <strong className="text-black uppercase font-serif text-lg">{viewingCertificate.student_name}</strong> concluiu com as devidas qualificações o curso <strong className="text-black">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.
+                   A <strong className="text-black">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-805 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o estudante <strong className="text-black uppercase font-serif text-lg">{viewingCertificate.student_name}</strong> concluiu com as devidas qualificações o curso <strong className="text-black">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.
+                 </p>
+                 <p className="text-xs text-slate-800 font-bold uppercase tracking-widest mt-8 font-sans">
+                    {formatLongDate(viewingCertificate.issuance_date)}
                 </p>
              </div>
 
              <div className="flex items-end justify-between px-12 mb-6 font-sans text-xs">
                 <div className="flex flex-col items-center gap-1">
                    <div className="w-40 border-b border-black" />
-                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Secretaria Acadêmica</p>
+                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Diretor Escola</p>
                 </div>
-                <div className="flex flex-col items-center text-center">
+                <div className="hidden">
                    <p className="text-xs font-bold font-mono text-black border border-black bg-slate-50 px-3 py-1.5">
                       CHAVE: {viewingCertificate.verification_code}
                    </p>
                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Validação Digital</p>
                 </div>
                 <div className="flex flex-col items-center gap-1">
-                   <p className="text-xs text-slate-800 font-bold italic mb-1">
+                   <p className="hidden mb-1">
                       {new Date(viewingCertificate.issuance_date).toLocaleDateString('pt-BR')}
                    </p>
                    <div className="w-40 border-b border-black" />
-                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Diretoria de Ensino</p>
+                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bispo Diocesano</p>
                 </div>
              </div>
           </div>
