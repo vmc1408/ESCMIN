@@ -914,6 +914,34 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [isPrinting, setIsPrinting] = useState(false);
 
   const processPrint = async (targetType: 'marking' | 'report') => {
+    if (targetType === 'report') {
+      let hasMarkings = false;
+      for (const student of students) {
+        const studentRecords = monthlyAttendance[student.id];
+        if (studentRecords) {
+          for (const day of monthlyClassDays) {
+            if (day && day.dbValue && !day.isCancelled) {
+              const status = studentRecords[day.dbValue];
+              if (status === 'P' || status === 'F' || status === 'J') {
+                hasMarkings = true;
+                break;
+              }
+            }
+          }
+        }
+        if (hasMarkings) break;
+      }
+
+      if (!hasMarkings) {
+        setNotification({
+          type: 'err',
+          message: 'Não há marcações de presença nesta lista de chamada para o período selecionado. O relatório não foi gerado.'
+        });
+        setTimeout(() => setNotification(null), 5000);
+        return;
+      }
+    }
+
     setIsPrinting(true);
     try {
       const blobUrl = await generateAttendancePDF(targetType);
