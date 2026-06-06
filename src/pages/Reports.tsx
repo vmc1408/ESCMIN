@@ -2135,10 +2135,10 @@ export function Reports() {
                            />
                         )}
                         <div className="text-left space-y-1">
-                           <h2 className="text-xl md:text-3xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                           <h2 className="text-lg md:text-xl font-bold uppercase tracking-[0.15em] text-black font-sans leading-tight">
                               {institution?.name || 'ESCMIN - SISTEMA DE ENSINO'}
                            </h2>
-                           <p className="text-[10px] md:text-xs font-sans font-bold uppercase text-amber-500 tracking-widest leading-none">
+                           <p className="text-[9px] md:text-[11px] font-sans font-bold uppercase text-amber-500 tracking-wider leading-none">
                               {institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}
                            </p>
                         </div>
@@ -2146,7 +2146,7 @@ export function Reports() {
 
                     {/* Core text */}
                     <div className="my-6 space-y-4">
-                       <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-widest uppercase">
+                       <h1 className="text-xl md:text-2xl font-bold italic text-black tracking-wider uppercase">
                           {getCertificateTitle(viewingCertificate.type)}
                        </h1>
                        <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
@@ -2245,7 +2245,7 @@ export function Reports() {
                    />
                 )}
                 <div className="text-left space-y-1.5">
-                   <h2 className="text-4xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                   <h2 className="text-2xl font-bold uppercase tracking-[0.15em] text-black font-sans leading-tight">
                       {institution?.name || 'SISTEMA DE ENSINO'}
                    </h2>
                    <p className="text-xs font-sans font-bold uppercase text-slate-500 tracking-wider">
@@ -2255,7 +2255,7 @@ export function Reports() {
              </div>
 
              <div className="my-4 space-y-4">
-                <h1 className="text-3xl font-extrabold italic text-black tracking-widest uppercase mb-3 leading-tight">
+                <h1 className="text-xl font-bold italic text-black tracking-wider uppercase mb-2 leading-tight">
                    {getCertificateTitle(viewingCertificate.type)}
                 </h1>
                 
