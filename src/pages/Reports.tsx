@@ -38,7 +38,8 @@ import {
   Sparkles,
   ChevronDown,
   School,
-  Info
+  Info,
+  Trash2
 } from 'lucide-react';
 import { 
   BarChart as ReBarChart, 
@@ -59,7 +60,7 @@ import {
   TooltipProps
 } from 'recharts';
 import { formatCurrency, cn } from '../lib/utils';
-import { fetchAll, fetchQuery, fetchById, saveData } from '../lib/database';
+import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
@@ -200,6 +201,28 @@ export function Reports() {
       }
     } catch (e) {
       console.error('Error fetching academic params:', e);
+    }
+  };
+
+  const handleDeleteCertificate = async (certificateId: string, studentName: string) => {
+    if (!window.confirm(`Deseja realmente desfazer/excluir o diploma gerado para ${studentName}?`)) {
+      return;
+    }
+    try {
+      await deleteData('certificates', certificateId);
+      setNotification({
+        type: 'success',
+        message: `Diploma de ${studentName} foi desfeito com sucesso!`
+      });
+      // Reload certificates list
+      const certs = await fetchAll('certificates');
+      setCertificates(certs || []);
+    } catch (error) {
+      console.error('Error deleting certificate:', error);
+      setNotification({
+        type: 'error',
+        message: 'Falha ao desfazer diploma.'
+      });
     }
   };
 
@@ -1933,6 +1956,13 @@ export function Reports() {
                                                     >
                                                        <Printer size={13} />
                                                     </button>
+                                                     <button
+                                                       onClick={() => handleDeleteCertificate(res.certificate.id, res.student.name)}
+                                                       className="p-1.5 text-rose-600 bg-white border border-rose-200 hover:border-rose-450 hover:bg-rose-50 rounded-none transition-all cursor-pointer shadow-sm ml-1"
+                                                       title="Desfazer/Excluir Diploma"
+                                                     >
+                                                        <Trash2 size={13} />
+                                                     </button>
                                                  </div>
                                                ) : (
                                                  <button
