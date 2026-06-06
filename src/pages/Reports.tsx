@@ -2082,7 +2082,24 @@ export function Reports() {
                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Código de Veracidade: {viewingCertificate.verification_code}</p>
                     </div>
                  </div>
-                 <div className="flex items-center gap-3">
+                 <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 border-r border-slate-200 pr-4">
+                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap animate-pulse">Tipo do Documento:</label>
+                       <select
+                         className="px-3 py-1.5 bg-white border border-slate-200 rounded-none text-[11px] font-black text-slate-800 outline-none uppercase tracking-wide cursor-pointer focus:border-slate-400"
+                         value={viewingCertificate.type}
+                         onChange={(e) => {
+                           setViewingCertificate({
+                             ...viewingCertificate,
+                             type: e.target.value
+                           });
+                         }}
+                       >
+                         <option value="conclusão">Diploma de Conclusão</option>
+                         <option value="participação">Certificado de Participação</option>
+                         <option value="honra">Honra ao Mérito</option>
+                       </select>
+                    </div>
                     <button
                       onClick={() => {
                         window.print();
@@ -2166,9 +2183,44 @@ export function Reports() {
         </div>
       )}
 
+      {/* Dynamic landscape CSS layer injected on print when certificate is active */}
+      {viewingCertificate && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            @page {
+              size: A4 landscape !important;
+              margin: 0 !important;
+            }
+            main, nav, aside, header, footer, #printable-report, [id^="non-printable-"], .print-hide {
+              display: none !important;
+              visibility: hidden !important;
+            }
+            [id="printable-certificate"] {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 297mm !important;
+              height: 210mm !important;
+              box-sizing: border-box !important;
+              margin: 0 !important;
+              padding: 16mm !important;
+              background: white !important;
+              z-index: 9999999 !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              visibility: visible !important;
+            }
+            [id="printable-certificate"] * {
+              visibility: visible !important;
+            }
+          }
+        `}} />
+      )}
+
       {/* Printable Certificate (A4 Landscape Frame) */}
       {viewingCertificate && (
-        <div className="hidden print:block fixed inset-0 bg-white text-black font-serif p-16 flex flex-col justify-between text-center min-h-screen z-[99999]">
+        <div id="printable-certificate" className="hidden print:block fixed inset-0 bg-white text-black font-serif p-16 flex flex-col justify-between text-center min-h-screen z-[99999]">
           <div className="border-[12px] border-double border-[#00174b] p-12 flex-1 flex flex-col justify-between">
              <div className="space-y-4">
                 <h2 className="text-3xl font-bold uppercase tracking-[0.2em] text-[#00174b] font-sans">
@@ -2232,7 +2284,7 @@ export function Reports() {
       )}
 
       {/* Professional Print Layout (Figma Style) */}
-      <div id="printable-report" className={cn("hidden p-12 bg-white text-black font-sans", viewingCertificate ? "print:hidden" : "print:block")}>
+      <div id={viewingCertificate ? "non-printable-report" : "printable-report"} className={cn("hidden p-12 bg-white text-black font-sans", viewingCertificate ? "print:hidden" : "print:block")}>
         <div className="flex flex-col items-center text-center relative mb-10">
           {institution?.logo_url && (
             <div className="absolute left-0 top-0">
