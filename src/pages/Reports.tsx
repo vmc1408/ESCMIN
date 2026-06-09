@@ -283,66 +283,66 @@ const renderCertificateInnerContent = (
 
 const getCertificateBorderClassName = (type: string) => {
   if (type === 'participação') {
-    // Modelo Solene: elegant gold/amber solid border frame
-    return "border-[16px] border-amber-600 p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
+    // Modelo Solene: elegant thin solid border in deep classical black
+    return "border-[5px] border-black p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
   }
   if (type === 'honra') {
-    // Modelo Tradicional de Diploma: deep collegiate navy solid border frame
-    return "border-[20px] border-[#00174b] p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
+    // Modelo Tradicional de Diploma: premium distinct black border frame
+    return "border-[8px] border-black p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
   }
-  // Modelo Certificado de Conclusão: classic charcoal/slate double border
-  return "border-[11px] border-double border-slate-900 p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
+  // Modelo Certificado de Conclusão: classic double border in black
+  return "border-[6px] border-double border-black p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
 };
 
 const renderCertificateDecorations = (type: string) => {
   if (type === 'participação') {
     return (
       <>
-        {/* Elegant thin inner gold frame with nested lines */}
-        <div className="absolute inset-1 border-2 border-amber-400/80 pointer-events-none" />
-        <div className="absolute inset-3 border border-amber-500/30 pointer-events-none" />
+        {/* Elegant thin inner black frame with nested fine lines */}
+        <div className="absolute inset-1.5 border border-black/50 pointer-events-none" />
+        <div className="absolute inset-3 border border-black/20 pointer-events-none" />
         {/* Artistic Corner Ornaments (L-shapes) */}
-        <div className="absolute top-4 left-4 w-10 h-10 border-t-[3px] border-l-[3px] border-amber-600 pointer-events-none" />
-        <div className="absolute top-4 right-4 w-10 h-10 border-t-[3px] border-r-[3px] border-amber-600 pointer-events-none" />
-        <div className="absolute bottom-4 left-4 w-10 h-10 border-b-[3px] border-l-[3px] border-amber-600 pointer-events-none" />
-        <div className="absolute bottom-4 right-4 w-10 h-10 border-b-[3px] border-r-[3px] border-amber-600 pointer-events-none" />
+        <div className="absolute top-4 left-4 w-8 h-8 border-t-[2px] border-l-[2px] border-black pointer-events-none" />
+        <div className="absolute top-4 right-4 w-8 h-8 border-t-[2px] border-r-[2px] border-black pointer-events-none" />
+        <div className="absolute bottom-4 left-4 w-8 h-8 border-b-[2px] border-l-[2px] border-black pointer-events-none" />
+        <div className="absolute bottom-4 right-4 w-8 h-8 border-b-[2px] border-r-[2px] border-black pointer-events-none" />
         {/* Subtle decorative inner corner brackets */}
-        <div className="absolute top-6 left-6 w-4 h-4 border-t border-l border-amber-500/70 pointer-events-none" />
-        <div className="absolute top-6 right-6 w-4 h-4 border-t border-r border-amber-500/70 pointer-events-none" />
-        <div className="absolute bottom-6 left-6 w-4 h-4 border-b border-l border-amber-500/70 pointer-events-none" />
-        <div className="absolute bottom-6 right-6 w-4 h-4 border-b border-r border-amber-500/70 pointer-events-none" />
+        <div className="absolute top-5 left-5 w-3 h-3 border-t border-l border-black/60 pointer-events-none" />
+        <div className="absolute top-5 right-5 w-3 h-3 border-t border-r border-black/60 pointer-events-none" />
+        <div className="absolute bottom-5 left-5 w-3 h-3 border-b border-l border-black/60 pointer-events-none" />
+        <div className="absolute bottom-5 right-5 w-3 h-3 border-b border-r border-black/60 pointer-events-none" />
       </>
     );
   }
   if (type === 'honra') {
     return (
       <>
-        {/* Elite multi-layered academic diploma frame */}
-        <div className="absolute inset-1 border-4 border-white pointer-events-none" />
-        <div className="absolute inset-2 border-[3px] border-[#00174b] pointer-events-none" />
-        <div className="absolute inset-4 border border-[#00174b]/50 pointer-events-none" />
-        {/* Sophisticated certificate corner stars/blocks */}
-        <div className="absolute top-5 left-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
-        <div className="absolute top-5 right-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
-        <div className="absolute bottom-5 left-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
-        <div className="absolute bottom-5 right-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
+        {/* Elite multi-layered academic diploma frame all in deep black */}
+        <div className="absolute inset-1 border-[2px] border-white pointer-events-none" />
+        <div className="absolute inset-1.5 border border-black pointer-events-none" />
+        <div className="absolute inset-3.5 border border-black/30 pointer-events-none" />
+        {/* Sophisticated black certificate corner stars/blocks */}
+        <div className="absolute top-4 left-4 w-2.5 h-2.5 bg-black pointer-events-none rotate-45" />
+        <div className="absolute top-4 right-4 w-2.5 h-2.5 bg-black pointer-events-none rotate-45" />
+        <div className="absolute bottom-4 left-4 w-2.5 h-2.5 bg-black pointer-events-none rotate-45" />
+        <div className="absolute bottom-4 right-4 w-2.5 h-2.5 bg-black pointer-events-none rotate-45" />
       </>
     );
   }
-  // Modelo Certificado de Conclusão: classic slate-900 double line with elegant minimalist modern corners
+  // Modelo Certificado de Conclusão: classic black double line with elegant minimalist modern corners
   return (
     <>
-      <div className="absolute inset-1 border border-slate-900/30 pointer-events-none" />
-      <div className="absolute inset-2.5 border border-slate-900/10 pointer-events-none" />
+      <div className="absolute inset-1 border border-black/30 pointer-events-none" />
+      <div className="absolute inset-2.5 border border-black/10 pointer-events-none" />
       {/* Corner crosshairs for a perfect engineered blueprint layout */}
-      <div className="absolute top-3 left-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
-      <div className="absolute top-3 left-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
-      <div className="absolute top-3 right-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
-      <div className="absolute top-3 right-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
-      <div className="absolute bottom-3 left-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
-      <div className="absolute bottom-3 left-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
-      <div className="absolute bottom-3 right-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
-      <div className="absolute bottom-3 right-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
+      <div className="absolute top-3 left-3 w-5 h-[1px] bg-black/80 pointer-events-none" />
+      <div className="absolute top-3 left-3 w-[1px] h-5 bg-black/80 pointer-events-none" />
+      <div className="absolute top-3 right-3 w-5 h-[1px] bg-black/80 pointer-events-none" />
+      <div className="absolute top-3 right-3 w-[1px] h-5 bg-black/80 pointer-events-none" />
+      <div className="absolute bottom-3 left-3 w-5 h-[1px] bg-black/80 pointer-events-none" />
+      <div className="absolute bottom-3 left-3 w-[1px] h-5 bg-black/80 pointer-events-none" />
+      <div className="absolute bottom-3 right-3 w-5 h-[1px] bg-black/80 pointer-events-none" />
+      <div className="absolute bottom-3 right-3 w-[1px] h-5 bg-black/80 pointer-events-none" />
     </>
   );
 };
