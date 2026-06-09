@@ -2231,15 +2231,22 @@ export function Reports() {
               size: A4 landscape !important;
               margin: 0 !important;
             }
-            body {
-              background: white !important;
+            html, body {
+              width: 297mm !important;
+              height: 210mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: hidden !important;
+              background-color: #ffffff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             nav, aside, header, footer, #printable-report, [id^="non-printable-"], .print-hide, .print-hidden {
               display: none !important;
               visibility: hidden !important;
             }
             [id="printable-certificate"] {
-              position: fixed !important;
+              position: absolute !important;
               left: 0 !important;
               top: 0 !important;
               width: 297mm !important;
@@ -2253,6 +2260,10 @@ export function Reports() {
               flex-direction: column !important;
               justify-content: space-between !important;
               visibility: visible !important;
+              page-break-inside: avoid !important;
+              page-break-after: avoid !important;
+              page-break-before: avoid !important;
+              overflow: hidden !important;
             }
             [id="printable-certificate"] * {
               visibility: visible !important;
@@ -2263,43 +2274,43 @@ export function Reports() {
 
       {/* Printable Certificate (A4 Landscape Frame) */}
       {viewingCertificate && (
-        <div id="printable-certificate" className="hidden print:flex fixed inset-0 bg-white text-black font-serif p-10 flex flex-col justify-between text-center min-h-screen z-[99999]">
-          <div className="border-[12px] border-double border-black p-8 flex-1 flex flex-col justify-between">
+        <div id="printable-certificate" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
+          <div className="border-[10px] border-double border-black p-6 flex-1 flex flex-col justify-between h-full box-border">
              <div className="flex items-center justify-center gap-6">
                 {institution?.logo_url && (
                    <img 
                       src={institution.logo_url} 
                       alt="Logo" 
-                      className="h-28 w-28 object-contain" 
+                      className="h-20 w-20 object-contain" 
                       referrerPolicy="no-referrer" 
                    />
                 )}
-                <div className="text-left space-y-1.5">
-                   <h2 className="text-2xl font-bold uppercase tracking-[0.15em] text-black font-sans leading-tight">
+                <div className="text-left space-y-1">
+                   <h2 className="text-xl font-bold uppercase tracking-[0.15em] text-black font-sans leading-tight">
                       {institution?.name || 'SISTEMA DE ENSINO'}
                    </h2>
-                   <p className="text-xs font-sans font-bold uppercase text-slate-500 tracking-wider">
+                   <p className="text-[10px] font-sans font-bold uppercase text-slate-500 tracking-wider">
                       {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
                    </p>
                 </div>
              </div>
 
-             <div className="my-4 space-y-4">
-                <h1 className="text-xl font-bold italic text-black tracking-wider uppercase mb-2 leading-tight">
+             <div className="my-3 space-y-3">
+                <h1 className="text-lg font-bold italic text-black tracking-wider uppercase mb-1 leading-tight">
                    {getCertificateTitle(viewingCertificate.type)}
                 </h1>
                 
-                <p className="text-sm max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
+                <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
                    A <strong className="text-black font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-805 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
                 </p>
 
-                <div className="py-4">
-                   <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-12 pb-1.5 bg-amber-50/10">
+                <div className="py-2.5">
+                   <h2 className="text-2xl font-bold uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-12 pb-1 bg-amber-50/10">
                       {getStudentName(viewingCertificate, students)}
                    </h2>
                 </div>
 
-                <p className="text-sm max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
+                <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-700">
                    {viewingCertificate.type === 'participação' 
                      ? <>participou com as devidas qualificações do curso <strong className="text-black font-bold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
                      : viewingCertificate.type === 'honra'
@@ -2308,12 +2319,12 @@ export function Reports() {
                    }
                 </p>
 
-                <p className="text-xs text-slate-800 font-bold uppercase tracking-widest mt-4 font-sans">
+                <p className="text-[10px] text-slate-800 font-bold uppercase tracking-widest mt-2 font-sans">
                    {formatLongDate(viewingCertificate.issuance_date)}
                 </p>
              </div>
 
-             <div className="flex items-end justify-between px-12 mb-2 font-sans text-xs mt-4">
+             <div className="flex items-end justify-between px-12 mb-1 font-sans text-xs mt-3">
                 <div className="flex flex-col items-center gap-1">
                    <div className="w-40 border-b border-black" />
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Diretor Escola</p>
