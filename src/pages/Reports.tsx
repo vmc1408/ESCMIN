@@ -152,7 +152,19 @@ export function Reports() {
   const [dbGrades, setDbGrades] = useState<any[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('all');
+  const [printList, setPrintList] = useState<any[] | null>(null);
   const [issuingStudent, setIssuingStudent] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (printList && printList.length > 0) {
+      const timer = setTimeout(() => {
+        window.print();
+        setPrintList(null);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [printList]);
   const [viewingCertificate, setViewingCertificate] = useState<any | null>(null);
   const [isSubmittingCert, setIsSubmittingCert] = useState(false);
   const [certificateForm, setCertificateForm] = useState({
@@ -227,39 +239,270 @@ export function Reports() {
     }
   };
 
+  const diarioClassResults = useMemo(() => {
+    if (!selectedDiarioClass) return [];
+    const classObj = classes.find(c => c.id === selectedDiarioClass);
+    
+    // Normalize class subject_ids
+    let sIds: string[] = [];
+    if (classObj) {
+      if (Array.isArray(classObj.subject_ids)) {
+        sIds = classObj.subject_ids;
+      } else if (typeof classObj.subject_ids === 'string') {
+        try {
+          const parsed = JSON.parse(classObj.subject_ids);
+          sIds = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          sIds = classObj.subject_ids ? [classObj.subject_ids] : [];
+        }
+      } else if ((classObj as any).subject_id) {
+        sIds = [(classObj as any).subject_id];
+      }
+    }
+
+    const classSubjects = subjects.filter(sub => {
+      if (sIds.length > 0) return sIds.includes(sub.id);
+      return assessments.some(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
+    });
+
+    // Calculations per student
+    return students
+      .filter(student => student.class_id === selectedDiarioClass && (student.status === 'Ativo' || !student.status))
+      .map(student => {
+        // 1. Attendance percentage
+        const totalDays = totalClassDays > 0 ? totalClassDays : 30; // 30 is fallback
+        const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedDiarioClass && a.status === 'F').length;
+        const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
+        const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
+        const isAttendanceApproved = presencePercentage >= minPresence;
+
+        // 2. Grades per subject
+        const subjectGradesArray = classSubjects.map(sub => {
+          const finalGradeRecord = dbGrades.find(g => 
+            g.student_id === student.id && 
+            g.class_id === selectedDiarioClass && 
+            g.subject_id === sub.id && 
+            g.period === 'Resultado Final'
+          );
+
+          let gradeValue: number | null = null;
+          let isCalculated = false;
+
+          if (finalGradeRecord && finalGradeRecord.value !== null && finalGradeRecord.value !== undefined && finalGradeRecord.value !== '') {
+            gradeValue = typeof finalGradeRecord.value === 'string' 
+              ? parseFloat(finalGradeRecord.value.replace(',', '.')) 
+              : finalGradeRecord.value;
+          } else {
+            // Compute average dynamically
+            const subAssessments = assessments.filter(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
+            const subAssessmentIds = subAssessments.map(a => a.id);
+            const subAssessmentTitles = subAssessments.map(a => a.title);
+
+            const studentSubGrades = dbGrades.filter(g => 
+              g.student_id === student.id && 
+              g.class_id === selectedDiarioClass && 
+              g.subject_id === sub.id && 
+              (subAssessmentIds.includes(g.period) || subAssessmentTitles.includes(g.period)) &&
+              g.value !== null && g.value !== undefined && g.value !== ''
+            );
+
+            if (subAssessments.length > 0 && studentSubGrades.length > 0) {
+              const sum = studentSubGrades.reduce((acc, curr) => {
+                const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
+                return acc + (v || 0);
+              }, 0);
+              gradeValue = sum / subAssessments.length;
+              isCalculated = true;
+            }
+          }
+
+          const minApp = academicParams.approval_grade || 7.0;
+          const isApproved = gradeValue !== null && gradeValue >= minApp;
+
+          return {
+            subjectId: sub.id,
+            subjectName: sub.name,
+            grade: gradeValue,
+            isCalculated,
+            isApproved
+          };
+        });
+
+        // Determine Final Status
+        let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' = 'Aprovado';
+        const hasMissingGrades = subjectGradesArray.some(sg => sg.grade === null);
+        const minApp = academicParams.approval_grade || 7.0;
+
+        if (!isAttendanceApproved) {
+          finalStatus = 'Reprovado';
+        } else if (hasMissingGrades) {
+          finalStatus = 'Pendente';
+        } else {
+          const failedCount = subjectGradesArray.filter(sg => sg.grade !== null && sg.grade < minApp).length;
+          if (failedCount > 0) {
+            finalStatus = failedCount <= 2 ? 'Recuperação' : 'Reprovado';
+          }
+        }
+
+        // Check if certificate issued
+        const studentCertificate = certificates.find(cert => 
+          cert.student_id === student.id && 
+          (cert.type === 'conclusão' || cert.course.includes(classObj?.name || ''))
+        );
+
+        return {
+          student,
+          absences: studentAbsences,
+          presencePercentage,
+          isAttendanceApproved,
+          subjectGrades: subjectGradesArray,
+          finalStatus,
+          certificate: studentCertificate
+        };
+      });
+  }, [selectedDiarioClass, classes, students, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
+
+  const handlePrintPreviewFromForm = () => {
+    const classObj = classes.find(c => c.id === selectedDiarioClass);
+    const approvedResults = diarioClassResults.filter(r => r.finalStatus === 'Aprovado');
+
+    if (selectedStudentId === 'all') {
+      if (approvedResults.length === 0) {
+        setNotification({
+          type: 'error',
+          message: 'Nenhum estudante aprovado nesta turma para imprimir certificados.'
+        });
+        return;
+      }
+
+      const tempCerts = approvedResults.map(res => {
+        const existingCert = certificates.find(cert => 
+          cert.student_id === res.student.id && 
+          (cert.type === certificateForm.type || cert.course.includes(classObj?.name || ''))
+        );
+
+        return {
+          id: existingCert?.id || `temp-${res.student.id}`,
+          student_id: res.student.id,
+          student_name: res.student.name,
+          type: certificateForm.type,
+          course: certificateForm.course,
+          issuance_date: certificateForm.issuance_date,
+          verification_code: existingCert?.verification_code || `PREVIEW-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+        };
+      });
+
+      setPrintList(tempCerts);
+    } else {
+      const targetStudentRes = diarioClassResults.find(r => r.student.id === selectedStudentId);
+      if (!targetStudentRes) {
+        setNotification({
+          type: 'error',
+          message: 'Estudante selecionado não encontrado na lista.'
+        });
+        return;
+      }
+
+      const existingCert = certificates.find(cert => 
+        cert.student_id === targetStudentRes.student.id && 
+        (cert.type === certificateForm.type || cert.course.includes(classObj?.name || ''))
+      );
+
+      const tempCert = {
+        id: existingCert?.id || `temp-${targetStudentRes.student.id}`,
+        student_id: targetStudentRes.student.id,
+        student_name: targetStudentRes.student.name,
+        type: certificateForm.type,
+        course: certificateForm.course,
+        issuance_date: certificateForm.issuance_date,
+        verification_code: existingCert?.verification_code || `PREVIEW-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+      };
+
+      setPrintList([tempCert]);
+    }
+  };
+
   const handleIssueCertificate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!issuingStudent) return;
 
     setIsSubmittingCert(true);
     try {
-      const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-      const newDocId = crypto.randomUUID();
+      const approvedResults = diarioClassResults.filter(r => r.finalStatus === 'Aprovado');
 
-      const newCert = {
-        id: newDocId,
-        student_id: issuingStudent.student.id,
-        student_name: issuingStudent.student.name,
-        type: certificateForm.type,
-        course: certificateForm.course,
-        issuance_date: certificateForm.issuance_date,
-        verification_code: verificationCode,
-        user_id: 'default_manager',
-        created_at: new Date().toISOString()
-      };
+      if (selectedStudentId === 'all') {
+        if (approvedResults.length === 0) {
+          setNotification({
+            type: 'error',
+            message: 'Nenhum estudante aprovado nesta turma para emitir certificados.'
+          });
+          setIsSubmittingCert(false);
+          return;
+        }
 
-      await saveData('certificates', newDocId, newCert);
+        const savedCerts = [];
+        for (const res of approvedResults) {
+          const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+          const newDocId = crypto.randomUUID();
 
-      setNotification({
-        type: 'success',
-        message: `Certificado de Conclusão registrado com sucesso para ${issuingStudent.student.name}!`
-      });
+          const newCert = {
+            id: newDocId,
+            student_id: res.student.id,
+            student_name: res.student.name,
+            type: certificateForm.type,
+            course: certificateForm.course,
+            issuance_date: certificateForm.issuance_date,
+            verification_code: verificationCode,
+            user_id: 'default_manager',
+            created_at: new Date().toISOString()
+          };
 
-      // Reload certificates list
-      const certs = await fetchAll('certificates');
-      setCertificates(certs || []);
-      setIssuingStudent(null);
-      setViewingCertificate(newCert);
+          await saveData('certificates', newDocId, newCert);
+          savedCerts.push(newCert);
+        }
+
+        setNotification({
+          type: 'success',
+          message: `${savedCerts.length} certificados de ${certificateForm.type} registrados com sucesso para todos os aprovados!`
+        });
+
+        const certs = await fetchAll('certificates');
+        setCertificates(certs || []);
+        setIssuingStudent(null);
+        setPrintList(savedCerts);
+      } else {
+        const targetStudentRes = diarioClassResults.find(r => r.student.id === selectedStudentId);
+        if (!targetStudentRes) {
+          throw new Error("Estudante selecionado não encontrado na lista.");
+        }
+
+        const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const newDocId = crypto.randomUUID();
+
+        const newCert = {
+          id: newDocId,
+          student_id: targetStudentRes.student.id,
+          student_name: targetStudentRes.student.name,
+          type: certificateForm.type,
+          course: certificateForm.course,
+          issuance_date: certificateForm.issuance_date,
+          verification_code: verificationCode,
+          user_id: 'default_manager',
+          created_at: new Date().toISOString()
+        };
+
+        await saveData('certificates', newDocId, newCert);
+
+        setNotification({
+          type: 'success',
+          message: `Certificado de ${certificateForm.type} registrado com sucesso para ${targetStudentRes.student.name}!`
+        });
+
+        const certs = await fetchAll('certificates');
+        setCertificates(certs || []);
+        setIssuingStudent(null);
+        setViewingCertificate(newCert);
+      }
     } catch (error) {
       console.error('Error saving diploma in Reports:', error);
       setNotification({
@@ -1734,100 +1977,7 @@ export function Reports() {
                     });
 
                     // Calculations per student
-                    const results = students
-                      .filter(student => student.class_id === selectedDiarioClass && (student.status === 'Ativo' || !student.status))
-                      .map(student => {
-                        // 1. Attendance percentage
-                        const totalDays = totalClassDays > 0 ? totalClassDays : 30; // 30 is fallback
-                        const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedDiarioClass && a.status === 'F').length;
-                        const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
-                        const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
-                        const isAttendanceApproved = presencePercentage >= minPresence;
-
-                        // 2. Grades per subject
-                        const subjectGradesArray = classSubjects.map(sub => {
-                          const finalGradeRecord = dbGrades.find(g => 
-                            g.student_id === student.id && 
-                            g.class_id === selectedDiarioClass && 
-                            g.subject_id === sub.id && 
-                            g.period === 'Resultado Final'
-                          );
-
-                          let gradeValue: number | null = null;
-                          let isCalculated = false;
-
-                          if (finalGradeRecord && finalGradeRecord.value !== null && finalGradeRecord.value !== undefined && finalGradeRecord.value !== '') {
-                            gradeValue = typeof finalGradeRecord.value === 'string' 
-                              ? parseFloat(finalGradeRecord.value.replace(',', '.')) 
-                              : finalGradeRecord.value;
-                          } else {
-                            // Compute average dynamically
-                            const subAssessments = assessments.filter(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
-                            const subAssessmentIds = subAssessments.map(a => a.id);
-                            const subAssessmentTitles = subAssessments.map(a => a.title);
-
-                            const studentSubGrades = dbGrades.filter(g => 
-                              g.student_id === student.id && 
-                              g.class_id === selectedDiarioClass && 
-                              g.subject_id === sub.id && 
-                              (subAssessmentIds.includes(g.period) || subAssessmentTitles.includes(g.period)) &&
-                              g.value !== null && g.value !== undefined && g.value !== ''
-                            );
-
-                            if (subAssessments.length > 0 && studentSubGrades.length > 0) {
-                              const sum = studentSubGrades.reduce((acc, curr) => {
-                                const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
-                                return acc + (v || 0);
-                              }, 0);
-                              gradeValue = sum / subAssessments.length;
-                              isCalculated = true;
-                            }
-                          }
-
-                          const minApp = academicParams.approval_grade || 7.0;
-                          const isApproved = gradeValue !== null && gradeValue >= minApp;
-
-                          return {
-                            subjectId: sub.id,
-                            subjectName: sub.name,
-                            grade: gradeValue,
-                            isCalculated,
-                            isApproved
-                          };
-                        });
-
-                        // Determine Final Status
-                        let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' = 'Aprovado';
-                        const hasMissingGrades = subjectGradesArray.some(sg => sg.grade === null);
-                        const minApp = academicParams.approval_grade || 7.0;
-
-                        if (!isAttendanceApproved) {
-                          finalStatus = 'Reprovado';
-                        } else if (hasMissingGrades) {
-                          finalStatus = 'Pendente';
-                        } else {
-                          const failedCount = subjectGradesArray.filter(sg => sg.grade !== null && sg.grade < minApp).length;
-                          if (failedCount > 0) {
-                            finalStatus = failedCount <= 2 ? 'Recuperação' : 'Reprovado';
-                          }
-                        }
-
-                        // Check if certificate issued
-                        const studentCertificate = certificates.find(cert => 
-                          cert.student_id === student.id && 
-                          (cert.type === 'conclusão' || cert.course.includes(classObj?.name || ''))
-                        );
-
-                        return {
-                          student,
-                          absences: studentAbsences,
-                          presencePercentage,
-                          isAttendanceApproved,
-                          subjectGrades: subjectGradesArray,
-                          finalStatus,
-                          certificate: studentCertificate
-                        };
-                      });
+                    const results = diarioClassResults;
 
                     // Filtering results for display
                     const filteredResults = diarioSearch ? results.filter(r => 
@@ -1873,6 +2023,23 @@ export function Reports() {
                         <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden">
                            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                               <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">Quadro Geral de Rendimento e Presença</h4>
+                               <button
+                                 type="button"
+                                 onClick={() => {
+                                   setCertificateForm({
+                                     course: `${classObj?.name || 'Curso Conciliar'}`,
+                                     type: 'conclusão',
+                                     issuance_date: new Date().toISOString().split('T')[0]
+                                   });
+                                   setSelectedStudentId('all');
+                                   setIssuingStudent({
+                                     student: { id: 'all', name: 'Todos os Alunos Aprovados' }
+                                   });
+                                 }}
+                                 className="px-4 py-2 bg-slate-800 hover:bg-slate-900 border border-slate-850 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all shadow-md flex items-center gap-2 cursor-pointer whitespace-nowrap self-start md:self-auto"
+                               >
+                                  <Award size={13} className="text-amber-400" /> Emitir Documentos (Lote)
+                               </button>
                               <span className="text-[9px] font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-none border border-slate-300 uppercase tracking-widest">
                                 {classSubjects.length} Disciplinas Ativas nesta Turma
                               </span>
@@ -1974,7 +2141,7 @@ export function Reports() {
                                                        type: 'conclusão',
                                                        issuance_date: new Date().toISOString().split('T')[0]
                                                      });
-                                                     setIssuingStudent(res);
+                                                     setSelectedStudentId(res.student.id); setIssuingStudent(res);
                                                    }}
                                                    className={cn(
                                                      "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
@@ -2027,13 +2194,18 @@ export function Reports() {
 
               <form onSubmit={handleIssueCertificate} className="space-y-4">
                  <div>
-                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Nome do Aluno</label>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-semibold text-slate-500 cursor-not-allowed select-none outline-none"
-                      disabled
-                      value={issuingStudent.student.name}
-                    />
+                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Estudante Destinatário</label>
+                    <select
+                       required
+                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none font-sans"
+                       value={selectedStudentId}
+                       onChange={(e) => setSelectedStudentId(e.target.value)}
+                     >
+                       <option value="all">Todos os Alunos Aprovados ({diarioClassResults.filter(r => r.finalStatus === 'Aprovado').length})</option>
+                       {diarioClassResults.filter(r => r.finalStatus === 'Aprovado').map(res => (
+                         <option key={res.student.id} value={res.student.id}>{res.student.name}</option>
+                       ))}
+                     </select>
                  </div>
 
                  <div>
@@ -2063,7 +2235,7 @@ export function Reports() {
                     </div>
 
                     <div>
-                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Data de Emissão</label>
+                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Data do Documento</label>
                        <input
                          type="date"
                          required
@@ -2080,7 +2252,14 @@ export function Reports() {
                       onClick={() => setIssuingStudent(null)}
                       className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all"
                     >
-                      Cancelar
+                      Fechar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrintPreviewFromForm}
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+                    >
+                       <Printer size={12} /> Imprimir
                     </button>
                     <button
                       type="submit"
@@ -2090,7 +2269,7 @@ export function Reports() {
                         isSubmittingCert && "opacity-50 cursor-not-allowed"
                       )}
                     >
-                       {isSubmittingCert ? 'Salvando...' : 'Confirmar'}
+                       {isSubmittingCert ? 'Registrando...' : 'Registrar'}
                     </button>
                  </div>
               </form>
@@ -2225,7 +2404,7 @@ export function Reports() {
       )}
 
       {/* Dynamic landscape CSS layer injected on print when certificate is active */}
-      {viewingCertificate && (
+      {(viewingCertificate || (printList && printList.length > 0)) && (
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
@@ -2259,7 +2438,7 @@ export function Reports() {
               background: white !important;
             }
 
-            #certificate-printable {
+            #certificate-printable, .certificate-printable-item {
               display: flex !important;
               visibility: visible !important;
               position: absolute !important;
@@ -2275,15 +2454,103 @@ export function Reports() {
               flex-direction: column !important;
               justify-content: space-between !important;
               page-break-inside: avoid !important;
-              page-break-after: avoid !important;
-              page-break-before: avoid !important;
+              page-break-after: always !important;
+              page-break-before: always !important;
               overflow: hidden !important;
             }
-            #certificate-printable * {
+            .certificate-printable-item {
+              position: relative !important;
+              page-break-after: always !important;
+            }
+            #certificate-printable *, .certificate-printable-item * {
               visibility: visible !important;
             }
           }
         `}} />
+      )}
+
+      {/* Printable Certificate List (A4 Landscape Frame) - Rendered via React Portal directly into body to bypass index.css portrait selectors */}
+      {printList && printList.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div id="certificate-printable-list" className="hidden print:block absolute left-0 top-0 w-full z-[99999] bg-white text-black font-serif">
+          {printList.map((certItem) => (
+             <div 
+               key={certItem.id || certItem.student_id} 
+               className="certificate-printable-item flex justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] overflow-hidden flex-col box-border bg-white"
+             >
+                <div className="border-[12px] border-double border-black p-8 flex-1 flex flex-col justify-between h-full box-border">
+                   <div className="flex items-center justify-center gap-6 mt-2">
+                      {institution?.logo_url && (
+                         <img 
+                            src={institution.logo_url} 
+                            alt="Logo" 
+                            className="h-24 w-24 object-contain" 
+                            referrerPolicy="no-referrer" 
+                         />
+                      )}
+                      <div className="text-left space-y-1">
+                         <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                            {institution?.name || 'SISTEMA DE ENSINO'}
+                         </h2>
+                         <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
+                            {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
+                         </p>
+                      </div>
+                   </div>
+
+                   <div className="my-4 space-y-6 flex-1 flex flex-col justify-center">
+                      <div className="flex items-center justify-center gap-6">
+                         <div className="h-[1.5px] w-14 bg-amber-400" />
+                         <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+                            {getCertificateTitle(certItem.type)}
+                         </h1>
+                         <div className="h-[1.5px] w-14 bg-amber-400" />
+                      </div>
+                      
+                      <p className="text-[12px] max-w-2xl mx-auto leading-relaxed font-sans text-slate-700">
+                         A <strong className="text-black font-extrabold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-800 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
+                      </p>
+
+                      <div className="py-3">
+                         <h2 className="text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-14 pb-2 bg-amber-50/10">
+                            {certItem.student_name}
+                         </h2>
+                      </div>
+
+                      <p className="text-[12px] max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+                         {certItem.type === 'participação' 
+                           ? <>participou com as devidas qualificações do curso <strong className="text-black font-extrabold">{certItem.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                           : certItem.type === 'honra'
+                           ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-black font-extrabold">{certItem.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                           : <>concluiu com as devidas qualificações o curso <strong className="text-black font-extrabold">{certItem.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                         }
+                      </p>
+
+                      <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-8 font-sans max-w-sm mx-auto border-t border-slate-100 pt-3">
+                         {formatLongDate(certItem.issuance_date)}
+                      </p>
+                   </div>
+
+                   <div className="flex items-end justify-between px-16 mb-2 font-sans mt-8">
+                      <div className="flex flex-col items-center gap-1.5">
+                         <div className="w-48 border-b-2 border-black/80" />
+                         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Diretor Escola</p>
+                      </div>
+                      <div className="flex flex-col items-center gap-1.5">
+                         <div className="w-48 border-b-2 border-black/80" />
+                         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Bispo Diocesano</p>
+                      </div>
+                   </div>
+
+                   <div className="text-center pt-2">
+                      <p className="text-[8px] font-mono font-bold text-slate-400 tracking-widest uppercase">
+                         Chave de Autenticação Digital: {certItem.verification_code} • Documento Emitido via Sistema Diocesano Escmin
+                      </p>
+                   </div>
+                </div>
+             </div>
+          ))}
+        </div>,
+        document.body
       )}
 
       {/* Printable Certificate (A4 Landscape Frame) - Rendered via React Portal directly into body to bypass index.css portrait selectors */}
