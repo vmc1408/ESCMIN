@@ -166,6 +166,20 @@ export function Reports() {
     }
   }, [printList]);
   const [viewingCertificate, setViewingCertificate] = useState<any | null>(null);
+  const [printFormStudentId, setPrintFormStudentId] = useState<string>('single');
+  const [printFormCourse, setPrintFormCourse] = useState<string>('');
+  const [printFormType, setPrintFormType] = useState<'conclusão' | 'participação' | 'honra'>('conclusão');
+  const [printFormDate, setPrintFormDate] = useState<string>('');
+
+  useEffect(() => {
+    if (viewingCertificate) {
+      setPrintFormStudentId('single');
+      setPrintFormCourse(viewingCertificate.course || '');
+      setPrintFormType(viewingCertificate.type || 'conclusão');
+      setPrintFormDate(viewingCertificate.issuance_date || new Date().toISOString().split('T')[0]);
+    }
+  }, [viewingCertificate]);
+
   const [isSubmittingCert, setIsSubmittingCert] = useState(false);
   const [certificateForm, setCertificateForm] = useState({
     course: '',
@@ -361,6 +375,58 @@ export function Reports() {
         };
       });
   }, [selectedDiarioClass, classes, students, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
+
+  const handlePrintSelectedFromForm = () => {
+    if (!viewingCertificate) return;
+
+    const classObj = classes.find(c => c.id === selectedDiarioClass);
+    const approvedResults = diarioClassResults.filter(r => r.finalStatus === 'Aprovado');
+
+    if (printFormStudentId === 'all') {
+      if (approvedResults.length === 0) {
+        setNotification({
+          type: 'error',
+          message: 'Nenhum estudante aprovado nesta turma para imprimir.'
+        });
+        return;
+      }
+
+      const tempCerts = approvedResults.map(res => {
+        const existingCert = certificates.find(cert => 
+          cert.student_id === res.student.id && 
+          (cert.type === printFormType || cert.course.includes(classObj?.name || ''))
+        );
+
+        return {
+          id: existingCert?.id || `temp-${res.student.id}`,
+          student_id: res.student.id,
+          student_name: res.student.name,
+          type: printFormType,
+          course: printFormCourse,
+          issuance_date: printFormDate,
+          verification_code: existingCert?.verification_code || `PREVIEW-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+        };
+      });
+
+      setPrintList(tempCerts);
+    } else {
+      const studentId = printFormStudentId === 'single' ? viewingCertificate.student_id : printFormStudentId;
+      const targetStudentRes = diarioClassResults.find(r => r.student.id === studentId);
+      const studentName = targetStudentRes?.student.name || viewingCertificate.student_name;
+
+      const certToPrint = {
+        id: viewingCertificate.id || `temp-${studentId}`,
+        student_id: studentId,
+        student_name: studentName,
+        type: printFormType,
+        course: printFormCourse,
+        issuance_date: printFormDate,
+        verification_code: viewingCertificate.verification_code || `PREVIEW-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+      };
+
+      setPrintList([certToPrint]);
+    }
+  };
 
   const handlePrintPreviewFromForm = () => {
     const classObj = classes.find(c => c.id === selectedDiarioClass);
@@ -2159,11 +2225,11 @@ export function Reports() {
                                      })}
                                   </tbody>
                                </table>
-                             </div>
-                           )}
+                              </div>
+                            )}
                         </div>
-                     </div>
-                    );
+                      </div>
+                     );
                   })()
                 )}
              </div>
@@ -2276,133 +2342,107 @@ export function Reports() {
            </div>
         </div>
       )}
-                    {/* Interactive Modal: View Certificate (viewingCertificate) */}
       {viewingCertificate && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-300 print:hidden">
-           <div className="bg-white rounded-none shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col h-[90vh]">
-              
-              {/* Modal Actions Bar */}
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+           <div className="bg-white rounded-none shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-5 animate-in zoom-in-95 duration-200 text-slate-850">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white border border-slate-200 flex items-center justify-center text-slate-705">
-                       <Award size={16} />
+                    <div className="w-8 h-8 rounded-none bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-705">
+                       <Printer size={16} />
                     </div>
                     <div>
-                       <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-widest">Visualizar Certificado Gerado</h4>
-                       <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Código de Veracidade: {viewingCertificate.verification_code}</p>
+                       <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest leading-none">Opções de Impressão</h4>
+                       <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-1">Código de Registro: {viewingCertificate.verification_code || 'N/A'}</p>
                     </div>
                  </div>
-                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 border-r border-slate-200 pr-4">
-                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap animate-pulse">Tipo do Documento:</label>
+                 <button
+                   onClick={() => setViewingCertificate(null)}
+                   className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                 >
+                   <X size={15} />
+                 </button>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handlePrintSelectedFromForm();
+                }} 
+                className="space-y-4"
+              >
+                 <div>
+                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Estudante Destinatário</label>
+                    <select
+                       required
+                       className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none font-sans"
+                       value={printFormStudentId}
+                       onChange={(e) => setPrintFormStudentId(e.target.value)}
+                     >
+                       <option value="single">{viewingCertificate.student_name} (Apenas {getStudentName(viewingCertificate, students).split(' ')[0]})</option>
+                       <option value="all">Todos os Alunos Aprovados ({diarioClassResults.filter(r => r.finalStatus === 'Aprovado').length})</option>
+                       {diarioClassResults.filter(r => r.finalStatus === 'Aprovado' && r.student.id !== viewingCertificate.student_id).map(res => (
+                         <option key={res.student.id} value={res.student.id}>{res.student.name}</option>
+                       ))}
+                     </select>
+                 </div>
+
+                 <div>
+                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Curso / Turma</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 transition-all outline-none font-sans"
+                      value={printFormCourse}
+                      onChange={(e) => setPrintFormCourse(e.target.value)}
+                    />
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Tipo do Documento</label>
                        <select
-                         className="px-3 py-1.5 bg-white border border-slate-200 rounded-none text-[11px] font-black text-slate-800 outline-none uppercase tracking-wide cursor-pointer focus:border-slate-400"
-                         value={viewingCertificate.type}
-                         onChange={(e) => {
-                           setViewingCertificate({
-                             ...viewingCertificate,
-                             type: e.target.value
-                           });
-                         }}
+                         required
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-800 outline-none font-sans"
+                         value={printFormType}
+                         onChange={(e) => setPrintFormType(e.target.value as 'conclusão' | 'participação' | 'honra')}
                        >
                          <option value="conclusão">Diploma de Conclusão</option>
                          <option value="participação">Certificado de Participação</option>
                          <option value="honra">Honra ao Mérito</option>
                        </select>
                     </div>
+
+                    <div>
+                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5 font-sans">Data do Documento</label>
+                       <input
+                         type="date"
+                         required
+                         className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-slate-400 rounded-none text-xs font-semibold text-slate-805 outline-none font-sans"
+                         value={printFormDate}
+                         onChange={(e) => setPrintFormDate(e.target.value)}
+                       />
+                    </div>
+                 </div>
+
+                 <div className="flex gap-3 pt-3">
                     <button
-                      onClick={() => {
-                        window.print();
-                      }}
-                      className="px-4 py-2 bg-black hover:bg-slate-950 text-white rounded-none border border-black text-[9px] font-bold flex items-center gap-1.5 transition-colors uppercase tracking-widest shadow-md cursor-pointer active:scale-95"
-                    >
-                      <Printer size={13} /> Imprimir Certificado
-                    </button>
-                    <button
+                      type="button"
                       onClick={() => setViewingCertificate(null)}
-                      className="p-1.5 text-slate-400 hover:text-slate-600 rounded-none transition-colors border border-transparent hover:border-slate-200 hover:bg-white"
+                      className="flex-1 py-2.5 bg-white border border-slate-200 hover:border-slate-400 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-none transition-all cursor-pointer"
                     >
-                      <X size={15} />
+                      Fechar
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm active:scale-95"
+                    >
+                       <Printer size={12} /> Imprimir
                     </button>
                  </div>
-              </div>
-
-              {/* Certificate layout visualizer (A4 Landscape aspect ratio mockup) */}
-              <div className="flex-1 bg-slate-100 overflow-y-auto p-8 flex items-center justify-center">
-                 <div className="bg-white border-[16px] border-black shadow-xl w-full aspect-[1.414/1] max-w-3xl p-12 flex flex-col justify-between text-center relative font-serif text-slate-800">
-                    
-                    {/* Background absolute elegant lines */}
-                    <div className="absolute inset-4 border-2 border-amber-300 pointer-events-none opacity-50" />
-                    
-                                         {/* Header with Logo */}
-                     <div className="flex items-center justify-center gap-4 md:gap-6 mt-4">
-                        {institution?.logo_url && (
-                           <img 
-                              src={institution.logo_url} 
-                              alt="Logo" 
-                              className="h-20 w-20 md:h-24 md:w-24 object-contain" 
-                              referrerPolicy="no-referrer" 
-                           />
-                        )}
-                        <div className="text-left space-y-1">
-                           <h2 className="text-lg md:text-xl font-bold uppercase tracking-[0.15em] text-black font-sans leading-tight">
-                              {institution?.name || 'ESCMIN - SISTEMA DE ENSINO'}
-                           </h2>
-                           <p className="text-[9px] md:text-[11px] font-sans font-bold uppercase text-amber-500 tracking-wider leading-none">
-                              {institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}
-                           </p>
-                        </div>
-                     </div>
-
-                    {/* Core text */}
-                    <div className="my-6 space-y-4">
-                       <h1 className="text-xl md:text-2xl font-bold italic text-black tracking-wider uppercase">
-                          {getCertificateTitle(viewingCertificate.type)}
-                       </h1>
-                       <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
-                          A <strong className="text-slate-900 font-bold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-700 italic">{institution?.subtitle || 'Secretaria Escolar & Registro de Diplomas'}</span>) certifica que o(a) estudante:
-                       </p>
-                       
-                       <div className="py-2">
-                          <span className="text-2xl md:text-3xl font-black uppercase tracking-widest text-black font-serif border-b-2 border-amber-300 inline-block px-12 pb-1.5 bg-amber-50/30">
-                             {getStudentName(viewingCertificate, students)}
-                          </span>
-                       </div>
-
-                       <p className="text-xs max-w-xl mx-auto leading-relaxed font-sans text-slate-600">
-                          {viewingCertificate.type === 'participação' 
-                            ? <>participou com as devidas qualificações do curso <strong className="text-slate-950 font-semibold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                            : viewingCertificate.type === 'honra'
-                            ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-slate-950 font-semibold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                            : <>concluiu com as devidas qualificações o curso <strong className="text-slate-950 font-semibold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                          }
-                       </p>
-                       
-                       {/* Yellow highlight is centered here, month by extenso */}
-                       <p className="text-[10px] text-slate-800 font-bold uppercase tracking-widest mt-6 font-sans">
-                          {formatLongDate(viewingCertificate.issuance_date)}
-                       </p>
-                    </div>
-
-                    {/* Signatures & Certification verification footer - removed orange highlights, renamed left and right */}
-                    <div className="flex items-end justify-between px-12 mb-4 font-sans">
-                       <div className="flex flex-col items-center gap-1">
-                          <div className="w-40 border-b border-slate-300" />
-                          <p className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest">Diretor Escola</p>
-                       </div>
-                       <div className="flex flex-col items-center gap-1">
-                          <div className="w-40 border-b border-slate-300" />
-                          <p className="text-[8.5px] font-bold text-slate-500 uppercase tracking-widest">Bispo Diocesano</p>
-                       </div>
-                    </div>
-
-                 </div>
-              </div>
-
+              </form>
            </div>
         </div>
       )}
-
       {/* Dynamic landscape CSS layer injected on print when certificate is active */}
       {(viewingCertificate || (printList && printList.length > 0)) && (
         <style dangerouslySetInnerHTML={{ __html: `
@@ -2538,18 +2578,18 @@ export function Reports() {
                       <div className="flex flex-col items-center gap-1.5">
                          <div className="w-48 border-b-2 border-black/80" />
                          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Bispo Diocesano</p>
-                      </div>
-                   </div>
+                       </div>
+                    </div>
 
-                   <div className="text-center pt-2">
-                      <p className="text-[8px] font-mono font-bold text-slate-400 tracking-widest uppercase">
-                         Chave de Autenticação Digital: {certItem.verification_code} • Documento Emitido via Sistema Diocesano Escmin
-                      </p>
-                   </div>
-                </div>
-             </div>
-          ))}
-        </div>,
+                    {/* Digital verification metadata watermark in bottom border area */}
+                    <div className="text-center pt-2">
+                       <p className="text-[8px] font-mono font-bold text-slate-400 tracking-widest uppercase">
+                          Chave de Autenticação Digital: {certItem.verification_code} • Documento Emitido via Sistema Diocesano Escmin
+                       </p>
+                    </div>
+                 </div>
+              </div>
+           ))}</div>,
         document.body
       )}
 
