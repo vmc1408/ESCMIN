@@ -2594,83 +2594,91 @@ export function Reports() {
       )}
 
       {/* Printable Certificate (A4 Landscape Frame) - Rendered via React Portal directly into body to bypass index.css portrait selectors */}
-      {viewingCertificate && typeof document !== 'undefined' && createPortal(
-        <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
-          <div className="border-[12px] border-double border-black p-8 flex-1 flex flex-col justify-between h-full box-border">
-             <div className="flex items-center justify-center gap-6 mt-2">
-                {institution?.logo_url && (
-                   <img 
-                      src={institution.logo_url} 
-                      alt="Logo" 
-                      className="h-24 w-24 object-contain" 
-                      referrerPolicy="no-referrer" 
-                   />
-                )}
-                <div className="text-left space-y-1">
-                   <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
-                      {institution?.name || 'SISTEMA DE ENSINO'}
-                   </h2>
-                   <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
-                      {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
-                   </p>
-                </div>
-             </div>
+      {viewingCertificate && (!printList || printList.length === 0) && typeof document !== 'undefined' && createPortal((() => {
+        const studentId = printFormStudentId === 'single' ? viewingCertificate.student_id : printFormStudentId;
+        const targetStudentRes = diarioClassResults.find(r => r.student.id === studentId);
+        const studentName = targetStudentRes?.student.name || getStudentName(viewingCertificate, students);
+        const activeType = printFormType || viewingCertificate.type;
+        const activeCourse = printFormCourse !== undefined && printFormCourse !== '' ? printFormCourse : (viewingCertificate.course || '');
+        const activeDate = printFormDate || viewingCertificate.issuance_date;
 
-             <div className="my-4 space-y-6 flex-1 flex flex-col justify-center">
-                {/* Elegant Title Divider */}
-                <div className="flex items-center justify-center gap-6">
-                   <div className="h-[1.5px] w-14 bg-amber-400" />
-                   <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
-                      {getCertificateTitle(viewingCertificate.type)}
-                   </h1>
-                   <div className="h-[1.5px] w-14 bg-amber-400" />
-                </div>
-                
-                <p className="text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-sans text-slate-700">
-                   A <strong className="text-black font-extrabold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-800 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
-                </p>
+        return (
+          <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
+            <div className="border-[12px] border-double border-black p-8 flex-1 flex flex-col justify-between h-full box-border">
+               <div className="flex items-center justify-center gap-6 mt-2">
+                  {institution?.logo_url && (
+                     <img 
+                        src={institution.logo_url} 
+                        alt="Logo" 
+                        className="h-24 w-24 object-contain" 
+                        referrerPolicy="no-referrer" 
+                     />
+                  )}
+                  <div className="text-left space-y-1">
+                     <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                        {institution?.name || 'SISTEMA DE ENSINO'}
+                     </h2>
+                     <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
+                        {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
+                     </p>
+                  </div>
+               </div>
 
-                <div className="py-3">
-                   <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-14 pb-2 bg-amber-50/10">
-                      {getStudentName(viewingCertificate, students)}
-                   </h2>
-                </div>
+               <div className="my-4 space-y-6 flex-1 flex flex-col justify-center">
+                  {/* Elegant Title Divider */}
+                  <div className="flex items-center justify-center gap-6">
+                     <div className="h-[1.5px] w-14 bg-amber-400" />
+                     <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+                        {getCertificateTitle(activeType)}
+                     </h1>
+                     <div className="h-[1.5px] w-14 bg-amber-400" />
+                  </div>
+                  
+                  <p className="text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-sans text-slate-700">
+                     A <strong className="text-black font-extrabold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-800 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
+                  </p>
 
-                <p className="text-sm md:text-base max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-                   {viewingCertificate.type === 'participação' 
-                     ? <>participou com as devidas qualificações do curso <strong className="text-black font-extrabold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                     : viewingCertificate.type === 'honra'
-                     ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-black font-extrabold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                     : <>concluiu com as devidas qualificações o curso <strong className="text-black font-extrabold">{viewingCertificate.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                   }
-                </p>
+                  <div className="py-3">
+                     <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-14 pb-2 bg-amber-50/10">
+                        {studentName}
+                      </h2>
+                  </div>
 
-                <p className="text-xs text-slate-900 font-bold uppercase tracking-[0.22em] mt-8 font-sans max-w-sm mx-auto border-t border-slate-100 pt-3">
-                   {formatLongDate(viewingCertificate.issuance_date)}
-                </p>
-             </div>
+                  <p className="text-sm md:text-base max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+                     {activeType === 'participação' 
+                       ? <>participou com as devidas qualificações do curso <strong className="text-black font-extrabold">{activeCourse}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                       : activeType === 'honra'
+                       ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-black font-extrabold">{activeCourse}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
+                       : <>concluiu com as devidas qualificações o curso <strong className="text-black font-extrabold">{activeCourse}</strong> nesta instituição, em conformidade with o regimento estatutário acadêmico. {/* fixed print statement text compatibility to avoid trailing line differences */}</>
+                     }
+                  </p>
 
-             <div className="flex items-end justify-between px-16 mb-2 font-sans mt-8">
-                <div className="flex flex-col items-center gap-1.5">
-                   <div className="w-48 border-b-2 border-black/80" />
-                   <p className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-widest">Diretor Escola</p>
-                </div>
-                <div className="flex flex-col items-center gap-1.5">
-                   <div className="w-48 border-b-2 border-black/80" />
-                   <p className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-widest">Bispo Diocesano</p>
-                </div>
-             </div>
+                  <p className="text-xs text-slate-900 font-bold uppercase tracking-[0.22em] mt-8 font-sans max-w-sm mx-auto border-t border-slate-100 pt-3">
+                     {formatLongDate(activeDate)}
+                  </p>
+               </div>
 
-             {/* Digital verification metadata watermark in bottom border area */}
-             <div className="text-center pt-2">
-                <p className="text-[8px] font-mono font-bold text-slate-400 tracking-widest uppercase">
-                   Chave de Autenticação Digital: {viewingCertificate.verification_code} • Documento Emitido via Sistema Diocesano Escmin
-                </p>
-             </div>
+               <div className="flex items-end justify-between px-16 mb-2 font-sans mt-8">
+                  <div className="flex flex-col items-center gap-1.5">
+                     <div className="w-48 border-b-2 border-black/80" />
+                     <p className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-widest">Diretor Escola</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                     <div className="w-48 border-b-2 border-black/80" />
+                     <p className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-widest">Bispo Diocesano</p>
+                  </div>
+               </div>
+
+               {/* Digital verification metadata watermark in bottom border area */}
+               <div className="text-center pt-2">
+                  <p className="text-[8px] font-mono font-bold text-slate-400 tracking-widest uppercase">
+                     Chave de Autenticação Digital: {viewingCertificate.verification_code} • Documento Emitido via Sistema Diocesano Escmin
+                  </p>
+               </div>
+            </div>
           </div>
-        </div>,
-        document.body
-      )}
+        );
+      })(), document.body)}
 
       {/* Professional Print Layout (Figma Style) */}
       <div id={viewingCertificate ? "non-printable-report" : "printable-report"} className={cn("hidden p-12 bg-white text-black font-sans", viewingCertificate ? "print:hidden" : "print:block")}>
