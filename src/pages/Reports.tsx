@@ -281,6 +281,19 @@ const renderCertificateInnerContent = (
   );
 };
 
+const getCertificateBorderClassName = (type: string) => {
+  if (type === 'participação') {
+    // Modelo Solene: elegant gold/amber double border frame
+    return "border-[12px] border-double border-amber-600 p-8 flex-1 flex flex-col justify-between h-full box-border relative";
+  }
+  if (type === 'honra') {
+    // Modelo Tradicional de Diploma: deep collegiate navy blue double border frame
+    return "border-[12px] border-double border-[#00174b] p-8 flex-1 flex flex-col justify-between h-full box-border relative";
+  }
+  // Modelo Certificado de Conclusão: classic charcoal/slate double border
+  return "border-[12px] border-double border-slate-900 p-8 flex-1 flex flex-col justify-between h-full box-border relative";
+};
+
 const getStudentName = (cert: any, studentsList: any[]) => {
   if (!cert) return '';
   if (cert.student_name && cert.student_name.trim()) return cert.student_name;
@@ -2703,7 +2716,7 @@ export function Reports() {
                key={certItem.id || certItem.student_id} 
                className="certificate-printable-item flex justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] overflow-hidden flex-col box-border bg-white"
              >
-                <div className="border-[12px] border-double border-black p-8 flex-1 flex flex-col justify-between h-full box-border">
+                <div className={getCertificateBorderClassName(certItem.type)}>
                    <div className="flex items-center justify-center gap-6 mt-2">
                       {institution?.logo_url && (
                          <img 
@@ -2743,7 +2756,7 @@ export function Reports() {
 
         return (
           <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
-            <div className="border-[12px] border-double border-black p-8 flex-1 flex flex-col justify-between h-full box-border">
+            <div className={getCertificateBorderClassName(activeType)}>
                <div className="flex items-center justify-center gap-6 mt-2">
                   {institution?.logo_url && (
                      <img 
