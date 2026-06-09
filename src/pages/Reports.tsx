@@ -2245,7 +2245,7 @@ export function Reports() {
               display: none !important;
               visibility: hidden !important;
             }
-            [id="printable-certificate"] {
+            #printable-certificate {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
@@ -2265,7 +2265,7 @@ export function Reports() {
               page-break-before: avoid !important;
               overflow: hidden !important;
             }
-            [id="printable-certificate"] * {
+            #printable-certificate * {
               visibility: visible !important;
             }
           }
