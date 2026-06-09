@@ -2725,12 +2725,7 @@ export function Reports() {
 
                    {renderCertificateInnerContent(certItem.type, certItem.student_name, certItem.course, certItem.issuance_date, institution)}
 
-                    {/* Digital verification metadata watermark in bottom border area */}
-                    <div className="text-center pt-2">
-                       <p className="text-[8px] font-mono font-bold text-slate-400 tracking-widest uppercase">
-                          Chave de Autenticação Digital: {certItem.verification_code} • Documento Emitido via Sistema Diocesano Escmin
-                       </p>
-                    </div>
+                    
                  </div>
               </div>
            ))}</div>,
@@ -2770,12 +2765,7 @@ export function Reports() {
 
                {renderCertificateInnerContent(activeType, studentName, activeCourse, activeDate, institution)}
 
-               {/* Digital verification metadata watermark in bottom border area */}
-               <div className="text-center pt-2">
-                  <p className="text-[8px] font-mono font-bold text-slate-400 tracking-widest uppercase">
-                     Chave de Autenticação Digital: {viewingCertificate.verification_code} • Documento Emitido via Sistema Diocesano Escmin
-                  </p>
-               </div>
+
             </div>
           </div>
         );
