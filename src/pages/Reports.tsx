@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   BarChart3, 
   Printer, 
@@ -2241,11 +2242,26 @@ export function Reports() {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            nav, aside, header, footer, #printable-report, [id^="non-printable-"], .print-hide, .print-hidden {
+            
+            /* Hide the main #root layout so only the React Portal-rendered certificate is rendered */
+            #root, .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print {
               display: none !important;
               visibility: hidden !important;
+              height: 0 !important;
+              width: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
-            #printable-certificate {
+            
+            body {
+              display: block !important;
+              visibility: visible !important;
+              background: white !important;
+            }
+
+            #certificate-printable {
+              display: flex !important;
+              visibility: visible !important;
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
@@ -2255,26 +2271,24 @@ export function Reports() {
               margin: 0 !important;
               padding: 10mm !important;
               background: white !important;
-              z-index: 9999999 !important;
-              display: flex !important;
+              z-index: 99999999 !important;
               flex-direction: column !important;
               justify-content: space-between !important;
-              visibility: visible !important;
               page-break-inside: avoid !important;
               page-break-after: avoid !important;
               page-break-before: avoid !important;
               overflow: hidden !important;
             }
-            #printable-certificate * {
+            #certificate-printable * {
               visibility: visible !important;
             }
           }
         `}} />
       )}
 
-      {/* Printable Certificate (A4 Landscape Frame) */}
-      {viewingCertificate && (
-        <div id="printable-certificate" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
+      {/* Printable Certificate (A4 Landscape Frame) - Rendered via React Portal directly into body to bypass index.css portrait selectors */}
+      {viewingCertificate && typeof document !== 'undefined' && createPortal(
+        <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
           <div className="border-[10px] border-double border-black p-6 flex-1 flex flex-col justify-between h-full box-border">
              <div className="flex items-center justify-center gap-6">
                 {institution?.logo_url && (
@@ -2344,7 +2358,8 @@ export function Reports() {
                 </div>
              </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Professional Print Layout (Figma Style) */}
