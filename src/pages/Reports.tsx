@@ -2479,29 +2479,33 @@ export function Reports() {
             }
 
             #certificate-printable, .certificate-printable-item {
-              display: flex !important;
-              visibility: visible !important;
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
-              width: 297mm !important;
-              height: 210mm !important;
-              box-sizing: border-box !important;
-              margin: 0 !important;
-              padding: 10mm !important;
-              background: white !important;
-              z-index: 99999999 !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              page-break-inside: avoid !important;
-              page-break-after: always !important;
-              page-break-before: always !important;
-              overflow: hidden !important;
-            }
-            .certificate-printable-item {
-              position: relative !important;
-              page-break-after: always !important;
-            }
+               display: flex !important;
+               visibility: visible !important;
+               width: 297mm !important;
+               height: 210mm !important;
+               box-sizing: border-box !important;
+               margin: 0 !important;
+               padding: 10mm !important;
+               background: white !important;
+               z-index: 99999999 !important;
+               flex-direction: column !important;
+               justify-content: space-between !important;
+               page-break-inside: avoid !important;
+               overflow: hidden !important;
+             }
+            #certificate-printable {
+               position: absolute !important;
+               left: 0 !important;
+               top: 0 !important;
+             }
+             .certificate-printable-item {
+               position: relative !important;
+               page-break-after: always !important;
+             }
+             .certificate-printable-item:last-child {
+               page-break-after: avoid !important;
+               break-after: avoid !important;
+             }
             #certificate-printable *, .certificate-printable-item * {
               visibility: visible !important;
             }
