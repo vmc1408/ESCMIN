@@ -283,15 +283,68 @@ const renderCertificateInnerContent = (
 
 const getCertificateBorderClassName = (type: string) => {
   if (type === 'participação') {
-    // Modelo Solene: elegant gold/amber double border frame
-    return "border-[12px] border-double border-amber-600 p-8 flex-1 flex flex-col justify-between h-full box-border relative";
+    // Modelo Solene: elegant gold/amber solid border frame
+    return "border-[16px] border-amber-600 p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
   }
   if (type === 'honra') {
-    // Modelo Tradicional de Diploma: deep collegiate navy blue double border frame
-    return "border-[12px] border-double border-[#00174b] p-8 flex-1 flex flex-col justify-between h-full box-border relative";
+    // Modelo Tradicional de Diploma: deep collegiate navy solid border frame
+    return "border-[20px] border-[#00174b] p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
   }
   // Modelo Certificado de Conclusão: classic charcoal/slate double border
-  return "border-[12px] border-double border-slate-900 p-8 flex-1 flex flex-col justify-between h-full box-border relative";
+  return "border-[11px] border-double border-slate-900 p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative";
+};
+
+const renderCertificateDecorations = (type: string) => {
+  if (type === 'participação') {
+    return (
+      <>
+        {/* Elegant thin inner gold frame with nested lines */}
+        <div className="absolute inset-1 border-2 border-amber-400/80 pointer-events-none" />
+        <div className="absolute inset-3 border border-amber-500/30 pointer-events-none" />
+        {/* Artistic Corner Ornaments (L-shapes) */}
+        <div className="absolute top-4 left-4 w-10 h-10 border-t-[3px] border-l-[3px] border-amber-600 pointer-events-none" />
+        <div className="absolute top-4 right-4 w-10 h-10 border-t-[3px] border-r-[3px] border-amber-600 pointer-events-none" />
+        <div className="absolute bottom-4 left-4 w-10 h-10 border-b-[3px] border-l-[3px] border-amber-600 pointer-events-none" />
+        <div className="absolute bottom-4 right-4 w-10 h-10 border-b-[3px] border-r-[3px] border-amber-600 pointer-events-none" />
+        {/* Subtle decorative inner corner brackets */}
+        <div className="absolute top-6 left-6 w-4 h-4 border-t border-l border-amber-500/70 pointer-events-none" />
+        <div className="absolute top-6 right-6 w-4 h-4 border-t border-r border-amber-500/70 pointer-events-none" />
+        <div className="absolute bottom-6 left-6 w-4 h-4 border-b border-l border-amber-500/70 pointer-events-none" />
+        <div className="absolute bottom-6 right-6 w-4 h-4 border-b border-r border-amber-500/70 pointer-events-none" />
+      </>
+    );
+  }
+  if (type === 'honra') {
+    return (
+      <>
+        {/* Elite multi-layered academic diploma frame */}
+        <div className="absolute inset-1 border-4 border-white pointer-events-none" />
+        <div className="absolute inset-2 border-[3px] border-[#00174b] pointer-events-none" />
+        <div className="absolute inset-4 border border-[#00174b]/50 pointer-events-none" />
+        {/* Sophisticated certificate corner stars/blocks */}
+        <div className="absolute top-5 left-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
+        <div className="absolute top-5 right-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
+        <div className="absolute bottom-5 left-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
+        <div className="absolute bottom-5 right-5 w-3 h-3 bg-[#00174b] pointer-events-none rotate-45" />
+      </>
+    );
+  }
+  // Modelo Certificado de Conclusão: classic slate-900 double line with elegant minimalist modern corners
+  return (
+    <>
+      <div className="absolute inset-1 border border-slate-900/30 pointer-events-none" />
+      <div className="absolute inset-2.5 border border-slate-900/10 pointer-events-none" />
+      {/* Corner crosshairs for a perfect engineered blueprint layout */}
+      <div className="absolute top-3 left-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
+      <div className="absolute top-3 left-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
+      <div className="absolute top-3 right-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
+      <div className="absolute top-3 right-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
+      <div className="absolute bottom-3 left-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
+      <div className="absolute bottom-3 left-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
+      <div className="absolute bottom-3 right-3 w-6 h-[1px] bg-slate-900/80 pointer-events-none" />
+      <div className="absolute bottom-3 right-3 w-[1px] h-6 bg-slate-900/80 pointer-events-none" />
+    </>
+  );
 };
 
 const getStudentName = (cert: any, studentsList: any[]) => {
@@ -2717,6 +2770,7 @@ export function Reports() {
                className="certificate-printable-item flex justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] overflow-hidden flex-col box-border bg-white"
              >
                 <div className={getCertificateBorderClassName(certItem.type)}>
+                   {renderCertificateDecorations(certItem.type)}
                    <div className="flex items-center justify-center gap-6 mt-2">
                       {institution?.logo_url && (
                          <img 
@@ -2757,6 +2811,7 @@ export function Reports() {
         return (
           <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
             <div className={getCertificateBorderClassName(activeType)}>
+               {renderCertificateDecorations(activeType)}
                <div className="flex items-center justify-center gap-6 mt-2">
                   {institution?.logo_url && (
                      <img 
