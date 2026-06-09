@@ -95,9 +95,190 @@ const formatLongDate = (dateString: string) => {
 };
 
 const getCertificateTitle = (type: string) => {
-  if (type === 'participação') return 'CERTIFICADO DE PARTICIPAÇÃO';
-  if (type === 'honra') return 'CERTIFICADO DE HONRA AO MÉRITO';
-  return 'DIPLOMA DE CONCLUSÃO';
+  if (type === 'participação') return 'CERTIFICADO DE CONCLUSÃO DE CURSO';
+  if (type === 'honra') return 'DIPLOMA';
+  return 'CERTIFICADO DE CONCLUSÃO';
+};
+
+const renderCertificateInnerContent = (
+  type: string,
+  studentName: string,
+  courseName: string,
+  issuanceDate: string,
+  institution: any
+) => {
+  const institutionName = institution?.name || 'Escola Católica de Teologia';
+  const institutionLocation = institution?.city_uf || 'Guarulhos/SP';
+
+  if (type === 'participação') {
+    // Modelo Solene para Formação Teológica
+    return (
+      <>
+        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center">
+          <div className="flex items-center justify-center gap-6">
+             <div className="h-[1.5px] w-14 bg-amber-400" />
+             <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+                CERTIFICADO DE CONCLUSÃO DE CURSO
+             </h1>
+             <div className="h-[1.5px] w-14 bg-amber-400" />
+          </div>
+
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+             A <strong className="text-black font-extrabold">{institutionName}</strong> certifica que:
+          </p>
+
+          <div className="py-1">
+             <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-12 pb-1.5 bg-amber-50/10">
+                {studentName}
+             </h2>
+          </div>
+
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+             concluiu, com dedicação e aproveitamento satisfatório, o Curso de <strong className="text-black font-extrabold">{courseName}</strong>, cumprindo integralmente os requisitos acadêmicos estabelecidos.
+          </p>
+
+          <p className="text-[11px] md:text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-700 px-8">
+             Em reconhecimento ao empenho demonstrado na busca do conhecimento teológico e na formação cristã, conferimos o presente certificado para que conste e produza seus legítimos efeitos.
+          </p>
+
+          <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2">
+             {institutionLocation}, {formatLongDate(issuanceDate)}
+          </p>
+        </div>
+
+        <div className="flex items-end justify-between px-12 mb-1.5 font-sans mt-4">
+           <div className="flex flex-col items-center gap-1">
+              <div className="w-40 border-b border-black/80" />
+              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Diretor Geral Acadêmico</p>
+           </div>
+           <div className="flex flex-col items-center gap-1">
+              <div className="w-40 border-b border-black/80" />
+              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Secretário Acadêmico</p>
+           </div>
+           <div className="flex flex-col items-center gap-1">
+              <div className="w-40 border-b border-black/80" />
+              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Bispo Diocesano</p>
+           </div>
+        </div>
+      </>
+    );
+  }
+
+  if (type === 'honra') {
+    // Modelo Tradicional de Diploma
+    return (
+      <>
+        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center">
+          <div className="flex items-center justify-center gap-6">
+             <div className="h-[1.5px] w-14 bg-amber-400" />
+             <h1 className="text-2xl md:text-2xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+                DIPLOMA
+             </h1>
+             <div className="h-[1.5px] w-14 bg-amber-400" />
+          </div>
+
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+             A <strong className="text-black font-extrabold">{institutionName}</strong>, no uso de suas atribuições e de acordo com a legislação e regulamentos vigentes, confere o presente diploma a:
+          </p>
+
+          <div className="py-1">
+             <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-12 pb-1.5 bg-amber-50/10">
+                {studentName}
+             </h2>
+          </div>
+
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+             por haver concluído com aproveitamento o curso de:
+          </p>
+
+          <div className="py-1">
+             <h3 className="text-lg md:text-xl font-extrabold uppercase tracking-wide text-[#00174b] font-sans">
+                {courseName}
+             </h3>
+          </div>
+
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+             cumprindo todas as exigências acadêmicas previstas, fazendo jus ao presente Diploma de Conclusão de Curso.
+          </p>
+
+          <p className="text-[11px] md:text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-600 px-8 italic">
+             Por ser expressão da verdade, expede-se o presente diploma para que produza seus efeitos legais e acadêmicos.
+          </p>
+
+          <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2">
+             {institutionLocation}, {formatLongDate(issuanceDate)}
+          </p>
+        </div>
+
+        <div className="flex items-end justify-between px-12 mb-1.5 font-sans mt-4">
+           <div className="flex flex-col items-center gap-1">
+              <div className="w-40 border-b border-black/80" />
+              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Diretor(a) / Reitor(a)</p>
+           </div>
+           <div className="flex flex-col items-center gap-1">
+              <div className="w-40 border-b border-black/80" />
+              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Secretário(a) Acadêmico(a)</p>
+           </div>
+           <div className="flex flex-col items-center gap-1">
+              <div className="w-40 border-b border-black/80" />
+              <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Bispo Diocesano</p>
+           </div>
+        </div>
+      </>
+    );
+  }
+
+  // Modelo CERTIFICADO DE CONCLUSÃO (Teológico Simples)
+  return (
+    <>
+      <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center">
+        <div className="flex items-center justify-center gap-6">
+           <div className="h-[1.5px] w-14 bg-amber-400" />
+           <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+              CERTIFICADO DE CONCLUSÃO
+           </h1>
+           <div className="h-[1.5px] w-14 bg-amber-400" />
+        </div>
+
+        <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+           A <strong className="text-black font-extrabold">{institutionName}</strong> certifica que o(a) estudante:
+        </p>
+
+        <div className="py-1">
+           <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-12 pb-1.5 bg-amber-50/10">
+              {studentName}
+           </h2>
+        </div>
+
+        <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
+           concluiu com êxito o Curso de <strong className="text-black font-extrabold">{courseName}</strong>, tendo cumprido satisfatoriamente todas as exigências acadêmicas e formativas previstas no programa de estudos.
+        </p>
+
+        <p className="text-[11px] md:text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-700 px-8">
+           Conferimos o presente Certificado de Conclusão para que produza os efeitos educacionais e institucionais cabíveis.
+        </p>
+
+        <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2">
+           {institutionLocation}, {formatLongDate(issuanceDate)}
+        </p>
+      </div>
+
+      <div className="flex items-end justify-between px-12 mb-1.5 font-sans mt-4">
+         <div className="flex flex-col items-center gap-1">
+            <div className="w-40 border-b border-black/80" />
+            <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Diretor Acadêmico</p>
+         </div>
+         <div className="flex flex-col items-center gap-1">
+            <div className="w-40 border-b border-black/80" />
+            <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Secretário Acadêmico</p>
+         </div>
+         <div className="flex flex-col items-center gap-1">
+            <div className="w-40 border-b border-black/80" />
+            <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest text-center">Bispo Diocesano</p>
+         </div>
+      </div>
+    </>
+  );
 };
 
 const getStudentName = (cert: any, studentsList: any[]) => {
@@ -173,12 +354,13 @@ export function Reports() {
 
   useEffect(() => {
     if (viewingCertificate) {
+      const activeClassObj = classes.find(c => c.id === selectedDiarioClass);
       setPrintFormStudentId('single');
-      setPrintFormCourse(viewingCertificate.course || '');
+      setPrintFormCourse(viewingCertificate.course || `${activeClassObj?.name || 'Curso Conciliar'}`);
       setPrintFormType(viewingCertificate.type || 'conclusão');
       setPrintFormDate(viewingCertificate.issuance_date || new Date().toISOString().split('T')[0]);
     }
-  }, [viewingCertificate]);
+  }, [viewingCertificate, selectedDiarioClass, classes]);
 
   const [isSubmittingCert, setIsSubmittingCert] = useState(false);
   const [certificateForm, setCertificateForm] = useState({
@@ -2294,9 +2476,9 @@ export function Reports() {
                          value={certificateForm.type}
                          onChange={(e) => setCertificateForm({ ...certificateForm, type: e.target.value as 'conclusão' | 'participação' | 'honra' })}
                        >
-                         <option value="conclusão">Conclusão</option>
-                         <option value="participação">Participação</option>
-                         <option value="honra">Honra ao Mérito</option>
+                         <option value="conclusão">Certificado de Conclusão</option>
+                         <option value="participação">Modelo Solene para Formação Teológica</option>
+                         <option value="honra">Modelo Tradicional de Diploma</option>
                        </select>
                     </div>
 
@@ -2406,9 +2588,9 @@ export function Reports() {
                          value={printFormType}
                          onChange={(e) => setPrintFormType(e.target.value as 'conclusão' | 'participação' | 'honra')}
                        >
-                         <option value="conclusão">Diploma de Conclusão</option>
-                         <option value="participação">Certificado de Participação</option>
-                         <option value="honra">Honra ao Mérito</option>
+                         <option value="conclusão">Certificado de Conclusão</option>
+                         <option value="participação">Modelo Solene para Formação Teológica</option>
+                         <option value="honra">Modelo Tradicional de Diploma</option>
                        </select>
                     </div>
 
@@ -2541,49 +2723,7 @@ export function Reports() {
                       </div>
                    </div>
 
-                   <div className="my-4 space-y-6 flex-1 flex flex-col justify-center">
-                      <div className="flex items-center justify-center gap-6">
-                         <div className="h-[1.5px] w-14 bg-amber-400" />
-                         <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
-                            {getCertificateTitle(certItem.type)}
-                         </h1>
-                         <div className="h-[1.5px] w-14 bg-amber-400" />
-                      </div>
-                      
-                      <p className="text-[12px] max-w-2xl mx-auto leading-relaxed font-sans text-slate-700">
-                         A <strong className="text-black font-extrabold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-800 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
-                      </p>
-
-                      <div className="py-3">
-                         <h2 className="text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-14 pb-2 bg-amber-50/10">
-                            {certItem.student_name}
-                         </h2>
-                      </div>
-
-                      <p className="text-[12px] max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-                         {certItem.type === 'participação' 
-                           ? <>participou com as devidas qualificações do curso <strong className="text-black font-extrabold">{certItem.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                           : certItem.type === 'honra'
-                           ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-black font-extrabold">{certItem.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                           : <>concluiu com as devidas qualificações o curso <strong className="text-black font-extrabold">{certItem.course}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                         }
-                      </p>
-
-                      <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-8 font-sans max-w-sm mx-auto border-t border-slate-100 pt-3">
-                         {formatLongDate(certItem.issuance_date)}
-                      </p>
-                   </div>
-
-                   <div className="flex items-end justify-between px-16 mb-2 font-sans mt-8">
-                      <div className="flex flex-col items-center gap-1.5">
-                         <div className="w-48 border-b-2 border-black/80" />
-                         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Diretor Escola</p>
-                      </div>
-                      <div className="flex flex-col items-center gap-1.5">
-                         <div className="w-48 border-b-2 border-black/80" />
-                         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Bispo Diocesano</p>
-                       </div>
-                    </div>
+                   {renderCertificateInnerContent(certItem.type, certItem.student_name, certItem.course, certItem.issuance_date, institution)}
 
                     {/* Digital verification metadata watermark in bottom border area */}
                     <div className="text-center pt-2">
@@ -2628,50 +2768,7 @@ export function Reports() {
                   </div>
                </div>
 
-               <div className="my-4 space-y-6 flex-1 flex flex-col justify-center">
-                  {/* Elegant Title Divider */}
-                  <div className="flex items-center justify-center gap-6">
-                     <div className="h-[1.5px] w-14 bg-amber-400" />
-                     <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
-                        {getCertificateTitle(activeType)}
-                     </h1>
-                     <div className="h-[1.5px] w-14 bg-amber-400" />
-                  </div>
-                  
-                  <p className="text-sm md:text-base max-w-2xl mx-auto leading-relaxed font-sans text-slate-700">
-                     A <strong className="text-black font-extrabold">{institution?.name || 'Escola Diocesana de Ministério'}</strong> (<span className="text-slate-800 italic">{institution?.subtitle || 'Secretaria Escolar'}</span>) certifica que o(a) estudante:
-                  </p>
-
-                  <div className="py-3">
-                     <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-14 pb-2 bg-amber-50/10">
-                        {studentName}
-                      </h2>
-                  </div>
-
-                  <p className="text-sm md:text-base max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-                     {activeType === 'participação' 
-                       ? <>participou com as devidas qualificações do curso <strong className="text-black font-extrabold">{activeCourse}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                       : activeType === 'honra'
-                       ? <>se destacou com excelentes qualificações e recebe este título de Honra ao Mérito no curso <strong className="text-black font-extrabold">{activeCourse}</strong> nesta instituição, em conformidade com o regimento estatutário acadêmico.</>
-                       : <>concluiu com as devidas qualificações o curso <strong className="text-black font-extrabold">{activeCourse}</strong> nesta instituição, em conformidade with o regimento estatutário acadêmico. {/* fixed print statement text compatibility to avoid trailing line differences */}</>
-                     }
-                  </p>
-
-                  <p className="text-xs text-slate-900 font-bold uppercase tracking-[0.22em] mt-8 font-sans max-w-sm mx-auto border-t border-slate-100 pt-3">
-                     {formatLongDate(activeDate)}
-                  </p>
-               </div>
-
-               <div className="flex items-end justify-between px-16 mb-2 font-sans mt-8">
-                  <div className="flex flex-col items-center gap-1.5">
-                     <div className="w-48 border-b-2 border-black/80" />
-                     <p className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-widest">Diretor Escola</p>
-                  </div>
-                  <div className="flex flex-col items-center gap-1.5">
-                     <div className="w-48 border-b-2 border-black/80" />
-                     <p className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-widest">Bispo Diocesano</p>
-                  </div>
-               </div>
+               {renderCertificateInnerContent(activeType, studentName, activeCourse, activeDate, institution)}
 
                {/* Digital verification metadata watermark in bottom border area */}
                <div className="text-center pt-2">
