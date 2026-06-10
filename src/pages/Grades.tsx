@@ -23,6 +23,7 @@ import { Student, Class, Subject, AcademicParameters, Assessment } from '../type
 import { cn } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
+import { financialService } from '../services/financialService';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface GradeRecord {
@@ -44,6 +45,7 @@ export function Grades() {
   const [students, setStudents] = useState<Student[]>([]);
   const [grades, setGrades] = useState<Record<string, GradeRecord>>({});
   const [dbGrades, setDbGrades] = useState<any[]>([]);
+  const [institution, setInstitution] = useState<any>(null);
   const [academicParams, setAcademicParams] = useState<AcademicParameters>({
     approval_grade: 5.0,
     recovery_grade: 5.0,
@@ -76,14 +78,19 @@ export function Grades() {
   const periods = ['Avaliação 1', 'Avaliação 2', 'Avaliação 3', 'Avaliação 4', 'Resultado Final'];
 
   const fetchData = React.useCallback(async () => {
-    const [params, classesData, subjectsData] = await Promise.all([
+    const [params, classesData, subjectsData, instSettings] = await Promise.all([
       fetchAll('academic_parameters', '*', ''), // Passing empty string to avoid ordering by created_at
       fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-      fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }])
+      fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+      financialService.getInstitutionSettings()
     ]);
 
     if (params && params.length > 0) {
       setAcademicParams(params[0] as AcademicParameters);
+    }
+
+    if (instSettings) {
+      setInstitution(instSettings);
     }
 
     const normalizedClasses = (classesData || []).map((cls: any) => {
@@ -507,61 +514,405 @@ export function Grades() {
         <head>
           <title>Relatório de Notas - ${className}</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; }
-            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
-            h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
-            .info { display: flex; justify-content: space-between; margin-top: 15px; font-weight: bold; text-transform: uppercase; font-size: 12px; color: #64748b; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background: #f8fafc; text-align: left; padding: 12px; border: 1px solid #e2e8f0; font-size: 10px; text-transform: uppercase; }
-            td { padding: 12px; border: 1px solid #e2e8f0; font-size: 12px; }
-            .status { font-weight: bold; text-transform: uppercase; font-size: 10px; }
-            .aprovado { color: #059669; }
-            .recuperacao { color: #d97706; }
-            .reprovado { color: #dc2626; }
-            .footer { margin-top: 50px; text-align: right; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; color: #94a3b8; }
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+            
+            @page {
+              size: A4 portrait;
+              margin: 15mm 15mm 20mm 15mm;
+            }
+            
+            body {
+              font-family: 'Inter', sans-serif;
+              color: #0f172a;
+              background-color: #ffffff;
+              margin: 0;
+              padding: 0;
+              font-size: 11px;
+              line-height: 1.4;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            
+            /* Logo & Diocese Header */
+            .header-container {
+              display: flex;
+              align-items: center;
+              gap: 20px;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 12px;
+              margin-bottom: 20px;
+            }
+            
+            .logo-box {
+              width: 75px;
+              height: 75px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-shrink: 0;
+            }
+            
+            .logo-img {
+              max-height: 75px;
+              max-width: 75px;
+              object-fit: contain;
+            }
+            
+            .logo-placeholder {
+              width: 70px;
+              height: 70px;
+              border: 1px dashed #cbd5e1;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              font-size: 8px;
+              color: #94a3b8;
+              font-weight: bold;
+            }
+            
+            .header-info {
+              flex-grow: 1;
+            }
+            
+            .header-diocese {
+              font-size: 10px;
+              font-weight: 700;
+              letter-spacing: 2px;
+              color: #475569;
+              text-transform: uppercase;
+              margin: 0 0 2px 0;
+            }
+            
+            .header-title {
+              font-size: 18px;
+              font-weight: 900;
+              color: #0f172a;
+              text-transform: uppercase;
+              margin: 0 0 2px 0;
+              letter-spacing: -0.5px;
+            }
+            
+            .header-subtitle {
+              font-size: 11px;
+              font-weight: 600;
+              color: #64748b;
+              text-transform: uppercase;
+              margin: 0;
+            }
+            
+            /* Document Title */
+            .doc-title-container {
+              text-align: center;
+              margin-bottom: 18px;
+            }
+            
+            .doc-title {
+              display: inline-block;
+              font-size: 14px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 1.5px;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 4px;
+              margin: 0;
+            }
+            
+            /* Metadata Grid Row */
+            .metadata-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 12px;
+              border: 1px solid #cbd5e1;
+              background-color: #f8fafc;
+              padding: 10px 14px;
+              margin-bottom: 20px;
+            }
+            
+            .metadata-item {
+              display: flex;
+              flex-direction: column;
+            }
+            
+            .metadata-label {
+              font-size: 8px;
+              font-weight: 800;
+              text-transform: uppercase;
+              color: #64748b;
+              letter-spacing: 0.5px;
+              margin-bottom: 2px;
+            }
+            
+            .metadata-value {
+              font-size: 10px;
+              font-weight: 700;
+              color: #0f172a;
+              text-transform: uppercase;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            
+            /* Main Table */
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            
+            th {
+              background-color: #f1f5f9;
+              border: 1px solid #cbd5e1;
+              color: #334155;
+              font-size: 9px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              padding: 8px 10px;
+              text-align: left;
+            }
+            
+            td {
+              border: 1px solid #cbd5e1;
+              padding: 7px 10px;
+              font-size: 10.5px;
+              color: #1e293b;
+            }
+            
+            .col-number {
+              width: 35px;
+              text-align: center;
+              color: #64748b;
+              font-weight: 600;
+            }
+            
+            .col-name {
+              font-weight: 700;
+              color: #0f172a;
+              text-transform: uppercase;
+            }
+            
+            .col-ra {
+              width: 110px;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 9.5px;
+              color: #475569;
+            }
+            
+            .col-grade {
+              width: 75px;
+              text-align: center;
+              font-family: 'JetBrains Mono', monospace;
+              font-weight: 800;
+              font-size: 11px;
+            }
+            
+            .col-status {
+              width: 100px;
+              text-align: center;
+            }
+            
+            .col-obs {
+              font-size: 9.5px;
+              color: #475569;
+            }
+            
+            /* Status Badges */
+            .status-badge {
+              display: inline-block;
+              width: 80px;
+              padding: 2.5px 0;
+              font-size: 8.5px;
+              font-weight: 800;
+              text-transform: uppercase;
+              text-align: center;
+              border-radius: 3px;
+              letter-spacing: 0.5px;
+            }
+            
+            .status-aprovado {
+              background-color: #d1fae5;
+              color: #065f46;
+              border: 1px solid #a7f3d0;
+            }
+            
+            .status-recuperacao {
+              background-color: #fef3c7;
+              color: #92400e;
+              border: 1px solid #fde68a;
+            }
+            
+            .status-reprovado {
+              background-color: #fee2e2;
+              color: #991b1b;
+              border: 1px solid #fca5a5;
+            }
+            
+            .status-pendente {
+              background-color: #f1f5f9;
+              color: #475569;
+              border: 1px solid #e2e8f0;
+            }
+            
+            /* Signatures Footer */
+            .signatures-container {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 50px;
+              margin-top: 40px;
+              page-break-inside: avoid;
+            }
+            
+            .signature-block {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              text-align: center;
+            }
+            
+            .signature-line {
+              width: 85%;
+              border-top: 1px solid #0f172a;
+              margin-bottom: 6px;
+            }
+            
+            .signature-role {
+              font-size: 8.5px;
+              font-weight: 700;
+              text-transform: uppercase;
+              color: #64748b;
+              letter-spacing: 0.5px;
+            }
+            
+            .signature-name {
+              font-size: 10px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+            
+            /* Footer page tracking */
+            .document-footer {
+              position: fixed;
+              bottom: 10px;
+              left: 15mm;
+              right: 15mm;
+              display: flex;
+              justify-content: space-between;
+              font-size: 8px;
+              color: #94a3b8;
+              font-weight: 600;
+              text-transform: uppercase;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 6px;
+            }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>Relatório de Desempenho Escolar</h1>
-            <div class="info">
-              <span>Turma: ${className}</span>
-              <span>Disciplina: ${subjectName}</span>
-              <span>Período: ${selectedPeriod}</span>
+          <div class="header-container">
+            <div class="logo-box">
+              ${institution?.logo_url 
+                ? `<img class="logo-img" src="${institution.logo_url}" referrerPolicy="no-referrer" alt="Logo" />`
+                : `<div class="logo-placeholder"><span>SEM</span><span>LOGO</span></div>`
+              }
+            </div>
+            <div class="header-info">
+              <p class="header-diocese">${institution?.city 
+                ? `DIOCESE DE ${institution.city.toUpperCase()}` 
+                : 'DIOCESE DE GUARULHOS'
+              }</p>
+              <h1 class="header-title">${institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h1>
+              <p class="header-subtitle">${institution?.subtitle || 'PASTORAL E REGISTRO ACADÊMICO'}</p>
             </div>
           </div>
+          
+          <div class="doc-title-container">
+            <h2 class="doc-title">Relatório de Desempenho Escolar</h2>
+          </div>
+          
+          <div class="metadata-grid">
+            <div class="metadata-item">
+              <span class="metadata-label">Turma</span>
+              <span class="metadata-value" title="${className}">${className}</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Disciplina</span>
+              <span class="metadata-value" title="${subjectName}">${subjectName}</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Período/Avaliação</span>
+              <span class="metadata-value" title="${selectedPeriod}">${selectedPeriod}</span>
+            </div>
+            <div class="metadata-item">
+              <span class="metadata-label">Data de Emissão</span>
+              <span class="metadata-value">${new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
+          </div>
+          
           <table>
             <thead>
               <tr>
-                <th style="width: 40px">Nº</th>
+                <th class="col-number">Nº</th>
                 <th>Nome do Aluno</th>
-                <th style="width: 120px">RA</th>
-                <th style="width: 80px; text-align: center;">Nota</th>
-                <th style="width: 120px; text-align: center;">Status</th>
+                <th style="width: 110px">RA</th>
+                <th style="width: 75px; text-align: center;">Nota</th>
+                <th style="width: 100px; text-align: center;">Situação</th>
                 <th>Observações</th>
               </tr>
             </thead>
             <tbody>
-              ${students.map((student, idx) => `
-                <tr>
-                  <td>${idx + 1}</td>
-                  <td style="font-weight: bold">${student.name}</td>
-                  <td>${student.registration_number || '---'}</td>
-                  <td style="text-align: center; font-weight: bold">${grades[student.id]?.value || '---'}</td>
-                  <td style="text-align: center;">
-                    <span class="status ${grades[student.id]?.status.toLowerCase() || ''}">
-                      ${grades[student.id]?.status || 'Pendente'}
-                    </span>
-                  </td>
-                  <td style="font-size: 10px; color: #64748b;">${grades[student.id]?.observations || ''}</td>
-                </tr>
-              `).join('')}
+              ${students.map((student, idx) => {
+                const gradeInfo = grades[student.id];
+                const gradeValue = gradeInfo?.value !== undefined && gradeInfo?.value !== null && gradeInfo?.value !== ''
+                  ? gradeInfo.value
+                  : '---';
+                
+                let statusClass = 'status-pendente';
+                let statusLabel = 'Pendente';
+                
+                if (gradeInfo?.status) {
+                  statusLabel = gradeInfo.status;
+                  const statusLower = gradeInfo.status.toLowerCase();
+                  if (statusLower === 'aprovado') statusClass = 'status-aprovado';
+                  else if (statusLower === 'recuperação') statusClass = 'status-recuperacao';
+                  else if (statusLower === 'reprovado') statusClass = 'status-reprovado';
+                }
+                
+                return `
+                  <tr>
+                    <td class="col-number">${idx + 1}</td>
+                    <td class="col-name">${student.name}</td>
+                    <td class="col-ra">${student.registration_number || '---'}</td>
+                    <td class="col-grade" style="text-align: center;">${gradeValue}</td>
+                    <td class="col-status">
+                      <span class="status-badge ${statusClass}">
+                        ${statusLabel}
+                      </span>
+                    </td>
+                    <td class="col-obs">${gradeInfo?.observations || ''}</td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
-          <div class="footer">
-            Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+          
+          <div class="signatures-container">
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <span class="signature-role">Direção / Coordenação</span>
+              <span class="signature-name">${institution?.president_name || 'Prof. Responsável'}</span>
+            </div>
+            <div class="signature-block">
+              <div class="signature-line"></div>
+              <span class="signature-role">Assinatura do Docente</span>
+              <span class="signature-name">Pauta de Notas</span>
+            </div>
           </div>
+          
+          <div class="document-footer">
+            <span>Gestão de Notas e Frequências Diocesana</span>
+            <span>Emitido em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</span>
+          </div>
+          
           <script>
             window.onload = () => {
               window.print();
