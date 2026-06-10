@@ -249,6 +249,23 @@ export function Grades() {
     // Basic validation: allow numbers, comma and dot
     if (value !== '' && !/^[0-9,.]*$/.test(value)) return;
 
+    // Strict validation: values must be between 1 and 10 inclusive
+    if (value !== '') {
+      const rawValue = value.replace(',', '.');
+      const numValue = parseFloat(rawValue);
+
+      if (!isNaN(numValue)) {
+        if (numValue < 1 || numValue > 10) {
+          return;
+        }
+      } else {
+        // Allow temporary prefix characters if they are '.' or ','
+        if (value !== '.' && value !== ',') {
+          return;
+        }
+      }
+    }
+
     const rawValue = value.replace(',', '.');
     const numValue = parseFloat(rawValue);
     
@@ -755,6 +772,7 @@ export function Grades() {
                         <label className="text-[11px] font-medium text-slate-500 sm:hidden">Nota:</label>
                         <div className="relative w-full sm:w-24 group">
                           <input
+                            id={`grade-input-${idx}`}
                             type="text"
                             placeholder="0,00"
                             value={grades[student.id]?.value ?? ''}
@@ -769,6 +787,16 @@ export function Grades() {
                               }
                             }}
                             onChange={e => handleGradeChange(student.id, e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const nextInput = document.getElementById(`grade-input-${idx + 1}`);
+                                if (nextInput) {
+                                  nextInput.focus();
+                                  (nextInput as HTMLInputElement).select();
+                                }
+                              }
+                            }}
                             className={cn(
                               "w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-center text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pr-7",
                               selectedPeriod === 'Resultado Final' && "bg-slate-100 cursor-not-allowed opacity-80"
