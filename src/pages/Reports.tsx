@@ -2305,12 +2305,11 @@ export function Reports() {
                     const recuperation = results.filter(r => r.finalStatus === 'Recuperação').length;
                     const failed = results.filter(r => r.finalStatus === 'Reprovado').length;
                     const pending = results.filter(r => r.finalStatus === 'Pendente').length;
-                    const issuedCerts = results.filter(r => r.certificate).length;
 
                     return (
                       <div className="p-6 space-y-6">
                         {/* Class Summary widgets */}
-                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                            <div className="bg-slate-50 border border-slate-200 p-5 rounded-none shadow-none">
                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
                              <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
@@ -2327,33 +2326,12 @@ export function Reports() {
                              <p className="text-[10px] font-bold text-rose-805 uppercase tracking-widest">Reprovados</p>
                              <h4 className="text-2xl font-bold text-rose-500 mt-1">{failed + pending}</h4>
                            </div>
-                           <div className="bg-indigo-50/30 border border-indigo-250 p-5 rounded-none shadow-none border-l-4 border-l-indigo-600 col-span-2 lg:col-span-1">
-                             <p className="text-[10px] font-bold text-indigo-805 uppercase tracking-widest">Certificados</p>
-                             <h4 className="text-2xl font-bold text-indigo-600 mt-1">{issuedCerts} de {approved}</h4>
-                           </div>
                         </div>
 
                         {/* Diário de Classe Table */}
                         <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden">
                            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                               <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">Quadro Geral de Rendimento e Presença</h4>
-                               <button
-                                 type="button"
-                                 onClick={() => {
-                                   setCertificateForm({
-                                     course: `${classObj?.name || 'Curso Conciliar'}`,
-                                     type: 'conclusão',
-                                     issuance_date: new Date().toISOString().split('T')[0]
-                                   });
-                                   setSelectedStudentId('all');
-                                   setIssuingStudent({
-                                     student: { id: 'all', name: 'Todos os Alunos Aprovados' }
-                                   });
-                                 }}
-                                 className="px-4 py-2 bg-slate-800 hover:bg-slate-900 border border-slate-850 text-white rounded-none text-[10px] font-bold uppercase tracking-widest transition-all shadow-md flex items-center gap-2 cursor-pointer whitespace-nowrap self-start md:self-auto"
-                               >
-                                  <Award size={13} className="text-amber-400" /> Emitir Documentos (Lote)
-                               </button>
                               <span className="text-[9px] font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-none border border-slate-300 uppercase tracking-widest">
                                 {classSubjects.length} Disciplinas Ativas nesta Turma
                               </span>
@@ -2374,7 +2352,6 @@ export function Reports() {
                                         ))}
                                         <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">Presença</th>
                                         <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
-                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-right">Diplomar / Doc</th>
                                      </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100">
@@ -2425,7 +2402,7 @@ export function Reports() {
                                                    res.finalStatus === 'Pendente' ? 'Pendente' : 'Reprovado'}
                                                </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="px-6 py-4 text-right hidden">
                                                {res.certificate ? (
                                                  <div className="flex items-center justify-end gap-2">
                                                     <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-none border border-emerald-200 uppercase tracking-widest flex items-center gap-1 shadow-sm select-none">

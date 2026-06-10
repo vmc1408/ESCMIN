@@ -39,11 +39,11 @@ import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { icon: DashboardIcon, label: 'Dashboard', path: '/' },
+  { icon: Church, label: 'Diocese', path: '/parishes' },
   {
     label: 'Gestão Escolar',
     icon: ClassesIcon,
     children: [
-      { icon: Church, label: 'Diocese', path: '/parishes' },
       {
         label: 'Acadêmico',
         icon: GraduationCap,
@@ -53,17 +53,13 @@ const navItems = [
           { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
           {
-            label: 'Cronograma Acadêmico',
-            icon: CalendarIcon,
+            label: 'Frequência',
+            icon: CalendarCheck,
             children: [
-              { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month' },
-              { icon: FileText, label: 'Cronograma', path: '/calendar?view=management' },
-              { icon: Printer, label: 'Relatórios', path: '/calendar?view=reports' },
-              { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters' },
+              { icon: CalendarCheck, label: 'Frequência Mensal', path: '/monthly-attendance' },
+              { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
             ]
           },
-          { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
-          { icon: CalendarCheck, label: 'Frequência', path: '/monthly-attendance' },
           { 
             label: 'Notas',
             icon: GradesIcon,
@@ -71,9 +67,19 @@ const navItems = [
               { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
               { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
               { icon: ReportsIcon, label: 'Diário de Classe', path: '/reports?tab=diario_consolidado' },
+              { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents' },
             ]
           },
-          { icon: CertificateIcon, label: 'Documentos', path: '/documents' },
+        ]
+      },
+      {
+        label: 'Cronograma Acadêmico',
+        icon: CalendarIcon,
+        children: [
+          { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month' },
+          { icon: FileText, label: 'Cronograma', path: '/calendar?view=management' },
+          { icon: Printer, label: 'Relatórios', path: '/calendar?view=reports' },
+          { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters' },
         ]
       },
       {
