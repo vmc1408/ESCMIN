@@ -219,8 +219,22 @@ export function Grades() {
     const gradesMap: Record<string, GradeRecord> = {};
     periodGrades.forEach(data => {
       const record = { ...data } as GradeRecord;
-      if (typeof record.value === 'number') {
-        record.value = record.value.toString().replace('.', ',');
+      if (record.value !== undefined && record.value !== null) {
+        const num = typeof record.value === 'number'
+          ? record.value
+          : parseFloat(record.value.toString().replace(',', '.'));
+        if (!isNaN(num)) {
+          if (Number.isInteger(num) || num % 1 === 0) {
+            record.value = num.toString();
+          } else {
+            const fixed = Number(num.toFixed(2));
+            if (Number.isInteger(fixed)) {
+              record.value = fixed.toString();
+            } else {
+              record.value = fixed.toString().replace('.', ',');
+            }
+          }
+        }
       }
       gradesMap[data.student_id] = record;
     });
@@ -794,6 +808,35 @@ export function Grades() {
                               }
                             }}
                             onChange={e => handleGradeChange(student.id, e.target.value)}
+                            onBlur={() => {
+                              const currentValue = grades[student.id]?.value ?? '';
+                              if (currentValue !== '') {
+                                const rawValue = currentValue.toString().replace(',', '.');
+                                const numValue = parseFloat(rawValue);
+                                if (!isNaN(numValue)) {
+                                  let formattedValue = '';
+                                  if (Number.isInteger(numValue) || numValue % 1 === 0) {
+                                    formattedValue = numValue.toString();
+                                  } else {
+                                    const fixedValue = Number(numValue.toFixed(2));
+                                    if (Number.isInteger(fixedValue)) {
+                                      formattedValue = fixedValue.toString();
+                                    } else {
+                                      formattedValue = fixedValue.toString().replace('.', ',');
+                                    }
+                                  }
+                                  
+                                  // Update state with formatted value
+                                  setGrades(prev => ({
+                                    ...prev,
+                                    [student.id]: {
+                                      ...prev[student.id],
+                                      value: formattedValue
+                                    }
+                                  }));
+                                }
+                              }
+                            }}
                             onKeyDown={e => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
