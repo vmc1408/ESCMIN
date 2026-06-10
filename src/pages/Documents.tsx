@@ -387,8 +387,15 @@ export function Documents() {
         financialService.getInstitutionSettings()
       ]);
       
-      setCertificates(certs || []);
       setStudents(studs || []);
+      const enrichedCerts = (certs || []).map((cert: any) => {
+        const student = (studs || []).find((s: any) => s.id === cert.student_id);
+        return {
+          ...cert,
+          student_name: student?.name || cert.student_name || 'Estudante Sem Nome'
+        };
+      });
+      setCertificates(enrichedCerts);
       setClasses((clss || []).filter((c: any) => c.status === 'Ativo'));
       setSubjects(subs || []);
       setAssessments(assms || []);
