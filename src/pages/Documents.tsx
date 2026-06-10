@@ -185,34 +185,34 @@ const renderCertificateInnerContent = (
   if (type === 'participação') {
     return (
       <>
-        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center">
+        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center items-center text-center">
           <div className="flex items-center justify-center gap-6">
              <div className="h-[1.5px] w-14 bg-black/80" />
-             <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+             <h1 className="text-xl md:text-2xl font-bold text-black tracking-[0.18em] uppercase font-display">
                 CERTIFICADO DE PARTICIPAÇÃO
              </h1>
              <div className="h-[1.5px] w-14 bg-black/80" />
           </div>
 
-          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-             A diretoria e coordenação da <strong className="text-black font-extrabold">{institutionName}</strong> confere o presente título acadêmico e formativo a:
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-serif text-slate-800 px-8 text-center">
+             A diretoria e coordenação da <strong className="text-black font-semibold font-serif italic">{institutionName}</strong> confere o presente título acadêmico e formativo a:
           </p>
 
-          <div className="py-1">
-             <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-slate-900 font-serif border-b-[2px] border-black inline-block px-12 pb-1 bg-slate-50/10">
+          <div className="py-1 w-full flex justify-center">
+             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif border-b-[2px] border-black inline-block px-12 pb-1.5 bg-slate-50/10 text-center">
                 {studentName}
              </h2>
           </div>
 
-          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-             por ter participado ativamente das sessões seminaristas, colóquios, palestras e atividades práticas integradas no programa pastoral de estudos de <strong className="text-black font-extrabold">{courseName}</strong>.
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-serif text-slate-800 px-8 text-center">
+             por ter participado ativamente das sessões seminaristas, colóquios, palestras e atividades práticas integradas no programa pastoral de estudos de <strong className="text-black font-semibold italic">{courseName}</strong>.
           </p>
 
-          <p className="text-[11px] md:text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-705 px-8 pt-1">
+          <p className="text-[11px] md:text-xs max-w-3xl mx-auto leading-relaxed font-serif text-slate-600 px-8 pt-1 text-center italic">
              Comprovando digna dedicação intelectual e acadêmica compatível com as diretrizes da Diocese.
           </p>
 
-          <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-200 pt-2">
+          <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-200 pt-2 text-center">
              {institutionLocation}, {formatLongDate(issuanceDate)}
           </p>
         </div>
@@ -234,30 +234,30 @@ const renderCertificateInnerContent = (
   if (type === 'honra') {
     return (
       <>
-        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center">
+        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center items-center text-center">
           <div className="flex items-center justify-center gap-6">
              <div className="h-[1.5px] w-14 bg-black/60" />
-             <h1 className="text-3xl md:text-4xl font-black text-black tracking-[0.25em] uppercase font-serif">
+             <h1 className="text-2xl md:text-3xl font-bold text-black tracking-[0.2em] uppercase font-display">
                 DIPLOMA ACADÊMICO
              </h1>
              <div className="h-[1.5px] w-14 bg-black/60" />
           </div>
 
-          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-             O Conselho de Formadores e Orientadores do Seminário Maior da <strong className="text-black font-extrabold">{institutionName}</strong>, no cumprimento de suas atribuições ministeriais e teológicas, concede o diploma de mérito ao estudante:
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-serif text-slate-800 px-8 text-center">
+             O Conselho de Formadores e Orientadores do Seminário Maior da <strong className="text-black font-semibold font-serif italic">{institutionName}</strong>, no cumprimento de suas atribuições ministeriais e teológicas, concede o diploma de mérito ao estudante:
           </p>
 
-          <div className="py-2">
-             <h2 className="text-3xl md:text-4xl font-extrabold uppercase tracking-widest text-black font-serif border-b-[3px] border-black inline-block px-14 pb-1.5 bg-slate-50/10">
+          <div className="py-2 w-full flex justify-center">
+             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif border-b-[3px] border-black inline-block px-14 pb-1.5 bg-slate-50/10 text-center">
                 {studentName}
              </h2>
           </div>
 
-          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-850 px-8">
-             por haver concluído brilhantemente os estudos sagrados teológicos do curso de <strong className="text-black font-extrabold">{courseName}</strong>, demonstrando elevada idoneidade pastoral, dedicação canônica, inteligência crítica e vida espiritual exemplar.
+          <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-serif text-slate-800 px-8 text-center">
+             por haver concluído brilhantemente os estudos sagrados teológicos do curso de <strong className="text-black font-semibold italic">{courseName}</strong>, demonstrando elevada idoneidade pastoral, dedicação canônica, inteligência crítica e vida espiritual exemplar.
           </p>
 
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.22em] mt-3 font-sans max-w-sm mx-auto">
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.22em] mt-3 font-sans max-w-sm mx-auto text-center">
              {institutionLocation}, {formatLongDate(issuanceDate)}
           </p>
         </div>
@@ -283,34 +283,34 @@ const renderCertificateInnerContent = (
   // Modelo CERTIFICADO DE CONCLUSÃO
   return (
     <>
-      <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center">
+      <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center items-center text-center">
         <div className="flex items-center justify-center gap-6">
            <div className="h-[1.5px] w-14 bg-black/70" />
-           <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+           <h1 className="text-xl md:text-2xl font-bold text-black tracking-[0.18em] uppercase font-display">
               CERTIFICADO DE CONCLUSÃO
            </h1>
            <div className="h-[1.5px] w-14 bg-black/70" />
         </div>
 
-        <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-           A <strong className="text-black font-extrabold">{institutionName}</strong> certifica que o(a) estudante:
+        <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-serif text-slate-800 px-8 text-center">
+           A <strong className="text-black font-semibold font-serif italic">{institutionName}</strong> certifica que o(a) estudante:
         </p>
 
-        <div className="py-1">
-           <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-slate-950 font-serif border-b-[3px] border-black inline-block px-12 pb-1.5 bg-slate-50/10">
+        <div className="py-1 w-full flex justify-center">
+           <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif border-b-[3px] border-black inline-block px-12 pb-1.5 bg-slate-50/10 text-center">
               {studentName}
            </h2>
         </div>
 
-        <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8">
-           concluiu com êxito o Curso de <strong className="text-black font-extrabold">{courseName}</strong>, tendo cumprido satisfatoriamente todas as exigências acadêmicas e formativas previstas no programa de estudos.
+        <p className="text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-serif text-slate-800 px-8 text-center">
+           concluiu com êxito o Curso de <strong className="text-black font-semibold italic">{courseName}</strong>, tendo cumprido satisfatoriamente todas as exigências acadêmicas e formativas previstas no programa de estudos.
         </p>
 
-        <p className="text-[11px] md:text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-700 px-8">
+        <p className="text-[11px] md:text-xs max-w-3xl mx-auto leading-relaxed font-serif text-slate-600 px-8 text-center">
            Conferimos o presente Certificado de Conclusão para que produza os efeitos educacionais e institucionais cabíveis.
         </p>
 
-        <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2">
+        <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2 text-center">
            {institutionLocation}, {formatLongDate(issuanceDate)}
         </p>
       </div>
@@ -1106,7 +1106,7 @@ export function Documents() {
                          />
                       )}
                       <div className="text-left space-y-1">
-                         <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                         <h2 className="text-xl md:text-2xl font-bold uppercase tracking-[0.16em] text-black font-display leading-[1.3]">
                             {institution?.name || 'SISTEMA DE ENSINO'}
                          </h2>
                          <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
@@ -1212,7 +1212,7 @@ export function Documents() {
                    />
                 )}
                 <div className="text-left space-y-1">
-                   <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                   <h2 className="text-xl md:text-2xl font-bold uppercase tracking-[0.16em] text-black font-display leading-[1.3]">
                       {institution?.name || 'SISTEMA DE ENSINO'}
                    </h2>
                    <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
