@@ -45,6 +45,9 @@ interface Student {
   registration_number: string;
   class_id?: string;
   status?: string;
+  email?: string;
+  address_city?: string;
+  address_state?: string;
 }
 
 interface Class {
@@ -337,8 +340,9 @@ export function Documents() {
   const { userAuth, isAdmin, isDirector } = useAuth();
   
   // Tabs & Filters
-  const [activeTab, setActiveTab] = useState<'issue' | 'list'>('issue');
+  const [activeTab, setActiveTab] = useState<'issue' | 'list' | 'student_file'>('issue');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedFichaStudentId, setSelectedFichaStudentId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Database States
@@ -550,24 +554,114 @@ export function Documents() {
       });
   }, [selectedClassId, classObj, classes, students, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
 
+  const fichaStudent = students.find(s => s.id === selectedFichaStudentId);
+
+  const studentFichaData = React.useMemo(() => {
+    if (!fichaStudent) return null;
+    
+    const classId = fichaStudent.class_id;
+    if (!classId) {
+      return { 
+        fichaStudent, 
+        cls: null, 
+        totalDays: 0, 
+        absences: 0, 
+        presences: 0, 
+        presencePercentage: 100, 
+        subjectRecords: [], 
+        studentDocs: certificates.filter(c => c.student_id === fichaStudent.id) 
+      };
+    }
+
+    const cls = classes.find(c => c.id === classId);
+    
+    let sIds: string[] = [];
+    if (cls) {
+      if (Array.isArray(cls.subject_ids)) {
+        sIds = cls.subject_ids;
+      } else if (typeof cls.subject_ids === 'string') {
+        try {
+          const parsed = JSON.parse(cls.subject_ids);
+          sIds = Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          sIds = cls.subject_ids ? [cls.subject_ids] : [];
+        }
+      }
+    }
+
+    const classSubjects = subjects.filter(sub => {
+      if (sIds.length > 0) return sIds.includes(sub.id);
+      return assessments.some(a => a.class_id === classId && a.subject_id === sub.id);
+    });
+
+    const studentAbsences = attendanceData.filter(a => a.student_id === fichaStudent.id && a.class_id === classId && a.status === 'F').length;
+    const studentPresences = attendanceData.filter(a => a.student_id === fichaStudent.id && a.class_id === classId && a.status === 'P').length;
+    
+    const totalDays = totalClassDays > 0 ? totalClassDays : 30;
+    const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
+
+    // Calculate grades per subject
+    const subjectRecords = classSubjects.map(sub => {
+      const finalGradeRecord = dbGrades.find(g => 
+        g.student_id === fichaStudent.id && 
+        g.class_id === classId && 
+        g.subject_id === sub.id && 
+        g.period === 'Resultado Final'
+      );
+
+      let gradeValue: number | null = null;
+      if (finalGradeRecord && finalGradeRecord.value !== null && finalGradeRecord.value !== undefined && finalGradeRecord.value !== '') {
+        gradeValue = typeof finalGradeRecord.value === 'string' 
+          ? parseFloat(finalGradeRecord.value.replace(',', '.')) 
+          : finalGradeRecord.value;
+      } else {
+        const subAssessments = assessments.filter(a => a.class_id === classId && a.subject_id === sub.id);
+        const subAssessmentIds = subAssessments.map(a => a.id);
+        const subAssessmentTitles = subAssessments.map(a => a.title);
+
+        const studentSubGrades = dbGrades.filter(g => 
+          g.student_id === fichaStudent.id && 
+          g.class_id === classId && 
+          g.subject_id === sub.id && 
+          (subAssessmentIds.includes(g.period) || subAssessmentTitles.includes(g.period)) &&
+          g.value !== null && g.value !== undefined && g.value !== ''
+        );
+
+        if (subAssessments.length > 0 && studentSubGrades.length > 0) {
+          const sum = studentSubGrades.reduce((acc, curr) => {
+            const v = typeof curr.value === 'string' ? parseFloat(curr.value.replace(',', '.')) : curr.value;
+            return acc + (v || 0);
+          }, 0);
+          gradeValue = sum / subAssessments.length;
+        }
+      }
+
+      return {
+        subject: sub,
+        grade: gradeValue
+      };
+    });
+
+    const studentDocs = certificates.filter(c => c.student_id === fichaStudent.id);
+
+    return {
+      fichaStudent,
+      cls,
+      totalDays,
+      absences: studentAbsences,
+      presences: studentPresences,
+      presencePercentage,
+      subjectRecords,
+      studentDocs
+    };
+  }, [fichaStudent, classes, subjects, dbGrades, assessments, attendanceData, totalClassDays, certificates]);
+
   const handleIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userAuth) return;
 
     const student = students.find(s => s.id === formData.student_id);
     const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-
-    // Verify duplication
-    const duplicate = certificates.some(c => 
-      c.student_id === formData.student_id && 
-      c.type === formData.type && 
-      c.course.toLowerCase().trim() === formData.course.toLowerCase().trim()
-    );
-
-    if (duplicate) {
-      showToast('error', `Este aluno já possui um documento do tipo "${formData.type}" emitido para este mesmo curso!`);
-      return;
-    }
 
     try {
       const newDocId = crypto.randomUUID();
@@ -670,6 +764,20 @@ export function Documents() {
             )}
           >
             Emitir
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('student_file');
+              setSelectedFichaStudentId('');
+            }}
+            className={cn(
+              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+              activeTab === 'student_file'
+                ? "bg-slate-900 text-white border border-slate-905"
+                : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+            )}
+          >
+            Ficha do Aluno
           </button>
           <button
             onClick={() => setActiveTab('list')}
@@ -777,36 +885,34 @@ export function Documents() {
                             </div>
 
                             <div className="flex items-center gap-3 self-end sm:self-auto">
-                              {/* Eligibility Tag */}
-                              {cs.isEligible ? (
-                                <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 border border-emerald-250 uppercase tracking-widest">
-                                  <ShieldCheck size={11} /> Liberado
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[8.5px] font-bold text-rose-700 bg-rose-50 px-3 py-1 border border-rose-250 uppercase tracking-widest" title={`Estudante retido com média ${cs.averageGrade.toFixed(1)} ou falta excessiva (${cs.absences} faltas).`}>
-                                  <Ban size={11} /> Bloqueado
-                                </span>
-                              )}
+                              {/* Status Tag */}
+                              <span className={cn(
+                                "inline-flex items-center gap-1 text-[8.5px] font-bold px-3 py-1 border uppercase tracking-widest",
+                                cs.finalStatus === 'Aprovado' 
+                                  ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                                  : cs.finalStatus === 'Pendente'
+                                  ? "text-amber-700 bg-amber-50 border-amber-200"
+                                  : "text-rose-700 bg-rose-50 border-rose-200"
+                              )}>
+                                <ShieldCheck size={11} /> {cs.finalStatus}
+                              </span>
 
-                              {/* Button control */}
-                              {cs.isEligible ? (
-                                cs.issuedCerts.length > 0 ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-2 py-1 uppercase tracking-widest border border-indigo-200">
-                                      {cs.issuedCerts.length} Emitido(s)
-                                    </span>
-                                    <button
-                                      onClick={() => {
-                                        setActiveTab('list');
-                                        setSearchQuery(cs.student.name);
-                                      }}
-                                      className="px-2 py-1 border border-slate-300 font-bold text-[8.5px] uppercase tracking-widest hover:border-slate-500 text-slate-700 bg-white"
-                                      title="Ver no registro histórico"
-                                    >
-                                      Ver
-                                    </button>
-                                  </div>
-                                ) : (
+                              {/* Button control (Never blocked, always allow issuance) */}
+                              {cs.issuedCerts.length > 0 ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-2 py-1 uppercase tracking-widest border border-indigo-200">
+                                    {cs.issuedCerts.length} Emitido(s)
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setActiveTab('list');
+                                      setSearchQuery(cs.student.name);
+                                    }}
+                                    className="px-2 py-1 border border-slate-300 font-bold text-[8.5px] uppercase tracking-widest hover:border-slate-500 text-slate-700 bg-white"
+                                    title="Ver no registro histórico"
+                                  >
+                                    Ver
+                                  </button>
                                   <button
                                     onClick={() => {
                                       setFormData({
@@ -818,18 +924,26 @@ export function Documents() {
                                       setIssuingStudentData(cs);
                                       setIsIssuing(true);
                                     }}
-                                    className="px-3.5 py-1.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-none text-[8.5px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                                    className="px-2 py-1 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white text-[8.5px] font-bold uppercase tracking-widest shadow-sm"
                                   >
-                                    Emitir Doc
+                                    Emitir Outro
                                   </button>
-                                )
+                                </div>
                               ) : (
                                 <button
-                                  disabled
-                                  className="px-3.5 py-1.5 bg-slate-100 text-slate-300 border border-slate-200 rounded-none text-[8.5px] font-bold uppercase tracking-widest cursor-not-allowed"
-                                  title="Estudante retido no diário de classe. Notas/Faltas pendentes de aprovação."
+                                  onClick={() => {
+                                    setFormData({
+                                      student_id: cs.student.id,
+                                      type: 'conclusão',
+                                      issuance_date: new Date().toISOString().split('T')[0],
+                                      course: classObj?.name || 'Curso Conciliar'
+                                    });
+                                    setIssuingStudentData(cs);
+                                    setIsIssuing(true);
+                                  }}
+                                  className="px-3.5 py-1.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-none text-[8.5px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all"
                                 >
-                                  Retido
+                                  Emitir Doc
                                 </button>
                               )}
                             </div>
@@ -920,9 +1034,6 @@ export function Documents() {
                           <Calendar size={12} className="text-slate-350" />
                           <span>{new Date(cert.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                         </div>
-                        <div className="bg-slate-50 border border-slate-200 font-bold font-mono text-[9px] text-slate-700 px-2 py-0.5" title="Código Único de Registro Autenticado">
-                          REG: {cert.verification_code}
-                        </div>
                       </div>
                     </motion.div>
                   ))
@@ -938,6 +1049,267 @@ export function Documents() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* TAB 3: FICHA DE ALUNO INTEGRADA */}
+          {activeTab === 'student_file' && (
+            <div className="space-y-6 print:hidden">
+              <div className="bg-white border border-slate-200 p-6 rounded-none space-y-4 shadow-sm">
+                <div className="max-w-md space-y-1">
+                  <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                    <User size={13} className="text-amber-500" /> Selecionar Aluno
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Selecione um aluno para consultar as suas notas, registrar faltas e visualizar ou imprimir certificados gerados.
+                  </p>
+                  <select
+                    value={selectedFichaStudentId}
+                    onChange={e => setSelectedFichaStudentId(e.target.value)}
+                    className="w-full mt-2 px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
+                  >
+                    <option value="">Selecione um aluno...</option>
+                    {students.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.registration_number ? `RA: ${s.registration_number}` : 'Sem RA'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {!studentFichaData ? (
+                <div className="bg-white border-2 border-dashed border-slate-200 py-16 text-center space-y-4 rounded-none">
+                  <div className="w-14 h-14 bg-slate-50 text-slate-350 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
+                    <User size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-450 uppercase tracking-widest">Nenhum aluno selecionado</p>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                      Selecione um aluno do menu acima para visualizar as notas, faltas e o histórico de certificados do aluno.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left Column: Cadastral Info & Attendance Summary */}
+                  <div className="lg:col-span-4 space-y-6">
+                    {/* Cadastral Info Card */}
+                    <div className="bg-white border border-slate-200 p-5 rounded-none space-y-4 shadow-sm">
+                      <div className="border-b border-slate-100 pb-3">
+                        <span className="text-[8px] font-bold text-[#00174b] bg-amber-400 px-2 py-0.5 uppercase tracking-widest">
+                          Ficha Acadêmica
+                        </span>
+                        <h3 className="text-sm font-black text-slate-850 uppercase tracking-tight mt-1">
+                          {studentFichaData.fichaStudent.name}
+                        </h3>
+                        <p className="text-[10px] font-bold text-slate-400 font-mono tracking-wider mt-0.5">
+                          RA: {studentFichaData.fichaStudent.registration_number || 'Não cadastrado'}
+                        </p>
+                      </div>
+
+                      <div className="space-y-3.5 text-xs">
+                        <div>
+                          <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Turma Atual</p>
+                          <p className="font-bold text-slate-700 uppercase mt-0.5">
+                            {studentFichaData.cls?.name || 'Sem turma vinculada'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Email para Contato</p>
+                          <p className="font-semibold text-slate-600 mt-0.5 truncate">
+                            {studentFichaData.fichaStudent.email || 'Nenhum email fornecido'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Cidade / Estado</p>
+                          <p className="font-semibold text-slate-600 mt-0.5">
+                            {studentFichaData.fichaStudent.address_city || 'Não informado'} - {studentFichaData.fichaStudent.address_state || 'SP'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Attendance Analysis Card */}
+                    <div className="bg-white border border-slate-200 p-5 rounded-none space-y-4 shadow-sm">
+                      <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-150 pb-2">
+                        Controle de Frequência
+                      </h4>
+
+                      <div className="grid grid-cols-2 gap-3 text-center">
+                        <div className="bg-slate-50 p-2.5 border border-slate-100">
+                          <p className="text-[9px] font-extrabold text-slate-450 uppercase tracking-wider">Faltas</p>
+                          <p className="text-xl font-bold font-mono text-rose-600 mt-0.5">{studentFichaData.absences}</p>
+                        </div>
+                        <div className="bg-slate-50 p-2.5 border border-slate-100">
+                          <p className="text-[9px] font-extrabold text-slate-450 uppercase tracking-wider">Presenças</p>
+                          <p className="text-xl font-bold font-mono text-slate-700 mt-0.5">{studentFichaData.presences}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-extrabold">
+                          <span className="text-slate-500">Porcentagem de Frequência</span>
+                          <span className={cn(
+                            "font-mono font-black",
+                            studentFichaData.presencePercentage >= (100 - (academicParams.absence_limit_percentage || 25)) 
+                              ? "text-emerald-700" 
+                              : "text-rose-600"
+                          )}>
+                            {Math.round(studentFichaData.presencePercentage)}%
+                          </span>
+                        </div>
+                        
+                        <div className="w-full bg-slate-100 h-2 rounded-none overflow-hidden border border-slate-200/50">
+                          <div 
+                            className={cn(
+                              "h-full transition-all duration-500",
+                              studentFichaData.presencePercentage >= (100 - (academicParams.absence_limit_percentage || 25))
+                                ? "bg-emerald-600" 
+                                : "bg-rose-600"
+                            )} 
+                            style={{ width: `${studentFichaData.presencePercentage}%` }}
+                          />
+                        </div>
+
+                        <p className="text-[9px] text-slate-400 font-medium">
+                          Limite tolerado de faltas pelas regras da diocese: <strong>{academicParams.absence_limit_percentage}%</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Grades and Generated Documents */}
+                  <div className="lg:col-span-8 space-y-6">
+                    {/* Grades Card */}
+                    <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
+                      <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/50">
+                        <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
+                          Aproveitamento Acadêmico (Notas Gerais por Disciplina)
+                        </h4>
+                      </div>
+
+                      <div className="divide-y divide-slate-100">
+                        {studentFichaData.subjectRecords.length === 0 ? (
+                          <div className="p-8 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+                            Nenhuma disciplina cadastrada para a turma deste aluno.
+                          </div>
+                        ) : (
+                          studentFichaData.subjectRecords.map(rec => (
+                            <div key={rec.subject.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                              <span className="text-xs font-bold text-slate-700 uppercase">{rec.subject.name}</span>
+                              <div className="flex items-center gap-4">
+                                <span className={cn(
+                                  "text-xs font-black font-mono px-2 py-0.5 rounded-none border",
+                                  rec.grade !== null 
+                                    ? rec.grade >= (academicParams.approval_grade || 7.0)
+                                      ? "text-emerald-700 bg-emerald-50 border-emerald-250" 
+                                      : "text-rose-700 bg-rose-50 border-rose-200"
+                                    : "text-slate-400 bg-slate-50 border-slate-150"
+                                )}>
+                                  {rec.grade !== null ? rec.grade.toFixed(1).replace('.', ',') : 'N/D'}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider w-16 text-right">
+                                  {rec.grade !== null 
+                                    ? rec.grade >= (academicParams.approval_grade || 7.0) 
+                                      ? 'Aprovado' 
+                                      : 'Reprovado/Rec.'
+                                    : 'Sem nota'}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Generated Documents Card */}
+                    <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
+                      <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+                        <h4 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
+                          Documentos Emitidos (Certificados & Diplomas)
+                        </h4>
+                        
+                        <button
+                          onClick={() => {
+                            setFormData({
+                              student_id: studentFichaData.fichaStudent.id,
+                              type: 'conclusão',
+                              issuance_date: new Date().toISOString().split('T')[0],
+                              course: studentFichaData.cls?.name || 'Curso Conciliar'
+                            });
+                            // Create dummy CS object
+                            const dummyCS = {
+                              student: studentFichaData.fichaStudent,
+                              averageGrade: studentFichaData.subjectRecords.length > 0
+                                ? studentFichaData.subjectRecords.filter(r => r.grade !== null).reduce((acc, curr) => acc + (curr.grade || 0), 0) / (studentFichaData.subjectRecords.filter(r => r.grade !== null).length || 1)
+                                : 0,
+                              presencePercentage: studentFichaData.presencePercentage,
+                              absences: studentFichaData.absences,
+                              finalStatus: 'Aprovado',
+                              isEligible: true,
+                              issuedCerts: studentFichaData.studentDocs
+                            };
+                            setIssuingStudentData(dummyCS);
+                            setIsIssuing(true);
+                          }}
+                          className="px-3 py-1 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white text-[8.5px] font-bold uppercase tracking-widest shadow-sm active:scale-95 transition-all flex items-center gap-1"
+                        >
+                          <Plus size={10} /> Novo Certificado
+                        </button>
+                      </div>
+
+                      <div className="divide-y divide-slate-100">
+                        {studentFichaData.studentDocs.length === 0 ? (
+                          <div className="p-8 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+                            Nenhum certificado ou diploma emitido para este aluno ainda.
+                          </div>
+                        ) : (
+                          studentFichaData.studentDocs.map(doc => (
+                            <div key={doc.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={cn(
+                                    "px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wider border shadow-none",
+                                    doc.type === 'conclusão' ? "bg-slate-50 text-slate-700 border-slate-200" :
+                                    doc.type === 'honra' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                    "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                  )}>
+                                    {doc.type}
+                                  </span>
+                                  <span className="text-xs font-bold text-slate-750 uppercase">{doc.course}</span>
+                                </div>
+                                <p className="text-[9.5px] font-semibold text-slate-400">
+                                  Emitido em: {new Date(doc.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                                <button 
+                                  onClick={() => setViewingCertificate(doc)}
+                                  className="px-3 py-1.5 text-slate-700 hover:text-slate-950 border border-slate-300 hover:border-slate-500 font-bold text-[9px] uppercase tracking-widest bg-white shadow-sm flex items-center gap-1.5 transition-colors"
+                                  title="Visualizar e Imprimir"
+                                >
+                                  <Printer size={11} /> Impressão
+                                </button>
+                                <button 
+                                  onClick={() => handleDelete(doc.id, doc.student_name || doc.student_id)}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-300 hover:border-rose-450 rounded-none bg-white shadow-sm flex items-center justify-center transition-colors"
+                                  title="Excluir Registro"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1132,8 +1504,7 @@ export function Documents() {
                    )}
 
                    {/* Secure Registry Footer lines */}
-                   <div className="absolute bottom-5 left-12 right-12 flex justify-between items-center text-[7.5px] font-bold text-slate-400 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
-                     <span>Chave de Validação: {viewingCertificate.verification_code}</span>
+                   <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-400 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
                      <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
                    </div>
                 </div>
@@ -1238,8 +1609,7 @@ export function Documents() {
              )}
 
              {/* Secure Registry Footer lines */}
-             <div className="absolute bottom-5 left-12 right-12 flex justify-between items-center text-[7.5px] font-bold text-slate-400 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
-               <span>Chave de Validação: {viewingCertificate.verification_code}</span>
+             <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-400 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
                <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
              </div>
           </div>
