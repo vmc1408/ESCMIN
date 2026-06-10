@@ -73,11 +73,11 @@ const navItems = [
         ]
       },
       {
-        label: 'Cronograma Acadêmico',
+        label: 'Cronograma',
         icon: CalendarIcon,
         children: [
           { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month' },
-          { icon: FileText, label: 'Cronograma', path: '/calendar?view=management' },
+          { icon: FileText, label: 'Grade Acadêmica', path: '/calendar?view=management' },
           { icon: Printer, label: 'Relatórios', path: '/calendar?view=reports' },
           { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters' },
         ]
@@ -171,7 +171,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Acadêmico', 'Financeiro', 'Cronograma Acadêmico']);
+  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Acadêmico', 'Financeiro', 'Cronograma']);
 
   const toggleGroup = (label: string) => {
     setOpenGroups(prev => 
