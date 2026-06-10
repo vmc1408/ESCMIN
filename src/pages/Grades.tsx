@@ -249,6 +249,13 @@ export function Grades() {
     // Basic validation: allow numbers, comma and dot
     if (value !== '' && !/^[0-9,.]*$/.test(value)) return;
 
+    // Limit to two decimal places (after comma or dot)
+    if (value !== '') {
+      const parts = value.split(/[,.]/);
+      if (parts.length > 2) return; // more than one decimal separator
+      if (parts.length === 2 && parts[1].length > 2) return; // more than two decimal places
+    }
+
     // Strict validation: values must be between 1 and 10 inclusive
     if (value !== '') {
       const rawValue = value.replace(',', '.');
