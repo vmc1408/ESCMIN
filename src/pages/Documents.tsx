@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   FileCheck, 
   Search, 
@@ -391,7 +392,7 @@ export function Documents() {
         financialService.getInstitutionSettings()
       ]);
       
-      setStudents(studs || []);
+      setStudents((studs || []).filter((s: any) => s.status === 'Ativo' || !s.status));
       const enrichedCerts = (certs || []).map((cert: any) => {
         const student = (studs || []).find((s: any) => s.id === cert.student_id);
         return {
@@ -401,7 +402,7 @@ export function Documents() {
       });
       setCertificates(enrichedCerts);
       setClasses((clss || []).filter((c: any) => c.status === 'Ativo'));
-      setSubjects(subs || []);
+      setSubjects((subs || []).filter((sub: any) => sub.status === 'Ativo' || !sub.status));
       setAssessments(assms || []);
       setDbGrades(grds || []);
       setAttendanceData(atts || []);
@@ -1054,6 +1055,32 @@ export function Documents() {
 
           {/* TAB 3: FICHA DE ALUNO INTEGRADA */}
           {activeTab === 'student_file' && (
+            <div className="space-y-6 print:hidden">
+              <div className="bg-white border border-slate-200 p-8 rounded-none text-center space-y-6 shadow-sm max-w-2xl mx-auto my-12">
+                <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-none flex items-center justify-center mx-auto border border-indigo-100">
+                  <User size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest font-sans">
+                    Módulo Dedicado Ativado
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+                    Conforme as novas diretrizes de organização escolar da diocese, a Ficha Cadastral e Acadêmica do Aluno agora possui um módulo totalmente dedicado, com filtros inteligentes de status, histórico diocesano completo, boletins consolidados e suporte avançado de impressão.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <Link 
+                    to="/student-ficha"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] uppercase tracking-widest transition-all shadow-md active:scale-95"
+                  >
+                    Ir para Ficha do Aluno <ChevronRight size={14} />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {false && activeTab === 'student_file' && (
             <div className="space-y-6 print:hidden">
               <div className="bg-white border border-slate-200 p-6 rounded-none space-y-4 shadow-sm">
                 <div className="max-w-md space-y-1">

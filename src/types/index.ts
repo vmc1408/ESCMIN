@@ -285,3 +285,24 @@ export interface AcademicParameters {
   absence_limit_percentage: number;
   updated_at: string;
 }
+
+export interface Certificate {
+  id: string;
+  student_id: string;
+  student_name?: string;
+  type: 'conclusão' | 'participação' | 'honra';
+  issuance_date: string;
+  course: string;
+  verification_code: string;
+  user_id?: string;
+  created_at?: string;
+}
+
+export interface Grade {
+  id: string;
+  student_id: string;
+  class_id: string;
+  subject_id: string;
+  period: string;
+  value: any;
+}
