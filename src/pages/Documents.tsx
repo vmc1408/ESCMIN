@@ -18,8 +18,10 @@ import {
   Info,
   ChevronRight,
   ShieldCheck,
-  Ban
+  Ban,
+  X
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { cn, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -387,7 +389,7 @@ export function Documents() {
       
       setCertificates(certs || []);
       setStudents(studs || []);
-      setClasses(clss || []);
+      setClasses((clss || []).filter((c: any) => c.status === 'Ativo'));
       setSubjects(subs || []);
       setAssessments(assms || []);
       setDbGrades(grds || []);
@@ -1057,7 +1059,7 @@ export function Documents() {
       {/* FULL-SCREEN PRINT MODAL (CREATE PORTAL TO RENDER AT ROOT LEVEL FOR PERFECT LANDSCAPE AND ZERO SCREEN CLUTTER) */}
       <AnimatePresence>
         {viewingCertificate && (
-          <div className="fixed inset-0 bg-white z-[12000] flex flex-col items-center justify-start overflow-auto p-4 md:p-12 print:p-0 print:m-0">
+          <div className="fixed inset-0 bg-white z-[12000] flex flex-col items-center justify-start overflow-auto p-4 md:p-12 print:hidden">
              {/* Toolbar Controls */}
              <div className="w-full max-w-5xl flex items-center justify-between border-b border-slate-205 pb-4 mb-6 print:hidden">
                 <div className="flex items-center gap-3">
@@ -1065,12 +1067,12 @@ export function Documents() {
                       <Trophy size={18} className="text-amber-400" />
                    </div>
                    <div>
-                     <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-805">Homologação Digital</h3>
-                     <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ESCMIN Digital Security Protocol</p>
+                      <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-805">Homologação Digital</h3>
+                      <p className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ESCMIN Digital Security Protocol</p>
                    </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 font-sans">
                    <button
                      onClick={printCertificate}
                      className="px-5 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-2 cursor-pointer"
@@ -1093,6 +1095,26 @@ export function Documents() {
                    {/* Artistic Ornaments based on design selected */}
                    {renderCertificateDecorations(viewingCertificate.type)}
 
+                   {/* Header with diocese logo and titles */}
+                   <div className="flex items-center justify-center gap-6 mt-2">
+                      {institution?.logo_url && (
+                         <img 
+                            src={institution.logo_url} 
+                            alt="Logo" 
+                            className="h-24 w-24 object-contain" 
+                            referrerPolicy="no-referrer" 
+                         />
+                      )}
+                      <div className="text-left space-y-1">
+                         <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                            {institution?.name || 'SISTEMA DE ENSINO'}
+                         </h2>
+                         <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
+                            {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
+                         </p>
+                      </div>
+                   </div>
+
                    {/* Certificate Content Parser */}
                    {renderCertificateInnerContent(
                      viewingCertificate.type,
@@ -1112,6 +1134,111 @@ export function Documents() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* STYLESHEET FOR PRINT MULTIPAGE A4 LANDSCAPE FORMATTING */}
+      {viewingCertificate && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            @page {
+              size: A4 landscape !important;
+              margin: 0 !important;
+            }
+            html, body {
+              width: 297mm !important;
+              height: 210mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: hidden !important;
+              background-color: #ffffff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            /* Hide the main #root layout so only the React Portal-rendered certificate is rendered */
+            #root, .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print {
+              display: none !important;
+              visibility: hidden !important;
+              height: 0 !important;
+              width: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            
+            body {
+              display: block !important;
+              visibility: visible !important;
+              background: white !important;
+            }
+
+            #certificate-printable {
+               display: flex !important;
+               visibility: visible !important;
+               width: 297mm !important;
+               height: 210mm !important;
+               box-sizing: border-box !important;
+               margin: 0 !important;
+               padding: 10mm !important;
+               background: white !important;
+               z-index: 99999999 !important;
+               flex-direction: column !important;
+               justify-content: space-between !important;
+               page-break-inside: avoid !important;
+               overflow: hidden !important;
+               position: absolute !important;
+               left: 0 !important;
+               top: 0 !important;
+             }
+             #certificate-printable * {
+               visibility: visible !important;
+             }
+          }
+        `}} />
+      )}
+
+      {/* PORTAL FOR DECOUPLING PRINT VIEW TO BODY ROOT LEVEL */}
+      {viewingCertificate && typeof document !== 'undefined' && createPortal(
+        <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
+          <div className={getCertificateBorderClassName(viewingCertificate.type)}>
+             {renderCertificateDecorations(viewingCertificate.type)}
+
+             {/* Header with diocese logo and custom diocese titles */}
+             <div className="flex items-center justify-center gap-6 mt-2">
+                {institution?.logo_url && (
+                   <img 
+                      src={institution.logo_url} 
+                      alt="Logo" 
+                      className="h-24 w-24 object-contain" 
+                      referrerPolicy="no-referrer" 
+                   />
+                )}
+                <div className="text-left space-y-1">
+                   <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                      {institution?.name || 'SISTEMA DE ENSINO'}
+                   </h2>
+                   <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
+                      {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
+                   </p>
+                </div>
+             </div>
+
+             {/* Certificate Content Parser */}
+             {renderCertificateInnerContent(
+               viewingCertificate.type,
+               viewingCertificate.student_name || 'Estudante Sem Nome',
+               viewingCertificate.course,
+               viewingCertificate.issuance_date,
+               institution
+             )}
+
+             {/* Secure Registry Footer lines */}
+             <div className="absolute bottom-5 left-12 right-12 flex justify-between items-center text-[7.5px] font-bold text-slate-400 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
+               <span>Chave de Validação: {viewingCertificate.verification_code}</span>
+               <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
+             </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
