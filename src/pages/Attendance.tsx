@@ -1499,7 +1499,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight uppercase">
-              {activeTab === 'marking' ? 'Chamada Diária' : 'Frequência Mensal'}
+              {activeTab === 'marking' ? 'Chamada Diária' : 'Lista de Chamada'}
             </h2>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
               <div className="flex items-center gap-1.5">

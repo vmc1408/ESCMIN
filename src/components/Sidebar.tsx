@@ -56,7 +56,7 @@ const navItems = [
             label: 'Frequência',
             icon: CalendarCheck,
             children: [
-              { icon: CalendarCheck, label: 'Frequência Mensal', path: '/monthly-attendance' },
+              { icon: CalendarCheck, label: 'Lista de Chamada', path: '/monthly-attendance' },
               { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
             ]
           },
