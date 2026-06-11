@@ -1327,16 +1327,19 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             fillColor: [240, 240, 240],
             textColor: [0, 0, 0],
             fontSize: 7.5,
-            lineWidth: 0.1,
-            lineColor: [100, 100, 100],
+            lineWidth: 0.3,
+            lineColor: [80, 80, 80],
             fontStyle: 'bold',
             minCellHeight: 11
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
           },
           styles: { 
             fontSize: 8.0,
             cellPadding: 1.2,
-            lineWidth: 0.1,
-            lineColor: [180, 180, 180],
+            lineWidth: 0.25,
+            lineColor: [150, 150, 150],
             minCellHeight: 6.5,
             valign: 'middle'
           },
