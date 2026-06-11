@@ -313,6 +313,32 @@ export function StudentFicha() {
     course: ''
   });
 
+  const [certScale, setCertScale] = useState(1);
+  const certWrapperRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!viewingCertificate) return;
+    const handleResize = () => {
+      if (certWrapperRef.current) {
+        const width = certWrapperRef.current.getBoundingClientRect().width;
+        setCertScale(width / 990);
+      }
+    };
+    handleResize();
+    const observer = new ResizeObserver(() => {
+      handleResize();
+    });
+    if (certWrapperRef.current) {
+      observer.observe(certWrapperRef.current);
+    }
+    const timer = setTimeout(handleResize, 100);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [viewingCertificate]);
+
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -1062,37 +1088,51 @@ export function StudentFicha() {
             </div>
 
             {/* SCREEN VIEW REPRESENTATION OF THE PREMIUM CERTIFICATE */}
-            <div className="w-full relative aspect-[1.414/1] bg-white text-black font-serif flex flex-col justify-between p-12 overflow-hidden text-center mx-auto shadow-sm border border-slate-200">
-               <div className={getCertificateBorderClassName(viewingCertificate.type)}>
-                  {renderCertificateDecorations(viewingCertificate.type)}
+            <div 
+              ref={certWrapperRef} 
+              className="w-full bg-slate-100 overflow-hidden relative border border-slate-200"
+              style={{ height: `${700 * certScale}px` }}
+            >
+              <div 
+                className="absolute left-0 top-0 bg-white text-black font-serif flex flex-col justify-between p-[10mm] text-center box-border select-none pointer-events-none"
+                style={{ 
+                  width: '990px', 
+                  height: '700px', 
+                  transform: `scale(${certScale})`, 
+                  transformOrigin: 'top left' 
+                }}
+              >
+                 <div className={getCertificateBorderClassName(viewingCertificate.type)}>
+                    {renderCertificateDecorations(viewingCertificate.type)}
 
-                  <div className="flex items-center justify-center gap-6 mt-2 relative pointer-events-none">
-                     {institution?.logo_url && (
-                        <img 
-                           src={institution.logo_url} 
-                           alt="Logo" 
-                           className="h-20 w-20 object-contain" 
-                           referrerPolicy="no-referrer" 
-                        />
-                     )}
-                     <div className="text-left space-y-1">
-                        <h2 className="text-xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
-                           {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                        </h2>
-                        <p className="text-[10px] font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
-                           {institution?.subtitle || 'PASTORAL E REGISTRO ACADÊMICO'}
-                        </p>
-                     </div>
-                  </div>
+                    <div className="flex items-center justify-center gap-6 mt-2 relative">
+                       {institution?.logo_url && (
+                          <img 
+                             src={institution.logo_url} 
+                             alt="Logo" 
+                             className="h-24 w-24 object-contain" 
+                             referrerPolicy="no-referrer" 
+                          />
+                       )}
+                       <div className="text-left space-y-1">
+                          <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                             {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                          </h2>
+                          <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
+                             {institution?.subtitle || 'PASTORAL E REGISTRO ACADÊMICO'}
+                          </p>
+                       </div>
+                    </div>
 
-                  {renderCertificateInnerContent(
-                     viewingCertificate.type,
-                     viewingCertificate.student_name,
-                     viewingCertificate.course || '',
-                     viewingCertificate.issuance_date,
-                     institution
-                  )}
-               </div>
+                    {renderCertificateInnerContent(
+                       viewingCertificate.type,
+                       viewingCertificate.student_name,
+                       viewingCertificate.course || '',
+                       viewingCertificate.issuance_date,
+                       institution
+                    )}
+                 </div>
+              </div>
             </div>
 
           </div>
