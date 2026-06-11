@@ -377,6 +377,32 @@ export function Documents() {
     course: ''
   });
 
+  const [certScale, setCertScale] = useState(1);
+  const certWrapperRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!viewingCertificate) return;
+    const handleResize = () => {
+      if (certWrapperRef.current) {
+        const width = certWrapperRef.current.getBoundingClientRect().width;
+        setCertScale(width / 990);
+      }
+    };
+    handleResize();
+    const observer = new ResizeObserver(() => {
+      handleResize();
+    });
+    if (certWrapperRef.current) {
+      observer.observe(certWrapperRef.current);
+    }
+    const timer = setTimeout(handleResize, 100);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [viewingCertificate]);
+
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -1494,46 +1520,58 @@ export function Documents() {
                 </div>
              </div>
 
-             {/* Certificate Canvas Frame (Dimensions: A4 Landscape optimized - w-[297mm] h-[210mm]) */}
-             <div className="w-[297mm] h-[210mm] min-w-[297mm] min-h-[210mm] bg-white text-black p-[15mm] flex flex-col justify-between relative shadow-2xl print:shadow-none print:border-none print:p-[10mm] print:m-0 border border-slate-300">
-                {/* Custom Elegant Borders in pure black, based on the type chosen by the user in criteria selection */}
-                <div className={getCertificateBorderClassName(viewingCertificate.type)}>
-                   {/* Artistic Ornaments based on design selected */}
-                   {renderCertificateDecorations(viewingCertificate.type)}
+             {/* SCREEN VIEW REPRESENTATION OF THE PREMIUM CERTIFICATE */}
+             <div className="w-full max-w-5xl mx-auto flex justify-center">
+                <div 
+                  ref={certWrapperRef} 
+                  className="w-full bg-slate-100 overflow-hidden relative border border-slate-200"
+                  style={{ height: `${700 * certScale}px` }}
+                >
+                  <div 
+                    className="absolute left-0 top-0 bg-white text-black font-serif flex flex-col justify-between p-[10mm] text-center box-border select-none pointer-events-none"
+                    style={{ 
+                      width: '990px', 
+                      height: '700px', 
+                      transform: `scale(${certScale})`, 
+                      transformOrigin: 'top left' 
+                    }}
+                  >
+                     <div className={getCertificateBorderClassName(viewingCertificate.type)}>
+                        {renderCertificateDecorations(viewingCertificate.type)}
 
-                   {/* Header with diocese logo and titles */}
-                   <div className="flex items-center justify-center gap-6 mt-2">
-                      {institution?.logo_url && (
-                         <img 
-                            src={institution.logo_url} 
-                            alt="Logo" 
-                            className="h-24 w-24 object-contain" 
-                            referrerPolicy="no-referrer" 
-                         />
-                      )}
-                      <div className="text-left space-y-1">
-                         <h2 className="text-xl md:text-2xl font-bold uppercase tracking-[0.16em] text-black font-display leading-[1.3]">
-                            {institution?.name || 'SISTEMA DE ENSINO'}
-                         </h2>
-                         <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
-                            {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
-                         </p>
-                      </div>
-                   </div>
+                        <div className="flex items-center justify-center gap-6 mt-2 relative">
+                           {institution?.logo_url && (
+                              <img 
+                                 src={institution.logo_url} 
+                                 alt="Logo" 
+                                 className="h-24 w-24 object-contain" 
+                                 referrerPolicy="no-referrer" 
+                              />
+                           )}
+                           <div className="text-left space-y-1">
+                              <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                                 {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                              </h2>
+                              <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
+                                 {institution?.subtitle || 'PASTORAL E REGISTRO ACADÊMICO'}
+                              </p>
+                           </div>
+                        </div>
 
-                   {/* Certificate Content Parser */}
-                   {renderCertificateInnerContent(
-                     viewingCertificate.type,
-                     viewingCertificate.student_name || 'Estudante Sem Nome',
-                     viewingCertificate.course,
-                     viewingCertificate.issuance_date,
-                     institution
-                   )}
+                        {renderCertificateInnerContent(
+                           viewingCertificate.type,
+                           viewingCertificate.student_name || 'Estudante Sem Nome',
+                           viewingCertificate.course || '',
+                           viewingCertificate.issuance_date,
+                           institution
+                        )}
 
-                   {/* Secure Registry Footer lines */}
-                   <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-400 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
-                     <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
-                   </div>
+                        {/* Secure Registry Footer lines */}
+                        <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-405 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
+                           <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
+                        </div>
+                     </div>
+                  </div>
                 </div>
              </div>
           </div>
