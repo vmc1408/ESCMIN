@@ -203,7 +203,7 @@ const renderCertificateInnerContent = (
           </p>
 
           <div className="py-1 w-full flex justify-center">
-             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif border-b-[2px] border-black inline-block px-12 pb-1.5 bg-slate-50/10 text-center">
+             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif inline-block px-12 bg-slate-50/10 text-center">
                 {studentName}
              </h2>
           </div>
@@ -252,7 +252,7 @@ const renderCertificateInnerContent = (
           </p>
 
           <div className="py-2 w-full flex justify-center">
-             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif border-b-[3px] border-black inline-block px-14 pb-1.5 bg-slate-50/10 text-center">
+             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif inline-block px-14 bg-slate-50/10 text-center">
                 {studentName}
              </h2>
           </div>
@@ -301,7 +301,7 @@ const renderCertificateInnerContent = (
         </p>
 
         <div className="py-1 w-full flex justify-center">
-           <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif border-b-[3px] border-black inline-block px-12 pb-1.5 bg-slate-50/10 text-center">
+           <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-widest text-slate-950 font-serif inline-block px-12 bg-slate-50/10 text-center">
               {studentName}
            </h2>
         </div>

@@ -128,7 +128,7 @@ const renderCertificateInnerContent = (
           </p>
 
           <div className="py-1">
-             <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-12 pb-1.5 bg-amber-50/10">
+             <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-12 bg-amber-50/10">
                 {studentName}
              </h2>
           </div>
@@ -182,7 +182,7 @@ const renderCertificateInnerContent = (
           </p>
 
           <div className="py-1">
-             <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-12 pb-1.5 bg-amber-50/10">
+             <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-12 bg-amber-50/10">
                 {studentName}
              </h2>
           </div>
@@ -245,7 +245,7 @@ const renderCertificateInnerContent = (
         </p>
 
         <div className="py-1">
-           <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif border-b-[3px] border-amber-400 inline-block px-12 pb-1.5 bg-amber-50/10">
+           <h2 className="text-2xl md:text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-12 bg-amber-50/10">
               {studentName}
            </h2>
         </div>
