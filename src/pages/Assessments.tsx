@@ -17,7 +17,10 @@ import {
   Info,
   CheckCircle2,
   X,
-  HelpCircle
+  HelpCircle,
+  Search,
+  Archive,
+  History
 } from 'lucide-react';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject } from '../types';
@@ -35,7 +38,7 @@ export const Assessments: React.FC = () => {
   const [grades, setGrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'consult' | 'register'>('consult');
   const [editingId, setEditingId] = useState<string | null>(null);
   
   // Dialog / Warning states instead of native browser prompts
@@ -56,6 +59,7 @@ export const Assessments: React.FC = () => {
   const [filterClass, setFilterClass] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
   const [filterPeriod, setFilterPeriod] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
 
   // Auto-dimiss notification
   useEffect(() => {
@@ -148,7 +152,7 @@ export const Assessments: React.FC = () => {
       period: filterPeriod || '1º Bimestre',
       description: ''
     });
-    setShowForm(true);
+    setActiveTab('register');
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -170,12 +174,12 @@ export const Assessments: React.FC = () => {
       };
       await saveRecord('assessments', editingId || undefined, dataToSave as any);
       
-      setShowForm(false);
       setEditingId(null);
       setNotification({
         type: 'success',
         message: editingId ? 'Avaliação atualizada com sucesso!' : 'Nova avaliação cadastrada com sucesso!'
       });
+      setActiveTab('consult');
       loadData();
     } catch (error: any) {
       console.error('Erro ao salvar avaliação:', error);
@@ -195,7 +199,7 @@ export const Assessments: React.FC = () => {
       description: assessment.description || ''
     });
     setEditingId(assessment.id);
-    setShowForm(true);
+    setActiveTab('register');
   };
 
   const triggerDeleteConfirm = (id: string) => {
@@ -259,9 +263,13 @@ export const Assessments: React.FC = () => {
 
   // Compute filtered items
   const filteredAssessments = assessments.filter(a => {
-    return (!filterClass || a.class_id === filterClass) &&
-           (!filterSubject || a.subject_id === filterSubject) &&
-           (!filterPeriod || a.period === filterPeriod);
+    const matchesClass = !filterClass || a.class_id === filterClass;
+    const matchesSubject = !filterSubject || a.subject_id === filterSubject;
+    const matchesPeriod = !filterPeriod || a.period === filterPeriod;
+    const matchesSearch = !filterSearch || 
+      (a.title || '').toLowerCase().includes(filterSearch.toLowerCase()) || 
+      (a.description || '').toLowerCase().includes(filterSearch.toLowerCase());
+    return matchesClass && matchesSubject && matchesPeriod && matchesSearch;
   });
 
   const getClassName = (id: string) => classes.find(c => c.id === id)?.name || 'N/A';
@@ -314,107 +322,169 @@ export const Assessments: React.FC = () => {
             <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm">
               <FileText size={20} />
             </div>
-            Cadastrar Avaliações
+            Gestão de Avaliações
           </h1>
-          <p className="text-xs text-slate-500 mt-1 pl-13">Planeje as provas, atividades e trabalhos de cada bimestre escolar</p>
+          <p className="text-xs text-slate-500 mt-1 pl-13">Planeje e consulte as atividades avaliativas organizadas ao longo dos anos letivos</p>
         </div>
-        
-        <button 
-          onClick={handleOpenNewForm}
-          className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-indigo-100 cursor-pointer"
-        >
-          <Plus size={18} />
-          Nova Avaliação
-        </button>
+
+        {/* Segmented Control - Tabs */}
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-fit">
+          <button
+            onClick={() => {
+              setActiveTab('consult');
+              setEditingId(null);
+            }}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'consult'
+                ? 'bg-white text-indigo-600 shadow-xs border border-slate-150'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Search size={13} />
+            Consultar & Histórico
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('register');
+              setEditingId(null);
+              setFormData({
+                title: '',
+                date: new Date().toISOString().split('T')[0],
+                weight: 10,
+                class_id: filterClass || '',
+                subject_id: filterSubject || '',
+                period: filterPeriod || '1º Bimestre',
+                description: ''
+              });
+            }}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'register'
+                ? 'bg-white text-indigo-600 shadow-xs border border-slate-150'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Plus size={13} />
+            {editingId ? 'Editar Avaliação' : 'Registrar Nova'}
+          </button>
+        </div>
       </div>
 
-      {/* Filtering Space */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex items-center gap-2 text-slate-700 text-xs font-bold uppercase tracking-wider mb-2">
-          <SlidersHorizontal size={14} className="text-indigo-600" />
-          <span>Filtros de Organização</span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Class Filter */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Turma</label>
-            <div className="relative">
-              <Users size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select 
-                value={filterClass}
-                onChange={(e) => {
-                  setFilterClass(e.target.value);
+      {activeTab === 'consult' && (
+        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+            <div className="flex items-center gap-2 text-slate-700 text-xs font-bold uppercase tracking-wider">
+              <SlidersHorizontal size={14} className="text-indigo-600" />
+              <span>Pesquisa e Filtros de Organização</span>
+            </div>
+            <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 flex items-center gap-1">
+              <History size={11} className="text-slate-400" />
+              Dica: Filtre por turma e bimestre para carregar consultas consolidadas e históricas
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* SEARCH TEXT FILTER */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Título / Conteúdo</label>
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  placeholder="Pesquisar por título..."
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium placeholder:text-slate-400 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Class Filter */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Turma</label>
+              <div className="relative">
+                <Users size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <select 
+                  value={filterClass}
+                  onChange={(e) => {
+                    setFilterClass(e.target.value);
+                    setFilterSubject('');
+                  }}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
+                >
+                  <option value="">Todas as Turmas</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Subject Filter */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Disciplina</label>
+              <div className="relative">
+                <BookOpen size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <select 
+                  value={filterSubject}
+                  onChange={(e) => setFilterSubject(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
+                >
+                  <option value="">Todas as Disciplinas</option>
+                  {subjects
+                    .filter(s => {
+                      if (!filterClass) return true;
+                      const selectedClass = classes.find(c => c.id === filterClass);
+                      return selectedClass?.subject_ids?.includes(s.id);
+                    })
+                    .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Period Filter */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Bimestre</label>
+              <div className="relative">
+                <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <select 
+                  value={filterPeriod}
+                  onChange={(e) => setFilterPeriod(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
+                >
+                  <option value="">Todos os Bimestres</option>
+                  <option value="1º Bimestre">1º Bimestre</option>
+                  <option value="2º Bimestre">2º Bimestre</option>
+                  <option value="3º Bimestre">3º Bimestre</option>
+                  <option value="4º Bimestre">4º Bimestre</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {(filterClass || filterSubject || filterPeriod || filterSearch) && (
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-[11px] text-slate-400 font-bold uppercase">
+                {filteredAssessments.length} avaliações encontradas com filtros ativos
+              </span>
+              <button 
+                onClick={() => {
+                  setFilterClass('');
                   setFilterSubject('');
+                  setFilterPeriod('');
+                  setFilterSearch('');
                 }}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium"
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer transition-colors"
               >
-                <option value="">Todas as Turmas</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+                <X size={14} />
+                Limpar Todos os Filtros
+              </button>
             </div>
-          </div>
-
-          {/* Subject Filter */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Disciplina</label>
-            <div className="relative">
-              <BookOpen size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select 
-                value={filterSubject}
-                onChange={(e) => setFilterSubject(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium"
-              >
-                <option value="">Todas as Disciplinas</option>
-                {subjects
-                  .filter(s => {
-                    if (!filterClass) return true;
-                    const selectedClass = classes.find(c => c.id === filterClass);
-                    return selectedClass?.subject_ids?.includes(s.id);
-                  })
-                  .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Period Filter */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Bimestre</label>
-            <div className="relative">
-              <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select 
-                value={filterPeriod}
-                onChange={(e) => setFilterPeriod(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium"
-              >
-                <option value="">Todos os Bimestres</option>
-                <option value="1º Bimestre">1º Bimestre</option>
-                <option value="2º Bimestre">2º Bimestre</option>
-                <option value="3º Bimestre">3º Bimestre</option>
-                <option value="4º Bimestre">4º Bimestre</option>
-              </select>
-            </div>
-          </div>
+          )}
         </div>
+      )}
 
-        {(filterClass || filterSubject || filterPeriod) && (
-          <div className="flex justify-end pt-2">
-            <button 
-              onClick={() => {
-                setFilterClass('');
-                setFilterSubject('');
-                setFilterPeriod('');
-              }}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <X size={14} />
-              Limpar Filtros Ativos
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Main Grid View */}
-      {loading ? (
+      {activeTab === 'consult' && (
+        <>
+          {/* Main Grid View */}
+          {loading ? (
         <div className="py-24 flex flex-col items-center justify-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin" />
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Buscando avaliações...</p>
@@ -567,31 +637,38 @@ export const Assessments: React.FC = () => {
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 mt-2"
           >
             <Plus size={14} />
-            Nova Avaliação de Exemplo
+            Nova Avaliação
           </button>
         </div>
       )}
+        </>
+      )}
 
-      {/* Modal Overlay: Custom Form */}
-      <AnimatePresence>
-        {showForm && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white w-full max-w-xl rounded-xl overflow-hidden shadow-xl border border-slate-200"
-            >
+      {/* Inline Form Container for Register / Edit Tab */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'register' && (
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pt-2"
+          >
+            {/* Form Section */}
+            <div className="bg-white rounded-xl overflow-hidden shadow-md border border-slate-200 col-span-1 lg:col-span-7">
               {/* Form Title banner */}
               <div className="p-6 bg-indigo-600 text-white flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold">{editingId ? 'Editar Parâmetros da Avaliação' : 'Cadastrar Nova Avaliação'}</h2>
-                  <p className="text-xs text-indigo-100">Essa atividade gerará pautas automáticas de notas para os alunos</p>
+                  <h2 className="text-lg font-bold">{editingId ? 'Editar Parâmetros da Avaliação' : 'Registrar Nova Avaliação'}</h2>
+                  <p className="text-xs text-indigo-100">Essa atividade gerará pautas automáticas de notas para os alunos da turma selecionada</p>
                 </div>
                 <button 
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setEditingId(null);
+                    setActiveTab('consult');
+                  }}
                   className="text-indigo-200 hover:text-white transition-colors"
+                  title="Voltar para Consulta"
                 >
                   <X size={20} />
                 </button>
@@ -689,7 +766,7 @@ export const Assessments: React.FC = () => {
                     />
                   </div>
 
-                  {/* Description Description */}
+                  {/* Description Field */}
                   <div className="col-span-1 md:col-span-2 space-y-1">
                     <label className="text-xs font-bold text-slate-700 pl-0.5">Descrição / Conteúdo Programático</label>
                     <textarea 
@@ -706,7 +783,10 @@ export const Assessments: React.FC = () => {
                 <div className="flex gap-3 pt-4 border-t border-slate-100">
                   <button 
                     type="button"
-                    onClick={() => setShowForm(false)}
+                    onClick={() => {
+                      setEditingId(null);
+                      setActiveTab('consult');
+                    }}
                     className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-bold transition-all cursor-pointer"
                   >
                     Cancelar
@@ -721,8 +801,89 @@ export const Assessments: React.FC = () => {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </div>
+            </div>
+
+            {/* Real-time Preview Section */}
+            <div className="col-span-1 lg:col-span-5 space-y-4 lg:sticky lg:top-6">
+              <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold uppercase tracking-wider pl-1">
+                <span>Visualização em Tempo Real</span>
+              </div>
+
+              <div className="bg-slate-55 border border-slate-200/80 rounded-xl p-6 flex flex-col items-center justify-center min-h-[300px]">
+                {/* Simulated Card */}
+                <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl shadow-lg shadow-slate-100 overflow-hidden text-left">
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getBimesterBadgeStyles(formData.period || '1º Bimestre')}`}>
+                        {formData.period || '1º Bimestre'}
+                      </span>
+                      
+                      <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100 uppercase tracking-wider">
+                        Modo Prévia
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-base font-bold text-slate-800 leading-tight uppercase tracking-tight truncate">
+                        {formData.title || 'Título da Nova Avaliação'}
+                      </h3>
+                      <p className="text-xs text-slate-400 italic mt-1 line-clamp-2 min-h-11 leading-relaxed">
+                        {formData.description ? `"${formData.description}"` : '"Sem descrição ou conteúdo programático vinculados até o momento."'}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 text-xs space-y-2 text-slate-600 border-t border-dashed border-slate-100">
+                      <div className="flex items-center gap-2.5">
+                        <Users size={14} className="text-slate-400 shrink-0" />
+                        <span className="font-semibold truncate">
+                          {formData.class_id ? getClassName(formData.class_id) : 'Turma Não Definida'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <BookOpen size={14} className="text-slate-400 shrink-0" />
+                        <span className="font-semibold truncate">
+                          {formData.subject_id ? getSubjectName(formData.subject_id) : 'Disciplina Não Definida'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-50">
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <Calendar size={13} className="shrink-0" />
+                          <span className="font-medium text-[11px]">
+                            {formData.date ? new Date(formData.date).toLocaleDateString('pt-BR') : '---'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-800 font-bold bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[11px] justify-center border border-amber-200/50">
+                          <Award size={13} className="text-amber-600 shrink-0" />
+                          <span>Valor: {formData.weight || 10}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 font-semibold">Lançamento de Notas:</span>
+                      <span className="text-slate-400 font-bold">
+                        0 de 0 alunos (0%)
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-slate-300 w-0" />
+                    </div>
+
+                    <div className="text-center text-[10px] text-slate-400 font-medium py-1 italic">
+                      As pautas de notas estarão prontas após salvar!
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-center max-w-xs mt-4 text-[11px] text-slate-400 leading-relaxed font-semibold">
+                  Certifique-se de preencher todos os campos marcados com asterisco (*) para registrar esta atividade de forma correta.
+                </div>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
