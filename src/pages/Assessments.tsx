@@ -51,7 +51,7 @@ export const Assessments: React.FC = () => {
     weight: 10,
     class_id: '',
     subject_id: '',
-    period: '1º Bimestre',
+    period: '1ª Avaliação',
     description: ''
   });
 
@@ -265,7 +265,22 @@ export const Assessments: React.FC = () => {
   const filteredAssessments = assessments.filter(a => {
     const matchesClass = !filterClass || a.class_id === filterClass;
     const matchesSubject = !filterSubject || a.subject_id === filterSubject;
-    const matchesPeriod = !filterPeriod || a.period === filterPeriod;
+    
+    let matchesPeriod = true;
+    if (filterPeriod) {
+      if (filterPeriod === '1ª Avaliação') {
+        matchesPeriod = a.period === '1ª Avaliação' || a.period === '1º Bimestre';
+      } else if (filterPeriod === '2ª Avaliação') {
+        matchesPeriod = a.period === '2ª Avaliação' || a.period === '2º Bimestre';
+      } else if (filterPeriod === '3ª Avaliação') {
+        matchesPeriod = a.period === '3ª Avaliação' || a.period === '3º Bimestre';
+      } else if (filterPeriod === '4ª Avaliação') {
+        matchesPeriod = a.period === '4ª Avaliação' || a.period === '4º Bimestre';
+      } else {
+        matchesPeriod = a.period === filterPeriod;
+      }
+    }
+
     const matchesSearch = !filterSearch || 
       (a.title || '').toLowerCase().includes(filterSearch.toLowerCase()) || 
       (a.description || '').toLowerCase().includes(filterSearch.toLowerCase());
@@ -275,16 +290,20 @@ export const Assessments: React.FC = () => {
   const getClassName = (id: string) => classes.find(c => c.id === id)?.name || 'N/A';
   const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || 'N/A';
 
-  // Styles utility for bimester tags
+  // Styles utility for bimester and assessment tags
   const getBimesterBadgeStyles = (period: string) => {
     switch(period) {
       case '1º Bimestre': 
+      case '1ª Avaliação':
         return 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case '2º Bimestre': 
+      case '2ª Avaliação':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case '3º Bimestre': 
+      case '3ª Avaliação':
         return 'bg-amber-50 text-amber-700 border-amber-200';
       case '4º Bimestre': 
+      case '4ª Avaliação':
         return 'bg-rose-50 text-rose-700 border-rose-200';
       default: 
         return 'bg-slate-50 text-slate-600 border-slate-200';
@@ -378,7 +397,7 @@ export const Assessments: React.FC = () => {
             </div>
             <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100 flex items-center gap-1">
               <History size={11} className="text-slate-400" />
-              Dica: Filtre por turma e bimestre para carregar consultas consolidadas e históricas
+              Dica: Filtre por turma e avaliação para carregar consultas consolidadas e históricas
             </div>
           </div>
           
@@ -441,7 +460,7 @@ export const Assessments: React.FC = () => {
 
             {/* Period Filter */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Bimestre</label>
+              <label className="text-xs font-medium text-slate-600 ml-0.5 font-bold">Avaliação</label>
               <div className="relative">
                 <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <select 
@@ -449,11 +468,11 @@ export const Assessments: React.FC = () => {
                   onChange={(e) => setFilterPeriod(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
-                  <option value="">Todos os Bimestres</option>
-                  <option value="1º Bimestre">1º Bimestre</option>
-                  <option value="2º Bimestre">2º Bimestre</option>
-                  <option value="3º Bimestre">3º Bimestre</option>
-                  <option value="4º Bimestre">4º Bimestre</option>
+                  <option value="">Todas as Avaliações</option>
+                  <option value="1ª Avaliação">1ª Avaliação</option>
+                  <option value="2ª Avaliação">2ª Avaliação</option>
+                  <option value="3ª Avaliação">3ª Avaliação</option>
+                  <option value="4ª Avaliação">4ª Avaliação</option>
                 </select>
               </div>
             </div>
@@ -726,17 +745,17 @@ export const Assessments: React.FC = () => {
 
                   {/* Period Field */}
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700 pl-0.5">Período / Bimestre *</label>
+                    <label className="text-xs font-bold text-slate-700 pl-0.5">Período / Avaliação *</label>
                     <select 
                       required
                       value={formData.period}
                       onChange={e => setFormData({...formData, period: e.target.value})}
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     >
-                      <option value="1º Bimestre">1º Bimestre</option>
-                      <option value="2º Bimestre">2º Bimestre</option>
-                      <option value="3º Bimestre">3º Bimestre</option>
-                      <option value="4º Bimestre">4º Bimestre</option>
+                      <option value="1ª Avaliação">1ª Avaliação</option>
+                      <option value="2ª Avaliação">2ª Avaliação</option>
+                      <option value="3ª Avaliação">3ª Avaliação</option>
+                      <option value="4ª Avaliação">4ª Avaliação</option>
                     </select>
                   </div>
 
@@ -814,8 +833,8 @@ export const Assessments: React.FC = () => {
                 <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl shadow-lg shadow-slate-100 overflow-hidden text-left">
                   <div className="p-5 space-y-4">
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getBimesterBadgeStyles(formData.period || '1º Bimestre')}`}>
-                        {formData.period || '1º Bimestre'}
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getBimesterBadgeStyles(formData.period || '1ª Avaliação')}`}>
+                        {formData.period || '1ª Avaliação'}
                       </span>
                       
                       <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100 uppercase tracking-wider">
