@@ -11,6 +11,7 @@ import { AcademicCalendar } from './pages/AcademicCalendar';
 import { Attendance } from './pages/Attendance';
 import { Grades } from './pages/Grades';
 import { Assessments } from './pages/Assessments';
+import { Bulletin } from './pages/Bulletin';
 import { Documents } from './pages/Documents';
 import { StudentFicha } from './pages/StudentFicha';
 import { Diocese } from './pages/Diocese';
@@ -162,6 +163,7 @@ function AppContent() {
               <Route path="monthly-attendance" element={<ProtectedRoute requiredModule="/attendance"><Attendance initialMode="monthly" /></ProtectedRoute>} />
               <Route path="grades" element={<ProtectedRoute requiredModule="/grades"><Grades /></ProtectedRoute>} />
               <Route path="assessments" element={<ProtectedRoute requiredModule="/assessments"><Assessments /></ProtectedRoute>} />
+              <Route path="bulletin" element={<ProtectedRoute requiredModule="/grades"><Bulletin /></ProtectedRoute>} />
               <Route path="documents" element={<ProtectedRoute requiredModule="/documents"><Documents /></ProtectedRoute>} />
               <Route path="student-ficha" element={<ProtectedRoute requiredModule="/students"><StudentFicha /></ProtectedRoute>} />
               <Route path="parishes" element={<ProtectedRoute requiredModule="/parishes"><Diocese /></ProtectedRoute>} />

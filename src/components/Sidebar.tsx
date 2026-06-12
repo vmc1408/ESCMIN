@@ -45,7 +45,7 @@ const navItems = [
     icon: ClassesIcon,
     children: [
       {
-        label: 'Acadêmico',
+        label: 'Cadastros',
         icon: GraduationCap,
         children: [
           { icon: StudentsIcon, label: 'Alunos', path: '/students' },
@@ -55,11 +55,12 @@ const navItems = [
         ]
       },
       { 
-        label: 'Diário de Classe',
+        label: 'Avaliações',
         icon: GradesIcon,
         children: [
           { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
           { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
+          { icon: FileText, label: 'Boletim de Notas', path: '/bulletin' },
           { icon: ReportsIcon, label: 'Diário Consolidado', path: '/reports?tab=diario_consolidado' },
           { icon: UserIcon, label: 'Ficha do Aluno', path: '/student-ficha' },
           { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents' },
@@ -172,7 +173,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Acadêmico', 'Diário de Classe', 'Frequência', 'Financeiro', 'Cronograma']);
+  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma']);
 
   const toggleGroup = (label: string) => {
     setOpenGroups(prev => 
