@@ -454,7 +454,7 @@ export function Bulletin() {
 
     try {
       const doc = new jsPDF({
-        orientation: 'l',
+        orientation: 'p',
         unit: 'mm',
         format: 'a4'
       });
@@ -519,10 +519,10 @@ export function Bulletin() {
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60);
-      doc.text('SITUAÇÃO:', 190, y + 10);
+      doc.text('SITUAÇÃO:', 150, y + 10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(30);
-      doc.text(`${reportToPdf.student.status || 'Ativo'}`.toUpperCase(), 212, y + 10);
+      doc.text(`${reportToPdf.student.status || 'Ativo'}`.toUpperCase(), 170, y + 10);
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60);
@@ -533,58 +533,42 @@ export function Bulletin() {
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60);
-      doc.text('PERÍODO:', 190, y + 16);
+      doc.text('PERÍODO:', 150, y + 16);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(30);
-      doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 212, y + 16);
+      doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 170, y + 16);
 
       doc.setDrawColor(220);
       doc.setLineWidth(0.3);
       doc.line(margin, y + 20, pageWidth - margin, y + 20);
 
-      // --- 4. Generate Grades/Absences Table ---
-      const tableHeaders: any[] = [
-        [
-          { content: 'Disciplinas', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
-          { content: 'Quantidade de faltas mensais', colSpan: 12, styles: { halign: 'center' } },
-          { content: 'Qt.\nFaltas', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: '%\nFreq.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: '1ª\nNota', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: '2ª\nNota', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Média', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-          { content: 'Situação', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
-        ],
-        [
-          'JAN', 'FEV', 'MA', 'ABR', 'MAI', 'JUN', 'JUL', 'AG', 'SET', 'OUT', 'NOV', 'DEZ'
-        ]
-      ];
+      const tableStartY = y + 23;
 
-      const tableRows = reportToPdf.subjectsPerformance.map((sp: any) => {
+      // --- 4. VIA FREQUÊNCIA: Monthly Absences Table ---
+      const headersFreq: any[] = [[
+        { content: 'Disciplinas (Controle de Faltas Mensais)', styles: { halign: 'left' as any, valign: 'middle' as any } },
+        'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
+        { content: 'Qt. Faltas', styles: { halign: 'center' as any, valign: 'middle' as any } },
+        { content: '% Freq.', styles: { halign: 'center' as any, valign: 'middle' as any } }
+      ]];
+
+      const rowsFreq = reportToPdf.subjectsPerformance.map((sp: any) => {
         const row = [
           `${sp.subjectCode} - ${sp.subjectName}`
         ];
-        
-        // Month columns (0-11)
         monthsList.forEach(m => {
           const abs = sp.monthlyAbsences[m.index];
           row.push(abs > 0 ? abs.toString() : '');
         });
-
-        // Totals & Grades columns
         row.push(sp.totalAbsences.toString());
-        row.push(formatPresence(sp.presencePercentage));
-        row.push(sp.grade1 !== null ? formatGrade(sp.grade1) : ',00');
-        row.push(sp.grade2 !== null ? formatGrade(sp.grade2) : ',00');
-        row.push(sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00');
-        row.push(sp.status === 'Pendente' ? 'Pendente' : sp.status);
-
+        row.push(formatPresence(sp.presencePercentage) + '%');
         return row;
       });
 
       autoTable(doc, {
-        head: tableHeaders,
-        body: tableRows,
-        startY: y + 25,
+        head: headersFreq,
+        body: rowsFreq,
+        startY: tableStartY,
         theme: 'grid',
         styles: {
           fontSize: 7.5,
@@ -603,66 +587,117 @@ export function Bulletin() {
           lineColor: [226, 232, 240]
         },
         columnStyles: {
-          0: { cellWidth: 77, fontStyle: 'bold' },
-          1: { cellWidth: 8, halign: 'center' },
-          2: { cellWidth: 8, halign: 'center' },
-          3: { cellWidth: 8, halign: 'center' },
-          4: { cellWidth: 8, halign: 'center' },
-          5: { cellWidth: 8, halign: 'center' },
-          6: { cellWidth: 8, halign: 'center' },
-          7: { cellWidth: 8, halign: 'center' },
-          8: { cellWidth: 8, halign: 'center' },
-          9: { cellWidth: 8, halign: 'center' },
-          10: { cellWidth: 8, halign: 'center' },
-          11: { cellWidth: 8, halign: 'center' },
-          12: { cellWidth: 8, halign: 'center' },
-          13: { cellWidth: 14, halign: 'center' }, // Total absences
-          14: { cellWidth: 14, halign: 'center' }, // % Freq.
-          15: { cellWidth: 14, halign: 'center' }, // 1a Nota
-          16: { cellWidth: 14, halign: 'center' }, // 2a Nota
-          17: { cellWidth: 14, halign: 'center' }, // Média
-          18: { cellWidth: 24, halign: 'center', fontStyle: 'bold' } // Situação
+          0: { cellWidth: 72, fontStyle: 'bold' },
+          1: { cellWidth: 7, halign: 'center' },
+          2: { cellWidth: 7, halign: 'center' },
+          3: { cellWidth: 7, halign: 'center' },
+          4: { cellWidth: 7, halign: 'center' },
+          5: { cellWidth: 7, halign: 'center' },
+          6: { cellWidth: 7, halign: 'center' },
+          7: { cellWidth: 7, halign: 'center' },
+          8: { cellWidth: 7, halign: 'center' },
+          9: { cellWidth: 7, halign: 'center' },
+          10: { cellWidth: 7, halign: 'center' },
+          11: { cellWidth: 7, halign: 'center' },
+          12: { cellWidth: 7, halign: 'center' },
+          13: { cellWidth: 11, halign: 'center' },
+          14: { cellWidth: 13, halign: 'center' }
         }
       });
 
-      // --- 5. Summary Footer block ---
+      const nextY = (doc as any).lastAutoTable.finalY + 8;
+
+      // --- 5. VIA RENDIMENTO: Grades and Academic Performance Table ---
+      const headersGrades: any[] = [[
+        { content: 'Disciplinas (Aproveitamento Acadêmico)', styles: { halign: 'left' as any, valign: 'middle' as any } },
+        { content: '1ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+        { content: '2ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+        { content: 'Média Final', styles: { halign: 'center' as any, valign: 'middle' as any } },
+        { content: 'Situação Geral', styles: { halign: 'center' as any, valign: 'middle' as any } }
+      ]];
+
+      const rowsGrades = reportToPdf.subjectsPerformance.map((sp: any) => {
+        return [
+          `${sp.subjectCode} - ${sp.subjectName}`,
+          sp.grade1 !== null ? formatGrade(sp.grade1) : ',00',
+          sp.grade2 !== null ? formatGrade(sp.grade2) : ',00',
+          sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00',
+          sp.status === 'Pendente' ? 'Pendente' : sp.status
+        ];
+      });
+
+      autoTable(doc, {
+        head: headersGrades,
+        body: rowsGrades,
+        startY: nextY,
+        theme: 'grid',
+        styles: {
+          fontSize: 7.5,
+          cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [33, 41, 54],
+          font: 'helvetica'
+        },
+        headStyles: {
+          fillColor: [241, 245, 249],
+          textColor: [15, 23, 42],
+          fontStyle: 'bold',
+          fontSize: 7,
+          lineWidth: 0.15,
+          lineColor: [226, 232, 240]
+        },
+        columnStyles: {
+          0: { cellWidth: 92, fontStyle: 'bold' },
+          1: { cellWidth: 20, halign: 'center' },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }
+        }
+      });
+
+      // --- 6. Summary Footer block ---
       const finalY = (doc as any).lastAutoTable.finalY + 4;
       
       doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.2);
 
-      // Drawing elegant averages summary card aligned to the right margin (282mm)
+      // Drawing elegant averages summary card aligned to the right margin (195mm)
+      // Card width is 80mm, so starting X is 195 - 80 = 115mm
       doc.setFillColor(248, 250, 252);
-      doc.rect(198, finalY, 84, 14, 'F');
-      doc.rect(198, finalY, 84, 14, 'S');
+      doc.rect(115, finalY, 80, 14, 'F');
+      doc.rect(115, finalY, 80, 14, 'S');
 
-      doc.line(250, finalY, 250, finalY + 14);
-      doc.line(198, finalY + 7, 282, finalY + 7);
+      doc.line(155, finalY, 155, finalY + 14);
+      doc.line(115, finalY + 7, 195, finalY + 7);
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
+      doc.setFontSize(6.5);
       doc.setTextColor(51, 65, 85);
-      doc.text('MÉDIA DE FREQUÊNCIA', 201, finalY + 4.5);
+      doc.text('MÉDIA DE FREQUÊNCIA', 135, finalY + 4.5, { align: 'center' });
       doc.setFont('helvetica', 'normal');
-      doc.text(`${formatPresence(reportToPdf.averageFrequency)}%`, 266, finalY + 4.5, { align: 'center' });
+      doc.setFontSize(7.5);
+      doc.text(`${formatPresence(reportToPdf.averageFrequency)}%`, 135, finalY + 11.5, { align: 'center' });
 
       doc.setFont('helvetica', 'bold');
-      doc.text('MÉDIA GERAL DE NOTAS', 201, finalY + 11.5);
+      doc.setFontSize(6.5);
+      doc.text('MÉDIA GERAL DE NOTAS', 175, finalY + 4.5, { align: 'center' });
       doc.setFont('helvetica', 'normal');
-      doc.text(formatGrade(reportToPdf.averageGrade), 266, finalY + 11.5, { align: 'center' });
+      doc.setFontSize(7.5);
+      doc.text(formatGrade(reportToPdf.averageGrade), 175, finalY + 11.5, { align: 'center' });
 
-      // --- 6. Bottom System Footer ---
+      // --- 7. Bottom System Footer ---
       doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.3);
-      doc.line(margin, 192, pageWidth - margin, 192);
+      doc.line(margin, 282, pageWidth - margin, 282);
 
       const todayFormatted = new Date().toLocaleDateString('pt-BR');
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(120);
-      doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 198);
-      doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 198, { align: 'center' });
-      doc.text('Página 1 de 1', pageWidth - margin, 198, { align: 'right' });
+      doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 288);
+      doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 288, { align: 'center' });
+      doc.text('Página 1 de 1', pageWidth - margin, 288, { align: 'right' });
 
       doc.save(`boletim_${reportToPdf.student.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}.pdf`);
     } catch (err) {
@@ -832,7 +867,7 @@ export function Bulletin() {
 
     try {
       const doc = new jsPDF({
-        orientation: 'l',
+        orientation: 'p',
         unit: 'mm',
         format: 'a4'
       });
@@ -903,10 +938,10 @@ export function Bulletin() {
 
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(60);
-        doc.text('SITUAÇÃO:', 190, y + 10);
+        doc.text('SITUAÇÃO:', 150, y + 10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(30);
-        doc.text(`${report.student.status || 'Ativo'}`.toUpperCase(), 212, y + 10);
+        doc.text(`${report.student.status || 'Ativo'}`.toUpperCase(), 170, y + 10);
 
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(60);
@@ -917,56 +952,42 @@ export function Bulletin() {
 
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(60);
-        doc.text('PERÍODO:', 190, y + 16);
+        doc.text('PERÍODO:', 150, y + 16);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(30);
-        doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 212, y + 16);
+        doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 170, y + 16);
 
         doc.setDrawColor(220);
         doc.setLineWidth(0.3);
         doc.line(margin, y + 20, pageWidth - margin, y + 20);
 
-        // --- 4. Generate Grades/Absences Table ---
-        const tableHeaders: any[] = [
-          [
-            { content: 'Disciplinas', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
-            { content: 'Quantidade de faltas mensais', colSpan: 12, styles: { halign: 'center' } },
-            { content: 'Qt.\nFaltas', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-            { content: '%\nFreq.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-            { content: '1ª\nNota', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-            { content: '2ª\nNota', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-            { content: 'Média', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-            { content: 'Situação', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
-          ],
-          [
-            'JAN', 'FEV', 'MA', 'ABR', 'MAI', 'JUN', 'JUL', 'AG', 'SET', 'OUT', 'NOV', 'DEZ'
-          ]
-        ];
+        const tableStartY = y + 23;
 
-        const tableRows = report.subjectsPerformance.map((sp: any) => {
+        // --- 4. VIA FREQUÊNCIA: Monthly Absences Table ---
+        const headersFreq: any[] = [[
+          { content: 'Disciplinas (Controle de Faltas Mensais)', styles: { halign: 'left' as any, valign: 'middle' as any } },
+          'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
+          { content: 'Qt. Faltas', styles: { halign: 'center' as any, valign: 'middle' as any } },
+          { content: '% Freq.', styles: { halign: 'center' as any, valign: 'middle' as any } }
+        ]];
+
+        const rowsFreq = report.subjectsPerformance.map((sp: any) => {
           const row = [
             `${sp.subjectCode} - ${sp.subjectName}`
           ];
-          
           monthsList.forEach(m => {
             const abs = sp.monthlyAbsences[m.index];
             row.push(abs > 0 ? abs.toString() : '');
           });
-
           row.push(sp.totalAbsences.toString());
-          row.push(formatPresence(sp.presencePercentage));
-          row.push(sp.grade1 !== null ? formatGrade(sp.grade1) : ',00');
-          row.push(sp.grade2 !== null ? formatGrade(sp.grade2) : ',00');
-          row.push(sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00');
-          row.push(sp.status === 'Pendente' ? 'Pendente' : sp.status);
-
+          row.push(formatPresence(sp.presencePercentage) + '%');
           return row;
         });
 
         autoTable(doc, {
-          head: tableHeaders,
-          body: tableRows,
-          startY: y + 25,
+          head: headersFreq,
+          body: rowsFreq,
+          startY: tableStartY,
           theme: 'grid',
           styles: {
             fontSize: 7.5,
@@ -985,65 +1006,115 @@ export function Bulletin() {
             lineColor: [226, 232, 240]
           },
           columnStyles: {
-            0: { cellWidth: 77, fontStyle: 'bold' },
-            1: { cellWidth: 8, halign: 'center' },
-            2: { cellWidth: 8, halign: 'center' },
-            3: { cellWidth: 8, halign: 'center' },
-            4: { cellWidth: 8, halign: 'center' },
-            5: { cellWidth: 8, halign: 'center' },
-            6: { cellWidth: 8, halign: 'center' },
-            7: { cellWidth: 8, halign: 'center' },
-            8: { cellWidth: 8, halign: 'center' },
-            9: { cellWidth: 8, halign: 'center' },
-            10: { cellWidth: 8, halign: 'center' },
-            11: { cellWidth: 8, halign: 'center' },
-            12: { cellWidth: 8, halign: 'center' },
-            13: { cellWidth: 14, halign: 'center' },
-            14: { cellWidth: 14, halign: 'center' },
-            15: { cellWidth: 14, halign: 'center' },
-            16: { cellWidth: 14, halign: 'center' },
-            17: { cellWidth: 14, halign: 'center' },
-            18: { cellWidth: 24, halign: 'center', fontStyle: 'bold' }
+            0: { cellWidth: 72, fontStyle: 'bold' },
+            1: { cellWidth: 7, halign: 'center' },
+            2: { cellWidth: 7, halign: 'center' },
+            3: { cellWidth: 7, halign: 'center' },
+            4: { cellWidth: 7, halign: 'center' },
+            5: { cellWidth: 7, halign: 'center' },
+            6: { cellWidth: 7, halign: 'center' },
+            7: { cellWidth: 7, halign: 'center' },
+            8: { cellWidth: 7, halign: 'center' },
+            9: { cellWidth: 7, halign: 'center' },
+            10: { cellWidth: 7, halign: 'center' },
+            11: { cellWidth: 7, halign: 'center' },
+            12: { cellWidth: 7, halign: 'center' },
+            13: { cellWidth: 11, halign: 'center' },
+            14: { cellWidth: 13, halign: 'center' }
           }
         });
 
-        // --- 5. Summary Footer block ---
+        const nextY = (doc as any).lastAutoTable.finalY + 8;
+
+        // --- 5. VIA RENDIMENTO: Grades and Academic Performance Table ---
+        const headersGrades: any[] = [[
+          { content: 'Disciplinas (Aproveitamento Acadêmico)', styles: { halign: 'left' as any, valign: 'middle' as any } },
+          { content: '1ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+          { content: '2ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+          { content: 'Média Final', styles: { halign: 'center' as any, valign: 'middle' as any } },
+          { content: 'Situação Geral', styles: { halign: 'center' as any, valign: 'middle' as any } }
+        ]];
+
+        const rowsGrades = report.subjectsPerformance.map((sp: any) => {
+          return [
+            `${sp.subjectCode} - ${sp.subjectName}`,
+            sp.grade1 !== null ? formatGrade(sp.grade1) : ',00',
+            sp.grade2 !== null ? formatGrade(sp.grade2) : ',00',
+            sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00',
+            sp.status === 'Pendente' ? 'Pendente' : sp.status
+          ];
+        });
+
+        autoTable(doc, {
+          head: headersGrades,
+          body: rowsGrades,
+          startY: nextY,
+          theme: 'grid',
+          styles: {
+            fontSize: 7.5,
+            cellPadding: { top: 2.2, bottom: 2.2, left: 1.5, right: 1.5 },
+            lineColor: [226, 232, 240],
+            lineWidth: 0.15,
+            textColor: [33, 41, 54],
+            font: 'helvetica'
+          },
+          headStyles: {
+            fillColor: [241, 245, 249],
+            textColor: [15, 23, 42],
+            fontStyle: 'bold',
+            fontSize: 7,
+            lineWidth: 0.15,
+            lineColor: [226, 232, 240]
+          },
+          columnStyles: {
+            0: { cellWidth: 92, fontStyle: 'bold' },
+            1: { cellWidth: 20, halign: 'center' },
+            2: { cellWidth: 20, halign: 'center' },
+            3: { cellWidth: 20, halign: 'center' },
+            4: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }
+          }
+        });
+
+        // --- 6. Summary Footer block ---
         const finalY = (doc as any).lastAutoTable.finalY + 4;
         
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.2);
 
         doc.setFillColor(248, 250, 252);
-        doc.rect(198, finalY, 84, 14, 'F');
-        doc.rect(198, finalY, 84, 14, 'S');
+        doc.rect(115, finalY, 80, 14, 'F');
+        doc.rect(115, finalY, 80, 14, 'S');
 
-        doc.line(250, finalY, 250, finalY + 14);
-        doc.line(198, finalY + 7, 282, finalY + 7);
+        doc.line(155, finalY, 155, finalY + 14);
+        doc.line(115, finalY + 7, 195, finalY + 7);
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.5);
+        doc.setFontSize(6.5);
         doc.setTextColor(51, 65, 85);
-        doc.text('MÉDIA DE FREQUÊNCIA', 201, finalY + 4.5);
+        doc.text('MÉDIA DE FREQUÊNCIA', 135, finalY + 4.5, { align: 'center' });
         doc.setFont('helvetica', 'normal');
-        doc.text(`${formatPresence(report.averageFrequency)}%`, 266, finalY + 4.5, { align: 'center' });
+        doc.setFontSize(7.5);
+        doc.text(`${formatPresence(report.averageFrequency)}%`, 135, finalY + 11.5, { align: 'center' });
 
         doc.setFont('helvetica', 'bold');
-        doc.text('MÉDIA GERAL DE NOTAS', 201, finalY + 11.5);
+        doc.setFontSize(6.5);
+        doc.text('MÉDIA GERAL DE NOTAS', 175, finalY + 4.5, { align: 'center' });
         doc.setFont('helvetica', 'normal');
-        doc.text(formatGrade(report.averageGrade), 266, finalY + 11.5, { align: 'center' });
+        doc.setFontSize(7.5);
+        doc.text(formatGrade(report.averageGrade), 175, finalY + 11.5, { align: 'center' });
 
-        // --- 6. Bottom System Footer ---
+        // --- 7. Bottom System Footer ---
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.3);
-        doc.line(margin, 192, pageWidth - margin, 192);
+        doc.line(margin, 282, pageWidth - margin, 282);
 
         const todayFormatted = new Date().toLocaleDateString('pt-BR');
         doc.setFontSize(7.5);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(120);
-        doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 198);
-        doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 198, { align: 'center' });
-        doc.text(`Alunos: ${index + 1} de ${studentReports.length}`, pageWidth - margin, 198, { align: 'right' });
+        doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 288);
+        doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 288, { align: 'center' });
+        doc.text(`Alunos: ${index + 1} de ${studentReports.length}`, pageWidth - margin, 288, { align: 'right' });
       });
 
       doc.save(`boletins_lote_turma_${activeClassObj?.name.toLowerCase().replace(/\s+/g, '_') || 'classe'}.pdf`);
@@ -1337,57 +1408,40 @@ export function Bulletin() {
                       </div>
                     </div>
 
-                    {/* Main report card table (Jan to Dec, Qt, %, grades, situation) */}
-                    <div className="overflow-x-auto select-text border border-slate-200">
-                      <table className="w-full text-left font-sans text-[10px] border-collapse uppercase">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
-                            <th className="px-3 py-3 border-r border-slate-200 text-left min-w-[200px]" rowSpan={2}>
-                              Disciplinas
-                            </th>
-                            <th className="py-1 border-r border-b border-slate-200 text-center" colSpan={12}>
-                              Quantidade de faltas mensais
-                            </th>
-                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
-                              Qt.<br/>Faltas
-                            </th>
-                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
-                              %<br/>Freq.
-                            </th>
-                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
-                              1a<br/>Nota
-                            </th>
-                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
-                              2a<br/>Nota
-                            </th>
-                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
-                              Média
-                            </th>
-                            <th className="py-2.5 text-center text-[9px] leading-tight" rowSpan={2}>
-                              Situação
-                            </th>
-                          </tr>
-                          <tr className="bg-slate-50 text-[8px] border-b border-slate-200 text-slate-600 font-bold">
-                            {monthsList.map(month => (
-                              <th key={month.index} className="py-1 text-center border-r border-slate-200 w-[24px]">
-                                {month.label}
+                    {/* Tabela I - Registro de Frequência e Faltas */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 pb-1">
+                        <span className="w-1.5 h-1.5 bg-slate-800" />
+                        <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-wider">
+                          Controle de Faltas Mensais e Frequência
+                        </h3>
+                      </div>
+                      <div className="overflow-x-auto select-text border border-slate-200">
+                        <table className="w-full text-left font-sans text-[10px] border-collapse uppercase">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
+                              <th className="px-3 py-2.5 border-r border-slate-200 text-left min-w-[150px]">
+                                Disciplinas
                               </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-slate-700">
-                          {activeStudentReport.subjectsPerformance.map(sp => {
-                            const showFailed = sp.status === 'Reprovado';
-                            const showRecup = sp.status === 'Recuperação';
-                            const showPending = sp.status === 'Pendente';
-
-                            return (
+                              {monthsList.map(month => (
+                                <th key={month.index} className="py-2 text-center border-r border-slate-200 w-[24px] text-[8px]">
+                                  {month.label}
+                                </th>
+                              ))}
+                              <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight w-[32px]">
+                                Faltas
+                              </th>
+                              <th className="py-2.5 text-center text-[9px] leading-tight w-[36px]">
+                                Freq.
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                            {activeStudentReport.subjectsPerformance.map(sp => (
                               <tr key={sp.subjectId} className="hover:bg-slate-50/50 text-[10px] font-semibold">
-                                <td className="px-3 py-2.5 border-r border-slate-100 text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis max-w-[240px]">
+                                <td className="px-3 py-2 border-r border-slate-100 text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
                                   {sp.subjectCode} - {sp.subjectName}
                                 </td>
-                                
-                                {/* Month monthly absences items */}
                                 {monthsList.map(m => {
                                   const absCount = sp.monthlyAbsences[m.index];
                                   return (
@@ -1396,36 +1450,82 @@ export function Bulletin() {
                                     </td>
                                   );
                                 })}
-
-                                {/* Total Absence absences, Freq and Grade calculations */}
-                                <td className="py-2 text-center border-r border-slate-100 font-mono text-[10px]">
+                                <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-slate-800">
                                   {sp.totalAbsences}
                                 </td>
-                                <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-[10px]">
+                                <td className="py-2 text-center font-bold font-mono text-slate-800">
                                   {formatPresence(sp.presencePercentage)}%
                                 </td>
-                                <td className="py-2 text-center border-r border-slate-100 font-mono text-[10px] text-slate-600">
-                                  {sp.grade1 !== null ? formatGrade(sp.grade1) : ',00'}
-                                </td>
-                                <td className="py-2 text-center border-r border-slate-100 font-mono text-[10px] text-slate-600">
-                                  {sp.grade2 !== null ? formatGrade(sp.grade2) : ',00'}
-                                </td>
-                                <td className="py-2 text-center border-r border-slate-200 font-bold font-mono text-[10px]">
-                                  {sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00'}
-                                </td>
-                                <td className={cn(
-                                  "py-2 text-center font-bold text-[9px] tracking-widest uppercase px-2",
-                                  showFailed ? "text-rose-650 bg-rose-50/40" :
-                                  showRecup ? "text-amber-650 bg-amber-50/40" :
-                                  showPending ? "text-slate-400 bg-slate-50" : "text-emerald-650 bg-emerald-50/40"
-                                )}>
-                                  {sp.status === 'Pendente' ? 'Pendente' : sp.status}
-                                </td>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Tabela II - Aproveitamento Acadêmico (Notas e Situação) */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center gap-1.5 pb-1">
+                        <span className="w-1.5 h-1.5 bg-slate-800" />
+                        <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-wider">
+                          Aproveitamento Acadêmico e Situação Final
+                        </h3>
+                      </div>
+                      <div className="overflow-x-auto select-text border border-slate-200">
+                        <table className="w-full text-left font-sans text-[10px] border-collapse uppercase">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
+                              <th className="px-3 py-2.5 border-r border-slate-200 text-left">
+                                Disciplinas
+                              </th>
+                              <th className="py-2.5 border-r border-slate-200 text-center w-[70px]">
+                                1ª Nota
+                              </th>
+                              <th className="py-2.5 border-r border-slate-200 text-center w-[70px]">
+                                2ª Nota
+                              </th>
+                              <th className="py-2.5 border-r border-slate-200 text-center w-[70px]">
+                                Média Final
+                              </th>
+                              <th className="py-2.5 text-center w-[90px]">
+                                Situação Geral
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700">
+                            {activeStudentReport.subjectsPerformance.map(sp => {
+                              const showFailed = sp.status === 'Reprovado';
+                              const showRecup = sp.status === 'Recuperação';
+                              const showPending = sp.status === 'Pendente';
+
+                              return (
+                                <tr key={sp.subjectId} className="hover:bg-slate-50/50 text-[10px] font-semibold">
+                                  <td className="px-3 py-2.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
+                                    {sp.subjectCode} - {sp.subjectName}
+                                  </td>
+                                  <td className="py-2.5 text-center border-r border-slate-100 font-mono text-slate-600">
+                                    {sp.grade1 !== null ? formatGrade(sp.grade1) : ',00'}
+                                  </td>
+                                  <td className="py-2.5 text-center border-r border-slate-100 font-mono text-slate-600">
+                                    {sp.grade2 !== null ? formatGrade(sp.grade2) : ',00'}
+                                  </td>
+                                  <td className="py-2.5 text-center border-r border-slate-200 font-extrabold font-mono text-slate-900">
+                                    {sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00'}
+                                  </td>
+                                  <td className={cn(
+                                    "py-2.5 text-center font-bold text-[9px] tracking-widest uppercase px-2",
+                                    showFailed ? "text-rose-650 bg-rose-50/40" :
+                                    showRecup ? "text-amber-650 bg-amber-50/40" :
+                                    showPending ? "text-slate-400 bg-slate-50" : "text-emerald-650 bg-emerald-50/40"
+                                  )}>
+                                    {sp.status === 'Pendente' ? 'Pendente' : sp.status}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
 
                     {/* Integrated footer statistics aligned right below table */}
