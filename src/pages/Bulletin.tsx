@@ -1582,44 +1582,6 @@ export function Bulletin() {
           ) : (
             /* --- CLASS LISTING GENERAL PERFORMANCE LAYOUT --- */
             <div id="printable-class-bulletin" className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
-              {/* PRINTABLE ONLY HEADER */}
-              <div className="hidden print:block p-8 border-b border-slate-200 bg-white">
-                <div className="flex items-center gap-6 mb-6">
-                  {institution?.logo_url ? (
-                    <img 
-                      src={institution.logo_url} 
-                      alt="Logo" 
-                      referrerPolicy="no-referrer"
-                      className="w-16 h-16 object-contain"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
-                      <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
-                      <School size={16} className="text-slate-350 my-1" />
-                      <span className="text-[5px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <span className="text-[9px] font-black text-slate-450 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
-                    <h1 className="text-sm font-black text-slate-900 uppercase tracking-tight">
-                      {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                    </h1>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
-                      {institution?.address || 'SECRETARIA ACADÊMICA'}
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-slate-100/60 border border-slate-200 p-3 text-center uppercase mb-6">
-                  <h2 className="text-[10px] font-black text-slate-800 tracking-widest">
-                    Pauta de Notas & Rendimentos Gerais por Turma
-                  </h2>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-wider">
-                  <div>Turma: <span className="text-slate-900 font-extrabold">{classes.find(c => c.id === selectedClassId)?.name}</span></div>
-                  <div className="text-right">Emissão: <span className="text-slate-900 font-extrabold">{new Date().toLocaleDateString('pt-BR')}</span></div>
-                </div>
-              </div>
-
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
                 <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
                   Resumo de Rendimentos e Situações Finais ({classes.find(c => c.id === selectedClassId)?.name})
@@ -1637,7 +1599,51 @@ export function Bulletin() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left font-sans">
                     <thead>
-                      <tr className="bg-slate-50/60 text-[9px] font-bold text-slate-500 border-b border-slate-200 uppercase tracking-widest">
+                      {/* PRINT REPEATED CORPORATE HEADER - Visible only when printing */}
+                      <tr className="hidden print:table-row">
+                        <td colSpan={6} className="p-8 border-b border-slate-200 bg-white">
+                          <div className="flex items-center gap-6 mb-6">
+                            {institution?.logo_url ? (
+                              <img 
+                                src={institution.logo_url} 
+                                alt="Logo" 
+                                referrerPolicy="no-referrer"
+                                className="w-16 h-16 object-contain"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
+                                <span className="text-[4px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
+                                <School size={16} className="text-slate-350 my-1" />
+                                <span className="text-[3px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
+                              </div>
+                            )}
+                            <div className="flex-1 text-left">
+                              <span className="text-[9px] font-black text-slate-450 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
+                              <h1 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                                {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                              </h1>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                                {institution?.address || 'SECRETARIA ACADÊMICA'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="bg-slate-100/60 border border-slate-200 p-3 text-center uppercase mb-6">
+                            <h2 className="text-[10px] font-black text-slate-800 tracking-widest">
+                              Pauta de Notas & Rendimentos Gerais por Turma
+                            </h2>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-wider mb-2">
+                            <div className="text-left font-bold uppercase">
+                              Turma: <span className="text-slate-900 font-extrabold">{classes.find(c => c.id === selectedClassId)?.name}</span>
+                            </div>
+                            <div className="text-right font-bold uppercase">
+                              Emissão: <span className="text-slate-900 font-extrabold">{new Date().toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+
+                      <tr className="bg-slate-50/60 text-[9px] font-bold text-slate-500 border-b border-slate-200 uppercase tracking-widest table-columns-header">
                         <th className="px-6 py-4">Matrícula (RA)</th>
                         <th className="px-6 py-4">Aluno</th>
                         <th className="px-6 py-4 text-center">Faltas Globais</th>
@@ -1698,6 +1704,17 @@ export function Bulletin() {
                         );
                       })}
                     </tbody>
+                    <tfoot className="hidden print:table-footer-group">
+                      <tr>
+                        <td colSpan={6} className="p-0 border-t-0 pt-4">
+                          <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
+                            <span>ESCMIN - Sistema de Gestão de Secretaria</span>
+                            <span>Pauta de Classe por Turma</span>
+                            <span>Assinatura da Secretaria: ___________________________</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               )}
@@ -1717,7 +1734,7 @@ export function Bulletin() {
             height: auto !important;
             min-height: 0 !important;
             margin: 0 !important;
-            padding: 8mm !important;
+            padding: 0px !important;
             background: white !important;
             z-index: 9999 !important;
             display: block !important;
@@ -1732,60 +1749,60 @@ export function Bulletin() {
           }
           
           /* Set custom column widths and align correctly under print */
-          #printable-class-bulletin th,
-          #printable-class-bulletin td {
+          #printable-class-bulletin thead tr.table-columns-header th,
+          #printable-class-bulletin tbody td {
             padding: 1.5mm 1mm !important;
             word-break: normal !important;
             white-space: normal !important;
           }
 
-          #printable-class-bulletin th {
+          #printable-class-bulletin thead tr.table-columns-header th {
             font-size: 8px !important;
             white-space: nowrap !important;
           }
           
           /* Column widths */
-          #printable-class-bulletin th:nth-child(1),
-          #printable-class-bulletin td:nth-child(1) {
+          #printable-class-bulletin thead tr.table-columns-header th:nth-child(1),
+          #printable-class-bulletin tbody td:nth-child(1) {
             width: 12% !important;
             text-align: left !important;
             white-space: nowrap !important;
             font-size: 9px !important;
           }
-          #printable-class-bulletin th:nth-child(2),
-          #printable-class-bulletin td:nth-child(2) {
+          #printable-class-bulletin thead tr.table-columns-header th:nth-child(2),
+          #printable-class-bulletin tbody td:nth-child(2) {
             width: 38% !important;
             text-align: left !important;
             font-size: 9.5px !important;
             line-height: 1.1 !important;
           }
-          #printable-class-bulletin th:nth-child(3),
-          #printable-class-bulletin td:nth-child(3) {
+          #printable-class-bulletin thead tr.table-columns-header th:nth-child(3),
+          #printable-class-bulletin tbody td:nth-child(3) {
             width: 12% !important;
             text-align: center !important;
             white-space: nowrap !important;
           }
-          #printable-class-bulletin th:nth-child(4),
-          #printable-class-bulletin td:nth-child(4) {
+          #printable-class-bulletin thead tr.table-columns-header th:nth-child(4),
+          #printable-class-bulletin tbody td:nth-child(4) {
             width: 12% !important;
             text-align: center !important;
             white-space: nowrap !important;
           }
-          #printable-class-bulletin th:nth-child(5),
-          #printable-class-bulletin td:nth-child(5) {
+          #printable-class-bulletin thead tr.table-columns-header th:nth-child(5),
+          #printable-class-bulletin tbody td:nth-child(5) {
             width: 12% !important;
             text-align: center !important;
             white-space: nowrap !important;
           }
-          #printable-class-bulletin th:nth-child(6),
-          #printable-class-bulletin td:nth-child(6) {
+          #printable-class-bulletin thead tr.table-columns-header th:nth-child(6),
+          #printable-class-bulletin tbody td:nth-child(6) {
             width: 14% !important;
             text-align: center !important;
             white-space: nowrap !important;
           }
 
           /* Compress final status and average grade badges under print to prevent tall cells */
-          #printable-class-bulletin td span {
+          #printable-class-bulletin tbody td span {
             padding: 0.5mm 1mm !important;
             font-size: 8px !important;
             width: auto !important;
@@ -1802,6 +1819,9 @@ export function Bulletin() {
           }
           thead {
             display: table-header-group !important;
+          }
+          tfoot {
+            display: table-footer-group !important;
           }
         }
       `}</style>
