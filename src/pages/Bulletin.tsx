@@ -1338,7 +1338,7 @@ export function Bulletin() {
               <div className="space-y-4">
                 
                 {/* On-screen paper layout framing simulating standard print sheet */}
-                <div id="print-sheet-boletim" className="bg-white border border-slate-200 p-6 md:p-8 text-slate-900 shadow-sm max-w-[210mm] mx-auto relative font-sans leading-relaxed animate-in fade-in duration-300">
+                <div id="printable-boletim" className="bg-white border border-slate-200 p-6 md:p-8 text-slate-900 shadow-sm max-w-[210mm] mx-auto relative font-sans leading-relaxed animate-in fade-in duration-300">
                   
                   {/* Inner container */}
                   <div className="space-y-6">
