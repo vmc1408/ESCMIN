@@ -1788,8 +1788,18 @@ export function Bulletin() {
           tfoot {
             display: table-footer-group !important;
           }
-          .print-page-number::after {
-            content: "Página " counter(page) !important;
+          @page {
+            size: A4 portrait;
+            margin: 15mm 15mm 15mm 15mm;
+            @bottom-right {
+              content: "Página " counter(page);
+              font-size: 7.5px;
+              color: rgb(148, 163, 184); /* Slate 400 */
+              font-family: "Inter", sans-serif;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.12em;
+            }
           }
         }
       `}</style>
