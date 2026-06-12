@@ -201,12 +201,12 @@ export function Bulletin() {
   const monthsList = [
     { label: 'JAN', index: 0 },
     { label: 'FEV', index: 1 },
-    { label: 'MA', index: 2 },
+    { label: 'MAR', index: 2 },
     { label: 'ABR', index: 3 },
     { label: 'MAI', index: 4 },
     { label: 'JUN', index: 5 },
     { label: 'JUL', index: 6 },
-    { label: 'AG', index: 7 },
+    { label: 'AGO', index: 7 },
     { label: 'SET', index: 8 },
     { label: 'OUT', index: 9 },
     { label: 'NOV', index: 10 },
@@ -437,9 +437,11 @@ export function Bulletin() {
   };
 
   // Helper function to format grade values safely
-  const formatGrade = (val: number | null | undefined): string => {
-    if (val === null || val === undefined) return ',00';
-    return val.toFixed(2).replace('.', ',');
+  const formatGrade = (val: any): string => {
+    if (val === null || val === undefined || val === '') return '-';
+    const num = typeof val === 'string' ? parseFloat(val.replace(',', '.')) : val;
+    if (isNaN(num)) return '-';
+    return parseFloat(num.toFixed(2)).toString();
   };
 
   const formatPresence = (val: number | null | undefined): string => {
@@ -571,8 +573,8 @@ export function Bulletin() {
         startY: tableStartY,
         theme: 'grid',
         styles: {
-          fontSize: 7.5,
-          cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+          fontSize: 7,
+          cellPadding: { top: 2, bottom: 2, left: 0.5, right: 0.5 },
           lineColor: [226, 232, 240],
           lineWidth: 0.15,
           textColor: [33, 41, 54],
@@ -582,24 +584,24 @@ export function Bulletin() {
           fillColor: [241, 245, 249],
           textColor: [15, 23, 42],
           fontStyle: 'bold',
-          fontSize: 7,
+          fontSize: 6.8,
           lineWidth: 0.15,
           lineColor: [226, 232, 240]
         },
         columnStyles: {
-          0: { cellWidth: 72, fontStyle: 'bold' },
-          1: { cellWidth: 7, halign: 'center' },
-          2: { cellWidth: 7, halign: 'center' },
-          3: { cellWidth: 7, halign: 'center' },
-          4: { cellWidth: 7, halign: 'center' },
-          5: { cellWidth: 7, halign: 'center' },
-          6: { cellWidth: 7, halign: 'center' },
-          7: { cellWidth: 7, halign: 'center' },
-          8: { cellWidth: 7, halign: 'center' },
-          9: { cellWidth: 7, halign: 'center' },
-          10: { cellWidth: 7, halign: 'center' },
-          11: { cellWidth: 7, halign: 'center' },
-          12: { cellWidth: 7, halign: 'center' },
+          0: { cellWidth: 54, fontStyle: 'bold' },
+          1: { cellWidth: 8.5, halign: 'center' },
+          2: { cellWidth: 8.5, halign: 'center' },
+          3: { cellWidth: 8.5, halign: 'center' },
+          4: { cellWidth: 8.5, halign: 'center' },
+          5: { cellWidth: 8.5, halign: 'center' },
+          6: { cellWidth: 8.5, halign: 'center' },
+          7: { cellWidth: 8.5, halign: 'center' },
+          8: { cellWidth: 8.5, halign: 'center' },
+          9: { cellWidth: 8.5, halign: 'center' },
+          10: { cellWidth: 8.5, halign: 'center' },
+          11: { cellWidth: 8.5, halign: 'center' },
+          12: { cellWidth: 8.5, halign: 'center' },
           13: { cellWidth: 11, halign: 'center' },
           14: { cellWidth: 13, halign: 'center' }
         }
@@ -619,9 +621,9 @@ export function Bulletin() {
       const rowsGrades = reportToPdf.subjectsPerformance.map((sp: any) => {
         return [
           `${sp.subjectCode} - ${sp.subjectName}`,
-          sp.grade1 !== null ? formatGrade(sp.grade1) : ',00',
-          sp.grade2 !== null ? formatGrade(sp.grade2) : ',00',
-          sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00',
+          formatGrade(sp.grade1),
+          formatGrade(sp.grade2),
+          formatGrade(sp.finalGrade),
           sp.status === 'Pendente' ? 'Pendente' : sp.status
         ];
       });
@@ -990,8 +992,8 @@ export function Bulletin() {
           startY: tableStartY,
           theme: 'grid',
           styles: {
-            fontSize: 7.5,
-            cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+            fontSize: 7,
+            cellPadding: { top: 2, bottom: 2, left: 0.5, right: 0.5 },
             lineColor: [226, 232, 240],
             lineWidth: 0.15,
             textColor: [33, 41, 54],
@@ -1001,24 +1003,24 @@ export function Bulletin() {
             fillColor: [241, 245, 249],
             textColor: [15, 23, 42],
             fontStyle: 'bold',
-            fontSize: 7,
+            fontSize: 6.8,
             lineWidth: 0.15,
             lineColor: [226, 232, 240]
           },
           columnStyles: {
-            0: { cellWidth: 72, fontStyle: 'bold' },
-            1: { cellWidth: 7, halign: 'center' },
-            2: { cellWidth: 7, halign: 'center' },
-            3: { cellWidth: 7, halign: 'center' },
-            4: { cellWidth: 7, halign: 'center' },
-            5: { cellWidth: 7, halign: 'center' },
-            6: { cellWidth: 7, halign: 'center' },
-            7: { cellWidth: 7, halign: 'center' },
-            8: { cellWidth: 7, halign: 'center' },
-            9: { cellWidth: 7, halign: 'center' },
-            10: { cellWidth: 7, halign: 'center' },
-            11: { cellWidth: 7, halign: 'center' },
-            12: { cellWidth: 7, halign: 'center' },
+            0: { cellWidth: 54, fontStyle: 'bold' },
+            1: { cellWidth: 8.5, halign: 'center' },
+            2: { cellWidth: 8.5, halign: 'center' },
+            3: { cellWidth: 8.5, halign: 'center' },
+            4: { cellWidth: 8.5, halign: 'center' },
+            5: { cellWidth: 8.5, halign: 'center' },
+            6: { cellWidth: 8.5, halign: 'center' },
+            7: { cellWidth: 8.5, halign: 'center' },
+            8: { cellWidth: 8.5, halign: 'center' },
+            9: { cellWidth: 8.5, halign: 'center' },
+            10: { cellWidth: 8.5, halign: 'center' },
+            11: { cellWidth: 8.5, halign: 'center' },
+            12: { cellWidth: 8.5, halign: 'center' },
             13: { cellWidth: 11, halign: 'center' },
             14: { cellWidth: 13, halign: 'center' }
           }
@@ -1038,9 +1040,9 @@ export function Bulletin() {
         const rowsGrades = report.subjectsPerformance.map((sp: any) => {
           return [
             `${sp.subjectCode} - ${sp.subjectName}`,
-            sp.grade1 !== null ? formatGrade(sp.grade1) : ',00',
-            sp.grade2 !== null ? formatGrade(sp.grade2) : ',00',
-            sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00',
+            formatGrade(sp.grade1),
+            formatGrade(sp.grade2),
+            formatGrade(sp.finalGrade),
             sp.status === 'Pendente' ? 'Pendente' : sp.status
           ];
         });
@@ -1424,7 +1426,7 @@ export function Bulletin() {
                                 Disciplinas
                               </th>
                               {monthsList.map(month => (
-                                <th key={month.index} className="py-2 text-center border-r border-slate-200 w-[24px] text-[8px]">
+                                <th key={month.index} className="py-2.5 text-center border-r border-slate-200 w-[32px] min-w-[32px] px-1 text-[8.5px] whitespace-nowrap">
                                   {month.label}
                                 </th>
                               ))}
@@ -1504,13 +1506,13 @@ export function Bulletin() {
                                     {sp.subjectCode} - {sp.subjectName}
                                   </td>
                                   <td className="py-2.5 text-center border-r border-slate-100 font-mono text-slate-600">
-                                    {sp.grade1 !== null ? formatGrade(sp.grade1) : ',00'}
+                                    {formatGrade(sp.grade1)}
                                   </td>
                                   <td className="py-2.5 text-center border-r border-slate-100 font-mono text-slate-600">
-                                    {sp.grade2 !== null ? formatGrade(sp.grade2) : ',00'}
+                                    {formatGrade(sp.grade2)}
                                   </td>
                                   <td className="py-2.5 text-center border-r border-slate-200 font-extrabold font-mono text-slate-900">
-                                    {sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00'}
+                                    {formatGrade(sp.finalGrade)}
                                   </td>
                                   <td className={cn(
                                     "py-2.5 text-center font-bold text-[9px] tracking-widest uppercase px-2",
