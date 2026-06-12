@@ -1275,29 +1275,10 @@ export function Bulletin() {
 
               {/* Action buttons area */}
               {selectedClassId && (
-                <div className="md:col-span-3 flex gap-2">
-                  <button
-                    disabled={exportingPDF}
-                    onClick={() => {
-                      if (viewMode === 'student') {
-                        exportIndividualPDF(activeStudentReport);
-                      } else {
-                        exportClassSummaryPDF();
-                      }
-                    }}
-                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-none text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
-                  >
-                    {exportingPDF ? (
-                      <Loader2 className="animate-spin" size={13} />
-                    ) : (
-                      <FileText size={13} />
-                    )}
-                    Exportar PDF
-                  </button>
-
+                <div className="md:col-span-3">
                   <button
                     onClick={handlePrint}
-                    className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-none text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 border border-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
                   >
                     <Printer size={13} />
                     Imprimir
@@ -1305,21 +1286,6 @@ export function Bulletin() {
                 </div>
               )}
             </div>
-
-            {selectedClassId && viewMode === 'student' && classStudents.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap justify-between items-center gap-3 animate-in fade-in duration-500">
-                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                  Imprimir múltiplos diários de notas de uma única vez:
-                </span>
-                <button
-                  onClick={exportAllClassBulletinsPDF}
-                  className="px-4 py-1.5 bg-slate-900 border border-slate-900 hover:bg-black text-white rounded-none text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-sm"
-                >
-                  <GraduationCap size={12} />
-                  Emitir Todos da Turma (Lote)
-                </button>
-              </div>
-            )}
           </div>
 
           {!selectedClassId ? (
