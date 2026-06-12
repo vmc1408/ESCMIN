@@ -464,7 +464,6 @@ export function Bulletin() {
       const centerX = pageWidth / 2;
       let y = 15;
 
-      const primaryColor = [0, 23, 75]; // Navy
       const darkColor = [33, 41, 54]; // Dark slate
 
       // --- 1. Logo or School Standard Header ---
@@ -482,15 +481,15 @@ export function Bulletin() {
 
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
 
       doc.setFontSize(16);
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
       
       doc.setFontSize(9);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(80);
       const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
       doc.text(subTitleText, textStartX, y + 17);
@@ -503,39 +502,39 @@ export function Bulletin() {
 
       // --- 2. Centered Page Title ---
       doc.setFontSize(12);
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
       doc.text('BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
 
       // --- 3. Student Metadata block ---
       const activeClassObj = classes.find(c => c.id === selectedClassId);
 
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.5);
       doc.setTextColor(60);
       doc.text('ALUNO:', 15, y + 10);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(30);
       doc.text(`${reportToPdf.student.registration_number || 'S/M'} - ${reportToPdf.student.name.toUpperCase()}`, 32, y + 10);
 
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(60);
       doc.text('SITUAÇÃO:', 190, y + 10);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(30);
       doc.text(`${reportToPdf.student.status || 'Ativo'}`.toUpperCase(), 212, y + 10);
 
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(60);
       doc.text('TURMA:', 15, y + 16);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(30);
       doc.text(`${activeClassObj?.name || 'N/D'}`.toUpperCase(), 32, y + 16);
 
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(60);
       doc.text('PERÍODO:', 190, y + 16);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(30);
       doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 212, y + 16);
 
@@ -592,7 +591,8 @@ export function Bulletin() {
           cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
           lineColor: [226, 232, 240],
           lineWidth: 0.15,
-          textColor: [33, 41, 54]
+          textColor: [33, 41, 54],
+          font: 'helvetica'
         },
         headStyles: {
           fillColor: [241, 245, 249],
@@ -639,16 +639,16 @@ export function Bulletin() {
       doc.line(250, finalY, 250, finalY + 14);
       doc.line(198, finalY + 7, 282, finalY + 7);
 
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(51, 65, 85);
       doc.text('MÉDIA DE FREQUÊNCIA', 201, finalY + 4.5);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.text(`${formatPresence(reportToPdf.averageFrequency)}%`, 266, finalY + 4.5, { align: 'center' });
 
-      doc.setFont('Inter', 'bold');
+      doc.setFont('helvetica', 'bold');
       doc.text('MÉDIA GERAL DE NOTAS', 201, finalY + 11.5);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.text(formatGrade(reportToPdf.averageGrade), 266, finalY + 11.5, { align: 'center' });
 
       // --- 6. Bottom System Footer ---
@@ -658,7 +658,7 @@ export function Bulletin() {
 
       const todayFormatted = new Date().toLocaleDateString('pt-BR');
       doc.setFontSize(7.5);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(120);
       doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 198);
       doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 198, { align: 'center' });
@@ -672,7 +672,7 @@ export function Bulletin() {
     }
   };
 
-  // 2. Export Class-wide summary situation report as PDF
+  // 2. Export Class-wide summary situation report as PDF (fixed and aligned)
   const exportClassSummaryPDF = () => {
     if (!selectedClassId) return;
     setExportingPDF(true);
@@ -684,24 +684,60 @@ export function Bulletin() {
         format: 'a4'
       });
 
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 15;
+      const centerX = pageWidth / 2;
+      let y = 15;
+
       const activeClassObj = classes.find(c => c.id === selectedClassId);
-      const primaryColor: [number, number, number] = [0, 23, 75];
 
-      // Title & Header info
-      doc.setFont('Inter', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('RELATÓRIO RESUMIDO DE RENDIMENTO ACADÊMICO', 10, 15);
+      // --- 1. Logo or School Standard Header ---
+      let textStartX = margin;
+      let logoWidth = 0;
 
-      doc.setFont('Inter', 'normal');
+      if (institution?.logo_url) {
+        try { 
+          doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
+          logoWidth = 26;
+        } catch (e) {}
+      }
+      
+      textStartX = margin + logoWidth;
+
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
-      doc.setTextColor(80);
-      doc.text(`Instituição: ${institution?.name || 'Escola Diocesana de Ministérios'}`, 10, 21);
-      doc.text(`Turma: ${activeClassObj?.name || 'N/D'} | Semestre: ${activeClassObj?.semester || '1º'} | Turno: ${activeClassObj?.period || 'Noite'}`, 10, 26);
-      doc.text(`Quantidade total de dias letivos considerados: ${totalClassDays} dias`, 10, 31);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
 
-      doc.setDrawColor(210);
-      doc.line(10, 34, 200, 34);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80);
+      const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
+      doc.text(subTitleText, textStartX, y + 17);
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.8);
+      doc.line(margin, y + 24, pageWidth - margin, y + 24);
+
+      y += 32;
+
+      // --- 2. Centered Page Title ---
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(33, 41, 54);
+      doc.text('RELATÓRIO RESUMIDO DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(100);
+      doc.text(`Turma: ${activeClassObj?.name || 'N/D'} | Semestre: ${activeClassObj?.semester || '1º'} | Turno: ${activeClassObj?.period || 'Noite'}`, centerX, y + 6, { align: 'center' });
+      doc.text(`Quantidade total de dias letivos considerados: ${totalClassDays} dias`, centerX, y + 11, { align: 'center' });
+
+      y += 18;
 
       // Statistics grid
       const total = studentReports.length;
@@ -710,22 +746,24 @@ export function Bulletin() {
       const failed = studentReports.filter(r => r.finalStatus === 'Reprovado').length;
       const pending = studentReports.filter(r => r.finalStatus === 'Pendente').length;
 
-      doc.setFillColor(245, 247, 250);
-      doc.rect(10, 38, 190, 12, 'F');
-      doc.setDrawColor(218, 224, 233);
-      doc.rect(10, 38, 190, 12, 'S');
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y, pageWidth - (margin * 2), 14, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, y, pageWidth - (margin * 2), 14, 'S');
 
-      doc.setFont('Inter', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(60);
-      doc.text(`Total de Alunos: ${total}`, 14, 45);
-      doc.text(`Aprovados: ${approved}`, 55, 45);
-      doc.text(`Em Recuperação: ${recuperation}`, 95, 45);
-      doc.text(`Reprovados: ${failed}`, 135, 45);
-      doc.text(`Pendentes: ${pending}`, 170, 45);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Total Alunos: ${total}`, margin + 5, y + 8.5);
+      doc.text(`Aprovados: ${approved}`, margin + 35, y + 8.5);
+      doc.text(`Em Recuperação: ${recuperation}`, margin + 70, y + 8.5);
+      doc.text(`Reprovados: ${failed}`, margin + 112, y + 8.5);
+      doc.text(`Pendentes: ${pending}`, margin + 148, y + 8.5);
+
+      y += 20;
 
       // Student rows Table
-      const headers = [['RA', 'Aluno', 'Média Notas', 'Total Faltas', 'Freq. %', 'Situação Geral']];
+      const headers = [['Matrícula (RA)', 'Aluno', 'Média Notas', 'Total Faltas', 'Freq. %', 'Situação Geral']];
       const rows = filteredReports.map(res => [
         res.student.registration_number || 'N/D',
         res.student.name.toUpperCase(),
@@ -738,27 +776,46 @@ export function Bulletin() {
       autoTable(doc, {
         head: headers,
         body: rows,
-        startY: 55,
-        theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold' },
+        startY: y,
+        theme: 'grid',
+        styles: { 
+          fontSize: 8, 
+          cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 },
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [33, 41, 54],
+          font: 'helvetica'
+        },
+        headStyles: { 
+          fillColor: [241, 245, 249], 
+          textColor: [15, 23, 42], 
+          fontStyle: 'bold',
+          lineWidth: 0.15,
+          lineColor: [226, 232, 240]
+        },
         columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 65 },
-          2: { cellWidth: 25, halign: 'center' },
-          3: { cellWidth: 25, halign: 'center' },
-          4: { cellWidth: 22, halign: 'center' },
-          5: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }
+          0: { cellWidth: 28 },
+          1: { cellWidth: 62 },
+          2: { cellWidth: 22, halign: 'center' },
+          3: { cellWidth: 22, halign: 'center' },
+          4: { cellWidth: 20, halign: 'center' },
+          5: { cellWidth: 26, halign: 'center', fontStyle: 'bold' }
         }
       });
 
       // Bottom footer information
+      const finalHeight = doc.internal.pageSize.height;
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(margin, finalHeight - 15, pageWidth - margin, finalHeight - 15);
+
       const todayFormatted = new Date().toLocaleDateString('pt-BR');
       doc.setFontSize(7.5);
-      doc.setFont('Inter', 'normal');
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(140);
-      doc.text(`Relatório emitido em ${todayFormatted} | arBOL`, 10, 285);
-      doc.text('Página 1', 190, 285);
+      doc.text(`Relatório emitido em ${todayFormatted}`, margin, finalHeight - 9);
+      doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, finalHeight - 9, { align: 'center' });
+      doc.text('Página 1 de 1', pageWidth - margin, finalHeight - 9, { align: 'right' });
 
       doc.save(`situacao_academica_turma_${activeClassObj?.name.toLowerCase().replace(/\s+/g, '_') || 'classe'}.pdf`);
     } catch (e) {
@@ -784,7 +841,6 @@ export function Bulletin() {
       const margin = 15;
       const centerX = pageWidth / 2;
 
-      const primaryColor = [0, 23, 75];
       const darkColor = [33, 41, 54];
       const activeClassObj = classes.find(c => c.id === selectedClassId);
 
@@ -811,15 +867,15 @@ export function Bulletin() {
 
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(9);
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
 
         doc.setFontSize(16);
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
         
         doc.setFontSize(9);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(80);
         const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
         doc.text(subTitleText, textStartX, y + 17);
@@ -832,37 +888,37 @@ export function Bulletin() {
 
         // --- 2. Centered Page Title ---
         doc.setFontSize(12);
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
         doc.text('BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
 
         // --- 3. Student Metadata block ---
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(8.5);
         doc.setTextColor(60);
         doc.text('ALUNO:', 15, y + 10);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(30);
         doc.text(`${report.student.registration_number || 'S/M'} - ${report.student.name.toUpperCase()}`, 32, y + 10);
 
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.setTextColor(60);
         doc.text('SITUAÇÃO:', 190, y + 10);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(30);
         doc.text(`${report.student.status || 'Ativo'}`.toUpperCase(), 212, y + 10);
 
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.setTextColor(60);
         doc.text('TURMA:', 15, y + 16);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(30);
         doc.text(`${activeClassObj?.name || 'N/D'}`.toUpperCase(), 32, y + 16);
 
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.setTextColor(60);
         doc.text('PERÍODO:', 190, y + 16);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(30);
         doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 212, y + 16);
 
@@ -917,7 +973,8 @@ export function Bulletin() {
             cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
             lineColor: [226, 232, 240],
             lineWidth: 0.15,
-            textColor: [33, 41, 54]
+            textColor: [33, 41, 54],
+            font: 'helvetica'
           },
           headStyles: {
             fillColor: [241, 245, 249],
@@ -963,16 +1020,16 @@ export function Bulletin() {
         doc.line(250, finalY, 250, finalY + 14);
         doc.line(198, finalY + 7, 282, finalY + 7);
 
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(51, 65, 85);
         doc.text('MÉDIA DE FREQUÊNCIA', 201, finalY + 4.5);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.text(`${formatPresence(report.averageFrequency)}%`, 266, finalY + 4.5, { align: 'center' });
 
-        doc.setFont('Inter', 'bold');
+        doc.setFont('helvetica', 'bold');
         doc.text('MÉDIA GERAL DE NOTAS', 201, finalY + 11.5);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.text(formatGrade(report.averageGrade), 266, finalY + 11.5, { align: 'center' });
 
         // --- 6. Bottom System Footer ---
@@ -982,7 +1039,7 @@ export function Bulletin() {
 
         const todayFormatted = new Date().toLocaleDateString('pt-BR');
         doc.setFontSize(7.5);
-        doc.setFont('Inter', 'normal');
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(120);
         doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 198);
         doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 198, { align: 'center' });
@@ -1208,116 +1265,125 @@ export function Bulletin() {
               <div className="space-y-4">
                 
                 {/* On-screen paper layout framing simulating standard print sheet */}
-                <div id="print-sheet-boletim" className="bg-white border border-slate-250 p-6 md:p-8 text-slate-900 shadow-md max-w-[210mm] mx-auto relative font-sans leading-relaxed">
+                <div id="print-sheet-boletim" className="bg-white border border-slate-200 p-6 md:p-8 text-slate-900 shadow-sm max-w-[210mm] mx-auto relative font-sans leading-relaxed animate-in fade-in duration-300">
                   
-                  {/* Outer border container */}
-                  <div className="border border-slate-350 p-4 md:p-6 space-y-6">
+                  {/* Inner container */}
+                  <div className="space-y-6">
                     
-                    {/* Header border section (reproducing attached PDF visual layout) */}
-                    <div className="border border-slate-350 p-4 flex flex-col sm:flex-row items-center gap-4 relative">
-                      <div className="w-16 h-20 bg-slate-50 border border-slate-200 flex flex-col items-center justify-center text-center p-1 font-sans flex-shrink-0">
-                        <span className="text-[6px] font-black text-slate-500 uppercase tracking-widest">DIOCESE</span>
-                        <div className="w-8 h-8 rounded-full border-2 border-slate-300 border-dashed my-1 flex items-center justify-center">
-                          <School size={12} className="text-slate-400" />
+                    {/* Professional Header using Institution Data */}
+                    <div className="flex flex-col sm:flex-row items-center gap-4 border-b border-slate-200 pb-5">
+                      {institution?.logo_url ? (
+                        <img 
+                          src={institution.logo_url} 
+                          alt="Logo" 
+                          referrerPolicy="no-referrer"
+                          className="w-16 h-16 object-contain"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-none flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
+                          <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
+                          <School size={16} className="text-slate-350 my-1" />
+                          <span className="text-[5px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
                         </div>
-                        <span className="text-[5px] font-black text-slate-500 uppercase tracking-wider">GUARULHOS</span>
-                      </div>
+                      )}
                       
-                      <div className="text-center sm:text-left flex-1">
-                        <h1 className="text-xs md:text-sm font-extrabold text-slate-950 uppercase tracking-tight leading-snug">
-                          {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS - Pe. José Fernando de Brito'}
+                      <div className="text-center sm:text-left flex-1 min-w-0">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
+                        <h1 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight leading-snug">
+                          {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                         </h1>
-                        <p className="text-[8.5px] font-medium text-slate-500 uppercase tracking-wider mt-1 leading-normal">
-                          {institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170'}
-                        </p>
-                        <p className="text-[8.5px] font-semibold text-slate-600 mt-0.5">
-                          E-mail: {institution?.email || 'contato@diocese.com'} | Tel: {institution?.phone || 'N/A'}
+                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5 leading-normal truncate">
+                          {institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA'}
                         </p>
                       </div>
                     </div>
 
                     {/* Report title header */}
-                    <div className="border border-slate-400 bg-slate-50/50 py-2.5 text-center font-sans tracking-[0.2em] uppercase font-black text-slate-950 text-xs shadow-sm">
-                      BOLETIM DE NOTAS
+                    <div className="bg-slate-50 border border-slate-200 py-2.5 text-center">
+                      <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                        Boletim Escolar de Rendimento Acadêmico
+                      </h2>
                     </div>
 
                     {/* Student details display bar */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-y-2 text-[10.5px] uppercase font-sans border-b border-slate-300 pb-3 leading-tight">
-                      <div className="md:col-span-8 flex flex-row">
-                        <span className="font-extrabold text-slate-900 mr-2">Aluno:</span>
-                        <span className="font-semibold text-slate-700 tracking-tight">
-                          <strong className="text-slate-950 mr-1.5">{activeStudentReport.student.registration_number || '000000/0000'}</strong> 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-[10px] uppercase tracking-wider font-semibold text-slate-500 border-b border-slate-100 pb-5">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[8px] font-bold text-slate-400">Aluno</span>
+                        <span className="text-slate-800 font-extrabold">
+                          <strong className="text-slate-950 font-mono mr-1.5">{activeStudentReport.student.registration_number || '000000/0000'}</strong> 
                           {activeStudentReport.student.name}
                         </span>
                       </div>
                       
-                      <div className="md:col-span-4 flex md:justify-end">
-                        <span className="font-extrabold text-slate-900 mr-2">Situação:</span>
-                        <span className="font-black text-emerald-700 tracking-wide">{activeStudentReport.student.status || 'Ativo'}</span>
+                      <div className="flex flex-col gap-1 sm:items-end">
+                        <span className="text-[8px] font-bold text-slate-400">Situação Cadastral</span>
+                        <span className="text-emerald-700 font-extrabold bg-emerald-50 border border-emerald-250 px-3 py-0.5 inline-block text-[9px] leading-tight select-none">
+                          {activeStudentReport.student.status || 'Ativo'}
+                        </span>
                       </div>
 
-                      <div className="md:col-span-6 flex flex-row mt-1">
-                        <span className="font-extrabold text-slate-900 mr-2">Turma:</span>
-                        <span className="font-semibold text-slate-700">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[8px] font-bold text-slate-400">Turma</span>
+                        <span className="text-slate-800 font-extrabold">
                           {classes.find(c => c.id === selectedClassId)?.name || 'N/D'}
                         </span>
                       </div>
 
-                      <div className="md:col-span-6 flex md:justify-end mt-1">
-                        <span className="font-extrabold text-slate-900 mr-2">Frequência Letiva:</span>
-                        <span className="font-semibold text-slate-700">
-                          {classes.find(c => c.id === selectedClassId)?.period || 'Noite'} - {(classes.find(c => c.id === selectedClassId)?.days_of_week || []).join(', ') || '4ª feira'}
+                      <div className="flex flex-col gap-1 sm:items-end">
+                        <span className="text-[8px] font-bold text-slate-400">Período / Frequência</span>
+                        <span className="text-slate-800 font-bold">
+                          {classes.find(c => c.id === selectedClassId)?.period || 'Noite'} - {(classes.find(c => c.id === selectedClassId)?.days_of_week || []).join(', ') || 'Semanal'}
                         </span>
                       </div>
                     </div>
 
                     {/* Main report card table (Jan to Dec, Qt, %, grades, situation) */}
-                    <div className="overflow-x-auto select-text">
-                      <table className="w-full text-left font-sans border border-slate-900 text-[10px] border-collapse uppercase">
+                    <div className="overflow-x-auto select-text border border-slate-200">
+                      <table className="w-full text-left font-sans text-[10px] border-collapse uppercase">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-900 text-slate-950">
-                            <th className="px-3 py-3 border-r border-slate-900 font-extrabold text-left min-w-[200px]" rowSpan={2}>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
+                            <th className="px-3 py-3 border-r border-slate-200 text-left min-w-[200px]" rowSpan={2}>
                               Disciplinas
                             </th>
-                            <th className="py-1 border-r border-b border-slate-900 font-extrabold text-center" colSpan={12}>
+                            <th className="py-1 border-r border-b border-slate-200 text-center" colSpan={12}>
                               Quantidade de faltas mensais
                             </th>
-                            <th className="py-2.5 border-r border-slate-900 font-extrabold text-center text-[9px] leading-tight" rowSpan={2}>
+                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
                               Qt.<br/>Faltas
                             </th>
-                            <th className="py-2.5 border-r border-slate-900 font-extrabold text-center text-[9px] leading-tight" rowSpan={2}>
+                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
                               %<br/>Freq.
                             </th>
-                            <th className="py-2.5 border-r border-slate-900 font-extrabold text-center text-[9px] leading-tight" rowSpan={2}>
+                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
                               1a<br/>Nota
                             </th>
-                            <th className="py-2.5 border-r border-slate-900 font-extrabold text-center text-[9px] leading-tight" rowSpan={2}>
+                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
                               2a<br/>Nota
                             </th>
-                            <th className="py-2.5 border-r border-slate-900 font-extrabold text-center text-[9px] leading-tight" rowSpan={2}>
+                            <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight" rowSpan={2}>
                               Média
                             </th>
-                            <th className="py-2.5 font-extrabold text-center text-[9px] leading-tight" rowSpan={2}>
+                            <th className="py-2.5 text-center text-[9px] leading-tight" rowSpan={2}>
                               Situação
                             </th>
                           </tr>
-                          <tr className="bg-slate-50 text-[8.5px] border-b border-slate-900 text-slate-900 font-bold">
+                          <tr className="bg-slate-50 text-[8px] border-b border-slate-200 text-slate-600 font-bold">
                             {monthsList.map(month => (
-                              <th key={month.index} className="py-1 text-center border-r border-slate-900 font-extrabold w-[25px]">
+                              <th key={month.index} className="py-1 text-center border-r border-slate-200 w-[24px]">
                                 {month.label}
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-900">
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
                           {activeStudentReport.subjectsPerformance.map(sp => {
                             const showFailed = sp.status === 'Reprovado';
                             const showRecup = sp.status === 'Recuperação';
                             const showPending = sp.status === 'Pendente';
 
                             return (
-                              <tr key={sp.subjectId} className="hover:bg-slate-50/50 text-[9.5px]">
-                                <td className="px-3 py-2.5 border-r border-slate-900 font-bold text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis max-w-[240px]">
+                              <tr key={sp.subjectId} className="hover:bg-slate-50/50 text-[10px] font-semibold">
+                                <td className="px-3 py-2.5 border-r border-slate-100 text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis max-w-[240px]">
                                   {sp.subjectCode} - {sp.subjectName}
                                 </td>
                                 
@@ -1325,33 +1391,33 @@ export function Bulletin() {
                                 {monthsList.map(m => {
                                   const absCount = sp.monthlyAbsences[m.index];
                                   return (
-                                    <td key={m.index} className="py-2 text-center border-r border-slate-900 font-semibold font-mono text-[9px]">
+                                    <td key={m.index} className="py-2 text-center border-r border-slate-100 font-mono text-[9.5px]">
                                       {absCount > 0 ? absCount : ''}
                                     </td>
                                   );
                                 })}
 
                                 {/* Total Absence absences, Freq and Grade calculations */}
-                                <td className="py-2 text-center border-r border-slate-900 font-bold font-mono">
+                                <td className="py-2 text-center border-r border-slate-100 font-mono text-[10px]">
                                   {sp.totalAbsences}
                                 </td>
-                                <td className="py-2 text-center border-r border-slate-900 font-bold font-mono">
-                                  {formatPresence(sp.presencePercentage)}
+                                <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-[10px]">
+                                  {formatPresence(sp.presencePercentage)}%
                                 </td>
-                                <td className="py-2 text-center border-r border-slate-900 font-semibold font-mono">
+                                <td className="py-2 text-center border-r border-slate-100 font-mono text-[10px] text-slate-600">
                                   {sp.grade1 !== null ? formatGrade(sp.grade1) : ',00'}
                                 </td>
-                                <td className="py-2 text-center border-r border-slate-900 font-semibold font-mono">
+                                <td className="py-2 text-center border-r border-slate-100 font-mono text-[10px] text-slate-600">
                                   {sp.grade2 !== null ? formatGrade(sp.grade2) : ',00'}
                                 </td>
-                                <td className="py-2 text-center border-r border-slate-900 font-bold font-mono">
+                                <td className="py-2 text-center border-r border-slate-200 font-bold font-mono text-[10px]">
                                   {sp.finalGrade !== null ? formatGrade(sp.finalGrade) : ',00'}
                                 </td>
                                 <td className={cn(
-                                  "py-2 text-center font-extrabold text-[8.5px] tracking-wide",
-                                  showFailed ? "text-rose-700 bg-rose-50/20" :
-                                  showRecup ? "text-amber-700 bg-amber-50/20" :
-                                  showPending ? "text-slate-500" : "text-emerald-700 font-extrabold"
+                                  "py-2 text-center font-bold text-[9px] tracking-widest uppercase px-2",
+                                  showFailed ? "text-rose-650 bg-rose-50/40" :
+                                  showRecup ? "text-amber-650 bg-amber-50/40" :
+                                  showPending ? "text-slate-400 bg-slate-50" : "text-emerald-650 bg-emerald-50/40"
                                 )}>
                                   {sp.status === 'Pendente' ? 'Pendente' : sp.status}
                                 </td>
@@ -1364,16 +1430,16 @@ export function Bulletin() {
 
                     {/* Integrated footer statistics aligned right below table */}
                     <div className="flex justify-end pt-1">
-                      <div className="border border-slate-900 font-sans text-[10px] w-full sm:max-w-[340px] uppercase">
-                        <div className="grid grid-cols-2 border-b border-slate-900 divide-x divide-slate-900 bg-slate-50/50">
-                          <div className="px-3 py-1.5 font-extrabold text-slate-800">Média de Frequência</div>
-                          <div className="px-3 py-1.5 text-right font-black font-mono">
-                            {formatPresence(activeStudentReport.averageFrequency)}
+                      <div className="border border-slate-200 font-sans text-[10px] w-full sm:max-w-[340px] uppercase">
+                        <div className="grid grid-cols-2 border-b border-slate-200 divide-x divide-slate-200 bg-slate-50/40">
+                          <div className="px-3 py-1.5 font-bold text-slate-500">Média Geral de Frequência</div>
+                          <div className="px-3 py-1.5 text-right font-black font-mono text-slate-800">
+                            {formatPresence(activeStudentReport.averageFrequency)}%
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 divide-x divide-slate-900 bg-slate-50/50">
-                          <div className="px-3 py-1.5 font-extrabold text-slate-800">Média de Nota</div>
-                          <div className="px-3 py-1.5 text-right font-black font-mono">
+                        <div className="grid grid-cols-2 divide-x divide-slate-200 bg-slate-50/40">
+                          <div className="px-3 py-1.5 font-bold text-slate-500">Média Geral de Notas</div>
+                          <div className="px-3 py-1.5 text-right font-black font-mono text-slate-800">
                             {formatGrade(activeStudentReport.averageGrade)}
                           </div>
                         </div>
@@ -1381,13 +1447,13 @@ export function Bulletin() {
                     </div>
 
                     {/* Base validation credentials or certificates badge warning */}
-                    <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-[9px] uppercase font-sans font-bold text-slate-400">
+                    <div className="pt-5 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-[9px] uppercase font-sans font-bold text-slate-400 select-none">
                       <div className="flex items-center gap-4">
                         <span>{new Date().toLocaleDateString('pt-BR')}</span>
-                        <span>arBOL</span>
+                        <span>ESCMIN - Sistema de Gestão</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span>Página 1</span>
+                        <span>Página 1 de 1</span>
                       </div>
                     </div>
 
