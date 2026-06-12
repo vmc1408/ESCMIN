@@ -454,91 +454,96 @@ export function Bulletin() {
 
     try {
       const doc = new jsPDF({
-        orientation: 'p',
+        orientation: 'l',
         unit: 'mm',
         format: 'a4'
       });
 
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 15;
+      const centerX = pageWidth / 2;
+      let y = 15;
+
       const primaryColor = [0, 23, 75]; // Navy
       const darkColor = [33, 41, 54]; // Dark slate
 
-      // --- 1. Header Frame Box ---
-      doc.setDrawColor(200);
-      doc.setLineWidth(0.3);
-      doc.rect(10, 10, 190, 25); // Main outline
+      // --- 1. Logo or School Standard Header ---
+      let textStartX = margin;
+      let logoWidth = 0;
 
-      // --- 2. Logo drawing or school title ---
+      if (institution?.logo_url) {
+        try { 
+          doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
+          logoWidth = 26;
+        } catch (e) {}
+      }
+      
+      textStartX = margin + logoWidth;
+
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
       doc.setFont('Inter', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
+
+      doc.setFontSize(16);
+      doc.setFont('Inter', 'bold');
+      doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
       
-      const titleLine1 = (institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS - Pe. José Fernando de Brito').toUpperCase();
-      doc.text(titleLine1, 35, 18);
-      
+      doc.setFontSize(9);
       doc.setFont('Inter', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(100);
-      const addressLine = institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170';
-      doc.text(addressLine, 35, 24);
+      doc.setTextColor(80);
+      const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
+      doc.text(subTitleText, textStartX, y + 17);
 
-      const contactLine = `E-mail: ${institution?.email || 'edm@diocese.org.br'} | Website: ${institution?.website || 'diocese.org.br'}`;
-      doc.text(contactLine, 35, 29);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.8);
+      doc.line(margin, y + 24, pageWidth - margin, y + 24);
 
-      // --- Placeholder circle/square for badge/logo ---
-      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.setFillColor(245, 247, 250);
-      doc.rect(14, 13, 17, 19, 'F');
-      doc.setDrawColor(218, 224, 233);
-      doc.rect(14, 13, 17, 19, 'S');
-      doc.setFontSize(5.5);
+      y += 32;
+
+      // --- 2. Centered Page Title ---
+      doc.setFontSize(12);
       doc.setFont('Inter', 'bold');
-      doc.setTextColor(120);
-      doc.text('DIOCESE', 16, 21);
-      doc.text('GUARULHOS', 14.5, 25);
-
-      // --- 3. Title bar (BOLETIM DE NOTAS) ---
-      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.setLineWidth(0.4);
-      doc.setFillColor(250, 250, 250);
-      doc.rect(10, 39, 190, 8, 'F');
-      doc.rect(10, 39, 190, 8, 'S');
-      
-      doc.setFont('Inter', 'bold');
-      doc.setFontSize(10);
       doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-      doc.text('BOLETIM DE NOTAS', 90, 44.5, { align: 'center' });
+      doc.text('BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
 
-      // --- 4. Student Metadata block ---
-      doc.setFont('Inter', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(70);
-      doc.text('Aluno:', 10, 53);
-      
-      doc.setFont('Inter', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(30);
-      doc.text(`${reportToPdf.student.registration_number || '000000/0000'}  ${reportToPdf.student.name}`, 21, 53);
-
-      doc.setFont('Inter', 'bold');
-      doc.text('Situação:', 125, 53);
-      doc.setFont('Inter', 'normal');
-      doc.text(reportToPdf.student.status || 'Ativo', 140, 53);
-
-      doc.setFont('Inter', 'bold');
-      doc.text('Turma:', 10, 58);
-      doc.setFont('Inter', 'normal');
+      // --- 3. Student Metadata block ---
       const activeClassObj = classes.find(c => c.id === selectedClassId);
-      doc.text(`${activeClassObj?.name || 'N/D'}`, 21, 58);
 
       doc.setFont('Inter', 'bold');
-      doc.text('Horário:', 70, 58);
+      doc.setFontSize(8.5);
+      doc.setTextColor(60);
+      doc.text('ALUNO:', 15, y + 10);
       doc.setFont('Inter', 'normal');
-      doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || '4ª feira'}`, 83, 58);
+      doc.setTextColor(30);
+      doc.text(`${reportToPdf.student.registration_number || 'S/M'} - ${reportToPdf.student.name.toUpperCase()}`, 32, y + 10);
+
+      doc.setFont('Inter', 'bold');
+      doc.setTextColor(60);
+      doc.text('SITUAÇÃO:', 190, y + 10);
+      doc.setFont('Inter', 'normal');
+      doc.setTextColor(30);
+      doc.text(`${reportToPdf.student.status || 'Ativo'}`.toUpperCase(), 212, y + 10);
+
+      doc.setFont('Inter', 'bold');
+      doc.setTextColor(60);
+      doc.text('TURMA:', 15, y + 16);
+      doc.setFont('Inter', 'normal');
+      doc.setTextColor(30);
+      doc.text(`${activeClassObj?.name || 'N/D'}`.toUpperCase(), 32, y + 16);
+
+      doc.setFont('Inter', 'bold');
+      doc.setTextColor(60);
+      doc.text('PERÍODO:', 190, y + 16);
+      doc.setFont('Inter', 'normal');
+      doc.setTextColor(30);
+      doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 212, y + 16);
 
       doc.setDrawColor(220);
-      doc.line(10, 61, 200, 61);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y + 20, pageWidth - margin, y + 20);
 
-      // --- 5. Generate Grades/Absences Table ---
+      // --- 4. Generate Grades/Absences Table ---
       const tableHeaders: any[] = [
         [
           { content: 'Disciplinas', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
@@ -580,81 +585,84 @@ export function Bulletin() {
       autoTable(doc, {
         head: tableHeaders,
         body: tableRows,
-        startY: 65,
-        theme: 'plain',
+        startY: y + 25,
+        theme: 'grid',
         styles: {
-          fontSize: 7,
-          cellPadding: 1.5,
-          lineColor: [40, 40, 40],
-          lineWidth: 0.2,
-          textColor: [0, 0, 0]
+          fontSize: 7.5,
+          cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+          lineColor: [226, 232, 240],
+          lineWidth: 0.15,
+          textColor: [33, 41, 54]
         },
         headStyles: {
-          fillColor: [240, 244, 248],
-          textColor: [0, 0, 0],
+          fillColor: [241, 245, 249],
+          textColor: [15, 23, 42],
           fontStyle: 'bold',
-          fontSize: 6.5,
-          lineWidth: 0.2,
-          lineColor: [40, 40, 40]
+          fontSize: 7,
+          lineWidth: 0.15,
+          lineColor: [226, 232, 240]
         },
         columnStyles: {
-          0: { cellWidth: 52, fontStyle: 'bold' },
-          1: { cellWidth: 6, halign: 'center' },
-          2: { cellWidth: 6, halign: 'center' },
-          3: { cellWidth: 6, halign: 'center' },
-          4: { cellWidth: 6, halign: 'center' },
-          5: { cellWidth: 6, halign: 'center' },
-          6: { cellWidth: 6, halign: 'center' },
-          7: { cellWidth: 6, halign: 'center' },
-          8: { cellWidth: 6, halign: 'center' },
-          9: { cellWidth: 6, halign: 'center' },
-          10: { cellWidth: 7, halign: 'center' },
-          11: { cellWidth: 7, halign: 'center' },
-          12: { cellWidth: 7, halign: 'center' },
-          13: { cellWidth: 11, halign: 'center' }, // Total absences
-          14: { cellWidth: 12, halign: 'center' }, // % Freq.
-          15: { cellWidth: 9, halign: 'center' },  // 1a Nota
-          16: { cellWidth: 9, halign: 'center' },  // 2a Nota
-          17: { cellWidth: 9, halign: 'center' },  // Média
-          18: { cellWidth: 17, halign: 'center', fontStyle: 'bold' } // Situação
+          0: { cellWidth: 77, fontStyle: 'bold' },
+          1: { cellWidth: 8, halign: 'center' },
+          2: { cellWidth: 8, halign: 'center' },
+          3: { cellWidth: 8, halign: 'center' },
+          4: { cellWidth: 8, halign: 'center' },
+          5: { cellWidth: 8, halign: 'center' },
+          6: { cellWidth: 8, halign: 'center' },
+          7: { cellWidth: 8, halign: 'center' },
+          8: { cellWidth: 8, halign: 'center' },
+          9: { cellWidth: 8, halign: 'center' },
+          10: { cellWidth: 8, halign: 'center' },
+          11: { cellWidth: 8, halign: 'center' },
+          12: { cellWidth: 8, halign: 'center' },
+          13: { cellWidth: 14, halign: 'center' }, // Total absences
+          14: { cellWidth: 14, halign: 'center' }, // % Freq.
+          15: { cellWidth: 14, halign: 'center' }, // 1a Nota
+          16: { cellWidth: 14, halign: 'center' }, // 2a Nota
+          17: { cellWidth: 14, halign: 'center' }, // Média
+          18: { cellWidth: 24, halign: 'center', fontStyle: 'bold' } // Situação
         }
       });
 
-      // --- 6. Summary Footer block ---
-      const finalY = (doc as any).lastAutoTable.finalY + 3;
+      // --- 5. Summary Footer block ---
+      const finalY = (doc as any).lastAutoTable.finalY + 4;
       
-      // Calculate start coord to align right below '% Freq', '1ª Nota'..
-      // Standard A4 width is 210mm. Columns target is around 130 to 200mm.
-      doc.setDrawColor(40, 40, 40);
+      doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.2);
 
-      // Drawing small average grid
+      // Drawing elegant averages summary card aligned to the right margin (282mm)
       doc.setFillColor(248, 250, 252);
-      doc.rect(120, finalY, 80, 8, 'F');
-      doc.rect(120, finalY, 80, 8, 'S');
+      doc.rect(198, finalY, 84, 14, 'F');
+      doc.rect(198, finalY, 84, 14, 'S');
+
+      doc.line(250, finalY, 250, finalY + 14);
+      doc.line(198, finalY + 7, 282, finalY + 7);
 
       doc.setFont('Inter', 'bold');
-      doc.setFontSize(7);
-      doc.setTextColor(0);
-      doc.text('Média de Frequência', 122, finalY + 5);
-      
+      doc.setFontSize(7.5);
+      doc.setTextColor(51, 65, 85);
+      doc.text('MÉDIA DE FREQUÊNCIA', 201, finalY + 4.5);
       doc.setFont('Inter', 'normal');
-      doc.text(formatPresence(reportToPdf.averageFrequency), 160, finalY + 5, { align: 'right' });
+      doc.text(`${formatPresence(reportToPdf.averageFrequency)}%`, 266, finalY + 4.5, { align: 'center' });
 
       doc.setFont('Inter', 'bold');
-      doc.text('Média de Nota', 165, finalY + 5);
-      
+      doc.text('MÉDIA GERAL DE NOTAS', 201, finalY + 11.5);
       doc.setFont('Inter', 'normal');
-      doc.text(formatGrade(reportToPdf.averageGrade), 198, finalY + 5, { align: 'right' });
+      doc.text(formatGrade(reportToPdf.averageGrade), 266, finalY + 11.5, { align: 'center' });
 
-      // --- 7. Bottom Issuer & Codes ---
-      doc.setFontSize(6.5);
-      doc.setFont('Inter', 'bold');
-      doc.setTextColor(140);
+      // --- 6. Bottom System Footer ---
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(margin, 192, pageWidth - margin, 192);
+
       const todayFormatted = new Date().toLocaleDateString('pt-BR');
-      doc.text(todayFormatted, 10, 285);
-      doc.text('arBOL', 35, 285);
-      doc.text(`Página 1`, 190, 285);
+      doc.setFontSize(7.5);
+      doc.setFont('Inter', 'normal');
+      doc.setTextColor(120);
+      doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 198);
+      doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 198, { align: 'center' });
+      doc.text('Página 1 de 1', pageWidth - margin, 198, { align: 'right' });
 
       doc.save(`boletim_${reportToPdf.student.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}.pdf`);
     } catch (err) {
@@ -767,10 +775,14 @@ export function Bulletin() {
 
     try {
       const doc = new jsPDF({
-        orientation: 'p',
+        orientation: 'l',
         unit: 'mm',
         format: 'a4'
       });
+
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 15;
+      const centerX = pageWidth / 2;
 
       const primaryColor = [0, 23, 75];
       const darkColor = [33, 41, 54];
@@ -782,81 +794,83 @@ export function Bulletin() {
           doc.addPage();
         }
 
-        // --- 1. Header Frame Box ---
-        doc.setDrawColor(200);
-        doc.setLineWidth(0.3);
-        doc.rect(10, 10, 190, 25); // Main outline
+        let y = 15;
 
-        // --- 2. School Title & details ---
-        doc.setFont('Inter', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        const titleLine1 = (institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS - Pe. José Fernando de Brito').toUpperCase();
-        doc.text(titleLine1, 35, 18);
+        // --- 1. Logo or School Standard Header ---
+        let textStartX = margin;
+        let logoWidth = 0;
+
+        if (institution?.logo_url) {
+          try { 
+            doc.addImage(institution.logo_url, 'auto', margin, y, 22, 22); 
+            logoWidth = 26;
+          } catch (e) {}
+        }
         
+        textStartX = margin + logoWidth;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9);
+        doc.setFont('Inter', 'bold');
+        doc.text('DIOCESE DE GUARULHOS', textStartX, y + 5);
+
+        doc.setFontSize(16);
+        doc.setFont('Inter', 'bold');
+        doc.text(institution?.name?.toUpperCase() || 'ESCMIN - GESTÃO ESCOLAR', textStartX, y + 12);
+        
+        doc.setFontSize(9);
         doc.setFont('Inter', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(100);
-        const addressLine = institution?.address || 'Av. Venus, 195 - Itapegica - Guarulhos - Cep 07044-170';
-        doc.text(addressLine, 35, 24);
+        doc.setTextColor(80);
+        const subTitleText = (institution?.subtitle || institution?.address || 'SECRETARIA ACADÊMICA').toUpperCase();
+        doc.text(subTitleText, textStartX, y + 17);
 
-        const contactLine = `E-mail: ${institution?.email || 'edm@diocese.org.br'} | Website: ${institution?.website || 'diocese.org.br'}`;
-        doc.text(contactLine, 35, 29);
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.8);
+        doc.line(margin, y + 24, pageWidth - margin, y + 24);
 
-        // --- Placeholder circle/square for badge/logo ---
-        doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.setFillColor(245, 247, 250);
-        doc.rect(14, 13, 17, 19, 'F');
-        doc.setDrawColor(218, 224, 233);
-        doc.rect(14, 13, 17, 19, 'S');
-        doc.setFontSize(5.5);
+        y += 32;
+
+        // --- 2. Centered Page Title ---
+        doc.setFontSize(12);
         doc.setFont('Inter', 'bold');
-        doc.setTextColor(120);
-        doc.text('DIOCESE', 16, 21);
-        doc.text('GUARULHOS', 14.5, 25);
-
-        // --- 3. Title bar (BOLETIM DE NOTAS) ---
-        doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.setLineWidth(0.4);
-        doc.setFillColor(250, 250, 250);
-        doc.rect(10, 39, 190, 8, 'F');
-        doc.rect(10, 39, 190, 8, 'S');
-        
-        doc.setFont('Inter', 'bold');
-        doc.setFontSize(10);
         doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-        doc.text('BOLETIM DE NOTAS', 90, 44.5, { align: 'center' });
+        doc.text('BOLETIM ESCOLAR DE RENDIMENTO ACADÊMICO', centerX, y, { align: 'center' });
 
-        // --- 4. Student Metadata block ---
+        // --- 3. Student Metadata block ---
         doc.setFont('Inter', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(70);
-        doc.text('Aluno:', 10, 53);
-        
+        doc.setFontSize(8.5);
+        doc.setTextColor(60);
+        doc.text('ALUNO:', 15, y + 10);
         doc.setFont('Inter', 'normal');
-        doc.setFontSize(8);
         doc.setTextColor(30);
-        doc.text(`${report.student.registration_number || '000000/0000'}  ${report.student.name}`, 21, 53);
+        doc.text(`${report.student.registration_number || 'S/M'} - ${report.student.name.toUpperCase()}`, 32, y + 10);
 
         doc.setFont('Inter', 'bold');
-        doc.text('Situação:', 125, 53);
+        doc.setTextColor(60);
+        doc.text('SITUAÇÃO:', 190, y + 10);
         doc.setFont('Inter', 'normal');
-        doc.text(report.student.status || 'Ativo', 140, 53);
+        doc.setTextColor(30);
+        doc.text(`${report.student.status || 'Ativo'}`.toUpperCase(), 212, y + 10);
 
         doc.setFont('Inter', 'bold');
-        doc.text('Turma:', 10, 58);
+        doc.setTextColor(60);
+        doc.text('TURMA:', 15, y + 16);
         doc.setFont('Inter', 'normal');
-        doc.text(`${activeClassObj?.name || 'N/D'}`, 21, 58);
+        doc.setTextColor(30);
+        doc.text(`${activeClassObj?.name || 'N/D'}`.toUpperCase(), 32, y + 16);
 
         doc.setFont('Inter', 'bold');
-        doc.text('Horário:', 70, 58);
+        doc.setTextColor(60);
+        doc.text('PERÍODO:', 190, y + 16);
         doc.setFont('Inter', 'normal');
-        doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || '4ª feira'}`, 83, 58);
+        doc.setTextColor(30);
+        doc.text(`${activeClassObj?.period || 'Noite'} - ${(activeClassObj?.days_of_week || []).join(', ') || 'Semanal'}`.toUpperCase(), 212, y + 16);
 
         doc.setDrawColor(220);
-        doc.line(10, 61, 200, 61);
+        doc.setLineWidth(0.3);
+        doc.line(margin, y + 20, pageWidth - margin, y + 20);
 
-        // --- 5. Generate Grades/Absences Table ---
+        // --- 4. Generate Grades/Absences Table ---
         const tableHeaders: any[] = [
           [
             { content: 'Disciplinas', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
@@ -896,78 +910,83 @@ export function Bulletin() {
         autoTable(doc, {
           head: tableHeaders,
           body: tableRows,
-          startY: 65,
-          theme: 'plain',
+          startY: y + 25,
+          theme: 'grid',
           styles: {
-            fontSize: 7,
-            cellPadding: 1.5,
-            lineColor: [40, 40, 40],
-            lineWidth: 0.2,
-            textColor: [0, 0, 0]
+            fontSize: 7.5,
+            cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+            lineColor: [226, 232, 240],
+            lineWidth: 0.15,
+            textColor: [33, 41, 54]
           },
           headStyles: {
-            fillColor: [240, 244, 248],
-            textColor: [0, 0, 0],
+            fillColor: [241, 245, 249],
+            textColor: [15, 23, 42],
             fontStyle: 'bold',
-            fontSize: 6.5,
-            lineWidth: 0.2,
-            lineColor: [40, 40, 40]
+            fontSize: 7,
+            lineWidth: 0.15,
+            lineColor: [226, 232, 240]
           },
           columnStyles: {
-            0: { cellWidth: 52, fontStyle: 'bold' },
-            1: { cellWidth: 6, halign: 'center' },
-            2: { cellWidth: 6, halign: 'center' },
-            3: { cellWidth: 6, halign: 'center' },
-            4: { cellWidth: 6, halign: 'center' },
-            5: { cellWidth: 6, halign: 'center' },
-            6: { cellWidth: 6, halign: 'center' },
-            7: { cellWidth: 6, halign: 'center' },
-            8: { cellWidth: 6, halign: 'center' },
-            9: { cellWidth: 6, halign: 'center' },
-            10: { cellWidth: 7, halign: 'center' },
-            11: { cellWidth: 7, halign: 'center' },
-            12: { cellWidth: 7, halign: 'center' },
-            13: { cellWidth: 11, halign: 'center' },
-            14: { cellWidth: 12, halign: 'center' },
-            15: { cellWidth: 9, halign: 'center' },
-            16: { cellWidth: 9, halign: 'center' },
-            17: { cellWidth: 9, halign: 'center' },
-            18: { cellWidth: 17, halign: 'center', fontStyle: 'bold' }
+            0: { cellWidth: 77, fontStyle: 'bold' },
+            1: { cellWidth: 8, halign: 'center' },
+            2: { cellWidth: 8, halign: 'center' },
+            3: { cellWidth: 8, halign: 'center' },
+            4: { cellWidth: 8, halign: 'center' },
+            5: { cellWidth: 8, halign: 'center' },
+            6: { cellWidth: 8, halign: 'center' },
+            7: { cellWidth: 8, halign: 'center' },
+            8: { cellWidth: 8, halign: 'center' },
+            9: { cellWidth: 8, halign: 'center' },
+            10: { cellWidth: 8, halign: 'center' },
+            11: { cellWidth: 8, halign: 'center' },
+            12: { cellWidth: 8, halign: 'center' },
+            13: { cellWidth: 14, halign: 'center' },
+            14: { cellWidth: 14, halign: 'center' },
+            15: { cellWidth: 14, halign: 'center' },
+            16: { cellWidth: 14, halign: 'center' },
+            17: { cellWidth: 14, halign: 'center' },
+            18: { cellWidth: 24, halign: 'center', fontStyle: 'bold' }
           }
         });
 
-        // --- 6. Summary Footer block ---
-        const finalY = (doc as any).lastAutoTable.finalY + 3;
+        // --- 5. Summary Footer block ---
+        const finalY = (doc as any).lastAutoTable.finalY + 4;
         
-        doc.setDrawColor(40, 40, 40);
+        doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.2);
 
         doc.setFillColor(248, 250, 252);
-        doc.rect(120, finalY, 80, 8, 'F');
-        doc.rect(120, finalY, 80, 8, 'S');
+        doc.rect(198, finalY, 84, 14, 'F');
+        doc.rect(198, finalY, 84, 14, 'S');
+
+        doc.line(250, finalY, 250, finalY + 14);
+        doc.line(198, finalY + 7, 282, finalY + 7);
 
         doc.setFont('Inter', 'bold');
-        doc.setFontSize(7);
-        doc.setTextColor(0);
-        doc.text('Média de Frequência', 122, finalY + 5);
-        
+        doc.setFontSize(7.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text('MÉDIA DE FREQUÊNCIA', 201, finalY + 4.5);
         doc.setFont('Inter', 'normal');
-        doc.text(formatPresence(report.averageFrequency), 160, finalY + 5, { align: 'right' });
+        doc.text(`${formatPresence(report.averageFrequency)}%`, 266, finalY + 4.5, { align: 'center' });
 
         doc.setFont('Inter', 'bold');
-        doc.text('Média de Nota', 165, finalY + 5);
-        
+        doc.text('MÉDIA GERAL DE NOTAS', 201, finalY + 11.5);
         doc.setFont('Inter', 'normal');
-        doc.text(formatGrade(report.averageGrade), 198, finalY + 5, { align: 'right' });
+        doc.text(formatGrade(report.averageGrade), 266, finalY + 11.5, { align: 'center' });
 
-        // --- 7. Bottom Issuer & Codes ---
-        doc.setFontSize(6.5);
-        doc.setFont('Inter', 'bold');
-        doc.setTextColor(140);
+        // --- 6. Bottom System Footer ---
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.line(margin, 192, pageWidth - margin, 192);
+
         const todayFormatted = new Date().toLocaleDateString('pt-BR');
-        doc.text(todayFormatted, 10, 285);
-        doc.text('arBOL', 35, 285);
-        doc.text(`Página ${index + 1}`, 190, 285);
+        doc.setFontSize(7.5);
+        doc.setFont('Inter', 'normal');
+        doc.setTextColor(120);
+        doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 198);
+        doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 198, { align: 'center' });
+        doc.text(`Alunos: ${index + 1} de ${studentReports.length}`, pageWidth - margin, 198, { align: 'right' });
       });
 
       doc.save(`boletins_lote_turma_${activeClassObj?.name.toLowerCase().replace(/\s+/g, '_') || 'classe'}.pdf`);
