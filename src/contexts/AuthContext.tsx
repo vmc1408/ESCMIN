@@ -102,7 +102,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     // 1. Pega sessão inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error("[AuthContext] Erro ao buscar sessão inicial:", error);
+        // Se houver erro de token inválido, limpa localStorage do Supabase
+        if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token') || error.message?.includes('Invalid Refresh Token')) {
+          console.warn("[AuthContext] Token de atualização inválido detectado. Limpando chaves locais do Supabase...");
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          supabase.auth.signOut().catch(() => {});
+        }
+      }
       if (!mounted) return;
       
       if (session?.user) {
@@ -113,6 +129,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         refreshProfile(session.user.id);
       } else {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+    }).catch(err => {
+      console.error("[AuthContext] Falha grave ao obter sessão do Supabase:", err);
+      if (mounted) {
         setUser(null);
         setProfile(null);
         setLoading(false);
