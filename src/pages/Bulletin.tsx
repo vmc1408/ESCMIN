@@ -1728,6 +1728,7 @@ export function Bulletin() {
           }
           #printable-class-bulletin * {
             visibility: visible !important;
+            overflow: visible !important;
           }
           /* Ensure table elements wrap and break beautifully */
           tr {
