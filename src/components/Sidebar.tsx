@@ -52,25 +52,25 @@ const navItems = [
           { icon: TeachersIcon, label: 'Professores', path: '/teachers' },
           { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
-          {
-            label: 'Frequência',
-            icon: CalendarCheck,
-            children: [
-              { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
-              { icon: CalendarCheck, label: 'Lista de Chamada', path: '/monthly-attendance' },
-            ]
-          },
-          { 
-            label: 'Diário de Classe',
-            icon: GradesIcon,
-            children: [
-              { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
-              { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
-              { icon: ReportsIcon, label: 'Diário Consolidado', path: '/reports?tab=diario_consolidado' },
-              { icon: UserIcon, label: 'Ficha do Aluno', path: '/student-ficha' },
-              { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents' },
-            ]
-          },
+        ]
+      },
+      { 
+        label: 'Diário de Classe',
+        icon: GradesIcon,
+        children: [
+          { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
+          { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
+          { icon: ReportsIcon, label: 'Diário Consolidado', path: '/reports?tab=diario_consolidado' },
+          { icon: UserIcon, label: 'Ficha do Aluno', path: '/student-ficha' },
+          { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents' },
+        ]
+      },
+      {
+        label: 'Frequência',
+        icon: CalendarCheck,
+        children: [
+          { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
+          { icon: CalendarCheck, label: 'Lista de Chamada', path: '/monthly-attendance' },
         ]
       },
       {
@@ -172,7 +172,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Acadêmico', 'Financeiro', 'Cronograma']);
+  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Acadêmico', 'Diário de Classe', 'Frequência', 'Financeiro', 'Cronograma']);
 
   const toggleGroup = (label: string) => {
     setOpenGroups(prev => 
