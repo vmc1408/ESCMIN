@@ -1673,10 +1673,8 @@ export function Bulletin() {
                     <tfoot className="hidden print:table-footer-group">
                       <tr>
                         <td colSpan={6} className="p-0 border-t-0 pt-4">
-                          <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
+                          <div className="border-t border-slate-200 pt-3 flex justify-center items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
                             <span>ESCMIN - Sistema de Gestão de Secretaria</span>
-                            <span>Pauta de Classe por Turma</span>
-                            <span>Assinatura da Secretaria: ___________________________</span>
                           </div>
                         </td>
                       </tr>
