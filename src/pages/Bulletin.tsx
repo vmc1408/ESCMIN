@@ -1730,6 +1730,60 @@ export function Bulletin() {
             visibility: visible !important;
             overflow: visible !important;
           }
+          
+          /* Set custom column widths and align correctly under print */
+          #printable-class-bulletin th,
+          #printable-class-bulletin td {
+            padding: 1.5mm 1mm !important;
+            word-break: break-word !important;
+            white-space: normal !important;
+          }
+          
+          /* Column widths */
+          #printable-class-bulletin th:nth-child(1),
+          #printable-class-bulletin td:nth-child(1) {
+            width: 13% !important;
+            text-align: left !important;
+          }
+          #printable-class-bulletin th:nth-child(2),
+          #printable-class-bulletin td:nth-child(2) {
+            width: 47% !important;
+            text-align: left !important;
+            font-size: 10px !important;
+            line-height: 1.1 !important;
+          }
+          #printable-class-bulletin th:nth-child(3),
+          #printable-class-bulletin td:nth-child(3) {
+            width: 10% !important;
+            text-align: center !important;
+          }
+          #printable-class-bulletin th:nth-child(4),
+          #printable-class-bulletin td:nth-child(4) {
+            width: 10% !important;
+            text-align: center !important;
+          }
+          #printable-class-bulletin th:nth-child(5),
+          #printable-class-bulletin td:nth-child(5) {
+            width: 10% !important;
+            text-align: center !important;
+          }
+          #printable-class-bulletin th:nth-child(6),
+          #printable-class-bulletin td:nth-child(6) {
+            width: 10% !important;
+            text-align: center !important;
+          }
+
+          /* Compress final status and average grade badges under print to prevent tall cells */
+          #printable-class-bulletin td span {
+            padding: 0.5mm 1.5mm !important;
+            font-size: 8.5px !important;
+            width: auto !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            display: inline-block !important;
+            box-shadow: none !important;
+          }
+
           /* Ensure table elements wrap and break beautifully */
           tr {
             page-break-inside: avoid !important;
