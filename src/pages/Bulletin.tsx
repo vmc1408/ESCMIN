@@ -1595,7 +1595,7 @@ export function Bulletin() {
                           </div>
                           <div className="bg-slate-100/60 border border-slate-200 p-3 text-center uppercase mb-6">
                             <h2 className="text-[10px] font-black text-slate-800 tracking-widest">
-                              Pauta de Notas & Rendimentos Gerais por Turma
+                              Notas e Frequência por Turma
                             </h2>
                           </div>
                           <div className="grid grid-cols-2 gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-wider mb-2">
@@ -1673,8 +1673,9 @@ export function Bulletin() {
                     <tfoot className="hidden print:table-footer-group">
                       <tr>
                         <td colSpan={6} className="p-0 border-t-0 pt-4">
-                          <div className="border-t border-slate-200 pt-3 flex justify-center items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
+                          <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
                             <span>ESCMIN - Sistema de Gestão de Secretaria</span>
+                            <span className="print-page-number"></span>
                           </div>
                         </td>
                       </tr>
@@ -1786,6 +1787,9 @@ export function Bulletin() {
           }
           tfoot {
             display: table-footer-group !important;
+          }
+          .print-page-number::after {
+            content: "Página " counter(page) !important;
           }
         }
       `}</style>
