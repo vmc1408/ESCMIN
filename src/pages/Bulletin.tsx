@@ -1581,8 +1581,46 @@ export function Bulletin() {
             )
           ) : (
             /* --- CLASS LISTING GENERAL PERFORMANCE LAYOUT --- */
-            <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
-              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div id="printable-class-bulletin" className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
+              {/* PRINTABLE ONLY HEADER */}
+              <div className="hidden print:block p-8 border-b border-slate-200 bg-white">
+                <div className="flex items-center gap-6 mb-6">
+                  {institution?.logo_url ? (
+                    <img 
+                      src={institution.logo_url} 
+                      alt="Logo" 
+                      referrerPolicy="no-referrer"
+                      className="w-16 h-16 object-contain"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
+                      <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
+                      <School size={16} className="text-slate-350 my-1" />
+                      <span className="text-[5px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <span className="text-[9px] font-black text-slate-450 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
+                    <h1 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                      {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                    </h1>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                      {institution?.address || 'SECRETARIA ACADÊMICA'}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-slate-100/60 border border-slate-200 p-3 text-center uppercase mb-6">
+                  <h2 className="text-[10px] font-black text-slate-800 tracking-widest">
+                    Pauta de Notas & Rendimentos Gerais por Turma
+                  </h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-wider">
+                  <div>Turma: <span className="text-slate-900 font-extrabold">{classes.find(c => c.id === selectedClassId)?.name}</span></div>
+                  <div className="text-right">Emissão: <span className="text-slate-900 font-extrabold">{new Date().toLocaleDateString('pt-BR')}</span></div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
                 <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
                   Resumo de Rendimentos e Situações Finais ({classes.find(c => c.id === selectedClassId)?.name})
                 </h3>
@@ -1667,6 +1705,39 @@ export function Bulletin() {
           )}
         </div>
       )}
+
+      {/* Custom class print rules override to bypass the page height restriction of [id^="printable-"] selectors */}
+      <style>{`
+        @media print {
+          #printable-class-bulletin {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 8mm !important;
+            background: white !important;
+            z-index: 9999 !important;
+            display: block !important;
+            visibility: visible !important;
+            overflow: visible !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          #printable-class-bulletin * {
+            visibility: visible !important;
+          }
+          /* Ensure table elements wrap and break beautifully */
+          tr {
+            page-break-inside: avoid !important;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
