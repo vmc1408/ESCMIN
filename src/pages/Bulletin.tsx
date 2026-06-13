@@ -1816,8 +1816,8 @@ export function Bulletin() {
       <style>{`
         @media print {
           @page {
-            size: ${viewMode === 'class' ? 'A4 landscape !important' : 'A4 portrait !important'};
-            margin: ${viewMode === 'class' ? '10mm 12mm 10mm 12mm !important' : '12mm 15mm 12mm 15mm !important'};
+            size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'};
+            margin: ${viewMode === 'class' ? '10mm 12mm' : '12mm 15mm'};
             @bottom-right {
               content: "Página " counter(page);
               font-size: 7.5px;
