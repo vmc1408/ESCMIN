@@ -357,19 +357,19 @@ const getStudentName = (cert: any, studentsList: any[]) => {
   return found ? found.name : 'Estudante';
 };
 
-type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational' | 'attendance' | 'diario_consolidado';
+type ReportCategory = 'dashboard' | 'financial' | 'academic' | 'operational' | 'attendance';
 
 export function Reports() {
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') as ReportCategory | null;
-  const initialCategory = (tabParam && ['dashboard', 'financial', 'academic', 'operational', 'attendance', 'diario_consolidado'].includes(tabParam))
+  const initialCategory = (tabParam && ['dashboard', 'financial', 'academic', 'operational', 'attendance'].includes(tabParam))
     ? tabParam
     : 'dashboard';
   const [activeCategory, setActiveCategory] = useState<ReportCategory>(initialCategory);
 
   useEffect(() => {
-    if (tabParam && ['dashboard', 'financial', 'academic', 'operational', 'attendance', 'diario_consolidado'].includes(tabParam)) {
+    if (tabParam && ['dashboard', 'financial', 'academic', 'operational', 'attendance'].includes(tabParam)) {
       if (activeCategory !== tabParam) {
         setActiveCategory(tabParam);
       }
@@ -1463,8 +1463,7 @@ export function Reports() {
       )}
 
       {/* Modern Sticky Header */}
-      {activeCategory !== 'diario_consolidado' && (
-        <div className="bg-white border-b border-slate-200 px-8 py-6 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
+      <div className="bg-white border-b border-slate-200 px-8 py-6 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
           <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-[#00174b] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
@@ -1517,9 +1516,8 @@ export function Reports() {
             </div>
           </div>
         </div>
-      )}
 
-      <div className={cn("max-w-[1920px] mx-auto px-8 space-y-4 print:hidden", activeCategory === 'diario_consolidado' && "pt-8")}>
+      <div className="max-w-[1920px] mx-auto px-8 space-y-4 print:hidden">
         {activeCategory === 'dashboard' && (
           <>
         {/* KPI Grid */}
@@ -2167,7 +2165,7 @@ export function Reports() {
           </div>
         )}
 
-        {activeCategory === 'diario_consolidado' && (
+        {false && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 print:hidden">
              {/* Unified Style Header */}
              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200 no-print">
@@ -2275,14 +2273,15 @@ export function Reports() {
                     // Normalize class subject_ids
                     let sIds: string[] = [];
                     if (classObj) {
-                      if (Array.isArray(classObj.subject_ids)) {
-                        sIds = classObj.subject_ids;
-                      } else if (typeof classObj.subject_ids === 'string') {
+                      const subjectIdsField = (classObj as any).subject_ids;
+                      if (Array.isArray(subjectIdsField)) {
+                        sIds = subjectIdsField;
+                      } else if (typeof subjectIdsField === 'string') {
                         try {
-                          const parsed = JSON.parse(classObj.subject_ids);
+                          const parsed = JSON.parse(subjectIdsField);
                           sIds = Array.isArray(parsed) ? parsed : [parsed];
                         } catch (e) {
-                          sIds = classObj.subject_ids ? [classObj.subject_ids] : [];
+                          sIds = subjectIdsField ? [subjectIdsField] : [];
                         }
                       } else if ((classObj as any).subject_id) {
                         sIds = [(classObj as any).subject_id];

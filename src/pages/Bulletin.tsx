@@ -10,7 +10,10 @@ import {
   ChevronDown,
   FileText,
   User,
-  GraduationCap
+  GraduationCap,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
@@ -422,6 +425,8 @@ export function Bulletin() {
     return studentReports.find(r => r.student.id === selectedStudentId) || null;
   }, [selectedStudentId, studentReports]);
 
+  const [classSort, setClassSort] = useState<{ key: string; subId?: string; direction: 'asc' | 'desc' } | null>({ key: 'student', direction: 'asc' });
+
   // General filter for class table
   const filteredReports = useMemo(() => {
     if (!searchQuery) return studentReports;
@@ -430,6 +435,77 @@ export function Bulletin() {
       (r.student.registration_number && r.student.registration_number.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   }, [searchQuery, studentReports]);
+
+  // Dynamic sorting based on classSort
+  const sortedReports = useMemo(() => {
+    const results = [...filteredReports];
+    if (!classSort) return results;
+
+    const { key, subId, direction } = classSort;
+    return results.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+
+      if (key === 'student') {
+        valA = a.student.name || '';
+        valB = b.student.name || '';
+      } else if (key === 'presence') {
+        valA = a.averageFrequency || 0;
+        valB = b.averageFrequency || 0;
+      } else if (key === 'status') {
+        valA = a.finalStatus || '';
+        valB = b.finalStatus || '';
+      } else if (key === 'subject' && subId) {
+        const perfA = a.subjectsPerformance.find(sp => sp.subjectId === subId);
+        const perfB = b.subjectsPerformance.find(sp => sp.subjectId === subId);
+        valA = perfA && perfA.finalGrade !== null ? perfA.finalGrade : -1;
+        valB = perfB && perfB.finalGrade !== null ? perfB.finalGrade : -1;
+      }
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return direction === 'asc'
+          ? valA.localeCompare(valB, 'pt-BR')
+          : valB.localeCompare(valA, 'pt-BR');
+      } else {
+        if (valA < valB) return direction === 'asc' ? -1 : 1;
+        if (valA > valB) return direction === 'asc' ? 1 : -1;
+        return 0;
+      }
+    });
+  }, [filteredReports, classSort]);
+
+  const { total, approved, recuperation, failed, pending } = useMemo(() => {
+    const totalCount = studentReports.length;
+    const approvedCount = studentReports.filter(r => r.finalStatus === 'Aprovado').length;
+    const recuperationCount = studentReports.filter(r => r.finalStatus === 'Recuperação').length;
+    const failedCount = studentReports.filter(r => r.finalStatus === 'Reprovado').length;
+    const pendingCount = studentReports.filter(r => r.finalStatus === 'Pendente').length;
+    return {
+      total: totalCount,
+      approved: approvedCount,
+      recuperation: recuperationCount,
+      failed: failedCount,
+      pending: pendingCount
+    };
+  }, [studentReports]);
+
+  const handleClassSort = (key: string, subId?: string) => {
+    setClassSort(prev => {
+      if (prev && prev.key === key && prev.subId === subId) {
+        return { key, subId, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, subId, direction: 'asc' };
+    });
+  };
+
+  const renderSortIcon = (key: string, subId?: string) => {
+    if (!classSort || classSort.key !== key || (subId && classSort.subId !== subId)) {
+      return <ArrowUpDown size={10} className="text-slate-400 ml-1.5 opacity-55 inline-block" />;
+    }
+    return classSort.direction === 'asc' 
+      ? <ArrowUp size={10} className="text-blue-600 ml-1.5 font-bold inline-block" />
+      : <ArrowDown size={10} className="text-blue-600 ml-1.5 font-bold inline-block" />;
+  };
 
   // Print current screen report card
   const handlePrint = () => {
@@ -1547,141 +1623,190 @@ export function Bulletin() {
             )
           ) : (
             /* --- CLASS LISTING GENERAL PERFORMANCE LAYOUT --- */
-            <div id="printable-class-bulletin" className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
-              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
-                <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                  Resumo de Rendimentos e Situações Finais ({classes.find(c => c.id === selectedClassId)?.name})
-                </h3>
-                <span className="text-[9px] font-bold text-slate-600 bg-slate-200 border border-slate-300 px-3 py-1 uppercase tracking-widest leading-none">
-                  Totalizador Acadêmico
-                </span>
+            <div className="space-y-6">
+              {/* Class Summary widgets */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+                 <div className="bg-slate-50 border border-slate-200 p-5 rounded-none shadow-none">
+                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
+                   <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
+                 </div>
+                 <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-none shadow-none border-l-4 border-l-emerald-600">
+                   <p className="text-[10px] font-bold text-emerald-805 uppercase tracking-widest">Aprovados</p>
+                   <h4 className="text-2xl font-bold text-emerald-600 mt-1">{approved}</h4>
+                 </div>
+                 <div className="bg-amber-50/50 border border-amber-250 p-5 rounded-none shadow-none border-l-4 border-l-amber-600">
+                   <p className="text-[10px] font-bold text-amber-805 uppercase tracking-widest">Em Recuperação</p>
+                   <h4 className="text-2xl font-bold text-amber-500 mt-1">{recuperation}</h4>
+                 </div>
+                 <div className="bg-rose-50/50 border border-rose-250 p-5 rounded-none shadow-none border-l-4 border-l-rose-600">
+                   <p className="text-[10px] font-bold text-rose-805 uppercase tracking-widest">Reprovados / Pendentes</p>
+                   <h4 className="text-2xl font-bold text-rose-500 mt-1">{failed + pending}</h4>
+                 </div>
               </div>
 
-              {filteredReports.length === 0 ? (
-                <div className="p-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-                  Nenhum registro de aluno correspondente na busca.
+              <div id="printable-class-bulletin" className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+                  <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                    Quadro Geral de Rendimento e Presença ({classes.find(c => c.id === selectedClassId)?.name})
+                  </h3>
+                  <span className="text-[9px] font-bold text-slate-600 bg-slate-200 border border-slate-300 px-3 py-1 uppercase tracking-widest leading-none">
+                    {classSubjects.length} Disciplinas Ativas nesta Turma
+                  </span>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left font-sans">
-                    <thead>
-                      {/* PRINT REPEATED CORPORATE HEADER - Visible only when printing */}
-                      <tr className="hidden print:table-row">
-                        <td colSpan={6} className="p-8 border-b border-slate-200 bg-white">
-                          <div className="flex items-center gap-6 mb-6">
-                            {institution?.logo_url ? (
-                              <img 
-                                src={institution.logo_url} 
-                                alt="Logo" 
-                                referrerPolicy="no-referrer"
-                                className="w-16 h-16 object-contain"
-                              />
-                            ) : (
-                              <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
-                                <span className="text-[4px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
-                                <School size={16} className="text-slate-350 my-1" />
-                                <span className="text-[3px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
+
+                {sortedReports.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                    Nenhum registro de aluno correspondente na busca.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left font-sans">
+                      <thead>
+                        {/* PRINT REPEATED CORPORATE HEADER - Visible only when printing */}
+                        <tr className="hidden print:table-row">
+                          <td colSpan={classSubjects.length + 3} className="p-8 border-b border-slate-200 bg-white">
+                            <div className="flex items-center gap-6 mb-6">
+                              {institution?.logo_url ? (
+                                <img 
+                                  src={institution.logo_url} 
+                                  alt="Logo" 
+                                  referrerPolicy="no-referrer"
+                                  className="w-16 h-16 object-contain"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 bg-slate-50 border border-slate-200 flex flex-col items-center justify-center p-1 font-sans flex-shrink-0">
+                                  <span className="text-[4px] font-black text-slate-400 uppercase tracking-widest leading-none">DIOCESE</span>
+                                  <School size={16} className="text-slate-350 my-1" />
+                                  <span className="text-[3px] font-black text-slate-400 uppercase tracking-widest leading-none">GUARULHOS</span>
+                                </div>
+                              )}
+                              <div className="flex-1 text-left">
+                                <span className="text-[9px] font-black text-slate-455 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
+                                <h1 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                                  {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                                </h1>
+                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
+                                  {institution?.address || 'SECRETARIA ACADÊMICA'}
+                                </p>
                               </div>
-                            )}
-                            <div className="flex-1 text-left">
-                              <span className="text-[9px] font-black text-slate-450 uppercase tracking-widest block mb-0.5">DIOCESE DE GUARULHOS</span>
-                              <h1 className="text-sm font-black text-slate-900 uppercase tracking-tight">
-                                {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                              </h1>
-                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">
-                                {institution?.address || 'SECRETARIA ACADÊMICA'}
-                              </p>
                             </div>
-                          </div>
-                          <div className="bg-slate-100/60 border border-slate-200 p-3 text-center uppercase mb-6">
-                            <h2 className="text-[10px] font-black text-slate-800 tracking-widest">
-                              Notas e Frequência por Turma
-                            </h2>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-wider mb-2">
-                            <div className="text-left font-bold uppercase">
-                              Turma: <span className="text-slate-900 font-extrabold">{classes.find(c => c.id === selectedClassId)?.name}</span>
+                            <div className="bg-slate-100/60 border border-slate-200 p-3 text-center uppercase mb-6">
+                              <h2 className="text-[10px] font-black text-slate-800 tracking-widest">
+                                Notas e Frequência por Turma
+                              </h2>
                             </div>
-                            <div className="text-right font-bold uppercase">
-                              Emissão: <span className="text-slate-900 font-extrabold">{new Date().toLocaleDateString('pt-BR')}</span>
+                            <div className="grid grid-cols-2 gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-wider mb-2">
+                              <div className="text-left font-bold uppercase">
+                                Turma: <span className="text-slate-900 font-extrabold">{classes.find(c => c.id === selectedClassId)?.name}</span>
+                              </div>
+                              <div className="text-right font-bold uppercase">
+                                Emissão: <span className="text-slate-900 font-extrabold">{new Date().toLocaleDateString('pt-BR')}</span>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
 
-                      <tr className="bg-slate-50/60 text-[9px] font-bold text-slate-500 border-b border-slate-200 uppercase tracking-widest table-columns-header">
-                        <th className="px-6 py-4">Matrícula (RA)</th>
-                        <th className="px-6 py-4">Aluno</th>
-                        <th className="px-6 py-4 text-center">Faltas Globais</th>
-                        <th className="px-6 py-4 text-center">Frequência Letiva</th>
-                        <th className="px-6 py-4 text-center">Média de Notas</th>
-                        <th className="px-6 py-4 text-center">Situação Final</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-800 uppercase text-[11px] font-semibold">
-                      {filteredReports.map(res => {
-                        const showFailed = res.finalStatus === 'Reprovado';
-                        const showRecup = res.finalStatus === 'Recuperação';
-                        const showPending = res.finalStatus === 'Pendente';
+                        <tr className="bg-slate-50/60 text-[9px] font-bold text-slate-500 border-b border-slate-200 uppercase tracking-widest table-columns-header">
+                          <th className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleClassSort('student')}>
+                            <div className="flex items-center gap-1">
+                              <span>Aluno</span>
+                              {renderSortIcon('student')}
+                            </div>
+                          </th>
+                          {classSubjects.map(sub => (
+                            <th key={sub.id} className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title={sub.name} onClick={() => handleClassSort('subject', sub.id)}>
+                              <div className="flex items-center justify-center gap-1">
+                                <span>{sub.code || sub.name.substring(0, 8).toUpperCase()}</span>
+                                {renderSortIcon('subject', sub.id)}
+                              </div>
+                            </th>
+                          ))}
+                          <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleClassSort('presence')}>
+                            <div className="flex items-center justify-center gap-1">
+                              <span>Presença %</span>
+                              {renderSortIcon('presence')}
+                            </div>
+                          </th>
+                          <th className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleClassSort('status')}>
+                            <div className="flex items-center justify-center gap-1">
+                              <span>Situação Final</span>
+                              {renderSortIcon('status')}
+                            </div>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-800 uppercase text-[11px] font-semibold">
+                        {sortedReports.map(res => {
+                          const showFailed = res.finalStatus === 'Reprovado';
+                          const showRecup = res.finalStatus === 'Recuperação';
+                          const showPending = res.finalStatus === 'Pendente';
+                          const minPresenceRequired = 100 - (academicParams.absence_limit_percentage || 25);
 
-                        return (
-                          <tr key={res.student.id} className="hover:bg-slate-50/40 transition-colors">
-                            <td className="px-6 py-3.5 font-mono text-[10.5px] font-bold text-slate-450 tracking-tight">
-                              {res.student.registration_number || 'N/D'}
-                            </td>
-                            <td className="px-6 py-3.5 text-slate-900 font-extrabold tracking-tight">
-                              {res.student.name}
-                            </td>
-                            <td className="px-6 py-3.5 text-center font-mono font-bold text-slate-600">
-                              {res.totalAbsences} faltas
-                            </td>
-                            <td className="px-6 py-3.5 text-center">
-                              <span className={cn(
-                                "font-mono font-black",
-                                res.averageFrequency >= (100 - (academicParams.absence_limit_percentage || 40)) 
-                                  ? "text-slate-800" 
-                                  : "text-rose-600"
-                              )}>
-                                {formatPresence(res.averageFrequency)}%
-                              </span>
-                            </td>
-                            <td className="px-6 py-3.5 text-center">
-                              <span className={cn(
-                                "px-2.5 py-1 rounded-none border text-[10.5px] font-black font-mono shadow-sm",
-                                res.averageGrade >= (academicParams.approval_grade || 5.0) 
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-250" 
-                                  : "bg-rose-50 text-rose-700 border-rose-250"
-                              )}>
-                                {formatGrade(res.averageGrade)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-3.5 text-center">
-                              <span className={cn(
-                                "px-3 py-1 text-[9px] font-bold uppercase tracking-widest border shadow-sm inline-block w-28 text-center",
-                                showFailed ? "bg-rose-50 text-rose-650 border-rose-200" :
-                                showRecup ? "bg-amber-50 text-amber-650 border-amber-200" :
-                                showPending ? "bg-slate-50 text-slate-500 border-slate-200" :
-                                "bg-emerald-50 text-emerald-650 border-emerald-200"
-                              )}>
-                                {res.finalStatus}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot className="hidden print:table-footer-group">
-                      <tr>
-                        <td colSpan={6} className="p-0 border-t-0 pt-4">
-                          <div className="border-t border-slate-200 pt-3 flex justify-center items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
-                            <span>ESCMIN - Sistema de Gestão de Secretaria</span>
-                          </div>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
+                          return (
+                            <tr key={res.student.id} className="hover:bg-slate-50/40 transition-colors">
+                              <td className="px-6 py-3.5">
+                                <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{res.student.name}</p>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">RA: {res.student.registration_number || 'N/D'}</p>
+                              </td>
+                              {classSubjects.map(sub => {
+                                const perf = res.subjectsPerformance.find(sp => sp.subjectId === sub.id);
+                                const gradeValue = perf ? perf.finalGrade : null;
+                                const isApproved = gradeValue !== null && gradeValue >= (academicParams.approval_grade || 5.0);
+
+                                return (
+                                  <td key={sub.id} className="px-6 py-3.5 text-center">
+                                    {gradeValue !== null ? (
+                                      <span className={cn(
+                                        "px-2 py-1 text-xs font-bold font-mono inline-block min-w-10 text-center rounded-none border shadow-sm",
+                                        isApproved ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+                                      )}>
+                                        {formatGrade(gradeValue).replace('.', ',')}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs font-bold text-slate-350 uppercase">-</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              <td className="px-6 py-3.5 text-center">
+                                <div className="inline-flex flex-col items-center">
+                                  <span className={cn(
+                                    "font-mono font-black",
+                                    res.averageFrequency >= minPresenceRequired ? "text-slate-800" : "text-rose-600"
+                                  )}>
+                                    {formatPresence(res.averageFrequency)}%
+                                  </span>
+                                  <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest">({res.totalAbsences} faltas)</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-3.5 text-center">
+                                <span className={cn(
+                                  "px-3 py-1 text-[9px] font-bold uppercase tracking-widest border shadow-sm inline-block w-28 text-center",
+                                  showFailed ? "bg-rose-50 text-rose-650 border-rose-200" :
+                                  showRecup ? "bg-amber-50 text-amber-650 border-amber-200" :
+                                  showPending ? "bg-slate-50 text-slate-500 border-slate-200" :
+                                  "bg-emerald-50 text-emerald-650 border-emerald-200"
+                                )}>
+                                  {res.finalStatus}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="hidden print:table-footer-group">
+                        <tr>
+                          <td colSpan={classSubjects.length + 3} className="p-0 border-t-0 pt-4">
+                            <div className="border-t border-slate-200 pt-3 flex justify-center items-center text-[7.5px] text-slate-400 font-extrabold uppercase tracking-widest bg-white">
+                              <span>ESCMIN - Sistema de Gestão de Secretaria</span>
+                            </div>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1725,44 +1850,11 @@ export function Bulletin() {
             white-space: nowrap !important;
           }
           
-          /* Column widths */
+          /* Column widths helper */
           #printable-class-bulletin thead tr.table-columns-header th:nth-child(1),
           #printable-class-bulletin tbody td:nth-child(1) {
-            width: 12% !important;
+            width: 30% !important;
             text-align: left !important;
-            white-space: nowrap !important;
-            font-size: 9px !important;
-          }
-          #printable-class-bulletin thead tr.table-columns-header th:nth-child(2),
-          #printable-class-bulletin tbody td:nth-child(2) {
-            width: 38% !important;
-            text-align: left !important;
-            font-size: 9.5px !important;
-            line-height: 1.1 !important;
-          }
-          #printable-class-bulletin thead tr.table-columns-header th:nth-child(3),
-          #printable-class-bulletin tbody td:nth-child(3) {
-            width: 12% !important;
-            text-align: center !important;
-            white-space: nowrap !important;
-          }
-          #printable-class-bulletin thead tr.table-columns-header th:nth-child(4),
-          #printable-class-bulletin tbody td:nth-child(4) {
-            width: 12% !important;
-            text-align: center !important;
-            white-space: nowrap !important;
-          }
-          #printable-class-bulletin thead tr.table-columns-header th:nth-child(5),
-          #printable-class-bulletin tbody td:nth-child(5) {
-            width: 12% !important;
-            text-align: center !important;
-            white-space: nowrap !important;
-          }
-          #printable-class-bulletin thead tr.table-columns-header th:nth-child(6),
-          #printable-class-bulletin tbody td:nth-child(6) {
-            width: 14% !important;
-            text-align: center !important;
-            white-space: nowrap !important;
           }
 
           /* Compress final status and average grade badges under print to prevent tall cells */
