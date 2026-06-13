@@ -40,7 +40,10 @@ import {
   ChevronDown,
   School,
   Info,
-  Trash2
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { 
   BarChart as ReBarChart, 
@@ -396,6 +399,7 @@ export function Reports() {
   // New states for Diário de Classe & Certificados
   const [selectedDiarioClass, setSelectedDiarioClass] = useState<string>('');
   const [diarioSearch, setDiarioSearch] = useState<string>('');
+  const [diarioSort, setDiarioSort] = useState<{ key: string; subId?: string; direction: 'asc' | 'desc' } | null>({ key: 'student', direction: 'asc' });
   const [dbGrades, setDbGrades] = useState<any[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
@@ -2299,6 +2303,59 @@ export function Reports() {
                       (r.student.registration_number && r.student.registration_number.toLowerCase().includes(diarioSearch.toLowerCase()))
                     ) : results;
 
+                    const handleDiarioSort = (key: string, subId?: string) => {
+                      setDiarioSort(prev => {
+                        if (prev && prev.key === key && prev.subId === subId) {
+                          return { key, subId, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+                        }
+                        return { key, subId, direction: 'asc' };
+                      });
+                    };
+
+                    const renderSortIcon = (key: string, subId?: string) => {
+                      if (!diarioSort || diarioSort.key !== key || (subId && diarioSort.subId !== subId)) {
+                        return <ArrowUpDown size={10} className="text-slate-400 ml-1.5 opacity-55 inline-block" />;
+                      }
+                      return diarioSort.direction === 'asc' 
+                        ? <ArrowUp size={10} className="text-blue-600 ml-1.5 font-bold inline-block" />
+                        : <ArrowDown size={10} className="text-blue-600 ml-1.5 font-bold inline-block" />;
+                    };
+
+                    const sortedResults = [...filteredResults];
+                    if (diarioSort) {
+                      const { key, subId, direction } = diarioSort;
+                      sortedResults.sort((a, b) => {
+                        let valA: any = '';
+                        let valB: any = '';
+
+                        if (key === 'student') {
+                          valA = a.student.name || '';
+                          valB = b.student.name || '';
+                        } else if (key === 'presence') {
+                          valA = a.presencePercentage || 0;
+                          valB = b.presencePercentage || 0;
+                        } else if (key === 'status') {
+                          valA = a.finalStatus || '';
+                          valB = b.finalStatus || '';
+                        } else if (key === 'subject' && subId) {
+                          const gradeA = a.subjectGrades.find(sg => sg.subjectId === subId);
+                          const gradeB = b.subjectGrades.find(sg => sg.subjectId === subId);
+                          valA = gradeA && gradeA.grade !== null ? gradeA.grade : -1;
+                          valB = gradeB && gradeB.grade !== null ? gradeB.grade : -1;
+                        }
+
+                        if (typeof valA === 'string' && typeof valB === 'string') {
+                          return direction === 'asc'
+                            ? valA.localeCompare(valB, 'pt-BR')
+                            : valB.localeCompare(valA, 'pt-BR');
+                        } else {
+                          if (valA < valB) return direction === 'asc' ? -1 : 1;
+                          if (valA > valB) return direction === 'asc' ? 1 : -1;
+                          return 0;
+                        }
+                      });
+                    }
+
                     // Summary stats calculation
                     const total = results.length;
                     const approved = results.filter(r => r.finalStatus === 'Aprovado').length;
@@ -2337,25 +2394,25 @@ export function Reports() {
                               </span>
                            </div>
 
-                           {filteredResults.length === 0 ? (
+                           {sortedResults.length === 0 ? (
                              <div className="py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">Nenhum aluno correspondente encontrado.</div>
                            ) : (
                              <div className="overflow-x-auto">
                                <table className="w-full text-left border-collapse">
                                   <thead>
                                      <tr className="bg-slate-50/50 border-b border-slate-200">
-                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Aluno</th>
+                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleDiarioSort('student')}><div className="flex items-center gap-1"><span>Aluno</span>{renderSortIcon('student')}</div></th>
                                         {classSubjects.map(sub => (
-                                          <th key={sub.id} className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center" title={sub.name}>
-                                            {sub.code || sub.name.substring(0, 8).toUpperCase()}
+                                           <th key={sub.id} className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title={sub.name} onClick={() => handleDiarioSort('subject', sub.id)}><div className="flex items-center justify-center gap-1">
+                                            <span>{sub.code || sub.name.substring(0, 8).toUpperCase()}</span>{renderSortIcon('subject', sub.id)}</div>
                                           </th>
                                         ))}
-                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">Presença</th>
-                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
+                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleDiarioSort('presence')}><div className="flex items-center justify-center gap-1"><span>Presença</span>{renderSortIcon('presence')}</div></th>
+                                        <th className="px-6 py-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" onClick={() => handleDiarioSort('status')}><div className="flex items-center justify-center gap-1"><span>Status</span>{renderSortIcon('status')}</div></th>
                                      </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100">
-                                     {filteredResults.map(res => {
+                                     {sortedResults.map(res => {
                                        const minPresenceRequired = 100 - (academicParams.absence_limit_percentage || 25);
                                        
                                        return (
