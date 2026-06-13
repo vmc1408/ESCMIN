@@ -117,50 +117,50 @@ const renderCertificateInnerContent = (
   if (type === 'participação') {
     return (
       <>
-        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center text-center">
+        <div className="my-[2mm] space-y-[6mm] flex-1 flex flex-col justify-center text-center">
           <div className="flex items-center justify-center gap-6">
-             <div className="h-[1.5px] w-14 bg-amber-400" />
-             <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+             <div className="h-[2px] w-20 bg-amber-450" />
+             <h1 className="text-4xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
                 CERTIFICADO DE PARTICIPAÇÃO DE CURSO
              </h1>
-             <div className="h-[1.5px] w-14 bg-amber-400" />
+             <div className="h-[2px] w-20 bg-amber-450" />
           </div>
 
-          <p className="text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
+          <p className="text-lg max-w-4xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
              A <strong className="text-black font-extrabold">{institutionName}</strong> certifica que:
           </p>
 
-          <div className="py-1 w-full flex justify-center">
-             <h2 className="text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-12 bg-amber-50/10 text-center">
+          <div className="py-2.5 w-full flex justify-center">
+             <h2 className="text-5xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-14 py-2 bg-amber-500/5 border-y-2 border-amber-500/10 text-center">
                 {studentName}
              </h2>
           </div>
 
-          <p className="text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
+          <p className="text-lg max-w-4xl mx-auto leading-relaxed font-sans text-slate-800 px-12 text-center">
              concluiu, com dedicação e aproveitamento satisfatório, o Curso de <strong className="text-black font-extrabold">{courseName}</strong>, cumprindo integralmente os requisitos acadêmicos estabelecidos.
           </p>
 
-          <p className="text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-700 px-8 text-center">
+          <p className="text-sm max-w-4xl mx-auto leading-relaxed font-sans text-slate-700 px-8 text-center">
              Em reconhecimento ao empenho demonstrado na busca do conhecimento teológico e na formação cristã, conferimos o presente certificado para que conste e produza seus legítimos efeitos.
           </p>
 
-          <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2 text-center">
+          <p className="text-sm text-slate-900 font-bold uppercase tracking-[0.25em] mt-8 font-sans max-w-md mx-auto border-t-2 border-slate-200 pt-2.5 text-center">
              {institutionLocation}, {formatLongDate(issuanceDate)}
           </p>
         </div>
 
-        <div className="flex items-end justify-between px-12 mb-1.5 font-sans mt-4">
-           <div className="flex flex-col items-center gap-1">
-              <div className="w-44 border-b border-black/80" />
-              <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Diretor Geral Acadêmico</p>
+        <div className="flex items-end justify-between px-16 mb-2 font-sans mt-6 w-full">
+           <div className="flex flex-col items-center gap-1.5">
+              <div className="w-56 border-b-2 border-black/80" />
+              <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Diretor Geral Acadêmico</p>
            </div>
-           <div className="flex flex-col items-center gap-1">
-              <div className="w-44 border-b border-black/80" />
-              <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Secretário Acadêmico</p>
+           <div className="flex flex-col items-center gap-1.5">
+              <div className="w-56 border-b-2 border-black/80" />
+              <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Secretário Acadêmico</p>
            </div>
-           <div className="flex flex-col items-center gap-1">
-              <div className="w-44 border-b border-black/80" />
-              <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Bispo Diocesano</p>
+           <div className="flex flex-col items-center gap-1.5">
+              <div className="w-56 border-b-2 border-black/80" />
+              <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Bispo Diocesano</p>
            </div>
         </div>
       </>
@@ -170,60 +170,60 @@ const renderCertificateInnerContent = (
   if (type === 'honra') {
     return (
       <>
-        <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center text-center">
+        <div className="my-[2mm] space-y-[6mm] flex-1 flex flex-col justify-center text-center">
           <div className="flex items-center justify-center gap-6">
-             <div className="h-[1.5px] w-14 bg-amber-400" />
-             <h1 className="text-3xl font-extrabold italic text-black tracking-[0.25em] uppercase font-serif">
+             <div className="h-[2px] w-20 bg-amber-450" />
+             <h1 className="text-5xl font-black text-black tracking-[0.25em] uppercase font-serif">
                 DIPLOMA
              </h1>
-             <div className="h-[1.5px] w-14 bg-amber-400" />
+             <div className="h-[2px] w-20 bg-amber-450" />
           </div>
 
-          <p className="text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
+          <p className="text-lg max-w-4xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
              A <strong className="text-black font-extrabold">{institutionName}</strong>, no uso de suas atribuições e de acordo com a legislação e regulamentos vigentes, confere o presente diploma a:
           </p>
 
-          <div className="py-1 w-full flex justify-center">
-             <h2 className="text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-12 bg-amber-50/10 text-center">
+          <div className="py-2.5 w-full flex justify-center">
+             <h2 className="text-5xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-14 py-2 bg-amber-500/5 border-y-2 border-amber-500/10 text-center">
                 {studentName}
              </h2>
           </div>
 
-          <p className="text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
+          <p className="text-lg max-w-4xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
              por haver concluído com aproveitamento o curso de:
           </p>
 
           <div className="py-1 w-full flex justify-center">
-             <h3 className="text-xl font-extrabold uppercase tracking-wide text-[#00174b] font-sans text-center">
+             <h3 className="text-2xl font-black uppercase tracking-wide text-[#00174b] font-sans text-center">
                 {courseName}
              </h3>
           </div>
 
-          <p className="text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
+          <p className="text-lg max-w-4xl mx-auto leading-relaxed font-sans text-slate-800 px-12 text-center">
              cumprindo todas as exigências acadêmicas previstas, fazendo jus ao presente Diploma de Conclusão de Curso.
           </p>
 
-          <p className="text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-600 px-8 text-center italic">
+          <p className="text-sm max-w-4xl mx-auto leading-relaxed font-sans text-slate-605 px-8 text-center italic">
              Por ser expressão da verdade, expede-se o presente diploma para que produza seus efeitos legais e acadêmicos.
           </p>
 
-          <p className="text-[11px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2 text-center">
+          <p className="text-sm text-slate-900 font-bold uppercase tracking-[0.25em] mt-8 font-sans max-w-md mx-auto border-t-2 border-slate-200 pt-2.5 text-center">
              {institutionLocation}, {formatLongDate(issuanceDate)}
           </p>
         </div>
 
-        <div className="flex items-end justify-between px-12 mb-1.5 font-sans mt-4">
-           <div className="flex flex-col items-center gap-1">
-              <div className="w-44 border-b border-black/80" />
-              <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Diretor(a) / Reitor(a)</p>
+        <div className="flex items-end justify-between px-16 mb-2 font-sans mt-6 w-full">
+           <div className="flex flex-col items-center gap-1.5">
+              <div className="w-56 border-b-2 border-black/80" />
+              <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Diretor(a) / Reitor(a)</p>
            </div>
-           <div className="flex flex-col items-center gap-1">
-              <div className="w-44 border-b border-black/80" />
-              <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Secretário(a) Acadêmico(a)</p>
+           <div className="flex flex-col items-center gap-1.5">
+              <div className="w-56 border-b-2 border-black/80" />
+              <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Secretário(a) Acadêmico(a)</p>
            </div>
-           <div className="flex flex-col items-center gap-1">
-              <div className="w-44 border-b border-black/80" />
-              <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Bispo Diocesano</p>
+           <div className="flex flex-col items-center gap-1.5">
+              <div className="w-56 border-b-2 border-black/80" />
+              <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Bispo Diocesano</p>
            </div>
         </div>
       </>
@@ -232,50 +232,50 @@ const renderCertificateInnerContent = (
 
   return (
     <>
-      <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center text-center">
+      <div className="my-[2mm] space-y-[6mm] flex-1 flex flex-col justify-center text-center">
         <div className="flex items-center justify-center gap-6">
-           <div className="h-[1.5px] w-14 bg-amber-400" />
-           <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
+           <div className="h-[2px] w-20 bg-amber-450" />
+           <h1 className="text-4xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
               CERTIFICADO DE CONCLUSÃO
            </h1>
-           <div className="h-[1.5px] w-14 bg-amber-400" />
+           <div className="h-[2px] w-20 bg-amber-450" />
         </div>
 
-        <p className="text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
+        <p className="text-lg max-w-4xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
            A <strong className="text-black font-extrabold">{institutionName}</strong> certifica que o(a) estudante:
         </p>
 
-        <div className="py-1 w-full flex justify-center">
-           <h2 className="text-3xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-12 bg-amber-50/10 text-center">
+        <div className="py-2.5 w-full flex justify-center">
+           <h2 className="text-5xl font-extrabold uppercase tracking-widest text-[#00174b] font-serif inline-block px-14 py-2 bg-amber-500/5 border-y-2 border-amber-500/10 text-center">
               {studentName}
            </h2>
         </div>
 
-        <p className="text-sm max-w-3xl mx-auto leading-relaxed font-sans text-slate-800 px-8 text-center">
+        <p className="text-lg max-w-4xl mx-auto leading-relaxed font-sans text-slate-800 px-12 text-center">
            concluiu com êxito o Curso de <strong className="text-black font-extrabold">{courseName}</strong>, tendo cumprido satisfatoriamente todas as exigências acadêmicas e formativas previstas no programa de estudos.
         </p>
 
-        <p className="text-xs max-w-3xl mx-auto leading-relaxed font-sans text-slate-700 px-8 text-center">
+        <p className="text-sm max-w-4xl mx-auto leading-relaxed font-sans text-slate-700 px-8 text-center">
            Conferimos o presente Certificado de Conclusão para que produza os efeitos educacionais e institucionais cabíveis.
         </p>
 
-        <p className="text-[10px] text-slate-900 font-bold uppercase tracking-[0.22em] mt-4 font-sans max-w-sm mx-auto border-t border-slate-100 pt-2 text-center">
+        <p className="text-sm text-slate-900 font-bold uppercase tracking-[0.25em] mt-8 font-sans max-w-md mx-auto border-t-2 border-slate-200 pt-2.5 text-center">
            {institutionLocation}, {formatLongDate(issuanceDate)}
         </p>
       </div>
 
-      <div className="flex items-end justify-between px-12 mb-1.5 font-sans mt-4">
-         <div className="flex flex-col items-center gap-1">
-            <div className="w-44 border-b border-black/80" />
-            <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Diretor Acadêmico</p>
+      <div className="flex items-end justify-between px-16 mb-2 font-sans mt-6 w-full">
+         <div className="flex flex-col items-center gap-1.5">
+            <div className="w-56 border-b-2 border-black/80" />
+            <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Diretor Acadêmico</p>
          </div>
-         <div className="flex flex-col items-center gap-1">
-            <div className="w-44 border-b border-black/80" />
-            <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Secretário Acadêmico</p>
+         <div className="flex flex-col items-center gap-1.5">
+            <div className="w-56 border-b-2 border-black/80" />
+            <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Secretário Acadêmico</p>
          </div>
-         <div className="flex flex-col items-center gap-1">
-            <div className="w-44 border-b border-black/80" />
-            <p className="text-[10px] font-bold text-slate-655 uppercase tracking-widest text-center">Bispo Diocesano</p>
+         <div className="flex flex-col items-center gap-1.5">
+            <div className="w-56 border-b-2 border-black/80" />
+            <p className="text-xs font-bold text-slate-705 uppercase tracking-widest text-center">Bispo Diocesano</p>
          </div>
       </div>
     </>
