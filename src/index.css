@@ -63,7 +63,7 @@
     /* Reset page and body for consistent margins and high-fidelity paging */
     @page {
       size: A4 portrait;
-      margin: 15mm 15mm 15mm 15mm;
+      margin: 10mm 15mm 10mm 15mm;
     }
     
     html, body {
@@ -72,7 +72,7 @@
       height: auto !important;
       background: #ffffff !important;
       color: #000000 !important;
-      font-size: 11px !important;
+      font-size: 13px; /* Slightly standard legible base font size */
       line-height: 1.4 !important;
       overflow: visible !important;
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
@@ -117,11 +117,10 @@
       top: auto !important;
       display: block !important;
       width: 100% !important;
-      max-width: 180mm !important; /* Standard printable area inside A4 portrait with margins */
+      max-width: 100% !important; /* Allow the container to natively fit the full page width based on portrait/landscape */
       height: auto !important;
       min-height: 0 !important;
       margin: 0 auto !important;
-      padding: 0 !important;
       background: white !important;
       z-index: 1000 !important;
     }
@@ -155,8 +154,8 @@
       font-weight: 700 !important;
     }
 
-    p, span, td, th {
-      color: #1e293b !important; /* slate-800 for high readability contrast */
+    p, td, th {
+      color: #1e293b; /* Readable charcoal body color without forcing important, preserving certificates styles */
     }
 
     /* Standardized printable styles to ensure cross-device consistency */
