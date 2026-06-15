@@ -433,25 +433,34 @@ export function Bulletin() {
       const averageGrade = validGradesCount > 0 ? (overallGradesSum / validGradesCount) : 0;
 
       // Class status evaluation
-      let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' = 'Aprovado';
-      const hasPending = subjectsPerformance.some(sp => sp.status === 'Pendente');
-      const minApp = academicParams.approval_grade || 5.0;
-      const attendanceThreshold = 100 - (academicParams.absence_limit_percentage || 40);
-      const isAttendanceApprovedClass = averageFrequency >= attendanceThreshold;
-
-      if (!isAttendanceApprovedClass) {
-        finalStatus = 'Reprovado';
-      } else if (hasPending) {
-        finalStatus = 'Pendente';
+      let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' | 'Informativo' = 'Aprovado';
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      const hasFutureClasses = classSchoolDays.some(d => d.start_date > todayStr);
+      const hasMissingGrades = subjectsPerformance.some(sp => sp.grade1 === null || sp.grade2 === null || sp.finalGrade === null);
+      
+      if (hasFutureClasses || hasMissingGrades) {
+        finalStatus = 'Informativo';
       } else {
-        const hasDirectReprovado = subjectsPerformance.some(sp => sp.status === 'Reprovado');
-        if (hasDirectReprovado) {
+        const hasPending = subjectsPerformance.some(sp => sp.status === 'Pendente');
+        const minApp = academicParams.approval_grade || 5.0;
+        const attendanceThreshold = 100 - (academicParams.absence_limit_percentage || 40);
+        const isAttendanceApprovedClass = averageFrequency >= attendanceThreshold;
+
+        if (!isAttendanceApprovedClass) {
           finalStatus = 'Reprovado';
+        } else if (hasPending) {
+          finalStatus = 'Pendente';
         } else {
-          const failedSubjectCount = subjectsPerformance.filter(sp => sp.finalGrade !== null && sp.finalGrade < minApp).length;
-          if (failedSubjectCount > 0) {
-            // If failing in 1 or 2 subjects => eligible for Recuperação, if more => Reprovado
-            finalStatus = failedSubjectCount <= 2 ? 'Recuperação' : 'Reprovado';
+          const hasDirectReprovado = subjectsPerformance.some(sp => sp.status === 'Reprovado');
+          if (hasDirectReprovado) {
+            finalStatus = 'Reprovado';
+          } else {
+            const failedSubjectCount = subjectsPerformance.filter(sp => sp.finalGrade !== null && sp.finalGrade < minApp).length;
+            if (failedSubjectCount > 0) {
+              // If failing in 1 or 2 subjects => eligible for Recuperação, if more => Reprovado
+              finalStatus = failedSubjectCount <= 2 ? 'Recuperação' : 'Reprovado';
+            }
           }
         }
       }
@@ -465,7 +474,7 @@ export function Bulletin() {
         finalStatus
       };
     });
-  }, [selectedClassId, classStudents, classSubjects, attendanceData, dbGrades, assessments, academicParams, totalClassDays]);
+  }, [selectedClassId, classStudents, classSubjects, attendanceData, dbGrades, assessments, academicParams, totalClassDays, classSchoolDays]);
 
   // Current selected student report (individual bulletin card)
   const activeStudentReport = useMemo(() => {
@@ -522,18 +531,20 @@ export function Bulletin() {
     });
   }, [filteredReports, classSort]);
 
-  const { total, approved, recuperation, failed, pending } = useMemo(() => {
+  const { total, approved, recuperation, failed, pending, informative } = useMemo(() => {
     const totalCount = studentReports.length;
     const approvedCount = studentReports.filter(r => r.finalStatus === 'Aprovado').length;
     const recuperationCount = studentReports.filter(r => r.finalStatus === 'Recuperação').length;
     const failedCount = studentReports.filter(r => r.finalStatus === 'Reprovado').length;
     const pendingCount = studentReports.filter(r => r.finalStatus === 'Pendente').length;
+    const informativeCount = studentReports.filter(r => r.finalStatus === 'Informativo').length;
     return {
       total: totalCount,
       approved: approvedCount,
       recuperation: recuperationCount,
       failed: failedCount,
-      pending: pendingCount
+      pending: pendingCount,
+      informative: informativeCount
     };
   }, [studentReports]);
 
@@ -584,7 +595,9 @@ export function Bulletin() {
     const failedSubjects = report.subjectsPerformance.filter((sp: any) => sp.finalGrade !== null && sp.finalGrade < minGrade);
     const hasFailedGrade = failedSubjects.length > 0;
 
-    if (report.finalStatus === 'Aprovado') {
+    if (report.finalStatus === 'Informativo') {
+      return "BOLETIM APENAS INFORMATIVO: O CURSO ACADÊMICO ESTÁ EM ANDAMENTO. A SITUAÇÃO FINAL (APROVADO OU REPROVADO) SERÁ HOMOLOGADA APENAS DEPOIS DE CONCLUÍDOS TODOS OS DIAS DE AULA E LANÇADAS TODAS AS AVALIAÇÕES.";
+    } else if (report.finalStatus === 'Aprovado') {
       return "APROVADO POIS ATINGIU AS MÉDIAS NECESSÁRIAS DE NOTA E PRESENÇA EM AULA ESTABELECIDAS PARA APROVAÇÃO.";
     } else if (report.finalStatus === 'Recuperação') {
       return `EM RECUPERAÇÃO: O ALUNO NÃO ATINGIU A MÉDIA MÍNIMA DE APROVAÇÃO (${minGrade.toString().replace('.', ',')}) EM ATÉ DUAS DISCIPLINAS, MAS ATENDE AOS REQUISITOS DE PRESENÇA EM AULA.`;
@@ -794,7 +807,7 @@ export function Bulletin() {
           formatGrade(sp.grade1),
           formatGrade(sp.grade2),
           formatGrade(sp.finalGrade),
-          sp.status === 'Pendente' ? 'Pendente' : sp.status
+          sp.status === 'Pendente' ? 'Pendente' : (reportToPdf.finalStatus === 'Informativo' ? '-' : sp.status)
         ];
       });
 
@@ -952,6 +965,7 @@ export function Bulletin() {
       const recuperation = studentReports.filter(r => r.finalStatus === 'Recuperação').length;
       const failed = studentReports.filter(r => r.finalStatus === 'Reprovado').length;
       const pending = studentReports.filter(r => r.finalStatus === 'Pendente').length;
+      const informative = studentReports.filter(r => r.finalStatus === 'Informativo').length;
 
       doc.setFillColor(248, 250, 252);
       doc.rect(margin, y, pageWidth - (margin * 2), 14, 'F');
@@ -961,11 +975,12 @@ export function Bulletin() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(71, 85, 105);
-      doc.text(`Total Alunos: ${total}`, margin + 5, y + 8.5);
-      doc.text(`Aprovados: ${approved}`, margin + 35, y + 8.5);
-      doc.text(`Em Recuperação: ${recuperation}`, margin + 70, y + 8.5);
-      doc.text(`Reprovados: ${failed}`, margin + 112, y + 8.5);
-      doc.text(`Pendentes: ${pending}`, margin + 148, y + 8.5);
+      doc.text(`Total Alunos: ${total}`, margin + 4, y + 8.5);
+      doc.text(`Informativos: ${informative}`, margin + 33, y + 8.5);
+      doc.text(`Aprovados: ${approved}`, margin + 62, y + 8.5);
+      doc.text(`Em Recuperação: ${recuperation}`, margin + 90, y + 8.5);
+      doc.text(`Reprovados: ${failed}`, margin + 125, y + 8.5);
+      doc.text(`Pendentes: ${pending}`, margin + 152, y + 8.5);
 
       y += 20;
 
@@ -1230,7 +1245,7 @@ export function Bulletin() {
             formatGrade(sp.grade1),
             formatGrade(sp.grade2),
             formatGrade(sp.finalGrade),
-            sp.status === 'Pendente' ? 'Pendente' : sp.status
+            sp.status === 'Pendente' ? 'Pendente' : (report.finalStatus === 'Informativo' ? '-' : sp.status)
           ];
         });
 
@@ -1751,7 +1766,9 @@ export function Bulletin() {
                             "px-3 py-1.5 text-right font-black tracking-wider uppercase",
                             activeStudentReport.finalStatus === 'Reprovado' ? "text-rose-650 bg-rose-50/30" :
                             activeStudentReport.finalStatus === 'Recuperação' ? "text-amber-650 bg-amber-50/30" :
-                            activeStudentReport.finalStatus === 'Pendente' ? "text-slate-400 bg-slate-50" : "text-emerald-750 bg-emerald-50/30"
+                            activeStudentReport.finalStatus === 'Pendente' ? "text-slate-400 bg-slate-50" :
+                            activeStudentReport.finalStatus === 'Informativo' ? "text-blue-650 bg-blue-50/45" : 
+                            "text-emerald-750 bg-emerald-50/30"
                           )}>
                             {activeStudentReport.finalStatus}
                           </div>
@@ -1804,10 +1821,14 @@ export function Bulletin() {
             /* --- CLASS LISTING GENERAL PERFORMANCE LAYOUT --- */
             <div className="space-y-6">
               {/* Class Summary widgets */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 print:hidden">
                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-none shadow-none">
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</p>
                    <h4 className="text-2xl font-bold text-slate-800 mt-1">{total}</h4>
+                 </div>
+                 <div className="bg-blue-50/50 border border-blue-250 p-5 rounded-none shadow-none border-l-4 border-l-blue-600">
+                   <p className="text-[10px] font-bold text-blue-805 uppercase tracking-widest">Informativos</p>
+                   <h4 className="text-2xl font-bold text-blue-600 mt-1">{informative}</h4>
                  </div>
                  <div className="bg-emerald-50/50 border border-emerald-250 p-5 rounded-none shadow-none border-l-4 border-l-emerald-600">
                    <p className="text-[10px] font-bold text-emerald-805 uppercase tracking-widest">Aprovados</p>
@@ -1919,6 +1940,7 @@ export function Bulletin() {
                           const showFailed = res.finalStatus === 'Reprovado';
                           const showRecup = res.finalStatus === 'Recuperação';
                           const showPending = res.finalStatus === 'Pendente';
+                          const showInformativo = res.finalStatus === 'Informativo';
                           const minPresenceRequired = 100 - (academicParams.absence_limit_percentage || 25);
 
                           return (
@@ -1964,6 +1986,7 @@ export function Bulletin() {
                                   showFailed ? "bg-rose-50 text-rose-650 border-rose-200" :
                                   showRecup ? "bg-amber-50 text-amber-650 border-amber-200" :
                                   showPending ? "bg-slate-50 text-slate-500 border-slate-200" :
+                                  showInformativo ? "bg-blue-50 text-blue-650 border-blue-200" :
                                   "bg-emerald-50 text-emerald-650 border-emerald-200"
                                 )}>
                                   {res.finalStatus}
