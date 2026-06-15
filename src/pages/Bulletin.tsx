@@ -1679,40 +1679,48 @@ export function Bulletin() {
                         </h3>
                       </div>
                       <div className="overflow-x-auto select-text border border-slate-200">
-                        <table className="w-full text-left font-sans text-[10px] border-collapse uppercase">
+                        <table className="w-full text-left font-sans text-[10px] border-collapse uppercase table-fixed">
+                          <colgroup>
+                            <col className="w-[30%] sm:w-[32%] md:w-[35%]" />
+                            {monthsList.map(m => (
+                              <col key={m.index} className="w-[4.5%] sm:w-[4.6%] md:w-[4.5%]" />
+                            ))}
+                            <col className="w-[8%] sm:w-[7%] md:w-[6%]" />
+                            <col className="w-[8%] sm:w-[7%] md:w-[5%]" />
+                          </colgroup>
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
-                              <th className="px-3 py-2.5 border-r border-slate-200 text-left min-w-[150px]">
+                              <th className="px-2.5 py-2 border-r border-slate-200 text-left">
                                 Disciplinas
                               </th>
                               {monthsList.map(month => (
-                                <th key={month.index} className="py-2.5 text-center border-r border-slate-200 w-[32px] min-w-[32px] px-1 text-[8.5px] whitespace-nowrap">
+                                <th key={month.index} className="py-2 text-center border-r border-slate-200 px-0.5 text-[7.5px] sm:text-[8px] md:text-[8.5px] whitespace-nowrap">
                                   {month.label}
                                 </th>
                               ))}
-                              <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight w-[45px]">
+                              <th className="py-2 border-r border-slate-200 text-center text-[7.5px] sm:text-[8.5px] md:text-[9px] leading-tight px-0.5">
                                 Total
                               </th>
-                              <th className="py-2.5 text-center text-[9px] leading-tight w-[40px]">
+                              <th className="py-2 text-center text-[7.5px] sm:text-[8.5px] md:text-[9px] leading-tight px-0.5">
                                 Freq.
                               </th>
                             </tr>
                             <tr className="bg-slate-100/40 border-b border-slate-200 text-slate-700 text-[8px] font-black uppercase tracking-wider">
-                              <th className="px-3 py-1.5 border-r border-slate-200 text-left text-[8px] font-black text-slate-500 bg-slate-100/25">
+                              <th className="px-2.5 py-1.5 border-r border-slate-200 text-left text-[7.5px] sm:text-[8px] font-black text-slate-500 bg-slate-100/25">
                                 Aulas no Mês
                               </th>
                               {monthsList.map(month => {
                                 const dayCount = scheduledDaysByMonth[month.index];
                                 return (
-                                  <th key={month.index} className="py-1.5 text-center border-r border-slate-200 font-mono text-[9px] font-black text-slate-650 bg-slate-100/10">
+                                  <th key={month.index} className="py-1.5 text-center border-r border-slate-200 font-mono text-[7.5px] sm:text-[8px] md:text-[8.5px] font-black text-slate-650 bg-slate-100/10">
                                     {dayCount > 0 ? dayCount : '-'}
                                   </th>
                                 );
                               })}
-                              <th className="py-1.5 border-r border-slate-200 text-center font-mono text-[9px] font-black text-slate-650 bg-slate-100/25">
+                              <th className="py-1.5 border-r border-slate-200 text-center font-mono text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black text-slate-650 bg-slate-100/25">
                                 {totalClassDays}
                               </th>
-                              <th className="py-1.5 text-center font-mono text-[9px] font-black text-slate-400 bg-slate-100/25">
+                              <th className="py-1.5 text-center font-mono text-[7.5px] sm:text-[8.5px] md:text-[9px] font-black text-slate-400 bg-slate-100/25">
                                 -
                               </th>
                             </tr>
@@ -1721,11 +1729,13 @@ export function Bulletin() {
                             {activeStudentReport.subjectsPerformance.map(sp => (
                               <React.Fragment key={sp.subjectId}>
                                 {/* Row 1: Faltas */}
-                                <tr className="hover:bg-slate-50/50 text-[10px] font-semibold border-b border-slate-100">
-                                  <td className="px-3 py-2 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
-                                    <div className="flex items-center justify-between">
-                                      <span className="truncate">{sp.subjectCode} - {sp.subjectName}</span>
-                                      <span className="text-[7.5px] bg-rose-50 text-rose-700 px-1.5 py-0.5 border border-rose-150 font-bold rounded-none shrink-0 ml-2">FALTAS</span>
+                                <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-100">
+                                  <td className="px-2 py-1.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <div className="flex items-center justify-between gap-1 min-w-0">
+                                      <span className="truncate text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
+                                        {sp.subjectCode} - {sp.subjectName}
+                                      </span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-none shrink-0">FALTAS</span>
                                     </div>
                                   </td>
                                   {monthsList.map(m => {
@@ -1735,7 +1745,7 @@ export function Bulletin() {
                                       <td 
                                         key={m.index} 
                                         className={cn(
-                                          "py-2 text-center border-r border-slate-100 font-mono text-[9.5px]",
+                                          "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px]",
                                           isBlocked && "bg-slate-50"
                                         )}
                                         style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
@@ -1744,19 +1754,21 @@ export function Bulletin() {
                                       </td>
                                     );
                                   })}
-                                  <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-slate-805 bg-rose-50/20">
+                                  <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-slate-805 bg-rose-50/20 text-[8.5px] sm:text-[9.5px]">
                                     {sp.totalAbsences}
                                   </td>
-                                  <td rowSpan={2} className="py-2 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle">
+                                  <td rowSpan={2} className="py-1.5 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle text-[8.5px] sm:text-[9.5px]">
                                     {formatPresence(sp.presencePercentage)}%
                                   </td>
                                 </tr>
                                 {/* Row 2: Presenças */}
-                                <tr className="hover:bg-slate-50/50 text-[10px] font-semibold border-b border-slate-200">
-                                  <td className="px-3 py-2 border-r border-slate-100 text-slate-500 font-normal whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
-                                    <div className="flex items-center justify-between">
-                                      <span className="truncate text-slate-450">{sp.subjectCode} - {sp.subjectName}</span>
-                                      <span className="text-[7.5px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 border border-emerald-150 font-bold rounded-none shrink-0 ml-2">PRESENÇAS</span>
+                                <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-200">
+                                  <td className="px-2 py-1.5 border-r border-slate-100 text-slate-500 font-normal whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <div className="flex items-center justify-between gap-1 min-w-0">
+                                      <span className="truncate text-slate-450 text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
+                                        {sp.subjectCode} - {sp.subjectName}
+                                      </span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-none shrink-0 font-bold">PRESENÇAS</span>
                                     </div>
                                   </td>
                                   {monthsList.map(m => {
@@ -1766,7 +1778,7 @@ export function Bulletin() {
                                       <td 
                                         key={m.index} 
                                         className={cn(
-                                          "py-2 text-center border-r border-slate-100 font-mono text-[9.5px] text-slate-600",
+                                          "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px] text-slate-600",
                                           isBlocked && "bg-slate-50"
                                         )}
                                         style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
@@ -1775,7 +1787,7 @@ export function Bulletin() {
                                       </td>
                                     );
                                   })}
-                                  <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-emerald-700 bg-emerald-50/20">
+                                  <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-emerald-700 bg-emerald-50/20 text-[8.5px] sm:text-[9.5px]">
                                     {sp.totalPresences || 0}
                                   </td>
                                 </tr>
@@ -1795,19 +1807,25 @@ export function Bulletin() {
                         </h3>
                       </div>
                       <div className="overflow-x-auto select-text border border-slate-200">
-                        <table className="w-full text-left font-sans text-[10px] border-collapse uppercase">
+                        <table className="w-full text-left font-sans text-[10px] border-collapse uppercase table-fixed">
+                          <colgroup>
+                            <col className="w-[58%] sm:w-[60%] md:w-[64%]" />
+                            <col className="w-[14%] sm:w-[13.3%] md:w-[12%]" />
+                            <col className="w-[14%] sm:w-[13.3%] md:w-[12%]" />
+                            <col className="w-[14%] sm:w-[13.3%] md:w-[12%]" />
+                          </colgroup>
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-black tracking-wider">
                               <th className="px-3 py-2.5 border-r border-slate-200 text-left">
                                 Disciplina / Avaliações
                               </th>
-                              <th className="py-2.5 border-r border-slate-200 text-center w-[100px]">
+                              <th className="py-2.5 border-r border-slate-200 text-center">
                                 Nota
                               </th>
-                              <th className="py-2.5 border-r border-slate-200 text-center w-[100px]">
+                              <th className="py-2.5 border-r border-slate-200 text-center">
                                 Soma
                               </th>
-                              <th className="py-2.5 text-center w-[100px]">
+                              <th className="py-2.5 text-center">
                                 Média Final
                               </th>
                             </tr>
