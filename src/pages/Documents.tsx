@@ -1560,7 +1560,7 @@ export function Documents() {
 
                         {renderCertificateInnerContent(
                            viewingCertificate.type,
-                           viewingCertificate.student_name || 'Estudante Sem Nome',
+                           viewingCertificate.student_name || students.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
                            viewingCertificate.course || '',
                            viewingCertificate.issuance_date,
                            institution
@@ -1667,7 +1667,7 @@ export function Documents() {
              {/* Certificate Content Parser */}
              {renderCertificateInnerContent(
                viewingCertificate.type,
-               viewingCertificate.student_name || 'Estudante Sem Nome',
+               viewingCertificate.student_name || students.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
                viewingCertificate.course,
                viewingCertificate.issuance_date,
                institution

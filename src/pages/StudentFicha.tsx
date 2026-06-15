@@ -120,8 +120,8 @@ const renderCertificateInnerContent = (
         <div className="my-[1mm] space-y-[4mm] flex-1 flex flex-col justify-center text-center">
           <div className="flex items-center justify-center gap-6">
              <div className="h-[1.5px] w-14 bg-amber-450" />
-             <h1 className="text-3xl font-extrabold italic text-black tracking-[0.2em] uppercase font-serif">
-                CERTIFICADO DE PARTICIPAÇÃO DE CURSO
+             <h1 className="text-2xl md:text-3xl font-extrabold italic text-black tracking-[0.12em] md:tracking-[0.16em] uppercase font-serif">
+                CERTIFICADO DE PARTICIPAÇÃO
              </h1>
              <div className="h-[1.5px] w-14 bg-amber-450" />
           </div>
@@ -1126,7 +1126,7 @@ export function StudentFicha() {
 
                     {renderCertificateInnerContent(
                        viewingCertificate.type,
-                       viewingCertificate.student_name,
+                       viewingCertificate.student_name || activeStudent?.name || 'Estudante',
                        viewingCertificate.course || '',
                        viewingCertificate.issuance_date,
                        institution
@@ -1165,7 +1165,7 @@ export function StudentFicha() {
 
               {renderCertificateInnerContent(
                  viewingCertificate.type,
-                 viewingCertificate.student_name,
+                 viewingCertificate.student_name || activeStudent?.name || 'Estudante',
                  viewingCertificate.course || '',
                  viewingCertificate.issuance_date,
                  institution
