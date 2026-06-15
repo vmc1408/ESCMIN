@@ -377,6 +377,51 @@ export function Bulletin() {
           }
         }
 
+        // Build list of detailed assessments and their grade
+        let detailedAssessments = subAssessments.map(assessment => {
+          const gradeRec = dbGrades.find(g => 
+            g.student_id === student.id && 
+            g.class_id === selectedClassId && 
+            g.subject_id === sub.id && 
+            (g.period === assessment.id || g.period === assessment.title)
+          );
+          const gradeVal = gradeRec && gradeRec.value !== null && gradeRec.value !== undefined && gradeRec.value !== ''
+            ? (typeof gradeRec.value === 'string' ? parseFloat(gradeRec.value.replace(',', '.')) : gradeRec.value)
+            : null;
+          return {
+            id: assessment.id,
+            title: assessment.title,
+            date: assessment.date,
+            weight: assessment.weight,
+            grade: gradeVal
+          };
+        });
+
+        if (detailedAssessments.length === 0) {
+          if (grade1 !== null) {
+            detailedAssessments.push({
+              id: 'virtual-g1',
+              title: '1ª Avaliação',
+              date: '',
+              weight: 1,
+              grade: grade1
+            });
+          }
+          if (grade2 !== null) {
+            detailedAssessments.push({
+              id: 'virtual-g2',
+              title: '2ª Avaliação',
+              date: '',
+              weight: 1,
+              grade: grade2
+            });
+          }
+        }
+
+        const validDetailedGrades = detailedAssessments.filter(da => da.grade !== null && da.grade !== undefined) as { grade: number }[];
+        const gradesSum = validDetailedGrades.length > 0 ? validDetailedGrades.reduce((sum, item) => sum + item.grade, 0) : null;
+        const gradesAverage = validDetailedGrades.length > 0 ? (gradesSum! / validDetailedGrades.length) : null;
+
         // Determine Status per Subject
         let subjectStatus: 'Aprovado' | 'Reprovado' | 'Recuperação' | 'Pendente' = 'Pendente';
         const minApp = academicParams.approval_grade || 5.0;
@@ -410,7 +455,10 @@ export function Bulletin() {
           grade2,
           finalGrade: finalGradeValue,
           isCalculated,
-          status: subjectStatus
+          status: subjectStatus,
+          detailedAssessments,
+          gradesSum,
+          gradesAverage
         };
       });
 
@@ -794,21 +842,43 @@ export function Bulletin() {
 
       // --- 5. VIA RENDIMENTO: Grades and Academic Performance Table ---
       const headersGrades: any[] = [[
-        { content: 'Disciplinas (Aproveitamento Acadêmico)', styles: { halign: 'left' as any, valign: 'middle' as any } },
-        { content: '1ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
-        { content: '2ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+        { content: 'Disciplina / Avaliações', styles: { halign: 'left' as any, valign: 'middle' as any } },
+        { content: 'Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+        { content: 'Soma', styles: { halign: 'center' as any, valign: 'middle' as any } },
         { content: 'Média Final', styles: { halign: 'center' as any, valign: 'middle' as any } },
         { content: 'Situação Geral', styles: { halign: 'center' as any, valign: 'middle' as any } }
       ]];
 
-      const rowsGrades = reportToPdf.subjectsPerformance.map((sp: any) => {
-        return [
-          `${sp.subjectCode} - ${sp.subjectName}`,
-          formatGrade(sp.grade1),
-          formatGrade(sp.grade2),
-          formatGrade(sp.finalGrade),
+      const rowsGrades: any[] = [];
+      reportToPdf.subjectsPerformance.forEach((sp: any) => {
+        // Subject header row
+        rowsGrades.push([
+          { 
+            content: `${sp.subjectCode} - ${sp.subjectName}`, 
+            colSpan: 5, 
+            styles: { fontStyle: 'bold' as any, fillColor: [241, 245, 249], textColor: [15, 23, 42] } 
+          }
+        ]);
+
+        // Detailed assessments
+        sp.detailedAssessments?.forEach((da: any, idx: number) => {
+          rowsGrades.push([
+            `  ↳ ${da.title || `Avaliação ${idx + 1}`}`,
+            da.grade !== null && da.grade !== undefined ? formatGrade(da.grade) : '-',
+            '-',
+            '-',
+            '-'
+          ]);
+        });
+
+        // Totals row
+        rowsGrades.push([
+          { content: '  SOMA E MÉDIA DO COMPONENTE', styles: { fontStyle: 'bold' as any, textColor: [71, 85, 105] } },
+          '-',
+          sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-',
+          sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-',
           sp.status === 'Pendente' ? 'Pendente' : (reportToPdf.finalStatus === 'Informativo' ? '-' : sp.status)
-        ];
+        ]);
       });
 
       autoTable(doc, {
@@ -833,7 +903,7 @@ export function Bulletin() {
           lineColor: [226, 232, 240]
         },
         columnStyles: {
-          0: { cellWidth: 92, fontStyle: 'bold' },
+          0: { cellWidth: 92 },
           1: { cellWidth: 20, halign: 'center' },
           2: { cellWidth: 20, halign: 'center' },
           3: { cellWidth: 20, halign: 'center' },
@@ -1232,21 +1302,43 @@ export function Bulletin() {
 
         // --- 5. VIA RENDIMENTO: Grades and Academic Performance Table ---
         const headersGrades: any[] = [[
-          { content: 'Disciplinas (Aproveitamento Acadêmico)', styles: { halign: 'left' as any, valign: 'middle' as any } },
-          { content: '1ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
-          { content: '2ª Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+          { content: 'Disciplina / Avaliações', styles: { halign: 'left' as any, valign: 'middle' as any } },
+          { content: 'Nota', styles: { halign: 'center' as any, valign: 'middle' as any } },
+          { content: 'Soma', styles: { halign: 'center' as any, valign: 'middle' as any } },
           { content: 'Média Final', styles: { halign: 'center' as any, valign: 'middle' as any } },
           { content: 'Situação Geral', styles: { halign: 'center' as any, valign: 'middle' as any } }
         ]];
 
-        const rowsGrades = report.subjectsPerformance.map((sp: any) => {
-          return [
-            `${sp.subjectCode} - ${sp.subjectName}`,
-            formatGrade(sp.grade1),
-            formatGrade(sp.grade2),
-            formatGrade(sp.finalGrade),
+        const rowsGrades: any[] = [];
+        report.subjectsPerformance.forEach((sp: any) => {
+          // Subject header row
+          rowsGrades.push([
+            { 
+              content: `${sp.subjectCode} - ${sp.subjectName}`, 
+              colSpan: 5, 
+              styles: { fontStyle: 'bold' as any, fillColor: [241, 245, 249], textColor: [15, 23, 42] } 
+            }
+          ]);
+
+          // Detailed assessments
+          sp.detailedAssessments?.forEach((da: any, idx: number) => {
+            rowsGrades.push([
+              `  ↳ ${da.title || `Avaliação ${idx + 1}`}`,
+              da.grade !== null && da.grade !== undefined ? formatGrade(da.grade) : '-',
+              '-',
+              '-',
+              '-'
+            ]);
+          });
+
+          // Totals row
+          rowsGrades.push([
+            { content: '  SOMA E MÉDIA DO COMPONENTE', styles: { fontStyle: 'bold' as any, textColor: [71, 85, 105] } },
+            '-',
+            sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-',
+            sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-',
             sp.status === 'Pendente' ? 'Pendente' : (report.finalStatus === 'Informativo' ? '-' : sp.status)
-          ];
+          ]);
         });
 
         autoTable(doc, {
@@ -1271,7 +1363,7 @@ export function Bulletin() {
             lineColor: [226, 232, 240]
           },
           columnStyles: {
-            0: { cellWidth: 92, fontStyle: 'bold' },
+            0: { cellWidth: 92 },
             1: { cellWidth: 20, halign: 'center' },
             2: { cellWidth: 20, halign: 'center' },
             3: { cellWidth: 20, halign: 'center' },
@@ -1705,15 +1797,15 @@ export function Bulletin() {
                       <div className="overflow-x-auto select-text border border-slate-200">
                         <table className="w-full text-left font-sans text-[10px] border-collapse uppercase">
                           <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-black tracking-wider">
                               <th className="px-3 py-2.5 border-r border-slate-200 text-left">
-                                Disciplinas
+                                Disciplina / Avaliações
                               </th>
                               <th className="py-2.5 border-r border-slate-200 text-center w-[100px]">
-                                1ª Nota
+                                Nota
                               </th>
                               <th className="py-2.5 border-r border-slate-200 text-center w-[100px]">
-                                2ª Nota
+                                Soma
                               </th>
                               <th className="py-2.5 text-center w-[100px]">
                                 Média Final
@@ -1721,24 +1813,48 @@ export function Bulletin() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {activeStudentReport.subjectsPerformance.map(sp => {
-                              return (
-                                <tr key={sp.subjectId} className="hover:bg-slate-50/50 text-[10px] font-semibold">
-                                  <td className="px-3 py-2.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
+                            {activeStudentReport.subjectsPerformance.map(sp => (
+                              <React.Fragment key={sp.subjectId}>
+                                {/* Subject Title Row spanning 4 columns */}
+                                <tr className="bg-slate-50/70 border-b border-slate-200">
+                                  <td colSpan={4} className="px-3 py-2 text-slate-900 font-extrabold text-[10.5px]">
                                     {sp.subjectCode} - {sp.subjectName}
                                   </td>
-                                  <td className="py-2.5 text-center border-r border-slate-100 font-mono text-slate-600">
-                                    {formatGrade(sp.grade1)}
+                                </tr>
+                                {/* Assessment detailed rows */}
+                                {sp.detailedAssessments?.map((da: any, idx: number) => (
+                                  <tr key={da.id || idx} className="hover:bg-slate-50/50 border-b border-slate-100 text-[10px]">
+                                    <td className="pl-6 pr-3 py-2 border-r border-slate-100 text-slate-650 font-medium italic">
+                                      ↳ {da.title}
+                                    </td>
+                                    <td className="py-2 text-center border-r border-slate-100 font-mono text-slate-900 font-bold">
+                                      {da.grade !== null && da.grade !== undefined ? formatGrade(da.grade) : '-'}
+                                    </td>
+                                    <td className="py-2 text-center border-r border-slate-100 font-mono text-slate-300">
+                                      -
+                                    </td>
+                                    <td className="py-2 text-center font-mono text-slate-300">
+                                      -
+                                    </td>
+                                  </tr>
+                                ))}
+                                {/* Totals/Averages Row for this Subject */}
+                                <tr className="bg-slate-50/20 font-bold text-[10px]">
+                                  <td className="pl-6 pr-3 py-2 border-r border-slate-100 text-slate-550 font-extrabold tracking-wide">
+                                    Soma e Média do Componente
                                   </td>
-                                  <td className="py-2.5 text-center border-r border-slate-100 font-mono text-slate-600">
-                                    {formatGrade(sp.grade2)}
+                                  <td className="py-2 text-center border-r border-slate-100 font-mono text-slate-300">
+                                    -
                                   </td>
-                                  <td className="py-2.5 text-center font-extrabold font-mono text-slate-900">
-                                    {formatGrade(sp.finalGrade)}
+                                  <td className="py-2 text-center border-r border-slate-100 font-mono text-slate-900 font-black bg-slate-100/10">
+                                    {sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-'}
+                                  </td>
+                                  <td className="py-2 text-center font-mono text-slate-900 font-black bg-slate-100/25">
+                                    {sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-'}
                                   </td>
                                 </tr>
-                              );
-                            })}
+                              </React.Fragment>
+                            ))}
                           </tbody>
                         </table>
                       </div>
