@@ -1725,75 +1725,76 @@ export function Bulletin() {
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {activeStudentReport.subjectsPerformance.map(sp => (
-                              <React.Fragment key={sp.subjectId}>
-                                {/* Row 1: Faltas */}
-                                <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-100">
-                                  <td className="px-2 py-1.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
-                                    <div className="flex items-center justify-between gap-1 min-w-0">
-                                      <span className="truncate text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
-                                        {sp.subjectCode} - {sp.subjectName}
-                                      </span>
-                                      <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-none shrink-0">FALTAS</span>
-                                    </div>
-                                  </td>
-                                  {monthsList.map(m => {
-                                    const absCount = sp.monthlyAbsences[m.index];
-                                    const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
-                                    return (
-                                      <td 
-                                        key={m.index} 
-                                        className={cn(
-                                          "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px]",
-                                          isBlocked && "bg-slate-50"
-                                        )}
-                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
-                                      >
-                                        {isBlocked ? '-' : (absCount > 0 ? absCount : '')}
-                                      </td>
-                                    );
-                                  })}
-                                  <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-slate-805 bg-rose-50/20 text-[8.5px] sm:text-[9.5px]">
-                                    {sp.totalAbsences}
-                                  </td>
-                                  <td rowSpan={2} className="py-1.5 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle text-[8.5px] sm:text-[9.5px]">
-                                    {formatPresence(sp.presencePercentage)}%
-                                  </td>
-                                </tr>
-                                {/* Row 2: Presenças */}
-                                <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-200">
-                                  <td className="px-2 py-1.5 border-r border-slate-100 text-slate-500 font-normal whitespace-nowrap overflow-hidden text-ellipsis">
-                                    <div className="flex items-center justify-between gap-1 min-w-0">
-                                      <span className="truncate text-slate-450 text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
-                                        {sp.subjectCode} - {sp.subjectName}
-                                      </span>
-                                      <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-none shrink-0 font-bold">PRESENÇAS</span>
-                                    </div>
-                                  </td>
-                                  {monthsList.map(m => {
-                                    const presCount = sp.monthlyPresences ? sp.monthlyPresences[m.index] : 0;
-                                    const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
-                                    return (
-                                      <td 
-                                        key={m.index} 
-                                        className={cn(
-                                          "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px] text-slate-600",
-                                          isBlocked && "bg-slate-50"
-                                        )}
-                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
-                                      >
-                                        {isBlocked ? '-' : (presCount > 0 ? presCount : '')}
-                                      </td>
-                                    );
-                                  })}
-                                  <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-emerald-700 bg-emerald-50/20 text-[8.5px] sm:text-[9.5px]">
-                                    {sp.totalPresences || 0}
-                                  </td>
-                                </tr>
-                              </React.Fragment>
-                            ))}
-                          </tbody>
+                          {activeStudentReport.subjectsPerformance.map((sp, sIdx) => (
+                            <tbody key={sp.subjectId} className={cn(
+                              "text-slate-700 break-inside-avoid page-break-inside-avoid bg-white",
+                              sIdx > 0 ? "border-t border-slate-205" : ""
+                            )}>
+                              {/* Row 1: Faltas */}
+                              <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-100">
+                                <td className="px-2 py-1.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
+                                  <div className="flex items-center justify-between gap-1 min-w-0">
+                                    <span className="truncate text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
+                                      {sp.subjectCode} - {sp.subjectName}
+                                    </span>
+                                    <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-none shrink-0">FALTAS</span>
+                                  </div>
+                                </td>
+                                {monthsList.map(m => {
+                                  const absCount = sp.monthlyAbsences[m.index];
+                                  const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
+                                  return (
+                                    <td 
+                                      key={m.index} 
+                                      className={cn(
+                                        "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px]",
+                                        isBlocked && "bg-slate-50"
+                                      )}
+                                      style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
+                                    >
+                                      {isBlocked ? '-' : (absCount > 0 ? absCount : '')}
+                                    </td>
+                                  );
+                                })}
+                                <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-slate-805 bg-rose-50/20 text-[8.5px] sm:text-[9.5px]">
+                                  {sp.totalAbsences}
+                                </td>
+                                <td rowSpan={2} className="py-1.5 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle text-[8.5px] sm:text-[9.5px]">
+                                  {formatPresence(sp.presencePercentage)}%
+                                </td>
+                              </tr>
+                              {/* Row 2: Presenças */}
+                              <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-205">
+                                <td className="px-2 py-1.5 border-r border-slate-100 text-slate-500 font-normal whitespace-nowrap overflow-hidden text-ellipsis">
+                                  <div className="flex items-center justify-between gap-1 min-w-0">
+                                    <span className="truncate text-slate-450 text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
+                                      {sp.subjectCode} - {sp.subjectName}
+                                    </span>
+                                    <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-none shrink-0 font-bold">PRESENÇAS</span>
+                                  </div>
+                                </td>
+                                {monthsList.map(m => {
+                                  const presCount = sp.monthlyPresences ? sp.monthlyPresences[m.index] : 0;
+                                  const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
+                                  return (
+                                    <td 
+                                      key={m.index} 
+                                      className={cn(
+                                        "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px] text-slate-600",
+                                        isBlocked && "bg-slate-50"
+                                      )}
+                                      style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
+                                    >
+                                      {isBlocked ? '-' : (presCount > 0 ? presCount : '')}
+                                    </td>
+                                  );
+                                })}
+                                <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-emerald-700 bg-emerald-50/20 text-[8.5px] sm:text-[9.5px]">
+                                  {sp.totalPresences || 0}
+                                </td>
+                              </tr>
+                            </tbody>
+                          ))}
                         </table>
                       </div>
                     </div>
@@ -1830,17 +1831,19 @@ export function Bulletin() {
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {activeStudentReport.subjectsPerformance.map(sp => (
-                              <React.Fragment key={sp.subjectId}>
-                                {/* Subject Title Row spanning 4 columns */}
-                                <tr className="bg-slate-50/70 border-b border-slate-200">
-                                  <td colSpan={4} className="px-3 py-2 text-slate-900 font-extrabold text-[10.5px]">
-                                    {sp.subjectCode} - {sp.subjectName}
-                                  </td>
-                                </tr>
-                                {/* Assessment detailed rows */}
-                                {sp.detailedAssessments?.map((da: any, idx: number) => (
+                          {activeStudentReport.subjectsPerformance.map((sp, sIdx) => (
+                            <tbody key={sp.subjectId} className={cn(
+                              "text-slate-705 break-inside-avoid page-break-inside-avoid bg-white",
+                              sIdx > 0 ? "border-t border-slate-205" : ""
+                            )}>
+                              {/* Subject Title Row spanning 4 columns */}
+                              <tr className="bg-slate-50/70 border-b border-slate-200">
+                                <td colSpan={4} className="px-3 py-2 text-slate-900 font-extrabold text-[10.5px]">
+                                  {sp.subjectCode} - {sp.subjectName}
+                                </td>
+                              </tr>
+                              {/* Assessment detailed rows */}
+                              {sp.detailedAssessments?.map((da: any, idx: number) => (
                                   <tr key={da.id || idx} className="hover:bg-slate-50/50 border-b border-slate-100 text-[10px]">
                                     <td className="pl-6 pr-3 py-2 border-r border-slate-100 text-slate-650 font-medium italic">
                                       ↳ {da.title}
@@ -1855,31 +1858,30 @@ export function Bulletin() {
                                       -
                                     </td>
                                   </tr>
-                                ))}
-                                {/* Totals/Averages Row for this Subject */}
-                                <tr className="bg-slate-50/20 font-bold text-[10px]">
-                                  <td className="pl-6 pr-3 py-2 border-r border-slate-100 text-slate-550 font-extrabold tracking-wide">
-                                    Soma e Média do Componente
-                                  </td>
-                                  <td className="py-2 text-center border-r border-slate-100 font-mono text-slate-300">
-                                    -
-                                  </td>
-                                  <td className="py-2 text-center border-r border-slate-100 font-mono text-slate-900 font-black bg-slate-100/10">
-                                    {sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-'}
-                                  </td>
-                                  <td className="py-2 text-center font-mono text-slate-900 font-black bg-slate-100/25">
-                                    {sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-'}
-                                  </td>
-                                </tr>
-                              </React.Fragment>
-                            ))}
-                          </tbody>
+                              ))}
+                              {/* Totals/Averages Row for this Subject */}
+                              <tr className="bg-slate-50/20 font-bold text-[10px]">
+                                <td className="pl-6 pr-3 py-2 border-r border-slate-100 text-slate-550 font-extrabold tracking-wide">
+                                  Soma e Média do Componente
+                                </td>
+                                <td className="py-2 text-center border-r border-slate-105 font-mono text-slate-300">
+                                  -
+                                </td>
+                                <td className="py-2 text-center border-r border-slate-100 font-mono text-slate-900 font-black bg-slate-100/10">
+                                  {sp.gradesSum !== null && sp.gradesSum !== undefined ? formatGrade(sp.gradesSum) : '-'}
+                                </td>
+                                <td className="py-2 text-center font-mono text-slate-900 font-black bg-slate-100/25">
+                                  {sp.finalGrade !== null && sp.finalGrade !== undefined ? formatGrade(sp.finalGrade) : '-'}
+                                </td>
+                              </tr>
+                            </tbody>
+                          ))}
                         </table>
                       </div>
                     </div>
 
                     {/* Integrated footer statistics aligned right below table */}
-                    <div className="flex justify-end pt-1">
+                    <div className="flex justify-end pt-1 break-inside-avoid page-break-inside-avoid">
                       <div className="border border-slate-200 font-sans text-[10px] w-full sm:max-w-[340px] uppercase">
                         <div className="grid grid-cols-2 border-b border-slate-200 divide-x divide-slate-200 bg-slate-50/40">
                           <div className="px-3 py-1.5 font-bold text-slate-500">Média Geral de Frequência</div>
@@ -1911,7 +1913,7 @@ export function Bulletin() {
                     </div>
 
                     {/* Justification / Explanation panel (represented as Pink highlighted card area) */}
-                    <div className="border border-rose-250 bg-rose-50/10 p-3 mt-4 text-left rounded-none">
+                    <div className="border border-rose-250 bg-rose-50/10 p-3 mt-4 text-left rounded-none break-inside-avoid page-break-inside-avoid">
                       <p className="text-[8.5px] font-black text-rose-700 uppercase tracking-widest mb-1.5">
                         Justificativa do Resultado / Parecer da Secretaria
                       </p>
@@ -1921,7 +1923,7 @@ export function Bulletin() {
                     </div>
 
                     {/* Base validation credentials or certificates badge warning */}
-                    <div className="pt-5 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-[9px] uppercase font-sans font-bold text-slate-400 select-none">
+                    <div className="pt-5 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-[9px] uppercase font-sans font-bold text-slate-400 select-none break-inside-avoid page-break-inside-avoid">
                       <div className="flex items-center gap-4">
                         <span>{new Date().toLocaleDateString('pt-BR')}</span>
                         <span>ESCMIN - Sistema de Gestão</span>
@@ -2148,12 +2150,12 @@ export function Bulletin() {
         </div>
       )}
 
-      {/* Custom class print rules override to bypass the page height restriction of [id^="printable-"] selectors */}
+      {/* Custom print rules overrides to optimize height, layout, and eliminate scrollbars */}
       <style>{`
         @media print {
           @page {
             size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'};
-            margin: ${viewMode === 'class' ? '10mm 12mm' : '12mm 15mm'};
+            margin: ${viewMode === 'class' ? '10mm 12mm' : '8mm 10mm'};
             @bottom-right {
               content: "Página " counter(page);
               font-size: 7.5px;
@@ -2165,6 +2167,162 @@ export function Bulletin() {
             }
           }
 
+          /* Hide scrollbars globally on print */
+          ::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          * {
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+          }
+
+          /* General breaking helper */
+          .break-inside-avoid,
+          .page-break-inside-avoid {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          /* === INDIVIDUAL BULLETIN PRINT STYLE OVERRIDES === */
+          #printable-boletim {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0px !important; /* Clears screen paddings so margins are strictly governed by A4 @page */
+            background: white !important;
+            z-index: 9999 !important;
+            display: block !important;
+            visibility: visible !important;
+            overflow: visible !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          #printable-boletim * {
+            visibility: visible !important;
+          }
+
+          /* Hide scrolling wrapper behaviors to prevent scrollbars printing */
+          #printable-boletim .overflow-x-auto {
+            overflow: visible !important;
+            overflow-x: visible !important;
+            border: none !important;
+          }
+
+          #printable-boletim table {
+            table-layout: fixed !important;
+            width: 100% !important;
+          }
+
+          /* Spacing compression on print */
+          #printable-boletim .space-y-6 > :not([hidden]) ~ :not([hidden]),
+          #printable-boletim .space-y-6 > * + * {
+            margin-top: 10px !important;
+          }
+          #printable-boletim .space-y-2 > :not([hidden]) ~ :not([hidden]),
+          #printable-boletim .space-y-2 > * + * {
+            margin-top: 4px !important;
+          }
+
+          /* Header area compaction */
+          #printable-boletim .border-b.pb-5 {
+            padding-bottom: 8px !important;
+          }
+          #printable-boletim img,
+          #printable-boletim .w-16,
+          #printable-boletim .h-16 {
+            width: 44px !important;
+            height: 44px !important;
+          }
+          #printable-boletim h1 {
+            font-size: 11px !important;
+            line-height: 1.2 !important;
+          }
+          #printable-boletim h2 {
+            font-size: 9.5px !important;
+            line-height: 1.2 !important;
+          }
+          #printable-boletim h3 {
+            font-size: 8.5px !important;
+          }
+
+          /* Student details grid compression */
+          #printable-boletim .grid.grid-cols-1 {
+            column-gap: 16px !important;
+            row-gap: 3px !important;
+            padding-bottom: 8px !important;
+          }
+          #printable-boletim .grid.grid-cols-1 .text-[8px] {
+            font-size: 7.5px !important;
+          }
+          #printable-boletim .grid.grid-cols-1 .text-slate-800 {
+            font-size: 9px !important;
+          }
+          #printable-boletim .grid.grid-cols-1 .bg-emerald-50 {
+            padding: 1px 6px !important;
+            font-size: 8px !important;
+          }
+
+          /* Table Cells compaction */
+          #printable-boletim th,
+          #printable-boletim td {
+            font-size: 7.5px !important;
+            padding: 1mm 1.5mm !important;
+            line-height: 1.1 !important;
+          }
+          #printable-boletim thead tr th {
+            font-size: 8px !important;
+          }
+          #printable-boletim tr.bg-slate-50\/70 td {
+            font-size: 8px !important;
+            font-weight: 800 !important;
+            background-color: #f1f5f9 !important;
+            padding: 0.8mm 1.5mm !important;
+          }
+          #printable-boletim tr.bg-slate-50\/20 td {
+            font-size: 8px !important;
+            background-color: #f8fafc !important;
+            padding: 0.8mm 1.5mm !important;
+          }
+
+          /* Totals panel compaction */
+          #printable-boletim .flex.justify-end {
+            margin-top: 4px !important;
+          }
+          #printable-boletim .flex.justify-end .w-full {
+            max-width: 280px !important;
+          }
+          #printable-boletim .flex.justify-end .px-3.py-1.5 {
+            padding: 3px 6px !important;
+            font-size: 7.5px !important;
+          }
+
+          /* Parecer e Justificativa panel compaction */
+          #printable-boletim .p-3.mt-4,
+          #printable-boletim .border-rose-250 {
+            padding: 5px 8px !important;
+            margin-top: 6px !important;
+          }
+          #printable-boletim .p-3.mt-4 p {
+            font-size: 7.5px !important;
+            line-height: 1.2 !important;
+          }
+
+          /* Footer pagination section compaction */
+          #printable-boletim .pt-5.border-t {
+            padding-top: 8px !important;
+            margin-top: 4px !important;
+            font-size: 7.5px !important;
+          }
+
+
+          /* === CLASS BULLETIN GENERAL PRINT STYLE OVERRIDES === */
           #printable-class-bulletin {
             position: relative !important;
             left: auto !important;
