@@ -216,6 +216,37 @@ export function Bulletin() {
     { label: 'DEZ', index: 11 }
   ];
 
+  // Count of scheduled class sessions per month index (0 to 11)
+  const scheduledDaysByMonth = useMemo(() => {
+    const counts: Record<number, number> = {};
+    monthsList.forEach(m => {
+      counts[m.index] = 0;
+    });
+
+    if (classSchoolDays.length > 0) {
+      classSchoolDays.forEach(e => {
+        const idx = getMonthFromDate(e.start_date);
+        if (idx >= 0 && idx < 12) {
+          counts[idx] += 1;
+        }
+      });
+    } else {
+      // Fallback: unique attendance dates marked for this class in each month
+      const markedDates = new Set(
+        attendanceData
+          .filter(a => a.class_id === selectedClassId)
+          .map(a => a.date)
+      );
+      markedDates.forEach(dateStr => {
+        const idx = getMonthFromDate(dateStr);
+        if (idx >= 0 && idx < 12) {
+          counts[idx] += 1;
+        }
+      });
+    }
+    return counts;
+  }, [selectedClassId, classSchoolDays, attendanceData, monthsList]);
+
   // Core calculations memo to map student performance structured cards
   const studentReports = useMemo(() => {
     if (!selectedClassId || classStudents.length === 0 || classSubjects.length === 0) return [];
@@ -689,6 +720,18 @@ export function Bulletin() {
         return row;
       });
 
+      // Add "Aulas no Mês" row to PDF
+      const rowScheduled = [
+        'AULAS NO MÊS'
+      ];
+      monthsList.forEach(m => {
+        const count = scheduledDaysByMonth[m.index];
+        rowScheduled.push(count > 0 ? count.toString() : '-');
+      });
+      rowScheduled.push(totalClassDays.toString());
+      rowScheduled.push('-');
+      rowsFreq.unshift(rowScheduled);
+
       autoTable(doc, {
         head: headersFreq,
         body: rowsFreq,
@@ -1108,6 +1151,18 @@ export function Bulletin() {
           return row;
         });
 
+        // Add "Aulas no Mês" row to PDF
+        const rowScheduled = [
+          'AULAS NO MÊS'
+        ];
+        monthsList.forEach(m => {
+          const count = scheduledDaysByMonth[m.index];
+          rowScheduled.push(count > 0 ? count.toString() : '-');
+        });
+        rowScheduled.push(totalClassDays.toString());
+        rowScheduled.push('-');
+        rowsFreq.unshift(rowScheduled);
+
         autoTable(doc, {
           head: headersFreq,
           body: rowsFreq,
@@ -1523,6 +1578,25 @@ export function Bulletin() {
                               </th>
                               <th className="py-2.5 text-center text-[9px] leading-tight w-[40px]">
                                 Freq.
+                              </th>
+                            </tr>
+                            <tr className="bg-slate-100/40 border-b border-slate-200 text-slate-700 text-[8px] font-black uppercase tracking-wider">
+                              <th className="px-3 py-1.5 border-r border-slate-200 text-left text-[8px] font-black text-slate-500 bg-slate-100/25">
+                                Aulas no Mês
+                              </th>
+                              {monthsList.map(month => {
+                                const dayCount = scheduledDaysByMonth[month.index];
+                                return (
+                                  <th key={month.index} className="py-1.5 text-center border-r border-slate-200 font-mono text-[9px] font-black text-slate-650 bg-slate-100/10">
+                                    {dayCount > 0 ? dayCount : '-'}
+                                  </th>
+                                );
+                              })}
+                              <th className="py-1.5 border-r border-slate-200 text-center font-mono text-[9px] font-black text-slate-650 bg-slate-100/25">
+                                {totalClassDays}
+                              </th>
+                              <th className="py-1.5 text-center font-mono text-[9px] font-black text-slate-400 bg-slate-100/25">
+                                -
                               </th>
                             </tr>
                           </thead>
