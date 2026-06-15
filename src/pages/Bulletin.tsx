@@ -231,20 +231,27 @@ export function Bulletin() {
           a.subject_id === sub.id
         );
 
-        // Calculate absences per Month Index
+        // Calculate absences and presences per Month Index
         const monthlyAbsences: Record<number, number> = {};
-        monthsList.forEach(m => { monthlyAbsences[m.index] = 0; });
+        const monthlyPresences: Record<number, number> = {};
+        monthsList.forEach(m => { 
+          monthlyAbsences[m.index] = 0; 
+          monthlyPresences[m.index] = 0;
+        });
         
         subjectAttendances.forEach(a => {
-          if (a.status === 'F') {
-            const mIdx = getMonthFromDate(a.date);
-            if (mIdx >= 0 && mIdx < 12) {
+          const mIdx = getMonthFromDate(a.date);
+          if (mIdx >= 0 && mIdx < 12) {
+            if (a.status === 'F') {
               monthlyAbsences[mIdx] += 1;
+            } else if (a.status === 'P') {
+              monthlyPresences[mIdx] += 1;
             }
           }
         });
 
         const totalAbsences = subjectAttendances.filter(a => a.status === 'F').length;
+        const totalPresences = subjectAttendances.filter(a => a.status === 'P').length;
         const presencePct = totalClassDays > 0 
           ? Math.max(0, Math.min(100, ((totalClassDays - totalAbsences) / totalClassDays) * 100))
           : 100;
@@ -360,7 +367,9 @@ export function Bulletin() {
           subjectCode: sub.code || '000',
           subjectName: sub.name,
           monthlyAbsences,
+          monthlyPresences,
           totalAbsences,
+          totalPresences,
           presencePercentage: presencePct,
           isAttendanceApproved,
           grade1,
@@ -523,6 +532,35 @@ export function Bulletin() {
   const formatPresence = (val: number | null | undefined): string => {
     if (val === null || val === undefined) return '100';
     return Math.round(val).toString();
+  };
+
+  const getReportJustificationText = (report: any, params: any) => {
+    if (!report) return "";
+    const minGrade = params.approval_grade || 5.0;
+    const maxAbsencePct = params.absence_limit_percentage || 25;
+    const attendanceThreshold = 100 - maxAbsencePct;
+    const isAttendanceApproved = report.averageFrequency >= attendanceThreshold;
+
+    // Check if they have failed subjects (grade below minGrade)
+    const failedSubjects = report.subjectsPerformance.filter((sp: any) => sp.finalGrade !== null && sp.finalGrade < minGrade);
+    const hasFailedGrade = failedSubjects.length > 0;
+
+    if (report.finalStatus === 'Aprovado') {
+      return "APROVADO POIS ATINGIU AS MÉDIAS NECESSÁRIAS DE NOTA E PRESENÇA EM AULA ESTABELECIDAS PARA APROVAÇÃO.";
+    } else if (report.finalStatus === 'Recuperação') {
+      return `EM RECUPERAÇÃO: O ALUNO NÃO ATINGIU A MÉDIA MÍNIMA DE APROVAÇÃO (${minGrade.toString().replace('.', ',')}) EM ATÉ DUAS DISCIPLINAS, MAS ATENDE AOS REQUISITOS DE PRESENÇA EM AULA.`;
+    } else if (report.finalStatus === 'Reprovado') {
+      if (!isAttendanceApproved && hasFailedGrade) {
+        return `REPROVADO POR NOTA E FALTA: EXCEDEU O LIMITE MÁXIMO DE FALTAS PERMITIDO DE ${maxAbsencePct}% E NÃO ATINGIU A MÉDIA FINAL MÍNIMA DE ${minGrade.toString().replace('.', ',')} PARA APROVAÇÃO.`;
+      } else if (!isAttendanceApproved) {
+        return `REPROVADO POR FALTA: EXCEDEU O LIMITE MÁXIMO DE FALTAS PERMITIDO DE ${maxAbsencePct}% DE AUSÊNCIAS EM AULA.`;
+      } else {
+        return `REPROVADO POR NOTA: NÃO ATINGIU A MÉDIA FINAL MÍNIMA COBRADA DE ${minGrade.toString().replace('.', ',')} NAS DISCIPLINAS AVALIADAS.`;
+      }
+    } else if (report.finalStatus === 'Pendente') {
+      return "PENDENTE: EXISTEM COMPONENTES CURRICULARES OU ATIVIDADES COM LANÇAMENTO DE NOTA OU REGISTRO DE FREQUÊNCIA PENDENTES DE HOMOLOGAÇÃO.";
+    }
+    return "";
   };
 
   // 1. Export Dynamic Individual Report Card as A4 PDF
@@ -1472,35 +1510,61 @@ export function Bulletin() {
                                   {month.label}
                                 </th>
                               ))}
-                              <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight w-[32px]">
-                                Faltas
+                              <th className="py-2.5 border-r border-slate-200 text-center text-[9px] leading-tight w-[45px]">
+                                Total
                               </th>
-                              <th className="py-2.5 text-center text-[9px] leading-tight w-[36px]">
+                              <th className="py-2.5 text-center text-[9px] leading-tight w-[40px]">
                                 Freq.
                               </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-700">
                             {activeStudentReport.subjectsPerformance.map(sp => (
-                              <tr key={sp.subjectId} className="hover:bg-slate-50/50 text-[10px] font-semibold">
-                                <td className="px-3 py-2 border-r border-slate-100 text-slate-900 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
-                                  {sp.subjectCode} - {sp.subjectName}
-                                </td>
-                                {monthsList.map(m => {
-                                  const absCount = sp.monthlyAbsences[m.index];
-                                  return (
-                                    <td key={m.index} className="py-2 text-center border-r border-slate-100 font-mono text-[9.5px]">
-                                      {absCount > 0 ? absCount : ''}
-                                    </td>
-                                  );
-                                })}
-                                <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-slate-800">
-                                  {sp.totalAbsences}
-                                </td>
-                                <td className="py-2 text-center font-bold font-mono text-slate-800">
-                                  {formatPresence(sp.presencePercentage)}%
-                                </td>
-                              </tr>
+                              <React.Fragment key={sp.subjectId}>
+                                {/* Row 1: Faltas */}
+                                <tr className="hover:bg-slate-50/50 text-[10px] font-semibold border-b border-slate-100">
+                                  <td className="px-3 py-2 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
+                                    <div className="flex items-center justify-between">
+                                      <span className="truncate">{sp.subjectCode} - {sp.subjectName}</span>
+                                      <span className="text-[7.5px] bg-rose-50 text-rose-700 px-1.5 py-0.5 border border-rose-150 font-bold rounded-none shrink-0 ml-2">FALTAS</span>
+                                    </div>
+                                  </td>
+                                  {monthsList.map(m => {
+                                    const absCount = sp.monthlyAbsences[m.index];
+                                    return (
+                                      <td key={m.index} className="py-2 text-center border-r border-slate-100 font-mono text-[9.5px]">
+                                        {absCount > 0 ? absCount : ''}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-slate-805 bg-rose-50/20">
+                                    {sp.totalAbsences}
+                                  </td>
+                                  <td rowSpan={2} className="py-2 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle">
+                                    {formatPresence(sp.presencePercentage)}%
+                                  </td>
+                                </tr>
+                                {/* Row 2: Presenças */}
+                                <tr className="hover:bg-slate-50/50 text-[10px] font-semibold border-b border-slate-200">
+                                  <td className="px-3 py-2 border-r border-slate-100 text-slate-500 font-normal whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
+                                    <div className="flex items-center justify-between">
+                                      <span className="truncate text-slate-450">{sp.subjectCode} - {sp.subjectName}</span>
+                                      <span className="text-[7.5px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 border border-emerald-150 font-bold rounded-none shrink-0 ml-2">PRESENÇAS</span>
+                                    </div>
+                                  </td>
+                                  {monthsList.map(m => {
+                                    const presCount = sp.monthlyPresences ? sp.monthlyPresences[m.index] : 0;
+                                    return (
+                                      <td key={m.index} className="py-2 text-center border-r border-slate-100 font-mono text-[9.5px] text-slate-600">
+                                        {presCount > 0 ? presCount : ''}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="py-2 text-center border-r border-slate-100 font-bold font-mono text-emerald-700 bg-emerald-50/20">
+                                    {sp.totalPresences || 0}
+                                  </td>
+                                </tr>
+                              </React.Fragment>
                             ))}
                           </tbody>
                         </table>
@@ -1522,26 +1586,19 @@ export function Bulletin() {
                               <th className="px-3 py-2.5 border-r border-slate-200 text-left">
                                 Disciplinas
                               </th>
-                              <th className="py-2.5 border-r border-slate-200 text-center w-[70px]">
+                              <th className="py-2.5 border-r border-slate-200 text-center w-[100px]">
                                 1ª Nota
                               </th>
-                              <th className="py-2.5 border-r border-slate-200 text-center w-[70px]">
+                              <th className="py-2.5 border-r border-slate-200 text-center w-[100px]">
                                 2ª Nota
                               </th>
-                              <th className="py-2.5 border-r border-slate-200 text-center w-[70px]">
+                              <th className="py-2.5 text-center w-[100px]">
                                 Média Final
-                              </th>
-                              <th className="py-2.5 text-center w-[90px]">
-                                Situação Geral
                               </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-700">
                             {activeStudentReport.subjectsPerformance.map(sp => {
-                              const showFailed = sp.status === 'Reprovado';
-                              const showRecup = sp.status === 'Recuperação';
-                              const showPending = sp.status === 'Pendente';
-
                               return (
                                 <tr key={sp.subjectId} className="hover:bg-slate-50/50 text-[10px] font-semibold">
                                   <td className="px-3 py-2.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
@@ -1553,16 +1610,8 @@ export function Bulletin() {
                                   <td className="py-2.5 text-center border-r border-slate-100 font-mono text-slate-600">
                                     {formatGrade(sp.grade2)}
                                   </td>
-                                  <td className="py-2.5 text-center border-r border-slate-200 font-extrabold font-mono text-slate-900">
+                                  <td className="py-2.5 text-center font-extrabold font-mono text-slate-900">
                                     {formatGrade(sp.finalGrade)}
-                                  </td>
-                                  <td className={cn(
-                                    "py-2.5 text-center font-bold text-[9px] tracking-widest uppercase px-2",
-                                    showFailed ? "text-rose-650 bg-rose-50/40" :
-                                    showRecup ? "text-amber-650 bg-amber-50/40" :
-                                    showPending ? "text-slate-400 bg-slate-50" : "text-emerald-650 bg-emerald-50/40"
-                                  )}>
-                                    {sp.status === 'Pendente' ? 'Pendente' : sp.status}
                                   </td>
                                 </tr>
                               );
@@ -1581,13 +1630,35 @@ export function Bulletin() {
                             {formatPresence(activeStudentReport.averageFrequency)}%
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 divide-x divide-slate-200 bg-slate-50/40">
+                        <div className="grid grid-cols-2 border-b border-slate-200 divide-x divide-slate-200 bg-slate-50/40">
                           <div className="px-3 py-1.5 font-bold text-slate-500">Média Geral de Notas</div>
                           <div className="px-3 py-1.5 text-right font-black font-mono text-slate-800">
                             {formatGrade(activeStudentReport.averageGrade)}
                           </div>
                         </div>
+                        {/* Final Status row replacing previous in-table column */}
+                        <div className="grid grid-cols-2 divide-x divide-slate-200 bg-slate-50/40">
+                          <div className="px-3 py-1.5 font-bold text-slate-500">SITUAÇÃO GERAL (FINAL)</div>
+                          <div className={cn(
+                            "px-3 py-1.5 text-right font-black tracking-wider uppercase",
+                            activeStudentReport.finalStatus === 'Reprovado' ? "text-rose-650 bg-rose-50/30" :
+                            activeStudentReport.finalStatus === 'Recuperação' ? "text-amber-650 bg-amber-50/30" :
+                            activeStudentReport.finalStatus === 'Pendente' ? "text-slate-400 bg-slate-50" : "text-emerald-750 bg-emerald-50/30"
+                          )}>
+                            {activeStudentReport.finalStatus}
+                          </div>
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Justification / Explanation panel (represented as Pink highlighted card area) */}
+                    <div className="border border-rose-250 bg-rose-50/10 p-3 mt-4 text-left rounded-none">
+                      <p className="text-[8.5px] font-black text-rose-700 uppercase tracking-widest mb-1.5">
+                        Justificativa do Resultado / Parecer da Secretaria
+                      </p>
+                      <p className="text-[10px] font-extrabold text-slate-700 leading-normal uppercase">
+                        {getReportJustificationText(activeStudentReport, academicParams)}
+                      </p>
                     </div>
 
                     {/* Base validation credentials or certificates badge warning */}

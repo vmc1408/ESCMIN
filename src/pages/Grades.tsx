@@ -895,21 +895,8 @@ export function Grades() {
             </tbody>
           </table>
           
-          <div class="signatures-container">
-            <div class="signature-block">
-              <div class="signature-line"></div>
-              <span class="signature-role">Direção / Coordenação</span>
-              <span class="signature-name">${institution?.president_name || 'Prof. Responsável'}</span>
-            </div>
-            <div class="signature-block">
-              <div class="signature-line"></div>
-              <span class="signature-role">Assinatura do Docente</span>
-              <span class="signature-name">Pauta de Notas</span>
-            </div>
-          </div>
-          
           <div class="document-footer">
-            <span>Gestão de Notas e Frequências Diocesana</span>
+            <span></span>
             <span>Emitido em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</span>
           </div>
           
