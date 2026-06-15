@@ -349,6 +349,9 @@ export function Bulletin() {
         // Determine Status per Subject
         let subjectStatus: 'Aprovado' | 'Reprovado' | 'Recuperação' | 'Pendente' = 'Pendente';
         const minApp = academicParams.approval_grade || 5.0;
+        const minRec = academicParams.recovery_grade !== undefined && academicParams.recovery_grade !== null
+          ? academicParams.recovery_grade
+          : 4.0;
 
         if (!isAttendanceApproved) {
           subjectStatus = 'Reprovado';
@@ -356,7 +359,7 @@ export function Bulletin() {
           subjectStatus = 'Pendente';
         } else if (finalGradeValue >= minApp) {
           subjectStatus = 'Aprovado';
-        } else if (finalGradeValue >= (academicParams.recovery_grade || 4.0)) {
+        } else if (finalGradeValue >= minRec) {
           subjectStatus = 'Recuperação';
         } else {
           subjectStatus = 'Reprovado'; // If below recovery limit

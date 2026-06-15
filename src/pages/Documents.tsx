@@ -406,7 +406,7 @@ export function Documents() {
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const [certs, studs, clss, subs, assms, grds, atts, calEvts, instSettings] = await Promise.all([
+      const [certs, studs, clss, subs, assms, grds, atts, calEvts, instSettings, academicParamsData] = await Promise.all([
         fetchAll('certificates', '*', 'created_at', true),
         fetchAll('students', '*', 'name'),
         fetchAll('classes', '*', 'name'),
@@ -415,7 +415,8 @@ export function Documents() {
         fetchAll('grades'),
         fetchAll('attendances'),
         fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]),
-        financialService.getInstitutionSettings()
+        financialService.getInstitutionSettings(),
+        fetchAll('academic_parameters', '*', '')
       ]);
       
       setStudents((studs || []).filter((s: any) => s.status === 'Ativo' || !s.status));
@@ -434,12 +435,18 @@ export function Documents() {
       setAttendanceData(atts || []);
       setCalendarEvents(calEvts || []);
       
-      if (instSettings) {
-        setInstitution(instSettings);
+      if (academicParamsData && academicParamsData.length > 0) {
+        setAcademicParams(academicParamsData[0]);
+      } else if (instSettings) {
         setAcademicParams({
           approval_grade: instSettings.approval_grade || 7.0,
-          absence_limit_percentage: instSettings.absence_limit_percentage || 25
+          absence_limit_percentage: instSettings.absence_limit_percentage || 25,
+          recovery_grade: 5.0,
+          failure_grade: 4.9
         });
+      }
+      if (instSettings) {
+        setInstitution(instSettings);
       }
     } catch (error) {
       console.error('Error fetching documents data:', error);

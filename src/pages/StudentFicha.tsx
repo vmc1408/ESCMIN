@@ -300,6 +300,8 @@ export function StudentFicha() {
   // Academic Configs
   const [academicParams, setAcademicParams] = useState({
     approval_grade: 7.0,
+    recovery_grade: 5.0,
+    failure_grade: 4.9,
     absence_limit_percentage: 25
   });
 
@@ -349,7 +351,7 @@ export function StudentFicha() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [studs, clss, subs, assms, grds, atts, certs, instSettings] = await Promise.all([
+      const [studs, clss, subs, assms, grds, atts, certs, instSettings, academicParamsData] = await Promise.all([
         fetchAll('students', '*', 'name'),
         fetchAll('classes', '*', 'name'),
         fetchAll('subjects', '*', 'name'),
@@ -357,7 +359,8 @@ export function StudentFicha() {
         fetchAll('grades'),
         fetchAll('attendances'),
         fetchAll('certificates', '*', 'created_at', true),
-        financialService.getInstitutionSettings()
+        financialService.getInstitutionSettings(),
+        fetchAll('academic_parameters', '*', '')
       ]);
 
       setStudents(studs || []);
@@ -368,12 +371,18 @@ export function StudentFicha() {
       setAttendanceData(atts || []);
       setCertificates(certs || []);
 
-      if (instSettings) {
-        setInstitution(instSettings);
+      if (academicParamsData && academicParamsData.length > 0) {
+        setAcademicParams(academicParamsData[0] as any);
+      } else if (instSettings) {
         setAcademicParams({
           approval_grade: instSettings.approval_grade || 7.0,
-          absence_limit_percentage: instSettings.absence_limit_percentage || 25
-        });
+          absence_limit_percentage: instSettings.absence_limit_percentage || 25,
+          recovery_grade: 5.0,
+          failure_grade: 4.9
+        } as any);
+      }
+      if (instSettings) {
+        setInstitution(instSettings);
       }
     } catch (e: any) {
       console.error("Error loading data in StudentFicha:", e);
@@ -899,7 +908,9 @@ export function StudentFicha() {
                                 rec.grade !== null 
                                   ? rec.grade >= academicParams.approval_grade
                                     ? "text-emerald-700 bg-emerald-50 border-emerald-250" 
-                                    : "text-rose-700 bg-rose-50 border-rose-200"
+                                    : rec.grade >= (academicParams.recovery_grade ?? 4.9)
+                                      ? "text-amber-700 bg-amber-50 border-amber-200"
+                                      : "text-rose-700 bg-rose-50 border-rose-200"
                                   : "text-slate-400 bg-slate-50 border-slate-150"
                               )}>
                                 {rec.grade !== null ? rec.grade.toFixed(1).replace('.', ',') : 'N/D'}
@@ -907,8 +918,10 @@ export function StudentFicha() {
                               <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider w-14 text-right">
                                 {rec.grade !== null 
                                   ? rec.grade >= academicParams.approval_grade 
-                                    ? 'Aproveitamento' 
-                                    : 'Falta Rec.'
+                                    ? 'Aprovado' 
+                                    : rec.grade >= (academicParams.recovery_grade ?? 4.9)
+                                      ? 'Em Rec.' 
+                                      : 'Reprovado'
                                   : 'Falta lançar'}
                               </span>
                             </div>
@@ -1352,7 +1365,16 @@ export function StudentFicha() {
                   </tr>
                 ) : (
                   activeStudentMetrics?.subjectRecords.map(rec => {
-                    const isApproved = rec.grade !== null && rec.grade >= academicParams.approval_grade;
+                    let situation = 'S/ Nota';
+                    if (rec.grade !== null) {
+                      if (rec.grade >= academicParams.approval_grade) {
+                        situation = 'Aprovado';
+                      } else if (rec.grade >= (academicParams.recovery_grade ?? 4.9)) {
+                        situation = 'Recuperação';
+                      } else {
+                        situation = 'Reprovado';
+                      }
+                    }
                     return (
                       <tr key={rec.subject.id}>
                         <td className="p-2 font-mono font-semibold border-r border-black/20">{rec.subject.code || 'S/C'}</td>
@@ -1361,7 +1383,7 @@ export function StudentFicha() {
                           {rec.grade !== null ? rec.grade.toFixed(1).replace('.', ',') : '---'}
                         </td>
                         <td className="p-2 font-bold text-center uppercase">
-                          {rec.grade !== null ? (isApproved ? 'Aprovado' : 'Falta Rec.') : 'S/ Nota'}
+                          {situation}
                         </td>
                       </tr>
                     );
