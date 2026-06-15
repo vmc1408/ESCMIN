@@ -300,8 +300,18 @@ export function Grades() {
     // Calculate status only if it's a valid number
     let status: GradeRecord['status'] = 'Pendente';
     if (value !== '' && !isNaN(numValue)) {
-      if (numValue >= (academicParams.approval_grade || 5.0)) status = 'Aprovado';
-      else status = 'Reprovado';
+      const minApp = academicParams.approval_grade || 5.0;
+      const minRec = academicParams.recovery_grade !== undefined && academicParams.recovery_grade !== null
+        ? academicParams.recovery_grade
+        : 4.0;
+      
+      if (numValue >= minApp) {
+        status = 'Aprovado';
+      } else if (numValue >= minRec) {
+        status = 'Recuperação';
+      } else {
+        status = 'Reprovado';
+      }
     }
 
     setGrades(prev => ({
@@ -395,8 +405,17 @@ export function Grades() {
         const allGradesLaunched = hasAssessments && studentGrades.length === numAssessments;
 
         if (allGradesLaunched && avg !== null) {
-          if (avg >= (academicParams.approval_grade || 5.0) && isAttendanceApproved) {
+          const minApp = academicParams.approval_grade || 5.0;
+          const minRec = academicParams.recovery_grade !== undefined && academicParams.recovery_grade !== null
+            ? academicParams.recovery_grade
+            : 4.0;
+
+          if (!isAttendanceApproved) {
+            status = 'Reprovado';
+          } else if (avg >= minApp) {
             status = 'Aprovado';
+          } else if (avg >= minRec) {
+            status = 'Recuperação';
           } else {
             status = 'Reprovado';
           }

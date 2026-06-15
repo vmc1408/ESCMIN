@@ -410,10 +410,15 @@ export function Bulletin() {
       } else if (hasPending) {
         finalStatus = 'Pendente';
       } else {
-        const failedSubjectCount = subjectsPerformance.filter(sp => sp.finalGrade !== null && sp.finalGrade < minApp).length;
-        if (failedSubjectCount > 0) {
-          // If failing in 1 or 2 subjects => eligible for Recuperação, if more => Reprovado
-          finalStatus = failedSubjectCount <= 2 ? 'Recuperação' : 'Reprovado';
+        const hasDirectReprovado = subjectsPerformance.some(sp => sp.status === 'Reprovado');
+        if (hasDirectReprovado) {
+          finalStatus = 'Reprovado';
+        } else {
+          const failedSubjectCount = subjectsPerformance.filter(sp => sp.finalGrade !== null && sp.finalGrade < minApp).length;
+          if (failedSubjectCount > 0) {
+            // If failing in 1 or 2 subjects => eligible for Recuperação, if more => Reprovado
+            finalStatus = failedSubjectCount <= 2 ? 'Recuperação' : 'Reprovado';
+          }
         }
       }
 

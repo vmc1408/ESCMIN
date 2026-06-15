@@ -583,23 +583,31 @@ export function Reports() {
           }
 
           const minApp = academicParams.approval_grade || 7.0;
+          const minRec = academicParams.recovery_grade !== undefined && academicParams.recovery_grade !== null
+            ? academicParams.recovery_grade
+            : 5.0;
           const isApproved = gradeValue !== null && gradeValue >= minApp;
+          const isDirectFail = gradeValue !== null && gradeValue < minRec;
 
           return {
             subjectId: sub.id,
             subjectName: sub.name,
             grade: gradeValue,
             isCalculated,
-            isApproved
+            isApproved,
+            isDirectFail
           };
         });
 
         // Determine Final Status
         let finalStatus: 'Aprovado' | 'Recuperação' | 'Reprovado' | 'Pendente' = 'Aprovado';
         const hasMissingGrades = subjectGradesArray.some(sg => sg.grade === null);
+        const hasDirectFailSubject = subjectGradesArray.some(sg => sg.isDirectFail);
         const minApp = academicParams.approval_grade || 7.0;
 
         if (!isAttendanceApproved) {
+          finalStatus = 'Reprovado';
+        } else if (hasDirectFailSubject) {
           finalStatus = 'Reprovado';
         } else if (hasMissingGrades) {
           finalStatus = 'Pendente';
