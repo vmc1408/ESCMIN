@@ -712,8 +712,13 @@ export function Bulletin() {
           `${sp.subjectCode} - ${sp.subjectName}`
         ];
         monthsList.forEach(m => {
-          const abs = sp.monthlyAbsences[m.index];
-          row.push(abs > 0 ? abs.toString() : '');
+          const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
+          if (isBlocked) {
+            row.push('-');
+          } else {
+            const abs = sp.monthlyAbsences[m.index];
+            row.push(abs > 0 ? abs.toString() : '');
+          }
         });
         row.push(sp.totalAbsences.toString());
         row.push(formatPresence(sp.presencePercentage) + '%');
@@ -1143,8 +1148,13 @@ export function Bulletin() {
             `${sp.subjectCode} - ${sp.subjectName}`
           ];
           monthsList.forEach(m => {
-            const abs = sp.monthlyAbsences[m.index];
-            row.push(abs > 0 ? abs.toString() : '');
+            const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
+            if (isBlocked) {
+              row.push('-');
+            } else {
+              const abs = sp.monthlyAbsences[m.index];
+              row.push(abs > 0 ? abs.toString() : '');
+            }
           });
           row.push(sp.totalAbsences.toString());
           row.push(formatPresence(sp.presencePercentage) + '%');
@@ -1613,9 +1623,17 @@ export function Bulletin() {
                                   </td>
                                   {monthsList.map(m => {
                                     const absCount = sp.monthlyAbsences[m.index];
+                                    const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
                                     return (
-                                      <td key={m.index} className="py-2 text-center border-r border-slate-100 font-mono text-[9.5px]">
-                                        {absCount > 0 ? absCount : ''}
+                                      <td 
+                                        key={m.index} 
+                                        className={cn(
+                                          "py-2 text-center border-r border-slate-100 font-mono text-[9.5px]",
+                                          isBlocked && "bg-slate-50"
+                                        )}
+                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
+                                      >
+                                        {isBlocked ? '-' : (absCount > 0 ? absCount : '')}
                                       </td>
                                     );
                                   })}
@@ -1636,9 +1654,17 @@ export function Bulletin() {
                                   </td>
                                   {monthsList.map(m => {
                                     const presCount = sp.monthlyPresences ? sp.monthlyPresences[m.index] : 0;
+                                    const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
                                     return (
-                                      <td key={m.index} className="py-2 text-center border-r border-slate-100 font-mono text-[9.5px] text-slate-600">
-                                        {presCount > 0 ? presCount : ''}
+                                      <td 
+                                        key={m.index} 
+                                        className={cn(
+                                          "py-2 text-center border-r border-slate-100 font-mono text-[9.5px] text-slate-600",
+                                          isBlocked && "bg-slate-50"
+                                        )}
+                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
+                                      >
+                                        {isBlocked ? '-' : (presCount > 0 ? presCount : '')}
                                       </td>
                                     );
                                   })}
