@@ -2155,10 +2155,10 @@ export function Bulletin() {
         @media print {
           @page {
             size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'};
-            margin: ${viewMode === 'class' ? '10mm 12mm' : '8mm 10mm'};
+            margin: ${viewMode === 'class' ? '10mm 12mm' : '12mm 14mm'};
             @bottom-right {
               content: "Página " counter(page);
-              font-size: 7.5px;
+              font-size: 8px;
               color: rgb(148, 163, 184); /* Slate 400 */
               font-family: "Inter", sans-serif;
               font-weight: 800;
@@ -2223,102 +2223,126 @@ export function Bulletin() {
           /* Spacing compression on print */
           #printable-boletim .space-y-6 > :not([hidden]) ~ :not([hidden]),
           #printable-boletim .space-y-6 > * + * {
-            margin-top: 10px !important;
+            margin-top: 14px !important;
           }
           #printable-boletim .space-y-2 > :not([hidden]) ~ :not([hidden]),
           #printable-boletim .space-y-2 > * + * {
-            margin-top: 4px !important;
+            margin-top: 6px !important;
           }
 
           /* Header area compaction */
           #printable-boletim .border-b.pb-5 {
-            padding-bottom: 8px !important;
+            padding-bottom: 10px !important;
           }
           #printable-boletim img,
           #printable-boletim .w-16,
           #printable-boletim .h-16 {
-            width: 44px !important;
-            height: 44px !important;
+            width: 52px !important;
+            height: 52px !important;
           }
           #printable-boletim h1 {
-            font-size: 11px !important;
+            font-size: 13px !important;
+            line-height: 1.3 !important;
+            font-weight: 900 !important;
+          }
+          #printable-boletim p.text-[9px] {
+            font-size: 9px !important;
             line-height: 1.2 !important;
           }
           #printable-boletim h2 {
-            font-size: 9.5px !important;
-            line-height: 1.2 !important;
+            font-size: 10.5px !important;
+            line-height: 1.3 !important;
+            font-weight: 900 !important;
+          }
+          #printable-boletim .bg-slate-50.border {
+            padding: 5px 0 !important;
           }
           #printable-boletim h3 {
-            font-size: 8.5px !important;
+            font-size: 9.5px !important;
+            font-weight: 950 !important;
           }
 
           /* Student details grid compression */
           #printable-boletim .grid.grid-cols-1 {
-            column-gap: 16px !important;
-            row-gap: 3px !important;
-            padding-bottom: 8px !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            column-gap: 24px !important;
+            row-gap: 5px !important;
+            padding-bottom: 10px !important;
           }
           #printable-boletim .grid.grid-cols-1 .text-[8px] {
             font-size: 7.5px !important;
+            font-weight: 700 !important;
           }
-          #printable-boletim .grid.grid-cols-1 .text-slate-800 {
-            font-size: 9px !important;
+          #printable-boletim .grid.grid-cols-1 .text-slate-805,
+          #printable-boletim .grid.grid-cols-1 .text-slate-800,
+          #printable-boletim .grid.grid-cols-1 .text-slate-950 {
+            font-size: 9.5px !important;
+            font-weight: 800 !important;
           }
           #printable-boletim .grid.grid-cols-1 .bg-emerald-50 {
-            padding: 1px 6px !important;
-            font-size: 8px !important;
+            padding: 2px 8px !important;
+            font-size: 8.5px !important;
+            font-weight: 800 !important;
           }
 
           /* Table Cells compaction */
           #printable-boletim th,
           #printable-boletim td {
-            font-size: 7.5px !important;
-            padding: 1mm 1.5mm !important;
-            line-height: 1.1 !important;
+            font-size: 9px !important;
+            padding: 4px 6px !important;
+            line-height: 1.2 !important;
           }
           #printable-boletim thead tr th {
-            font-size: 8px !important;
+            font-size: 9px !important;
+            font-weight: 900 !important;
           }
           #printable-boletim tr.bg-slate-50\/70 td {
-            font-size: 8px !important;
-            font-weight: 800 !important;
+            font-size: 9.5px !important;
+            font-weight: 900 !important;
             background-color: #f1f5f9 !important;
-            padding: 0.8mm 1.5mm !important;
+            padding: 4px 6px !important;
           }
           #printable-boletim tr.bg-slate-50\/20 td {
-            font-size: 8px !important;
+            font-size: 9px !important;
+            font-weight: 800 !important;
             background-color: #f8fafc !important;
-            padding: 0.8mm 1.5mm !important;
+            padding: 4px 6px !important;
           }
 
           /* Totals panel compaction */
           #printable-boletim .flex.justify-end {
-            margin-top: 4px !important;
+            margin-top: 6px !important;
           }
           #printable-boletim .flex.justify-end .w-full {
-            max-width: 280px !important;
+            max-width: 320px !important;
           }
           #printable-boletim .flex.justify-end .px-3.py-1.5 {
-            padding: 3px 6px !important;
-            font-size: 7.5px !important;
+            padding: 4px 6px !important;
+            font-size: 8.5px !important;
           }
 
           /* Parecer e Justificativa panel compaction */
           #printable-boletim .p-3.mt-4,
           #printable-boletim .border-rose-250 {
-            padding: 5px 8px !important;
-            margin-top: 6px !important;
+            padding: 8px 10px !important;
+            margin-top: 8px !important;
           }
-          #printable-boletim .p-3.mt-4 p {
-            font-size: 7.5px !important;
-            line-height: 1.2 !important;
+          #printable-boletim .border-rose-250 p.text-rose-700 {
+            font-size: 8px !important;
+            font-weight: 900 !important;
+            margin-bottom: 3px !important;
+          }
+          #printable-boletim .border-rose-250 p.text-[10px] {
+            font-size: 9px !important;
+            line-height: 1.3 !important;
           }
 
           /* Footer pagination section compaction */
           #printable-boletim .pt-5.border-t {
-            padding-top: 8px !important;
-            margin-top: 4px !important;
-            font-size: 7.5px !important;
+            padding-top: 10px !important;
+            margin-top: 10px !important;
+            font-size: 8.5px !important;
           }
 
 
