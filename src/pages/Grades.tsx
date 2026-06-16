@@ -436,7 +436,7 @@ export function Grades() {
       setGrades(newGradesMap);
       setNotification({ 
         type: 'success', 
-        message: `Médias calculadas: Média das ${numAssessments} avaliações + Mínimo 60% de presença!` 
+        message: 'Médias e situações finais calculadas com sucesso!' 
       });
       setTimeout(() => setNotification(null), 5000);
     } catch (error) {
