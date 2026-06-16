@@ -460,8 +460,11 @@ export function StudentFicha() {
     const studentPresences = attendanceData.filter(a => a.student_id === activeStudent.id && a.class_id === classId && a.status === 'P').length;
     
     // Theoretical total days in this specific class
-    const totalDays = (studentAbsences + studentPresences) || 30;
-    const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
+    const registeredLessons = studentAbsences + studentPresences;
+    const totalDays = registeredLessons || 30;
+    const presencePercentage = registeredLessons > 0 
+      ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) 
+      : 0;
 
     // Grades and performance calculations
     const subjectRecords = classSubjects.map(sub => {
@@ -862,7 +865,9 @@ export function StudentFicha() {
                             ? "text-emerald-700" 
                             : "text-rose-600"
                         )}>
-                          {Math.round(activeStudentMetrics?.presencePercentage ?? 0)}%
+                          {activeStudentMetrics?.presences === 0 && activeStudentMetrics?.absences === 0
+                            ? '-'
+                            : `${Math.round(activeStudentMetrics?.presencePercentage ?? 0)}%`}
                         </span>
                       </div>
                       
@@ -874,7 +879,11 @@ export function StudentFicha() {
                               ? "bg-emerald-600" 
                               : "bg-rose-600"
                           )} 
-                          style={{ width: `${activeStudentMetrics?.presencePercentage ?? 0}%` }}
+                          style={{ 
+                            width: `${activeStudentMetrics?.presences === 0 && activeStudentMetrics?.absences === 0 
+                              ? 0 
+                              : (activeStudentMetrics?.presencePercentage ?? 0)}%` 
+                          }}
                         />
                       </div>
 
@@ -1352,7 +1361,7 @@ export function StudentFicha() {
           </div>
 
           <div className="text-center mb-6">
-            <h2 className="text-[16pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b-2 border-black pb-0.5">Ficha de Frequência e Aproveitamento do Aluno</h2>
+            <h2 className="text-[12pt] font-extrabold uppercase tracking-[0.15em] w-fit mx-auto border-b-2 border-black pb-0.5">Ficha de Frequência e Aproveitamento do Aluno</h2>
           </div>
 
           {/* BIO INFORMATION GRID */}
@@ -1417,7 +1426,11 @@ export function StudentFicha() {
               </div>
               <div className="border border-black/30 p-2 bg-neutral-50">
                 <p className="text-[9pt] font-bold uppercase text-slate-500">Porcentagem Final</p>
-                <p className="text-xl font-bold font-mono text-black">{Math.round(activeStudentMetrics?.presencePercentage ?? 0)}%</p>
+                <p className="text-xl font-bold font-mono text-black">
+                  {activeStudentMetrics?.presences === 0 && activeStudentMetrics?.absences === 0
+                    ? '-'
+                    : `${Math.round(activeStudentMetrics?.presencePercentage ?? 0)}%`}
+                </p>
               </div>
             </div>
           </div>
@@ -1470,17 +1483,7 @@ export function StudentFicha() {
             </table>
           </div>
 
-          {/* SIGNATURES FOOTER FOR PRINT */}
-          <div className="mt-16 grid grid-cols-2 gap-16 text-[10.5pt] break-inside-avoid page-break-inside-avoid signatures-container-print">
-            <div className="flex flex-col items-center border-t border-black pt-2">
-              <p className="uppercase text-[9pt] tracking-wider text-slate-500">Secretaria e Registro Acadêmico</p>
-              <p className="mt-1 font-bold">ESCMIN Diocesana</p>
-            </div>
-            <div className="flex flex-col items-center border-t border-black pt-2">
-              <p className="uppercase text-[9pt] tracking-wider text-slate-500">Coordenador Geral</p>
-              <p className="mt-1 font-bold">{institution?.president_name || 'Prof. Responsável'}</p>
-            </div>
-          </div>
+          {/* SIGNATURES FOOTER FOR PRINT REMOVED BY USER REQUEST */}
           
         </div>
       )}
