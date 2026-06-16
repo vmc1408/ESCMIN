@@ -1266,7 +1266,11 @@ export function StudentFicha() {
               print-color-adjust: exact !important;
             }
             
-            #root, .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print, .print\\:hidden {
+            #student-ficha-module > :not(#printable-student-record) {
+              display: none !important;
+            }
+
+            .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print, .print\\:hidden {
               display: none !important;
               visibility: hidden !important;
               height: 0 !important;
