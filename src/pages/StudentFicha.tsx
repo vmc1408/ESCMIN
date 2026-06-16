@@ -1246,10 +1246,83 @@ export function StudentFicha() {
           }
         ` }} />
       )}
+      
+      {/* DYNAMIC PORTRAIT PRINT RULE INJECTION */}
+      {!viewingCertificate && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            @page {
+              size: A4 portrait !important;
+              margin: 12mm 15mm 12mm 15mm !important;
+            }
+            html, body {
+              width: 100% !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: visible !important;
+              background-color: #ffffff !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            #root, .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print, .print\\:hidden {
+              display: none !important;
+              visibility: hidden !important;
+              height: 0 !important;
+              width: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            
+            body {
+              display: block !important;
+              visibility: visible !important;
+              background: white !important;
+            }
+
+            #student-ficha-module {
+              background-color: transparent !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+
+            #printable-student-record {
+              display: block !important;
+              visibility: visible !important;
+              width: 100% !important;
+              height: auto !important;
+              min-height: 0 !important;
+              box-sizing: border-box !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+              overflow: visible !important;
+              position: static !important;
+            }
+
+            #printable-student-record * {
+              visibility: visible !important;
+            }
+
+            /* Prevent page break inside table rows and containers */
+            .break-inside-avoid, 
+            .page-break-inside-avoid,
+            #printable-student-record table, 
+            #printable-student-record tr, 
+            #printable-student-record .border, 
+            #printable-student-record .border-2,
+            .signatures-container-print {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+          }
+        ` }} />
+      )}
 
       {/* PRINT VERSION OF THE COMPLETED DOSSIER SHEET (HIDDEN ON SCREEN) */}
       {activeStudent && activeStudentMetrics && (
-        <div id="printable-student-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[285mm] mx-auto p-12">
+        <div id="printable-student-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight w-full mx-auto print:p-0">
           
           {/* HEADER SECTION */}
           <div className="flex items-center gap-6 mb-6 pb-2 border-b-2 border-black">
@@ -1394,7 +1467,7 @@ export function StudentFicha() {
           </div>
 
           {/* SIGNATURES FOOTER FOR PRINT */}
-          <div className="absolute bottom-16 left-12 right-12 grid grid-cols-2 gap-16 text-[10.5pt]">
+          <div className="mt-16 grid grid-cols-2 gap-16 text-[10.5pt] break-inside-avoid page-break-inside-avoid signatures-container-print">
             <div className="flex flex-col items-center border-t border-black pt-2">
               <p className="uppercase text-[9pt] tracking-wider text-slate-500">Secretaria e Registro Acadêmico</p>
               <p className="mt-1 font-bold">ESCMIN Diocesana</p>
