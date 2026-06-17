@@ -398,6 +398,9 @@ export function StudentFicha() {
 
   // Sidebar list of students filtered by search & status selection to prevent mixing inactive info by default
   const filteredStudentsList = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return [];
+    }
     return students.filter(s => {
       const matchSearch = s.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           s.registration_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -410,6 +413,13 @@ export function StudentFicha() {
       return matchSearch && matchStatus;
     });
   }, [students, searchTerm, statusFilter]);
+
+  // Clear selected student if search is empty to ensure everything is blank until dynamic filter starts
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSelectedStudentId('');
+    }
+  }, [searchTerm]);
 
   // Auto-select first student if available and none selected
   useEffect(() => {
@@ -669,8 +679,12 @@ export function StudentFicha() {
 
               {/* Students Selection List */}
               <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 border border-slate-150 rounded-none bg-slate-50/20">
-                {filteredStudentsList.length === 0 ? (
-                  <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {!searchTerm.trim() ? (
+                  <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                    Digite o nome, RA ou CPF para buscar
+                  </div>
+                ) : filteredStudentsList.length === 0 ? (
+                  <div className="p-8 text-center text-xs font-bold text-slate-450 uppercase tracking-widest leading-relaxed">
                     Nenhum aluno encontrado
                   </div>
                 ) : (
