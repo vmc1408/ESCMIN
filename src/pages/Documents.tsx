@@ -1858,7 +1858,7 @@ export function Documents() {
                         )}
 
                         {/* Secure Registry Footer lines */}
-                        <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-405 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
+                        <div className="hidden">
                            <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
                         </div>
                      </div>
@@ -1977,7 +1977,7 @@ export function Documents() {
              )}
 
              {/* Secure Registry Footer lines */}
-             <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-405 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
+             <div className="hidden">
                 <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
              </div>
           </div>
