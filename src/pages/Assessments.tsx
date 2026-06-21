@@ -353,22 +353,42 @@ export const Assessments: React.FC = () => {
       {/* Notifications Banner */}
       <AnimatePresence>
         {notification && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`flex items-center gap-3 p-4 rounded-xl border font-semibold text-sm shadow-md ${
-              notification.type === 'success' 
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                : 'bg-red-50 text-red-800 border-red-200'
-            }`}
-          >
-            {notification.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600" /> : <AlertCircle size={18} className="text-red-500" />}
-            <span className="flex-1">{notification.message}</span>
-            <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
-              <X size={16} />
-            </button>
-          </motion.div>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`w-full max-w-sm bg-white rounded-2xl shadow-xl border p-6 flex flex-col items-center text-center space-y-4 ${
+                notification.type === 'success' ? 'border-emerald-100' : 'border-red-100'
+              }`}
+            >
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-xs ${
+                notification.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+              }`}>
+                {notification.type === 'success' ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
+              </div>
+              
+              <div className="space-y-1.5">
+                <h4 className="text-sm font-bold text-slate-900">
+                  {notification.type === 'success' ? 'Sucesso!' : 'Atenção / Aviso'}
+                </h4>
+                <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                  {notification.message}
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setNotification(null)}
+                className={`w-full py-2 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer ${
+                  notification.type === 'success' 
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                    : 'bg-red-600 text-white hover:bg-red-700'
+                }`}
+              >
+                Entendido
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
