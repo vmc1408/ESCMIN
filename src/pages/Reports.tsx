@@ -64,6 +64,7 @@ import {
   TooltipProps
 } from 'recharts';
 import { formatCurrency, cn } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -1714,23 +1715,15 @@ export function Reports() {
       )}
 
       {/* Modern Sticky Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-5 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
-          <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                <BarChart3 size={24} />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-800 tracking-tight">ESCMIN Intelligence</h1>
-                <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">
-                  <Activity size={12} className="text-emerald-500" />
-                  Monitoramento em Tempo Real
-                </div>
-              </div>
-            </div>
-            
+      <div className="bg-white border-b border-slate-200 px-8 py-4 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
+        <div className="max-w-[1920px] mx-auto">
+          <PageHeader
+            title="Relatórios Estratégicos"
+            description="Métricas de desempenho e estatísticas internas de uso exclusivo para controle da escola."
+            icon={BarChart3}
+          >
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+              <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200">
                 {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
                   <button
                     key={cat}
@@ -1739,9 +1732,9 @@ export function Reports() {
                       setSearchParams({ tab: cat });
                     }}
                     className={cn(
-                      "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all",
+                      "px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
                       activeCategory === cat 
-                        ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" 
+                        ? "bg-white text-slate-900 border border-slate-200 shadow-sm" 
                         : "text-slate-500 hover:text-slate-700"
                     )}
                   >
@@ -1749,24 +1742,24 @@ export function Reports() {
                   </button>
                 ))}
               </div>
-              <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden lg:block"></div>
               <button 
                 onClick={handlePrint}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                className="h-10 w-10 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                 title="Imprimir Relatório"
               >
-                <Printer size={18} />
+                <Printer size={16} />
               </button>
               <button 
                 onClick={() => generateReport(activeCategory)}
-                className="px-8 py-3.5 bg-[#00174b] text-white text-[11px] font-black uppercase tracking-[0.15em] rounded-2xl flex items-center gap-3 hover:opacity-95 transition-all shadow-2xl shadow-blue-900/30 active:scale-95"
+                className="h-10 px-5 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider rounded-none flex items-center gap-2 hover:opacity-95 transition-all shadow-sm cursor-pointer"
               >
-                <FileDown size={20} />
+                <FileDown size={14} />
                 Exportar Relatório
               </button>
             </div>
-          </div>
+          </PageHeader>
         </div>
+      </div>
 
       <div className="max-w-[1920px] mx-auto px-8 space-y-4 print:hidden">
         {activeCategory === 'dashboard' && (
@@ -1881,7 +1874,7 @@ export function Reports() {
                     tickFormatter={(value) => value >= 1000 ? `R$ ${(value/1000).toFixed(1)}k` : `R$ ${value}`}
                   />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '15px' }}
+                    contentStyle={{ borderRadius: '0px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '15px' }}
                     itemStyle={{ fontSize: '12px', fontWeight: '900', color: '#00174b' }}
                     formatter={(value: any) => [formatCurrency(value), 'Arrecadação']}
                   />

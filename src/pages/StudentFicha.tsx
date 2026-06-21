@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatDateForDisplay } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
 import { financialService } from '../services/financialService';
@@ -728,23 +729,22 @@ export function StudentFicha() {
       </AnimatePresence>
 
       {/* Screen Title Block */}
-      <div className="bg-white border-b border-slate-200 py-6 px-8 print:hidden">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-[9px] font-black tracking-widest text-indigo-600 uppercase">Gestão de Alunos</span>
-            <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-              <User size={20} className="text-indigo-650" /> Ficha Cadastral e Acadêmica do Aluno
-            </h1>
-          </div>
-          
-          {activeStudent && (
-            <button
-              onClick={triggerDossierPrint}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0"
-            >
-              <Printer size={14} /> Imprimir Ficha Completa
-            </button>
-          )}
+      <div className="bg-white border-b border-slate-200 px-8 py-4 print:hidden">
+        <div className="max-w-7xl mx-auto">
+          <PageHeader
+            title="Ficha do Aluno"
+            description="Consulta de informações cadastrais e desempenho acadêmico para fins de registro interno da escola."
+            icon={User}
+          >
+            {activeStudent && (
+              <button
+                onClick={triggerDossierPrint}
+                className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 cursor-pointer rounded-none"
+              >
+                <Printer size={14} /> Imprimir Ficha Completa
+              </button>
+            )}
+          </PageHeader>
         </div>
       </div>
 

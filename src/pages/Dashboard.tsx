@@ -19,6 +19,7 @@ import { fetchCount, fetchAll, saveBatch } from '../lib/database';
 import { isDbConnected, isSupabaseConfigured, lastLatency } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 import { Student, Class } from '../types';
 
 export function Dashboard() {
@@ -296,33 +297,22 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8 p-1">
-      <motion.div 
-        initial={{ opacity: 0, y: -4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+      <PageHeader
+        title="Painel de Controle"
+        description="Painel de monitoramento e controle de informações internas da instituição."
+        icon={Activity}
       >
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Painel de Controle</h1>
-          <div className="flex items-center gap-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Panorama da Instituição</p>
-            <div className="w-1 h-1 rounded-full bg-slate-200" />
-            <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
-               <ShieldCheck size={11} /> Conexão Segura
-            </div>
-          </div>
-        </div>
-        
         <div className="flex items-center gap-2">
           <button 
             onClick={fetchStats}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all active:scale-95"
+            className="flex items-center gap-1.5 h-10 px-4 bg-white border border-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all cursor-pointer rounded-none"
           >
             <RefreshCw size={12} className={cn(isRefreshing && "animate-spin")} />
             Sincronizar
           </button>
         </div>
-      </motion.div>
+      </PageHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, idx) => (

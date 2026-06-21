@@ -35,6 +35,7 @@ import { cn, maskCEP, maskPhone, maskDate, formatDateForDisplay, parseDateToDB }
 import { motion, AnimatePresence } from 'motion/react';
 import { Parish, Foraria, ClergyLeity, ClergyRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { PageHeader } from '../components/PageHeader';
 
 type TabType = 'dashboard' | 'foranias' | 'parishes' | 'clergy';
 
@@ -744,16 +745,11 @@ export function Diocese() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-4">
-            <div className="p-2 bg-blue-600 text-white rounded-lg shadow-sm border border-blue-500">
-              <Scroll size={20} />
-            </div>
-            Gestão da Diocese
-          </h2>
-          <p className="text-slate-500 font-medium text-xs mt-1 pl-1">Painel Central de Paróquias, Foranias e Clero.</p>
-        </div>
+      <PageHeader
+        title="Gestão da Diocese"
+        description="Painel Central de paróquias, foranias e clero para controle de uso exclusivo e interno."
+        icon={Scroll}
+      >
         <div className="flex items-center gap-3">
           <input 
             type="file" 
@@ -764,20 +760,20 @@ export function Diocese() {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm"
+            className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
-            <Upload size={14} className="text-blue-600" />
+            <Upload size={14} className="text-slate-600" />
             Importar Excel
           </button>
           <button
             onClick={handlePrint}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm"
+            className="h-10 px-4 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
           >
             <Printer size={14} />
             Gerar Relatório
           </button>
         </div>
-      </header>
+      </PageHeader>
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">

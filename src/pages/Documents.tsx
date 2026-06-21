@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { financialService } from '../services/financialService';
@@ -895,26 +896,18 @@ export function Documents() {
       )}
 
       {/* Header Panel */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden bg-white border border-slate-200 p-6 rounded-none shadow-sm">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 font-serif">
-            <div className="w-10 h-10 bg-slate-900 rounded-none flex items-center justify-center text-white border-b-4 border-b-amber-400">
-              <Trophy size={20} className="text-amber-400" />
-            </div>
-            Certificados & Diplomas
-          </h2>
-          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-[0.2em] pl-1">
-            Emissão de Documentos Acadêmicos Baseada no Diário de Classe
-          </p>
-        </div>
-
+      <PageHeader
+        title="Certificados & Diplomas"
+        description="Emissão e registro de documentos escolares para controle interno e exclusivo."
+        icon={Trophy}
+      >
         <div className="flex gap-2">
           <button
             onClick={() => {
               setActiveTab('issue');
             }}
             className={cn(
-              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'issue'
                 ? "bg-slate-900 text-white border border-slate-905"
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
@@ -927,7 +920,7 @@ export function Documents() {
               setActiveTab('student_file');
             }}
             className={cn(
-              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'student_file'
                 ? "bg-slate-900 text-white border border-slate-905"
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
@@ -938,7 +931,7 @@ export function Documents() {
           <button
             onClick={() => setActiveTab('list')}
             className={cn(
-              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
+              "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
               activeTab === 'list'
                 ? "bg-slate-900 text-white border border-slate-905"
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
@@ -947,7 +940,7 @@ export function Documents() {
             Emitidos ({certificates.length})
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {loading ? (
         <div className="py-20 flex justify-center print:hidden">

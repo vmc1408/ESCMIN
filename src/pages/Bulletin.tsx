@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { PageHeader } from '../components/PageHeader';
 
 interface GradeRecord {
   id: string;
@@ -1431,39 +1432,18 @@ export function Bulletin() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-750">
       
       {/* Page Core Header Frame */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-200 print:hidden">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 p-2 bg-white rounded-none border border-slate-205 flex items-center justify-center overflow-hidden">
-            {institution?.logo_url ? (
-               <img src={institution.logo_url} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-            ) : (
-               <FileSpreadsheet size={24} className="text-slate-600" />
-            )}
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight uppercase">Boletim Escolar</h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-slate-400" />
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                  {institution?.name || 'DIOCESE DE GUARULHOS'}
-                </p>
-              </div>
-              <div className="hidden sm:block w-1 h-1 bg-slate-300" />
-              <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest bg-slate-100/70 px-3 py-1 border border-slate-200">
-                Informativo & Notas
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Widgets */}
+      <PageHeader 
+        title="Boletim Escolar" 
+        description="Painel informativo de notas e aproveitamento escolar para controle de uso interno."
+        icon={FileSpreadsheet}
+        badge="Informativo & Notas"
+      >
         {selectedClassId && (
-          <div className="flex flex-wrap items-center gap-3">
+          <>
             <button
               onClick={() => setViewMode('student')}
               className={cn(
-                "px-4 py-2 border rounded-none text-[10px] font-semibold uppercase tracking-wider transition-all leading-none",
+                "px-4 py-2 border rounded-none text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
                 viewMode === 'student' 
                   ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -1474,7 +1454,7 @@ export function Bulletin() {
             <button
               onClick={() => setViewMode('class')}
               className={cn(
-                "px-4 py-2 border rounded-none text-[10px] font-semibold uppercase tracking-wider transition-all leading-none",
+                "px-4 py-2 border rounded-none text-[10px] font-semibold uppercase tracking-wider transition-all leading-none cursor-pointer",
                 viewMode === 'class' 
                   ? "bg-slate-900 text-white border-slate-900 shadow-sm" 
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
@@ -1482,9 +1462,9 @@ export function Bulletin() {
             >
               Por Turma (Resumido)
             </button>
-          </div>
+          </>
         )}
-      </div>
+      </PageHeader>
 
       {loading ? (
         <div className="min-h-[400px] flex items-center justify-center flex-col gap-3">

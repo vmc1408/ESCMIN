@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
 import { cn } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { financialService } from '../services/financialService';
@@ -754,7 +755,7 @@ export function Grades() {
               font-weight: 800;
               text-transform: uppercase;
               text-align: center;
-              border-radius: 3px;
+              border-radius: 0px;
               letter-spacing: 0.5px;
             }
             
@@ -985,65 +986,59 @@ export function Grades() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-              <FileSpreadsheet size={20} />
-            </div>
-            Apontamento de Notas
-          </h2>
-          <p className="text-xs text-slate-500 mt-1 pl-13">Registro de desempenho acadêmico e resultados finais</p>
-        </div>
-
+      <PageHeader
+        title="Apontamento de Notas"
+        description="Registro interno de avaliação e aproveitamento escolar."
+        icon={FileSpreadsheet}
+      >
         {students.length > 0 && (
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2">
             {selectedPeriod === 'Resultado Final' && (
               <button 
                 onClick={calculateFinalResults}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+                className="flex items-center gap-1.5 px-4 h-10 bg-amber-600 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-amber-700 transition-all cursor-pointer shadow-sm"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={14} />
                 Calcular Médias
               </button>
             )}
-          {selectedPeriod === 'Resultado Final' ? (
-            <button 
-              onClick={handleFinalPrint}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors"
-            >
-              <Printer size={16} />
-              Imprimir Resultado Final
-            </button>
-          ) : (
-            <>
+            {selectedPeriod === 'Resultado Final' ? (
               <button 
-                onClick={handleClearAll}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                onClick={handleFinalPrint}
+                className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
               >
-                <Eraser size={16} />
-                Limpar Tudo
+                <Printer size={14} />
+                Imprimir Resultado Final
               </button>
-              <button 
-                onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors"
-              >
-                <Printer size={16} />
-                Imprimir
-              </button>
-              <button 
-                disabled={saving}
-                onClick={saveGrades}
-                className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-              >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                Salvar Notas
-              </button>
-            </>
-          )}
+            ) : (
+              <>
+                <button 
+                  onClick={handleClearAll}
+                  className="flex items-center gap-1.5 px-4 h-10 bg-white text-red-600 border border-slate-200 rounded-none text-xs font-bold uppercase tracking-wider hover:bg-red-50 transition-all cursor-pointer shadow-sm"
+                >
+                  <Eraser size={14} />
+                  Limpar Tudo
+                </button>
+                <button 
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-4 h-10 bg-slate-800 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-slate-900 transition-all cursor-pointer shadow-sm"
+                >
+                  <Printer size={14} />
+                  Imprimir
+                </button>
+                <button 
+                  disabled={saving}
+                  onClick={saveGrades}
+                  className="flex items-center gap-1.5 px-5 h-10 bg-indigo-600 text-white rounded-none text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                >
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  Salvar Notas
+                </button>
+              </>
+            )}
           </div>
         )}
-      </div>
+      </PageHeader>
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

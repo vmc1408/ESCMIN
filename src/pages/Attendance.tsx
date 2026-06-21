@@ -911,33 +911,34 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
   };
 
+  const monthHasPresences = React.useMemo(() => {
+    if (!students || students.length === 0 || !monthlyClassDays || monthlyClassDays.length === 0) return false;
+    for (const student of students) {
+      for (const day of monthlyClassDays) {
+        if (day && day.dbValue && !day.isCancelled) {
+          const modKey = `${student.id}_${day.dbValue}`;
+          const status = modifiedRecords[modKey] !== undefined 
+            ? modifiedRecords[modKey].status 
+            : (monthlyAttendance[student.id]?.[day.dbValue] || null);
+          if (status === 'P') {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }, [students, monthlyAttendance, monthlyClassDays, modifiedRecords]);
+
   const [isPrinting, setIsPrinting] = useState(false);
 
   const processPrint = async (targetType: 'marking' | 'report') => {
     if (targetType === 'report') {
-      let hasMarkings = false;
-      for (const student of students) {
-        const studentRecords = monthlyAttendance[student.id];
-        if (studentRecords) {
-          for (const day of monthlyClassDays) {
-            if (day && day.dbValue && !day.isCancelled) {
-              const status = studentRecords[day.dbValue];
-              if (status === 'P' || status === 'F' || status === 'J') {
-                hasMarkings = true;
-                break;
-              }
-            }
-          }
-        }
-        if (hasMarkings) break;
-      }
-
-      if (!hasMarkings) {
+      if (!monthHasPresences) {
         setNotification({
           type: 'err',
-          message: 'Não há marcações de presença nesta lista de chamada para o período selecionado. O relatório não foi gerado.'
+          message: 'Não há lançamentos de presença (status P) nesta lista de chamada para o período selecionado. O relatório não foi emitido e o arquivo PDF não foi gerado.'
         });
-        setTimeout(() => setNotification(null), 5000);
+        setTimeout(() => setNotification(null), 6000);
         return;
       }
     }

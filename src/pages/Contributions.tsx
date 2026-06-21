@@ -4,6 +4,7 @@ import { financialService } from '../services/financialService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
 import { Student, Contribution, Class } from '../types';
 import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -929,30 +930,22 @@ export function Contributions() {
         "h-[calc(100vh-8rem)] flex flex-col gap-2 print:hidden",
         isPrinting && "hidden"
       )}>
-      {/* Header Profissional mais compacto */}
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80 flex flex-col gap-3">
-        <div className="flex items-center justify-between px-2 pt-1">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-800 leading-tight">Gestão de Contribuições</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Tesouraria & Conferência</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-             <button 
-                onClick={clearSelection}
-                className="px-4 py-2 bg-slate-50 text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all border border-slate-150 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5"
-              >
-                <X size={14} /> Limpar Filtros
-              </button>
-          </div>
-        </div>
+      <PageHeader
+        title="Gestão de Contribuições"
+        description="Lançamento e controle de contribuições de uso interno da tesouraria."
+        icon={TrendingUp}
+        badge="Tesouraria & Conferência"
+      >
+        <button 
+          onClick={clearSelection}
+          className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-wider"
+        >
+          <X size={14} /> Limpar Filtros
+        </button>
+      </PageHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-lg border border-slate-200/50">
+      <div className="bg-white p-5 rounded-none shadow-sm border border-slate-200/80 flex flex-col gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-none border border-slate-200/50">
           {/* Busca por Nome */}
           <div className="lg:col-span-4 space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome / Matrícula</label>
@@ -968,18 +961,18 @@ export function Contributions() {
                   setSearchByName(e.target.value);
                   handleSearchStudents(e.target.value);
                 }}
-                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all font-medium text-slate-700"
+                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-none text-sm focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all font-medium text-slate-700"
               />
             </div>
           </div>
 
           {/* Filtro de Tipo de Data */}
           <div className="lg:col-span-2 space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Tipo</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-3">Tipo</label>
             <select 
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
-              className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 focus:ring-4 focus:ring-blue-500/10 cursor-pointer"
+              className="w-full px-4 h-[3.25rem] bg-white border border-slate-200 rounded-none text-xs font-bold uppercase tracking-wider text-slate-600 focus:ring-4 focus:ring-blue-500/10 cursor-pointer"
             >
               <option value="payment">Pagamento</option>
               <option value="created">Importação</option>
@@ -987,15 +980,15 @@ export function Contributions() {
           </div>
 
           <div className="lg:col-span-4 space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Período</label>
-            <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 h-[3.25rem]">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-3">Período</label>
+            <div className="flex items-center gap-2 bg-white p-1 rounded-none border border-slate-200 h-[3.25rem]">
               <div className="flex-1 flex items-center px-3 gap-2">
                 <Calendar size={14} className="text-slate-300" />
                 <input 
                   type="date" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
+                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0"
                 />
               </div>
               <div className="w-px h-6 bg-slate-100" />
@@ -1004,7 +997,7 @@ export function Contributions() {
                   type="date" 
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent border-none text-xs font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0"
+                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0"
                 />
               </div>
             </div>
@@ -1014,9 +1007,9 @@ export function Contributions() {
           <div className="lg:col-span-2 flex items-end">
             <button 
               onClick={fetchPeriodContributions}
-              className="w-full h-[3.25rem] bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 active:scale-95"
+              className="w-full h-[3.25rem] bg-slate-900 text-white rounded-none font-bold text-[10px] uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm"
             >
-              <Search size={16} />
+              <Search size={14} />
               Filtrar
             </button>
           </div>

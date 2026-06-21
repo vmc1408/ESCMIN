@@ -22,6 +22,7 @@ import {
   Archive,
   History
 } from 'lucide-react';
+import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -393,27 +394,20 @@ export const Assessments: React.FC = () => {
       </AnimatePresence>
 
       {/* Header Panel */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-              <FileText size={20} />
-            </div>
-            Gestão de Avaliações
-          </h1>
-          <p className="text-xs text-slate-500 mt-1 pl-13">Planeje e consulte as atividades avaliativas organizadas ao longo dos anos letivos</p>
-        </div>
-
-        {/* Segmented Control - Tabs */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-fit">
+      <PageHeader
+        title="Gestão de Avaliações"
+        description="Planejamento e controle de atividades avaliativas de uso exclusivo da escola."
+        icon={FileText}
+      >
+        <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200">
           <button
             onClick={() => {
               setActiveTab('consult');
               setEditingId(null);
             }}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'consult'
-                ? 'bg-white text-indigo-600 shadow-xs border border-slate-150'
+                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -434,9 +428,9 @@ export const Assessments: React.FC = () => {
                 description: ''
               });
             }}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'register'
-                ? 'bg-white text-indigo-600 shadow-xs border border-slate-150'
+                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -444,7 +438,7 @@ export const Assessments: React.FC = () => {
             {editingId ? 'Editar Avaliação' : 'Registrar Nova'}
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {activeTab === 'consult' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
