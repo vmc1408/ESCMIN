@@ -25,6 +25,7 @@ import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/da
 import { useAuth } from '../contexts/AuthContext';
 import { financialService } from '../services/financialService';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 
 interface GradeRecord {
   id: string;
@@ -38,6 +39,7 @@ interface GradeRecord {
 }
 
 export function Grades() {
+  const navigate = useNavigate();
   const { userAuth, isAdmin, isDirector } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -59,7 +61,14 @@ export function Grades() {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('Resultado Final');
 
   const availablePeriods = React.useMemo(() => {
-    const list = assessments.map(a => ({
+    const sortedAssessments = [...assessments].sort((a, b) => {
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      if (timeA !== timeB) return timeA - timeB;
+      return (a.title || '').localeCompare(b.title || '');
+    });
+
+    const list = sortedAssessments.map(a => ({
       id: a.id,
       title: a.title,
       label: `${a.period || '1º Bimestre'} - ${a.title} (${new Date(a.date).toLocaleDateString('pt-BR')} - Peso: ${a.weight})`
@@ -1108,6 +1117,59 @@ export function Grades() {
           </div>
         ) : selectedClass && selectedSubject ? (
           <div className="space-y-6">
+            {/* Bloco de Ajuda/Orientação para Lançamento de Notas */}
+            {selectedPeriod === 'Resultado Final' && (
+              <div className="bg-sky-50/70 p-5 rounded-xl border border-sky-100 flex flex-col sm:flex-row items-start gap-4">
+                <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center text-sky-600 shrink-0">
+                  <Info size={20} />
+                </div>
+                <div className="space-y-3 flex-1">
+                  <div>
+                    <h4 className="text-xs font-bold text-sky-900 uppercase tracking-wider">Como Lançar ou Alterar Notas / Avaliações?</h4>
+                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                      Você está visualizando a tela de <strong>Resultado Final</strong> (soma e cálculo automático de médias). Para poder lançar ou editar as notas individuais dos alunos:
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    {assessments.length === 0 ? (
+                      <div className="bg-white/80 p-3 rounded-lg border border-amber-200 col-span-2">
+                        <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-1">Atenção: Nenhuma avaliação cadastrada ainda!</p>
+                        <p className="text-xs text-slate-500 leading-normal mb-3">
+                          Para lançar notas, você precisa primeiro cadastrar uma avaliação específica (ex: Prova 1, Resenha, Seminário) para esta turma e disciplina.
+                        </p>
+                        <button 
+                          onClick={() => {
+                            sessionStorage.setItem('assessments_redirect', JSON.stringify({ classId: selectedClass, subjectId: selectedSubject }));
+                            navigate('/assessments');
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
+                        >
+                          Ir para Cadastrar Avaliações
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-white/80 p-3 rounded-lg border border-sky-100/50">
+                          <p className="text-[11px] font-bold text-sky-900 uppercase tracking-wider mb-1">Passo 1: Selecionar a Avaliação</p>
+                          <p className="text-xs text-slate-500 leading-normal">
+                            Mude o campo <strong>"Período/Avaliação"</strong> acima para uma das avaliações cadastradas da lista (ex: <em>"{assessments[0].title}"</em>).
+                          </p>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-lg border border-sky-100/50">
+                          <p className="text-[11px] font-bold text-sky-900 uppercase tracking-wider mb-1">Passo 2: Digitar e Salvar</p>
+                          <p className="text-xs text-slate-500 leading-normal font-sans">
+                            Assim que a avaliação for selecionada, os campos de digitação de notas ficarão desbloqueados para inserção de notas. Lembre-se de clicar em "Salvar Notas" ao terminar.
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100 flex items-start gap-4">
               <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
                 <Info size={18} />
@@ -1159,9 +1221,9 @@ export function Grades() {
                               if (selectedPeriod === 'Resultado Final') {
                                 setNotification({ 
                                   type: 'err', 
-                                  message: 'Para alterar o Resultado Final, você deve editar as avaliações deste aluno.' 
+                                  message: 'O Resultado Final é gerado automaticamente. Mude o seletor "Período/Avaliação" no topo da página para a avaliação desejada para lançar as notas.' 
                                 });
-                                setTimeout(() => setNotification(null), 4000);
+                                setTimeout(() => setNotification(null), 6000);
                               }
                             }}
                             onChange={e => handleGradeChange(student.id, e.target.value)}

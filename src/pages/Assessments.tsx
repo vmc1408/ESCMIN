@@ -73,6 +73,28 @@ export const Assessments: React.FC = () => {
     loadData();
   }, []);
 
+  // Pre-fill fields from Grades redirect
+  useEffect(() => {
+    const redirectStr = sessionStorage.getItem('assessments_redirect');
+    if (redirectStr && classes.length > 0 && subjects.length > 0) {
+      try {
+        const data = JSON.parse(redirectStr);
+        if (data.classId) {
+          setFilterClass(data.classId);
+          setFormData(prev => ({ ...prev, class_id: data.classId }));
+        }
+        if (data.subjectId) {
+          setFilterSubject(data.subjectId);
+          setFormData(prev => ({ ...prev, subject_id: data.subjectId }));
+        }
+        setActiveTab('register');
+        sessionStorage.removeItem('assessments_redirect');
+      } catch (e) {
+        console.error('Error parsing assessments redirect:', e);
+      }
+    }
+  }, [classes, subjects]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -161,6 +183,22 @@ export const Assessments: React.FC = () => {
       setNotification({
         type: 'error',
         message: 'Por favor, preencha todos os campos obrigatórios (*).'
+      });
+      return;
+    }
+
+    // Verificar duplicidade de avaliação por turma, matéria e período
+    const duplicate = assessments.find(a => 
+      a.class_id === formData.class_id &&
+      a.subject_id === formData.subject_id &&
+      a.period === formData.period &&
+      a.id !== editingId
+    );
+
+    if (duplicate) {
+      setNotification({
+        type: 'error',
+        message: `Já existe uma avaliação cadastrada neste período (${formData.period}) para esta disciplina nesta turma.`
       });
       return;
     }
@@ -504,12 +542,40 @@ export const Assessments: React.FC = () => {
         <>
           {/* Main Grid View */}
           {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Buscando avaliações...</p>
-        </div>
-      ) : filteredAssessments.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="py-24 flex flex-col items-center justify-center gap-4">
+              <div className="w-12 h-12 border-4 border-indigo-600/20 border-t-indigo-600 rounded-full animate-spin" />
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Buscando avaliações...</p>
+            </div>
+          ) : !filterClass ? (
+            <div className="py-20 text-center bg-slate-50/50 rounded-2xl border border-slate-200 max-w-xl mx-auto flex flex-col items-center justify-center p-8 space-y-4 shadow-2xs">
+              <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-xs">
+                <Users size={32} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-800 tracking-tight">Consulte as Avaliações por Turma</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Para visualizar ou editar as avaliações cadastradas, por favor selecione uma <strong>Turma</strong> no painel de filtros acima.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap justify-center pt-2">
+                {classes.slice(0, 4).map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => setFilterClass(c.id)}
+                    className="text-[11px] font-bold bg-white text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-lg shadow-2xs transition-all cursor-pointer"
+                  >
+                    {c.name}
+                  </button>
+                ))}
+                {classes.length > 4 && (
+                  <span className="text-[10px] text-slate-400 flex items-center font-bold px-1.5">
+                    +{classes.length - 4} mais
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : filteredAssessments.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {filteredAssessments.map((a) => {
               // Calculate status values dynamically
