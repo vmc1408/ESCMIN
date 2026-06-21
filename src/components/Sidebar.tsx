@@ -28,7 +28,8 @@ import {
   XCircle,
   FileText,
   Lock,
-  Printer
+  Printer,
+  Archive as ArchiveIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
@@ -101,6 +102,7 @@ const navItems = [
     children: [
       { icon: SettingsIcon, label: 'Geral', path: '/settings' },
       { icon: ImportIcon, label: 'Importação', path: '/import' },
+      { icon: ArchiveIcon, label: 'Arquivo Morto', path: '/archive' },
     ]
   },
 ];

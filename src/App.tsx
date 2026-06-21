@@ -20,6 +20,7 @@ import { Reports } from './pages/Reports';
 import { Contributions } from './pages/Contributions';
 import { PixConference } from './pages/PixConference';
 import { Settings } from './pages/Settings';
+import { ArchivePage } from './pages/Archive';
 import { Users } from './pages/Users';
 import { Login } from './pages/Login';
 import { ImportProvider } from './contexts/ImportContext';
@@ -172,6 +173,7 @@ function AppContent() {
               <Route path="contributions" element={<ProtectedRoute requiredModule="/contributions"><Contributions /></ProtectedRoute>} />
               <Route path="pix-conference" element={<ProtectedRoute requiredModule="/pix-conference"><PixConference /></ProtectedRoute>} />
               <Route path="settings" element={<ProtectedRoute requiredModule="/settings"><Settings /></ProtectedRoute>} />
+              <Route path="archive" element={<ProtectedRoute requiredModule="/settings"><ArchivePage /></ProtectedRoute>} />
               <Route path="users" element={<ProtectedRoute requiredModule="/users"><Users /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
