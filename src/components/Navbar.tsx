@@ -124,18 +124,18 @@ export function Navbar() {
         {profile?.pin && !isLocked && (
           <div className="hidden md:flex items-center gap-1">
             <div 
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg group hover:border-indigo-200 transition-colors cursor-pointer" 
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg group hover:border-blue-200 transition-colors cursor-pointer" 
               onClick={lock}
               title="Bloquear Sistema"
             >
               <div className="relative">
-                <Clock size={14} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <Clock size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                 <div 
-                  className="absolute inset-0 border-2 border-indigo-500 rounded-full border-t-transparent animate-spin opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute inset-0 border-2 border-blue-500 rounded-full border-t-transparent animate-spin opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ clipPath: 'polygon(50% 50%, -50% -50%, 150% -50%)' }}
                 />
               </div>
-              <span className="text-[10px] font-bold tabular-nums text-slate-500 group-hover:text-indigo-600 transition-colors uppercase tracking-widest whitespace-nowrap">
+              <span className="text-[10px] font-bold tabular-nums text-slate-500 group-hover:text-blue-600 transition-colors uppercase tracking-widest whitespace-nowrap">
                 {Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')}
               </span>
             </div>
@@ -150,7 +150,7 @@ export function Navbar() {
         )}
 
         <div className="flex items-center gap-2 md:gap-4 text-slate-400 border-l border-slate-200 pl-3 md:pl-5">
-          <div className="relative cursor-pointer hover:text-indigo-600 transition-colors hidden xs:block">
+          <div className="relative cursor-pointer hover:text-blue-600 transition-colors hidden xs:block">
             <Bell size={18} />
             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>
           </div>

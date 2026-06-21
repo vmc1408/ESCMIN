@@ -243,7 +243,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               )}
             >
               <div className="flex items-center gap-3">
-                {item.icon && <item.icon size={15} className={cn(isActive ? "text-indigo-400" : "text-slate-500")} />}
+                {item.icon && <item.icon size={15} className={cn(isActive ? "text-blue-400" : "text-slate-500")} />}
                 <span className={cn(
                   "text-[10px] font-bold uppercase tracking-wider",
                   isActive ? "text-white" : "text-slate-400"
@@ -284,7 +284,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           className={cn(
             "flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200",
             isActive 
-              ? "bg-indigo-600/90 text-white shadow-sm shadow-indigo-900/10" 
+              ? "bg-blue-600 text-white shadow-sm shadow-blue-900/15" 
               : "text-slate-300 hover:text-white hover:bg-white/5"
           )}
         >
@@ -296,11 +296,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <aside className="h-full w-60 bg-[#001440] text-white flex flex-col border-r border-white/5 print:hidden overflow-hidden shrink-0">
-      <div className="p-5 border-b border-white/5 flex items-center justify-between">
+    <aside className="h-full w-60 bg-slate-900 text-white flex flex-col border-r border-slate-800 print:hidden overflow-hidden shrink-0">
+      <div className="p-5 border-b border-slate-800 flex items-center justify-between">
         <div className="flex flex-col">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-400/90">Sistema Diocesano</h2>
-          <span className="text-[9px] font-medium text-slate-500">Gestão Educacional</span>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-400">Sistema Diocesano</h2>
+          <span className="text-[9px] font-medium text-slate-400">Gestão Educacional</span>
         </div>
         {onClose && (
           <button 
@@ -316,9 +316,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         {renderNavItems(filteredNavItems)}
       </nav>
 
-      <div className="p-4 bg-[#001035] border-t border-white/5">
+      <div className="p-4 bg-slate-950 border-t border-slate-800">
         {/* Database Connection Indicator */}
-        <div className="px-3 py-2 bg-black/10 rounded-md border border-white/5 flex items-center justify-between group">
+        <div className="px-3 py-2 bg-slate-900 rounded-md border border-slate-800 flex items-center justify-between group">
           <div className="flex items-center gap-2">
             {dbStatus === 'online' ? (
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>

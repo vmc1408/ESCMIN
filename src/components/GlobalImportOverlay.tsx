@@ -97,7 +97,7 @@ export function GlobalImportOverlay() {
                 navigate(`/${status.type}`);
                 resetImport();
               }}
-              className="w-full py-3 bg-[#00174b] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-lg text-sm"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm text-xs uppercase tracking-wider"
             >
               <ExternalLink size={16} />
               Ver {typeLabels[status.type!]}

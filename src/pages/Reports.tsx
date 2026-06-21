@@ -701,7 +701,55 @@ export function Reports() {
         return;
       }
 
-      const tempCerts = approvedResults.map(res => {
+      const eligibleApprovedResults = [];
+      for (const res of approvedResults) {
+        if (certificateForm.type === 'honra') {
+          let yearsCompleted = 0;
+          const studentObj = res.student;
+          if (studentObj.start_date) {
+            let startYearStr = '';
+            if (studentObj.start_date.includes('/')) {
+              startYearStr = studentObj.start_date.split('/').pop() || '';
+            } else if (studentObj.start_date.includes('-')) {
+              startYearStr = studentObj.start_date.split('-')[0] || '';
+            }
+            const startYear = parseInt(startYearStr, 10);
+            const issuanceYear = new Date(certificateForm.issuance_date).getFullYear();
+            if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+              yearsCompleted = issuanceYear - startYear;
+            }
+          }
+
+          const completedDisciplines = dbGrades.filter(g => 
+            g.student_id === studentObj.id && 
+            g.period === 'Resultado Final' && 
+            g.value !== null && g.value !== undefined && g.value !== '' &&
+            (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+          ).length;
+
+          const studentClass = classes.find(c => c.id === studentObj.class_id);
+          const isSpecialClass = studentClass?.is_special === true;
+          const diplomaRequirementsMet = isSpecialClass 
+            ? yearsCompleted >= 1 
+            : (yearsCompleted >= 4 || completedDisciplines >= 16);
+
+          if (diplomaRequirementsMet) {
+            eligibleApprovedResults.push(res);
+          }
+        } else {
+          eligibleApprovedResults.push(res);
+        }
+      }
+
+      if (eligibleApprovedResults.length === 0) {
+        setNotification({
+          type: 'error',
+          message: 'Nenhum estudante aprovado atende aos critérios do diploma nesta turma (mínimo 4 anos ou 16 disciplinas aprovadas).'
+        });
+        return;
+      }
+
+      const tempCerts = eligibleApprovedResults.map(res => {
         const existingCert = certificates.find(cert => 
           cert.student_id === res.student.id && 
           (cert.type === certificateForm.type || cert.course.includes(classObj?.name || ''))
@@ -727,6 +775,56 @@ export function Reports() {
           message: 'Estudante selecionado não encontrado na lista.'
         });
         return;
+      }
+
+      if (targetStudentRes.finalStatus !== 'Aprovado') {
+        setNotification({
+          type: 'error',
+          message: `Visualização bloqueada: Aluno está com o status de "${targetStudentRes.finalStatus}". Qualquer certificado ou diploma exige "Aprovado".`
+        });
+        return;
+      }
+
+      if (certificateForm.type === 'honra') {
+        let yearsCompleted = 0;
+        const studentObj = targetStudentRes.student;
+        if (studentObj.start_date) {
+          let startYearStr = '';
+          if (studentObj.start_date.includes('/')) {
+            startYearStr = studentObj.start_date.split('/').pop() || '';
+          } else if (studentObj.start_date.includes('-')) {
+            startYearStr = studentObj.start_date.split('-')[0] || '';
+          }
+          const startYear = parseInt(startYearStr, 10);
+          const issuanceYear = new Date(certificateForm.issuance_date).getFullYear();
+          if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+            yearsCompleted = issuanceYear - startYear;
+          }
+        }
+
+        const completedDisciplines = dbGrades.filter(g => 
+          g.student_id === studentObj.id && 
+          g.period === 'Resultado Final' && 
+          g.value !== null && g.value !== undefined && g.value !== '' &&
+          (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+        ).length;
+
+        const studentClass = classes.find(c => c.id === studentObj.class_id);
+        const isSpecialClass = studentClass?.is_special === true;
+        const diplomaRequirementsMet = isSpecialClass 
+          ? yearsCompleted >= 1 
+          : (yearsCompleted >= 4 || completedDisciplines >= 16);
+
+        if (!diplomaRequirementsMet) {
+          const requirementsMsg = isSpecialClass
+            ? `O curso especial exige a conclusão de pelo menos 1 ano letivo (concluído: ${yearsCompleted}/1 ano).`
+            : `Aluno possui ${yearsCompleted}/4 anos de curso e concluiu ${completedDisciplines}/16 disciplinas. O diploma exige 4 anos de curso OU 16 disciplinas cumpridas.`;
+          setNotification({
+            type: 'error',
+            message: `Visualização de Diploma bloqueada! ${requirementsMsg}`
+          });
+          return;
+        }
       }
 
       const existingCert = certificates.find(cert => 
@@ -766,8 +864,61 @@ export function Reports() {
           return;
         }
 
-        const savedCerts = [];
+        const eligibleApprovedResults = [];
+        const excludedNames: string[] = [];
+
         for (const res of approvedResults) {
+          if (certificateForm.type === 'honra') {
+            let yearsCompleted = 0;
+            const studentObj = res.student;
+            if (studentObj.start_date) {
+              let startYearStr = '';
+              if (studentObj.start_date.includes('/')) {
+                startYearStr = studentObj.start_date.split('/').pop() || '';
+              } else if (studentObj.start_date.includes('-')) {
+                startYearStr = studentObj.start_date.split('-')[0] || '';
+              }
+              const startYear = parseInt(startYearStr, 10);
+              const issuanceYear = new Date(certificateForm.issuance_date).getFullYear();
+              if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+                yearsCompleted = issuanceYear - startYear;
+              }
+            }
+
+            const completedDisciplines = dbGrades.filter(g => 
+              g.student_id === studentObj.id && 
+              g.period === 'Resultado Final' && 
+              g.value !== null && g.value !== undefined && g.value !== '' &&
+              (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+            ).length;
+
+            const studentClass = classes.find(c => c.id === studentObj.class_id);
+            const isSpecialClass = studentClass?.is_special === true;
+            const diplomaRequirementsMet = isSpecialClass 
+              ? yearsCompleted >= 1 
+              : (yearsCompleted >= 4 || completedDisciplines >= 16);
+
+            if (diplomaRequirementsMet) {
+              eligibleApprovedResults.push(res);
+            } else {
+              excludedNames.push(res.student.name);
+            }
+          } else {
+            eligibleApprovedResults.push(res);
+          }
+        }
+
+        if (eligibleApprovedResults.length === 0) {
+          setNotification({
+            type: 'error',
+            message: 'Nenhum estudante aprovado atende aos critérios do diploma nesta turma (mínimo 4 anos ou 16 disciplinas aprovadas).'
+          });
+          setIsSubmittingCert(false);
+          return;
+        }
+
+        const savedCerts = [];
+        for (const res of eligibleApprovedResults) {
           const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
           const newDocId = crypto.randomUUID();
 
@@ -787,9 +938,13 @@ export function Reports() {
           savedCerts.push(newCert);
         }
 
+        const excludedMsg = excludedNames.length > 0 
+          ? ` (${excludedNames.length} ignorados por requisitos pendentes de diploma)` 
+          : '';
+
         setNotification({
           type: 'success',
-          message: `${savedCerts.length} certificados de ${certificateForm.type} registrados com sucesso para todos os aprovados!`
+          message: `${savedCerts.length} certificados registrados com sucesso!${excludedMsg}`
         });
 
         const certs = await fetchAll('certificates');
@@ -800,6 +955,58 @@ export function Reports() {
         const targetStudentRes = diarioClassResults.find(r => r.student.id === selectedStudentId);
         if (!targetStudentRes) {
           throw new Error("Estudante selecionado não encontrado na lista.");
+        }
+
+        if (targetStudentRes.finalStatus !== 'Aprovado') {
+          setNotification({
+            type: 'error',
+            message: `Emissão de certificado bloqueada: Aluno está com o status de "${targetStudentRes.finalStatus}".`
+          });
+          setIsSubmittingCert(false);
+          return;
+        }
+
+        if (certificateForm.type === 'honra') {
+          let yearsCompleted = 0;
+          const studentObj = targetStudentRes.student;
+          if (studentObj.start_date) {
+            let startYearStr = '';
+            if (studentObj.start_date.includes('/')) {
+              startYearStr = studentObj.start_date.split('/').pop() || '';
+            } else if (studentObj.start_date.includes('-')) {
+              startYearStr = studentObj.start_date.split('-')[0] || '';
+            }
+            const startYear = parseInt(startYearStr, 10);
+            const issuanceYear = new Date(certificateForm.issuance_date).getFullYear();
+            if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+              yearsCompleted = issuanceYear - startYear;
+            }
+          }
+
+          const completedDisciplines = dbGrades.filter(g => 
+            g.student_id === studentObj.id && 
+            g.period === 'Resultado Final' && 
+            g.value !== null && g.value !== undefined && g.value !== '' &&
+            (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+          ).length;
+
+          const studentClass = classes.find(c => c.id === studentObj.class_id);
+          const isSpecialClass = studentClass?.is_special === true;
+          const diplomaRequirementsMet = isSpecialClass 
+            ? yearsCompleted >= 1 
+            : (yearsCompleted >= 4 || completedDisciplines >= 16);
+
+          if (!diplomaRequirementsMet) {
+            const requirementsMsg = isSpecialClass
+              ? `O curso especial exige a conclusão de pelo menos 1 ano letivo (concluído: ${yearsCompleted}/1 ano).`
+              : `O aluno possui atualmente ${yearsCompleted}/4 anos de curso e concluiu ${completedDisciplines}/16 disciplinas.`;
+            setNotification({
+              type: 'error',
+              message: `Emissão de Diploma bloqueada! ${requirementsMsg}`
+            });
+            setIsSubmittingCert(false);
+            return;
+          }
         }
 
         const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -921,9 +1128,45 @@ export function Reports() {
         return normalized;
       });
 
+      const normalizedClasses = (classesData || []).map((cls: Class) => {
+        let normalized = { ...cls };
+        let sIds: string[] = [];
+        if (Array.isArray((normalized as any).subject_ids)) {
+          sIds = (normalized as any).subject_ids;
+        } else if (typeof (normalized as any).subject_ids === 'string') {
+          try {
+            const parsed = JSON.parse((normalized as any).subject_ids);
+            sIds = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
+          }
+        } else if ((normalized as any).subject_id) {
+          sIds = [(normalized as any).subject_id];
+        }
+
+        let isSpecial = false;
+        if (normalized.observations) {
+          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.year) normalized.year = meta.year;
+              if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
+              if (sIds.length === 0 && (meta.subject_ids || meta.subject_id)) {
+                sIds = meta.subject_ids || [meta.subject_id];
+              }
+              isSpecial = !!meta.is_special;
+            } catch (e) {}
+          }
+        }
+        (normalized as any).is_special = isSpecial;
+        normalized.subject_ids = sIds;
+        return normalized;
+      });
+
       setStudents(studentsData || []);
       setTeachers(normalizedTeachers);
-      setClasses(classesData || []);
+      setClasses(normalizedClasses);
       setSubjects(normalizedSubjects);
       setPixTransactions(pixData || []);
       setAttendanceData(attendancesData || []);
@@ -1471,14 +1714,14 @@ export function Reports() {
       )}
 
       {/* Modern Sticky Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-6 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
+      <div className="bg-white border-b border-slate-200 px-8 py-5 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
           <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-[#00174b] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
-                <BarChart3 size={32} />
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm">
+                <BarChart3 size={24} />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-[#00174b] tracking-tighter">ESCMIN Intelligence</h1>
+                <h1 className="text-xl font-bold text-slate-800 tracking-tight">ESCMIN Intelligence</h1>
                 <div className="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">
                   <Activity size={12} className="text-emerald-500" />
                   Monitoramento em Tempo Real
@@ -1487,7 +1730,7 @@ export function Reports() {
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
                 {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
                   <button
                     key={cat}
@@ -1496,9 +1739,9 @@ export function Reports() {
                       setSearchParams({ tab: cat });
                     }}
                     className={cn(
-                      "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all",
                       activeCategory === cat 
-                        ? "bg-white text-[#00174b] shadow-md" 
+                        ? "bg-white text-blue-600 shadow-sm border border-slate-200/20" 
                         : "text-slate-500 hover:text-slate-700"
                     )}
                   >
@@ -1509,10 +1752,10 @@ export function Reports() {
               <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden lg:block"></div>
               <button 
                 onClick={handlePrint}
-                className="p-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-all shadow-sm active:scale-95"
                 title="Imprimir Relatório"
               >
-                <Printer size={20} />
+                <Printer size={18} />
               </button>
               <button 
                 onClick={() => generateReport(activeCategory)}
@@ -2556,12 +2799,92 @@ export function Reports() {
                        value={selectedStudentId}
                        onChange={(e) => setSelectedStudentId(e.target.value)}
                      >
-                       <option value="all">Todos os Alunos Aprovados ({diarioClassResults.filter(r => r.finalStatus === 'Aprovado').length})</option>
-                       {diarioClassResults.filter(r => r.finalStatus === 'Aprovado').map(res => (
-                         <option key={res.student.id} value={res.student.id}>{res.student.name}</option>
+                       <option value="all">Todos os Alunos Aprovados no Diário ({diarioClassResults.filter(r => r.finalStatus === 'Aprovado').length})</option>
+                       {diarioClassResults.map(res => (
+                         <option key={res.student.id} value={res.student.id}>{res.student.name} ({res.finalStatus === 'Aprovado' ? 'Aprovado' : 'Pend./Reprov.'})</option>
                        ))}
                      </select>
                  </div>
+
+                 {/* Requirement indicators and validation feedback */}
+                 {(() => {
+                   if (selectedStudentId !== 'all') {
+                     const currentRes = diarioClassResults.find(r => r.student.id === selectedStudentId);
+                     if (!currentRes) return null;
+
+                     const studentObj = currentRes.student;
+                     const fStatus = currentRes.finalStatus;
+
+                     let yearsCompleted = 0;
+                     if (studentObj.start_date) {
+                       let startYearStr = '';
+                       if (studentObj.start_date.includes('/')) {
+                         startYearStr = studentObj.start_date.split('/').pop() || '';
+                       } else if (studentObj.start_date.includes('-')) {
+                         startYearStr = studentObj.start_date.split('-')[0] || '';
+                       }
+                       const startYear = parseInt(startYearStr, 10);
+                       const issuanceYear = new Date(certificateForm.issuance_date).getFullYear();
+                       if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+                         yearsCompleted = issuanceYear - startYear;
+                       }
+                     }
+
+                     const completedDisciplines = dbGrades.filter(g => 
+                       g.student_id === studentObj.id && 
+                       g.period === 'Resultado Final' && 
+                       g.value !== null && g.value !== undefined && g.value !== '' &&
+                       (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+                     ).length;
+
+                     const studentClass = classes.find(c => c.id === studentObj.class_id);
+                     const isSpecialClass = studentClass?.is_special === true;
+                     const diplomaRequirementsMet = isSpecialClass 
+                       ? yearsCompleted >= 1 
+                       : (yearsCompleted >= 4 || completedDisciplines >= 16);
+
+                     if (fStatus !== 'Aprovado') {
+                       return (
+                         <div className="bg-rose-50 border border-rose-300 p-4 rounded-none space-y-1.5 text-rose-800 text-[10.5px] font-medium leading-normal">
+                           <h5 className="font-bold text-rose-850 text-xs font-sans uppercase flex items-center gap-1">
+                             <AlertCircle size={14} /> IMPEDIMENTO ACADÊMICO
+                           </h5>
+                           <p>Este estudante está com o status de <strong>"{fStatus}"</strong> no boletim final.</p>
+                           <p className="font-bold">Qualquer emissão de certificado ou diploma exige que o estudante atinja status de "Aprovado" (média e presenças suficientes).</p>
+                         </div>
+                       );
+                     }
+
+                     if (certificateForm.type === 'honra' && !diplomaRequirementsMet) {
+                       return (
+                         <div className="bg-amber-50 border border-amber-300 p-4 rounded-none space-y-2 text-amber-800 text-[10.5px] font-medium leading-normal">
+                           <h5 className="font-bold text-amber-855 text-xs font-sans uppercase flex items-center gap-1">
+                             <AlertCircle size={14} /> CRITÉRIOS DE DIPLOMA PENDENTES
+                           </h5>
+                           {isSpecialClass ? (
+                             <p>Para emitir o Diploma de Conclusão de uma Turma Especial, o estudante necessita cumprir o requisito de tempo de curso (mínimo de 1 ano letivo):</p>
+                           ) : (
+                             <p>Para emitir o Diploma de Conclusão, o estudante necessita cumprir as exigências (mínimo de 4 anos de duração do curso ou 16 disciplinas aprovadas):</p>
+                           )}
+                           <div className="grid grid-cols-2 gap-2 text-[10px] mt-1 font-sans">
+                             <div className="bg-white/45 p-2 border border-amber-200 col-span-2">
+                               <p className="font-bold uppercase text-[8px] text-amber-700">Tempo de Curso</p>
+                               <span className="font-extrabold text-[11px]">{yearsCompleted} / {isSpecialClass ? 1 : 4} {isSpecialClass ? 'ano' : 'anos'}</span>
+                             </div>
+                             {!isSpecialClass && (
+                               <div className="bg-white/45 p-2 border border-amber-200 col-span-2">
+                                 <p className="font-bold uppercase text-[8px] text-amber-700">Disciplinas Concluídas</p>
+                                 <span className="font-extrabold text-[11px]">{completedDisciplines} / 16</span>
+                               </div>
+                             )}
+                           </div>
+                           <p className="text-[10px] font-bold text-amber-700">Os botões de Imprimir e Registrar estão desativados.</p>
+                         </div>
+                       );
+                     }
+                   }
+                   return null;
+                 })()}
 
                  <div>
                     <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Curso / Turma</label>
@@ -2612,15 +2935,92 @@ export function Reports() {
                     <button
                       type="button"
                       onClick={handlePrintPreviewFromForm}
-                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm"
+                      disabled={(() => {
+                        if (selectedStudentId === 'all') return false;
+                        const currentRes = diarioClassResults.find(r => r.student.id === selectedStudentId);
+                        if (!currentRes) return true;
+                        if (currentRes.finalStatus !== 'Aprovado') return true;
+
+                        if (certificateForm.type === 'honra') {
+                          let yearsCompleted = 0;
+                          const studentObj = currentRes.student;
+                          if (studentObj.start_date) {
+                            let startYearStr = '';
+                            if (studentObj.start_date.includes('/')) {
+                              startYearStr = studentObj.start_date.split('/').pop() || '';
+                            } else if (studentObj.start_date.includes('-')) {
+                              startYearStr = studentObj.start_date.split('-')[0] || '';
+                            }
+                            const startYear = parseInt(startYearStr, 10);
+                            const issuanceYear = new Date(certificateForm.issuance_date).getFullYear();
+                            if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+                              yearsCompleted = issuanceYear - startYear;
+                            }
+                          }
+
+                          const completedDisciplines = dbGrades.filter(g => 
+                            g.student_id === studentObj.id && 
+                            g.period === 'Resultado Final' && 
+                            g.value !== null && g.value !== undefined && g.value !== '' &&
+                            (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+                          ).length;
+
+                          const studentClass = classes.find(c => c.id === studentObj.class_id);
+                          const isSpecialClass = studentClass?.is_special === true;
+                          if (isSpecialClass) {
+                            return yearsCompleted < 1;
+                          }
+                          return yearsCompleted < 4 && completedDisciplines < 16;
+                        }
+                        return false;
+                      })()}
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                        <Printer size={12} /> Imprimir
                     </button>
                     <button
                       type="submit"
-                      disabled={isSubmittingCert}
+                      disabled={isSubmittingCert || (() => {
+                        if (selectedStudentId === 'all') return false;
+                        const currentRes = diarioClassResults.find(r => r.student.id === selectedStudentId);
+                        if (!currentRes) return true;
+                        if (currentRes.finalStatus !== 'Aprovado') return true;
+
+                        if (certificateForm.type === 'honra') {
+                          let yearsCompleted = 0;
+                          const studentObj = currentRes.student;
+                          if (studentObj.start_date) {
+                            let startYearStr = '';
+                            if (studentObj.start_date.includes('/')) {
+                              startYearStr = studentObj.start_date.split('/').pop() || '';
+                            } else if (studentObj.start_date.includes('-')) {
+                              startYearStr = studentObj.start_date.split('-')[0] || '';
+                            }
+                            const startYear = parseInt(startYearStr, 10);
+                            const issuanceYear = new Date(certificateForm.issuance_date).getFullYear();
+                            if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+                              yearsCompleted = issuanceYear - startYear;
+                            }
+                          }
+
+                          const completedDisciplines = dbGrades.filter(g => 
+                            g.student_id === studentObj.id && 
+                            g.period === 'Resultado Final' && 
+                            g.value !== null && g.value !== undefined && g.value !== '' &&
+                            (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+                          ).length;
+
+                          const studentClass = classes.find(c => c.id === studentObj.class_id);
+                          const isSpecialClass = studentClass?.is_special === true;
+                          if (isSpecialClass) {
+                            return yearsCompleted < 1;
+                          }
+                          return yearsCompleted < 4 && completedDisciplines < 16;
+                        }
+                        return false;
+                      })()}
                       className={cn(
-                        "flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer",
+                        "flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white text-[9px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer",
                         isSubmittingCert && "opacity-50 cursor-not-allowed"
                       )}
                     >

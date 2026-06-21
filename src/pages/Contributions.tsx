@@ -930,32 +930,32 @@ export function Contributions() {
         isPrinting && "hidden"
       )}>
       {/* Header Profissional mais compacto */}
-      <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-2">
+      <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80 flex flex-col gap-3">
         <div className="flex items-center justify-between px-2 pt-1">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[#00174b] flex items-center justify-center text-white shadow-lg shadow-blue-900/10">
+            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
               <TrendingUp size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-black text-[#131b2e] leading-tight">Gestão de Contribuições</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-0.5">Tesouraria & Conferência</p>
+              <h2 className="text-lg font-bold text-slate-800 leading-tight">Gestão de Contribuições</h2>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Tesouraria & Conferência</p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
              <button 
                 onClick={clearSelection}
-                className="px-4 py-2 bg-slate-50 text-slate-500 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all border border-slate-100 font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5"
+                className="px-4 py-2 bg-slate-50 text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all border border-slate-150 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5"
               >
                 <X size={14} /> Limpar Filtros
               </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-50">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-lg border border-slate-200/50">
           {/* Busca por Nome */}
           <div className="lg:col-span-4 space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Nome / Matrícula</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome / Matrícula</label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 {isSearching ? <Loader2 size={16} className="text-blue-500 animate-spin" /> : <Search size={16} className="text-slate-400" />}
@@ -968,7 +968,7 @@ export function Contributions() {
                   setSearchByName(e.target.value);
                   handleSearchStudents(e.target.value);
                 }}
-                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-slate-700"
+                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all font-medium text-slate-700"
               />
             </div>
           </div>

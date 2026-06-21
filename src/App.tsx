@@ -121,18 +121,18 @@ function AppContent() {
 
   if (!isSupabaseConfigured) {
     return (
-      <div className="min-h-screen bg-[#00174b] flex items-center justify-center p-6 text-center font-sans">
-        <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-xl">
-          <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-8 border border-amber-100">
-            <Unplug size={40} />
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center font-sans">
+        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center mx-auto mb-6 border border-amber-100">
+            <Unplug size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-4 uppercase tracking-tight">Configurações Pendentes</h1>
-          <p className="text-slate-500 text-sm mb-10 leading-relaxed font-medium">
-            O sistema ainda não foi configurado com o banco de dados. Por favor, adicione as chaves <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-600 font-bold">VITE_SUPABASE_URL</code> e <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-600 font-bold">VITE_SUPABASE_ANON_KEY</code> no painel de Segredos (Settings) do AI Studio.
+          <h1 className="text-xl font-bold text-slate-800 mb-4 uppercase tracking-snug">Configurações Pendentes</h1>
+          <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">
+            O sistema ainda não foi configurado com o banco de dados. Por favor, adicione as chaves <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-600 font-bold font-mono">VITE_SUPABASE_URL</code> e <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-600 font-bold font-mono">VITE_SUPABASE_ANON_KEY</code> no painel de Segredos (Settings) do AI Studio.
           </p>
           <button 
             onClick={() => window.location.reload()}
-            className="w-full py-4 bg-indigo-600 text-white rounded-lg font-semibold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+            className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-blue-700 transition-all shadow-sm active:scale-95"
           >
             Tentar Novamente
           </button>

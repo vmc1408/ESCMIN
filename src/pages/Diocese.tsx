@@ -41,7 +41,7 @@ type TabType = 'dashboard' | 'foranias' | 'parishes' | 'clergy';
 const DetailField = ({ label, value, icon, fullWidth = false }: { label: string, value: any, icon: React.ReactNode, fullWidth?: boolean }) => (
   <div className={cn("space-y-1.5", fullWidth ? "md:col-span-2" : "")}>
     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 border-l-2 border-blue-500/20">{label}</label>
-    <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200/80">
       <div className="text-blue-500">
         {icon}
       </div>
@@ -51,13 +51,13 @@ const DetailField = ({ label, value, icon, fullWidth = false }: { label: string,
 );
 
 const SummaryCard = ({ label, value, icon, color }: { label: string, value: number, icon: React.ReactNode, color: string }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-5 group hover:shadow-lg transition-all duration-300">
-    <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center text-white shadow-md", color)}>
+  <div className="bg-white p-5 rounded-lg border border-slate-200/80 shadow-sm flex items-center gap-4 group transition-all duration-200">
+    <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center text-white shadow-sm", color)}>
       {icon}
     </div>
     <div>
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
-      <p className="text-3xl font-bold text-slate-800 tracking-tight">{value}</p>
+      <p className="text-2xl font-bold text-slate-800 tracking-tight">{value}</p>
     </div>
   </div>
 );
@@ -781,9 +781,9 @@ export function Diocese() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
-        <SummaryCard label="Total de Foranias" value={foraries.length} icon={<MapIcon size={24} />} color="bg-indigo-500" />
-        <SummaryCard label="Paróquias Ativas" value={parishes.length} icon={<Church size={24} />} color="bg-blue-600" />
-        <SummaryCard label="Clero e Membros" value={clergy.length} icon={<Users size={24} />} color="bg-amber-500" />
+        <SummaryCard label="Total de Foranias" value={foraries.length} icon={<MapIcon size={20} />} color="bg-slate-700" />
+        <SummaryCard label="Paróquias Ativas" value={parishes.length} icon={<Church size={20} />} color="bg-blue-600" />
+        <SummaryCard label="Clero e Membros" value={clergy.length} icon={<Users size={20} />} color="bg-slate-800" />
       </div>
 
       {/* Nav Tabs */}
@@ -1032,9 +1032,9 @@ export function Diocese() {
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
                           <div className={cn(
-                            "w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-inner",
+                            "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 shadow-inner",
                             item._type === 'parish' ? "bg-blue-50 text-blue-600" : 
-                            item._type === 'forania' ? "bg-indigo-50 text-indigo-600" : "bg-amber-50 text-amber-600"
+                            item._type === 'forania' ? "bg-slate-50 text-slate-600" : "bg-amber-50 text-amber-600"
                           )}>
                             {item._type === 'parish' ? <Church size={18} /> : 
                              item._type === 'forania' ? <MapIcon size={18} /> : <User size={18} />}
@@ -1042,14 +1042,14 @@ export function Diocese() {
                           <div>
                             <div className="flex items-center gap-2 mb-0.5">
                               <span className={cn(
-                                "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
+                                "text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded",
                                 item._type === 'parish' ? "bg-blue-100 text-blue-700" : 
-                                item._type === 'forania' ? "bg-indigo-100 text-indigo-700" : "bg-amber-100 text-amber-700"
+                                item._type === 'forania' ? "bg-slate-100 text-slate-750" : "bg-amber-100 text-amber-700"
                               )}>
                                 {item._type === 'parish' ? 'Paróquia' : item._type === 'forania' ? 'Forania' : 'Clero/Membro'}
                               </span>
                             </div>
-                            <h5 className="font-black text-slate-800 leading-tight group-hover:text-blue-700 transition-colors uppercase tracking-tight">{item.name}</h5>
+                            <h5 className="font-bold text-slate-800 leading-tight group-hover:text-blue-700 transition-colors uppercase tracking-tight">{item.name}</h5>
                           </div>
                         </div>
                       </td>
@@ -1075,7 +1075,7 @@ export function Diocese() {
                            {item._type === 'parish' && (
                              <div className="flex items-center gap-2 mt-2">
                                <Users size={12} className="text-blue-400" />
-                               <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                               <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
                                  {clergy.filter(c => c.parish_id === item.id).length} Membros
                                </span>
                              </div>
@@ -1083,7 +1083,7 @@ export function Diocese() {
                            {item._type === 'clergy' && (
                              <div className="flex items-center gap-2 mt-2">
                                <Church size={12} className="text-amber-400" />
-                               <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest truncate max-w-[150px]">
+                               <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest truncate max-w-[150px]">
                                  {parishes.find(p => p.id === item.parish_id)?.name || 'Avulso'}
                                </span>
                              </div>
@@ -1109,7 +1109,7 @@ export function Diocese() {
                               else if (item._type === 'forania') { setActiveTab('foranias'); handleView(item); }
                               else { setActiveTab('clergy'); handleView(item); }
                             }} 
-                            className="flex items-center gap-2 px-3 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all shadow-sm border border-blue-100 text-[10px] font-black uppercase tracking-widest"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all shadow-sm border border-blue-100 text-[10px] font-bold uppercase tracking-wider"
                           >
                             <Eye size={14} />
                             Ficha
@@ -1138,12 +1138,12 @@ export function Diocese() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           {activeTab === 'clergy' && (
-                            <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-black uppercase tracking-widest border border-amber-100">
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-bold uppercase tracking-widest border border-amber-100">
                               {item.role}
                             </span>
                           )}
                           {activeTab === 'parishes' && item.foundation_date && (
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-1">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-bold uppercase tracking-widest border border-emerald-100 flex items-center gap-1">
                               <Scroll size={10} />
                               Fundada em: {new Date(item.foundation_date).toLocaleDateString('pt-BR')}
                             </span>
@@ -1896,7 +1896,7 @@ export function Diocese() {
           <div className="flex items-center justify-center gap-6">
              <Church size={48} className="text-slate-800" />
              <div>
-               <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">DIOCESE DE GUARULHOS</h1>
+               <h1 className="text-3xl font-bold text-slate-900 uppercase tracking-tighter">DIOCESE DE GUARULHOS</h1>
                <p className="text-lg font-bold text-slate-500 uppercase tracking-widest italic">Hub de Relatório e Gestão Unificada</p>
              </div>
           </div>
@@ -1908,33 +1908,33 @@ export function Diocese() {
         </div>
 
         <div className="grid grid-cols-3 gap-8 mb-12">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Foranias</p>
-            <p className="text-3xl font-black text-slate-800">{foraries.length}</p>
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/80 text-center">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Foranias</p>
+            <p className="text-3xl font-bold text-slate-800">{foraries.length}</p>
           </div>
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Paróquias</p>
-            <p className="text-3xl font-black text-slate-800">{parishes.length}</p>
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/80 text-center">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Paróquias</p>
+            <p className="text-3xl font-bold text-slate-800">{parishes.length}</p>
           </div>
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Efetivo de Clero</p>
-            <p className="text-3xl font-black text-slate-800">{clergy.length}</p>
+          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/80 text-center">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Efetivo de Clero</p>
+            <p className="text-3xl font-bold text-slate-800">{clergy.length}</p>
           </div>
         </div>
 
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b-2 border-slate-300">
-              <th className="py-4 text-left font-black text-sm uppercase">Paróquia / Forania</th>
-              <th className="py-4 text-left font-black text-sm uppercase">Pároco / Responsável</th>
-              <th className="py-4 text-left font-black text-sm uppercase">Contato Principal</th>
+              <th className="py-4 text-left font-bold text-sm uppercase">Paróquia / Forania</th>
+              <th className="py-4 text-left font-bold text-sm uppercase">Pároco / Responsável</th>
+              <th className="py-4 text-left font-bold text-sm uppercase">Contato Principal</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredItems.map((item: any) => (
               <tr key={`${item._type}-${item.id}`} className="page-break-inside-avoid">
                 <td className="py-4">
-                  <p className="font-black text-slate-800 uppercase text-sm leading-none mb-1">{item.name}</p>
+                  <p className="font-bold text-slate-800 uppercase text-sm leading-none mb-1">{item.name}</p>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     {foraries.find(f => f.id === item.forania_id)?.name || '---'}
                   </p>
@@ -1956,7 +1956,7 @@ export function Diocese() {
           <div className="text-[10px] font-bold text-slate-400">
             © 2026 Sistema de Gestão Eclesial - ERP Diocese
           </div>
-          <div className="w-48 border-t-2 border-slate-300 pt-2 text-center text-[10px] font-black uppercase">
+          <div className="w-48 border-t-2 border-slate-300 pt-2 text-center text-[10px] font-bold uppercase">
             Chancelaria / Diocese
           </div>
         </div>
@@ -2010,43 +2010,43 @@ export function Diocese() {
                       
                       {selectedItem.notes && (
                         <div className="md:col-span-2 space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 border-l-2 border-amber-500/20">Observações</label>
-                          <div className="p-4 bg-amber-50/30 rounded-2xl border border-amber-100/50 text-sm font-medium text-slate-600 italic">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 border-l-2 border-amber-500/20">Observações</label>
+                          <div className="p-3 bg-amber-50/20 rounded-lg border border-amber-100/50 text-sm font-medium text-slate-600 italic">
                             {selectedItem.notes}
                           </div>
                         </div>
                       )}
 
-                      <div className="md:col-span-2 pt-4 border-t border-slate-100">
+                      <div className="md:col-span-2 pt-4 border-t border-slate-200">
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                          <h4 className="text-[11px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-2">
                             <Users size={14} />
                             Equipe / Membros do Clero
                           </h4>
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-[9px] font-bold uppercase">
                             {clergy.filter(c => c.parish_id === selectedItem.id).length} Vinculados
                           </span>
                         </div>
                         <div className="space-y-2">
                           {(() => {
                             const members = clergy.filter(c => c.parish_id === selectedItem.id);
-                            if (members.length === 0) return <p className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl text-center">Nenhum membro cadastrado nesta unidade.</p>;
+                            if (members.length === 0) return <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg text-center border border-slate-100">Nenhum membro cadastrado nesta unidade.</p>;
                             
                             const roleOrder: Record<string, number> = { 'pároco': 1, 'vigário': 2, 'diácono': 3, 'seminarista': 4, 'leigo formado': 5 };
                             const sorted = [...members].sort((a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9));
 
                             return sorted.map(m => (
-                              <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100">
+                              <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200/80">
                                 <div className="flex items-center gap-3">
                                   <div className={cn(
-                                    "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black",
+                                    "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",
                                     m.role === 'pároco' ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500"
                                   )}>
                                     {m.name.charAt(0)}
                                   </div>
                                   <div>
                                     <p className="text-sm font-bold text-slate-700">{m.name}</p>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.role}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{m.role}</p>
                                   </div>
                                 </div>
                                 <div className="flex gap-2">
@@ -2076,10 +2076,10 @@ export function Diocese() {
                 </div>
               </div>
 
-              <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
                 <button 
                   onClick={() => setIsViewing(false)}
-                  className="px-8 py-4 text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-slate-200 rounded-2xl transition-all"
+                  className="px-5 py-2.5 text-slate-600 font-bold text-xs uppercase tracking-wider hover:bg-slate-200/60 rounded-lg transition-all"
                 >
                   Fechar
                 </button>
@@ -2088,7 +2088,7 @@ export function Diocese() {
                     setIsViewing(false);
                     handleEdit(selectedItem);
                   }}
-                  className="px-8 py-4 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2"
+                  className="px-5 py-2.5 bg-blue-600 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm hover:bg-blue-700 transition-all flex items-center gap-2"
                 >
                   <Edit2 size={14} />
                   Editar Registro

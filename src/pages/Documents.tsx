@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Ban,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn, formatDateForDisplay, parseDateToDB } from '../lib/utils';
@@ -49,12 +50,18 @@ interface Student {
   email?: string;
   address_city?: string;
   address_state?: string;
+  start_date?: string;
 }
 
 interface Class {
   id: string;
   name: string;
   subject_ids?: any;
+  observations?: string;
+  is_special?: boolean;
+  year?: string;
+  semester?: string;
+  status?: string;
 }
 
 interface Subject {
@@ -380,6 +387,11 @@ export function Documents() {
   const [certScale, setCertScale] = useState(1);
   const certWrapperRef = React.useRef<HTMLDivElement>(null);
 
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedCertIds, setSelectedCertIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+
   useEffect(() => {
     if (!viewingCertificate) return;
     const handleResize = () => {
@@ -428,7 +440,42 @@ export function Documents() {
         };
       });
       setCertificates(enrichedCerts);
-      setClasses((clss || []).filter((c: any) => c.status === 'Ativo'));
+      const normalizedClasses = (clss || []).map((cls: Class) => {
+        let normalized = { ...cls };
+        let sIds: string[] = [];
+        if (Array.isArray((normalized as any).subject_ids)) {
+          sIds = (normalized as any).subject_ids;
+        } else if (typeof (normalized as any).subject_ids === 'string') {
+          try {
+            const parsed = JSON.parse((normalized as any).subject_ids);
+            sIds = Array.isArray(parsed) ? parsed : [parsed];
+          } catch (e) {
+            sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
+          }
+        } else if ((normalized as any).subject_id) {
+          sIds = [(normalized as any).subject_id];
+        }
+
+        let isSpecial = false;
+        if (normalized.observations) {
+          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.year) normalized.year = meta.year;
+              if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
+              if (sIds.length === 0 && (meta.subject_ids || meta.subject_id)) {
+                sIds = meta.subject_ids || [meta.subject_id];
+              }
+              isSpecial = !!meta.is_special;
+            } catch (e) {}
+          }
+        }
+        (normalized as any).is_special = isSpecial;
+        normalized.subject_ids = sIds;
+        return normalized;
+      });
+      setClasses(normalizedClasses.filter((c: any) => c.status === 'Ativo'));
       setSubjects((subs || []).filter((sub: any) => sub.status === 'Ativo' || !sub.status));
       setAssessments(assms || []);
       setDbGrades(grds || []);
@@ -701,6 +748,82 @@ export function Documents() {
     if (!userAuth) return;
 
     const student = students.find(s => s.id === formData.student_id);
+    if (!student) {
+      showToast('error', 'Estudante não encontrado.');
+      return;
+    }
+
+    // 1. Get student status and check if approved
+    const foundCs = calculatedClassStudents.find(c => c.student.id === student.id);
+    let finalStatus = foundCs ? foundCs.finalStatus : 'Aprovado';
+
+    // fallback computation in case student is not in the active class list
+    if (!foundCs && student.class_id) {
+      const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === student.class_id && a.status === 'F').length;
+      const totalDays = totalClassDays > 0 ? totalClassDays : 30;
+      const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
+      const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
+      if (presencePercentage < minPresence) {
+        finalStatus = 'Reprovado';
+      } else {
+        const failedGradesCount = dbGrades.filter(g => 
+          g.student_id === student.id && 
+          g.class_id === student.class_id && 
+          g.period === 'Resultado Final' && 
+          g.value !== null && g.value !== undefined && g.value !== '' &&
+          (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) < (academicParams.approval_grade || 7.0)
+        ).length;
+        if (failedGradesCount > 0) {
+          finalStatus = failedGradesCount <= 2 ? 'Recuperação' : 'Reprovado';
+        }
+      }
+    }
+
+    if (finalStatus !== 'Aprovado') {
+      showToast('error', `Emissão Bloqueada! Aluno está com o status de "${finalStatus}". Qualquer certificado ou diploma exige "Aprovado" no boletim final.`);
+      return;
+    }
+
+    // 2. Validate Diploma (honra) criteria: 4 years or 16 completed disciplines
+    if (formData.type === 'honra') {
+      let yearsCompleted = 0;
+      if (student.start_date) {
+        let startYearStr = '';
+        if (student.start_date.includes('/')) {
+          startYearStr = student.start_date.split('/').pop() || '';
+        } else if (student.start_date.includes('-')) {
+          startYearStr = student.start_date.split('-')[0] || '';
+        }
+        const startYear = parseInt(startYearStr, 10);
+        const issuanceYear = new Date(formData.issuance_date).getFullYear();
+        if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+          yearsCompleted = issuanceYear - startYear;
+        }
+      }
+
+      const completedDisciplines = dbGrades.filter(g => 
+        g.student_id === student.id && 
+        g.period === 'Resultado Final' && 
+        g.value !== null && g.value !== undefined && g.value !== '' &&
+        (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+      ).length;
+
+      const studentClass = classes.find(c => c.id === student.class_id);
+      const isSpecialClass = studentClass?.is_special === true;
+
+      const isYearsComplete = isSpecialClass ? (yearsCompleted >= 1) : (yearsCompleted >= 4);
+      const isDisciplinesComplete = isSpecialClass ? true : (completedDisciplines >= 16);
+
+      if (!isYearsComplete && !isDisciplinesComplete) {
+        if (isSpecialClass) {
+          showToast('error', `Emissão de Diploma Bloqueada! O aluno em curso especial possui atualmente ${yearsCompleted}/1 ano de curso. O diploma especial exige no mínimo 1 ano de curso.`);
+        } else {
+          showToast('error', `Emissão de Diploma Bloqueada! O aluno possui atualmente ${yearsCompleted}/4 anos de curso e concluiu ${completedDisciplines}/16 disciplinas. O diploma exige no mínimo 4 anos de curso OU 16 disciplinas cumpridas.`);
+        }
+        return;
+      }
+    }
+
     const verificationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
     try {
@@ -744,6 +867,118 @@ export function Documents() {
     } catch (error) {
       console.error("Error deleting document:", error);
       showToast('error', 'Erro ao excluir o documento do servidor.');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCertIds.length === 0) {
+      showToast('error', 'Nenhum documento selecionado para exclusão.');
+      return;
+    }
+    
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+    
+    try {
+      for (const id of selectedCertIds) {
+        try {
+          await deleteData('certificates', id);
+          successCount++;
+        } catch (err) {
+          console.error(`Erro ao excluir documento ID ${id}:`, err);
+          failCount++;
+        }
+      }
+      
+      if (failCount === 0) {
+        showToast('success', `${successCount} documento(s) excluído(s) com sucesso.`);
+      } else {
+        showToast('error', `${successCount} excluído(s), ${failCount} falhou(aram).`);
+      }
+      
+      setSelectedCertIds([]);
+      setIsBulkMode(false);
+      setShowBulkConfirmModal(false);
+      fetchData();
+    } catch (error) {
+      console.error("Error running bulk delete:", error);
+      showToast('error', 'Houve um erro ao processar a exclusão em lote.');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleSelectAllFiltered = () => {
+    const filteredIds = filteredCertificates.map(c => c.id);
+    const allSelected = filteredIds.every(id => selectedCertIds.includes(id));
+    
+    if (allSelected) {
+      setSelectedCertIds(prev => prev.filter(id => !filteredIds.includes(id)));
+    } else {
+      setSelectedCertIds(prev => {
+        const union = [...prev];
+        filteredIds.forEach(id => {
+          if (!union.includes(id)) union.push(id);
+        });
+        return union;
+      });
+    }
+  };
+
+  const handleSelectTestCertificatesOnly = () => {
+    const isTest = (cert: Certificate) => {
+      const name = (cert.student_name || '').toLowerCase();
+      const course = (cert.course || '').toLowerCase();
+      const code = (cert.verification_code || '').toLowerCase();
+      return name.includes('teste') || name.includes('test') || name.includes('demo') || name.includes('dummy') || name.includes('modelo') ||
+             course.includes('teste') || course.includes('test') || course.includes('demo') ||
+             code.includes('teste') || code.includes('test');
+    };
+    
+    const testIds = filteredCertificates.filter(isTest).map(c => c.id);
+    setSelectedCertIds(testIds);
+    if (testIds.length === 0) {
+      showToast('error', 'Nenhum documento de teste ("teste", "test", "demo", etc.) encontrado entre os filtrados.');
+    } else {
+      showToast('success', `${testIds.length} documento(s) de teste selecionado(s).`);
+    }
+  };
+
+  const handleDirectCleanAllTests = async () => {
+    const isTest = (cert: Certificate) => {
+      const name = (cert.student_name || '').toLowerCase();
+      const course = (cert.course || '').toLowerCase();
+      const code = (cert.verification_code || '').toLowerCase();
+      return name.includes('teste') || name.includes('test') || name.includes('demo') || name.includes('dummy') || name.includes('modelo') ||
+             course.includes('teste') || course.includes('test') || course.includes('demo') ||
+             code.includes('teste') || code.includes('test');
+    };
+
+    const allTestCerts = certificates.filter(isTest);
+    if (allTestCerts.length === 0) {
+      showToast('error', 'Nenhum certificado ou diploma de teste ("teste", "test", etc.) encontrado no banco de dados.');
+      return;
+    }
+
+    if (!window.confirm(`ATENÇÃO: Deseja realmente excluir TODOS os ${allTestCerts.length} certificados e diplomas de teste encontrados no banco de dados? Esta ação não pode ser desfeita!`)) {
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    let count = 0;
+    try {
+      for (const cert of allTestCerts) {
+        await deleteData('certificates', cert.id);
+        count++;
+      }
+      showToast('success', `${count} registros de teste foram limpos e excluídos com sucesso!`);
+      fetchData();
+    } catch (e) {
+      console.error("Error doing auto clean:", e);
+      showToast('error', 'Erro durante a limpeza automática de testes.');
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -794,7 +1029,6 @@ export function Documents() {
           <button
             onClick={() => {
               setActiveTab('issue');
-              setSelectedClassId('');
             }}
             className={cn(
               "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
@@ -808,7 +1042,6 @@ export function Documents() {
           <button
             onClick={() => {
               setActiveTab('student_file');
-              setSelectedFichaStudentId('');
             }}
             className={cn(
               "px-5 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all",
@@ -1000,9 +1233,47 @@ export function Documents() {
           {/* TAB 2: REGISTER VIEW & PRINT */}
           {activeTab === 'list' && (
             <div className="space-y-6 print:hidden">
+              {/* Navigation Action Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white border border-slate-200 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setActiveTab('issue');
+                      // We don't clear the search query here, in case they want to remember who they searched,
+                      // but they can always clear it in the list. Wait, let's clear it when going back so they don't get stuck later.
+                      // Actually, let's keep it, or clear it. Let's keep it since we have a dedicated button to clear it, but let's clear it on going back unless they want to keep it.
+                      // Better to clear or not? Let's keep the query clear on return, so starting next search is fresh.
+                      setSearchQuery('');
+                    }}
+                    className="px-4 py-2.5 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all select-none shadow-sm"
+                  >
+                    <ArrowLeft size={14} />
+                    Voltar para Emissão (Lista de Alunos)
+                  </button>
+                </div>
+                
+                {searchQuery ? (
+                  <div className="flex items-center gap-2 text-xs bg-indigo-50/50 border border-indigo-150 px-3.5 py-2 text-indigo-800 font-medium">
+                    <Info size={14} className="text-indigo-600 shrink-0" />
+                    <span className="truncate">Filtrado por: <strong className="font-extrabold uppercase">{searchQuery}</strong></span>
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="ml-2 px-2 py-0.5 bg-white border border-indigo-250 hover:bg-indigo-50 text-[8.5px] font-black uppercase text-indigo-700 tracking-wider shadow-sm transition-all"
+                    >
+                      Limpar Filtro
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5 self-center">
+                    <Info size={13} className="text-slate-300" />
+                    Navegando no Acervo Histórico de Documentos
+                  </div>
+                )}
+              </div>
+
               {/* Filter Row */}
-              <div className="bg-white border border-slate-200 p-4 rounded-none flex items-center justify-between gap-4 shadow-sm flex-col md:flex-row">
-                <div className="relative w-full max-w-md">
+              <div className="bg-white border border-slate-200 p-4 rounded-none flex items-center justify-between gap-4 shadow-sm flex-col md:flex-row flex-wrap">
+                <div className="relative w-full max-w-sm">
                   <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
@@ -1013,70 +1284,184 @@ export function Documents() {
                   />
                 </div>
 
-                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold self-start md:self-auto">
-                  Total de Documentos no Acervo: <strong className="text-slate-850 font-extrabold">{filteredCertificates.length} de {certificates.length}</strong>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setIsBulkMode(!isBulkMode);
+                      setSelectedCertIds([]);
+                    }}
+                    className={cn(
+                      "px-3.5 py-2 border rounded-none text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all select-none",
+                      isBulkMode 
+                        ? "bg-amber-50 border-amber-300 text-amber-800"
+                        : "bg-white border-slate-250 text-slate-650 hover:bg-slate-50"
+                    )}
+                  >
+                    <CheckCircle2 size={13} />
+                    {isBulkMode ? "Sair do Lote" : "Gerenciar em Lote"}
+                  </button>
+
+                  <button
+                    onClick={handleDirectCleanAllTests}
+                    disabled={isBulkDeleting}
+                    className="px-3.5 py-2 border border-rose-250 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-none text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50 transition-all select-none"
+                    title="Excluir de forma direta do banco de dados registros que contêm 'teste', 'test', etc."
+                  >
+                    <Trash2 size={13} />
+                    {isBulkDeleting ? "Excluindo..." : "Limpar Todos de Teste"}
+                  </button>
+
+                  <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold ml-2">
+                    Total: <strong className="text-slate-850 font-extrabold">{filteredCertificates.length} de {certificates.length}</strong>
+                  </div>
                 </div>
               </div>
+
+              {/* Bulk operations panel (visible when isBulkMode is True) */}
+              {isBulkMode && (
+                <div className="bg-slate-50 border border-t-0 border-l-4 border-l-amber-500 border-slate-200 p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={handleSelectAllFiltered}
+                      className="px-3 py-1.5 bg-white border border-slate-250 text-slate-700 hover:bg-slate-50 text-[9.5px] font-bold uppercase tracking-wider rounded-none"
+                    >
+                      Selecionar Todos Filtrados ({filteredCertificates.length})
+                    </button>
+                    <button
+                      onClick={handleSelectTestCertificatesOnly}
+                      className="px-3 py-1.5 bg-white border border-slate-250 text-slate-700 hover:bg-slate-50 text-[9.5px] font-bold uppercase tracking-wider rounded-none"
+                    >
+                      Selecionar Apenas Registros de Teste
+                    </button>
+                    <button
+                      onClick={() => setSelectedCertIds([])}
+                      disabled={selectedCertIds.length === 0}
+                      className="px-3 py-1.5 bg-white border border-slate-250 text-slate-500 hover:bg-slate-50 text-[9.5px] font-bold uppercase tracking-wider rounded-none disabled:opacity-50"
+                    >
+                      Limpar Seleção
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">
+                      Selecionados: <strong className="text-slate-900 font-extrabold">{selectedCertIds.length}</strong>
+                    </span>
+                    <button
+                      onClick={() => setShowBulkConfirmModal(true)}
+                      disabled={selectedCertIds.length === 0 || isBulkDeleting}
+                      className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[9.5px] font-bold uppercase tracking-widest rounded-none disabled:opacity-50 tracking-wider shadow-sm flex items-center gap-1.5"
+                    >
+                      <Trash2 size={13} />
+                      Excluir Selecionados
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Grid cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredCertificates.length > 0 ? (
-                  filteredCertificates.map(cert => (
-                    <motion.div 
-                      layout
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      key={cert.id} 
-                      className="bg-white border border-slate-220 rounded-none shadow-sm hover:shadow-md transition-all group p-5 relative flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-2 mb-4">
-                          <span className={cn(
-                            "px-2.5 py-1 text-[8.5px] font-extrabold uppercase tracking-widest border shadow-none",
-                            cert.type === 'conclusão' ? "bg-slate-50 text-slate-700 border-slate-200" :
-                            cert.type === 'honra' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                            "bg-indigo-50 text-indigo-700 border-indigo-200"
-                          )}>
-                            {cert.type}
-                          </span>
+                  filteredCertificates.map(cert => {
+                    const isSelected = selectedCertIds.includes(cert.id);
+                    return (
+                      <motion.div 
+                        layout
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        key={cert.id} 
+                        className={cn(
+                          "bg-white border transition-all p-5 relative flex flex-col justify-between rounded-none shadow-sm hover:shadow-md select-none",
+                          isBulkMode ? "cursor-pointer" : "",
+                          isBulkMode && isSelected ? "border-amber-400 bg-amber-50/20 shadow-md ring-1 ring-amber-400" : "border-slate-220"
+                        )}
+                        onClick={() => {
+                          if (isBulkMode) {
+                            setSelectedCertIds(prev => 
+                              prev.includes(cert.id) 
+                                ? prev.filter(id => id !== cert.id) 
+                                : [...prev, cert.id]
+                            );
+                          }
+                        }}
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2 mb-4">
+                            <div className="flex items-center gap-2">
+                              {isBulkMode && (
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedCertIds(prev => 
+                                      prev.includes(cert.id) 
+                                        ? prev.filter(id => id !== cert.id) 
+                                        : [...prev, cert.id]
+                                    );
+                                  }}
+                                  className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-slate-300 rounded-none cursor-pointer"
+                                />
+                              )}
+                              <span className={cn(
+                                "px-2.5 py-1 text-[8.5px] font-extrabold uppercase tracking-widest border shadow-none",
+                                cert.type === 'conclusão' ? "bg-slate-50 text-slate-700 border-slate-200" :
+                                cert.type === 'honra' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                "bg-indigo-50 text-indigo-700 border-indigo-200"
+                              )}>
+                                {cert.type}
+                              </span>
+                            </div>
 
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => setViewingCertificate(cert)}
-                              className="p-1.5 text-slate-405 hover:text-slate-900 border border-slate-200 hover:border-slate-400 rounded-none bg-white shadow-sm flex items-center justify-center"
-                              title="Visualizar e Imprimir"
-                            >
-                              <Printer size={13} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(cert.id, cert.student_name || 'Estudante')}
-                              className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-none bg-white shadow-sm flex items-center justify-center ml-0.5"
-                              title="Cancelar/Excluir"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            {!isBulkMode ? (
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewingCertificate(cert);
+                                  }}
+                                  className="p-1.5 text-slate-405 hover:text-slate-900 border border-slate-200 hover:border-slate-400 rounded-none bg-white shadow-sm flex items-center justify-center"
+                                  title="Visualizar e Imprimir"
+                                >
+                                  <Printer size={13} />
+                                </button>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(cert.id, cert.student_name || 'Estudante');
+                                  }}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-none bg-white shadow-sm flex items-center justify-center ml-0.5"
+                                  title="Cancelar/Excluir"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white rounded-none font-bold uppercase tracking-wider text-[8px]">
+                                {isSelected ? 'Selecionado' : 'Clique p/ selecionar'}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-extrabold text-slate-850 uppercase tracking-tight line-clamp-2">
+                              {cert.student_name}
+                            </h4>
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Curso / Programa</p>
+                              <p className="text-xs text-slate-700 font-medium">{cert.course}</p>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-extrabold text-slate-850 uppercase tracking-tight line-clamp-2">
-                            {cert.student_name}
-                          </h4>
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Curso / Programa</p>
-                            <p className="text-xs text-slate-700 font-medium">{cert.course}</p>
+                        <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-[11px] font-medium text-slate-400">
+                          <div className="flex items-center gap-1.5 font-bold">
+                            <Calendar size={12} className="text-slate-350" />
+                            <span>{new Date(cert.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-[11px] font-medium text-slate-400">
-                        <div className="flex items-center gap-1.5 font-bold">
-                          <Calendar size={12} className="text-slate-350" />
-                          <span>{new Date(cert.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))
+                      </motion.div>
+                    );
+                  })
                 ) : (
                   <div className="col-span-full py-16 text-center bg-white border border-slate-200 rounded-none space-y-4">
                     <div className="w-16 h-16 bg-slate-50 text-slate-300 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
@@ -1400,7 +1785,7 @@ export function Documents() {
                 </h3>
               </div>
 
-              <form onSubmit={handleIssueSubmit} className="p-6 space-y-4">
+              <form onSubmit={handleIssueSubmit} className="p-6 space-y-4 font-sans">
                 {issuingStudentData && (
                   <div className="bg-emerald-50 border border-emerald-250 p-4 rounded-none space-y-1.5 text-slate-800 text-[11px] font-medium leading-normal">
                     <h5 className="font-bold text-emerald-805 text-xs text-slate-900 uppercase">Estudante Validado e Elegível:</h5>
@@ -1409,6 +1794,85 @@ export function Documents() {
                     <p>Frequência: <strong className="font-extrabold">{Math.round(issuingStudentData.presencePercentage)}% ({issuingStudentData.absences} faltas)</strong></p>
                   </div>
                 )}
+
+                {/* Requisitions Validation Alert */}
+                {(() => {
+                  const currentStudId = formData.student_id || (issuingStudentData?.student.id);
+                  const currentStud = students.find(s => s.id === currentStudId);
+                  if (!currentStud) return null;
+
+                  const foundCs = calculatedClassStudents.find(c => c.student.id === currentStud.id) || issuingStudentData;
+                  const fStatus = foundCs ? foundCs.finalStatus : 'Aprovado';
+
+                  let yearsCompleted = 0;
+                  if (currentStud.start_date) {
+                    let startYearStr = '';
+                    if (currentStud.start_date.includes('/')) {
+                      startYearStr = currentStud.start_date.split('/').pop() || '';
+                    } else if (currentStud.start_date.includes('-')) {
+                      startYearStr = currentStud.start_date.split('-')[0] || '';
+                    }
+                    const startYear = parseInt(startYearStr, 10);
+                    const issuanceYear = new Date(formData.issuance_date).getFullYear();
+                    if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+                      yearsCompleted = issuanceYear - startYear;
+                    }
+                  }
+
+                  const completedDisciplines = dbGrades.filter(g => 
+                    g.student_id === currentStud.id && 
+                    g.period === 'Resultado Final' && 
+                    g.value !== null && g.value !== undefined && g.value !== '' &&
+                    (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+                  ).length;
+
+                  const studentClass = classes.find(c => c.id === currentStud.class_id);
+                  const isSpecialClass = studentClass?.is_special === true;
+                  const diplomaRequirementsMet = isSpecialClass 
+                    ? yearsCompleted >= 1 
+                    : (yearsCompleted >= 4 || completedDisciplines >= 16);
+                  
+                  if (fStatus !== 'Aprovado') {
+                    return (
+                      <div className="bg-rose-50 border border-rose-300 p-4 rounded-none space-y-1 text-rose-800 text-[10.5px] font-medium leading-normal">
+                        <h5 className="font-bold text-rose-805 text-xs uppercase flex items-center gap-1">
+                          <AlertCircle size={14} /> IMPEDIMENTO DETECTADO
+                        </h5>
+                        <p>Este aluno está atualmente com o status de <strong>"{fStatus}"</strong>.</p>
+                        <p className="font-bold">Para emissão de qualquer documento, o estudante deve estar "Aprovado" cumprindo a média e presença mínimas.</p>
+                      </div>
+                    );
+                  }
+
+                  if (formData.type === 'honra' && !diplomaRequirementsMet) {
+                    return (
+                      <div className="bg-amber-50 border border-amber-300 p-4 rounded-none space-y-1.5 text-amber-800 text-[10.5px] font-medium leading-normal">
+                        <h5 className="font-bold text-amber-805 text-xs uppercase flex items-center gap-1">
+                          <AlertCircle size={14} /> REPOSITÓRIO: DIPLOMA PENDENTE
+                        </h5>
+                        {isSpecialClass ? (
+                          <>
+                            <p>O Diploma Especial exige a seguinte condição:</p>
+                            <ul className="list-disc pl-4 space-y-0.5">
+                              <li><strong>Tempo mínimo de 1 Ano Letivo</strong> (Concluído: <span className="underline">{yearsCompleted} de 1 ano</span>)</li>
+                            </ul>
+                          </>
+                        ) : (
+                          <>
+                            <p>O Diploma exige pelo menos uma das condições:</p>
+                            <ul className="list-disc pl-4 space-y-0.5">
+                              <li><strong>Tempo mínimo de 4 Anos</strong> (Concluído: <span className="underline">{yearsCompleted} de 4 anos</span>)</li>
+                              <li><strong>Mínimo de 16 disciplinas cumpridas</strong> (Concluiu: <span className="underline">{completedDisciplines} de 16 disciplinas</span>)</li>
+                            </ul>
+                          </>
+                        )}
+                        <p className="text-[9.5px] text-amber-700 font-bold mt-1">O botão de emissão está bloqueado para este aluno.</p>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
 
                 <div className="space-y-4">
                   {/* Read-only selection */}
@@ -1490,7 +1954,52 @@ export function Documents() {
                   </button>
                   <button 
                     type="submit"
-                    className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 text-white border border-slate-905 text-[10px] font-bold uppercase tracking-widest rounded-none text-center"
+                    disabled={(() => {
+                      const currentStudId = formData.student_id || (issuingStudentData?.student.id);
+                      if (!currentStudId) return true;
+                      const currentStud = students.find(s => s.id === currentStudId);
+                      if (!currentStud) return true;
+
+                      const foundCs = calculatedClassStudents.find(c => c.student.id === currentStud.id) || issuingStudentData;
+                      const fStatus = foundCs ? foundCs.finalStatus : 'Aprovado';
+
+                      if (fStatus !== 'Aprovado') return true;
+
+                      if (formData.type === 'honra') {
+                        let yearsCompleted = 0;
+                        if (currentStud.start_date) {
+                          let startYearStr = '';
+                          if (currentStud.start_date.includes('/')) {
+                            startYearStr = currentStud.start_date.split('/').pop() || '';
+                          } else if (currentStud.start_date.includes('-')) {
+                            startYearStr = currentStud.start_date.split('-')[0] || '';
+                          }
+                          const startYear = parseInt(startYearStr, 10);
+                          const issuanceYear = new Date(formData.issuance_date).getFullYear();
+                          if (!isNaN(startYear) && !isNaN(issuanceYear)) {
+                            yearsCompleted = issuanceYear - startYear;
+                          }
+                        }
+
+                        const studentClass = classes.find(c => c.id === currentStud.class_id);
+                        const isSpecialClass = studentClass?.is_special === true;
+
+                        if (isSpecialClass) {
+                          return yearsCompleted < 1;
+                        }
+
+                        const completedDisciplines = dbGrades.filter(g => 
+                          g.student_id === currentStud.id && 
+                          g.period === 'Resultado Final' && 
+                          g.value !== null && g.value !== undefined && g.value !== '' &&
+                          (typeof g.value === 'string' ? parseFloat(g.value.replace(',', '.')) : g.value) >= (academicParams.approval_grade || 7.0)
+                        ).length;
+
+                        return yearsCompleted < 4 && completedDisciplines < 16;
+                      }
+                      return false;
+                    })()}
+                    className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-850 text-white border border-slate-905 text-[10px] font-bold uppercase tracking-widest rounded-none text-center disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Emitir & Registrar
                   </button>
@@ -1649,6 +2158,77 @@ export function Documents() {
              }
           }
         `}} />
+      )}
+
+       {/* BULK CONFIRM MODAL */}
+      {showBulkConfirmModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white max-w-md w-full border border-slate-350 shadow-2xl p-6 rounded-none space-y-4"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center rounded-none flex-shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-black text-slate-850 uppercase tracking-tight">Confirmar Exclusão em Lote</h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Você está prestes a excluir definitivamente <strong className="text-rose-600 font-extrabold">{selectedCertIds.length} documento(s)</strong> do acervo. Esta ação é definitiva e não poderá ser desfeita.
+                </p>
+              </div>
+            </div>
+
+            {/* List of Student Names to be deleted (up to 5 names for glance) */}
+            <div className="bg-slate-50 border border-slate-205 p-3 rounded-none">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Amostra de documentos selecionados:</p>
+              <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
+                {selectedCertIds.slice(0, 5).map(id => {
+                  const cert = certificates.find(c => c.id === id);
+                  return (
+                    <div key={id} className="text-[10.5px] font-bold text-slate-700 uppercase flex items-center justify-between">
+                      <span className="truncate">{cert?.student_name || 'Desconhecido'}</span>
+                      <span className="text-[8px] text-slate-400 font-mono ml-2 shrink-0">{cert?.type}</span>
+                    </div>
+                  );
+                })}
+                {selectedCertIds.length > 5 && (
+                  <p className="text-[9px] text-slate-400 font-bold italic mt-1">E mais {selectedCertIds.length - 5} documento(s)...</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkConfirmModal(false)}
+                disabled={isBulkDeleting}
+                className="px-4 py-2 border border-slate-250 hover:bg-slate-50 text-[10px] font-bold uppercase tracking-wider rounded-none text-slate-650"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-none flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={13} />
+                    Confirmar Exclusão
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {/* PORTAL FOR DECOUPLING PRINT VIEW TO BODY ROOT LEVEL */}

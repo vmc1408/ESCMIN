@@ -31,19 +31,28 @@ export const financialService = {
         });
       }
       return [];
-    } catch (e) {
+    } catch (e: any) {
+      console.warn('[financialService] Primeira tentativa de getPixReconciliation falhou:', e.message || e);
       if (isSupabaseConfigured) {
-        // Fallback fallback simple select
-        const { data, error } = await supabase
-          .from('pix_reconciliations')
-          .select(`
-            *,
-            student:students(name)
-          `)
-          .order('created_at', { ascending: false });
+        try {
+          // Fallback fallback simple select
+          const { data, error } = await supabase
+            .from('pix_reconciliations')
+            .select(`
+              *,
+              student:students(name)
+            `)
+            .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        return data;
+          if (error) {
+            console.warn('[financialService] Fallback de getPixReconciliation falhou:', error.message);
+            return [];
+          }
+          return data || [];
+        } catch (innerErr: any) {
+          console.warn('[financialService] Fatal ao tentar fallback de getPixReconciliation:', innerErr.message || innerErr);
+          return [];
+        }
       }
       return [];
     }
@@ -62,18 +71,27 @@ export const financialService = {
         });
       }
       return [];
-    } catch (e) {
+    } catch (e: any) {
+      console.warn('[financialService] Primeira tentativa de getContributions falhou:', e.message || e);
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase
-          .from('contributions')
-          .select(`
-            *,
-            student:students(name, registration_number)
-          `)
-          .order('payment_date', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('contributions')
+            .select(`
+              *,
+              student:students(name, registration_number)
+            `)
+            .order('payment_date', { ascending: false });
 
-        if (error) throw error;
-        return data;
+          if (error) {
+            console.warn('[financialService] Fallback de getContributions falhou:', error.message);
+            return [];
+          }
+          return data || [];
+        } catch (innerErr: any) {
+          console.warn('[financialService] Fatal ao tentar fallback de getContributions:', innerErr.message || innerErr);
+          return [];
+        }
       }
       return [];
     }
@@ -100,7 +118,7 @@ export const financialService = {
       }
       return data;
     } catch (err: any) {
-      if (err.message?.includes('fetch') || err.message?.includes('TIMEOUT')) {
+      if (err.message?.includes('fetch') || err.message?.includes('TIMEOUT') || err.message?.includes('NetworkError')) {
         console.warn('[Supabase] Problema de conexão ao buscar instituição. Retornando null.');
         return null;
       }
@@ -123,15 +141,24 @@ export const financialService = {
         return data ? data.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0) : 0;
       }
       return 0;
-    } catch (e) {
+    } catch (e: any) {
+      console.warn('[financialService] Primeira tentativa de getMonthlyRevenue falhou:', e.message || e);
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase
-          .from('contributions')
-          .select('amount')
-          .order('payment_date', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('contributions')
+            .select('amount')
+            .order('payment_date', { ascending: false });
 
-        if (error) throw error;
-        return data ? data.reduce((acc, curr) => acc + Number(curr.amount), 0) : 0;
+          if (error) {
+            console.warn('[financialService] Fallback de getMonthlyRevenue falhou:', error.message);
+            return 0;
+          }
+          return data ? data.reduce((acc, curr) => acc + Number(curr.amount), 0) : 0;
+        } catch (innerErr: any) {
+          console.warn('[financialService] Fatal ao tentar fallback de getMonthlyRevenue:', innerErr.message || innerErr);
+          return 0;
+        }
       }
       return 0;
     }

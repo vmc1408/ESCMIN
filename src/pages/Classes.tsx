@@ -40,6 +40,7 @@ interface Class {
   start_date?: string;
   period: 'Manhã' | 'Tarde' | 'Noite';
   observations?: string;
+  is_special?: boolean;
   created_at: string;
   user_id: string;
 }
@@ -116,6 +117,16 @@ const ClassItem = React.memo(({
             "text-sm font-bold truncate tracking-tight uppercase",
             isSelected ? "text-white" : "text-slate-900"
           )}>{cls.name}</p>
+          {(cls as any).is_special && (
+            <span className={cn(
+              "px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase rounded-none leading-none tracking-normal border flex-shrink-0",
+              isSelected 
+                ? "bg-amber-500/20 text-amber-200 border-amber-500/35" 
+                : "bg-amber-55 text-amber-600 border-amber-200"
+            )}>
+              Especial
+            </span>
+          )}
         </div>
         <div className={cn(
           "flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-bold uppercase tracking-[0.15em] mt-1 pr-2",
@@ -209,7 +220,8 @@ export function Classes() {
           sIds = [(normalized as any).subject_id];
         }
 
-        if ((!normalized.year || !normalized.semester || sIds.length === 0) && normalized.observations) {
+        let isSpecial = false;
+        if (normalized.observations) {
           const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
           if (match && match[1]) {
             try {
@@ -219,9 +231,11 @@ export function Classes() {
               if (sIds.length === 0 && (meta.subject_ids || meta.subject_id)) {
                 sIds = meta.subject_ids || [meta.subject_id];
               }
+              isSpecial = !!meta.is_special;
             } catch (e) {}
           }
         }
+        (normalized as any).is_special = isSpecial;
         normalized.subject_ids = sIds;
         return normalized;
       });
@@ -347,7 +361,8 @@ export function Classes() {
       year: '1º Ano',
       start_date: '',
       semester: '1º Semestre',
-      subject_ids: []
+      subject_ids: [],
+      is_special: false
     });
     setIsEditing(true);
     setHoverShowList(false);
@@ -373,12 +388,13 @@ export function Classes() {
       };
 
       // PROACTIVE METADATA SYNC:
-      // Always sync year, semester and subject_ids into observations metadata 
+      // Always sync year, semester, subject_ids and is_special into observations metadata 
       // before saving. This ensures data persistence even if Supabase columns are missing.
       const metadata: any = {};
       if (formData.year) metadata.year = formData.year;
       if (formData.semester) metadata.semester = formData.semester;
       if (formData.subject_ids) metadata.subject_ids = formData.subject_ids;
+      if (formData.is_special !== undefined) metadata.is_special = formData.is_special;
       
       if (Object.keys(metadata).length > 0) {
         const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
@@ -951,6 +967,39 @@ export function Classes() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Regime do Curso / Turma Especial Option */}
+                    <div className="col-span-12 pt-4">
+                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1 block mb-3">Características Acadêmicas</label>
+                      <button
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => setFormData({ ...formData, is_special: !formData.is_special })}
+                        className={cn(
+                          "w-full p-4 border rounded-none text-left flex items-start gap-4 transition-all shadow-sm outline-none",
+                          formData.is_special
+                            ? "bg-amber-50/50 border-amber-300 text-amber-900"
+                            : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-5 h-5 border mt-0.5 rounded-none flex items-center justify-center flex-shrink-0 transition-all",
+                          formData.is_special
+                            ? "bg-amber-600 border-amber-600 text-white"
+                            : "border-slate-300 bg-white"
+                        )}>
+                          {formData.is_special && <CheckCircle2 size={13} className="stroke-[3px]" />}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Turma Especial (Ex: Doutrina Social - Curta Duração)</p>
+                          <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+                            Marque esta opção para cursos estruturados em curta duração (como 1 ou 2 anos). 
+                            Isso autoriza a emissão excepcional de <strong>Diploma de Conclusão / Honra</strong> ao completar apenas <strong>1 ano letivo</strong> de curso, dispensando a exigência padrão de 4 anos aplicável a turmas regulares.
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+
                   </div>
                 </section>
 

@@ -1782,185 +1782,188 @@ export function AcademicCalendar() {
   return (
     <>
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 no-print">
-        {/* Row 1: Title and Action Buttons */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Calendar className="text-slate-800" size={20} />
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cronograma Acadêmico</h1>
-            </div>
-            <p className="text-slate-500 text-xs font-medium">Gestão de ciclos letivos e atividades escolares.</p>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <button 
-              onClick={() => setShowPrintOptions(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-none text-[9px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all active:scale-95 border border-slate-200 h-[36px]"
-            >
-              <Printer size={14} />
-              Imprimir Relatórios
-            </button>
-
-            {(isAdmin || isDirector) && (
-              <div className="flex items-center gap-2 animate-in fade-in duration-200">
-                <button 
-                  onClick={() => {
-                    setSelectedEvent(null);
-                    setFormData({
-                      title: '',
-                      description: '',
-                      start_date: '',
-                      end_date: '',
-                      type: 'event',
-                      class_id: '',
-                      subject_id: ''
-                    });
-                    setIsEditing(true);
-                  }}
-                  className="h-[36px] px-4 flex items-center gap-2 bg-slate-800 text-white hover:bg-slate-900 transition-all rounded-none text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm"
-                  title="Novo Registro"
-                >
-                  <Plus size={14} />
-                  Novo Registro
-                </button>
-                <button 
-                  onClick={() => setShowSettings(true)}
-                  className="h-[36px] w-[36px] flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-200 shadow-xs active:scale-95"
-                  title="Ajuste do Calendário Anual"
-                >
-                  <Settings size={14} />
-                </button>
+        {/* Sticky Header Wrapper */}
+        <div className="sticky top-[-8px] md:top-[-16px] z-20 bg-slate-50/95 backdrop-blur-md pt-2 pb-5 border-b border-slate-200/80 -mx-4 px-4 space-y-4">
+          {/* Row 1: Title and Action Buttons */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-1">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Calendar className="text-slate-800" size={20} />
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cronograma Acadêmico</h1>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Row 2: Status Panels on Left and View selectors + Navigation on Right */}
-        {viewMode !== 'management' && (
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 animate-in fade-in duration-300">
-            {/* Status Panels (Quarta / Quinta) */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Painel de Aulas Quarta */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Quarta</span>
-                <div className="w-px h-3.5 bg-slate-200" />
-                <div className="flex items-baseline gap-1 bg-slate-50 px-1.5 py-0.5 border border-slate-100">
-                  {(() => {
-                    const count = getEventCount('class_day', 3);
-                    const days = typeof count === 'object' ? count.days : 0;
-                    return <span className="text-[11px] font-extrabold text-slate-800 leading-none">{days}</span>;
-                  })()}
-                  <span className="text-[8px] font-semibold text-blue-500 uppercase tracking-tighter">Aulas</span>
-                </div>
-                <div className="w-px h-3.5 bg-slate-200" />
-                {(() => {
-                  const progress = getClassProgress(3);
-                  return (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-extrabold text-orange-600 leading-none">-{progress.remaining}</span>
-                      <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Restam</span>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Purple vertical divider between panels */}
-              <div className="hidden sm:block w-[1.5px] h-[34px] bg-purple-500 mx-1" />
-
-              {/* Painel de Aulas Quinta */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Quinta</span>
-                <div className="w-px h-3.5 bg-slate-200" />
-                <div className="flex items-baseline gap-1 bg-slate-50 px-1.5 py-0.5 border border-slate-100">
-                  {(() => {
-                    const count = getEventCount('class_day', 4);
-                    const days = typeof count === 'object' ? count.days : 0;
-                    return <span className="text-[11px] font-extrabold text-slate-800 leading-none">{days}</span>;
-                  })()}
-                  <span className="text-[8px] font-semibold text-indigo-500 uppercase tracking-tighter">Aulas</span>
-                </div>
-                <div className="w-px h-3.5 bg-slate-200" />
-                {(() => {
-                  const progress = getClassProgress(4);
-                  return (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-extrabold text-orange-600 leading-none">-{progress.remaining}</span>
-                      <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Restam</span>
-                    </div>
-                  );
-                })()}
-              </div>
+              <p className="text-slate-500 text-xs font-medium">Gestão de ciclos letivos e atividades escolares.</p>
             </div>
 
-            {/* View Mode Selectors and Date Navigation */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Navegação de Data Dinâmica */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 shadow-sm w-fit animate-in fade-in zoom-in-95 duration-200">
-                <button 
-                  onClick={viewMode === 'month' ? prevMonth : prevYear}
-                  className="p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                
-                <div className="px-4 min-w-[110px] text-center border-x border-slate-100 font-sans">
-                  <span className="text-[11px] font-bold text-slate-800 uppercase tracking-[0.08em] select-none">
-                    {viewMode === 'month' 
-                      ? currentDate.toLocaleDateString('pt-BR', { month: 'long' }).replace('.', '')
-                      : currentDate.getFullYear()
-                    }
-                  </span>
-                  {viewMode === 'month' && (
-                    <span className="text-[9px] font-bold text-slate-400 ml-1.5 select-none animate-in fade-in duration-300">
-                      {currentDate.getFullYear()}
+            <div className="flex items-center gap-2.5">
+              <button 
+                onClick={() => setShowPrintOptions(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-none text-[9px] font-bold uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all active:scale-95 border border-slate-200 h-[36px]"
+              >
+                <Printer size={14} />
+                Imprimir Relatórios
+              </button>
+
+              {(isAdmin || isDirector) && (
+                <div className="flex items-center gap-2 animate-in fade-in duration-200">
+                  <button 
+                    onClick={() => {
+                      setSelectedEvent(null);
+                      setFormData({
+                        title: '',
+                        description: '',
+                        start_date: '',
+                        end_date: '',
+                        type: 'event',
+                        class_id: '',
+                        subject_id: ''
+                      });
+                      setIsEditing(true);
+                    }}
+                    className="h-[36px] px-4 flex items-center gap-2 bg-slate-800 text-white hover:bg-slate-900 transition-all rounded-none text-[9px] font-bold uppercase tracking-widest active:scale-95 shadow-sm"
+                    title="Novo Registro"
+                  >
+                    <Plus size={14} />
+                    Novo Registro
+                  </button>
+                  <button 
+                    onClick={() => setShowSettings(true)}
+                    className="h-[36px] w-[36px] flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all rounded-none border border-slate-200 shadow-xs active:scale-95"
+                    title="Ajuste do Calendário Anual"
+                  >
+                    <Settings size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2: Status Panels on Left and View selectors + Navigation on Right */}
+          {viewMode !== 'management' && (
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 animate-in fade-in duration-300">
+              {/* Status Panels (Quarta / Quinta) */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Painel de Aulas Quarta */}
+                <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Quarta</span>
+                  <div className="w-px h-3.5 bg-slate-200" />
+                  <div className="flex items-baseline gap-1 bg-slate-50 px-1.5 py-0.5 border border-slate-100">
+                    {(() => {
+                      const count = getEventCount('class_day', 3);
+                      const days = typeof count === 'object' ? count.days : 0;
+                      return <span className="text-[11px] font-extrabold text-slate-800 leading-none">{days}</span>;
+                    })()}
+                    <span className="text-[8px] font-semibold text-blue-500 uppercase tracking-tighter">Aulas</span>
+                  </div>
+                  <div className="w-px h-3.5 bg-slate-200" />
+                  {(() => {
+                    const progress = getClassProgress(3);
+                    return (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-extrabold text-orange-600 leading-none">-{progress.remaining}</span>
+                        <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Restam</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Purple vertical divider between panels */}
+                <div className="hidden sm:block w-[1.5px] h-[34px] bg-purple-500 mx-1" />
+
+                {/* Painel de Aulas Quinta */}
+                <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 px-3 shadow-sm w-fit h-[36px] gap-2.5 font-sans">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Quinta</span>
+                  <div className="w-px h-3.5 bg-slate-200" />
+                  <div className="flex items-baseline gap-1 bg-slate-50 px-1.5 py-0.5 border border-slate-100">
+                    {(() => {
+                      const count = getEventCount('class_day', 4);
+                      const days = typeof count === 'object' ? count.days : 0;
+                      return <span className="text-[11px] font-extrabold text-slate-800 leading-none">{days}</span>;
+                    })()}
+                    <span className="text-[8px] font-semibold text-indigo-500 uppercase tracking-tighter">Aulas</span>
+                  </div>
+                  <div className="w-px h-3.5 bg-slate-200" />
+                  {(() => {
+                    const progress = getClassProgress(4);
+                    return (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-extrabold text-orange-600 leading-none">-{progress.remaining}</span>
+                        <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Restam</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* View Mode Selectors and Date Navigation */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Navegação de Data Dinâmica */}
+                <div className="flex items-center bg-white border border-slate-200 rounded-none p-1 shadow-sm w-fit animate-in fade-in zoom-in-95 duration-200">
+                  <button 
+                    onClick={viewMode === 'month' ? prevMonth : prevYear}
+                    className="p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  
+                  <div className="px-4 min-w-[110px] text-center border-x border-slate-100 font-sans">
+                    <span className="text-[11px] font-bold text-slate-800 uppercase tracking-[0.08em] select-none">
+                      {viewMode === 'month' 
+                        ? currentDate.toLocaleDateString('pt-BR', { month: 'long' }).replace('.', '')
+                        : currentDate.getFullYear()
+                      }
                     </span>
-                  )}
+                    {viewMode === 'month' && (
+                      <span className="text-[9px] font-bold text-slate-400 ml-1.5 select-none animate-in fade-in duration-300">
+                        {currentDate.getFullYear()}
+                      </span>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={viewMode === 'month' ? nextMonth : nextYear}
+                    className="p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
 
-                <button 
-                  onClick={viewMode === 'month' ? nextMonth : nextYear}
-                  className="p-1.5 hover:bg-slate-50 rounded-none transition-all text-slate-400 hover:text-slate-800 active:scale-90"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+                {/* Divisor Visual Roxo */}
+                <div className="hidden sm:block w-[1.5px] h-[34px] bg-purple-500 mx-0.5" />
 
-              {/* Divisor Visual Roxo */}
-              <div className="hidden sm:block w-[1.5px] h-[34px] bg-purple-500 mx-0.5" />
-
-              {/* Seletor de Visão */}
-              <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200/50 shadow-inner w-fit">
-                <button 
-                  onClick={() => setViewMode('month')}
-                  className={cn(
-                    "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
-                    viewMode === 'month' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-755"
-                  )}
-                >
-                  Mês
-                </button>
-                <button 
-                  onClick={() => setViewMode('year')}
-                  className={cn(
-                    "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
-                    viewMode === 'year' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-755"
-                  )}
-                >
-                  Ano
-                </button>
-                <button 
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
-                    viewMode === 'list' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-755"
-                  )}
-                >
-                  Lista
-                </button>
+                {/* Seletor de Visão */}
+                <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200/50 shadow-inner w-fit">
+                  <button 
+                    onClick={() => setViewMode('month')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
+                      viewMode === 'month' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-755"
+                    )}
+                  >
+                    Mês
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('year')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
+                      viewMode === 'year' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-755"
+                    )}
+                  >
+                    Ano
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('list')}
+                    className={cn(
+                      "px-3 py-1.5 rounded-none text-[9px] font-bold uppercase tracking-widest transition-all",
+                      viewMode === 'list' ? "bg-white text-slate-800 shadow-xs border border-slate-100" : "text-slate-500 hover:text-slate-755"
+                    )}
+                  >
+                    Lista
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
 
 
@@ -4093,7 +4096,7 @@ export function AcademicCalendar() {
               </div>
 
               {/* Botões do Rodapé */}
-              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-150 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
                 <div>
                   <button 
                     onClick={() => {
@@ -4102,8 +4105,9 @@ export function AcademicCalendar() {
                         setSearchParams({ view: 'month' });
                       }
                     }}
-                    className="px-4 py-1.5 text-slate-500 hover:text-slate-700 text-[10px] font-bold uppercase tracking-wider"
+                    className="px-5 py-2.5 bg-white border border-slate-350 hover:bg-slate-100 text-slate-700 hover:text-slate-900 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                   >
+                    <X size={13} className="text-slate-500" />
                     Fechar Ajustes
                   </button>
                 </div>

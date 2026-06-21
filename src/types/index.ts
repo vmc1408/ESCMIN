@@ -98,6 +98,7 @@ export interface Class {
   subject_ids?: string[];
   start_date?: string;
   observations?: string;
+  is_special?: boolean;
   user_id: string;
   created_at: string;
 }
