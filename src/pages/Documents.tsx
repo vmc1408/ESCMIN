@@ -387,11 +387,6 @@ export function Documents() {
   const [certScale, setCertScale] = useState(1);
   const certWrapperRef = React.useRef<HTMLDivElement>(null);
 
-  const [isBulkMode, setIsBulkMode] = useState(false);
-  const [selectedCertIds, setSelectedCertIds] = useState<string[]>([]);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
-
   useEffect(() => {
     if (!viewingCertificate) return;
     const handleResize = () => {
@@ -870,118 +865,6 @@ export function Documents() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedCertIds.length === 0) {
-      showToast('error', 'Nenhum documento selecionado para exclusão.');
-      return;
-    }
-    
-    setIsBulkDeleting(true);
-    let successCount = 0;
-    let failCount = 0;
-    
-    try {
-      for (const id of selectedCertIds) {
-        try {
-          await deleteData('certificates', id);
-          successCount++;
-        } catch (err) {
-          console.error(`Erro ao excluir documento ID ${id}:`, err);
-          failCount++;
-        }
-      }
-      
-      if (failCount === 0) {
-        showToast('success', `${successCount} documento(s) excluído(s) com sucesso.`);
-      } else {
-        showToast('error', `${successCount} excluído(s), ${failCount} falhou(aram).`);
-      }
-      
-      setSelectedCertIds([]);
-      setIsBulkMode(false);
-      setShowBulkConfirmModal(false);
-      fetchData();
-    } catch (error) {
-      console.error("Error running bulk delete:", error);
-      showToast('error', 'Houve um erro ao processar a exclusão em lote.');
-    } finally {
-      setIsBulkDeleting(false);
-    }
-  };
-
-  const handleSelectAllFiltered = () => {
-    const filteredIds = filteredCertificates.map(c => c.id);
-    const allSelected = filteredIds.every(id => selectedCertIds.includes(id));
-    
-    if (allSelected) {
-      setSelectedCertIds(prev => prev.filter(id => !filteredIds.includes(id)));
-    } else {
-      setSelectedCertIds(prev => {
-        const union = [...prev];
-        filteredIds.forEach(id => {
-          if (!union.includes(id)) union.push(id);
-        });
-        return union;
-      });
-    }
-  };
-
-  const handleSelectTestCertificatesOnly = () => {
-    const isTest = (cert: Certificate) => {
-      const name = (cert.student_name || '').toLowerCase();
-      const course = (cert.course || '').toLowerCase();
-      const code = (cert.verification_code || '').toLowerCase();
-      return name.includes('teste') || name.includes('test') || name.includes('demo') || name.includes('dummy') || name.includes('modelo') ||
-             course.includes('teste') || course.includes('test') || course.includes('demo') ||
-             code.includes('teste') || code.includes('test');
-    };
-    
-    const testIds = filteredCertificates.filter(isTest).map(c => c.id);
-    setSelectedCertIds(testIds);
-    if (testIds.length === 0) {
-      showToast('error', 'Nenhum documento de teste ("teste", "test", "demo", etc.) encontrado entre os filtrados.');
-    } else {
-      showToast('success', `${testIds.length} documento(s) de teste selecionado(s).`);
-    }
-  };
-
-  const handleDirectCleanAllTests = async () => {
-    const isTest = (cert: Certificate) => {
-      const name = (cert.student_name || '').toLowerCase();
-      const course = (cert.course || '').toLowerCase();
-      const code = (cert.verification_code || '').toLowerCase();
-      return name.includes('teste') || name.includes('test') || name.includes('demo') || name.includes('dummy') || name.includes('modelo') ||
-             course.includes('teste') || course.includes('test') || course.includes('demo') ||
-             code.includes('teste') || code.includes('test');
-    };
-
-    const allTestCerts = certificates.filter(isTest);
-    if (allTestCerts.length === 0) {
-      showToast('error', 'Nenhum certificado ou diploma de teste ("teste", "test", etc.) encontrado no banco de dados.');
-      return;
-    }
-
-    if (!window.confirm(`ATENÇÃO: Deseja realmente excluir TODOS os ${allTestCerts.length} certificados e diplomas de teste encontrados no banco de dados? Esta ação não pode ser desfeita!`)) {
-      return;
-    }
-
-    setIsBulkDeleting(true);
-    let count = 0;
-    try {
-      for (const cert of allTestCerts) {
-        await deleteData('certificates', cert.id);
-        count++;
-      }
-      showToast('success', `${count} registros de teste foram limpos e excluídos com sucesso!`);
-      fetchData();
-    } catch (e) {
-      console.error("Error doing auto clean:", e);
-      showToast('error', 'Erro durante a limpeza automática de testes.');
-    } finally {
-      setIsBulkDeleting(false);
-    }
-  };
-
   const printCertificate = () => {
     try {
       window.print();
@@ -1272,7 +1155,7 @@ export function Documents() {
               </div>
 
               {/* Filter Row */}
-              <div className="bg-white border border-slate-200 p-4 rounded-none flex items-center justify-between gap-4 shadow-sm flex-col md:flex-row flex-wrap">
+              <div className="bg-white border border-slate-200 p-4 rounded-none flex items-center justify-between gap-4 shadow-sm flex-col md:flex-row">
                 <div className="relative w-full max-w-sm">
                   <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -1284,184 +1167,70 @@ export function Documents() {
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setIsBulkMode(!isBulkMode);
-                      setSelectedCertIds([]);
-                    }}
-                    className={cn(
-                      "px-3.5 py-2 border rounded-none text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all select-none",
-                      isBulkMode 
-                        ? "bg-amber-50 border-amber-300 text-amber-800"
-                        : "bg-white border-slate-250 text-slate-650 hover:bg-slate-50"
-                    )}
-                  >
-                    <CheckCircle2 size={13} />
-                    {isBulkMode ? "Sair do Lote" : "Gerenciar em Lote"}
-                  </button>
-
-                  <button
-                    onClick={handleDirectCleanAllTests}
-                    disabled={isBulkDeleting}
-                    className="px-3.5 py-2 border border-rose-250 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-none text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50 transition-all select-none"
-                    title="Excluir de forma direta do banco de dados registros que contêm 'teste', 'test', etc."
-                  >
-                    <Trash2 size={13} />
-                    {isBulkDeleting ? "Excluindo..." : "Limpar Todos de Teste"}
-                  </button>
-
-                  <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold ml-2">
-                    Total: <strong className="text-slate-850 font-extrabold">{filteredCertificates.length} de {certificates.length}</strong>
-                  </div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold self-start md:self-auto">
+                  Total de Documentos no Acervo: <strong className="text-slate-850 font-extrabold">{filteredCertificates.length} de {certificates.length}</strong>
                 </div>
               </div>
-
-              {/* Bulk operations panel (visible when isBulkMode is True) */}
-              {isBulkMode && (
-                <div className="bg-slate-50 border border-t-0 border-l-4 border-l-amber-500 border-slate-200 p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={handleSelectAllFiltered}
-                      className="px-3 py-1.5 bg-white border border-slate-250 text-slate-700 hover:bg-slate-50 text-[9.5px] font-bold uppercase tracking-wider rounded-none"
-                    >
-                      Selecionar Todos Filtrados ({filteredCertificates.length})
-                    </button>
-                    <button
-                      onClick={handleSelectTestCertificatesOnly}
-                      className="px-3 py-1.5 bg-white border border-slate-250 text-slate-700 hover:bg-slate-50 text-[9.5px] font-bold uppercase tracking-wider rounded-none"
-                    >
-                      Selecionar Apenas Registros de Teste
-                    </button>
-                    <button
-                      onClick={() => setSelectedCertIds([])}
-                      disabled={selectedCertIds.length === 0}
-                      className="px-3 py-1.5 bg-white border border-slate-250 text-slate-500 hover:bg-slate-50 text-[9.5px] font-bold uppercase tracking-wider rounded-none disabled:opacity-50"
-                    >
-                      Limpar Seleção
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">
-                      Selecionados: <strong className="text-slate-900 font-extrabold">{selectedCertIds.length}</strong>
-                    </span>
-                    <button
-                      onClick={() => setShowBulkConfirmModal(true)}
-                      disabled={selectedCertIds.length === 0 || isBulkDeleting}
-                      className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[9.5px] font-bold uppercase tracking-widest rounded-none disabled:opacity-50 tracking-wider shadow-sm flex items-center gap-1.5"
-                    >
-                      <Trash2 size={13} />
-                      Excluir Selecionados
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Grid cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredCertificates.length > 0 ? (
-                  filteredCertificates.map(cert => {
-                    const isSelected = selectedCertIds.includes(cert.id);
-                    return (
-                      <motion.div 
-                        layout
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        key={cert.id} 
-                        className={cn(
-                          "bg-white border transition-all p-5 relative flex flex-col justify-between rounded-none shadow-sm hover:shadow-md select-none",
-                          isBulkMode ? "cursor-pointer" : "",
-                          isBulkMode && isSelected ? "border-amber-400 bg-amber-50/20 shadow-md ring-1 ring-amber-400" : "border-slate-220"
-                        )}
-                        onClick={() => {
-                          if (isBulkMode) {
-                            setSelectedCertIds(prev => 
-                              prev.includes(cert.id) 
-                                ? prev.filter(id => id !== cert.id) 
-                                : [...prev, cert.id]
-                            );
-                          }
-                        }}
-                      >
-                        <div>
-                          <div className="flex items-start justify-between gap-2 mb-4">
-                            <div className="flex items-center gap-2">
-                              {isBulkMode && (
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedCertIds(prev => 
-                                      prev.includes(cert.id) 
-                                        ? prev.filter(id => id !== cert.id) 
-                                        : [...prev, cert.id]
-                                    );
-                                  }}
-                                  className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-slate-300 rounded-none cursor-pointer"
-                                />
-                              )}
-                              <span className={cn(
-                                "px-2.5 py-1 text-[8.5px] font-extrabold uppercase tracking-widest border shadow-none",
-                                cert.type === 'conclusão' ? "bg-slate-50 text-slate-700 border-slate-200" :
-                                cert.type === 'honra' ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                "bg-indigo-50 text-indigo-700 border-indigo-200"
-                              )}>
-                                {cert.type}
-                              </span>
-                            </div>
+                  filteredCertificates.map(cert => (
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      key={cert.id} 
+                      className="bg-white border border-slate-220 rounded-none shadow-sm hover:shadow-md transition-all group p-5 relative flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-4">
+                          <span className={cn(
+                            "px-2.5 py-1 text-[8.5px] font-extrabold uppercase tracking-widest border shadow-none",
+                            cert.type === 'conclusão' ? "bg-slate-50 text-slate-700 border-slate-200" :
+                            cert.type === 'honra' ? "bg-amber-50 text-amber-700 border-amber-200" :
+                            "bg-indigo-50 text-indigo-700 border-indigo-200"
+                          )}>
+                            {cert.type}
+                          </span>
 
-                            {!isBulkMode ? (
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setViewingCertificate(cert);
-                                  }}
-                                  className="p-1.5 text-slate-405 hover:text-slate-900 border border-slate-200 hover:border-slate-400 rounded-none bg-white shadow-sm flex items-center justify-center"
-                                  title="Visualizar e Imprimir"
-                                >
-                                  <Printer size={13} />
-                                </button>
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(cert.id, cert.student_name || 'Estudante');
-                                  }}
-                                  className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-none bg-white shadow-sm flex items-center justify-center ml-0.5"
-                                  title="Cancelar/Excluir"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white rounded-none font-bold uppercase tracking-wider text-[8px]">
-                                {isSelected ? 'Selecionado' : 'Clique p/ selecionar'}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <h4 className="text-xs font-extrabold text-slate-850 uppercase tracking-tight line-clamp-2">
-                              {cert.student_name}
-                            </h4>
-                            <div>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Curso / Programa</p>
-                              <p className="text-xs text-slate-700 font-medium">{cert.course}</p>
-                            </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => setViewingCertificate(cert)}
+                              className="p-1.5 text-slate-405 hover:text-slate-900 border border-slate-200 hover:border-slate-400 rounded-none bg-white shadow-sm flex items-center justify-center"
+                              title="Visualizar e Imprimir"
+                            >
+                              <Printer size={13} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(cert.id, cert.student_name || 'Estudante')}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded-none bg-white shadow-sm flex items-center justify-center ml-0.5"
+                              title="Cancelar/Excluir"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
                         </div>
 
-                        <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-[11px] font-medium text-slate-400">
-                          <div className="flex items-center gap-1.5 font-bold">
-                            <Calendar size={12} className="text-slate-350" />
-                            <span>{new Date(cert.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-extrabold text-slate-850 uppercase tracking-tight line-clamp-2">
+                            {cert.student_name}
+                          </h4>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Curso / Programa</p>
+                            <p className="text-xs text-slate-700 font-medium">{cert.course}</p>
                           </div>
                         </div>
-                      </motion.div>
-                    );
-                  })
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-[11px] font-medium text-slate-400">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <Calendar size={12} className="text-slate-350" />
+                          <span>{new Date(cert.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
                 ) : (
                   <div className="col-span-full py-16 text-center bg-white border border-slate-200 rounded-none space-y-4">
                     <div className="w-16 h-16 bg-slate-50 text-slate-300 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
@@ -2160,76 +1929,7 @@ export function Documents() {
         `}} />
       )}
 
-       {/* BULK CONFIRM MODAL */}
-      {showBulkConfirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white max-w-md w-full border border-slate-350 shadow-2xl p-6 rounded-none space-y-4"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center rounded-none flex-shrink-0">
-                <Trash2 size={20} />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-850 uppercase tracking-tight">Confirmar Exclusão em Lote</h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Você está prestes a excluir definitivamente <strong className="text-rose-600 font-extrabold">{selectedCertIds.length} documento(s)</strong> do acervo. Esta ação é definitiva e não poderá ser desfeita.
-                </p>
-              </div>
-            </div>
 
-            {/* List of Student Names to be deleted (up to 5 names for glance) */}
-            <div className="bg-slate-50 border border-slate-205 p-3 rounded-none">
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Amostra de documentos selecionados:</p>
-              <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
-                {selectedCertIds.slice(0, 5).map(id => {
-                  const cert = certificates.find(c => c.id === id);
-                  return (
-                    <div key={id} className="text-[10.5px] font-bold text-slate-700 uppercase flex items-center justify-between">
-                      <span className="truncate">{cert?.student_name || 'Desconhecido'}</span>
-                      <span className="text-[8px] text-slate-400 font-mono ml-2 shrink-0">{cert?.type}</span>
-                    </div>
-                  );
-                })}
-                {selectedCertIds.length > 5 && (
-                  <p className="text-[9px] text-slate-400 font-bold italic mt-1">E mais {selectedCertIds.length - 5} documento(s)...</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowBulkConfirmModal(false)}
-                disabled={isBulkDeleting}
-                className="px-4 py-2 border border-slate-250 hover:bg-slate-50 text-[10px] font-bold uppercase tracking-wider rounded-none text-slate-650"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase tracking-widest rounded-none flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                {isBulkDeleting ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={13} />
-                    Confirmar Exclusão
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {/* PORTAL FOR DECOUPLING PRINT VIEW TO BODY ROOT LEVEL */}
       {viewingCertificate && typeof document !== 'undefined' && createPortal(
