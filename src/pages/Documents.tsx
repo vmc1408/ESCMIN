@@ -125,14 +125,14 @@ const getCertificateTitle = (type: string) => {
 const getCertificateBorderClassName = (type: string) => {
   if (type === 'participação') {
     // Elegant thin solid border in classical black
-    return "border-[4px] border-black p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative m-1";
+    return "border-[4px] border-black p-8 flex-1 flex flex-col justify-between box-border relative m-1";
   }
   if (type === 'honra') {
     // Premium distinct black border frame
-    return "border-[6px] border-black p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative m-1";
+    return "border-[6px] border-black p-8 flex-1 flex flex-col justify-between box-border relative m-1";
   }
   // Modelo Certificado de Conclusão: classic double border in black
-  return "border-[5px] border-double border-black p-8 flex-[1_1_0%] flex flex-col justify-between h-full box-border relative m-1";
+  return "border-[5px] border-double border-black p-8 flex-1 flex flex-col justify-between box-border relative m-1";
 };
 
 const renderCertificateDecorations = (type: string) => {
@@ -1875,7 +1875,7 @@ export function Documents() {
           @media print {
             @page {
               size: A4 landscape;
-              margin: 0;
+              margin: 0 !important;
             }
             html, body {
               width: 297mm !important;
@@ -1909,18 +1909,18 @@ export function Documents() {
                visibility: visible !important;
                width: 297mm !important;
                height: 210mm !important;
+               max-width: 297mm !important;
+               max-height: 210mm !important;
                box-sizing: border-box !important;
-               margin: 0 !important;
-               padding: 10mm !important;
+               margin: 0 auto !important;
+               padding: 12mm !important;
                background: white !important;
                z-index: 99999999 !important;
                flex-direction: column !important;
                justify-content: space-between !important;
                page-break-inside: avoid !important;
                overflow: hidden !important;
-               position: absolute !important;
-               left: 0 !important;
-               top: 0 !important;
+               position: relative !important;
              }
              #certificate-printable * {
                visibility: visible !important;
@@ -1929,16 +1929,14 @@ export function Documents() {
         `}} />
       )}
 
-
-
       {/* PORTAL FOR DECOUPLING PRINT VIEW TO BODY ROOT LEVEL */}
       {viewingCertificate && typeof document !== 'undefined' && createPortal(
-        <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
+        <div id="certificate-printable" className="hidden print:flex relative mx-auto bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[12mm] z-[99999] overflow-hidden flex-col box-border">
           <div className={getCertificateBorderClassName(viewingCertificate.type)}>
              {renderCertificateDecorations(viewingCertificate.type)}
 
              {/* Header with diocese logo and custom diocese titles */}
-             <div className="flex items-center justify-center gap-6 mt-2">
+             <div className="flex items-center justify-center gap-6 mt-2 relative">
                 {institution?.logo_url && (
                    <img 
                       src={institution.logo_url} 
@@ -1948,27 +1946,27 @@ export function Documents() {
                    />
                 )}
                 <div className="text-left space-y-1">
-                   <h2 className="text-xl md:text-2xl font-bold uppercase tracking-[0.16em] text-black font-display leading-[1.3]">
-                      {institution?.name || 'SISTEMA DE ENSINO'}
+                   <h2 className="text-2xl font-black uppercase tracking-[0.2em] text-black font-sans leading-tight">
+                      {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                    </h2>
                    <p className="text-xs font-sans font-bold uppercase text-amber-600 tracking-[0.15em] mt-1">
-                      {institution?.subtitle || 'SECRETARIA ACADÊMICA & CADASTRO DE DIPLOMAS'}
+                      {institution?.subtitle || 'PASTORAL E REGISTRO ACADÊMICO'}
                    </p>
                 </div>
              </div>
 
              {/* Certificate Content Parser */}
              {renderCertificateInnerContent(
-               viewingCertificate.type,
-               viewingCertificate.student_name || students.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
-               viewingCertificate.course,
-               viewingCertificate.issuance_date,
-               institution
+                viewingCertificate.type,
+                viewingCertificate.student_name || students.find(s => s.id === viewingCertificate.student_id)?.name || 'Estudante Sem Nome',
+                viewingCertificate.course || '',
+                viewingCertificate.issuance_date,
+                institution
              )}
 
              {/* Secure Registry Footer lines */}
-             <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-400 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
-               <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
+             <div className="absolute bottom-5 left-12 right-12 flex justify-end items-center text-[7.5px] font-bold text-slate-405 font-sans uppercase tracking-[0.15em] border-t border-slate-100 pt-1 pointer-events-none">
+                <span>ESCMIN Registro e Controle Acadêmico Diocesano</span>
              </div>
           </div>
         </div>,
