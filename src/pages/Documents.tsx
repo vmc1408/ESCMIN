@@ -1907,31 +1907,43 @@ export function Documents() {
             #certificate-printable {
                display: flex !important;
                visibility: visible !important;
-               width: 297mm !important;
-               height: 210mm !important;
-               max-width: 297mm !important;
-               max-height: 210mm !important;
+               width: 990px !important;
+               height: 700px !important;
+               max-width: 990px !important;
+               max-height: 700px !important;
                box-sizing: border-box !important;
-               margin: 0 auto !important;
-               padding: 12mm !important;
+               margin: 0 !important;
+               padding: 10mm !important;
                background: white !important;
                z-index: 99999999 !important;
                flex-direction: column !important;
                justify-content: space-between !important;
                page-break-inside: avoid !important;
                overflow: hidden !important;
-               position: relative !important;
-             }
-             #certificate-printable * {
+               position: absolute !important;
+               left: 0 !important;
+               top: 0 !important;
+               transform: scale(1.134) !important;
+               transform-origin: top left !important;
+            }
+            #certificate-printable * {
                visibility: visible !important;
-             }
+            }
           }
         `}} />
       )}
 
       {/* PORTAL FOR DECOUPLING PRINT VIEW TO BODY ROOT LEVEL */}
       {viewingCertificate && typeof document !== 'undefined' && createPortal(
-        <div id="certificate-printable" className="hidden print:flex relative mx-auto bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[12mm] z-[99999] overflow-hidden flex-col box-border">
+        <div 
+          id="certificate-printable" 
+          className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center select-none pointer-events-none z-[99999] overflow-hidden flex-col box-border"
+          style={{
+            width: '990px',
+            height: '700px',
+            padding: '10mm',
+          }}
+        >
           <div className={getCertificateBorderClassName(viewingCertificate.type)}>
              {renderCertificateDecorations(viewingCertificate.type)}
 
