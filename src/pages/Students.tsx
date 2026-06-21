@@ -1153,6 +1153,15 @@ export function Students() {
                     </button>
 
                     <button 
+                      onClick={() => navigate('/student-ficha', { state: { studentId: selectedStudent.id } })}
+                      className="h-10 px-3 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm uppercase tracking-wider cursor-pointer"
+                      title="Ficha Acadêmica"
+                    >
+                      <GraduationCap size={15} />
+                      <span className="hidden sm:inline">Ficha Acadêmica</span>
+                    </button>
+
+                    <button 
                       onClick={() => setIsEditing(true)}
                       className="h-10 px-4 bg-slate-800 border border-slate-800 hover:bg-slate-900 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                       title="Editar"

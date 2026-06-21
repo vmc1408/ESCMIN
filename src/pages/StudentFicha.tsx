@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { 
   User, 
   Search, 
@@ -283,6 +284,7 @@ const renderCertificateInnerContent = (
 };
 
 export function StudentFicha() {
+  const location = useLocation();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -296,6 +298,27 @@ export function StudentFicha() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+
+  // Handle auto-selection when coming from other screens (e.g. Ficha Acadêmica button in Students)
+  useEffect(() => {
+    const passedStudentId = location.state?.studentId;
+    if (passedStudentId && students.length > 0) {
+      const targetStudent = students.find(s => s.id === passedStudentId);
+      if (targetStudent) {
+        setSearchTerm(targetStudent.name || '');
+        setSelectedStudentId(targetStudent.id);
+        if (targetStudent.status === 'Inativo') {
+          setStatusFilter('Todos');
+        }
+        // Clear the history state to prevent re-opening on manual refresh or back navigations
+        try {
+          window.history.replaceState({}, document.title);
+        } catch (e) {
+          console.warn("Could not clear router state", e);
+        }
+      }
+    }
+  }, [location.state, students]);
   
   // Academic Configs
   const [academicParams, setAcademicParams] = useState({
@@ -920,25 +943,25 @@ export function StudentFicha() {
                         <Mail size={12} className="text-slate-450" /> Contato e Localidade
                       </h4>
                       <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Email:</span>
-                          <span className="font-semibold text-slate-700 truncate max-w-[150px]" title={activeStudent.email}>{activeStudent.email || 'Não informado'}</span>
+                        <div className="flex justify-between items-center gap-4">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Email:</span>
+                          <span className="font-semibold text-slate-700 text-right truncate max-w-[180px] sm:max-w-[280px] md:max-w-[400px]" title={activeStudent.email}>{activeStudent.email || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Celular:</span>
-                          <span className="font-bold text-slate-700 font-mono">{activeStudent.phone_mobile || 'Não informado'}</span>
+                        <div className="flex justify-between items-center gap-4">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Celular:</span>
+                          <span className="font-bold text-slate-700 font-mono text-right">{activeStudent.phone_mobile || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Paróquia:</span>
-                          <span className="font-bold text-slate-700 uppercase truncate max-w-[150px]">{activeStudent.parish || 'Não informado'}</span>
+                        <div className="flex justify-between items-center gap-4">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Paróquia:</span>
+                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px] md:max-w-[400px]" title={activeStudent.parish}>{activeStudent.parish || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Forania:</span>
-                          <span className="font-bold text-indigo-900 uppercase">{activeStudent.forania || 'Não informado'}</span>
+                        <div className="flex justify-between items-center gap-4">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Forania:</span>
+                          <span className="font-bold text-indigo-900 uppercase text-right">{activeStudent.forania || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Cidade / UF:</span>
-                          <span className="font-semibold text-slate-750 uppercase">{activeStudent.address_city || 'Não informado'} - {activeStudent.address_state || 'SP'}</span>
+                        <div className="flex justify-between items-center gap-4">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Cidade / UF:</span>
+                          <span className="font-semibold text-slate-750 uppercase text-right">{activeStudent.address_city || 'Não informado'} - {activeStudent.address_state || 'SP'}</span>
                         </div>
                       </div>
                     </div>
@@ -1016,8 +1039,8 @@ export function StudentFicha() {
                         </div>
                       ) : (
                         activeStudentMetrics.subjectRecords.map(rec => (
-                          <div key={rec.subject.id} className="py-2.5 flex items-center justify-between text-xs">
-                            <span className="font-bold text-slate-700 uppercase truncate max-w-[170px]" title={rec.subject.name}>
+                          <div key={rec.subject.id} className="py-2.5 flex items-center justify-between gap-4 text-xs">
+                            <span className="font-bold text-slate-700 uppercase truncate max-w-[170px] sm:max-w-[280px] md:max-w-[360px]" title={rec.subject.name}>
                               {rec.subject.name}
                             </span>
                             <div className="flex items-center gap-3 shrink-0">
