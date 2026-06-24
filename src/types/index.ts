@@ -307,3 +307,17 @@ export interface Grade {
   period: string;
   value: any;
 }
+
+export interface Receipt {
+  id: string;
+  receipt_number: string;
+  amount: number;
+  payee_name: string;
+  description: string;
+  payment_date: string;
+  signature_label?: string;
+  issue_date: string;
+  user_id?: string;
+  created_at?: string;
+}
+

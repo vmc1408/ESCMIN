@@ -2979,16 +2979,20 @@ export function Contributions() {
               #statement-print-container {
                 display: flex !important;
                 flex-direction: column !important;
-                justify-content: space-between !important;
                 width: 100% !important;
-                height: 265mm !important; /* Forces the flex container to span exactly 265mm, pushing footer to the bottom of the A4 page */
-                min-height: 265mm !important;
-                max-height: 265mm !important;
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
                 box-sizing: border-box !important;
                 margin: 0 auto !important;
                 padding: 0 !important;
                 background: white !important;
-                overflow: hidden !important;
+                overflow: visible !important;
+              }
+              #statement-print-footer {
+                margin-top: 15mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
               }
             }
           `}} />
@@ -3140,7 +3144,7 @@ export function Contributions() {
             </div>
 
             {/* Institutional Footer */}
-            <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[6.5pt] font-black text-black uppercase tracking-tight mb-2">
+            <div id="statement-print-footer" className="mt-8 border-t-2 border-black pt-3 flex justify-between items-start text-[6.5pt] font-black text-black uppercase tracking-tight mb-2 print:mt-12">
               <div className="flex-1 space-y-1">
                 <p className="leading-none text-[6.5pt]">
                   {institution?.address}

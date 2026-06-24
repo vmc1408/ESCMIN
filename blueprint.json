@@ -396,9 +396,28 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "title", "date", "class_id", "subject_id"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "Payment receipt for teachers and other service providers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "receipt_number": { "type": "string" },
+        "amount": { "type": "number" },
+        "payee_name": { "type": "string" },
+        "description": { "type": "string" },
+        "payment_date": { "type": "string", "format": "date" },
+        "signature_label": { "type": "string" },
+        "issue_date": { "type": "string", "format": "date" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "receipt_number", "amount", "payee_name", "description"]
     }
   },
   "firestore": {
+    "receipts": { "schema": "Receipt", "description": "Payment receipts collection" },
     "users": { "schema": "UserProfile", "description": "User profile collection" },
     "students": { "schema": "Student", "description": "Student records collection" },
     "classes": { "schema": "Class", "description": "School classes collection" },

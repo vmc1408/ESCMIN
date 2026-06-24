@@ -19,6 +19,7 @@ import { Import } from './pages/Import';
 import { Reports } from './pages/Reports';
 import { Contributions } from './pages/Contributions';
 import { PixConference } from './pages/PixConference';
+import { Receipts } from './pages/Receipts';
 import { Settings } from './pages/Settings';
 import { ArchivePage } from './pages/Archive';
 import { Users } from './pages/Users';
@@ -172,6 +173,7 @@ function AppContent() {
               <Route path="reports" element={<ProtectedRoute requiredModule="/reports"><Reports /></ProtectedRoute>} />
               <Route path="contributions" element={<ProtectedRoute requiredModule="/contributions"><Contributions /></ProtectedRoute>} />
               <Route path="pix-conference" element={<ProtectedRoute requiredModule="/pix-conference"><PixConference /></ProtectedRoute>} />
+              <Route path="receipts" element={<ProtectedRoute requiredModule="/receipts"><Receipts /></ProtectedRoute>} />
               <Route path="settings" element={<ProtectedRoute requiredModule="/settings"><Settings /></ProtectedRoute>} />
               <Route path="archive" element={<ProtectedRoute requiredModule="/settings"><ArchivePage /></ProtectedRoute>} />
               <Route path="users" element={<ProtectedRoute requiredModule="/users"><Users /></ProtectedRoute>} />

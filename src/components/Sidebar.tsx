@@ -90,6 +90,7 @@ const navItems = [
         children: [
           { icon: PixIcon, label: 'Contribuições', path: '/contributions' },
           { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference' },
+          { icon: FileText, label: 'Recibos', path: '/receipts' },
         ]
       },
       { icon: ReportsIcon, label: 'Relatórios', path: '/reports' },
