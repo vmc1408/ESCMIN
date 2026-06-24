@@ -2961,23 +2961,66 @@ export function Contributions() {
         <>
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0 !important;
+              }
+              html, body, #root {
+                width: 210mm !important;
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                background-color: #ffffff !important;
+              }
+              /* Hide all other elements to prevent leakage and background prints */
+              #root > :not(#printable-statement) {
+                display: none !important;
+                visibility: hidden !important;
+              }
+              .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print, .print\\:hidden {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                width: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+              }
               #printable-statement {
                 display: block !important;
+                visibility: visible !important;
                 background: white !important;
-                position: static !important;
-                height: auto !important;
-                overflow: visible !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+                overflow: hidden !important;
+                z-index: 999999 !important;
+                box-sizing: border-box !important;
+                padding: 0 !important;
+                margin: 0 !important;
               }
-              #printable-statement #statement-print-container {
+              #statement-print-container {
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
-                height: 272mm !important;
-                min-height: 272mm !important;
-                max-height: 272mm !important;
+                width: 180mm !important;
+                height: 273mm !important;
+                min-height: 273mm !important;
+                max-height: 273mm !important;
                 box-sizing: border-box !important;
+                margin: 12mm 15mm 12mm 15mm !important;
                 padding: 0 !important;
-                margin: 0 auto !important;
+                background: white !important;
+                overflow: hidden !important;
+              }
+              #statement-print-container * {
+                visibility: visible !important;
               }
             }
           `}} />
