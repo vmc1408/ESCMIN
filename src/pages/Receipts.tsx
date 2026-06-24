@@ -161,8 +161,8 @@ export function Receipts() {
     }
   }, [showAddForm, receipts]);
 
-  const handleSaveReceipt = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveReceipt = async (e: React.FormEvent | null, action: 'save' | 'print' | 'pdf' = 'save') => {
+    if (e) e.preventDefault();
     if (!receiptNumber || !amount || !payeeName || !description) {
       setNotification({ type: 'error', message: 'Por favor, preencha todos os campos obrigatórios.' });
       return;
@@ -181,10 +181,18 @@ export function Receipts() {
         user_id: user?.uid
       };
 
-      await saveData('receipts', undefined, newReceipt);
+      const savedId = await saveData('receipts', undefined, newReceipt);
+      const fullReceipt: Receipt = {
+        ...newReceipt,
+        id: savedId as string
+      } as Receipt;
+
       setNotification({ type: 'success', message: 'Recibo gerado com sucesso!' });
       
-      // Reset form and reload
+      // Select the newly generated receipt so it is loaded in the preview portal/container
+      setSelectedReceipt(fullReceipt);
+      
+      // Reset form and reload list
       setShowAddForm(false);
       setAmount('');
       setPayeeName('');
@@ -193,7 +201,22 @@ export function Receipts() {
       setPaymentDate(new Date().toISOString().split('T')[0]);
       setIssueDate(new Date().toISOString().split('T')[0]);
       
-      fetchInitialData();
+      await fetchInitialData();
+
+      // Trigger immediate printing or download if chosen
+      if (action === 'print') {
+        setTimeout(() => {
+          try {
+            window.print();
+          } catch (err) {
+            console.error('Error printing automatically:', err);
+          }
+        }, 300);
+      } else if (action === 'pdf') {
+        setTimeout(() => {
+          generatePDF(fullReceipt);
+        }, 100);
+      }
     } catch (err: any) {
       console.error('Error saving receipt:', err);
       setNotification({ type: 'error', message: 'Erro ao gerar recibo: ' + err.message });
@@ -634,8 +657,9 @@ export function Receipts() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl max-w-xl w-full overflow-hidden flex flex-col my-8"
+              className="bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col my-8"
             >
+              {/* Header */}
               <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-white/10 rounded-xl">
@@ -651,113 +675,195 @@ export function Receipts() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveReceipt} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Número do Recibo *</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={receiptNumber} 
-                      onChange={(e) => setReceiptNumber(e.target.value)} 
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 bg-slate-50"
-                    />
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Valor do Recibo (R$) *</label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              {/* Dual Pane Body: Form on Left, Live Preview on Right */}
+              <form onSubmit={(e) => handleSaveReceipt(e, 'print')} className="flex flex-col lg:flex-row h-full overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+                {/* Form Input Fields */}
+                <div className="lg:w-1/2 p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Número do Recibo *</label>
                       <input 
                         type="text" 
                         required
-                        placeholder="0,00"
-                        value={amount} 
-                        onChange={(e) => {
-                          // Allow only numbers and commas
-                          const val = e.target.value.replace(/[^0-9,.]/g, '');
-                          setAmount(val);
-                        }} 
-                        className="w-full pl-8 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
+                        value={receiptNumber} 
+                        onChange={(e) => setReceiptNumber(e.target.value)} 
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 bg-slate-50"
                       />
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Valor do Recibo (R$) *</label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <input 
+                          type="text" 
+                          required
+                          placeholder="0,00"
+                          value={amount} 
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9,.]/g, '');
+                            setAmount(val);
+                          }} 
+                          className="w-full pl-8 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Nome do Favorecido (Quem recebe) *</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ex: Prof. José da Silva ou João dos Santos"
+                      value={payeeName} 
+                      onChange={(e) => setPayeeName(e.target.value)} 
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Descrição / Ao que se refere *</label>
+                    <textarea 
+                      required
+                      rows={2}
+                      placeholder="Ex: Aulas ministradas no módulo de Teologia Fundamental no semestre corrente ou Ajuda de custo pastoral."
+                      value={description} 
+                      onChange={(e) => setDescription(e.target.value)} 
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Data do Pagamento *</label>
+                      <input 
+                        type="date" 
+                        required
+                        value={paymentDate} 
+                        onChange={(e) => setPaymentDate(e.target.value)} 
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Data de Emissão *</label>
+                      <input 
+                        type="date" 
+                        required
+                        value={issueDate} 
+                        onChange={(e) => setIssueDate(e.target.value)} 
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Subtítulo da Assinatura (Opcional)</label>
+                    <input 
+                      type="text" 
+                      placeholder=""
+                      value={signatureLabel} 
+                      onChange={(e) => setSignatureLabel(e.target.value)} 
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Modal Controls / Submission Row */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {/* Emit / Save Only */}
+                      <button 
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => handleSaveReceipt(null, 'save')}
+                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                      >
+                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : 'Apenas Salvar'}
+                      </button>
+
+                      {/* Emit & PDF */}
+                      <button 
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => handleSaveReceipt(null, 'pdf')}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                      >
+                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : <><Download size={12} /> PDF</>}
+                      </button>
+
+                      {/* Emit & Print (Default submit) */}
+                      <button 
+                        type="submit"
+                        disabled={isSaving}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/10"
+                      >
+                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : <><Printer size={12} /> Emitir & Imprimir</>}
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Nome do Favorecido (Quem recebe) *</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Ex: Prof. José da Silva ou João dos Santos"
-                    value={payeeName} 
-                    onChange={(e) => setPayeeName(e.target.value)} 
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+                {/* Live Print Preview Pane */}
+                <div className="hidden lg:flex lg:w-1/2 p-6 bg-slate-50 flex-col justify-between border-l border-slate-100 select-none overflow-y-auto">
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Visualização em Tempo Real</h4>
+                    
+                    {/* Simulated Receipt paper */}
+                    <div className="bg-white p-6 border border-slate-300 rounded-xl shadow-sm space-y-3 font-sans text-black relative">
+                      {/* Header */}
+                      <div className="text-center border-b border-black pb-1.5">
+                        <p className="text-[8px] font-black tracking-widest text-slate-500 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
+                        <h4 className="text-[10px] font-bold uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+                        {institution?.subtitle && <p className="text-[8px] font-medium text-slate-400 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
+                      </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Descrição / Ao que se refere *</label>
-                  <textarea 
-                    required
-                    rows={2}
-                    placeholder="Ex: Aulas ministradas no módulo de Teologia Fundamental no semestre corrente ou Ajuda de custo pastoral."
-                    value={description} 
-                    onChange={(e) => setDescription(e.target.value)} 
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase"
-                  />
-                </div>
+                      {/* Num & Value row */}
+                      <div className="flex justify-between items-start text-[10px] font-bold pt-0.5">
+                        <span>Recibo Nº: {receiptNumber || '---'}</span>
+                        <span className="px-1.5 py-0.5 bg-slate-50 border border-slate-200">
+                          {amount ? formatCurrency(parseFloat(amount.replace(',', '.')) || 0) : 'R$ 0,00'}
+                        </span>
+                      </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Data do Pagamento *</label>
-                    <input 
-                      type="date" 
-                      required
-                      value={paymentDate} 
-                      onChange={(e) => setPaymentDate(e.target.value)} 
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
-                    />
+                      {/* Title */}
+                      <h3 className="text-center font-black uppercase text-[10px] tracking-widest leading-none">Recibo de Pagamento</h3>
+
+                      {/* Description Paragraph */}
+                      <p className="text-[9px] leading-relaxed text-justify text-slate-800">
+                        Recebi da <span className="font-bold">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</span>
+                        {institution?.cnpj ? `, CNPJ Nº ${institution.cnpj}` : ''}
+                        , a importância de <span className="font-bold">{amount ? formatCurrency(parseFloat(amount.replace(',', '.')) || 0) : 'R$ 0,00'}</span> ({amount ? numberToPortugueseWords(parseFloat(amount.replace(',', '.')) || 0) : 'zero reais'}) referente a <span className="font-bold">{description || '...'}</span>.
+                      </p>
+
+                      {/* Date line */}
+                      <p className="text-right text-[8px] font-bold uppercase tracking-wider">
+                        {institution?.city_uf ? institution.city_uf.split('/')[0] : 'GUARULHOS'}, {paymentDate ? formatLongDate(paymentDate) : '---'}.
+                      </p>
+
+                      {/* Signature block */}
+                      <div className="pt-3 text-center space-y-0.5">
+                        <div className="w-1/2 mx-auto border-b border-black"></div>
+                        <p className="text-[9px] font-black uppercase tracking-wider">{payeeName || 'NOME DO FAVORECIDO'}</p>
+                        {signatureLabel && (
+                          <p className="text-[7px] text-slate-400 font-bold uppercase">{signatureLabel}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Data de Emissão *</label>
-                    <input 
-                      type="date" 
-                      required
-                      value={issueDate} 
-                      onChange={(e) => setIssueDate(e.target.value)} 
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
-                    />
+                  <div className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-3 py-2.5 rounded-xl border border-emerald-100 flex items-center gap-2 mt-4 leading-normal">
+                    <CheckCircle2 size={12} className="shrink-0 text-emerald-600" />
+                    <span>Selecione "Emitir & Imprimir" ou "PDF" acima para salvar e iniciar a impressão imediatamente.</span>
                   </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Subtítulo da Assinatura (Opcional)</label>
-                  <input 
-                    type="text" 
-                    placeholder=""
-                    value={signatureLabel} 
-                    onChange={(e) => setSignatureLabel(e.target.value)} 
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                  <button 
-                    type="button"
-                    onClick={() => setShowAddForm(false)}
-                    className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={isSaving}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 active:scale-95 shadow-lg disabled:opacity-50"
-                  >
-                    {isSaving ? <Loader2 className="animate-spin" size={14} /> : 'Emitir Recibo'}
-                  </button>
                 </div>
               </form>
             </motion.div>
