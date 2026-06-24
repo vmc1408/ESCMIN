@@ -861,9 +861,13 @@ export function Contributions() {
     // First copy
     drawSection(10, 'VIA - ESCOLA', selectedContribs);
     // Dashed line
-    (doc as any).setLineDash([1, 1]);
+    doc.setLineWidth(0.4);
+    doc.setDrawColor(120, 120, 120);
+    (doc as any).setLineDash([2, 2]);
     doc.line(0, 148.5, pageWidth, 148.5);
     (doc as any).setLineDash([]);
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(0, 0, 0);
     // Second copy
     drawSection(155, 'VIA - ALUNO', selectedContribs);
 
@@ -1021,9 +1025,13 @@ export function Contributions() {
     // First copy
     drawSection(10, 'VIA - ESCOLA');
     // Dashed line
-    (doc as any).setLineDash([1, 1]);
+    doc.setLineWidth(0.4);
+    doc.setDrawColor(120, 120, 120);
+    (doc as any).setLineDash([2, 2]);
     doc.line(0, 148.5, pageWidth, 148.5);
     (doc as any).setLineDash([]);
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(0, 0, 0);
     // Second copy
     drawSection(155, 'VIA - ALUNO');
 
@@ -2400,8 +2408,8 @@ export function Contributions() {
                     </div>
 
                     {via === 1 && (
-                      <div className="absolute left-0 bottom-0 w-full h-[1px] border-b border-dashed border-slate-300 mt-4 flex items-center justify-center">
-                        <span className="bg-white px-4 text-[7px] font-black text-slate-300 uppercase -translate-y-[1px]">Corte Aqui</span>
+                      <div className="absolute left-0 bottom-0 w-full h-[2px] border-b-2 border-dashed border-slate-400 mt-4 flex items-center justify-center">
+                        <span className="bg-white px-4 text-[8px] font-black text-slate-500 uppercase -translate-y-[1px] flex items-center gap-1">✂️ CORTE AQUI ✂️</span>
                       </div>
                     )}
                   </div>
@@ -2625,7 +2633,9 @@ export function Contributions() {
 
               {via === 1 && (
                 <div className="absolute left-0 -bottom-[1px] w-full flex items-center justify-center pointer-events-none z-20">
-                  <div className="w-full border-b-[1.5px] border-dashed border-slate-300"></div>
+                  <div className="w-full border-b-2 border-dashed border-slate-400 flex items-center justify-center">
+                    <span className="bg-white px-4 text-[8px] font-black text-slate-500 uppercase -translate-y-[1px] flex items-center gap-1">✂️ CORTE AQUI ✂️</span>
+                  </div>
                 </div>
               )}
             </div>
