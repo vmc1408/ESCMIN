@@ -50,7 +50,7 @@ export function Contributions() {
   const getExpectedMonthsForStudent = (student: Student, year: number) => {
     // If student started after this year, they are not expected to pay anything for this year
     if (student.start_date) {
-      const startDate = new Date(student.start_date);
+      const startDate = parseSafeDate(student.start_date);
       if (!isNaN(startDate.getTime()) && startDate.getFullYear() > year) {
         return [];
       }
@@ -59,22 +59,14 @@ export function Contributions() {
     // Determine starting month for this year
     let startMonth = 1; // January
     if (student.start_date) {
-      const startDate = new Date(student.start_date);
+      const startDate = parseSafeDate(student.start_date);
       if (!isNaN(startDate.getTime()) && startDate.getFullYear() === year) {
         startMonth = startDate.getMonth() + 1; // 1-indexed
       }
     }
 
-    // Determine end month for this year
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1; // 1-indexed
-    
-    let endMonth = 12; // December
-    if (year === currentYear) {
-      endMonth = currentMonth;
-    } else if (year > currentYear) {
-      endMonth = 0; // Future year, no months expected yet
-    }
+    // Determine end month for this year - always 12 as requested so future months of the year are also checked and reported
+    const endMonth = 12; // December
 
     const expected: number[] = [];
     for (let m = startMonth; m <= endMonth; m++) {
@@ -408,6 +400,33 @@ export function Contributions() {
       return item.student.class_id === unpaidClassFilter;
     });
   }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter]);
+
+  // Calculate stats breakdown for top overview cards (overdue vs future/to-be-due)
+  const unpaidStats = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1; // 1-indexed
+    
+    let totalOverdueMonths = 0;
+    let totalFutureMonths = 0;
+    
+    unpaidReportList.forEach(item => {
+      item.unpaidMonths.forEach(m => {
+        const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
+        if (isFuture) {
+          totalFutureMonths++;
+        } else {
+          totalOverdueMonths++;
+        }
+      });
+    });
+    
+    return {
+      totalOverdueDebt: totalOverdueMonths * 100,
+      totalFutureDebt: totalFutureMonths * 100,
+      totalOverdueMonths,
+      totalFutureMonths
+    };
+  }, [unpaidReportList, unpaidYear]);
 
   // Generate PDF report for unpaid fees (Relatório de Mensalidades em Aberto)
   const generateUnpaidReport = () => {
@@ -1480,24 +1499,35 @@ export function Contributions() {
                 ) : (
                   <div className="space-y-4">
                     {/* Overview Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudantes em Aberto</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alunos em Aberto</p>
                           <h4 className="text-2xl font-black text-[#131b2e] mt-1">{unpaidReportList.length} Alunos</h4>
                         </div>
-                        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+                        <div className="w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center">
                           <UserIcon size={22} />
                         </div>
                       </div>
                       <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">A Arrecadar Estimado</p>
+                          <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Total Vencido (Atrasado)</p>
                           <h4 className="text-2xl font-black text-rose-600 mt-1">
-                            {formatCurrency(unpaidReportList.reduce((acc, curr) => acc + curr.estimatedDebt, 0))}
+                            {formatCurrency(unpaidStats.totalOverdueDebt)}
                           </h4>
                         </div>
                         <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+                          <DollarSign size={22} />
+                        </div>
+                      </div>
+                      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Total a Vencer (Projetado)</p>
+                          <h4 className="text-2xl font-black text-blue-600 mt-1">
+                            {formatCurrency(unpaidStats.totalFutureDebt)}
+                          </h4>
+                        </div>
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
                           <DollarSign size={22} />
                         </div>
                       </div>
@@ -1519,11 +1549,23 @@ export function Contributions() {
                         <tbody>
                           {unpaidReportList.map(item => {
                             const className = classes.find(c => c.id === item.student.class_id)?.name || 'Sem turma';
+                            const currentYear = new Date().getFullYear();
+                            const currentMonth = new Date().getMonth() + 1; // 1-indexed
+
+                            const overdueMonths = item.unpaidMonths.filter(m => {
+                              const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
+                              return !isFuture;
+                            });
+                            const hasOverdue = overdueMonths.length > 0;
+
                             return (
                               <tr key={item.student.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-black text-sm">
+                                    <div className={cn(
+                                      "w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm",
+                                      hasOverdue ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
+                                    )}>
                                       {item.student.name.charAt(0)}
                                     </div>
                                     <div>
@@ -1537,20 +1579,39 @@ export function Contributions() {
                                     {className}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 text-center font-black text-sm text-rose-600">
+                                <td className={cn(
+                                  "px-6 py-4 text-center font-black text-sm",
+                                  hasOverdue ? "text-rose-600" : "text-blue-600"
+                                )}>
                                   {item.pendingCount}
                                 </td>
                                 <td className="px-6 py-4">
                                   <div className="flex flex-wrap gap-1 max-w-[280px]">
-                                    {item.unpaidMonths.map(m => (
-                                      <span key={m} className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-100/50 rounded-md text-[9px] font-bold uppercase tracking-wider">
-                                        {MONTHS[m - 1].substring(0, 3)}
-                                      </span>
-                                    ))}
+                                    {item.unpaidMonths.map(m => {
+                                      const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
+                                      return (
+                                        <span 
+                                          key={m} 
+                                          className={cn(
+                                            "px-2 py-0.5 border rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1",
+                                            isFuture 
+                                              ? "bg-blue-50 text-blue-600 border-blue-100/50" 
+                                              : "bg-rose-50 text-rose-600 border-rose-100/50"
+                                          )}
+                                          title={isFuture ? 'Mensalidade a vencer' : 'Mensalidade vencida'}
+                                        >
+                                          {MONTHS[m - 1].substring(0, 3)}
+                                          {isFuture && <span className="text-[7px]">⏳</span>}
+                                        </span>
+                                      );
+                                    })}
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                  <span className="text-sm font-black text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl">
+                                  <span className={cn(
+                                    "text-sm font-black px-3 py-1.5 rounded-xl",
+                                    hasOverdue ? "text-rose-600 bg-rose-50" : "text-blue-600 bg-blue-50"
+                                  )}>
                                     {formatCurrency(item.estimatedDebt)}
                                   </span>
                                 </td>
