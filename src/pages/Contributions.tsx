@@ -786,7 +786,7 @@ export function Contributions() {
         for (let j = 0; j < 2; j++) {
           const c = currentContribs[i + j];
           if (c) {
-            const method = c.payment_method || (c.pix_id ? 'PIX' : 'Dinheiro');
+            const method = c.pix_id ? 'PIX (Importado)' : (c.payment_method || 'Dinheiro');
             row.push(`${MONTHS[c.reference_month - 1]} / ${c.reference_year}`);
             row.push(formatCurrency(c.amount));
             row.push(method);
@@ -956,7 +956,7 @@ export function Contributions() {
       doc.setFontSize(8);
       doc.text(`${studentClass?.code || '---'} - ${student.course || '---'}`, pageWidth - margin - 50, startY + 37);
 
-      const method = contribution.payment_method || (contribution.pix_id ? 'PIX' : 'Dinheiro');
+      const method = contribution.pix_id ? 'PIX (Importado)' : (contribution.payment_method || 'Dinheiro');
       const origin = contribution.origin ? ` (${contribution.origin})` : '';
 
       // Main Table
@@ -2348,17 +2348,21 @@ export function Contributions() {
                               <table className="w-full text-[10px] text-center">
                                 <thead className="bg-slate-50 border-b border-slate-200">
                                   <tr>
-                                    <th className="py-2 px-3 font-black text-slate-500 uppercase leading-none">Mês / Ano</th>
-                                    <th className="py-2 px-3 font-black text-slate-500 uppercase border-l border-slate-200 leading-none">Valor</th>
-                                    <th className="py-2 px-3 font-black text-slate-500 uppercase border-l border-slate-200 leading-none">Data Pagto.</th>
+                                    <th className="py-2 px-2 font-black text-slate-500 uppercase leading-none text-[9px]">Mês / Ano</th>
+                                    <th className="py-2 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Valor</th>
+                                    <th className="py-2 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Modo</th>
+                                    <th className="py-2 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Data Pagto.</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {items.map((reg) => (
                                     <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                                      <td className="py-1.5 px-3">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
-                                      <td className="py-1.5 px-3 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
-                                      <td className="py-1.5 px-3 border-l border-slate-100 text-[#00174b]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
+                                      <td className="py-1.5 px-2">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
+                                      <td className="py-1.5 px-2 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
+                                      <td className="py-1.5 px-2 border-l border-slate-100 text-[9px] font-semibold text-slate-600">
+                                        {reg.pix_id ? 'Importado' : (reg.payment_method || 'Dinheiro')}
+                                      </td>
+                                      <td className="py-1.5 px-2 border-l border-slate-100 text-[#00174b]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -2558,6 +2562,7 @@ export function Contributions() {
                               <tr>
                                 <th className="py-2.5 px-2 font-black text-slate-500 uppercase leading-none text-[9px]">Mês / Ano</th>
                                 <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Valor</th>
+                                <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Modo</th>
                                 <th className="py-2.5 px-2 font-black text-slate-500 uppercase border-l border-slate-200 leading-none text-[9px]">Data Pagto.</th>
                               </tr>
                             </thead>
@@ -2566,6 +2571,9 @@ export function Contributions() {
                                 <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
                                   <td className="py-2 px-2 text-[10px]">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
                                   <td className="py-2 px-2 border-l border-slate-100 text-[10px]">{formatCurrency(reg.amount)}</td>
+                                  <td className="py-2 px-2 border-l border-slate-100 text-[9px] font-semibold text-slate-600">
+                                    {reg.pix_id ? 'Importado' : (reg.payment_method || 'Dinheiro')}
+                                  </td>
                                   <td className="py-2 px-2 border-l border-slate-100 text-[#00174b] text-[10px]">{reg.payment_date ? safeFormat(reg.payment_date, 'dd/MM/yy') : '--/--/--'}</td>
                                 </tr>
                               ))}
@@ -2593,7 +2601,19 @@ export function Contributions() {
 
                   <div className="flex justify-between items-end pt-1">
                     <div className="space-y-0.5">
-                      <p className="text-[8px] font-bold text-slate-400">Emitido: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+                      <p className="text-[8px] font-bold text-slate-400">Data do Recebimento: {receiptPreviewData?.[0]?.payment_date ? safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy') : '---'}</p>
+                      {receiptPreviewData?.length === 1 ? (
+                        <>
+                          <p className="text-[8px] font-bold text-slate-400">Modo de Pagamento: {receiptPreviewData[0].pix_id ? 'PIX por Importação' : `Pagamento Direto (${receiptPreviewData[0].payment_method || 'Dinheiro'})`}</p>
+                          <p className="text-[8px] font-bold text-slate-400">Registro no Sistema: {safeFormat(receiptPreviewData[0].created_at || receiptPreviewData[0].payment_date, 'dd/MM/yyyy HH:mm')}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[8px] font-bold text-slate-400">Modo de Pagamento: Vários</p>
+                          <p className="text-[8px] font-bold text-slate-400">Registro(s) no Sistema: {receiptPreviewData.map(c => safeFormat(c.created_at || c.payment_date, 'dd/MM/yyyy')).join(', ')}</p>
+                        </>
+                      )}
+                      <p className="text-[8px] font-bold text-slate-300">Emissão: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
                     </div>
                     <div className="text-center">
                       <div className="w-48 border-b border-slate-400 mb-1"></div>
