@@ -45,9 +45,10 @@ export function Contributions() {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isPrintingStatement, setIsPrintingStatement] = useState(false);
   const [expandedStudents, setExpandedStudents] = useState<string[]>([]);
+  const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
   
   // Helper to calculate expected months for a student in a specific year
-  const getExpectedMonthsForStudent = (student: Student, year: number) => {
+  const getExpectedMonthsForStudent = (student: Student, year: number, paidMonths: number[] = []) => {
     // If student started after this year, they are not expected to pay anything for this year
     if (student.start_date) {
       const startDate = parseSafeDate(student.start_date);
@@ -56,22 +57,58 @@ export function Contributions() {
       }
     }
 
-    // Determine starting month for this year
-    let startMonth = 1; // January
+    // Determine starting month for this year based on student's enrollment start date
+    let studentStartMonth = 1; // January
     if (student.start_date) {
       const startDate = parseSafeDate(student.start_date);
       if (!isNaN(startDate.getTime()) && startDate.getFullYear() === year) {
-        startMonth = startDate.getMonth() + 1; // 1-indexed
+        studentStartMonth = startDate.getMonth() + 1; // 1-indexed
       }
     }
 
-    // Determine end month for this year - always 12 as requested so future months of the year are also checked and reported
-    const endMonth = 12; // December
+    // Now determine academic year start and end from settings
+    let academicStartMonth = 3; // Default March (3) as a fallback if settings are empty
+    let academicEndMonth = 11; // Default November (11) as a fallback if settings are empty
 
+    // Try finding settings for the student's class, then fallback to current settings, then default
+    const classSettings = academicSettingsList.find(s => s.id === student.class_id);
+    const generalSettings = academicSettingsList.find(s => s.id === 'current');
+    const activeSettings = classSettings || generalSettings;
+
+    if (activeSettings) {
+      if (activeSettings.term1_start) {
+        const date = new Date(activeSettings.term1_start + 'T00:00:00');
+        if (!isNaN(date.getTime())) {
+          academicStartMonth = date.getMonth() + 1;
+        }
+      }
+      if (activeSettings.term2_end) {
+        const date = new Date(activeSettings.term2_end + 'T00:00:00');
+        if (!isNaN(date.getTime())) {
+          academicEndMonth = date.getMonth() + 1;
+        }
+      }
+    }
+
+    // Expected standard months are the intersection of the student's enrollment and the academic range
     const expected: number[] = [];
-    for (let m = startMonth; m <= endMonth; m++) {
+    const minMonth = Math.max(studentStartMonth, academicStartMonth);
+    const maxMonth = academicEndMonth;
+
+    for (let m = minMonth; m <= maxMonth; m++) {
       expected.push(m);
     }
+
+    // Make January, February, December facultative/optional:
+    // They are not expected by default, BUT if a contribution exists, we include them as expected
+    // so they are marked as paid instead of disappearing from the paid list.
+    paidMonths.forEach(m => {
+      if (m >= studentStartMonth && !expected.includes(m)) {
+        expected.push(m);
+      }
+    });
+
+    expected.sort((a, b) => a - b);
     return expected;
   };
 
@@ -193,12 +230,59 @@ export function Contributions() {
     }
   };
 
+  const fetchAcademicSettings = async () => {
+    let settingsList: any[] = [];
+    try {
+      const dbSettings = await fetchAll('academic_settings');
+      if (dbSettings && dbSettings.length > 0) {
+        settingsList = [...dbSettings];
+      }
+    } catch (err) {
+      console.warn("Could not fetch academic_settings from db:", err);
+    }
+
+    try {
+      // General settings
+      const currentStored = localStorage.getItem('academic_settings_current');
+      if (currentStored) {
+        const parsed = JSON.parse(currentStored);
+        if (!settingsList.some(s => s.id === 'current')) {
+          settingsList.push({ id: 'current', ...parsed });
+        } else {
+          settingsList = settingsList.map(s => s.id === 'current' ? { ...parsed, ...s } : s);
+        }
+      }
+      
+      // Class-specific settings from localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('academic_settings_') && key !== 'academic_settings_current') {
+          const classId = key.replace('academic_settings_', '');
+          const val = localStorage.getItem(key);
+          if (val) {
+            const parsedClassSettings = JSON.parse(val);
+            if (!settingsList.some(s => s.id === classId)) {
+              settingsList.push({ id: classId, ...parsedClassSettings });
+            } else {
+              settingsList = settingsList.map(s => s.id === classId ? { ...parsedClassSettings, ...s } : s);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not read academic_settings from localStorage:", err);
+    }
+
+    setAcademicSettingsList(settingsList);
+  };
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
       const [classesData, instData] = await Promise.all([
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }], 'code'),
-        financialService.getInstitutionSettings()
+        financialService.getInstitutionSettings(),
+        fetchAcademicSettings()
       ]);
 
       setClasses(classesData || []);
@@ -349,6 +433,9 @@ export function Contributions() {
       const combinedContribs = [...(yearContribsNum || []), ...(yearContribsStr || [])];
       const uniqueContribs = Array.from(new Map(combinedContribs.map(c => [c.id, c])).values());
 
+      // 3. Ensure academic settings are loaded
+      await fetchAcademicSettings();
+
       setAllActiveStudents(studs as Student[]);
       setUnpaidContributions(uniqueContribs as Contribution[]);
     } catch (error: any) {
@@ -364,13 +451,13 @@ export function Contributions() {
     if (!unpaidClassFilter) return [];
 
     return allActiveStudents.map(student => {
-      // Expected months for this student in the selected unpaidYear
-      const expectedMonths = getExpectedMonthsForStudent(student, unpaidYear);
-      
       // Paid months this year
       const paidMonths = unpaidContributions
         .filter(c => c.student_id === student.id)
         .map(c => c.reference_month);
+
+      // Expected months for this student in the selected unpaidYear, aligned with academic settings
+      const expectedMonths = getExpectedMonthsForStudent(student, unpaidYear, paidMonths);
       
       // Unpaid months
       const unpaidMonths = expectedMonths.filter(m => !paidMonths.includes(m));
@@ -427,6 +514,12 @@ export function Contributions() {
       totalFutureMonths
     };
   }, [unpaidReportList, unpaidYear]);
+
+  const currentExpectedMonths = useMemo(() => {
+    if (!selectedStudent) return [];
+    const paidMonths = contributions.map(c => c.reference_month);
+    return getExpectedMonthsForStudent(selectedStudent, selectedYear, paidMonths);
+  }, [selectedStudent, selectedYear, contributions, academicSettingsList]);
 
   // Generate PDF report for unpaid fees (Relatório de Mensalidades em Aberto)
   const generateUnpaidReport = () => {
@@ -1123,11 +1216,13 @@ export function Contributions() {
       doc.text(`ANO DE REFERÊNCIA: ${selectedYear}`, pageWidth - margin, y, { align: 'right' });
 
       const statementData = MONTHS.map((month, idx) => {
-        const contrib = contributions.find(c => c.reference_month === idx + 1);
+        const monthNum = idx + 1;
+        const contrib = contributions.find(c => c.reference_month === monthNum);
+        const isExpected = currentExpectedMonths.includes(monthNum);
         return [
           month.toUpperCase(),
           contrib ? formatCurrency(contrib.amount) : '---',
-          contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : 'PENDENTE',
+          contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : isExpected ? 'PENDENTE' : 'DISPENSADO',
           contrib?.observations || ''
         ];
       });
@@ -1719,7 +1814,7 @@ export function Contributions() {
                   <div className="w-8 h-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center shrink-0"><CheckCircle2 size={14} /></div>
                   <div>
                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Meses Pagos</p>
-                    <p className="text-sm font-black text-[#131b2e]">{contributions.length} / 12</p>
+                    <p className="text-sm font-black text-[#131b2e]">{contributions.length} de {currentExpectedMonths.length}</p>
                   </div>
                 </div>
               </div>
@@ -1728,7 +1823,9 @@ export function Contributions() {
             <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {MONTHS.map((month, idx) => {
-                  const contrib = contributions.find(c => c.reference_month === idx + 1);
+                  const monthNum = idx + 1;
+                  const contrib = contributions.find(c => c.reference_month === monthNum);
+                  const isExpected = currentExpectedMonths.includes(monthNum);
                   return (
                     <div 
                       key={month}
@@ -1736,7 +1833,9 @@ export function Contributions() {
                         "group p-3 rounded-xl border transition-all duration-300 flex flex-col gap-2.5 h-full",
                         contrib 
                           ? "bg-emerald-50/50 border-emerald-100 ring-1 ring-emerald-50/50" 
-                          : "bg-white border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5"
+                          : isExpected
+                          ? "bg-white border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5"
+                          : "bg-amber-50/20 border-amber-100/50 hover:border-amber-200 hover:shadow-lg hover:shadow-amber-500/5"
                       )}
                     >
                       <div className="flex items-center justify-between">
@@ -1751,7 +1850,7 @@ export function Contributions() {
                           )}
                           <span className={cn(
                             "text-[10px] font-black uppercase tracking-widest",
-                            contrib ? "text-emerald-600" : "text-slate-400"
+                            contrib ? "text-emerald-600" : isExpected ? "text-slate-400" : "text-amber-600"
                           )}>
                             {month}
                           </span>
@@ -1822,14 +1921,24 @@ export function Contributions() {
                       ) : (
                         <>
                           <div className="space-y-0.5 py-1">
-                            <p className="text-xs font-bold text-slate-300">Pendente</p>
+                            <p className={cn(
+                              "text-xs font-bold",
+                              isExpected ? "text-slate-300" : "text-amber-600/90 font-black"
+                            )}>
+                              {isExpected ? "Pendente" : "Dispensado / Férias"}
+                            </p>
                           </div>
                           <button 
                             onClick={() => handleAddContribution(idx)}
-                            className="w-full py-2 bg-slate-50 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all border border-dashed border-slate-200 flex items-center justify-center gap-1.5"
+                            className={cn(
+                              "w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1.5",
+                              isExpected 
+                                ? "bg-slate-50 text-slate-400 border-dashed border-slate-200 hover:bg-blue-600 hover:text-white" 
+                                : "bg-amber-50 text-amber-600 border-dashed border-amber-200 hover:bg-amber-500 hover:text-white"
+                            )}
                           >
                             <Plus size={12} />
-                            Registrar
+                            {isExpected ? "Registrar" : "Registrar (Facultativo)"}
                           </button>
                         </>
                       )}
@@ -2844,7 +2953,9 @@ export function Contributions() {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {MONTHS.map((month, idx) => {
-                    const contrib = contributions.find(c => c.reference_month === idx + 1);
+                    const monthNum = idx + 1;
+                    const contrib = contributions.find(c => c.reference_month === monthNum);
+                    const isExpected = currentExpectedMonths.includes(monthNum);
                     return (
                       <tr key={month} className="even:bg-slate-50/50">
                         <td className="py-2 px-4 text-[11px] font-bold text-slate-700 uppercase">{month}</td>
@@ -2853,8 +2964,10 @@ export function Contributions() {
                         <td className="py-2 px-4 text-[9px] font-bold uppercase text-center">
                           {contrib ? (
                             <span className="text-emerald-700">Pago / Liquidado</span>
+                          ) : isExpected ? (
+                            <span className="text-rose-600">Pendente</span>
                           ) : (
-                            <span className="text-slate-300">Pendente</span>
+                            <span className="text-slate-400 italic">Dispensado</span>
                           )}
                         </td>
                       </tr>

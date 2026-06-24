@@ -305,6 +305,7 @@ export function StudentFicha() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [studentContributions, setStudentContributions] = useState<any[]>([]);
+  const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
 
   // Fetch student contributions for alerts on change of selected student
   useEffect(() => {
@@ -333,19 +334,49 @@ export function StudentFicha() {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
 
-    // Helper to calculate expected months
-    let startMonth = 1;
+    // Helper to calculate expected months based on enrollment
+    let studentStartMonth = 1;
     if (student.start_date) {
       const startDate = new Date(student.start_date);
       if (!isNaN(startDate.getTime()) && startDate.getFullYear() === currentYear) {
-        startMonth = startDate.getMonth() + 1;
+        studentStartMonth = startDate.getMonth() + 1;
       } else if (!isNaN(startDate.getTime()) && startDate.getFullYear() > currentYear) {
         return null; // Future start date
       }
     }
 
+    // Determine academic year start month and end month from settings
+    let academicStartMonth = 3; // Default March (3) as a fallback
+    let academicEndMonth = 11; // Default November (11) as a fallback
+
+    // Try finding settings for the student's class, then fallback to current settings, then default
+    const classSettings = academicSettingsList.find(s => s.id === student.class_id);
+    const generalSettings = academicSettingsList.find(s => s.id === 'current');
+    const activeSettings = classSettings || generalSettings;
+
+    if (activeSettings) {
+      if (activeSettings.term1_start) {
+        const date = new Date(activeSettings.term1_start + 'T00:00:00');
+        if (!isNaN(date.getTime())) {
+          academicStartMonth = date.getMonth() + 1;
+        }
+      }
+      if (activeSettings.term2_end) {
+        const date = new Date(activeSettings.term2_end + 'T00:00:00');
+        if (!isNaN(date.getTime())) {
+          academicEndMonth = date.getMonth() + 1;
+        }
+      }
+    }
+
+    // Since it's an overdue/pending alert, we only check up to the minimum of currentMonth and academicEndMonth.
+    const effectiveEndMonth = Math.min(currentMonth, academicEndMonth);
+
     const expectedMonths: number[] = [];
-    for (let m = startMonth; m <= currentMonth; m++) {
+    const minMonth = Math.max(studentStartMonth, academicStartMonth);
+    const maxMonth = effectiveEndMonth;
+
+    for (let m = minMonth; m <= maxMonth; m++) {
       expectedMonths.push(m);
     }
 
@@ -361,7 +392,7 @@ export function StudentFicha() {
     }
 
     return null;
-  }, [selectedStudentId, studentContributions, students]);
+  }, [selectedStudentId, studentContributions, students, academicSettingsList]);
 
   // Handle auto-selection when coming from other screens (e.g. Ficha Acadêmica button in Students)
   useEffect(() => {
@@ -435,6 +466,52 @@ export function StudentFicha() {
     setTimeout(() => setNotification(null), 3500);
   };
 
+  const fetchAcademicSettings = useCallback(async () => {
+    let settingsList: any[] = [];
+    try {
+      const dbSettings = await fetchAll('academic_settings');
+      if (dbSettings && dbSettings.length > 0) {
+        settingsList = [...dbSettings];
+      }
+    } catch (err) {
+      console.warn("Could not fetch academic_settings from db:", err);
+    }
+
+    try {
+      // General settings
+      const currentStored = localStorage.getItem('academic_settings_current');
+      if (currentStored) {
+        const parsed = JSON.parse(currentStored);
+        if (!settingsList.some(s => s.id === 'current')) {
+          settingsList.push({ id: 'current', ...parsed });
+        } else {
+          settingsList = settingsList.map(s => s.id === 'current' ? { ...parsed, ...s } : s);
+        }
+      }
+      
+      // Class-specific settings from localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('academic_settings_') && key !== 'academic_settings_current') {
+          const classId = key.replace('academic_settings_', '');
+          const val = localStorage.getItem(key);
+          if (val) {
+            const parsedClassSettings = JSON.parse(val);
+            if (!settingsList.some(s => s.id === classId)) {
+              settingsList.push({ id: classId, ...parsedClassSettings });
+            } else {
+              settingsList = settingsList.map(s => s.id === classId ? { ...parsedClassSettings, ...s } : s);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not read academic_settings from localStorage:", err);
+    }
+
+    setAcademicSettingsList(settingsList);
+  }, []);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -447,7 +524,8 @@ export function StudentFicha() {
         fetchAll('attendances'),
         fetchAll('certificates', '*', 'created_at', true),
         financialService.getInstitutionSettings(),
-        fetchAll('academic_parameters', '*', '')
+        fetchAll('academic_parameters', '*', ''),
+        fetchAcademicSettings()
       ]);
 
       setStudents(studs || []);
