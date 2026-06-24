@@ -451,8 +451,8 @@ export function Dashboard() {
                  {[
                    { label: 'Matricular', icon: Users, path: '/students' },
                    { label: 'Cronograma Acadêmico', icon: Activity, path: '/calendar' },
-                   { label: 'Turmas', icon: GraduationCap, path: '/classes' },
-                   { label: 'Docentes', icon: UserCheck, path: '/teachers' }
+                   { label: 'Ficha do Aluno', icon: UserCircle, path: '/student-ficha' },
+                   { label: 'Contribuições', icon: Wallet, path: '/contributions' }
                  ].map((item, i) => (
                     <button 
                       key={i}
