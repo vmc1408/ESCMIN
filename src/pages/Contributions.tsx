@@ -87,7 +87,7 @@ export function Contributions() {
   const [unpaidLoading, setUnpaidLoading] = useState(false);
   const [allActiveStudents, setAllActiveStudents] = useState<Student[]>([]);
   const [unpaidContributions, setUnpaidContributions] = useState<Contribution[]>([]);
-  const [unpaidClassFilter, setUnpaidClassFilter] = useState<string>('all');
+  const [unpaidClassFilter, setUnpaidClassFilter] = useState<string>('');
   const [unpaidSearchTerm, setUnpaidSearchTerm] = useState<string>('');
   const [unpaidYear, setUnpaidYear] = useState<number>(new Date().getFullYear());
 
@@ -241,18 +241,18 @@ export function Contributions() {
     try {
       const [nameData, regData] = await Promise.all([
         fetchQuery('students', [
-          { field: 'name', operator: 'ilike', value: `%${val}%` },
-          { field: 'status', operator: '==', value: 'Ativo' }
+          { field: 'name', operator: 'ilike', value: `%${val}%` }
         ]),
         fetchQuery('students', [
-          { field: 'registration_number', operator: 'ilike', value: `%${val}%` },
-          { field: 'status', operator: '==', value: 'Ativo' }
+          { field: 'registration_number', operator: 'ilike', value: `%${val}%` }
         ])
       ]);
 
       const combined = [...(nameData || []), ...(regData || [])];
+      // Filter active status locally (handles implicit active status where status field is omitted/null)
+      const activeCombined = combined.filter((s: any) => (s.status || 'Ativo') === 'Ativo');
       // Deduplicate by ID
-      const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+      const unique = Array.from(new Map(activeCombined.map(item => [item.id, item])).values());
       // Sort alphabetically by name
       const sorted = (unique as Student[]).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       setStudents(sorted);
@@ -293,10 +293,10 @@ export function Contributions() {
       
       if (uniqueStudentIds.length > 0) {
         const sData = await fetchQuery('students', [
-          { field: 'id', operator: 'in', value: uniqueStudentIds },
-          { field: 'status', operator: '==', value: 'Ativo' }
+          { field: 'id', operator: 'in', value: uniqueStudentIds }
         ]);
-        (sData || []).forEach(s => studentMap.set(s.id, s));
+        const activeSData = (sData || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
+        activeSData.forEach(s => studentMap.set(s.id, s));
       }
 
       let data = docsData
@@ -343,18 +343,22 @@ export function Contributions() {
   const fetchUnpaidData = async (targetYear = unpaidYear) => {
     setUnpaidLoading(true);
     try {
-      // 1. Fetch all active students
-      const studs = await fetchQuery('students', [
-        { field: 'status', operator: '==', value: 'Ativo' }
-      ], 'name');
+      // 1. Fetch all students and filter active ones locally (handles implicit active status where status field is empty/null)
+      const allStuds = await fetchAll('students');
+      const studs = (allStuds || [])
+        .filter((s: any) => (s.status || 'Ativo') === 'Ativo')
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-      // 2. Fetch all contributions for this year
-      const yearContribs = await fetchQuery('contributions', [
-        { field: 'reference_year', operator: '==', value: targetYear }
+      // 2. Fetch all contributions for this year (supporting both numeric and string values for reference_year)
+      const [yearContribsNum, yearContribsStr] = await Promise.all([
+        fetchQuery('contributions', [{ field: 'reference_year', operator: '==', value: targetYear }]),
+        fetchQuery('contributions', [{ field: 'reference_year', operator: '==', value: String(targetYear) }])
       ]);
+      const combinedContribs = [...(yearContribsNum || []), ...(yearContribsStr || [])];
+      const uniqueContribs = Array.from(new Map(combinedContribs.map(c => [c.id, c])).values());
 
-      setAllActiveStudents((studs || []) as Student[]);
-      setUnpaidContributions((yearContribs || []) as Contribution[]);
+      setAllActiveStudents(studs as Student[]);
+      setUnpaidContributions(uniqueContribs as Contribution[]);
     } catch (error: any) {
       console.error('Error fetching unpaid data:', error);
       setNotification({ type: 'error', message: 'Erro ao carregar inadimplência: ' + error.message });
@@ -365,6 +369,8 @@ export function Contributions() {
 
   // Compute list of students with unpaid months
   const unpaidReportList = useMemo(() => {
+    if (!unpaidClassFilter) return [];
+
     return allActiveStudents.map(student => {
       // Expected months for this student in the selected unpaidYear
       const expectedMonths = getExpectedMonthsForStudent(student, unpaidYear);
@@ -1411,6 +1417,7 @@ export function Contributions() {
                     onChange={(e) => setUnpaidClassFilter(e.target.value)}
                     className="h-10 px-3 bg-slate-100 border-none rounded-xl text-xs font-black text-[#131b2e] focus:ring-2 focus:ring-slate-200"
                   >
+                    <option value="">SELECIONE UMA TURMA...</option>
                     <option value="all">TODAS AS TURMAS</option>
                     {classes.map(c => (
                       <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
@@ -1420,7 +1427,7 @@ export function Contributions() {
                   {/* Print Report PDF Button */}
                   <button
                     onClick={generateUnpaidReport}
-                    disabled={unpaidReportList.length === 0}
+                    disabled={!unpaidClassFilter || unpaidReportList.length === 0}
                     className="h-10 px-4 bg-[#131b2e] text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:scale-95"
                   >
                     <FileDown size={15} />
@@ -1449,6 +1456,16 @@ export function Contributions() {
                   <div className="h-64 flex flex-col items-center justify-center gap-3">
                     <Loader2 size={36} className="text-blue-600 animate-spin" />
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Processando cruzamento de dados...</p>
+                  </div>
+                ) : !unpaidClassFilter ? (
+                  <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
+                    <div className="w-16 h-16 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mb-4 animate-pulse">
+                      <Search size={32} className="text-blue-500 opacity-80" />
+                    </div>
+                    <h4 className="text-sm font-black text-[#131b2e] uppercase tracking-wider">Selecione uma Turma</h4>
+                    <p className="text-xs text-center text-slate-400 max-w-sm mt-2 leading-relaxed">
+                      Selecione uma turma específica no filtro acima ou escolha <strong>Todas as Turmas</strong> para carregar o relatório de mensalidades em aberto.
+                    </p>
                   </div>
                 ) : unpaidReportList.length === 0 ? (
                   <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
