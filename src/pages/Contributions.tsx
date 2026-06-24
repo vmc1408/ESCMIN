@@ -849,6 +849,13 @@ export function Contributions() {
       doc.setTextColor(180);
       const footerText = (institution?.footer_text || `Documento emitido via ${institution?.name || 'Sistema de Gestão'}`).toUpperCase();
       doc.text(footerText, pageWidth / 2, sigY + 8, { align: 'center' });
+
+      // Footer Metadata
+      doc.setFontSize(4.5);
+      doc.setTextColor(180);
+      const multipleMethods = Array.from(new Set(currentContribs.map(c => c.pix_id ? 'PIX por Importação' : `Pagamento Direto (${c.payment_method || 'Dinheiro'})`))).join(' / ');
+      const regDates = currentContribs.map(c => safeFormat(c.created_at || c.payment_date, 'dd/MM/yyyy')).join(', ');
+      doc.text(`SISTEMA ${institution?.name?.toUpperCase() || 'ESCMIN'} - REGISTRO(S): ${regDates} - MODO(S): ${multipleMethods.toUpperCase()}`, pageWidth / 2, sigY + 11, { align: 'center' });
     };
 
     // First copy
@@ -1005,8 +1012,10 @@ export function Contributions() {
 
       // Footer Metadata
       doc.setFontSize(5);
-      doc.setTextColor(200);
-      doc.text(`SISTEMA ${institution?.name?.toUpperCase() || 'ESCMIN'} - EMISSAO: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, sigY + 8);
+      doc.setTextColor(150);
+      const regDateStr = safeFormat(contribution.created_at || contribution.payment_date, 'dd/MM/yyyy HH:mm');
+      const pmMethodStr = contribution.pix_id ? 'PIX POR IMPORTAÇÃO' : `PAGAMENTO DIRETO (${(contribution.payment_method || 'Dinheiro').toUpperCase()})`;
+      doc.text(`SISTEMA ${institution?.name?.toUpperCase() || 'ESCMIN'} - EMISSÃO: ${safeFormat(new Date(), 'dd/MM/yyyy HH:mm')} - REGISTRO DO PAGAMENTO: ${regDateStr} - MODO DE PAGAMENTO: ${pmMethodStr}`, margin, sigY + 8);
     };
 
     // First copy
@@ -2365,8 +2374,18 @@ export function Contributions() {
                       </div>
 
                       <div className="flex justify-between items-end pt-4">
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                           <p className="text-[9px] font-bold text-slate-400">Data do Recebimento: {receiptPreviewData?.[0]?.payment_date ? safeFormat(receiptPreviewData[0].payment_date, 'dd/MM/yyyy') : '---'}</p>
+                          {receiptPreviewData?.length === 1 ? (
+                            <>
+                              <p className="text-[9px] font-bold text-slate-400">Modo de Pagamento: {receiptPreviewData[0].pix_id ? 'PIX por Importação' : `Pagamento Direto (${receiptPreviewData[0].payment_method || 'Dinheiro'})`}</p>
+                              <p className="text-[9px] font-bold text-slate-400">Registro no Sistema: {safeFormat(receiptPreviewData[0].created_at || receiptPreviewData[0].payment_date, 'dd/MM/yyyy HH:mm')}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-[9px] font-bold text-slate-400">Registro(s) no Sistema: {receiptPreviewData.map(c => safeFormat(c.created_at || c.payment_date, 'dd/MM/yyyy')).join(', ')}</p>
+                            </>
+                          )}
                           <p className="text-[9px] font-bold text-slate-300">Emissão: {safeFormat(new Date(), 'dd/MM/yyyy HH:mm')}</p>
                         </div>
                         <div className="text-center">
