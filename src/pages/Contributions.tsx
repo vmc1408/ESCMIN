@@ -1636,7 +1636,7 @@ export function Contributions() {
                             <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Estudante</th>
                             <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Turma</th>
                             <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Meses Pendentes</th>
-                            <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Meses em Aberto</th>
+                            <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Situação das Mensalidades (Ano Completo)</th>
                             <th className="px-6 py-4 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Valor Estimado</th>
                             <th className="px-6 py-4"></th>
                           </tr>
@@ -1681,22 +1681,51 @@ export function Contributions() {
                                   {item.pendingCount}
                                 </td>
                                 <td className="px-6 py-4">
-                                  <div className="flex flex-wrap gap-1 max-w-[280px]">
-                                    {item.unpaidMonths.map(m => {
+                                  <div className="flex flex-wrap gap-1 max-w-[320px]">
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
+                                      const isPaid = item.paidMonths.includes(m);
+                                      const isExpected = item.expectedMonths.includes(m);
                                       const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
+                                      const monthName = MONTHS[m - 1].substring(0, 3).toUpperCase();
+
+                                      if (isPaid) {
+                                        return (
+                                          <span 
+                                            key={m} 
+                                            className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-150 rounded-md text-[8.5px] font-black uppercase tracking-wider flex items-center gap-0.5 shadow-sm shadow-emerald-500/5"
+                                            title="Mensalidade Paga / Liquidada"
+                                          >
+                                            {monthName} ✓
+                                          </span>
+                                        );
+                                      }
+
+                                      if (isExpected) {
+                                        return (
+                                          <span 
+                                            key={m} 
+                                            className={cn(
+                                              "px-1.5 py-0.5 border rounded-md text-[8.5px] font-black uppercase tracking-wider flex items-center gap-0.5",
+                                              isFuture 
+                                                ? "bg-blue-50 text-blue-600 border-blue-100/50" 
+                                                : "bg-rose-50 text-rose-600 border-rose-100/50"
+                                            )}
+                                            title={isFuture ? 'Mensalidade a vencer' : 'Mensalidade vencida'}
+                                          >
+                                            {monthName}
+                                            {isFuture && <span className="text-[7px]">⏳</span>}
+                                          </span>
+                                        );
+                                      }
+
+                                      // Non-mandatory/Optional
                                       return (
                                         <span 
                                           key={m} 
-                                          className={cn(
-                                            "px-2 py-0.5 border rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1",
-                                            isFuture 
-                                              ? "bg-blue-50 text-blue-600 border-blue-100/50" 
-                                              : "bg-rose-50 text-rose-600 border-rose-100/50"
-                                          )}
-                                          title={isFuture ? 'Mensalidade a vencer' : 'Mensalidade vencida'}
+                                          className="px-1.5 py-0.5 bg-slate-50 text-slate-400 border border-slate-200/40 border-dashed rounded-md text-[8.5px] font-black uppercase tracking-wider flex items-center gap-0.5"
+                                          title="Opcional / Dispensado"
                                         >
-                                          {MONTHS[m - 1].substring(0, 3)}
-                                          {isFuture && <span className="text-[7px]">⏳</span>}
+                                          {monthName}
                                         </span>
                                       );
                                     })}
