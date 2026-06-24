@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   FileText, 
   Search, 
@@ -548,13 +549,11 @@ export function Receipts() {
       {selectedReceipt && (
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
-            body * {
-              visibility: hidden !important;
+            #root {
+              display: none !important;
             }
-            #printable-receipt-container, #printable-receipt-container * {
-              visibility: visible !important;
-            }
-            #printable-receipt-container {
+            #printable-receipt-portal {
+              display: block !important;
               position: absolute !important;
               left: 10mm !important;
               top: 10mm !important;
@@ -564,7 +563,9 @@ export function Receipts() {
               padding: 10mm 15mm !important;
               background: white !important;
               box-sizing: border-box !important;
-              display: block !important;
+            }
+            #printable-receipt-portal * {
+              visibility: visible !important;
             }
             @page {
               size: A4 portrait;
@@ -572,6 +573,57 @@ export function Receipts() {
             }
           }
         `}} />
+      )}
+
+      {selectedReceipt && createPortal(
+        <div 
+          id="printable-receipt-portal"
+          className="hidden print:block bg-white text-black font-sans"
+        >
+          {/* Header */}
+          <div className="text-center border-b border-black pb-2">
+            <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
+            <h4 className="text-xs font-bold uppercase">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+            {institution?.subtitle && <p className="text-[9px] font-medium text-slate-500 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
+            {institution?.address && <p className="text-[8px] text-slate-400 mt-1 leading-none">{institution.address}</p>}
+          </div>
+
+          {/* Num & Value row */}
+          <div className="flex justify-between items-start text-xs font-bold pt-1">
+            <span>Recibo Nº: {selectedReceipt.receipt_number}</span>
+            <span className="px-2 py-0.5 bg-slate-100 border border-slate-300">{formatCurrency(selectedReceipt.amount)}</span>
+          </div>
+
+          {/* Title */}
+          <h3 className="text-center font-black uppercase text-sm tracking-widest py-1">Recibo de Pagamento</h3>
+
+          {/* Description Paragraph */}
+          <p className="text-[10px] leading-relaxed text-justify">
+            Recebi da <span className="font-bold">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</span>
+            {institution?.cnpj ? `, CNPJ Nº ${institution.cnpj}` : ''}
+            {institution?.address ? `, ${institution.address}` : ''}, a importância de <span className="font-bold">{formatCurrency(selectedReceipt.amount)}</span> ({numberToPortugueseWords(selectedReceipt.amount)}) referente a <span className="font-bold">{selectedReceipt.description}</span>.
+          </p>
+
+          {/* Date line */}
+          <p className="text-right text-[9px] font-bold uppercase tracking-wider pt-2">
+            {institution?.city_uf ? institution.city_uf.split('/')[0] : 'GUARULHOS'}, {formatLongDate(selectedReceipt.payment_date)}.
+          </p>
+
+          {/* Signature block */}
+          <div className="pt-6 text-center space-y-1">
+            <div className="w-2/3 mx-auto border-b border-black"></div>
+            <p className="text-[10px] font-black uppercase tracking-wider">{selectedReceipt.payee_name}</p>
+            {selectedReceipt.signature_label && (
+              <p className="text-[8px] text-slate-500 font-bold uppercase">{selectedReceipt.signature_label}</p>
+            )}
+          </div>
+
+          {/* Emission label */}
+          <p className="text-right text-[8px] text-slate-400 font-bold pt-2">
+            Emissão em {safeFormat(selectedReceipt.issue_date, 'dd/MM/yyyy')}
+          </p>
+        </div>,
+        document.body
       )}
 
       {/* Add Receipt Form Modal */}
@@ -684,7 +736,7 @@ export function Receipts() {
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Subtítulo da Assinatura (Opcional)</label>
                   <input 
                     type="text" 
-                    placeholder="Ex: BOA IDADE - GASTOS PASTORAIS"
+                    placeholder=""
                     value={signatureLabel} 
                     onChange={(e) => setSignatureLabel(e.target.value)} 
                     className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
