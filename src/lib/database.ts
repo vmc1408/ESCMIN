@@ -56,6 +56,23 @@ export const deleteLocalItem = (collectionName: string, id: string) => {
   saveLocalCollection(collectionName, filtered);
 };
 
+export const isDatabaseMissingOrCacheError = (err: any): boolean => {
+  if (!err) return false;
+  const msg = (typeof err === 'string' ? err : err.message || err.details || String(err)).toLowerCase();
+  const code = String(err.code || '').toLowerCase();
+  
+  return (
+    msg.includes('relation') ||
+    msg.includes('does not exist') ||
+    msg.includes('could not find the table') ||
+    msg.includes('schema cache') ||
+    msg.includes('not found') ||
+    code === '42p01' ||
+    code === 'pgrst204' ||
+    code === 'pgrst116'
+  );
+};
+
 // Helper to handle Errors
 export interface DbErrorInfo {
   error: string;
@@ -107,14 +124,7 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     const sbData = await fetchRecursive(collectionName, { select, orderCol, ascending, timeoutMs: 90000 });
     return sbData || [];
   } catch (err: any) {
-    const errStr = String(err.message || err).toLowerCase();
-    const isTableMissing = 
-      errStr.includes('relation') && errStr.includes('does not exist') ||
-      errStr.includes('could not find the table') ||
-      err.code === '42P01' ||
-      err.code === 'PGRST204';
-
-    if (isTableMissing) {
+    if (isDatabaseMissingOrCacheError(err)) {
       console.warn(`[Supabase Fetch Fallback] Tabela "${collectionName}" não encontrada. Usando fallback local.`);
       setTableUsingFallback(collectionName, true);
       return getLocalCollection(collectionName);
@@ -156,12 +166,7 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
     const error = result?.error;
 
     if (error) {
-       // If table is missing or schema cache is stale, return null quietly instead of crashing
-       const isMissingTable = error.code === '42P01' || 
-                             error.message?.includes('Could not find the table') || 
-                             error.message?.includes('schema cache');
-       
-       if (isMissingTable) {
+       if (isDatabaseMissingOrCacheError(error)) {
          console.warn(`[Supabase] Tabela "${collectionName}" não encontrada ou em cache desatualizado. Ativando fallback local.`);
          setTableUsingFallback(collectionName, true);
          const list = getLocalCollection(collectionName);
@@ -171,14 +176,7 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
     }
     return data;
   } catch (err: any) {
-    const errStr = String(err.message || err).toLowerCase();
-    const isTableMissing = 
-      errStr.includes('relation') && errStr.includes('does not exist') ||
-      errStr.includes('could not find the table') ||
-      err.code === '42P01' ||
-      err.code === 'PGRST204';
-
-    if (isTableMissing) {
+    if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
       const list = getLocalCollection(collectionName);
       return list.find((x: any) => x.id === id) || null;
@@ -261,14 +259,7 @@ export const fetchQuery = async (
     if (result?.error) throw result.error;
     return result?.data || [];
   } catch (err: any) {
-    const errStr = String(err.message || err).toLowerCase();
-    const isTableMissing = 
-      errStr.includes('relation') && errStr.includes('does not exist') ||
-      errStr.includes('could not find the table') ||
-      err.code === '42P01' ||
-      err.code === 'PGRST204';
-
-    if (isTableMissing) {
+    if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
       const list = getLocalCollection(collectionName);
       return list.filter(item => {
@@ -327,14 +318,7 @@ export const fetchCount = async (collectionName: string, status?: string) => {
     
     return result?.count || 0;
   } catch (err: any) {
-    const errStr = String(err.message || err).toLowerCase();
-    const isTableMissing = 
-      errStr.includes('relation') && errStr.includes('does not exist') ||
-      errStr.includes('could not find the table') ||
-      err.code === '42P01' ||
-      err.code === 'PGRST204';
-
-    if (isTableMissing) {
+    if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
       const list = getLocalCollection(collectionName);
       if (status === 'Ativo') {
@@ -417,13 +401,7 @@ export const saveData = async (collectionName: string, id: string | undefined, d
             : String(errorVal);
 
           const errorMsgLower = errorMsg.toLowerCase();
-          const isTableMissing = 
-            errorMsgLower.includes('relation') && errorMsgLower.includes('does not exist') ||
-            errorMsgLower.includes('could not find the table') ||
-            errorVal.code === '42P01' ||
-            errorVal.code === 'PGRST204';
-
-          if (isTableMissing) {
+          if (isDatabaseMissingOrCacheError(errorVal)) {
             console.warn(`[Supabase Fallback] Tabela "${collectionName}" não encontrada ao salvar. Ativando fallback local.`);
             setTableUsingFallback(collectionName, true);
             return saveLocalItem(collectionName, finalId, payload);
@@ -483,14 +461,7 @@ export const saveData = async (collectionName: string, id: string | undefined, d
 
     throw new Error(`Falha ao salvar dados em ${collectionName} após várias tentativas.`);
   } catch (err: any) {
-    const errStr = String(err.message || err).toLowerCase();
-    const isTableMissing = 
-      errStr.includes('relation') && errStr.includes('does not exist') ||
-      errStr.includes('could not find the table') ||
-      err.code === '42P01' ||
-      err.code === 'PGRST204';
-
-    if (isTableMissing) {
+    if (isDatabaseMissingOrCacheError(err)) {
       console.warn(`[Supabase Fallback] Erro fatal em "${collectionName}" devido a tabela inexistente. Ativando fallback local.`);
       setTableUsingFallback(collectionName, true);
       return saveLocalItem(collectionName, finalId, payload);
@@ -611,14 +582,7 @@ export const deleteData = async (collectionName: string, id: string) => {
     
     const { error } = await supabase.from(collectionName).delete().eq('id', id);
     if (error) {
-      const errorMsgLower = (error.message || '').toLowerCase();
-      const isTableMissing = 
-        errorMsgLower.includes('relation') && errorMsgLower.includes('does not exist') ||
-        errorMsgLower.includes('could not find the table') ||
-        error.code === '42P01' ||
-        error.code === 'PGRST204';
-
-      if (isTableMissing) {
+      if (isDatabaseMissingOrCacheError(error)) {
         setTableUsingFallback(collectionName, true);
         deleteLocalItem(collectionName, id);
         return;
@@ -626,14 +590,7 @@ export const deleteData = async (collectionName: string, id: string) => {
       throw error;
     }
   } catch (err: any) {
-    const errStr = String(err.message || err).toLowerCase();
-    const isTableMissing = 
-      errStr.includes('relation') && errStr.includes('does not exist') ||
-      errStr.includes('could not find the table') ||
-      err.code === '42P01' ||
-      err.code === 'PGRST204';
-
-    if (isTableMissing) {
+    if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
       deleteLocalItem(collectionName, id);
       return;

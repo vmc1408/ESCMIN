@@ -112,6 +112,20 @@ CREATE TABLE IF NOT EXISTS assessments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 9. Recibos de Pagamento
+CREATE TABLE IF NOT EXISTS receipts (
+    id TEXT PRIMARY KEY,
+    receipt_number TEXT NOT NULL,
+    amount NUMERIC(10,2) NOT NULL,
+    payee_name TEXT NOT NULL,
+    description TEXT,
+    payment_date TEXT NOT NULL,
+    signature_label TEXT,
+    issue_date TEXT NOT NULL,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 6. Recriar políticas de acesso (RLS) - Permite leitura/escrita para todos no modo dev
 DO $$ 
 DECLARE 
