@@ -1207,36 +1207,100 @@ export function Contributions() {
       doc.setFont('helvetica', 'bold');
       doc.text('EXTRATO ANUAL DE CONTRIBUIÇÕES', centerX, y, { align: 'center' });
       
-      y += 10;
-      doc.setFontSize(10);
+      // Info Box (Double Column)
+      const boxY = y + 5;
+      const boxHeight = 22;
+      const boxWidth = pageWidth - margin * 2;
+      
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(0.3);
+      doc.rect(margin, boxY, boxWidth, boxHeight, 'FD');
+
+      // Left Column: Dados do Aluno
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text('DADOS DO ALUNO', margin + 4, boxY + 5);
+
+      doc.setFontSize(9.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text(selectedStudent.name.toUpperCase(), margin + 4, boxY + 10);
+
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(50);
-      doc.text(`ALUNO: ${selectedStudent.name.toUpperCase()}`, margin, y);
-      doc.text(`MATRÍCULA: ${selectedStudent.registration_number || '---'}`, margin, y + 5);
-      doc.text(`ANO DE REFERÊNCIA: ${selectedYear}`, pageWidth - margin, y, { align: 'right' });
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text(`Matrícula: ${selectedStudent.registration_number || '---'}`, margin + 4, boxY + 15);
+      
+      const studentClass = classes.find(c => c.id === selectedStudent.class_id);
+      doc.text(`Turma: ${studentClass?.name || '---'}`, margin + 4, boxY + 19);
+
+      // Right Column: Período de Referência
+      const rightColX = pageWidth - margin - 80;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text('PERÍODO DE REFERÊNCIA', rightColX, boxY + 5);
+
+      doc.setFontSize(9.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text(`Janeiro a Dezembro de ${selectedYear}`, rightColX, boxY + 10);
+
+      const unpaidExpected = currentExpectedMonths.filter(m => !contributions.some(c => c.reference_month === m));
+      const situationText = unpaidExpected.length === 0 ? 'Regularizado' : 'Em Aberto';
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text(`Situação: ${situationText}`, rightColX, boxY + 15);
 
       const statementData = MONTHS.map((month, idx) => {
         const monthNum = idx + 1;
         const contrib = contributions.find(c => c.reference_month === monthNum);
         const isExpected = currentExpectedMonths.includes(monthNum);
+        
+        let status = 'DISPENSADO';
+        if (contrib) {
+          status = 'PAGO / LIQUIDADO';
+        } else if (isExpected) {
+          status = 'PENDENTE';
+        }
+
         return [
           month.toUpperCase(),
           contrib ? formatCurrency(contrib.amount) : '---',
-          contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : isExpected ? 'PENDENTE' : 'DISPENSADO',
-          contrib?.observations || ''
+          contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : '---',
+          status
         ];
       });
 
       autoTable(doc, {
-        startY: y + 10,
-        head: [['MÊS DE REFERÊNCIA', 'VALOR PAGO', 'DATA PAGAMENTO', 'OBSERVAÇÕES']],
+        startY: boxY + boxHeight + 8,
+        head: [['MÊS DE REFERÊNCIA', 'VALOR RECEBIDO', 'DATA DO PAGAMENTO', 'STATUS']],
         body: statementData,
         theme: 'grid',
         headStyles: { fillColor: [0, 23, 75], fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 2 },
+        styles: { fontSize: 8, cellPadding: 2.5 },
         columnStyles: {
           1: { halign: 'right' },
-          2: { halign: 'center' }
+          2: { halign: 'center' },
+          3: { halign: 'center' }
+        },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 3) {
+            const val = data.cell.text[0];
+            if (val === 'PAGO / LIQUIDADO') {
+              data.cell.styles.textColor = [16, 124, 65]; // Green
+              data.cell.styles.fontStyle = 'bold';
+            } else if (val === 'PENDENTE') {
+              data.cell.styles.textColor = [211, 47, 47]; // Red
+              data.cell.styles.fontStyle = 'bold';
+            } else if (val === 'DISPENSADO') {
+              data.cell.styles.textColor = [120, 144, 156]; // Grey
+              data.cell.styles.fontStyle = 'italic';
+            }
+          }
         }
       });
 
@@ -1246,25 +1310,45 @@ export function Contributions() {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0);
-      doc.text(`TOTAL ACUMULADO NO ANO: ${formatCurrency(total)}`, pageWidth - margin, finalY, { align: 'right' });
+      doc.text(`TOTAL GERAL DO PERÍODO: ${formatCurrency(total)}`, pageWidth - margin, finalY, { align: 'right' });
 
       // Important notes / Footer
-      if (institution?.receipt_message || institution?.footer_text) {
+      if (institution?.address || institution?.secretary || institution?.phone || institution?.email) {
         finalY = doc.internal.pageSize.height - 30;
         doc.setLineWidth(0.2);
         doc.setDrawColor(200);
         doc.line(margin, finalY, pageWidth - margin, finalY);
         
         doc.setFontSize(7);
+        doc.setTextColor(50);
+        
+        // Left Column: Address and Contact
+        const leftLines = [
+          institution?.address || '',
+          institution?.cep || institution?.city_uf ? `CEP: ${institution.cep || ''}${institution.city_uf ? ' - ' + institution.city_uf : ''}` : '',
+          [institution?.phone ? `TEL: ${institution.phone}` : '', institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''].filter(Boolean).join('  |  ')
+        ].filter(Boolean);
+        
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(150);
-        
-        const footerNote = institution?.receipt_message || '';
-        const splitNote = doc.splitTextToSize(footerNote, pageWidth - margin * 2);
-        doc.text(splitNote, centerX, finalY + 5, { align: 'center' });
-        
-        const sysInfo = institution?.footer_text || `Documento oficial gerado via ${institution?.name || 'Sistema de Gestão'} em ${new Date().toLocaleString('pt-BR')}`;
-        doc.text(sysInfo.toUpperCase(), centerX, finalY + 15, { align: 'center' });
+        let currentLeftY = finalY + 5;
+        leftLines.forEach(line => {
+          doc.text(line.toUpperCase(), margin, currentLeftY);
+          currentLeftY += 4;
+        });
+
+        // Right Column: Secretary Hour
+        if (institution?.secretary) {
+          doc.setFont('helvetica', 'bold');
+          doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, finalY + 5, { align: 'right' });
+          doc.setFont('helvetica', 'normal');
+          
+          const secLines = doc.splitTextToSize(institution.secretary.toLowerCase(), 80);
+          let currentRightY = finalY + 9;
+          secLines.forEach((line: string) => {
+            doc.text(line, pageWidth - margin, currentRightY, { align: 'right' });
+            currentRightY += 4;
+          });
+        }
       }
 
       doc.save(`Extrato_${selectedStudent.name.replace(/\s+/g, '_')}_${selectedYear}.pdf`);
@@ -2879,7 +2963,7 @@ export function Contributions() {
           className={cn(
             "bg-white text-black p-0 m-0 w-full min-h-screen z-[9999]",
             "fixed inset-0 overflow-y-auto bg-white",
-            "print:static print:block print:overflow-visible print:h-auto"
+            "print:static print:block print:overflow-visible print:h-auto print:max-h-[290mm] print:overflow-hidden"
           )}
         >
           {/* Control Bar */}
@@ -2928,9 +3012,9 @@ export function Contributions() {
             </div>
           </div>
 
-          <div className="max-w-[800px] mx-auto p-12 print:p-0 bg-white flex flex-col min-h-screen font-sans">
+          <div className="max-w-[800px] mx-auto p-12 print:p-0 bg-white flex flex-col min-h-screen print:min-h-0 print:h-auto font-sans">
             {/* Institutional Header */}
-            <div className="flex items-center gap-6 mb-6 pb-2 border-b-2 border-black">
+            <div className="flex items-center gap-6 mb-6 print:mb-3 pb-2 border-b-2 border-black">
               <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
                 {institution?.logo_url ? (
                   <img src={institution.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
@@ -2952,10 +3036,10 @@ export function Contributions() {
               </div>
             </div>
 
-            <div className="mb-6">
-               <h2 className="text-base font-bold text-center uppercase tracking-[0.1em] border-b border-black/10 pb-3 mb-4">Extrato Anual de Contribuições - {selectedYear}</h2>
+            <div className="mb-6 print:mb-3">
+               <h2 className="text-base font-bold text-center uppercase tracking-[0.1em] border-b border-black/10 pb-3 mb-4 print:pb-1.5 print:mb-2">Extrato Anual de Contribuições - {selectedYear}</h2>
                
-               <div className="grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded border border-slate-200">
+               <div className="grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded border border-slate-200 print:p-3">
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Dados do Aluno</span>
                     <p className="text-sm font-bold text-black uppercase">{selectedStudent.name}</p>
@@ -2965,7 +3049,13 @@ export function Contributions() {
                   <div className="text-right space-y-1">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Período de Referência</span>
                     <p className="text-sm font-bold text-black">Janeiro a Dezembro de {selectedYear}</p>
-                    <p className="text-[11px] text-slate-600 font-medium">Situação: {contributions.length === 12 ? 'Ano Completo' : 'Em Aberto'}</p>
+                    {(() => {
+                      const unpaidExpected = currentExpectedMonths.filter(m => !contributions.some(c => c.reference_month === m));
+                      const isRegularized = unpaidExpected.length === 0;
+                      return (
+                        <p className="text-[11px] text-slate-600 font-medium">Situação: {isRegularized ? 'Regularizado' : 'Em Aberto'}</p>
+                      );
+                    })()}
                   </div>
                </div>
             </div>
@@ -2987,16 +3077,16 @@ export function Contributions() {
                     const isExpected = currentExpectedMonths.includes(monthNum);
                     return (
                       <tr key={month} className="even:bg-slate-50/50">
-                        <td className="py-2 px-4 text-[11px] font-bold text-slate-700 uppercase">{month}</td>
-                        <td className="py-2 px-4 text-[11px] font-bold text-black text-right">{contrib ? formatCurrency(contrib.amount) : '---'}</td>
-                        <td className="py-2 px-4 text-[11px] font-medium text-slate-600 text-center">{contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : '---'}</td>
-                        <td className="py-2 px-4 text-[9px] font-bold uppercase text-center">
+                        <td className="py-2 print:py-1 px-4 text-[11px] font-bold text-slate-700 uppercase">{month}</td>
+                        <td className="py-2 print:py-1 px-4 text-[11px] font-bold text-black text-right">{contrib ? formatCurrency(contrib.amount) : '---'}</td>
+                        <td className="py-2 print:py-1 px-4 text-[11px] font-medium text-slate-600 text-center">{contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : '---'}</td>
+                        <td className="py-2 print:py-1 px-4 text-[9.5px] font-black uppercase text-center">
                           {contrib ? (
-                            <span className="text-emerald-700">Pago / Liquidado</span>
+                            <span className="text-emerald-700">PAGO / LIQUIDADO</span>
                           ) : isExpected ? (
-                            <span className="text-rose-600">Pendente</span>
+                            <span className="text-rose-600">PENDENTE</span>
                           ) : (
-                            <span className="text-slate-400 italic">Dispensado</span>
+                            <span className="text-slate-400 italic font-medium">DISPENSADO</span>
                           )}
                         </td>
                       </tr>
