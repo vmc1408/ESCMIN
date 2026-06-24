@@ -1334,7 +1334,7 @@ export function Contributions() {
                 if (selectedStudent) {
                   setViewMode('individual');
                 } else {
-                  setNotification({ type: 'info', message: 'Selecione um contribuinte na barra lateral para ver a Ficha Individual' });
+                  setNotification({ type: 'info', message: 'Selecione um contribuinte no campo "Nome / Matrícula" acima para ver a Ficha Individual' });
                 }
               }}
               className={cn(
@@ -2093,18 +2093,30 @@ export function Contributions() {
           </div>
         )}
 
-        {/* Notificações flutuantes */}
+        {/* Notificações flutuantes centralizadas com backdrop */}
         {notification && (
-          <div className={cn(
-            "fixed bottom-8 right-8 p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-4 duration-300 z-[200]",
-            notification.type === 'success' ? "bg-emerald-600 text-white" : 
-            notification.type === 'error' ? "bg-red-600 text-white" : "bg-blue-600 text-white"
-          )}>
-            {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-            <p className="text-sm font-bold">{notification.message}</p>
-            <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-70">
-              <X size={16} />
-            </button>
+          <div className="fixed inset-0 bg-[#020617]/50 backdrop-blur-xs z-[9999] flex items-center justify-center p-4">
+            <div className={cn(
+              "p-6 rounded-2xl shadow-2xl flex flex-col items-center text-center gap-4 animate-in zoom-in-95 duration-200 max-w-md w-full border border-white/15",
+              notification.type === 'success' ? "bg-emerald-600 text-white" : 
+              notification.type === 'error' ? "bg-red-600 text-white" : "bg-blue-600 text-white"
+            )}>
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center animate-bounce">
+                {notification.type === 'success' ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-xs font-black uppercase tracking-widest opacity-80">
+                  {notification.type === 'success' ? 'Sucesso' : notification.type === 'error' ? 'Atenção / Erro' : 'Informativo'}
+                </h4>
+                <p className="text-sm font-bold leading-relaxed">{notification.message}</p>
+              </div>
+              <button 
+                onClick={() => setNotification(null)} 
+                className="mt-2 w-full py-2.5 bg-white/20 hover:bg-white/35 active:scale-98 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md"
+              >
+                Entendi
+              </button>
+            </div>
           </div>
         )}
       </div>
