@@ -250,6 +250,14 @@ export function Receipts() {
     doc.rect(10, 10, 190, 130);
 
     // Header logo placeholder or basic layout
+    if (institution?.logo_url) {
+      try {
+        doc.addImage(institution.logo_url, 'auto', 15, 14, 20, 20);
+      } catch (e) {
+        console.error('Error drawing logo in PDF', e);
+      }
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.text('MITRA DIOCESANA DE GUARULHOS', 105, 20, { align: 'center' });
@@ -493,11 +501,26 @@ export function Receipts() {
                   className="bg-white p-6 border-2 border-slate-800 font-sans text-black space-y-4 select-none relative shadow-md"
                 >
                   {/* Header */}
-                  <div className="text-center border-b border-black pb-2">
-                    <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
-                    <h4 className="text-xs font-bold uppercase">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
-                    {institution?.subtitle && <p className="text-[9px] font-medium text-slate-500 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
-                    {institution?.address && <p className="text-[8px] text-slate-400 mt-1 leading-none">{institution.address}</p>}
+                  <div className="border-b border-black pb-2 flex items-center justify-between gap-4">
+                    {institution?.logo_url ? (
+                      <div className="w-12 h-12 flex items-center justify-start shrink-0">
+                        <img 
+                          src={institution.logo_url} 
+                          className="h-12 w-12 object-contain" 
+                          referrerPolicy="no-referrer" 
+                          alt="Logo"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 shrink-0" />
+                    )}
+                    <div className="flex-1 text-center">
+                      <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
+                      <h4 className="text-xs font-bold uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+                      {institution?.subtitle && <p className="text-[9px] font-medium text-slate-500 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
+                      {institution?.address && <p className="text-[8px] text-slate-400 mt-1 leading-none">{institution.address}</p>}
+                    </div>
+                    <div className="w-12 shrink-0" />
                   </div>
 
                   {/* Num & Value row */}
@@ -604,11 +627,26 @@ export function Receipts() {
           className="hidden print:block bg-white text-black font-sans"
         >
           {/* Header */}
-          <div className="text-center border-b border-black pb-2">
-            <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
-            <h4 className="text-xs font-bold uppercase">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
-            {institution?.subtitle && <p className="text-[9px] font-medium text-slate-500 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
-            {institution?.address && <p className="text-[8px] text-slate-400 mt-1 leading-none">{institution.address}</p>}
+          <div className="border-b border-black pb-2 flex items-center justify-between gap-4">
+            {institution?.logo_url ? (
+              <div className="w-12 h-12 flex items-center justify-start shrink-0">
+                <img 
+                  src={institution.logo_url} 
+                  className="h-12 w-12 object-contain" 
+                  referrerPolicy="no-referrer" 
+                  alt="Logo"
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 shrink-0" />
+            )}
+            <div className="flex-1 text-center">
+              <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
+              <h4 className="text-xs font-bold uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+              {institution?.subtitle && <p className="text-[9px] font-medium text-slate-500 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
+              {institution?.address && <p className="text-[8px] text-slate-400 mt-1 leading-none">{institution.address}</p>}
+            </div>
+            <div className="w-12 shrink-0" />
           </div>
 
           {/* Num & Value row */}
@@ -820,10 +858,25 @@ export function Receipts() {
                     {/* Simulated Receipt paper */}
                     <div className="bg-white p-6 border border-slate-300 rounded-xl shadow-sm space-y-3 font-sans text-black relative">
                       {/* Header */}
-                      <div className="text-center border-b border-black pb-1.5">
-                        <p className="text-[8px] font-black tracking-widest text-slate-500 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
-                        <h4 className="text-[10px] font-bold uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
-                        {institution?.subtitle && <p className="text-[8px] font-medium text-slate-400 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
+                      <div className="border-b border-black pb-1.5 flex items-center justify-between gap-3">
+                        {institution?.logo_url ? (
+                          <div className="w-8 h-8 flex items-center justify-start shrink-0">
+                            <img 
+                              src={institution.logo_url} 
+                              className="h-8 w-8 object-contain" 
+                              referrerPolicy="no-referrer" 
+                              alt="Logo"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 shrink-0" />
+                        )}
+                        <div className="flex-1 text-center">
+                          <p className="text-[8px] font-black tracking-widest text-slate-500 uppercase">MITRA DIOCESANA DE GUARULHOS</p>
+                          <h4 className="text-[10px] font-bold uppercase leading-tight">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</h4>
+                          {institution?.subtitle && <p className="text-[8px] font-medium text-slate-400 uppercase leading-none mt-0.5">{institution.subtitle}</p>}
+                        </div>
+                        <div className="w-8 shrink-0" />
                       </div>
 
                       {/* Num & Value row */}

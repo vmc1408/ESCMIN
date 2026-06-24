@@ -376,6 +376,20 @@ CREATE TABLE IF NOT EXISTS public.assessments (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 21. receipts
+CREATE TABLE IF NOT EXISTS public.receipts (
+    id TEXT PRIMARY KEY,
+    receipt_number TEXT NOT NULL,
+    amount NUMERIC(12,2) NOT NULL,
+    payee_name TEXT NOT NULL,
+    description TEXT,
+    payment_date DATE,
+    signature_label TEXT,
+    issue_date DATE,
+    user_id TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- RLS POLICIES (Simplified)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public profiles are viewable by everyone." ON public.users FOR SELECT USING (true);

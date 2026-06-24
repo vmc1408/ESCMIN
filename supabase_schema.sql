@@ -323,10 +323,24 @@ CREATE TABLE IF NOT EXISTS public.assessments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 21. Recibos
+CREATE TABLE IF NOT EXISTS public.receipts (
+    id TEXT PRIMARY KEY,
+    receipt_number TEXT NOT NULL,
+    amount NUMERIC(12,2) NOT NULL,
+    payee_name TEXT NOT NULL,
+    description TEXT,
+    payment_date DATE,
+    signature_label TEXT,
+    issue_date DATE,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Habilitar RLS e criar políticas de acesso público para todas as tabelas
 DO $$
 DECLARE
-    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments', 'archived_students', 'archived_teachers', 'archived_classes', 'archived_subjects', 'academic_settings', 'assessments'];
+    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments', 'archived_students', 'archived_teachers', 'archived_classes', 'archived_subjects', 'academic_settings', 'assessments', 'receipts'];
     t text;
 BEGIN
     FOREACH t IN ARRAY tables LOOP
