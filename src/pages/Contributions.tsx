@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search } from 'lucide-react';
 import { financialService } from '../services/financialService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
@@ -26,9 +26,9 @@ export function Contributions() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [contributions, setContributions] = useState<Contribution[]>([]);
-  const [viewMode, setViewMode] = useState<'individual' | 'period'>('individual');
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [viewMode, setViewMode] = useState<'individual' | 'period' | 'unpaid'>('individual');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [periodData, setPeriodData] = useState<(Contribution & { student?: Student })[]>([]);
   const [recentContributions, setRecentContributions] = useState<(Contribution & { student?: Student })[]>([]);
   const [filterType, setFilterType] = useState<'payment' | 'created'>('payment');
@@ -46,6 +46,51 @@ export function Contributions() {
   const [isPrintingStatement, setIsPrintingStatement] = useState(false);
   const [expandedStudents, setExpandedStudents] = useState<string[]>([]);
   
+  // Helper to calculate expected months for a student in a specific year
+  const getExpectedMonthsForStudent = (student: Student, year: number) => {
+    // If student started after this year, they are not expected to pay anything for this year
+    if (student.start_date) {
+      const startDate = new Date(student.start_date);
+      if (!isNaN(startDate.getTime()) && startDate.getFullYear() > year) {
+        return [];
+      }
+    }
+
+    // Determine starting month for this year
+    let startMonth = 1; // January
+    if (student.start_date) {
+      const startDate = new Date(student.start_date);
+      if (!isNaN(startDate.getTime()) && startDate.getFullYear() === year) {
+        startMonth = startDate.getMonth() + 1; // 1-indexed
+      }
+    }
+
+    // Determine end month for this year
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1; // 1-indexed
+    
+    let endMonth = 12; // December
+    if (year === currentYear) {
+      endMonth = currentMonth;
+    } else if (year > currentYear) {
+      endMonth = 0; // Future year, no months expected yet
+    }
+
+    const expected: number[] = [];
+    for (let m = startMonth; m <= endMonth; m++) {
+      expected.push(m);
+    }
+    return expected;
+  };
+
+  // States for Unpaid (Mensalidades em Aberto) dashboard
+  const [unpaidLoading, setUnpaidLoading] = useState(false);
+  const [allActiveStudents, setAllActiveStudents] = useState<Student[]>([]);
+  const [unpaidContributions, setUnpaidContributions] = useState<Contribution[]>([]);
+  const [unpaidClassFilter, setUnpaidClassFilter] = useState<string>('all');
+  const [unpaidSearchTerm, setUnpaidSearchTerm] = useState<string>('');
+  const [unpaidYear, setUnpaidYear] = useState<number>(new Date().getFullYear());
+
   const toggleStudentExpansion = (studentId: string) => {
     setExpandedStudents(prev => 
       prev.includes(studentId) 
@@ -187,15 +232,30 @@ export function Contributions() {
 
   const handleSearchStudents = async (val: string) => {
     setSearchTerm(val);
-    if (val.length < 3) return;
+    if (val.length < 3) {
+      setStudents([]);
+      return;
+    }
 
     setIsSearching(true);
     try {
-      const data = await fetchQuery('students', [
-        { field: 'name', operator: 'ilike', value: `%${val}%` },
-        { field: 'status', operator: '==', value: 'Ativo' }
-      ], 'name');
-      setStudents((data || []) as Student[]);
+      const [nameData, regData] = await Promise.all([
+        fetchQuery('students', [
+          { field: 'name', operator: 'ilike', value: `%${val}%` },
+          { field: 'status', operator: '==', value: 'Ativo' }
+        ]),
+        fetchQuery('students', [
+          { field: 'registration_number', operator: 'ilike', value: `%${val}%` },
+          { field: 'status', operator: '==', value: 'Ativo' }
+        ])
+      ]);
+
+      const combined = [...(nameData || []), ...(regData || [])];
+      // Deduplicate by ID
+      const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+      // Sort alphabetically by name
+      const sorted = (unique as Student[]).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      setStudents(sorted);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -210,10 +270,15 @@ export function Contributions() {
       const dbStart = parseDateToDB(startDate);
       const dbEnd = parseDateToDB(endDate);
       
-      const docsData = await fetchQuery('contributions', [
-        { field: dateField, operator: '>=', value: dbStart },
-        { field: dateField, operator: '<=', value: dbEnd + (dateField === 'created_at' ? 'T23:59:59Z' : 'z') }
-      ], dateField);
+      const filters = [];
+      if (dbStart) {
+        filters.push({ field: dateField, operator: '>=', value: dbStart });
+      }
+      if (dbEnd) {
+        filters.push({ field: dateField, operator: '<=', value: dbEnd + (dateField === 'created_at' ? 'T23:59:59Z' : 'z') });
+      }
+      
+      const docsData = await fetchQuery('contributions', filters);
 
       if (!docsData) {
         setPeriodData([]);
@@ -271,6 +336,166 @@ export function Contributions() {
       setContributions((data || []) as Contribution[]);
     } catch (error: any) {
       console.error('Error fetching contributions:', error.message);
+    }
+  };
+
+  // Fetch all active students and contributions of selected year for the unpaid/debtors report
+  const fetchUnpaidData = async (targetYear = unpaidYear) => {
+    setUnpaidLoading(true);
+    try {
+      // 1. Fetch all active students
+      const studs = await fetchQuery('students', [
+        { field: 'status', operator: '==', value: 'Ativo' }
+      ], 'name');
+
+      // 2. Fetch all contributions for this year
+      const yearContribs = await fetchQuery('contributions', [
+        { field: 'reference_year', operator: '==', value: targetYear }
+      ]);
+
+      setAllActiveStudents((studs || []) as Student[]);
+      setUnpaidContributions((yearContribs || []) as Contribution[]);
+    } catch (error: any) {
+      console.error('Error fetching unpaid data:', error);
+      setNotification({ type: 'error', message: 'Erro ao carregar inadimplência: ' + error.message });
+    } finally {
+      setUnpaidLoading(false);
+    }
+  };
+
+  // Compute list of students with unpaid months
+  const unpaidReportList = useMemo(() => {
+    return allActiveStudents.map(student => {
+      // Expected months for this student in the selected unpaidYear
+      const expectedMonths = getExpectedMonthsForStudent(student, unpaidYear);
+      
+      // Paid months this year
+      const paidMonths = unpaidContributions
+        .filter(c => c.student_id === student.id)
+        .map(c => c.reference_month);
+      
+      // Unpaid months
+      const unpaidMonths = expectedMonths.filter(m => !paidMonths.includes(m));
+      
+      return {
+        student,
+        expectedMonths,
+        paidMonths,
+        unpaidMonths,
+        pendingCount: unpaidMonths.length,
+        estimatedDebt: unpaidMonths.length * 100 // Estimate $100.00 standard monthly fee
+      };
+    })
+    .filter(item => item.pendingCount > 0) // only show if there are outstanding/pending months
+    .filter(item => {
+      // Search term filter
+      if (!unpaidSearchTerm.trim()) return true;
+      const term = unpaidSearchTerm.toLowerCase();
+      return (
+        item.student.name?.toLowerCase().includes(term) ||
+        item.student.registration_number?.toLowerCase().includes(term)
+      );
+    })
+    .filter(item => {
+      // Class filter
+      if (unpaidClassFilter === 'all') return true;
+      return item.student.class_id === unpaidClassFilter;
+    });
+  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter]);
+
+  // Generate PDF report for unpaid fees (Relatório de Mensalidades em Aberto)
+  const generateUnpaidReport = () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const margin = 14;
+
+      // Header Banner
+      doc.setFillColor(19, 27, 46); // Deep Navy background
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(255, 255, 255);
+      const title = 'RELATÓRIO DE MENSALIDADES EM ABERTO';
+      doc.text(title, margin, 18);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(226, 232, 240);
+      const yearText = `ANO DE REFERÊNCIA DO RELATÓRIO: ${unpaidYear}`;
+      doc.text(yearText, margin, 25);
+      
+      const genDate = `GERADO EM: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`.toUpperCase();
+      doc.text(genDate, margin, 30);
+
+      // Filter text
+      let filterText = 'FILTRO DE SELEÇÃO: TODAS AS TURMAS';
+      if (unpaidClassFilter !== 'all') {
+        const cls = classes.find(c => c.id === unpaidClassFilter);
+        filterText = `FILTRO DE SELEÇÃO: TURMA ${cls?.name?.toUpperCase() || unpaidClassFilter}`;
+      }
+      doc.text(filterText, margin, 35);
+
+      // Table data
+      const tableRows = unpaidReportList.map((item, index) => {
+        const studentName = item.student.name?.toUpperCase() || 'SEM NOME';
+        const studentRA = item.student.registration_number || 'S/ RA';
+        const className = classes.find(c => c.id === item.student.class_id)?.name?.toUpperCase() || 'SEM TURMA';
+        const pendingMonthsText = item.unpaidMonths.map(m => MONTHS[m - 1].substring(0, 3).toUpperCase()).join(', ');
+        
+        return [
+          index + 1,
+          `${studentName}\n(${studentRA})`,
+          className,
+          item.pendingCount,
+          pendingMonthsText,
+          formatCurrency(item.estimatedDebt)
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 45,
+        head: [['#', 'ESTUDANTE / REGISTRO ACADÊMICO', 'TURMA VINCULADA', 'MESES DEV.', 'MESES PENDENTES', 'VALOR ESTIMADO']],
+        body: tableRows,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontSize: 8.5,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: [50, 50, 50]
+        },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 40 },
+          5: { cellWidth: 20, halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      // Total summary at the bottom
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      
+      const totalStudents = unpaidReportList.length;
+      const totalEstimatedDebt = unpaidReportList.reduce((acc, curr) => acc + curr.estimatedDebt, 0);
+      
+      doc.text(`TOTAL DE ALUNOS COM REGISTRO DE PENDÊNCIA: ${totalStudents}`, margin, finalY);
+      doc.text(`VALOR TOTAL PENDENTE ESTIMADO CONSOLIDADO: ${formatCurrency(totalEstimatedDebt)}`, margin, finalY + 6);
+
+      doc.save(`Relatorio_Mensalidades_Aberto_${unpaidYear}.pdf`);
+    } catch (error) {
+      console.error('Error generating unpaid report:', error);
+      alert('Erro ao gerar relatório de mensalidades em aberto');
     }
   };
 
@@ -918,6 +1143,8 @@ export function Contributions() {
     setSearchTerm('');
     setSearchByName('');
     setStudents([]);
+    setStartDate('');
+    setEndDate('');
     setViewMode('period');
     fetchRecentContributions();
   };
@@ -969,14 +1196,13 @@ export function Contributions() {
           {/* Filtro de Tipo de Data */}
           <div className="lg:col-span-2 space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-3">Tipo</label>
-            <select 
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as any)}
-              className="w-full px-4 h-[3.25rem] bg-white border border-slate-200 rounded-none text-xs font-bold uppercase tracking-wider text-slate-600 focus:ring-4 focus:ring-blue-500/10 cursor-pointer"
-            >
-              <option value="payment">Pagamento</option>
-              <option value="created">Importação</option>
-            </select>
+            <input 
+              type="text"
+              readOnly
+              value="AUTOMÁTICO"
+              className="w-full px-4 h-[3.25rem] bg-slate-100/60 border border-slate-200 rounded-none text-xs font-black uppercase tracking-wider text-slate-500 cursor-not-allowed select-none flex items-center justify-center text-center"
+              title="O tipo é detectado automaticamente nas informações consultadas (Pagamento Direto ou PIX por Importação)."
+            />
           </div>
 
           <div className="lg:col-span-4 space-y-1.5">
@@ -1069,7 +1295,254 @@ export function Contributions() {
 
         {/* Main Workspace */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-          {selectedStudent && viewMode === 'individual' ? (
+          {/* Aba de navegação de modos de visualização */}
+          <div className="flex border-b border-slate-100 bg-slate-50/40 p-1.5 shrink-0 gap-1.5">
+            <button
+              onClick={() => {
+                setViewMode('period');
+                fetchPeriodContributions();
+              }}
+              className={cn(
+                "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2",
+                viewMode === 'period' 
+                  ? "bg-[#131b2e] text-white shadow-lg" 
+                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+              )}
+            >
+              <Calendar size={14} />
+              Lançamentos do Período
+            </button>
+            <button
+              onClick={() => {
+                if (selectedStudent) {
+                  setViewMode('individual');
+                } else {
+                  setNotification({ type: 'info', message: 'Selecione um contribuinte na barra lateral para ver a Ficha Individual' });
+                }
+              }}
+              className={cn(
+                "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2",
+                viewMode === 'individual' 
+                  ? "bg-[#131b2e] text-white shadow-lg" 
+                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50",
+                !selectedStudent && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <UserIcon size={14} />
+              Ficha Individual {selectedStudent ? `(${selectedStudent.name.split(' ')[0]})` : ''}
+            </button>
+            <button
+              onClick={() => {
+                setViewMode('unpaid');
+                fetchUnpaidData();
+              }}
+              className={cn(
+                "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2",
+                viewMode === 'unpaid' 
+                  ? "bg-[#131b2e] text-white shadow-lg" 
+                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+              )}
+            >
+              <AlertCircle size={14} />
+              Mensalidades em Aberto
+            </button>
+          </div>
+
+          {viewMode === 'unpaid' ? (
+            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/30">
+              {/* Unpaid Filters & Header */}
+              <div className="p-5 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+                <div className="space-y-1">
+                  <h3 className="text-base font-black text-[#131b2e] flex items-center gap-2">
+                    <AlertCircle size={18} className="text-[#131b2e]" />
+                    Inadimplência de Mensalidades
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Acompanhamento de mensalidades em aberto e controle de arrecadação para o ano letivo de <strong>{unpaidYear}</strong>.
+                  </p>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Selector of Year */}
+                  <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+                    <button 
+                      onClick={() => {
+                        const newY = unpaidYear - 1;
+                        setUnpaidYear(newY);
+                        fetchUnpaidData(newY);
+                      }}
+                      className="p-1.5 hover:bg-white rounded-lg transition-all"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="px-3 text-xs font-black text-[#131b2e]">{unpaidYear}</span>
+                    <button 
+                      onClick={() => {
+                        const newY = unpaidYear + 1;
+                        setUnpaidYear(newY);
+                        fetchUnpaidData(newY);
+                      }}
+                      className="p-1.5 hover:bg-white rounded-lg transition-all"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+
+                  {/* Class Filter */}
+                  <select
+                    value={unpaidClassFilter}
+                    onChange={(e) => setUnpaidClassFilter(e.target.value)}
+                    className="h-10 px-3 bg-slate-100 border-none rounded-xl text-xs font-black text-[#131b2e] focus:ring-2 focus:ring-slate-200"
+                  >
+                    <option value="all">TODAS AS TURMAS</option>
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                    ))}
+                  </select>
+
+                  {/* Print Report PDF Button */}
+                  <button
+                    onClick={generateUnpaidReport}
+                    disabled={unpaidReportList.length === 0}
+                    className="h-10 px-4 bg-[#131b2e] text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:scale-95"
+                  >
+                    <FileDown size={15} />
+                    Exportar PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Unpaid Search Input */}
+              <div className="px-5 py-3 border-b border-slate-100 bg-white shrink-0">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar inadimplentes por nome ou RA..."
+                    value={unpaidSearchTerm}
+                    onChange={(e) => setUnpaidSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-medium text-slate-700 placeholder-slate-400 focus:bg-slate-100 focus:ring-2 focus:ring-slate-150 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Unpaid Content Area */}
+              <div className="flex-1 overflow-y-auto p-5">
+                {unpaidLoading ? (
+                  <div className="h-64 flex flex-col items-center justify-center gap-3">
+                    <Loader2 size={36} className="text-blue-600 animate-spin" />
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Processando cruzamento de dados...</p>
+                  </div>
+                ) : unpaidReportList.length === 0 ? (
+                  <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm">
+                    <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                      <CheckCircle2 size={32} className="text-emerald-500 opacity-80" />
+                    </div>
+                    <h4 className="text-sm font-black text-[#131b2e] uppercase tracking-wider">Tudo Regularizado!</h4>
+                    <p className="text-xs text-center text-slate-400 max-w-sm mt-2 leading-relaxed">
+                      Nenhum estudante ativo elegível possui mensalidades pendentes para os filtros selecionados neste ano de {unpaidYear}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Overview Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudantes em Aberto</p>
+                          <h4 className="text-2xl font-black text-[#131b2e] mt-1">{unpaidReportList.length} Alunos</h4>
+                        </div>
+                        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+                          <UserIcon size={22} />
+                        </div>
+                      </div>
+                      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">A Arrecadar Estimado</p>
+                          <h4 className="text-2xl font-black text-rose-600 mt-1">
+                            {formatCurrency(unpaidReportList.reduce((acc, curr) => acc + curr.estimatedDebt, 0))}
+                          </h4>
+                        </div>
+                        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+                          <DollarSign size={22} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Table List of Debtors */}
+                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100">
+                            <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Estudante</th>
+                            <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Turma</th>
+                            <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Meses Pendentes</th>
+                            <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Meses em Aberto</th>
+                            <th className="px-6 py-4 text-right text-xs font-black text-slate-400 uppercase tracking-widest">Valor Estimado</th>
+                            <th className="px-6 py-4"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {unpaidReportList.map(item => {
+                            const className = classes.find(c => c.id === item.student.class_id)?.name || 'Sem turma';
+                            return (
+                              <tr key={item.student.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-black text-sm">
+                                      {item.student.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-black text-[#131b2e] leading-snug">{item.student.name}</p>
+                                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.student.registration_number}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                                    {className}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-center font-black text-sm text-rose-600">
+                                  {item.pendingCount}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex flex-wrap gap-1 max-w-[280px]">
+                                    {item.unpaidMonths.map(m => (
+                                      <span key={m} className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-100/50 rounded-md text-[9px] font-bold uppercase tracking-wider">
+                                        {MONTHS[m - 1].substring(0, 3)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <span className="text-sm font-black text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl">
+                                    {formatCurrency(item.estimatedDebt)}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedStudent(item.student);
+                                      setViewMode('individual');
+                                      fetchContributions(item.student.id, unpaidYear);
+                                    }}
+                                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                                  >
+                                    Regularizar
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : selectedStudent && viewMode === 'individual' ? (
           <>
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
               <div className="flex items-center justify-between mb-4">
@@ -1201,11 +1674,14 @@ export function Contributions() {
                             <p className="text-lg font-black text-[#131b2e] leading-none">{formatCurrency(contrib.amount)}</p>
                             <div className="flex items-center gap-2">
                               <p className="text-[9px] font-bold text-slate-400">Pago: {safeFormat(contrib.payment_date, 'dd/MM/yy')}</p>
-                              {contrib.payment_method && (
-                                <span className="px-1.5 py-px bg-slate-100 text-slate-500 rounded text-[7px] font-black uppercase tracking-wider">
-                                  {contrib.payment_method}
-                                </span>
-                              )}
+                              <span className={cn(
+                                "px-1.5 py-px rounded text-[7px] font-black uppercase tracking-wider border",
+                                contrib.pix_id 
+                                  ? "bg-blue-50 text-blue-600 border-blue-100" 
+                                  : "bg-slate-50 text-slate-600 border-slate-100"
+                              )}>
+                                {contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`}
+                              </span>
                             </div>
                             {contrib.observations && (
                               <p className="text-[9px] text-slate-400 italic truncate" title={contrib.observations}>
@@ -1432,9 +1908,17 @@ export function Contributions() {
                                 </td>
                                 <td className="px-6 py-4">
                                   <div className="flex flex-wrap gap-2">
-                                    {Array.from(new Set(group.contributions.map((c: any) => c.payment_method || 'PIX'))).map((method: any) => (
-                                      <span key={method} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                                        {method}
+                                    {Array.from(new Set(group.contributions.map((c: any) => c.pix_id ? 'PIX por Importação' : `Pagamento Direto (${c.payment_method || 'Dinheiro'})`))).map((type: any) => (
+                                      <span 
+                                        key={type} 
+                                        className={cn(
+                                          "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border",
+                                          type.startsWith('PIX')
+                                            ? "bg-blue-50 text-blue-600 border-blue-100"
+                                            : "bg-slate-50 text-slate-600 border-slate-100"
+                                        )}
+                                      >
+                                        {type}
                                       </span>
                                     ))}
                                   </div>
@@ -1488,8 +1972,13 @@ export function Contributions() {
                                   </td>
                                   <td className="px-6 py-4">
                                     <div className="flex items-center gap-2">
-                                      <span className="px-2.5 py-1 bg-slate-100/50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                                        {c.payment_method || 'PIX'}
+                                      <span className={cn(
+                                        "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
+                                        c.pix_id 
+                                          ? "bg-blue-50 text-blue-600 border-blue-100" 
+                                          : "bg-slate-50 text-slate-600 border-slate-100"
+                                      )}>
+                                        {c.pix_id ? 'PIX por Importação' : `Pagamento Direto (${c.payment_method || 'Dinheiro'})`}
                                       </span>
                                       {c.pix_id && <span title="Registro Conciliado"><Link2Off size={11} className="text-blue-500" /></span>}
                                       {c.observations && (

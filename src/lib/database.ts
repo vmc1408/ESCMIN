@@ -112,6 +112,8 @@ export const fetchQuery = async (
         else if (op === 'in') queryBuilder = queryBuilder.in(filter.field, filter.value);
         else if (op === '!=') queryBuilder = queryBuilder.neq(filter.field, filter.value);
         else if (op === 'array-contains') queryBuilder = queryBuilder.contains(filter.field, [filter.value]);
+        else if (op === 'like') queryBuilder = queryBuilder.like(filter.field, filter.value);
+        else if (op === 'ilike') queryBuilder = queryBuilder.ilike(filter.field, filter.value);
       });
     } else if (typeof fieldOrFilters === 'string' && operator) {
       const op = operator === '==' ? 'eq' : operator;
@@ -119,6 +121,8 @@ export const fetchQuery = async (
       else if (op === '>=') queryBuilder = queryBuilder.gte(fieldOrFilters, value);
       else if (op === '<=') queryBuilder = queryBuilder.lte(fieldOrFilters, value);
       else if (op === 'in') queryBuilder = queryBuilder.in(fieldOrFilters, value);
+      else if (op === 'like') queryBuilder = queryBuilder.like(fieldOrFilters, value);
+      else if (op === 'ilike') queryBuilder = queryBuilder.ilike(fieldOrFilters, value);
     }
     
     const result = await fetchWithTimeout(queryBuilder);

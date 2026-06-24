@@ -21,11 +21,16 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
 import { financialService } from '../services/financialService';
+
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
 
 const formatLongDate = (dateString: string) => {
   if (!dateString) return '';
@@ -299,6 +304,64 @@ export function StudentFicha() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [studentContributions, setStudentContributions] = useState<any[]>([]);
+
+  // Fetch student contributions for alerts on change of selected student
+  useEffect(() => {
+    if (selectedStudentId) {
+      const currentYear = new Date().getFullYear();
+      fetchQuery('contributions', [
+        { field: 'student_id', operator: '==', value: selectedStudentId },
+        { field: 'reference_year', operator: '==', value: currentYear }
+      ])
+      .then(data => {
+        setStudentContributions(data || []);
+      })
+      .catch(err => {
+        console.error("Error fetching contributions for ficha alert:", err);
+      });
+    } else {
+      setStudentContributions([]);
+    }
+  }, [selectedStudentId]);
+
+  // Compute unpaid months alert for the current year
+  const unpaidMonthsAlert = useMemo(() => {
+    const student = students.find(s => s.id === selectedStudentId);
+    if (!student || student.status !== 'Ativo') return null;
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    // Helper to calculate expected months
+    let startMonth = 1;
+    if (student.start_date) {
+      const startDate = new Date(student.start_date);
+      if (!isNaN(startDate.getTime()) && startDate.getFullYear() === currentYear) {
+        startMonth = startDate.getMonth() + 1;
+      } else if (!isNaN(startDate.getTime()) && startDate.getFullYear() > currentYear) {
+        return null; // Future start date
+      }
+    }
+
+    const expectedMonths: number[] = [];
+    for (let m = startMonth; m <= currentMonth; m++) {
+      expectedMonths.push(m);
+    }
+
+    const paidMonths = studentContributions.map(c => c.reference_month);
+    const unpaidMonths = expectedMonths.filter(m => !paidMonths.includes(m));
+
+    if (unpaidMonths.length > 0) {
+      return {
+        months: unpaidMonths,
+        count: unpaidMonths.length,
+        totalEstimated: unpaidMonths.length * 100
+      };
+    }
+
+    return null;
+  }, [selectedStudentId, studentContributions, students]);
 
   // Handle auto-selection when coming from other screens (e.g. Ficha Acadêmica button in Students)
   useEffect(() => {
@@ -864,6 +927,34 @@ export function StudentFicha() {
               </div>
             ) : (
               <div className="space-y-6">
+
+                {/* Financial Alert for Unpaid Contributions */}
+                {unpaidMonthsAlert && (
+                  <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-none flex items-start gap-4.5 shadow-sm animate-in fade-in duration-200">
+                    <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-widest font-sans">
+                          Aviso de Tesouraria: Contribuições Pendentes
+                        </h4>
+                        <span className="text-[9px] font-black text-amber-700 bg-amber-100/50 border border-amber-200/60 px-2 py-0.5 uppercase tracking-wider rounded-none">
+                          Em Aberto
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-800 leading-relaxed font-semibold">
+                        Este estudante possui <strong className="text-amber-950 font-extrabold">{unpaidMonthsAlert.count} {unpaidMonthsAlert.count === 1 ? 'mensalidade' : 'mensalidades'} em aberto</strong> para o ano letivo de {new Date().getFullYear()}:{' '}
+                        <span className="font-extrabold text-amber-950 underline decoration-amber-500/50 underline-offset-2">
+                          {unpaidMonthsAlert.months.map(m => MONTHS[m - 1]).join(', ')}
+                        </span>.
+                      </p>
+                      <div className="flex gap-4 pt-1.5 text-[10px] text-amber-600 font-bold uppercase tracking-wider font-mono">
+                        <span>Pendente Estimado: {formatCurrency(unpaidMonthsAlert.totalEstimated)}</span>
+                        <span>•</span>
+                        <span className="text-amber-700 italic">Por favor, regularize na aba de Contribuições</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* 1. Personal & Contact Dossier Tab */}
                 <div className="bg-white border border-slate-200 p-6 rounded-none space-y-6 shadow-sm">
