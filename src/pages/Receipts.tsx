@@ -145,6 +145,15 @@ export function Receipts() {
     fetchInitialData();
   }, []);
 
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -511,10 +520,10 @@ export function Receipts() {
       </div>
 
       {/* Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Receipt List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-7 space-y-4">
           <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider">Recibos Emitidos</h3>
@@ -590,7 +599,7 @@ export function Receipts() {
         </div>
 
         {/* Live / Printable Receipt Preview */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-5">
           <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm p-6 sticky top-6 space-y-4">
             <h3 className="text-sm font-black text-[#00174b] uppercase tracking-wider">Visualização do Recibo</h3>
             
