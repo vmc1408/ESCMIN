@@ -239,60 +239,77 @@ export function Receipts() {
 
   const generatePDF = (receipt: Receipt) => {
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
-      format: 'a5'
+      format: 'a4'
     });
 
     // Outer Border
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
-    doc.rect(10, 10, 190, 130);
+    doc.rect(10, 10, 190, 130, 'S');
 
     // Header logo placeholder or basic layout
     if (institution?.logo_url) {
       try {
-        doc.addImage(institution.logo_url, 'auto', 15, 14, 20, 20);
+        doc.addImage(institution.logo_url, 'auto', 25, 15, 18, 18);
       } catch (e) {
         console.error('Error drawing logo in PDF', e);
       }
     }
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setDrawColor(0, 0, 0);
+    doc.setTextColor(0, 0, 0);
+
+    // Center header text at 105mm
+    doc.setFontSize(10);
     doc.text('MITRA DIOCESANA DE GUARULHOS', 105, 20, { align: 'center' });
-    doc.setFontSize(11);
-    doc.text(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 105, 26, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 105, 25.5, { align: 'center' });
     
     if (institution?.subtitle) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(institution.subtitle, 105, 31, { align: 'center' });
+      doc.text(institution.subtitle, 105, 30.5, { align: 'center' });
     }
 
     if (institution?.address) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text(institution.address, 105, 36, { align: 'center' });
+      doc.text(institution.address, 105, 35.5, { align: 'center' });
     }
 
-    // Border line below header
+    // Border line below header (from x=25 to x=185, at y=41)
     doc.setLineWidth(0.2);
-    doc.line(15, 42, 195, 42);
+    doc.line(25, 41, 185, 41);
 
-    // Receipt number & value block
+    // Receipt number block (on the left: x=25, y=48)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text(`Recibo Nº: ${receipt.receipt_number}`, 150, 49);
-    doc.text(formatCurrency(receipt.amount), 150, 54);
+    doc.text(`Recibo Nº: ${receipt.receipt_number}`, 25, 48);
 
-    // Title
+    // Currency value block (on the right: x=185, y=48, drawn inside a nice background box)
+    const amountStr = formatCurrency(receipt.amount);
+    const textWidth = doc.getTextWidth(amountStr);
+    
+    doc.setFillColor(241, 245, 249); // slate-100
+    doc.setDrawColor(203, 213, 225); // slate-300
+    doc.setLineWidth(0.25);
+    doc.rect(185 - textWidth - 4, 43.5, textWidth + 6, 6.5, 'FD'); // draw background and border
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(amountStr, 185 - 1, 48, { align: 'right' });
+
+    // Title centered at 105mm, y=58
     doc.setFontSize(14);
-    doc.text('Recibo de Pagamento', 105, 62, { align: 'center' });
+    doc.setDrawColor(0, 0, 0);
+    doc.text('Recibo de Pagamento', 105, 58, { align: 'center' });
 
-    // Body text
+    // Body text starting at y=68
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10.5);
+    doc.setFontSize(10);
     
     const amountInWords = numberToPortugueseWords(receipt.amount);
     const institutionName = institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS';
@@ -301,30 +318,37 @@ export function Receipts() {
     
     const bodyText = `Recebi da ${institutionName}, ${institutionCNPJ}, ${institutionAddress} a importância de ${formatCurrency(receipt.amount)} (${amountInWords}) referente a ${receipt.description}.`;
     
-    const splitText = doc.splitTextToSize(bodyText, 170);
-    doc.text(splitText, 20, 72);
+    const splitText = doc.splitTextToSize(bodyText, 160); // 160mm printable width
+    doc.text(splitText, 25, 68);
 
-    // Date
+    // Date right-aligned at x=185, y=96
     const city = institution?.city_uf ? institution.city_uf.split('/')[0] : 'GUARULHOS';
     const paymentDateFormatted = formatLongDate(receipt.payment_date);
-    doc.text(`${city.toUpperCase()}, ${paymentDateFormatted}.`, 190, 102, { align: 'right' });
-
-    // Signature Line
-    doc.line(55, 118, 155, 118);
     doc.setFont('helvetica', 'bold');
-    doc.text(receipt.payee_name.toUpperCase(), 105, 123, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text(`${city.toUpperCase()}, ${paymentDateFormatted}.`, 185, 96, { align: 'right' });
+
+    // Signature block centered at 105mm
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    doc.line(65, 114, 145, 114); // Signature line
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(receipt.payee_name.toUpperCase(), 105, 119, { align: 'center' });
     
     if (receipt.signature_label) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text(receipt.signature_label.toUpperCase(), 105, 127, { align: 'center' });
+      doc.text(receipt.signature_label.toUpperCase(), 105, 123, { align: 'center' });
     }
 
-    // Emission Date
+    // Emission Date right-aligned at x=185, y=132
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     const issueDateFormatted = safeFormat(receipt.issue_date, 'dd/MM/yyyy');
-    doc.text(`Emissão em ${issueDateFormatted}`, 190, 134, { align: 'right' });
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text(`Emissão em ${issueDateFormatted}`, 185, 132, { align: 'right' });
 
     doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
     setNotification({ type: 'success', message: 'PDF do recibo baixado com sucesso!' });
