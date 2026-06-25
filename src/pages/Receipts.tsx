@@ -865,10 +865,14 @@ export function Receipts() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Descrição / Ao que se refere *</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Descrição / Ao que se refere *</label>
+                      <span className="text-[9px] text-slate-400 font-bold">{description.length}/150</span>
+                    </div>
                     <textarea 
                       required
-                      rows={2}
+                      rows={3}
+                      maxLength={150}
                       placeholder="Ex: Aulas ministradas no módulo de Teologia Fundamental no semestre corrente ou Ajuda de custo pastoral."
                       value={description} 
                       onChange={(e) => setDescription(e.target.value)} 
@@ -901,10 +905,14 @@ export function Receipts() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Subtítulo da Assinatura (Opcional)</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Documento de Identificação (Opcional)</label>
+                      <span className="text-[9px] text-slate-400 font-bold">{signatureLabel.length}/30</span>
+                    </div>
                     <input 
                       type="text" 
-                      placeholder=""
+                      maxLength={30}
+                      placeholder="Ex: CPF: 000.000.000-00 ou RG: 00.000.000-0"
                       value={signatureLabel} 
                       onChange={(e) => setSignatureLabel(e.target.value)} 
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
