@@ -14,7 +14,8 @@ import {
   X, 
   FileDown, 
   DollarSign, 
-  ChevronLeft 
+  ChevronLeft,
+  Copy
 } from 'lucide-react';
 import { cn, formatCurrency, safeFormat, parseSafeDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
@@ -122,6 +123,23 @@ export function Receipts() {
   const [isPrinting, setIsPrinting] = useState(false);
   const [deleteConfirmationFor, setDeleteConfirmationFor] = useState<Receipt | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [copiesModal, setCopiesModal] = useState<{
+    isOpen: boolean;
+    receipt: Receipt | null;
+    action: 'download' | 'print';
+  }>({
+    isOpen: false,
+    receipt: null,
+    action: 'download'
+  });
+
+  const handlePrintOrDownload = (receipt: Receipt, action: 'download' | 'print') => {
+    setCopiesModal({
+      isOpen: true,
+      receipt,
+      action
+    });
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -206,11 +224,11 @@ export function Receipts() {
       // Trigger immediate printing or download if chosen
       if (action === 'print') {
         setTimeout(() => {
-          generatePDF(fullReceipt, 'print');
+          handlePrintOrDownload(fullReceipt, 'print');
         }, 300);
       } else if (action === 'pdf') {
         setTimeout(() => {
-          generatePDF(fullReceipt, 'download');
+          handlePrintOrDownload(fullReceipt, 'download');
         }, 100);
       }
     } catch (err: any) {
@@ -233,7 +251,7 @@ export function Receipts() {
     }
   };
 
-  const generatePDF = (receipt: Receipt, action: 'download' | 'print' = 'download') => {
+  const generatePDF = (receipt: Receipt, action: 'download' | 'print' = 'download', copies: 1 | 2 = 2) => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -366,23 +384,28 @@ export function Receipts() {
       doc.text(`Emissão em ${issueDateFormatted}`, 185, yOffset + 132, { align: 'right' });
     };
 
-    // Draw First Copy (Top)
-    drawSingleCopy(0, '1ª Via - Beneficiário');
+    if (copies === 1) {
+      // Draw Single Copy (Top)
+      drawSingleCopy(0, 'Via Única');
+    } else {
+      // Draw First Copy (Top)
+      drawSingleCopy(0, '1ª Via - Beneficiário');
 
-    // Draw Cut line in the middle of A4 portrait
-    doc.setDrawColor(148, 163, 184); // slate-400
-    doc.setLineWidth(0.3);
-    doc.setLineDashPattern([2, 2], 0);
-    doc.line(10, 148.5, 200, 148.5);
+      // Draw Cut line in the middle of A4 portrait
+      doc.setDrawColor(148, 163, 184); // slate-400
+      doc.setLineWidth(0.3);
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(10, 148.5, 200, 148.5);
 
-    // Midline cutting text helper
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184); // slate-400
-    doc.text('recortar na linha pontilhada', 105, 147.5, { align: 'center' });
+      // Midline cutting text helper
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text('recortar na linha pontilhada', 105, 147.5, { align: 'center' });
 
-    // Draw Second Copy (Bottom)
-    drawSingleCopy(148.5, '2ª Via - Arquivo Instituição');
+      // Draw Second Copy (Bottom)
+      drawSingleCopy(148.5, '2ª Via - Arquivo Instituição');
+    }
 
     if (action === 'print') {
       try {
@@ -413,7 +436,7 @@ export function Receipts() {
       }
     } else {
       doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
-      setNotification({ type: 'success', message: 'PDF do recibo gerado em duas vias com sucesso!' });
+      setNotification({ type: 'success', message: `PDF do recibo gerado em ${copies} via(s) com sucesso!` });
     }
   };
 
@@ -537,14 +560,14 @@ export function Receipts() {
                       
                       <div className="flex items-center gap-1 print:hidden" onClick={(e) => e.stopPropagation()}>
                         <button 
-                          onClick={() => generatePDF(receipt)}
+                          onClick={() => handlePrintOrDownload(receipt, 'download')}
                           className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
                           title="Baixar PDF"
                         >
                           <FileDown size={16} />
                         </button>
                         <button 
-                          onClick={() => generatePDF(receipt, 'print')}
+                          onClick={() => handlePrintOrDownload(receipt, 'print')}
                           className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
                           title="Imprimir"
                         >
@@ -639,13 +662,13 @@ export function Receipts() {
 
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => generatePDF(selectedReceipt)}
+                    onClick={() => handlePrintOrDownload(selectedReceipt, 'download')}
                     className="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <Download size={14} /> PDF
                   </button>
                   <button 
-                    onClick={() => generatePDF(selectedReceipt, 'print')}
+                    onClick={() => handlePrintOrDownload(selectedReceipt, 'print')}
                     className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <Printer size={14} /> Imprimir
@@ -1027,6 +1050,91 @@ export function Receipts() {
                   className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-600/10"
                 >
                   Confirmar Exclusão
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Copies Selection Modal */}
+      <AnimatePresence>
+        {copiesModal.isOpen && copiesModal.receipt && (
+          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4 z-[200]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white border border-slate-100 rounded-[2rem] shadow-2xl max-w-md w-full p-6 space-y-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                  <Printer size={24} />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Como deseja emitir o recibo?</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Recibo Nº {copiesModal.receipt.receipt_number}</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Escolha a quantidade de vias para gerar o documento de <span className="font-semibold text-slate-700">{copiesModal.receipt.payee_name}</span> no valor de <span className="font-semibold text-slate-700">{formatCurrency(copiesModal.receipt.amount)}</span>:
+              </p>
+
+              <div className="grid grid-cols-1 gap-3">
+                {/* 1 Copy Button */}
+                <button 
+                  onClick={() => {
+                    if (copiesModal.receipt) {
+                      generatePDF(copiesModal.receipt, copiesModal.action, 1);
+                      setCopiesModal({ isOpen: false, receipt: null, action: 'download' });
+                    }
+                  }}
+                  className="flex items-start gap-4 p-4 rounded-2xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50/10 text-left transition-all active:scale-[0.98] group"
+                >
+                  <div className="p-2.5 bg-slate-50 group-hover:bg-blue-50 text-slate-500 group-hover:text-blue-600 rounded-xl transition-colors shrink-0">
+                    <FileText size={20} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      1 Via <span className="text-[9px] font-bold bg-slate-100 text-slate-600 py-0.5 px-2 rounded-md">Meia Página</span>
+                    </h4>
+                    <p className="text-[10px] text-slate-500 leading-normal font-medium">
+                      Gera uma única via ocupando exatamente a metade superior de uma folha A4 retrato.
+                    </p>
+                  </div>
+                </button>
+
+                {/* 2 Copies Button */}
+                <button 
+                  onClick={() => {
+                    if (copiesModal.receipt) {
+                      generatePDF(copiesModal.receipt, copiesModal.action, 2);
+                      setCopiesModal({ isOpen: false, receipt: null, action: 'download' });
+                    }
+                  }}
+                  className="flex items-start gap-4 p-4 rounded-2xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50/10 text-left transition-all active:scale-[0.98] group"
+                >
+                  <div className="p-2.5 bg-slate-50 group-hover:bg-blue-50 text-slate-500 group-hover:text-blue-600 rounded-xl transition-colors shrink-0">
+                    <Copy size={20} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      2 Vias <span className="text-[9px] font-bold bg-blue-50 text-blue-600 py-0.5 px-2 rounded-md">Página Inteira</span>
+                    </h4>
+                    <p className="text-[10px] text-slate-500 leading-normal font-medium">
+                      Gera duas vias idênticas (Beneficiário e Arquivo) na mesma folha A4 com linha tracejada para recorte no meio.
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setCopiesModal({ isOpen: false, receipt: null, action: 'download' })}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
+                >
+                  Cancelar
                 </button>
               </div>
             </motion.div>
