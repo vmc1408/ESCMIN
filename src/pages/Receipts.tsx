@@ -239,9 +239,9 @@ export function Receipts() {
 
   const generatePDF = (receipt: Receipt) => {
     const doc = new jsPDF({
-      orientation: 'portrait',
+      orientation: 'landscape',
       unit: 'mm',
-      format: 'a4'
+      format: 'a5'
     });
 
     // Outer Border

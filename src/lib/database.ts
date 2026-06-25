@@ -73,6 +73,26 @@ export const isDatabaseMissingOrCacheError = (err: any): boolean => {
   );
 };
 
+const testedRecoveries = new Set<string>();
+
+export const tryRecoveryFromFallback = async (collectionName: string) => {
+  if (!isSupabaseConfigured) return false;
+  if (testedRecoveries.has(collectionName)) return false;
+  
+  try {
+    testedRecoveries.add(collectionName);
+    const result = await fetchWithTimeout(supabase.from(collectionName).select('id').limit(1), 3000);
+    if (result && !result.error) {
+      console.log(`[Supabase Recovery] Tabela "${collectionName}" foi criada e está disponível no Supabase! Desativando fallback local.`);
+      setTableUsingFallback(collectionName, false);
+      return true;
+    }
+  } catch (e) {
+    // Silently ignore recovery failures
+  }
+  return false;
+};
+
 // Helper to handle Errors
 export interface DbErrorInfo {
   error: string;
@@ -103,6 +123,10 @@ export function handleDbError(error: any, operation: any, path: string | null = 
  */
 export const fetchAll = async (collectionName: string, select = '*', orderCol = 'created_at', ascending = false) => {
   try {
+    if (isTableUsingFallback(collectionName)) {
+      await tryRecoveryFromFallback(collectionName);
+    }
+
     if (isTableUsingFallback(collectionName)) {
       const localData = getLocalCollection(collectionName);
       if (orderCol) {
@@ -146,6 +170,10 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
   if (!id) return null;
 
   try {
+    if (isTableUsingFallback(collectionName)) {
+      await tryRecoveryFromFallback(collectionName);
+    }
+
     if (isTableUsingFallback(collectionName)) {
       const list = getLocalCollection(collectionName);
       return list.find((x: any) => x.id === id) || null;
@@ -202,6 +230,10 @@ export const fetchQuery = async (
   value?: any
 ) => {
   try {
+    if (isTableUsingFallback(collectionName)) {
+      await tryRecoveryFromFallback(collectionName);
+    }
+
     if (isTableUsingFallback(collectionName)) {
       const list = getLocalCollection(collectionName);
       return list.filter(item => {
@@ -294,6 +326,10 @@ export const fetchQuery = async (
 export const fetchCount = async (collectionName: string, status?: string) => {
   try {
     if (isTableUsingFallback(collectionName)) {
+      await tryRecoveryFromFallback(collectionName);
+    }
+
+    if (isTableUsingFallback(collectionName)) {
       const list = getLocalCollection(collectionName);
       if (status === 'Ativo') {
         return list.filter(x => x.status === 'Ativo' || !x.status).length;
@@ -379,6 +415,10 @@ export const saveData = async (collectionName: string, id: string | undefined, d
   let payload = { ...data, id: finalId };
 
   try {
+    if (isTableUsingFallback(collectionName)) {
+      await tryRecoveryFromFallback(collectionName);
+    }
+
     if (isTableUsingFallback(collectionName)) {
       return saveLocalItem(collectionName, finalId, payload);
     }
