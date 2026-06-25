@@ -206,15 +206,11 @@ export function Receipts() {
       // Trigger immediate printing or download if chosen
       if (action === 'print') {
         setTimeout(() => {
-          try {
-            window.print();
-          } catch (err) {
-            console.error('Error printing automatically:', err);
-          }
+          generatePDF(fullReceipt, 'print');
         }, 300);
       } else if (action === 'pdf') {
         setTimeout(() => {
-          generatePDF(fullReceipt);
+          generatePDF(fullReceipt, 'download');
         }, 100);
       }
     } catch (err: any) {
@@ -237,7 +233,7 @@ export function Receipts() {
     }
   };
 
-  const generatePDF = (receipt: Receipt) => {
+  const generatePDF = (receipt: Receipt, action: 'download' | 'print' = 'download') => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -388,8 +384,37 @@ export function Receipts() {
     // Draw Second Copy (Bottom)
     drawSingleCopy(148.5, '2ª Via - Arquivo Instituição');
 
-    doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
-    setNotification({ type: 'success', message: 'PDF do recibo gerado em duas vias com sucesso!' });
+    if (action === 'print') {
+      try {
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            URL.revokeObjectURL(url);
+          }, 3000);
+        };
+        setNotification({ type: 'success', message: 'Enviando PDF do recibo para a impressora...' });
+      } catch (err: any) {
+        console.error('Erro ao acionar impressão direta:', err);
+        doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
+        setNotification({ type: 'error', message: 'Erro na impressão direta. O PDF foi baixado como alternativa.' });
+      }
+    } else {
+      doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
+      setNotification({ type: 'success', message: 'PDF do recibo gerado em duas vias com sucesso!' });
+    }
   };
 
   const formatLongDate = (dateString: string) => {
@@ -519,16 +544,7 @@ export function Receipts() {
                           <FileDown size={16} />
                         </button>
                         <button 
-                          onClick={() => {
-                            setSelectedReceipt(receipt);
-                            setTimeout(() => {
-                              try {
-                                window.print();
-                              } catch (err) {
-                                console.error(err);
-                              }
-                            }, 100);
-                          }}
+                          onClick={() => generatePDF(receipt, 'print')}
                           className="p-2 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors"
                           title="Imprimir"
                         >
@@ -629,13 +645,7 @@ export function Receipts() {
                     <Download size={14} /> PDF
                   </button>
                   <button 
-                    onClick={() => {
-                      try {
-                        window.print();
-                      } catch (err) {
-                        console.error(err);
-                      }
-                    }}
+                    onClick={() => generatePDF(selectedReceipt, 'print')}
                     className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <Printer size={14} /> Imprimir
