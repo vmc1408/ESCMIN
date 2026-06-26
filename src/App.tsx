@@ -61,16 +61,16 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
+        <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6 font-sans">
           <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-200 text-center">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-xl flex items-center justify-center mx-auto mb-6 border border-red-100">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mx-auto mb-6 border border-red-200">
               <AlertCircle size={32} />
             </div>
             <h1 className="text-xl font-bold text-slate-900 mb-4 uppercase">Erro Crítico</h1>
             <p className="text-slate-500 text-sm mb-8">
               Ocorreu um erro inesperado ao carregar o sistema. Isso pode ser causado por falha na conexão ou erro de renderização.
             </p>
-            <div className="bg-slate-50 p-4 rounded-lg mb-8 text-left overflow-auto max-h-40 border border-slate-200">
+            <div className="bg-slate-100 p-4 rounded-lg mb-8 text-left overflow-auto max-h-40 border border-slate-200">
               <code className="text-[10px] text-red-600 font-mono font-semibold block whitespace-pre-wrap">
                 {this.state.error?.name}: {this.state.error?.message}
               </code>

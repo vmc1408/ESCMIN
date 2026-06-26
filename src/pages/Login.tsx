@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Database,
   X,
+  ChevronLeft,
   ChevronRight,
   BookOpen,
   Users,
@@ -334,7 +335,7 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-100 flex flex-col lg:flex-row overflow-hidden font-sans">
       {/* Left side: Information (Decorative/Branding) */}
       <div className="lg:w-[45%] bg-[#00174b] p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
         {/* Background Patterns */}
@@ -395,11 +396,8 @@ export function Login() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8">
-              <InfoFeature icon={<GraduationCap size={18} />} title="Disciplinas" text={`${stats.subjects > 0 ? stats.subjects : '---'} disciplinas`} />
-              <InfoFeature icon={<Users size={18} />} title="Alunos" text={`Mais de ${stats.students} alunos`} />
-              <InfoFeature icon={<Shield size={18} />} title="Sede" text="Sede Própria" />
-              <InfoFeature icon={<BookOpen size={18} />} title="Ensino" text="Formação Integral" />
+            <div className="pb-8">
+              <SchoolPillarsCarousel stats={stats} />
             </div>
           </motion.div>
         </div>
@@ -651,6 +649,190 @@ function InfoFeature({ icon, title, text }: { icon: React.ReactNode, title: stri
        </div>
        <p className="text-[10px] font-black uppercase text-[#b4941d] tracking-widest mb-1">{title}</p>
        <p className="text-sm font-bold text-white/80">{text}</p>
+    </div>
+  );
+}
+
+function SchoolPillarsCarousel({ stats }: { stats: { classes: number; students: number; subjects: number } }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+
+  const slides = [
+    {
+      id: 'disciplinas',
+      icon: <GraduationCap size={20} />,
+      title: "Matriz Curricular Teológica",
+      text: "Grade de disciplinas estruturadas para o aprofundamento das escrituras, da história e do ministério pastoral na Diocese.",
+      badge: `${stats.subjects > 0 ? stats.subjects : '26'} Disciplinas`,
+      image: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=600&auto=format&fit=crop"
+    },
+    {
+      id: 'alunos',
+      icon: <Users size={20} />,
+      title: "Comunidade Vocacionada",
+      text: "Mais de cem leigos e leigas reunidos em ambiente acadêmico para o fortalecimento da fé e do testemunho cristão.",
+      badge: `Mais de ${stats.students || '111'} Alunos`,
+      image: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=600&auto=format&fit=crop"
+    },
+    {
+      id: 'sede',
+      icon: <Shield size={20} />,
+      title: "Sede Própria & Formativa",
+      text: "Estrutura diocesana completa dedicada ao acolhimento das turmas, biblioteca teológica e momentos comunitários.",
+      badge: "Sede Própria",
+      image: "https://images.unsplash.com/photo-1548625361-155deee223d0?q=80&w=600&auto=format&fit=crop"
+    },
+    {
+      id: 'ensino',
+      icon: <BookOpen size={20} />,
+      title: "Formação para o Laicato",
+      text: "Estudos teológicos e pastorais sólidos que capacitam para a ação pastoral e o serviço missionário nas paróquias.",
+      badge: "Formação Integral",
+      image: "https://images.unsplash.com/photo-1504052434569-70ad58565b90?q=80&w=600&auto=format&fit=crop"
+    }
+  ];
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    
+    const intervalTime = 5000; // 5 seconds per slide
+    const step = 50;
+    const increment = (step / intervalTime) * 100;
+
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          setCurrentIndex((prevIdx) => (prevIdx + 1) % slides.length);
+          return 0;
+        }
+        return prev + increment;
+      });
+    }, step);
+
+    return () => clearInterval(timer);
+  }, [isPlaying, slides.length, currentIndex]);
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % slides.length);
+    setProgress(0);
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
+    setProgress(0);
+  };
+
+  const handleSelect = (idx: number) => {
+    setCurrentIndex(idx);
+    setProgress(0);
+  };
+
+  const currentSlide = slides[currentIndex];
+
+  return (
+    <div 
+      className="relative w-full min-h-[220px] rounded-[2rem] border border-white/10 overflow-hidden bg-gradient-to-br from-white/5 to-white/0 shadow-2xl group/carousel select-none cursor-pointer"
+      onMouseEnter={() => setIsPlaying(false)}
+      onMouseLeave={() => setIsPlaying(true)}
+    >
+      {/* Dynamic Background Image with subtle zoom & fade transition */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, scale: 1.05 }}
+          animate={{ opacity: 0.15, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
+          className="absolute inset-0 w-full h-full"
+        >
+          <img 
+            src={currentSlide.image} 
+            alt={currentSlide.title}
+            className="w-full h-full object-cover filter saturate-50"
+            referrerPolicy="no-referrer"
+          />
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Decorative dark overlays to keep text readable */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#00174b] via-[#00174b]/75 to-transparent pointer-events-none" />
+
+      {/* Slide Content Layout */}
+      <div className="relative z-10 p-6 flex flex-col justify-between min-h-[220px] h-full">
+        {/* Top bar: Icon and Badge */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-amber-500 shadow-inner">
+            {currentSlide.icon}
+          </div>
+          <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-black text-[9px] uppercase tracking-wider rounded-full">
+            {currentSlide.badge}
+          </span>
+        </div>
+
+        {/* Middle part: Title and Description */}
+        <div className="my-3 space-y-1.5">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4 }}
+              className="space-y-1"
+            >
+              <h3 className="text-white font-black text-sm tracking-wide uppercase">
+                {currentSlide.title}
+              </h3>
+              <p className="text-white/70 text-[11px] font-semibold leading-relaxed max-w-md">
+                {currentSlide.text}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Bottom bar: Indicator Dots + Arrow controls */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          {/* Custom Indicator dots with progress fills */}
+          <div className="flex items-center gap-2">
+            {slides.map((slide, idx) => (
+              <button
+                key={slide.id}
+                onClick={() => handleSelect(idx)}
+                className="group relative h-1.5 rounded-full transition-all duration-300 overflow-hidden bg-white/20"
+                style={{ width: currentIndex === idx ? '32px' : '8px' }}
+              >
+                {currentIndex === idx && (
+                  <motion.div 
+                    className="absolute top-0 left-0 h-full bg-amber-500 rounded-full"
+                    style={{ width: `${progress}%` }}
+                    layoutId="progress-bar"
+                  />
+                )}
+                {currentIndex !== idx && (
+                  <div className="absolute inset-0 bg-transparent group-hover:bg-white/40 rounded-full" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Nav Controls */}
+          <div className="flex items-center gap-1.5">
+            <button 
+              onClick={handlePrev}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button 
+              onClick={handleNext}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

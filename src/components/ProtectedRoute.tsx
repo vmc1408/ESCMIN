@@ -26,7 +26,7 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 gap-6 font-sans">
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 gap-6 font-sans">
         <motion.div 
           animate={{ scale: [1, 1.1, 1] }} 
           transition={{ repeat: Infinity, duration: 2 }}

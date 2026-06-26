@@ -643,7 +643,7 @@ export function Receipts() {
                   <h3 className="text-center font-black uppercase text-sm tracking-widest py-1">Recibo de Pagamento</h3>
 
                   {/* Description Paragraph */}
-                  <p className="text-[10px] leading-relaxed text-justify">
+                  <p className="text-[10px] leading-relaxed text-justify break-words whitespace-pre-wrap">
                     Recebi da <span className="font-bold">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</span>
                     {institution?.cnpj ? `, CNPJ Nº ${institution.cnpj}` : ''}
                     {institution?.address ? `, ${institution.address}` : ''}, a importância de <span className="font-bold">{formatCurrency(selectedReceipt.amount)}</span> ({numberToPortugueseWords(selectedReceipt.amount)}) referente a <span className="font-bold">{selectedReceipt.description}</span>.
@@ -763,7 +763,7 @@ export function Receipts() {
           <h3 className="text-center font-black uppercase text-sm tracking-widest py-1">Recibo de Pagamento</h3>
 
           {/* Description Paragraph */}
-          <p className="text-[10px] leading-relaxed text-justify">
+          <p className="text-[10px] leading-relaxed text-justify break-words whitespace-pre-wrap">
             Recebi da <span className="font-bold">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</span>
             {institution?.cnpj ? `, CNPJ Nº ${institution.cnpj}` : ''}
             {institution?.address ? `, ${institution.address}` : ''}, a importância de <span className="font-bold">{formatCurrency(selectedReceipt.amount)}</span> ({numberToPortugueseWords(selectedReceipt.amount)}) referente a <span className="font-bold">{selectedReceipt.description}</span>.
@@ -963,7 +963,7 @@ export function Receipts() {
                 </div>
 
                 {/* Live Print Preview Pane */}
-                <div className="hidden lg:flex lg:w-1/2 p-6 bg-slate-50 flex-col justify-between border-l border-slate-100 select-none overflow-y-auto">
+                <div className="hidden lg:flex lg:w-1/2 p-6 bg-slate-100 flex-col justify-between border-l border-slate-100 select-none overflow-y-auto">
                   <div className="space-y-4">
                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Visualização em Tempo Real</h4>
                     
@@ -1003,7 +1003,7 @@ export function Receipts() {
                       <h3 className="text-center font-black uppercase text-[10px] tracking-widest leading-none">Recibo de Pagamento</h3>
 
                       {/* Description Paragraph */}
-                      <p className="text-[9px] leading-relaxed text-justify text-slate-800">
+                      <p className="text-[9px] leading-relaxed text-justify text-slate-800 break-words whitespace-pre-wrap">
                         Recebi da <span className="font-bold">{institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}</span>
                         {institution?.cnpj ? `, CNPJ Nº ${institution.cnpj}` : ''}
                         , a importância de <span className="font-bold">{amount ? formatCurrency(parseFloat(amount.replace(',', '.')) || 0) : 'R$ 0,00'}</span> ({amount ? numberToPortugueseWords(parseFloat(amount.replace(',', '.')) || 0) : 'zero reais'}) referente a <span className="font-bold">{description || '...'}</span>.
