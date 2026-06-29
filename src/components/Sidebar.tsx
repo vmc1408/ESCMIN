@@ -22,6 +22,7 @@ import {
   CalendarCheck,
   ChevronDown,
   ChevronRight,
+  Database,
   GraduationCap,
   Wallet,
   Church,
@@ -101,6 +102,7 @@ const navItems = [
     label: 'Configurações', 
     icon: SettingsIcon,
     children: [
+      { icon: Database, label: 'Backup e Nuvem', path: '/settings?tab=backup' },
       { icon: SettingsIcon, label: 'Geral', path: '/settings' },
       { icon: ImportIcon, label: 'Importação', path: '/import' },
       { icon: ArchiveIcon, label: 'Arquivo Morto', path: '/archive' },
@@ -195,6 +197,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       }
       return false;
     }
+    
+    // For exact match with /settings when there are tab query params
+    if (path === '/settings' && location.pathname === '/settings') {
+      const params = new URLSearchParams(location.search);
+      const tab = params.get('tab');
+      return !tab || tab === 'institution';
+    }
+
     return location.pathname === path;
   };
 

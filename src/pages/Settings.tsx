@@ -50,6 +50,7 @@ import { cn } from '../lib/utils';
 import { financialService } from '../services/financialService';
 import { schemaService } from '../services/schemaService';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { BackupSection } from '../components/BackupSection';
 
 
@@ -89,7 +90,23 @@ const extractYearFromText = (text: string | undefined): number | null => {
 };
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic' | 'security' | 'backup'>('institution');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic' | 'security' | 'backup'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'backup' || tab === 'institution' || tab === 'maintenance' || tab === 'academic' || tab === 'security') {
+      return tab;
+    }
+    return 'institution';
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab && (tab === 'backup' || tab === 'institution' || tab === 'maintenance' || tab === 'academic' || tab === 'security')) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -945,17 +962,6 @@ export function Settings() {
           >
             <Database size={14} />
             Manutenção
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('backup')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'backup' ? "bg-indigo-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <Database size={14} />
-            Backup e Nuvem
           </button>
         </div>
       </header>
