@@ -913,58 +913,72 @@ export function Settings() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Configurações</h2>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão da Instituição e Parâmetros do Sistema</p>
-        </div>
+      {activeTab === 'backup' ? (
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+              <Database className="text-indigo-600 animate-pulse" size={26} />
+              Central de Backup e Nuvem
+            </h2>
+            <p className="text-[11px] font-black text-indigo-400 uppercase tracking-widest mt-1">
+              Restauração, Cópias de Segurança e Sincronização de Dados do Sistema
+            </p>
+          </div>
+        </header>
+      ) : (
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Configurações</h2>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão da Instituição e Parâmetros do Sistema</p>
+          </div>
 
-        <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-          <button 
-            onClick={() => setActiveTab('institution')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'institution' ? "bg-slate-800 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <Building2 size={14} />
-            Instituição
-          </button>
+          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+            <button 
+              onClick={() => setActiveTab('institution')}
+              className={cn(
+                "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'institution' ? "bg-slate-800 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <Building2 size={14} />
+              Instituição
+            </button>
 
-          <button 
-            onClick={() => setActiveTab('academic')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'academic' ? "bg-emerald-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <Clock size={14} />
-            Acadêmico
-          </button>
+            <button 
+              onClick={() => setActiveTab('academic')}
+              className={cn(
+                "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'academic' ? "bg-emerald-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <Clock size={14} />
+              Acadêmico
+            </button>
 
-          <button 
-            onClick={() => setActiveTab('security')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'security' ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <ShieldCheck size={14} />
-            Segurança
-          </button>
+            <button 
+              onClick={() => setActiveTab('security')}
+              className={cn(
+                "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'security' ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <ShieldCheck size={14} />
+              Segurança
+            </button>
 
-          <button 
-            onClick={() => setActiveTab('maintenance')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'maintenance' ? "bg-red-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <Database size={14} />
-            Manutenção
-          </button>
-        </div>
-      </header>
+            <button 
+              onClick={() => setActiveTab('maintenance')}
+              className={cn(
+                "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                activeTab === 'maintenance' ? "bg-red-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <Database size={14} />
+              Manutenção
+            </button>
+          </div>
+        </header>
+      )}
 
       {notification && (
         <div className={cn(
