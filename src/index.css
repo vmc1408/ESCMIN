@@ -196,13 +196,7 @@
 }
 
 /* Alta legibilidade e contraste para os campos de formulários de todo o sistema */
-input[type="text"]:not(.sr-only),
-input[type="email"]:not(.sr-only),
-input[type="password"]:not(.sr-only),
-input[type="number"]:not(.sr-only),
-input[type="tel"]:not(.sr-only),
-input[type="date"]:not(.sr-only),
-input[type="url"]:not(.sr-only),
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only),
 select:not(.sr-only),
 textarea:not(.sr-only) {
   background-color: #f8fafc !important; /* bg-slate-50 */
@@ -213,13 +207,7 @@ textarea:not(.sr-only) {
   transition: all 0.15s ease-in-out !important;
 }
 
-input[type="text"]:not(.sr-only):focus,
-input[type="email"]:not(.sr-only):focus,
-input[type="password"]:not(.sr-only):focus,
-input[type="number"]:not(.sr-only):focus,
-input[type="tel"]:not(.sr-only):focus,
-input[type="date"]:not(.sr-only):focus,
-input[type="url"]:not(.sr-only):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):not([type="range"]):not([type="image"]):not(.sr-only):focus,
 select:not(.sr-only):focus,
 textarea:not(.sr-only):focus {
   background-color: #ffffff !important; /* fundo branco ao focar */
