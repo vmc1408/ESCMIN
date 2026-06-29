@@ -235,8 +235,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (profile) {
       if (profile.app_lock_enabled !== undefined && profile.app_lock_enabled !== null) {
-        setIsLockEnabled(profile.app_lock_enabled);
-        localStorage.setItem('app_lock_enabled', profile.app_lock_enabled ? 'true' : 'false');
+        const isEnabled = profile.app_lock_enabled === true || String(profile.app_lock_enabled) === 'true';
+        setIsLockEnabled(isEnabled);
+        localStorage.setItem('app_lock_enabled', isEnabled ? 'true' : 'false');
       }
       if (profile.app_lock_timeout !== undefined && profile.app_lock_timeout !== null) {
         setLockTimeout(profile.app_lock_timeout);

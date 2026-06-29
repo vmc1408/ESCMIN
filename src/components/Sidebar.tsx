@@ -102,7 +102,7 @@ const navItems = [
     label: 'Configurações', 
     icon: SettingsIcon,
     children: [
-      { icon: Database, label: 'Backup e Nuvem', path: '/settings?tab=backup' },
+      { icon: Database, label: 'Backup e Nuvem', path: '/backup' },
       { icon: SettingsIcon, label: 'Geral', path: '/settings' },
       { icon: ImportIcon, label: 'Importação', path: '/import' },
       { icon: ArchiveIcon, label: 'Arquivo Morto', path: '/archive' },
