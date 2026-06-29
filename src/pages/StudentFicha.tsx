@@ -898,7 +898,7 @@ export function StudentFicha() {
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 print:hidden">
           
           {/* LEFT PANEL: Student Lookup sidebar */}
-          <div className="lg:col-span-4 space-y-4">
+          <div className={cn("lg:col-span-4 space-y-4", activeStudent ? "hidden lg:block" : "block")}>
             <div className="bg-white border border-slate-200 p-5 rounded-none shadow-sm space-y-4">
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                 <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
@@ -990,7 +990,7 @@ export function StudentFicha() {
           </div>
 
           {/* RIGHT PANEL: Student detailed Dossier */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className={cn("lg:col-span-8 space-y-6", !activeStudent ? "hidden lg:block" : "block")}>
             {!activeStudent ? (
               <div className="bg-white border border-slate-200 py-24 text-center space-y-4">
                 <div className="w-16 h-16 bg-slate-50 text-slate-350 border border-slate-100 rounded-none flex items-center justify-center mx-auto">
@@ -1005,6 +1005,14 @@ export function StudentFicha() {
               </div>
             ) : (
               <div className="space-y-6">
+
+                {/* Back button for mobile/tablet */}
+                <button
+                  onClick={() => setSelectedStudentId(null)}
+                  className="lg:hidden w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 transition-colors rounded-none"
+                >
+                  ← Voltar para a Consulta de Alunos
+                </button>
 
                 {/* Financial Alert for Unpaid Contributions */}
                 {unpaidMonthsAlert && (
@@ -1093,6 +1101,10 @@ export function StudentFicha() {
                           <span className="font-bold text-slate-700 uppercase">{activeStudent.course || 'Sem Curso Informado'}</span>
                         </div>
                         <div className="flex justify-between">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Data de Ingressão:</span>
+                          <span className="font-semibold text-slate-750">{activeStudent.start_date ? formatDateForDisplay(activeStudent.start_date) : 'Não informado'}</span>
+                        </div>
+                        <div className="flex justify-between">
                           <span className="text-slate-400 font-semibold uppercase text-[10px]">CPF:</span>
                           <span className="font-mono font-bold text-slate-850">{activeStudent.cpf || 'Não Informado'}</span>
                         </div>
@@ -1114,7 +1126,7 @@ export function StudentFicha() {
                       <div className="space-y-2">
                         <div className="flex justify-between items-center gap-4">
                           <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Email:</span>
-                          <span className="font-semibold text-slate-700 text-right truncate max-w-[180px] sm:max-w-[280px] md:max-w-[400px]" title={activeStudent.email}>{activeStudent.email || 'Não informado'}</span>
+                          <span className="font-semibold text-slate-700 text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.email}>{activeStudent.email || 'Não informado'}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
                           <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Celular:</span>
@@ -1122,7 +1134,7 @@ export function StudentFicha() {
                         </div>
                         <div className="flex justify-between items-center gap-4">
                           <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Paróquia:</span>
-                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px] md:max-w-[400px]" title={activeStudent.parish}>{activeStudent.parish || 'Não informado'}</span>
+                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.parish}>{activeStudent.parish || 'Não informado'}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
                           <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Forania:</span>
@@ -1132,9 +1144,45 @@ export function StudentFicha() {
                           <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Cidade / UF:</span>
                           <span className="font-semibold text-slate-750 uppercase text-right">{activeStudent.address_city || 'Não informado'} - {activeStudent.address_state || 'SP'}</span>
                         </div>
+                        {activeStudent.address_street && (
+                          <div className="flex justify-between items-start gap-4 pt-1 border-t border-slate-100/50">
+                            <span className="text-slate-400 font-semibold uppercase text-[9px] shrink-0 mt-0.5">Rua:</span>
+                            <span className="font-semibold text-slate-700 uppercase text-right text-[11px] leading-tight truncate max-w-[180px] sm:max-w-[280px]">{activeStudent.address_street}</span>
+                          </div>
+                        )}
+                        {activeStudent.address_neighborhood && (
+                          <div className="flex justify-between items-center gap-4">
+                            <span className="text-slate-400 font-semibold uppercase text-[9px] shrink-0">Bairro:</span>
+                            <span className="font-semibold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]">{activeStudent.address_neighborhood}</span>
+                          </div>
+                        )}
+                        {activeStudent.address_zip && (
+                          <div className="flex justify-between items-center gap-4">
+                            <span className="text-slate-400 font-semibold uppercase text-[9px] shrink-0">CEP:</span>
+                            <span className="font-mono text-slate-700 text-right">{activeStudent.address_zip}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  {/* Filiação section if mother or father is set */}
+                  {(activeStudent.guardian_mother || activeStudent.guardian_father) && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-xs">
+                      {activeStudent.guardian_mother && (
+                        <div className="flex justify-between items-center gap-4">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Nome da Mãe:</span>
+                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.guardian_mother}>{activeStudent.guardian_mother}</span>
+                        </div>
+                      )}
+                      {activeStudent.guardian_father && (
+                        <div className="flex justify-between items-center gap-4">
+                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Nome do Pai:</span>
+                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.guardian_father}>{activeStudent.guardian_father}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Grid row: Attendance & Grades */}
@@ -1789,6 +1837,24 @@ export function StudentFicha() {
             </div>
 
             <div className="col-span-6 flex gap-2">
+              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Nascimento:</span>
+              <span className="font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.birth_date ? formatDateForDisplay(activeStudent.birth_date) : 'Não informado'}</span>
+            </div>
+            <div className="col-span-6 flex gap-2">
+              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Data de Ingressão:</span>
+              <span className="font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.start_date ? formatDateForDisplay(activeStudent.start_date) : 'Não informado'}</span>
+            </div>
+
+            <div className="col-span-6 flex gap-2">
+              <span className="font-bold uppercase text-slate-650 min-w-[120px]">CPF:</span>
+              <span className="font-mono font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.cpf || 'Não Informado'}</span>
+            </div>
+            <div className="col-span-6 flex gap-2">
+              <span className="font-bold uppercase text-slate-650 min-w-[120px]">RG:</span>
+              <span className="font-mono font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.rg || 'Não Informado'}</span>
+            </div>
+
+            <div className="col-span-6 flex gap-2">
               <span className="font-bold uppercase text-slate-650 min-w-[120px]">Status Canônico:</span>
               <span className="font-bold flex-1 border-b border-dashed border-black/20 uppercase pl-1">{activeStudent.status || 'ATIVO'}</span>
             </div>
@@ -1798,8 +1864,8 @@ export function StudentFicha() {
             </div>
 
             <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">CPF:</span>
-              <span className="font-mono font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.cpf || 'Não Informado'}</span>
+              <span className="font-bold uppercase text-slate-650 min-w-[120px]">E-mail:</span>
+              <span className="font-semibold flex-1 border-b border-dashed border-black/20 truncate">{activeStudent.email || 'Não informado'}</span>
             </div>
             <div className="col-span-6 flex gap-2">
               <span className="font-bold uppercase text-slate-650 min-w-[120px]">Contatos:</span>
@@ -1816,9 +1882,35 @@ export function StudentFicha() {
             </div>
 
             <div className="col-span-12 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Residência:</span>
-              <span className="font-semibold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.address_city || 'Não Informado'} - {activeStudent.address_state || 'SP'}</span>
+              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Endereço:</span>
+              <span className="font-semibold uppercase flex-1 border-b border-dashed border-black/20">
+                {activeStudent.address_street ? (
+                  `${activeStudent.address_street}${activeStudent.address_neighborhood ? `, ${activeStudent.address_neighborhood}` : ''}${activeStudent.address_city ? `, ${activeStudent.address_city}` : ''}${activeStudent.address_state ? ` - ${activeStudent.address_state}` : ''}${activeStudent.address_zip ? ` (CEP: ${activeStudent.address_zip})` : ''}`
+                ) : (
+                  `${activeStudent.address_city || 'Não Informado'} - ${activeStudent.address_state || 'SP'}`
+                )}
+              </span>
             </div>
+
+            {(activeStudent.guardian_mother || activeStudent.guardian_father) && (
+              <>
+                <div className="col-span-12 font-bold uppercase text-[10pt] border-t border-black/15 pt-2 mt-1">
+                  Filiação / Responsáveis
+                </div>
+                {activeStudent.guardian_mother && (
+                  <div className="col-span-12 flex gap-2">
+                    <span className="font-bold uppercase text-slate-650 min-w-[120px]">Nome da Mãe:</span>
+                    <span className="font-semibold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.guardian_mother}</span>
+                  </div>
+                )}
+                {activeStudent.guardian_father && (
+                  <div className="col-span-12 flex gap-2">
+                    <span className="font-bold uppercase text-slate-650 min-w-[120px]">Nome do Pai:</span>
+                    <span className="font-semibold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.guardian_father}</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* ATTENDANCE SECTION */}

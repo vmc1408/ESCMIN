@@ -121,7 +121,13 @@ if (isSupabaseConfigured) {
 // Inicialização segura do cliente Supabase
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
+  supabaseAnonKey || 'placeholder',
+  {
+    auth: {
+      persistSession: true,
+      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined
+    }
+  }
 );
 
 // Teste de conexão com heartbeat ultraleve e timeout agressivo

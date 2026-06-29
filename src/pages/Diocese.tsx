@@ -1903,7 +1903,7 @@ export function Diocese() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 mb-12">
           <div className="p-4 bg-slate-50 rounded-lg border border-slate-200/80 text-center">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Foranias</p>
             <p className="text-3xl font-bold text-slate-800">{foraries.length}</p>

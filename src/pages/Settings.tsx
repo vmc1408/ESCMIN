@@ -98,6 +98,8 @@ export function Settings() {
   const [confirmPin, setConfirmPin] = useState('');
   const [currentPin, setCurrentPin] = useState('');
   const [savingPin, setSavingPin] = useState(false);
+  const [lockTimeoutMinutes, setLockTimeoutMinutes] = useState(5);
+  const [localLockEnabled, setLocalLockEnabled] = useState(true);
 
   // Institution State
   const [institution, setInstitution] = useState<InstitutionSettings>({
@@ -154,7 +156,16 @@ export function Settings() {
     }
   };
 
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, isLockEnabled, lockTimeout, updateLockSettings } = useAuth();
+
+  useEffect(() => {
+    if (lockTimeout !== undefined) {
+      setLockTimeoutMinutes(Math.floor(lockTimeout / 60));
+    }
+    if (isLockEnabled !== undefined) {
+      setLocalLockEnabled(isLockEnabled);
+    }
+  }, [lockTimeout, isLockEnabled]);
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -1466,6 +1477,127 @@ export function Settings() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Bloqueio de Tela por Inatividade */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6 mt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-9 h-9 rounded bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+                  <Clock size={16} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 tracking-tight">Bloqueio Automático por Inatividade</h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Defina o comportamento do bloqueio de tela por inatividade</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bloqueio Automático:</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={localLockEnabled} 
+                    onChange={(e) => setLocalLockEnabled(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              <div className="md:col-span-7 space-y-4">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block">Tempo limite de inatividade</label>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 3, 5, 10, 15, 30, 60].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      disabled={!localLockEnabled}
+                      onClick={() => setLockTimeoutMinutes(mins)}
+                      className={cn(
+                        "px-4 py-2 border rounded-md text-xs font-semibold tracking-tight transition-all",
+                        !localLockEnabled ? "opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400" :
+                        lockTimeoutMinutes === mins 
+                          ? "bg-amber-50 border-amber-500 text-amber-700 font-bold shadow-sm shadow-amber-500/10" 
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      {mins === 1 ? '1 Minuto' : `${mins} Minutos`}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pt-2 flex items-center gap-4">
+                  <div className="w-full max-w-[200px] space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block ml-1">Ou tempo personalizado (minutos)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={1}
+                        max={1440}
+                        disabled={!localLockEnabled}
+                        value={lockTimeoutMinutes}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val) && val > 0) {
+                            setLockTimeoutMinutes(val);
+                          } else if (e.target.value === '') {
+                            setLockTimeoutMinutes('' as any);
+                          }
+                        }}
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-amber-500/20 focus:border-amber-300 outline-none transition-all font-semibold text-slate-800 disabled:opacity-40"
+                        placeholder="Ex: 8"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-5 bg-slate-50/50 rounded-lg p-5 border border-slate-100 flex flex-col justify-between gap-4">
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Resumo do comportamento</span>
+                  {localLockEnabled ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                        • <span className="font-bold text-amber-700">Bloqueio de Tela:</span> O sistema será bloqueado após <span className="font-bold text-amber-700">{lockTimeoutMinutes || 5} minutos</span> de inatividade. O PIN de segurança será solicitado para retomar o acesso.
+                      </p>
+                      <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                        • <span className="font-bold text-red-600">Desconexão Automática:</span> Se o usuário ficar o dobro do tempo (<span className="font-bold text-red-600">{(lockTimeoutMinutes || 5) * 2} minutos</span>) sem atividade ou sem desbloquear, o sistema fechará a sessão completamente, exigindo e-mail e senha.
+                      </p>
+                      <p className="text-xs text-blue-600 leading-relaxed font-medium">
+                        • <span className="font-bold">Segurança da Sessão:</span> Caso feche o navegador ou a aba, a sessão será encerrada e o login será exigido novamente ao reabrir.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                        • O bloqueio automático por inatividade está <span className="font-bold text-red-600">desativado</span>.
+                      </p>
+                      <p className="text-xs text-blue-600 leading-relaxed font-medium">
+                        • <span className="font-bold">Segurança da Sessão:</span> Mesmo sem bloqueio automático, caso feche o navegador ou a aba, a sessão será encerrada e o login será exigido novamente ao reabrir.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mins = typeof lockTimeoutMinutes === 'number' ? lockTimeoutMinutes : 5;
+                      updateLockSettings(localLockEnabled, mins);
+                      setNotification({ type: 'success', message: 'Configurações de bloqueio atualizadas!' });
+                      setTimeout(() => setNotification(null), 3000);
+                    }}
+                    className="px-6 py-2.5 bg-amber-600 text-white rounded-md text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-amber-700 transition-all shadow-md shadow-amber-600/20"
+                  >
+                    <Save size={14} />
+                    Salvar Ajustes de Bloqueio
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

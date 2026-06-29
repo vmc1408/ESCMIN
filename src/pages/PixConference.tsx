@@ -3203,7 +3203,7 @@ export function PixConference() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all duration-300">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Total Processado</p>
                       <p className="text-2xl font-black text-slate-900">
@@ -3510,7 +3510,7 @@ export function PixConference() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <div className="border-2 border-black p-5 text-center">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Transações</p>
             <p className="text-3xl font-black">{stats.total}</p>

@@ -868,10 +868,10 @@ export function Teachers() {
           "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
           actualListCollapsed 
             ? (hoverShowList 
-                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
+                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-[432px] opacity-100"
+            : "w-full lg:w-[432px] opacity-100"
         )}
       >
         <div className="flex-[1] flex flex-col overflow-hidden w-full">
@@ -974,7 +974,7 @@ export function Teachers() {
         {selectedTeacher || isEditing ? (
           <>
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
                 <div className="relative group">
                   <div className="w-20 h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
@@ -1022,7 +1022,7 @@ export function Teachers() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3 items-center">
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:justify-end">
                 {isEditing ? (
                   <>
                     {selectedTeacher && (
@@ -1138,7 +1138,7 @@ export function Teachers() {
                     <UserIcon size={14} />
                     Informações Básicas
                   </h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-700">Nome Completo</label>
                       <input 
@@ -1213,7 +1213,7 @@ export function Teachers() {
                     Endereço e Contato
                   </h4>
                   <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-8 space-y-1">
+                    <div className="col-span-12 sm:col-span-8 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Logradouro (Rua, Av, etc)</label>
                       <input 
                         type="text"
@@ -1225,7 +1225,7 @@ export function Teachers() {
                         tabIndex={5}
                       />
                     </div>
-                    <div className="col-span-4 space-y-1">
+                    <div className="col-span-12 sm:col-span-4 space-y-1">
                       <label className="text-xs font-bold text-slate-700">CEP</label>
                       <input 
                         type="text"
@@ -1238,7 +1238,7 @@ export function Teachers() {
                         tabIndex={6}
                       />
                     </div>
-                    <div className="col-span-5 space-y-1">
+                    <div className="col-span-12 sm:col-span-5 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Cidade</label>
                       <input 
                         type="text"
@@ -1250,7 +1250,7 @@ export function Teachers() {
                         tabIndex={7}
                       />
                     </div>
-                    <div className="col-span-2 space-y-1">
+                    <div className="col-span-12 sm:col-span-2 space-y-1">
                       <label className="text-xs font-bold text-slate-700">UF</label>
                       <input 
                         type="text"
@@ -1262,7 +1262,7 @@ export function Teachers() {
                         tabIndex={8}
                       />
                     </div>
-                    <div className="col-span-5 space-y-1">
+                    <div className="col-span-12 sm:col-span-5 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Celular</label>
                       <div className="relative">
                         <input 
@@ -1326,7 +1326,7 @@ export function Teachers() {
                     {subjects.length === 0 ? (
                       <p className="text-xs text-slate-500 py-4 text-center">Nenhuma disciplina cadastrada no sistema.</p>
                     ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                         {subjects.filter(s => s.status === 'Ativo' || (formData.subject_ids || []).includes(s.id)).map((subject) => (
                           <label 
                             key={subject.id}

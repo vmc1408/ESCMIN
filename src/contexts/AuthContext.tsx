@@ -20,6 +20,9 @@ interface AuthContextType {
   isMaster: boolean;
   isLocked: boolean;
   lockTimer: number;
+  isLockEnabled: boolean;
+  lockTimeout: number;
+  updateLockSettings: (enabled: boolean, timeoutMinutes: number) => void;
   lock: () => void;
   isConnected: boolean;
   connError: string | null;
@@ -42,7 +45,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLocked, setIsLocked] = useState(() => {
     return localStorage.getItem('app_locked') === 'true';
   });
-  const [lockTimer, setLockTimer] = useState(300); // 5 minutes in seconds
+  const [isLockEnabled, setIsLockEnabled] = useState(() => {
+    return localStorage.getItem('app_lock_enabled') !== 'false';
+  });
+  const [lockTimeout, setLockTimeout] = useState(() => {
+    return parseInt(localStorage.getItem('app_lock_timeout') || '300', 10);
+  });
+  const [lockTimer, setLockTimer] = useState(() => {
+    return parseInt(localStorage.getItem('app_lock_timeout') || '300', 10);
+  });
   const [isConnected, setIsConnected] = useState(true);
   const [connError, setConnError] = useState<string | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
@@ -166,6 +177,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refreshProfile]);
 
+  const logout = useCallback(async () => {
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const unlock = useCallback((pin: string): boolean => {
     if (profile?.pin && pin !== profile.pin && pin !== '0000') {
       return false;
@@ -183,10 +207,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [profile]);
 
+  const updateLockSettings = useCallback((enabled: boolean, timeoutMinutes: number) => {
+    const timeoutSeconds = timeoutMinutes * 60;
+    setIsLockEnabled(enabled);
+    setLockTimeout(timeoutSeconds);
+    localStorage.setItem('app_lock_enabled', enabled ? 'true' : 'false');
+    localStorage.setItem('app_lock_timeout', timeoutSeconds.toString());
+    setLockTimer(timeoutSeconds);
+  }, []);
+
   // Bloqueio por inatividade
   useEffect(() => {
-    if (!profile?.pin) {
-      setLockTimer(300);
+    if (!profile?.pin || !isLockEnabled) {
+      setLockTimer(lockTimeout);
       setIsLocked(false);
       localStorage.removeItem('app_locked');
       localStorage.removeItem('app_last_activity');
@@ -194,11 +227,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (isLocked) {
-      setLockTimer(300);
+      setLockTimer(lockTimeout);
       return;
     }
 
-    const INACTIVITY_TIMEOUT = 300; // 5 minutos em segundos
+    const INACTIVITY_TIMEOUT = lockTimeout;
     let countdownInterval: any;
 
     const resetTimer = () => {
@@ -252,7 +285,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       events.forEach(event => window.removeEventListener(event, resetTimer));
       if (countdownInterval) clearInterval(countdownInterval);
     };
-  }, [profile?.pin, isLocked]);
+  }, [profile?.pin, isLocked, isLockEnabled, lockTimeout]);
+
+  // Desconexão total automática após o dobro do tempo de bloqueio
+  useEffect(() => {
+    if (!profile) return;
+
+    const checkLogoutTimeout = () => {
+      const lastActivity = localStorage.getItem('app_last_activity');
+      if (lastActivity) {
+        const elapsedSeconds = Math.floor((Date.now() - parseInt(lastActivity, 10)) / 1000);
+        const LOGOUT_TIMEOUT = lockTimeout * 2; // Dobro do tempo de bloqueio
+        
+        if (elapsedSeconds >= LOGOUT_TIMEOUT) {
+          console.log("[AuthContext] Tempo limite de inatividade duplicado atingido. Desconectando usuário por segurança...");
+          localStorage.removeItem('app_locked');
+          localStorage.removeItem('app_last_activity');
+          setIsLocked(false);
+          logout();
+        }
+      }
+    };
+
+    // Executa a verificação imediatamente e depois a cada 2 segundos
+    checkLogoutTimeout();
+    const logoutCheckInterval = setInterval(checkLogoutTimeout, 2000);
+
+    return () => {
+      if (logoutCheckInterval) clearInterval(logoutCheckInterval);
+    };
+  }, [profile, lockTimeout, logout]);
 
   const switchUser = useCallback((newProfile: UserProfile) => {
     // Apenas muda o contexto visual/de permissão atual se o admin quiser "simular" outro usuário
@@ -268,19 +330,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.location.hash = '#/';
     }
   }, [user, refreshProfile]);
-
-  const logout = useCallback(async () => {
-    try {
-      setLoading(true);
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const isAdmin = profile?.role === 'admin';
   const isDirector = profile?.role === 'diretor' || isAdmin;
@@ -310,6 +359,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isMaster: profile?.id === 'master-admin' || profile?.email === 'admin@sistema.com',
     isLocked,
     lockTimer,
+    isLockEnabled,
+    lockTimeout,
+    updateLockSettings,
     lock,
     isConnected,
     connError,
@@ -320,7 +372,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     switchUser,
     resetToMaster
-  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, lockTimer, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
+  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
 
   return (
     <AuthContext.Provider value={contextValue}>

@@ -40,7 +40,6 @@ import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { icon: DashboardIcon, label: 'Dashboard', path: '/' },
-  { icon: Church, label: 'Diocese', path: '/parishes' },
   {
     label: 'Gestão Escolar',
     icon: ClassesIcon,
@@ -96,6 +95,7 @@ const navItems = [
       { icon: ReportsIcon, label: 'Relatórios', path: '/reports' },
     ]
   },
+  { icon: Church, label: 'Guia Diocese', path: '/parishes' },
   { icon: UserManagementIcon, label: 'Usuários', path: '/users' },
   { 
     label: 'Configurações', 

@@ -535,10 +535,10 @@ export function Classes() {
           "bg-white rounded-none shadow-2xl flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
           actualListCollapsed 
             ? (hoverShowList 
-                ? "absolute right-0 top-4 bottom-4 h-[calc(100%-2rem)] z-50 w-[440px] opacity-100 shadow-2xl border-l border-slate-200" 
+                ? "absolute right-0 top-4 bottom-4 h-[calc(100%-2rem)] z-50 w-full sm:w-[440px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-[440px] opacity-100"
+            : "w-full lg:w-[440px] opacity-100"
         )}
       >
         <div className="flex-[1] flex flex-col overflow-hidden w-full bg-white">
@@ -652,7 +652,7 @@ export function Classes() {
               </div>
             )}
             <div className="px-10 py-8 border-b border-slate-100 bg-slate-50/20">
-              <div className="flex items-center justify-between gap-8">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                 <div className="flex items-center gap-6">
                 <div className="w-16 h-16 rounded-none bg-slate-800 text-white shadow-xl shadow-none flex items-center justify-center">
                   <School size={32} />
@@ -675,7 +675,7 @@ export function Classes() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3 items-center">
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
                 {isEditing ? (
                   <>
                     {selectedClass && (
@@ -756,7 +756,7 @@ export function Classes() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-10 bg-slate-50/10">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-10 bg-slate-50/10">
               <div className="max-w-4xl mx-auto space-y-12 pb-20">
                 {/* Basic Info */}
                 <section className="space-y-6">
@@ -770,10 +770,10 @@ export function Classes() {
                       <div className="flex-1 h-px bg-slate-100" />
                   </div>
                   
-                  <div className="grid grid-cols-12 gap-8">
+                  <div className="grid grid-cols-12 gap-4 md:gap-8">
                     <div className="col-span-12 space-y-6">
-                       <div className="grid grid-cols-12 gap-8">
-                         <div className="col-span-8 space-y-3">
+                       <div className="grid grid-cols-12 gap-4 md:gap-8">
+                         <div className="col-span-12 md:col-span-8 space-y-3">
                           <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Ano Acadêmico</label>
                           <div className="flex bg-slate-100 rounded-none p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
                             {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
@@ -806,7 +806,7 @@ export function Classes() {
                             ))}
                           </div>
                         </div>
-                        <div className="col-span-4 space-y-3">
+                        <div className="col-span-12 md:col-span-4 space-y-3">
                           <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Semestre Atual</label>
                           <div className="flex bg-slate-100 rounded-none p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
                             {(formData.year === 'Curso Extra' ? ['1º Semestre', '2º Semestre', 'Ano Inteiro'] : ['1º Semestre', '2º Semestre']).map((sem) => (
@@ -850,7 +850,7 @@ export function Classes() {
                           {formData.year === 'Curso Extra' ? 'Permitido até 4 disciplinas' : 'Permitido até 2 disciplinas por ciclo'}
                         </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                         {(formData.year === 'Curso Extra' ? [0, 1, 2, 3] : [0, 1]).map((index) => (
                           <div key={index} className="relative group">
                             <select 
@@ -890,8 +890,8 @@ export function Classes() {
                       </div>
                     </div>
 
-                    <div className="col-span-12 grid grid-cols-12 gap-8 pt-8">
-                       <div className="col-span-3 space-y-3">
+                    <div className="col-span-12 grid grid-cols-12 gap-4 md:gap-8 pt-8">
+                       <div className="col-span-12 sm:col-span-3 space-y-3">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Código</label>
                         <input 
                           type="text"
@@ -903,7 +903,7 @@ export function Classes() {
                           tabIndex={1}
                         />
                       </div>
-                      <div className="col-span-6 space-y-3">
+                      <div className="col-span-12 sm:col-span-6 space-y-3">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nome Identificador do Curso</label>
                         <input 
                           type="text"
@@ -916,7 +916,7 @@ export function Classes() {
                           tabIndex={2}
                         />
                       </div>
-                      <div className="col-span-3 space-y-3">
+                      <div className="col-span-12 sm:col-span-3 space-y-3">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Sala / Local</label>
                         <input 
                           type="text"
@@ -930,8 +930,8 @@ export function Classes() {
                       </div>
                     </div>
 
-                    <div className="col-span-12 grid grid-cols-12 gap-8">
-                       <div className="col-span-4 space-y-3 pt-2">
+                    <div className="col-span-12 grid grid-cols-12 gap-4 md:gap-8">
+                       <div className="col-span-12 sm:col-span-4 space-y-3 pt-2">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Data Prevista de Início</label>
                         <div className="relative group">
                           <input 
@@ -946,7 +946,7 @@ export function Classes() {
                           <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
                       </div>
-                      <div className="col-span-8 space-y-3 pt-2">
+                      <div className="col-span-12 sm:col-span-8 space-y-3 pt-2">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Turno de Aula</label>
                         <div className="flex bg-slate-100 rounded-none p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
                           {['Manhã', 'Tarde', 'Noite'].map(p => (

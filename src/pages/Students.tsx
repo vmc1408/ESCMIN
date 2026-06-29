@@ -944,10 +944,10 @@ export function Students() {
           "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
           actualListCollapsed 
             ? (hoverShowList 
-                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-[380px] opacity-100 shadow-2xl border-l border-slate-200" 
+                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[380px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-[380px] opacity-100"
+            : "w-full lg:w-[380px] opacity-100"
         )}
       >
         <div className={cn(
@@ -1074,7 +1074,7 @@ export function Students() {
               </div>
             )}
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
                 <div className="relative group">
                   <div className="w-20 h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
@@ -1121,7 +1121,7 @@ export function Students() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:justify-end">
                 {!isEditing && selectedStudent && (
                   <>
                     <button 
@@ -1198,7 +1198,8 @@ export function Students() {
                       className="h-10 px-4 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 text-rose-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                       <X size={15} />
-                      <span className="uppercase tracking-wider text-[10px]">Cancelar Inscrição</span>
+                      <span className="uppercase tracking-wider text-[10px] hidden sm:inline">Cancelar Inscrição</span>
+                      <span className="uppercase tracking-wider text-[10px] sm:hidden">Cancelar</span>
                     </button>
                     <button 
                       onClick={handleSave}
@@ -1213,7 +1214,8 @@ export function Students() {
                       ) : (
                         <>
                           <Save size={15} />
-                          <span className="uppercase tracking-wider text-[10px]">Salvar Dados da Ficha</span>
+                          <span className="uppercase tracking-wider text-[10px] hidden sm:inline">Salvar Dados da Ficha</span>
+                          <span className="uppercase tracking-wider text-[10px] sm:hidden">Salvar</span>
                         </>
                       )}
                     </button>
@@ -1267,7 +1269,7 @@ export function Students() {
                       Dados Pessoais
                     </h4>
                     <div className="grid grid-cols-12 gap-3">
-                      <div className="col-span-3 space-y-1">
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Matrícula</label>
                         <input 
                           type="text"
@@ -1279,7 +1281,7 @@ export function Students() {
                           tabIndex={1}
                         />
                       </div>
-                      <div className="col-span-6 space-y-1">
+                      <div className="col-span-12 sm:col-span-6 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Nome Completo</label>
                         <input 
                           type="text"
@@ -1291,7 +1293,7 @@ export function Students() {
                           tabIndex={2}
                         />
                       </div>
-                      <div className="col-span-3 space-y-1">
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Situação</label>
                         <select 
                           disabled={!isEditing}
@@ -1307,7 +1309,7 @@ export function Students() {
                           <option value="Suspenso">Suspenso</option>
                         </select>
                       </div>
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">CPF</label>
                         <input 
                           type="text"
@@ -1320,7 +1322,7 @@ export function Students() {
                           tabIndex={4}
                         />
                       </div>
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">RG</label>
                         <input 
                           type="text"
@@ -1333,7 +1335,7 @@ export function Students() {
                           tabIndex={5}
                         />
                       </div>
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Data de Nascimento</label>
                         <input 
                           type="date"
@@ -1345,7 +1347,7 @@ export function Students() {
                           tabIndex={6}
                         />
                       </div>
-                      <div className="col-span-8 space-y-1">
+                      <div className="col-span-12 md:col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Turma Principal (Vínculo Direto)</label>
                         <select 
                           disabled={!isEditing}
@@ -1364,7 +1366,7 @@ export function Students() {
                         </select>
                       </div>
 
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 md:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700 font-bold text-slate-800">Curso / Identificação</label>
                         <select 
                           disabled={!isEditing}
@@ -1383,7 +1385,7 @@ export function Students() {
                         </select>
                       </div>
 
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 md:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Data de inicio da TURMA</label>
                         <input 
                           type="date"
@@ -1496,7 +1498,7 @@ export function Students() {
                           tabIndex={9}
                         />
                       </div>
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Bairro</label>
                         <input 
                           type="text"
@@ -1508,7 +1510,7 @@ export function Students() {
                           tabIndex={10}
                         />
                       </div>
-                      <div className="col-span-5 space-y-1">
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Cidade</label>
                         <input 
                           type="text"
@@ -1520,7 +1522,7 @@ export function Students() {
                           tabIndex={11}
                         />
                       </div>
-                      <div className="col-span-3 space-y-1">
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">UF / Estado</label>
                         <input 
                           type="text"
@@ -1532,7 +1534,7 @@ export function Students() {
                           tabIndex={12}
                         />
                       </div>
-                      <div className="col-span-3 space-y-1">
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">CEP</label>
                         <input 
                           type="text"
@@ -1545,7 +1547,7 @@ export function Students() {
                           tabIndex={13}
                         />
                       </div>
-                      <div className="col-span-5 space-y-1">
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">E-mail</label>
                         <input 
                           type="email"
@@ -1557,8 +1559,8 @@ export function Students() {
                           tabIndex={14}
                         />
                       </div>
-                      <div className="col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Celular</label>
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <label className="text-xs font-bold text-slate-700 font-bold text-slate-800">Celular</label>
                         <div className="relative">
                           <input 
                             type="text"
@@ -1596,7 +1598,7 @@ export function Students() {
                       Informações Pastorais
                     </h4>
                     <div className="grid grid-cols-12 gap-3">
-                      <div className="col-span-5 space-y-1">
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Paróquia Origem</label>
                         <select 
                           disabled={!isEditing}
@@ -1623,7 +1625,7 @@ export function Students() {
                           ))}
                         </select>
                       </div>
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Forania</label>
                         <select 
                           disabled={!isEditing}
@@ -1639,7 +1641,7 @@ export function Students() {
                           ))}
                         </select>
                       </div>
-                      <div className="col-span-3 space-y-1">
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Pastoral</label>
                         <input 
                           type="text"
@@ -1657,7 +1659,7 @@ export function Students() {
                   {/* Registration Date (Last Field) */}
                   <section className="space-y-4 pt-4 border-t border-slate-100">
                     <div className="grid grid-cols-12 gap-4">
-                      <div className="col-span-6 space-y-1">
+                      <div className="col-span-12 sm:col-span-6 space-y-1">
                         <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-help" title="Data em que o aluno foi cadastrado pela primeira vez">
                           <AlertCircle size={12} className="text-slate-705" />
                           Data da Inscrição

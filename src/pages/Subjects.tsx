@@ -437,10 +437,10 @@ export function Subjects() {
           "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
           actualListCollapsed 
             ? (hoverShowList 
-                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
+                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-[432px] opacity-100"
+            : "w-full lg:w-[432px] opacity-100"
         )}
       >
         <div className="flex-[1] flex flex-col overflow-hidden w-full">
@@ -575,7 +575,7 @@ export function Subjects() {
         {selectedSubject || isEditing ? (
           <>
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
-              <div className="max-w-4xl mx-auto flex items-center justify-between">
+              <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-800">
                   <BookOpen size={32} />
@@ -607,7 +607,7 @@ export function Subjects() {
                     </div>
                   </div>
               </div>
-              <div className="flex gap-3 items-center">
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:justify-end">
                 {isEditing ? (
                   <>
                     {selectedSubject && (
@@ -697,7 +697,7 @@ export function Subjects() {
                     Identificação
                   </h4>
                   <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-3 space-y-1">
+                    <div className="col-span-12 sm:col-span-3 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Código</label>
                       <input 
                         type="text"
@@ -709,7 +709,7 @@ export function Subjects() {
                         tabIndex={1}
                       />
                     </div>
-                    <div className="col-span-9 space-y-1">
+                    <div className="col-span-12 sm:col-span-9 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Nome da Disciplina</label>
                       <input 
                         type="text"
@@ -722,7 +722,7 @@ export function Subjects() {
                       />
                     </div>
                     <div className="col-span-12 grid grid-cols-12 gap-3 pt-2">
-                      <div className="col-span-8 space-y-1">
+                      <div className="col-span-12 md:col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Ano</label>
                         <div className="flex bg-slate-50 p-1 rounded-none gap-1 flex-wrap">
                           {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
@@ -743,7 +743,7 @@ export function Subjects() {
                           ))}
                         </div>
                       </div>
-                      <div className="col-span-4 space-y-1">
+                      <div className="col-span-12 md:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Semestre</label>
                         <div className="flex bg-slate-50 p-1 rounded-none gap-1">
                           {['1º Sem.', '2º Sem.'].map((sem) => (
@@ -765,7 +765,7 @@ export function Subjects() {
                         </div>
                       </div>
                     </div>
-                    <div className="col-span-8 space-y-1">
+                    <div className="col-span-12 md:col-span-8 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Professor Responsável</label>
                       <select 
                         disabled={!isEditing}
@@ -826,7 +826,7 @@ export function Subjects() {
                         <p className="text-[10px] text-amber-600 font-medium mt-1">Nenhum professor habilitado para esta disciplina.</p>
                       )}
                     </div>
-                    <div className="col-span-12 space-y-1">
+                    <div className="col-span-12 md:col-span-4 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Situação</label>
                       <select 
                         disabled={!isEditing}
