@@ -33,7 +33,7 @@ type BackupTarget = 'local' | 'cloud_gdrive' | 'cloud_onedrive' | 'cloud_dropbox
 interface CollectionMeta {
   id: string;
   label: string;
-  category: 'Administrativo' | 'Acadêmico' | 'Financeiro' | 'Diocese' | 'Segurança';
+  category: 'Administrativo' | 'Acadêmico' | 'Financeiro' | 'Diocese' | 'Segurança' | 'Arquivo Morto';
 }
 
 const COLLECTIONS: CollectionMeta[] = [
@@ -55,6 +55,10 @@ const COLLECTIONS: CollectionMeta[] = [
   { id: 'pix_reconciliations', label: 'Reconciliações Pix', category: 'Financeiro' },
   { id: 'receipts', label: 'Recibos Emitidos', category: 'Financeiro' },
   { id: 'certificates', label: 'Certificados e Diplomas', category: 'Administrativo' },
+  { id: 'archived_students', label: 'Alunos Desligados (Arquivo)', category: 'Arquivo Morto' },
+  { id: 'archived_teachers', label: 'Professores Históricos (Arquivo)', category: 'Arquivo Morto' },
+  { id: 'archived_classes', label: 'Turmas Encerradas (Arquivo)', category: 'Arquivo Morto' },
+  { id: 'archived_subjects', label: 'Disciplinas Históricas (Arquivo)', category: 'Arquivo Morto' },
 ];
 
 interface BackupLog {
