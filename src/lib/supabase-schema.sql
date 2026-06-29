@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT,
     role TEXT DEFAULT 'secretario',
     status TEXT DEFAULT 'active',
+    pin TEXT,
+    app_lock_enabled BOOLEAN DEFAULT true,
+    app_lock_timeout INTEGER DEFAULT 300,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

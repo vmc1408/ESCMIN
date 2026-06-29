@@ -14,6 +14,8 @@ export interface UserProfile {
   updated_at?: string;
   is_pre_registered?: boolean;
   pin?: string;
+  app_lock_enabled?: boolean;
+  app_lock_timeout?: number;
 }
 
 export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Suspenso';

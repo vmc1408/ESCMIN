@@ -1585,10 +1585,10 @@ export function Settings() {
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const mins = typeof lockTimeoutMinutes === 'number' ? lockTimeoutMinutes : 5;
-                      updateLockSettings(localLockEnabled, mins);
-                      setNotification({ type: 'success', message: 'Configurações de bloqueio atualizadas!' });
+                      await updateLockSettings(localLockEnabled, mins);
+                      setNotification({ type: 'success', message: 'Configurações de bloqueio salvas e sincronizadas!' });
                       setTimeout(() => setNotification(null), 3000);
                     }}
                     className="px-6 py-2.5 bg-amber-600 text-white rounded-md text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-amber-700 transition-all shadow-md shadow-amber-600/20"

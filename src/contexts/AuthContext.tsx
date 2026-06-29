@@ -207,14 +207,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [profile]);
 
-  const updateLockSettings = useCallback((enabled: boolean, timeoutMinutes: number) => {
+  const updateLockSettings = useCallback(async (enabled: boolean, timeoutMinutes: number) => {
     const timeoutSeconds = timeoutMinutes * 60;
     setIsLockEnabled(enabled);
     setLockTimeout(timeoutSeconds);
+    setLockTimer(timeoutSeconds);
     localStorage.setItem('app_lock_enabled', enabled ? 'true' : 'false');
     localStorage.setItem('app_lock_timeout', timeoutSeconds.toString());
-    setLockTimer(timeoutSeconds);
-  }, []);
+
+    if (profile?.id) {
+      try {
+        const updatedProfile = { 
+          ...profile, 
+          app_lock_enabled: enabled, 
+          app_lock_timeout: timeoutSeconds 
+        };
+        await saveData('users', profile.id, updatedProfile);
+        setProfile(updatedProfile);
+        console.log("[AuthContext] Configurações de bloqueio salvas no Supabase.");
+      } catch (err) {
+        console.error("[AuthContext] Erro ao salvar configurações de bloqueio no Supabase:", err);
+      }
+    }
+  }, [profile]);
+
+  // Sincroniza configurações de bloqueio a partir do perfil do banco de dados (Supabase)
+  useEffect(() => {
+    if (profile) {
+      if (profile.app_lock_enabled !== undefined && profile.app_lock_enabled !== null) {
+        setIsLockEnabled(profile.app_lock_enabled);
+        localStorage.setItem('app_lock_enabled', profile.app_lock_enabled ? 'true' : 'false');
+      }
+      if (profile.app_lock_timeout !== undefined && profile.app_lock_timeout !== null) {
+        setLockTimeout(profile.app_lock_timeout);
+        localStorage.setItem('app_lock_timeout', profile.app_lock_timeout.toString());
+      }
+    }
+  }, [profile]);
 
   // Bloqueio por inatividade
   useEffect(() => {

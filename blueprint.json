@@ -12,6 +12,9 @@
         "avatar_url": { "type": "string" },
         "role": { "type": "string", "enum": ["admin", "diretor", "secretario"] },
         "status": { "type": "string", "enum": ["active", "inactive"] },
+        "pin": { "type": "string" },
+        "app_lock_enabled": { "type": "boolean" },
+        "app_lock_timeout": { "type": "integer" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "email", "name", "role", "status"]
