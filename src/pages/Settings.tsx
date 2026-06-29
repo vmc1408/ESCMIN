@@ -50,6 +50,7 @@ import { cn } from '../lib/utils';
 import { financialService } from '../services/financialService';
 import { schemaService } from '../services/schemaService';
 import { useAuth } from '../contexts/AuthContext';
+import { BackupSection } from '../components/BackupSection';
 
 
 
@@ -88,7 +89,7 @@ const extractYearFromText = (text: string | undefined): number | null => {
 };
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic' | 'security'>('institution');
+  const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic' | 'security' | 'backup'>('institution');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -945,6 +946,17 @@ export function Settings() {
             <Database size={14} />
             Manutenção
           </button>
+
+          <button 
+            onClick={() => setActiveTab('backup')}
+            className={cn(
+              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'backup' ? "bg-indigo-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Database size={14} />
+            Backup e Nuvem
+          </button>
         </div>
       </header>
 
@@ -1762,6 +1774,10 @@ export function Settings() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'backup' && (
+        <BackupSection />
       )}
           {schemaReport && (
             <div className="mt-8 bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
