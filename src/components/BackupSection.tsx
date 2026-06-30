@@ -23,7 +23,8 @@ import {
   CloudLightning,
   AlertTriangle,
   Edit,
-  Folder
+  Folder,
+  ExternalLink
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { fetchAll, saveBatch } from '../lib/database';
@@ -1325,14 +1326,25 @@ export function BackupSection() {
               {/* Alerta de Iframe para o Google Drive */}
               <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl flex gap-3 animate-in fade-in duration-300">
                 <AlertCircle size={16} className="text-indigo-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h5 className="text-[10px] font-extrabold text-indigo-950 uppercase tracking-wide">Atenção ao usar no AI Studio</h5>
+                <div className="space-y-2">
+                  <h5 className="text-[10px] font-extrabold text-indigo-950 uppercase tracking-wide">Atenção ao usar no Firefox / AI Studio</h5>
                   <p className="text-[10px] text-indigo-800 leading-relaxed font-medium">
-                    Como a visualização do sistema roda dentro de um <strong>painel protegido (iframe)</strong>, o Google impede o pop-up de login por questões de segurança.
+                    Como a visualização do sistema roda dentro de um <strong>painel protegido (iframe)</strong>, as regras de segurança dos navegadores impedem a exibição do pop-up de login do Google.
                   </p>
-                  <p className="text-[10px] text-indigo-900 font-bold leading-relaxed pt-1">
-                    👉 <strong>Solução Simples:</strong> Clique no botão <span className="bg-indigo-100 border border-indigo-200 px-1 py-0.5 rounded text-[9px] uppercase tracking-wider text-indigo-700 font-black">Abrir em Nova Aba</span> no topo direito desta tela para conectar sua conta com sucesso!
+                  <p className="text-[10px] text-indigo-900 font-bold leading-relaxed">
+                    👉 <strong>Solução Simples:</strong> Clique no botão abaixo para abrir o sistema em uma nova aba fora do painel. Lá você poderá fazer login no Google Drive e salvar seus backups sem nenhum bloqueio!
                   </p>
+                  <div className="pt-1">
+                    <a 
+                      href={window.location.href} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-sm transition-colors cursor-pointer"
+                    >
+                      <ExternalLink size={12} />
+                      Abrir Sistema em Nova Aba
+                    </a>
+                  </div>
                 </div>
               </div>
 
