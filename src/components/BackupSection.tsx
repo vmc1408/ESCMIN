@@ -77,7 +77,6 @@ export function BackupSection() {
   const [diffTimeframe, setDiffTimeframe] = useState<'24h' | '7d' | '30d' | 'custom'>('7d');
   const [customDiffDate, setCustomDiffDate] = useState<string>('');
   const [selectedTables, setSelectedTables] = useState<string[]>(COLLECTIONS.map(c => c.id));
-  const [promptSaveLocation, setPromptSaveLocation] = useState<boolean>(true);
   
   // Estados de Progresso da Cópia (Backup)
   const [isBackupRunning, setIsBackupRunning] = useState(false);
@@ -164,6 +163,19 @@ export function BackupSection() {
       localStorage.setItem('app_backup_logs', JSON.stringify(updated));
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const clearBackupLogs = () => {
+    if (window.confirm('Deseja realmente limpar todo o histórico de cópias de segurança?')) {
+      try {
+        localStorage.removeItem('app_backup_logs');
+        setBackupLogs([]);
+        setNotification({ type: 'success', message: 'Histórico de cópias de segurança limpo com sucesso!' });
+        setTimeout(() => setNotification(null), 3000);
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
@@ -303,65 +315,23 @@ export function BackupSection() {
       const dateStr = new Date().toISOString().split('T')[0];
       const defaultFileName = `backup-${typeLabel}-${dateStr}.json`;
 
-      let savedWithPicker = false;
+      setBackupProgress(prev => ({
+        ...prev,
+        currentStep: 'Disparando download do arquivo de segurança...',
+        percent: 98
+      }));
+      await new Promise(resolve => setTimeout(resolve, 600));
 
-      if (promptSaveLocation && 'showSaveFilePicker' in window) {
-        setBackupProgress(prev => ({
-          ...prev,
-          currentStep: 'Aguardando seleção do local de gravação (Máquina / PenDrive)...',
-          percent: 95
-        }));
-
-        try {
-          const handle = await (window as any).showSaveFilePicker({
-            suggestedName: defaultFileName,
-            types: [{
-              description: 'Arquivo de Backup JSON (.json)',
-              accept: { 'application/json': ['.json'] },
-            }],
-          });
-          
-          setBackupProgress(prev => ({
-            ...prev,
-            currentStep: 'Gravando arquivo de segurança no local selecionado...',
-            percent: 98
-          }));
-
-          const writable = await handle.createWritable();
-          await writable.write(jsonString);
-          await writable.close();
-          savedWithPicker = true;
-        } catch (err: any) {
-          console.warn('showSaveFilePicker failed or was aborted:', err);
-          if (err.name === 'AbortError') {
-            setNotification({ type: 'error', message: 'Operação de salvamento cancelada pelo usuário.' });
-            setTimeout(() => setNotification(null), 3000);
-            setIsBackupRunning(false);
-            return;
-          }
-          // Se falhou por outro motivo, continua para o fallback de download normal
-        }
-      }
-
-      if (!savedWithPicker) {
-        setBackupProgress(prev => ({
-          ...prev,
-          currentStep: 'Disparando download local do arquivo de segurança...',
-          percent: 98
-        }));
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Trigger local file download
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = defaultFileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }
+      // Trigger local file download
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = defaultFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       saveBackupLog(
         backupType === 'geral' ? 'Backup Geral' : backupType === 'diferencial' ? 'Backup Diferencial' : 'Backup Detalhado',
@@ -751,27 +721,7 @@ export function BackupSection() {
                 </div>
               )}
 
-              {/* Opção de Localização de Arquivo de Cópia (Salvar Como) */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 animate-in slide-in-from-top-2 duration-300">
-                <div className="flex items-start gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setPromptSaveLocation(!promptSaveLocation)}
-                    className={cn(
-                      "w-5 h-5 rounded border flex items-center justify-center transition-all cursor-pointer shrink-0 mt-0.5",
-                      promptSaveLocation ? "bg-slate-900 border-slate-900 text-white" : "border-slate-300 bg-white"
-                    )}
-                  >
-                    {promptSaveLocation && <Check size={12} strokeWidth={3} />}
-                  </button>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Ativar localização de destino (Prompt "Salvar Como")</p>
-                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                      Abre um diálogo nativo para você escolher exatamente em qual pasta da sua máquina ou em qual partição do seu Pen Drive deseja salvar este arquivo de segurança (.json).
-                    </p>
-                  </div>
-                </div>
-              </div>
+
 
               {/* Botão de Disparo */}
               <div className="pt-2 border-t border-slate-100">
@@ -1031,14 +981,26 @@ export function BackupSection() {
 
       {/* HISTÓRICO DE BACKUPS */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center border border-slate-200">
-            <History size={18} />
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center border border-slate-200">
+              <History size={18} />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Histórico de Cópias e Transmissões</h4>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Logs de transmissões de segurança nesta sessão e nuvem</p>
+            </div>
           </div>
-          <div>
-            <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Histórico de Cópias e Transmissões</h4>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Logs de transmissões de segurança nesta sessão e nuvem</p>
-          </div>
+          {backupLogs.length > 0 && (
+            <button
+              type="button"
+              onClick={clearBackupLogs}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 rounded-lg transition-all active:scale-95 uppercase tracking-wider cursor-pointer border border-red-100"
+            >
+              <Trash2 size={12} />
+              Limpar Histórico
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto custom-scrollbar">
