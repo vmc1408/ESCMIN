@@ -411,7 +411,7 @@ export function BackupSection() {
             Central de Cópias e Restaurações
           </h3>
           <p className="text-xs text-indigo-200/80 max-w-2xl font-medium leading-relaxed">
-            Faça backups completos ou selecionados dos dados do sistema. Exporte para a sua máquina física, pen drive ou conecte provedores de nuvem para salvar suas sessões com segurança.
+            Faça backups completos ou selecionados dos dados do sistema. Exporte para a sua máquina física ou pen drive para salvar suas sessões com segurança.
           </p>
         </div>
         <div className="shrink-0 flex gap-2">
