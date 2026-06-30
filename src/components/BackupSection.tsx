@@ -26,7 +26,7 @@ import { cn } from '../lib/utils';
 import { fetchAll, saveBatch } from '../lib/database';
 
 // Tipos de Backup
-type BackupType = 'geral' | 'diferencial' | 'detalhado';
+type BackupType = 'geral' | 'detalhado';
 type BackupTarget = 'local';
 
 interface CollectionMeta {
@@ -131,10 +131,10 @@ export function BackupSection() {
           {
             id: '2',
             timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toLocaleString('pt-BR'),
-            type: 'Backup Diferencial',
-            destination: 'Google Drive',
-            recordsCount: 18,
-            sizeKb: 12,
+            type: 'Backup Detalhado',
+            destination: 'Máquina Local',
+            recordsCount: 45,
+            sizeKb: 18,
             status: 'success'
           }
         ];
@@ -206,60 +206,6 @@ export function BackupSection() {
     }
   };
 
-  const parsePtBrDate = (str: string): Date | null => {
-    try {
-      const parts = str.split(',')[0].split('/');
-      if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const year = parseInt(parts[2], 10);
-        
-        const timePart = str.split(',')[1];
-        if (timePart) {
-          const timeParts = timePart.trim().split(':');
-          const hour = parseInt(timeParts[0], 10);
-          const minute = parseInt(timeParts[1], 10);
-          const second = parseInt(timeParts[2], 10);
-          return new Date(year, month, day, hour, minute, second);
-        }
-        return new Date(year, month, day);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return null;
-  };
-
-  // Filtragem de dados para o Backup Diferencial (Comparativo com o último backup)
-  const filterDifferentialData = (tableName: string, records: any[]): any[] => {
-    if (backupType !== 'diferencial') return records;
-
-    // Default: 24 horas atrás se não houver histórico de backup anterior
-    let thresholdDate = new Date();
-    thresholdDate.setDate(thresholdDate.getDate() - 1);
-
-    if (backupLogs && backupLogs.length > 0) {
-      const latestSuccess = backupLogs.find(log => log.status === 'success');
-      if (latestSuccess) {
-        const parsed = parsePtBrDate(latestSuccess.timestamp);
-        if (parsed) {
-          thresholdDate = parsed;
-        }
-      }
-    }
-
-    return records.filter(rec => {
-      const created = rec.created_at ? new Date(rec.created_at) : null;
-      const updated = rec.updated_at ? new Date(rec.updated_at) : null;
-      
-      const latestDate = [created, updated]
-        .filter((d): d is Date => d !== null && !isNaN(d.getTime()))
-        .sort((a, b) => b.getTime() - a.getTime())[0];
-
-      return latestDate && latestDate >= thresholdDate;
-    });
-  };
-
   // AÇÃO: INICIAR GERADOR DE BACKUP (COPIA)
   const handleRunBackup = async () => {
     if (isBackupRunning) return;
@@ -279,7 +225,7 @@ export function BackupSection() {
     setIsBackupRunning(true);
     setBackupProgress({
       percent: 0,
-      currentStep: 'Iniciando módulo de backup diocesano...',
+      currentStep: 'Iniciando módulo de backup...',
       completedTablesCount: 0,
       totalTablesCount: tablesToBackup.length
     });
@@ -304,7 +250,7 @@ export function BackupSection() {
         await new Promise(resolve => setTimeout(resolve, 300));
 
         const records = await fetchAll(tableId);
-        const finalRecords = filterDifferentialData(tableId, records || []);
+        const finalRecords = records || [];
         
         if (finalRecords.length > 0) {
           backupPayload[tableId] = finalRecords;
@@ -327,11 +273,11 @@ export function BackupSection() {
       await new Promise(resolve => setTimeout(resolve, 800));
 
       const backupFile = {
-        app: "Sistema Diocesano de Ensino e Gestão",
+        app: "SISTEMA ACADEMICO ESCMIN - GESTÃO EDUCACIONAL",
         version: "3.2.0-secure",
         timestamp: new Date().toISOString(),
         backup_type: backupType,
-        timeframe: backupType === 'diferencial' ? 'desde_ultimo_backup' : null,
+        timeframe: null,
         records_count: totalRecordsProcessed,
         data: backupPayload
       };
@@ -340,7 +286,7 @@ export function BackupSection() {
       const sizeKb = jsonString.length / 1024;
 
       // Executar entrega do backup de acordo com o local selecionado
-      const typeLabel = backupType === 'geral' ? 'geral' : backupType === 'diferencial' ? 'diferencial' : 'detalhado';
+      const typeLabel = backupType === 'geral' ? 'geral' : 'detalhado';
       const dateStr = new Date().toISOString().split('T')[0];
       const defaultFileName = `backup-${typeLabel}-${dateStr}.json`;
 
@@ -363,7 +309,7 @@ export function BackupSection() {
       URL.revokeObjectURL(url);
 
       saveBackupLog(
-        backupType === 'geral' ? 'Backup Geral' : backupType === 'diferencial' ? 'Backup Diferencial' : 'Backup Detalhado',
+        backupType === 'geral' ? 'Backup Geral' : 'Backup Detalhado',
         'Máquina Local',
         totalRecordsProcessed,
         sizeKb
@@ -439,7 +385,7 @@ export function BackupSection() {
 
         // Validação mínima de sanidade
         if (!parsed.app || !parsed.data || typeof parsed.data !== 'object') {
-          setRestoreError("Arquivo inválido. O arquivo selecionado não é um backup oficial do Sistema Diocesano.");
+          setRestoreError("Arquivo inválido. O arquivo selecionado não é um arquivo de backup reconhecido pelo sistema.");
           return;
         }
 
@@ -559,7 +505,7 @@ export function BackupSection() {
             Central de Cópias e Restaurações
           </h3>
           <p className="text-xs text-indigo-200/80 max-w-2xl font-medium leading-relaxed">
-            Faça backups completos, diferenciais ou selecionados dos dados diocesanos. Exporte para a sua máquina física, pen drive ou conecte provedores de nuvem para salvar suas sessões com segurança militar.
+            Faça backups completos ou selecionados dos dados do sistema. Exporte para a sua máquina física, pen drive ou conecte provedores de nuvem para salvar suas sessões com segurança.
           </p>
         </div>
         <div className="shrink-0 flex gap-2">
@@ -596,19 +542,13 @@ export function BackupSection() {
               {/* Escolha do Tipo de Backup */}
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Cópia</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[
                     {
                       id: 'geral',
                       label: 'Geral / Completo',
                       desc: 'Backup integral de todas as tabelas e dados do sistema.',
                       color: 'border-blue-200 hover:border-blue-400 text-blue-600 bg-blue-50/10'
-                    },
-                    {
-                      id: 'diferencial',
-                      label: 'Diferencial',
-                      desc: 'Compara com o histórico de backups e salva apenas registros novos ou modificados.',
-                      color: 'border-emerald-200 hover:border-emerald-400 text-emerald-600 bg-emerald-50/10'
                     },
                     {
                       id: 'detalhado',
