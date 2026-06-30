@@ -78,6 +78,7 @@ export function BackupSection() {
   const [diffTimeframe, setDiffTimeframe] = useState<'24h' | '7d' | '30d' | 'custom'>('7d');
   const [customDiffDate, setCustomDiffDate] = useState<string>('');
   const [selectedTables, setSelectedTables] = useState<string[]>(COLLECTIONS.map(c => c.id));
+  const [promptSaveLocation, setPromptSaveLocation] = useState<boolean>(true);
   
   // Estados de Nuvem
   const [cloudConnected, setCloudConnected] = useState<{
@@ -370,26 +371,69 @@ export function BackupSection() {
 
       // Executar entrega do backup de acordo com o Target selecionado
       if (target === 'local') {
-        setBackupProgress(prev => ({
-          ...prev,
-          currentStep: 'Disparando download local do arquivo de segurança...',
-          percent: 98
-        }));
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Trigger local file download
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        
         const typeLabel = backupType === 'geral' ? 'geral' : backupType === 'diferencial' ? 'diferencial' : 'detalhado';
         const dateStr = new Date().toISOString().split('T')[0];
-        link.href = url;
-        link.download = `backup-${typeLabel}-${dateStr}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        const defaultFileName = `backup-${typeLabel}-${dateStr}.json`;
+
+        let savedWithPicker = false;
+
+        if (promptSaveLocation && 'showSaveFilePicker' in window) {
+          setBackupProgress(prev => ({
+            ...prev,
+            currentStep: 'Aguardando seleção do local de gravação (Máquina / PenDrive)...',
+            percent: 95
+          }));
+
+          try {
+            const handle = await (window as any).showSaveFilePicker({
+              suggestedName: defaultFileName,
+              types: [{
+                description: 'Arquivo de Backup JSON (.json)',
+                accept: { 'application/json': ['.json'] },
+              }],
+            });
+            
+            setBackupProgress(prev => ({
+              ...prev,
+              currentStep: 'Gravando arquivo de segurança no local selecionado...',
+              percent: 98
+            }));
+
+            const writable = await handle.createWritable();
+            await writable.write(jsonString);
+            await writable.close();
+            savedWithPicker = true;
+          } catch (err: any) {
+            console.warn('showSaveFilePicker failed or was aborted:', err);
+            if (err.name === 'AbortError') {
+              setNotification({ type: 'error', message: 'Operação de salvamento cancelada pelo usuário.' });
+              setTimeout(() => setNotification(null), 3000);
+              setIsBackupRunning(false);
+              return;
+            }
+            // Se falhou por outro motivo, continua para o fallback de download normal
+          }
+        }
+
+        if (!savedWithPicker) {
+          setBackupProgress(prev => ({
+            ...prev,
+            currentStep: 'Disparando download local do arquivo de segurança...',
+            percent: 98
+          }));
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Trigger local file download
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = defaultFileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
 
         saveBackupLog(
           backupType === 'geral' ? 'Backup Geral' : backupType === 'diferencial' ? 'Backup Diferencial' : 'Backup Detalhado',
@@ -860,6 +904,30 @@ export function BackupSection() {
                   </button>
                 </div>
               </div>
+
+              {/* Opção de Localização de Arquivo de Cópia (Salvar Como) */}
+              {target === 'local' && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-start gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setPromptSaveLocation(!promptSaveLocation)}
+                      className={cn(
+                        "w-5 h-5 rounded border flex items-center justify-center transition-all cursor-pointer shrink-0 mt-0.5",
+                        promptSaveLocation ? "bg-slate-900 border-slate-900 text-white" : "border-slate-300 bg-white"
+                      )}
+                    >
+                      {promptSaveLocation && <Check size={12} strokeWidth={3} />}
+                    </button>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Ativar localização de destino (Prompt "Salvar Como")</p>
+                      <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                        Abre um diálogo nativo para você escolher exatamente em qual pasta da sua máquina ou em qual partição do seu Pen Drive deseja salvar este arquivo de segurança (.json).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Botão de Disparo */}
               <div className="pt-2 border-t border-slate-100">
