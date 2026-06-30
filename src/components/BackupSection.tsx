@@ -11,9 +11,7 @@ import {
   Calendar, 
   Sliders, 
   HardDrive, 
-  History, 
   RefreshCw, 
-  Trash2, 
   ChevronRight, 
   ArrowRight,
   Sparkles,
@@ -60,22 +58,11 @@ const COLLECTIONS: CollectionMeta[] = [
   { id: 'archived_subjects', label: 'Disciplinas Históricas (Arquivo)', category: 'Arquivo Morto' },
 ];
 
-interface BackupLog {
-  id: string;
-  timestamp: string;
-  type: string;
-  destination: string;
-  recordsCount: number;
-  sizeKb: number;
-  status: 'success' | 'failed';
-}
-
 export function BackupSection() {
   // Estados Principais
   const [backupType, setBackupType] = useState<BackupType>('geral');
   const [target, setTarget] = useState<BackupTarget>('local');
   const [selectedTables, setSelectedTables] = useState<string[]>(COLLECTIONS.map(c => c.id));
-  const [confirmClear, setConfirmClear] = useState<boolean>(false);
   
   // Estados de Progresso da Cópia (Backup)
   const [isBackupRunning, setIsBackupRunning] = useState(false);
@@ -101,87 +88,13 @@ export function BackupSection() {
   const [parsedRestoreFile, setParsedRestoreFile] = useState<any | null>(null);
   const [selectedRestoreTables, setSelectedRestoreTables] = useState<string[]>([]);
   const [restoreError, setRestoreError] = useState<string | null>(null);
-  const [backupLogs, setBackupLogs] = useState<BackupLog[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Carregar dados iniciais
   useEffect(() => {
-    loadBackupLogs();
     fetchTableRecordsCounts();
   }, []);
-
-  const loadBackupLogs = () => {
-    try {
-      const logs = localStorage.getItem('app_backup_logs');
-      if (logs) {
-        setBackupLogs(JSON.parse(logs));
-      } else {
-        // Mock inicial de histórico para ficar esteticamente preenchido
-        const initialLogs: BackupLog[] = [
-          {
-            id: '1',
-            timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toLocaleString('pt-BR'),
-            type: 'Backup Geral',
-            destination: 'Máquina Local',
-            recordsCount: 412,
-            sizeKb: 124,
-            status: 'success'
-          },
-          {
-            id: '2',
-            timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toLocaleString('pt-BR'),
-            type: 'Backup Detalhado',
-            destination: 'Máquina Local',
-            recordsCount: 45,
-            sizeKb: 18,
-            status: 'success'
-          }
-        ];
-        localStorage.setItem('app_backup_logs', JSON.stringify(initialLogs));
-        setBackupLogs(initialLogs);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const saveBackupLog = (type: string, dest: string, count: number, size: number) => {
-    try {
-      const newLog: BackupLog = {
-        id: crypto.randomUUID(),
-        timestamp: new Date().toLocaleString('pt-BR'),
-        type,
-        destination: dest,
-        recordsCount: count,
-        sizeKb: Math.max(1, Math.round(size)),
-        status: 'success'
-      };
-      const updated = [newLog, ...backupLogs];
-      setBackupLogs(updated);
-      localStorage.setItem('app_backup_logs', JSON.stringify(updated));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const clearBackupLogs = () => {
-    if (!confirmClear) {
-      setConfirmClear(true);
-      setTimeout(() => setConfirmClear(false), 4000);
-      return;
-    }
-
-    try {
-      localStorage.removeItem('app_backup_logs');
-      setBackupLogs([]);
-      setConfirmClear(false);
-      setNotification({ type: 'success', message: 'Histórico de cópias de segurança limpo com sucesso!' });
-      setTimeout(() => setNotification(null), 3000);
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const fetchTableRecordsCounts = async () => {
     setLoadingCounts(true);
@@ -307,13 +220,6 @@ export function BackupSection() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
-      saveBackupLog(
-        backupType === 'geral' ? 'Backup Geral' : 'Backup Detalhado',
-        'Máquina Local',
-        totalRecordsProcessed,
-        sizeKb
-      );
 
       // Finalização
       setBackupProgress(prev => ({
@@ -903,79 +809,6 @@ export function BackupSection() {
 
         </div>
 
-      </div>
-
-      {/* HISTÓRICO DE BACKUPS */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center border border-slate-200">
-              <History size={18} />
-            </div>
-            <div>
-              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Histórico de Cópias e Transmissões</h4>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Logs de transmissões de segurança nesta sessão e nuvem</p>
-            </div>
-          </div>
-          {backupLogs.length > 0 && (
-            <button
-              type="button"
-              onClick={clearBackupLogs}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold rounded-lg transition-all active:scale-95 uppercase tracking-wider cursor-pointer border",
-                confirmClear 
-                  ? "bg-amber-600 hover:bg-amber-700 text-white border-amber-500 animate-pulse" 
-                  : "bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border-red-100"
-              )}
-            >
-              <Trash2 size={12} />
-              {confirmClear ? "Confirmar Limpeza?" : "Limpar Histórico"}
-            </button>
-          )}
-        </div>
-
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-[9px] font-bold uppercase tracking-widest text-slate-400 select-none">
-                <th className="py-3.5 px-6">Data/Hora</th>
-                <th className="py-3.5 px-6">Tipo</th>
-                <th className="py-3.5 px-6">Destino</th>
-                <th className="py-3.5 px-6 text-center">Registros</th>
-                <th className="py-3.5 px-6 text-center">Tamanho</th>
-                <th className="py-3.5 px-6 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {backupLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400 text-xs font-medium">
-                    Nenhum log de backup foi gerado ainda.
-                  </td>
-                </tr>
-              ) : (
-                backupLogs.map((log) => (
-                  <tr key={log.id} className="text-xs text-slate-600 hover:bg-slate-50/40 transition-colors">
-                    <td className="py-4 px-6 font-semibold text-slate-800">{log.timestamp}</td>
-                    <td className="py-4 px-6 font-bold uppercase text-[10px] tracking-wide text-indigo-600">{log.type}</td>
-                    <td className="py-4 px-6 font-bold">{log.destination}</td>
-                    <td className="py-4 px-6 text-center font-bold text-slate-700">{log.recordsCount}</td>
-                    <td className="py-4 px-6 text-center font-medium font-mono text-slate-500">{log.sizeKb} KB</td>
-                    <td className="py-4 px-6 text-center">
-                      <span className={cn(
-                        "px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider inline-flex items-center gap-1",
-                        log.status === 'success' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-                      )}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                        {log.status === 'success' ? 'Sucesso' : 'Erro'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
 
     </div>
