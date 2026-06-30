@@ -27,6 +27,12 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { fetchAll, saveBatch } from '../lib/database';
+import { 
+  signInWithGoogle, 
+  getCachedToken, 
+  getOrCreateFolder, 
+  uploadBackupFile 
+} from '../services/googleDrive';
 
 // Tipos de Backup
 type BackupType = 'geral' | 'diferencial' | 'detalhado';
@@ -257,7 +263,7 @@ export function BackupSection() {
   };
 
   // Salvar a configuração de Nuvem informada pelo usuário
-  const saveCloudConfig = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
+  const saveCloudConfig = async (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
     if (!editEmail.trim()) {
       setNotification({ type: 'error', message: 'Por favor, insira um e-mail válido para a conta.' });
       setTimeout(() => setNotification(null), 3000);
@@ -268,14 +274,27 @@ export function BackupSection() {
     const targetEmail = editEmail.trim();
     const targetFolder = editFolder.trim() || 'Backups-Diocese';
 
-    setTimeout(() => {
-      localStorage.setItem(`cloud_${provider}_email`, targetEmail);
-      localStorage.setItem(`cloud_${provider}_folder`, targetFolder);
-      
-      setCloudConnected(prev => ({ ...prev, [provider]: targetEmail }));
-      setCloudFolders(prev => ({ ...prev, [provider]: targetFolder }));
-      
-      setConnectingCloud(null);
+    try {
+      if (provider === 'gdrive') {
+        // Realizar autenticação real do Google Drive usando Firebase
+        const result = await signInWithGoogle();
+        const userEmail = result.user.email || targetEmail;
+        
+        localStorage.setItem('cloud_gdrive_email', userEmail);
+        localStorage.setItem('cloud_gdrive_folder', targetFolder);
+        
+        setCloudConnected(prev => ({ ...prev, gdrive: userEmail }));
+        setCloudFolders(prev => ({ ...prev, gdrive: targetFolder }));
+      } else {
+        // Simulação de delay para outros provedores
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        localStorage.setItem(`cloud_${provider}_email`, targetEmail);
+        localStorage.setItem(`cloud_${provider}_folder`, targetFolder);
+        
+        setCloudConnected(prev => ({ ...prev, [provider]: targetEmail }));
+        setCloudFolders(prev => ({ ...prev, [provider]: targetFolder }));
+      }
+
       setEditingProvider(null);
       setSetupProvider(null);
 
@@ -284,7 +303,16 @@ export function BackupSection() {
         message: `Configurações da conta ${provider === 'gdrive' ? 'Google Drive' : provider === 'onedrive' ? 'Microsoft OneDrive' : 'Dropbox'} salvas com sucesso!`
       });
       setTimeout(() => setNotification(null), 3000);
-    }, 1200);
+    } catch (err: any) {
+      console.error(err);
+      setNotification({
+        type: 'error',
+        message: `Falha ao conectar ao ${provider === 'gdrive' ? 'Google Drive' : provider === 'onedrive' ? 'Microsoft OneDrive' : 'Dropbox'}: ${err.message || err}`
+      });
+      setTimeout(() => setNotification(null), 4000);
+    } finally {
+      setConnectingCloud(null);
+    }
   };
 
   const connectCloudProvider = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
@@ -494,10 +522,56 @@ export function BackupSection() {
           totalRecordsProcessed,
           sizeKb
         );
+      } else if (target === 'cloud_gdrive') {
+        // Envio real para o Google Drive
+        const destFolder = cloudFolders.gdrive || 'Backups-Diocese';
+        const destEmail = cloudConnected.gdrive || 'diocesesistema.backup@gmail.com';
+
+        let gdriveAccessToken = getCachedToken();
+        if (!gdriveAccessToken) {
+          setBackupProgress(prev => ({
+            ...prev,
+            currentStep: 'Autenticando com sua conta Google Drive...',
+            percent: 85
+          }));
+          const result = await signInWithGoogle();
+          gdriveAccessToken = result.accessToken;
+          if (result.user.email) {
+            localStorage.setItem('cloud_gdrive_email', result.user.email);
+            setCloudConnected(prev => ({ ...prev, gdrive: result.user.email }));
+          }
+        }
+
+        setBackupProgress(prev => ({
+          ...prev,
+          currentStep: `Buscando ou criando pasta "${destFolder}" no Google Drive...`,
+          percent: 90
+        }));
+
+        const folderId = await getOrCreateFolder(gdriveAccessToken, destFolder);
+
+        setBackupProgress(prev => ({
+          ...prev,
+          currentStep: `Gravando arquivo de segurança na pasta "${destFolder}" do Google Drive...`,
+          percent: 95
+        }));
+
+        const typeLabel = backupType === 'geral' ? 'geral' : backupType === 'diferencial' ? 'diferencial' : 'detalhado';
+        const dateStr = new Date().toISOString().split('T')[0];
+        const fileName = `backup-${typeLabel}-${dateStr}.json`;
+
+        await uploadBackupFile(gdriveAccessToken, folderId, fileName, jsonString);
+
+        saveBackupLog(
+          backupType === 'geral' ? 'Backup Geral' : backupType === 'diferencial' ? 'Backup Diferencial' : 'Backup Detalhado',
+          `Google Drive (${destEmail}) [Pasta: ${destFolder}]`,
+          totalRecordsProcessed,
+          sizeKb
+        );
       } else {
-        // Envio para Nuvem
-        const providerKey = target.replace('cloud_', '') as 'gdrive' | 'onedrive' | 'dropbox';
-        const providerName = providerKey === 'gdrive' ? 'Google Drive' : providerKey === 'onedrive' ? 'OneDrive' : 'Dropbox';
+        // Envio para OneDrive / Dropbox (Simulado)
+        const providerKey = target.replace('cloud_', '') as 'onedrive' | 'dropbox';
+        const providerName = providerKey === 'onedrive' ? 'OneDrive' : 'Dropbox';
         const destEmail = cloudConnected[providerKey] || 'diocesesistema.backup@gmail.com';
         const destFolder = cloudFolders[providerKey] || 'Backups-Diocese';
 
