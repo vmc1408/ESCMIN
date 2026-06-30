@@ -1322,6 +1322,20 @@ export function BackupSection() {
             </div>
 
             <div className="p-5 space-y-3">
+              {/* Alerta de Iframe para o Google Drive */}
+              <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl flex gap-3 animate-in fade-in duration-300">
+                <AlertCircle size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h5 className="text-[10px] font-extrabold text-indigo-950 uppercase tracking-wide">Atenção ao usar no AI Studio</h5>
+                  <p className="text-[10px] text-indigo-800 leading-relaxed font-medium">
+                    Como a visualização do sistema roda dentro de um <strong>painel protegido (iframe)</strong>, o Google impede o pop-up de login por questões de segurança.
+                  </p>
+                  <p className="text-[10px] text-indigo-900 font-bold leading-relaxed pt-1">
+                    👉 <strong>Solução Simples:</strong> Clique no botão <span className="bg-indigo-100 border border-indigo-200 px-1 py-0.5 rounded text-[9px] uppercase tracking-wider text-indigo-700 font-black">Abrir em Nova Aba</span> no topo direito desta tela para conectar sua conta com sucesso!
+                  </p>
+                </div>
+              </div>
+
               {[
                 {
                   id: 'gdrive',

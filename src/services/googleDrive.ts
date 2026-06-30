@@ -40,6 +40,15 @@ export async function signInWithGoogle(): Promise<{ user: User; accessToken: str
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Google Sign In Error:', error);
+    if (
+      error?.code === 'auth/popup-closed-by-user' || 
+      error?.code === 'auth/cancelled-popup-request' ||
+      error?.message?.includes('popup')
+    ) {
+      throw new Error(
+        'A janela de autenticação foi fechada ou bloqueada pelo navegador. Se você estiver na visualização do AI Studio, as regras de segurança impedem popups em iframes. Por favor, clique no botão "Abrir em Nova Aba" no canto superior direito do painel e conecte por lá!'
+      );
+    }
     throw error;
   }
 }
