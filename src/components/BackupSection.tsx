@@ -74,9 +74,8 @@ export function BackupSection() {
   // Estados Principais
   const [backupType, setBackupType] = useState<BackupType>('geral');
   const [target, setTarget] = useState<BackupTarget>('local');
-  const [diffTimeframe, setDiffTimeframe] = useState<'24h' | '7d' | '30d' | 'custom'>('7d');
-  const [customDiffDate, setCustomDiffDate] = useState<string>('');
   const [selectedTables, setSelectedTables] = useState<string[]>(COLLECTIONS.map(c => c.id));
+  const [confirmClear, setConfirmClear] = useState<boolean>(false);
   
   // Estados de Progresso da Cópia (Backup)
   const [isBackupRunning, setIsBackupRunning] = useState(false);
@@ -167,15 +166,20 @@ export function BackupSection() {
   };
 
   const clearBackupLogs = () => {
-    if (window.confirm('Deseja realmente limpar todo o histórico de cópias de segurança?')) {
-      try {
-        localStorage.removeItem('app_backup_logs');
-        setBackupLogs([]);
-        setNotification({ type: 'success', message: 'Histórico de cópias de segurança limpo com sucesso!' });
-        setTimeout(() => setNotification(null), 3000);
-      } catch (e) {
-        console.error(e);
-      }
+    if (!confirmClear) {
+      setConfirmClear(true);
+      setTimeout(() => setConfirmClear(false), 4000);
+      return;
+    }
+
+    try {
+      localStorage.removeItem('app_backup_logs');
+      setBackupLogs([]);
+      setConfirmClear(false);
+      setNotification({ type: 'success', message: 'Histórico de cópias de segurança limpo com sucesso!' });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -202,21 +206,46 @@ export function BackupSection() {
     }
   };
 
-  // Filtragem de dados para o Backup Diferencial
+  const parsePtBrDate = (str: string): Date | null => {
+    try {
+      const parts = str.split(',')[0].split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        
+        const timePart = str.split(',')[1];
+        if (timePart) {
+          const timeParts = timePart.trim().split(':');
+          const hour = parseInt(timeParts[0], 10);
+          const minute = parseInt(timeParts[1], 10);
+          const second = parseInt(timeParts[2], 10);
+          return new Date(year, month, day, hour, minute, second);
+        }
+        return new Date(year, month, day);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  };
+
+  // Filtragem de dados para o Backup Diferencial (Comparativo com o último backup)
   const filterDifferentialData = (tableName: string, records: any[]): any[] => {
     if (backupType !== 'diferencial') return records;
 
+    // Default: 24 horas atrás se não houver histórico de backup anterior
     let thresholdDate = new Date();
-    if (diffTimeframe === '24h') {
-      thresholdDate.setDate(thresholdDate.getDate() - 1);
-    } else if (diffTimeframe === '7d') {
-      thresholdDate.setDate(thresholdDate.getDate() - 7);
-    } else if (diffTimeframe === '30d') {
-      thresholdDate.setDate(thresholdDate.getDate() - 30);
-    } else if (diffTimeframe === 'custom' && customDiffDate) {
-      thresholdDate = new Date(customDiffDate);
-    } else {
-      thresholdDate.setDate(thresholdDate.getDate() - 7); // Default
+    thresholdDate.setDate(thresholdDate.getDate() - 1);
+
+    if (backupLogs && backupLogs.length > 0) {
+      const latestSuccess = backupLogs.find(log => log.status === 'success');
+      if (latestSuccess) {
+        const parsed = parsePtBrDate(latestSuccess.timestamp);
+        if (parsed) {
+          thresholdDate = parsed;
+        }
+      }
     }
 
     return records.filter(rec => {
@@ -302,7 +331,7 @@ export function BackupSection() {
         version: "3.2.0-secure",
         timestamp: new Date().toISOString(),
         backup_type: backupType,
-        timeframe: backupType === 'diferencial' ? diffTimeframe : null,
+        timeframe: backupType === 'diferencial' ? 'desde_ultimo_backup' : null,
         records_count: totalRecordsProcessed,
         data: backupPayload
       };
@@ -572,13 +601,13 @@ export function BackupSection() {
                     {
                       id: 'geral',
                       label: 'Geral / Completo',
-                      desc: 'Backup integral de todas as tabelas e dados da diocese.',
+                      desc: 'Backup integral de todas as tabelas e dados do sistema.',
                       color: 'border-blue-200 hover:border-blue-400 text-blue-600 bg-blue-50/10'
                     },
                     {
                       id: 'diferencial',
                       label: 'Diferencial',
-                      desc: 'Apenas dados modificados no intervalo selecionado.',
+                      desc: 'Compara com o histórico de backups e salva apenas registros novos ou modificados.',
                       color: 'border-emerald-200 hover:border-emerald-400 text-emerald-600 bg-emerald-50/10'
                     },
                     {
@@ -610,49 +639,6 @@ export function BackupSection() {
                   ))}
                 </div>
               </div>
-
-              {/* Sub-Opções do Backup Diferencial */}
-              {backupType === 'diferencial' && (
-                <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-300">
-                  <div className="flex items-center gap-2 text-emerald-800">
-                    <Sliders size={15} />
-                    <span className="text-[11px] font-bold uppercase tracking-wider">Intervalo Diferencial</span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {[
-                      { id: '24h', label: 'Últimas 24h' },
-                      { id: '7d', label: 'Últimos 7 dias' },
-                      { id: '30d', label: 'Últimos 30 dias' },
-                      { id: 'custom', label: 'Data Específica' }
-                    ].map((time) => (
-                      <button
-                        key={time.id}
-                        type="button"
-                        onClick={() => setDiffTimeframe(time.id as any)}
-                        className={cn(
-                          "py-2 px-3 rounded text-[10px] font-bold uppercase tracking-widest border transition-all",
-                          diffTimeframe === time.id 
-                            ? "bg-emerald-600 text-white border-emerald-600" 
-                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                        )}
-                      >
-                        {time.label}
-                      </button>
-                    ))}
-                  </div>
-                  {diffTimeframe === 'custom' && (
-                    <div className="space-y-1.5 pt-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coletar alterações criadas/atualizadas após:</label>
-                      <input 
-                        type="date"
-                        value={customDiffDate}
-                        onChange={(e) => setCustomDiffDate(e.target.value)}
-                        className="px-4 py-2 bg-white border border-slate-200 rounded-md outline-none text-xs font-bold text-slate-700 focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-300 transition-all w-full max-w-xs"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Sub-Opções do Backup Detalhado (Checkboxes das Tabelas) */}
               {backupType === 'detalhado' && (
@@ -995,10 +981,15 @@ export function BackupSection() {
             <button
               type="button"
               onClick={clearBackupLogs}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 rounded-lg transition-all active:scale-95 uppercase tracking-wider cursor-pointer border border-red-100"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold rounded-lg transition-all active:scale-95 uppercase tracking-wider cursor-pointer border",
+                confirmClear 
+                  ? "bg-amber-600 hover:bg-amber-700 text-white border-amber-500 animate-pulse" 
+                  : "bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border-red-100"
+              )}
             >
               <Trash2 size={12} />
-              Limpar Histórico
+              {confirmClear ? "Confirmar Limpeza?" : "Limpar Histórico"}
             </button>
           )}
         </div>

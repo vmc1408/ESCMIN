@@ -312,8 +312,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="h-full w-60 bg-slate-900 text-white flex flex-col border-r border-slate-800 print:hidden overflow-hidden shrink-0">
       <div className="p-5 border-b border-slate-800 flex items-center justify-between">
         <div className="flex flex-col">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-400">Sistema Diocesano</h2>
-          <span className="text-[9px] font-medium text-slate-400">Gestão Educacional</span>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.05em] text-blue-400">SISTEMA ACADEMICO ESCMIN</h2>
+          <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Gestão Educacional</span>
         </div>
         {onClose && (
           <button 
