@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap, LogIn } from 'lucide-react';
+import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap, LogIn, Upload } from 'lucide-react';
 import { fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
@@ -1064,8 +1064,8 @@ export function Users() {
                       </div>
                       
                       <div className="absolute -bottom-1 -right-1 flex flex-col gap-1.5">
-                        <label className="w-8 h-8 bg-[#00174b] text-white rounded-lg flex items-center justify-center shadow-md cursor-pointer hover:bg-blue-700 transition-all border-2 border-white">
-                          <Camera size={14} />
+                        <label className="w-8 h-8 bg-[#00174b] text-white rounded-lg flex items-center justify-center shadow-md cursor-pointer hover:bg-blue-700 transition-all border-2 border-white" title="Fazer Upload de Foto">
+                          <Upload size={14} />
                           <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                         </label>
                         <button 
@@ -1075,8 +1075,9 @@ export function Users() {
                             "w-8 h-8 rounded-lg flex items-center justify-center shadow-md transition-all border-2 border-white",
                             showWebcam ? "bg-red-500 text-white" : "bg-blue-600 text-white"
                           )}
+                          title="Tirar Foto com Webcam"
                         >
-                          {showWebcam ? <X size={14} /> : <Zap size={14} />}
+                          {showWebcam ? <X size={14} /> : <Camera size={14} />}
                         </button>
                       </div>
                     </div>

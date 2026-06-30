@@ -3,7 +3,6 @@ import {
   Database, 
   Download, 
   Upload, 
-  Cloud, 
   CheckCircle2, 
   AlertCircle, 
   Loader2, 
@@ -599,7 +598,7 @@ export function BackupSection() {
           </div>
         </div>
 
-        {/* COLUNA DIREITA: RESTAURAÇÃO E INTEGRANTES EM NUVEM */}
+        {/* COLUNA DIREITA: RESTAURAÇÃO */}
         <div className="lg:col-span-4 space-y-6">
           
           {/* PAINEL DE RESTAURAÇÃO */}
