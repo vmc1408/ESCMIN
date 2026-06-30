@@ -21,7 +21,9 @@ import {
   Check,
   FileArchive,
   CloudLightning,
-  AlertTriangle
+  AlertTriangle,
+  Edit,
+  Folder
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { fetchAll, saveBatch } from '../lib/database';
@@ -90,7 +92,20 @@ export function BackupSection() {
     onedrive: null,
     dropbox: null
   });
+  const [cloudFolders, setCloudFolders] = useState<{
+    gdrive: string;
+    onedrive: string;
+    dropbox: string;
+  }>({
+    gdrive: 'Backups-Diocese',
+    onedrive: 'Backups-Diocese',
+    dropbox: 'Backups-Diocese'
+  });
   const [connectingCloud, setConnectingCloud] = useState<'gdrive' | 'onedrive' | 'dropbox' | null>(null);
+  const [setupProvider, setSetupProvider] = useState<'gdrive' | 'onedrive' | 'dropbox' | null>(null);
+  const [editingProvider, setEditingProvider] = useState<'gdrive' | 'onedrive' | 'dropbox' | null>(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editFolder, setEditFolder] = useState('');
 
   // Estados de Progresso da Cópia (Backup)
   const [isBackupRunning, setIsBackupRunning] = useState(false);
@@ -133,6 +148,11 @@ export function BackupSection() {
       const onedrive = localStorage.getItem('cloud_onedrive_email');
       const dropbox = localStorage.getItem('cloud_dropbox_email');
       setCloudConnected({ gdrive, onedrive, dropbox });
+
+      const gdriveFolder = localStorage.getItem('cloud_gdrive_folder') || 'Backups-Diocese';
+      const onedriveFolder = localStorage.getItem('cloud_onedrive_folder') || 'Backups-Diocese';
+      const dropboxFolder = localStorage.getItem('cloud_dropbox_folder') || 'Backups-Diocese';
+      setCloudFolders({ gdrive: gdriveFolder, onedrive: onedriveFolder, dropbox: dropboxFolder });
     } catch (e) {
       console.error(e);
     }
@@ -215,27 +235,60 @@ export function BackupSection() {
     }
   };
 
-  // Conectar com a Nuvem (Simulação de Autenticação Real de Alta Fidelidade)
-  const connectCloudProvider = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
-    setConnectingCloud(provider);
-    
-    // Simula um fluxo popup de autenticação Oauth do Google/Microsoft/Dropbox de 2.5s
-    setTimeout(() => {
-      let email = 'usuario@gmail.com';
-      if (provider === 'gdrive') email = 'diocesesistema.backup@gmail.com';
-      if (provider === 'onedrive') email = 'financeiro.diocese@outlook.com';
-      if (provider === 'dropbox') email = 'curia_diocese_backup@dropbox.com';
+  // Iniciar fluxo para conectar com a Nuvem (Configuração e Ajuste de Conta)
+  const handleStartConnect = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
+    let defaultEmail = 'usuario@gmail.com';
+    if (provider === 'gdrive') defaultEmail = 'diocesesistema.backup@gmail.com';
+    if (provider === 'onedrive') defaultEmail = 'financeiro.diocese@outlook.com';
+    if (provider === 'dropbox') defaultEmail = 'curia_diocese_backup@dropbox.com';
 
-      localStorage.setItem(`cloud_${provider}_email`, email);
-      setCloudConnected(prev => ({ ...prev, [provider]: email }));
-      setConnectingCloud(null);
+    setEditEmail(defaultEmail);
+    setEditFolder(cloudFolders[provider] || 'Backups-Diocese');
+    setSetupProvider(provider);
+    setEditingProvider(null);
+  };
+
+  // Iniciar fluxo para editar uma conta que já está conectada
+  const handleStartEdit = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
+    setEditEmail(cloudConnected[provider] || '');
+    setEditFolder(cloudFolders[provider] || 'Backups-Diocese');
+    setEditingProvider(provider);
+    setSetupProvider(null);
+  };
+
+  // Salvar a configuração de Nuvem informada pelo usuário
+  const saveCloudConfig = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
+    if (!editEmail.trim()) {
+      setNotification({ type: 'error', message: 'Por favor, insira um e-mail válido para a conta.' });
+      setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+
+    setConnectingCloud(provider);
+    const targetEmail = editEmail.trim();
+    const targetFolder = editFolder.trim() || 'Backups-Diocese';
+
+    setTimeout(() => {
+      localStorage.setItem(`cloud_${provider}_email`, targetEmail);
+      localStorage.setItem(`cloud_${provider}_folder`, targetFolder);
       
+      setCloudConnected(prev => ({ ...prev, [provider]: targetEmail }));
+      setCloudFolders(prev => ({ ...prev, [provider]: targetFolder }));
+      
+      setConnectingCloud(null);
+      setEditingProvider(null);
+      setSetupProvider(null);
+
       setNotification({
         type: 'success',
-        message: `Conectado com sucesso ao ${provider === 'gdrive' ? 'Google Drive' : provider === 'onedrive' ? 'Microsoft OneDrive' : 'Dropbox'}!`
+        message: `Configurações da conta ${provider === 'gdrive' ? 'Google Drive' : provider === 'onedrive' ? 'Microsoft OneDrive' : 'Dropbox'} salvas com sucesso!`
       });
       setTimeout(() => setNotification(null), 3000);
-    }, 2500);
+    }, 1200);
+  };
+
+  const connectCloudProvider = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
+    handleStartConnect(provider);
   };
 
   const disconnectCloudProvider = (provider: 'gdrive' | 'onedrive' | 'dropbox') => {
@@ -443,17 +496,21 @@ export function BackupSection() {
         );
       } else {
         // Envio para Nuvem
-        const providerName = target === 'cloud_gdrive' ? 'Google Drive' : target === 'cloud_onedrive' ? 'OneDrive' : 'Dropbox';
+        const providerKey = target.replace('cloud_', '') as 'gdrive' | 'onedrive' | 'dropbox';
+        const providerName = providerKey === 'gdrive' ? 'Google Drive' : providerKey === 'onedrive' ? 'OneDrive' : 'Dropbox';
+        const destEmail = cloudConnected[providerKey] || 'diocesesistema.backup@gmail.com';
+        const destFolder = cloudFolders[providerKey] || 'Backups-Diocese';
+
         setBackupProgress(prev => ({
           ...prev,
-          currentStep: `Transmitindo fluxo de dados criptografado para o servidor do ${providerName}...`,
+          currentStep: `Transmitindo fluxo de dados criptografado para ${providerName} (${destEmail}) na pasta "${destFolder}"...`,
           percent: 98
         }));
         await new Promise(resolve => setTimeout(resolve, 1500)); // Simula latência de rede em nuvem
 
         saveBackupLog(
           backupType === 'geral' ? 'Backup Geral' : backupType === 'diferencial' ? 'Backup Diferencial' : 'Backup Detalhado',
-          providerName,
+          `${providerName} (${destEmail}) [Pasta: ${destFolder}]`,
           totalRecordsProcessed,
           sizeKb
         );
@@ -1217,41 +1274,107 @@ export function BackupSection() {
                 <div 
                   key={provider.id}
                   className={cn(
-                    "p-4 rounded-xl border flex items-center justify-between gap-4 transition-all",
+                    "p-4 rounded-xl border flex flex-col gap-3 transition-all",
                     provider.color
                   )}
                 >
-                  <div className="min-w-0">
-                    <span className="text-xs font-black text-slate-700 uppercase tracking-tight block">{provider.name}</span>
-                    {provider.isConnected ? (
-                      <span className="text-[10px] text-emerald-600 font-bold block truncate mt-0.5">{provider.email}</span>
-                    ) : (
-                      <span className="text-[10px] text-slate-400 font-bold block mt-0.5">Conta não conectada</span>
-                    )}
+                  <div className="flex items-start justify-between gap-4 w-full">
+                    <div className="min-w-0">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-tight block">{provider.name}</span>
+                      {provider.isConnected ? (
+                        <div className="space-y-1 mt-1">
+                          <span className="text-[10px] text-emerald-600 font-bold block truncate">Conta: {provider.email}</span>
+                          <span className="text-[9px] text-slate-500 font-medium flex items-center gap-1 bg-slate-100/50 px-1.5 py-0.5 rounded border border-slate-200/50 w-max">
+                            <Folder size={10} className="text-slate-400" />
+                            Pasta: <span className="font-semibold text-slate-600">{cloudFolders[provider.id as 'gdrive' | 'onedrive' | 'dropbox']}</span>
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-bold block mt-0.5">Conta não conectada</span>
+                      )}
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {provider.isConnected && editingProvider !== provider.id && (
+                        <button 
+                          type="button"
+                          onClick={() => handleStartEdit(provider.id as any)}
+                          className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-md transition-colors"
+                          title="Ajustar Conta e Pasta"
+                        >
+                          <Edit size={12} />
+                        </button>
+                      )}
+
+                      {connectingCloud === provider.id ? (
+                        <button disabled className="px-3 py-1.5 bg-slate-50 text-slate-400 rounded-md text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+                          <Loader2 size={10} className="animate-spin" />
+                          Salvando...
+                        </button>
+                      ) : provider.isConnected ? (
+                        <button 
+                          onClick={() => disconnectCloudProvider(provider.id as any)}
+                          className="px-3 py-1.5 bg-red-50 text-red-600 rounded-md text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-colors"
+                        >
+                          Desconectar
+                        </button>
+                      ) : setupProvider !== provider.id ? (
+                        <button 
+                          onClick={() => handleStartConnect(provider.id as any)}
+                          className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-bold uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-colors"
+                        >
+                          Conectar
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <div className="shrink-0">
-                    {connectingCloud === provider.id ? (
-                      <button disabled className="px-3 py-1.5 bg-slate-50 text-slate-400 rounded-md text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5">
-                        <Loader2 size={10} className="animate-spin" />
-                        ...
-                      </button>
-                    ) : provider.isConnected ? (
-                      <button 
-                        onClick={() => disconnectCloudProvider(provider.id as any)}
-                        className="px-3 py-1.5 bg-red-50 text-red-600 rounded-md text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-colors"
-                      >
-                        Desconectar
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => connectCloudProvider(provider.id as any)}
-                        className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-bold uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-colors"
-                      >
-                        Conectar
-                      </button>
-                    )}
-                  </div>
+                  {/* Formulário de Configuração/Edição Inline para o provedor de nuvem */}
+                  {(setupProvider === provider.id || editingProvider === provider.id) && (
+                    <div className="pt-3 border-t border-slate-200/60 space-y-3 animate-in fade-in duration-200">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">E-mail ou Usuário da Conta</label>
+                          <input
+                            type="email"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                            placeholder="exemplo@gmail.com"
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-[11px] font-medium text-slate-800 outline-none focus:border-slate-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Pasta Destino na Nuvem</label>
+                          <input
+                            type="text"
+                            value={editFolder}
+                            onChange={(e) => setEditFolder(e.target.value)}
+                            placeholder="Ex: Backups-Diocese"
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-[11px] font-medium text-slate-800 outline-none focus:border-slate-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingProvider(null);
+                            setSetupProvider(null);
+                          }}
+                          className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-[9px] font-bold uppercase tracking-wider hover:bg-slate-200 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveCloudConfig(provider.id as any)}
+                          className="px-2.5 py-1 bg-indigo-600 text-white rounded text-[9px] font-bold uppercase tracking-wider hover:bg-indigo-700 transition-colors"
+                        >
+                          Salvar Conexão
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
