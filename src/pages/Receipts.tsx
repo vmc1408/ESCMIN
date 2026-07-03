@@ -121,10 +121,49 @@ export function Receipts() {
   const [signatureLabel, setSignatureLabel] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Helper to format string into PT-BR currency representation (e.g., 1.056,93)
+  const formatAmountValue = (val: string) => {
+    if (!val) return '';
+    // Strip everything except digits, comma and dot
+    let clean = val.replace(/[^0-9,.]/g, '');
+    if (!clean) return '';
+    
+    let hasComma = clean.includes(',');
+    let hasDot = clean.includes('.');
+    
+    let numericVal = 0;
+    if (hasComma) {
+      // Remove dots, change comma to dot
+      const normalized = clean.replace(/\./g, '').replace(',', '.');
+      numericVal = parseFloat(normalized) || 0;
+    } else if (hasDot) {
+      const parts = clean.split('.');
+      if (parts.length > 2) {
+        numericVal = parseFloat(clean.replace(/\./g, '')) || 0;
+      } else {
+        numericVal = parseFloat(clean) || 0;
+      }
+    } else {
+      numericVal = parseFloat(clean) || 0;
+    }
+    
+    return numericVal.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Helper to parse standard/formatted PT-BR currency back to float safely
+  const parseAmountToFloat = (val: string): number => {
+    if (!val) return 0;
+    const clean = val.replace(/\./g, '').replace(',', '.');
+    return parseFloat(clean) || 0;
+  };
+
   const handleStartEdit = (receipt: Receipt) => {
     setEditingReceipt(receipt);
     setReceiptNumber(receipt.receipt_number);
-    setAmount(receipt.amount.toString().replace('.', ','));
+    setAmount(receipt.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setPayeeName(receipt.payee_name);
     setDescription(receipt.description);
     setPaymentDate(receipt.payment_date.split('T')[0]);
@@ -289,7 +328,7 @@ export function Receipts() {
     try {
       const newReceipt: Partial<Receipt> = {
         receipt_number: receiptNumber.trim(),
-        amount: parseFloat(amount.replace(',', '.')),
+        amount: parseAmountToFloat(amount),
         payee_name: payeeName.trim(),
         description: description.trim(),
         payment_date: paymentDate,
@@ -933,9 +972,16 @@ export function Receipts() {
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Número do Recibo *</label>
                       <input 
                         type="text" 
+                        id="receipt-number-input"
                         required
                         value={receiptNumber} 
                         onChange={(e) => setReceiptNumber(e.target.value)} 
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            document.getElementById('amount-input')?.focus();
+                          }
+                        }}
                         className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 bg-slate-50"
                       />
                     </div>
@@ -946,6 +992,7 @@ export function Receipts() {
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                         <input 
                           type="text" 
+                          id="amount-input"
                           required
                           placeholder="0,00"
                           value={amount} 
@@ -953,6 +1000,17 @@ export function Receipts() {
                             const val = e.target.value.replace(/[^0-9,.]/g, '');
                             setAmount(val);
                           }} 
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const formatted = formatAmountValue(amount);
+                              setAmount(formatted);
+                              document.getElementById('payee-name-input')?.focus();
+                            }
+                          }}
+                          onBlur={() => {
+                            setAmount(formatAmountValue(amount));
+                          }}
                           className="w-full pl-8 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
                         />
                       </div>
@@ -963,10 +1021,17 @@ export function Receipts() {
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Nome do Favorecido (Quem recebe) *</label>
                     <input 
                       type="text" 
+                      id="payee-name-input"
                       required
                       placeholder="Ex: Prof. José da Silva ou João dos Santos"
                       value={payeeName} 
                       onChange={(e) => setPayeeName(e.target.value)} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('signature-label-input')?.focus();
+                        }
+                      }}
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -978,10 +1043,17 @@ export function Receipts() {
                     </div>
                     <input 
                       type="text" 
+                      id="signature-label-input"
                       maxLength={30}
                       placeholder="Ex: CPF: 000.000.000-00 ou RG: 00.000.000-0"
                       value={signatureLabel} 
                       onChange={handleSignatureLabelChange} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('description-input')?.focus();
+                        }
+                      }}
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -993,11 +1065,27 @@ export function Receipts() {
                     </div>
                     <textarea 
                       required
+                      id="description-input"
                       rows={3}
                       maxLength={150}
                       placeholder="Ex: Aulas ministradas no módulo de Teologia Fundamental no semestre corrente ou Ajuda de custo pastoral."
                       value={description} 
-                      onChange={(e) => setDescription(e.target.value)} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const lines = val.split('\n');
+                        if (lines.length <= 3) {
+                          setDescription(val);
+                        }
+                      }} 
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const lines = description.split('\n');
+                          if (lines.length >= 3) {
+                            e.preventDefault();
+                            document.getElementById('payment-date-input')?.focus();
+                          }
+                        }
+                      }}
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase"
                     />
                   </div>
@@ -1007,9 +1095,16 @@ export function Receipts() {
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Data do Pagamento *</label>
                       <input 
                         type="date" 
+                        id="payment-date-input"
                         required
                         value={paymentDate} 
                         onChange={(e) => setPaymentDate(e.target.value)} 
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            document.getElementById('issue-date-input')?.focus();
+                          }
+                        }}
                         className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
                       />
                     </div>
@@ -1018,9 +1113,16 @@ export function Receipts() {
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Data de Emissão *</label>
                       <input 
                         type="date" 
+                        id="issue-date-input"
                         required
                         value={issueDate} 
                         onChange={(e) => setIssueDate(e.target.value)} 
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            document.getElementById('save-receipt-button')?.focus();
+                          }
+                        }}
                         className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
                       />
                     </div>
@@ -1030,6 +1132,7 @@ export function Receipts() {
                   <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
                     <button 
                       type="button"
+                      tabIndex={-1}
                       onClick={handleCloseForm}
                       className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
                     >
@@ -1040,6 +1143,7 @@ export function Receipts() {
                       {/* Save Only */}
                       <button 
                         type="button"
+                        id="save-receipt-button"
                         disabled={isSaving}
                         onClick={() => handleSaveReceipt(null, 'save')}
                         className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shrink-0"
@@ -1050,6 +1154,7 @@ export function Receipts() {
                       {/* Save & Print (Default submit) */}
                       <button 
                         type="submit"
+                        tabIndex={-1}
                         disabled={isSaving}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/10 shrink-0"
                       >
