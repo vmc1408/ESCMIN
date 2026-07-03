@@ -15,7 +15,9 @@ import {
   FileDown, 
   DollarSign, 
   ChevronLeft,
-  Copy
+  Copy,
+  Edit2,
+  Save
 } from 'lucide-react';
 import { cn, formatCurrency, safeFormat, parseSafeDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
@@ -110,6 +112,7 @@ export function Receipts() {
   
   // Form State
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
   const [receiptNumber, setReceiptNumber] = useState('');
   const [amount, setAmount] = useState('');
   const [payeeName, setPayeeName] = useState('');
@@ -117,6 +120,40 @@ export function Receipts() {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [signatureLabel, setSignatureLabel] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const handleStartEdit = (receipt: Receipt) => {
+    setEditingReceipt(receipt);
+    setReceiptNumber(receipt.receipt_number);
+    setAmount(receipt.amount.toString().replace('.', ','));
+    setPayeeName(receipt.payee_name);
+    setDescription(receipt.description);
+    setPaymentDate(receipt.payment_date.split('T')[0]);
+    setSignatureLabel(receipt.signature_label || '');
+    setIssueDate(receipt.issue_date.split('T')[0]);
+    setShowAddForm(true);
+  };
+
+  const handleStartNewReceipt = () => {
+    setEditingReceipt(null);
+    setAmount('');
+    setPayeeName('');
+    setDescription('');
+    setSignatureLabel('');
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setIssueDate(new Date().toISOString().split('T')[0]);
+    setShowAddForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowAddForm(false);
+    setEditingReceipt(null);
+    setAmount('');
+    setPayeeName('');
+    setDescription('');
+    setSignatureLabel('');
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setIssueDate(new Date().toISOString().split('T')[0]);
+  };
 
   // Print/Preview State
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
@@ -181,12 +218,65 @@ export function Receipts() {
 
   // Determine next receipt number
   useEffect(() => {
-    if (showAddForm) {
+    if (showAddForm && !editingReceipt) {
       const numbers = receipts.map(r => parseInt(r.receipt_number)).filter(n => !isNaN(n));
       const nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
       setReceiptNumber(String(nextNum));
     }
-  }, [showAddForm, receipts]);
+  }, [showAddForm, receipts, editingReceipt]);
+
+  const handleSignatureLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    
+    // If user is deleting or cleared the input, let them edit freely
+    if (val.length < signatureLabel.length) {
+      setSignatureLabel(val);
+      return;
+    }
+    
+    // Clean document prefix if present to normalize number formatting
+    let cleanVal = val.replace(/^(CPF:\s*|RG:\s*)/i, '');
+    const digits = cleanVal.replace(/\D/g, '');
+    
+    if (digits.length === 0) {
+      setSignatureLabel(val);
+      return;
+    }
+    
+    // Check if there are other letters like passport
+    const hasLetters = /[A-Z]/i.test(cleanVal.replace(/[^A-Z]/gi, ''));
+    if (hasLetters) {
+      setSignatureLabel(val);
+      return;
+    }
+    
+    if (digits.length <= 9) {
+      let formatted = '';
+      if (digits.length <= 2) {
+        formatted = digits;
+      } else if (digits.length <= 5) {
+        formatted = `${digits.slice(0, 2)}.${digits.slice(2)}`;
+      } else if (digits.length <= 8) {
+        formatted = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+      } else {
+        formatted = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}-${digits.slice(8, 9)}`;
+      }
+      setSignatureLabel(`RG: ${formatted}`);
+    } else {
+      const cpfDigits = digits.slice(0, 11);
+      let formatted = '';
+      if (cpfDigits.length <= 3) {
+        formatted = cpfDigits;
+      } else if (cpfDigits.length <= 6) {
+        formatted = `${cpfDigits.slice(0, 3)}.${cpfDigits.slice(3)}`;
+      } else if (cpfDigits.length <= 9) {
+        formatted = `${cpfDigits.slice(0, 3)}.${cpfDigits.slice(3, 6)}.${cpfDigits.slice(6)}`;
+      } else {
+        formatted = `${cpfDigits.slice(0, 3)}.${cpfDigits.slice(3, 6)}.${cpfDigits.slice(6, 9)}-${cpfDigits.slice(9)}`;
+      }
+      setSignatureLabel(`CPF: ${formatted}`);
+    }
+  };
 
   const handleSaveReceipt = async (e: React.FormEvent | null, action: 'save' | 'print' | 'pdf' = 'save') => {
     if (e) e.preventDefault();
@@ -208,19 +298,29 @@ export function Receipts() {
         user_id: user?.uid
       };
 
-      const savedId = await saveData('receipts', undefined, newReceipt);
-      const fullReceipt: Receipt = {
-        ...newReceipt,
-        id: savedId as string
-      } as Receipt;
-
-      setNotification({ type: 'success', message: 'Recibo gerado com sucesso!' });
+      let fullReceipt: Receipt;
+      if (editingReceipt) {
+        await saveData('receipts', editingReceipt.id, newReceipt);
+        fullReceipt = {
+          ...newReceipt,
+          id: editingReceipt.id
+        } as Receipt;
+        setNotification({ type: 'success', message: 'Recibo atualizado com sucesso!' });
+      } else {
+        const savedId = await saveData('receipts', undefined, newReceipt);
+        fullReceipt = {
+          ...newReceipt,
+          id: savedId as string
+        } as Receipt;
+        setNotification({ type: 'success', message: 'Recibo gerado com sucesso!' });
+      }
       
-      // Select the newly generated receipt so it is loaded in the preview portal/container
+      // Select the newly generated/updated receipt so it is loaded in the preview portal/container
       setSelectedReceipt(fullReceipt);
       
       // Reset form and reload list
       setShowAddForm(false);
+      setEditingReceipt(null);
       setAmount('');
       setPayeeName('');
       setDescription('');
@@ -242,7 +342,7 @@ export function Receipts() {
       }
     } catch (err: any) {
       console.error('Error saving receipt:', err);
-      setNotification({ type: 'error', message: 'Erro ao gerar recibo: ' + err.message });
+      setNotification({ type: 'error', message: `Erro ao ${editingReceipt ? 'atualizar' : 'gerar'} recibo: ` + err.message });
     } finally {
       setIsSaving(false);
     }
@@ -512,7 +612,7 @@ export function Receipts() {
         </div>
         
         <button 
-          onClick={() => setShowAddForm(true)}
+          onClick={handleStartNewReceipt}
           className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 active:scale-95 shadow-lg"
         >
           <Plus size={16} /> Novo Recibo
@@ -581,6 +681,13 @@ export function Receipts() {
                           title="Imprimir"
                         >
                           <Printer size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleStartEdit(receipt)}
+                          className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={() => setDeleteConfirmationFor(receipt)}
@@ -808,11 +915,11 @@ export function Receipts() {
                     <FileText size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black uppercase tracking-wider">Novo Recibo de Pagamento</h3>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest leading-none mt-0.5">Preencha o formulário para emitir</p>
+                    <h3 className="text-sm font-black uppercase tracking-wider">{editingReceipt ? 'Alterar Recibo de Pagamento' : 'Novo Recibo de Pagamento'}</h3>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest leading-none mt-0.5">{editingReceipt ? 'Altere o formulário para atualizar o recibo' : 'Preencha o formulário para emitir'}</p>
                   </div>
                 </div>
-                <button onClick={() => setShowAddForm(false)} className="p-2 hover:bg-white/10 rounded-xl text-slate-300 transition-colors">
+                <button onClick={handleCloseForm} className="p-2 hover:bg-white/10 rounded-xl text-slate-300 transition-colors">
                   <X size={20} />
                 </button>
               </div>
@@ -866,6 +973,21 @@ export function Receipts() {
 
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Documento de Identificação (Opcional)</label>
+                      <span className="text-[9px] text-slate-400 font-bold">{signatureLabel.length}/30</span>
+                    </div>
+                    <input 
+                      type="text" 
+                      maxLength={30}
+                      placeholder="Ex: CPF: 000.000.000-00 ou RG: 00.000.000-0"
+                      value={signatureLabel} 
+                      onChange={handleSignatureLabelChange} 
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Descrição / Ao que se refere *</label>
                       <span className="text-[9px] text-slate-400 font-bold">{description.length}/150</span>
                     </div>
@@ -904,59 +1026,34 @@ export function Receipts() {
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Documento de Identificação (Opcional)</label>
-                      <span className="text-[9px] text-slate-400 font-bold">{signatureLabel.length}/30</span>
-                    </div>
-                    <input 
-                      type="text" 
-                      maxLength={30}
-                      placeholder="Ex: CPF: 000.000.000-00 ou RG: 00.000.000-0"
-                      value={signatureLabel} 
-                      onChange={(e) => setSignatureLabel(e.target.value)} 
-                      className="w-full px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-
                   {/* Modal Controls / Submission Row */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
                     <button 
                       type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
+                      onClick={handleCloseForm}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
                     >
-                      Cancelar
+                      <X size={12} /> Cancelar
                     </button>
                     
-                    <div className="flex flex-wrap gap-2">
-                      {/* Emit / Save Only */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Save Only */}
                       <button 
                         type="button"
                         disabled={isSaving}
                         onClick={() => handleSaveReceipt(null, 'save')}
-                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shrink-0"
                       >
-                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : 'Apenas Salvar'}
+                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : <><Save size={12} /> Salvar</>}
                       </button>
 
-                      {/* Emit & PDF */}
-                      <button 
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => handleSaveReceipt(null, 'pdf')}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-                      >
-                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : <><Download size={12} /> PDF</>}
-                      </button>
-
-                      {/* Emit & Print (Default submit) */}
+                      {/* Save & Print (Default submit) */}
                       <button 
                         type="submit"
                         disabled={isSaving}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/10"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/10 shrink-0"
                       >
-                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : <><Printer size={12} /> Emitir & Imprimir</>}
+                        {isSaving ? <Loader2 className="animate-spin" size={12} /> : <><Printer size={12} /> Imprimir</>}
                       </button>
                     </div>
                   </div>
