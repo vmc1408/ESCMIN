@@ -150,6 +150,7 @@ export function Contributions() {
   useEffect(() => {
     // Focus listener for automatic updates
     const handleFocus = () => {
+      if (isPrinting || isPrintingStatement) return;
       if (selectedStudent) {
         fetchContributions(selectedStudent.id, selectedYear);
       }
@@ -160,7 +161,7 @@ export function Contributions() {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [selectedStudent, selectedYear]);
+  }, [selectedStudent, selectedYear, isPrinting, isPrintingStatement]);
 
   useEffect(() => {
     if (notification) {
