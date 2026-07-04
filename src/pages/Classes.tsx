@@ -329,11 +329,29 @@ export function Classes() {
       document.body.appendChild(iframe);
       iframe.onload = () => {
         setTimeout(() => {
-          iframe.contentWindow?.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
+          if (iframe.contentWindow) {
+            const cleanup = () => {
+              try {
+                if (document.body.contains(iframe)) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (e) {}
+              URL.revokeObjectURL(url);
+            };
+
+            iframe.contentWindow.addEventListener('afterprint', cleanup);
+            iframe.contentWindow.print();
+
+            // Long fallback to clean up iframe in case afterprint doesn't trigger
+            setTimeout(cleanup, 300000);
+          } else {
+            try {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
+            } catch (e) {}
             URL.revokeObjectURL(url);
-          }, 1000);
+          }
         }, 300);
       };
     } catch (error) {

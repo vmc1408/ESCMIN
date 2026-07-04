@@ -256,7 +256,21 @@ export function Subjects() {
             if (!iframe.contentWindow) {
               throw new Error("No contentWindow available");
             }
+
+            const cleanup = () => {
+              try {
+                if (document.body.contains(iframe)) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (e) {}
+              URL.revokeObjectURL(url);
+            };
+
+            iframe.contentWindow.addEventListener('afterprint', cleanup);
             iframe.contentWindow.print();
+
+            // Long fallback to clean up iframe in case afterprint doesn't trigger
+            setTimeout(cleanup, 300000);
           } catch (err) {
             console.warn("Iframe printing blocked, downloading PDF instead:", err);
             doc.save(`Lista_Disciplinas_${new Date().getFullYear()}.pdf`);
@@ -264,13 +278,12 @@ export function Subjects() {
               type: 'success',
               message: 'A impressão direta em iframe foi bloqueada pelo navegador. O arquivo PDF foi baixado para você imprimir manualmente.'
             });
-          } finally {
-            setTimeout(() => {
-              try {
+            try {
+              if (document.body.contains(iframe)) {
                 document.body.removeChild(iframe);
-              } catch (e) {}
-              URL.revokeObjectURL(url);
-            }, 1000);
+              }
+            } catch (e) {}
+            URL.revokeObjectURL(url);
           }
         }, 300);
       };

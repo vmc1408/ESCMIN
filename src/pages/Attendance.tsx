@@ -983,16 +983,29 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 throw new Error("Acesso ao Iframe bloqueado");
               }
               iframe.contentWindow.focus();
+
+              const cleanup = () => {
+                try {
+                  if (iframe.parentNode) {
+                    document.body.removeChild(iframe);
+                  }
+                } catch (e) {}
+              };
+
+              iframe.contentWindow.addEventListener('afterprint', cleanup);
               iframe.contentWindow.print();
+
+              // Fallback cleanup after 5 minutes
+              setTimeout(cleanup, 300000);
             } catch (e) {
               console.warn('Impressão direta bloqueada por segurança do frameset. Baixando PDF diretamente...', e);
               triggerDownload();
+              try {
+                if (iframe.parentNode) {
+                  document.body.removeChild(iframe);
+                }
+              } catch (err) {}
             }
-            setTimeout(() => {
-              if (iframe.parentNode) {
-                document.body.removeChild(iframe);
-              }
-            }, 15000);
           }, 150);
         };
       }

@@ -1530,7 +1530,21 @@ export function Reports() {
               if (!iframe.contentWindow) {
                 throw new Error("No contentWindow available");
               }
+
+              const cleanup = () => {
+                try {
+                  if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                  }
+                } catch (e) {}
+                URL.revokeObjectURL(url);
+              };
+
+              iframe.contentWindow.addEventListener('afterprint', cleanup);
               iframe.contentWindow.print();
+
+              // Long fallback to clean up iframe in case afterprint doesn't trigger
+              setTimeout(cleanup, 300000);
             } catch (err) {
               console.warn("Iframe printing blocked by sandbox or browser security policies, falling back to download:", err);
               // Fallback to downloading the files
@@ -1539,15 +1553,12 @@ export function Reports() {
                 type: 'success', 
                 message: 'A impressão direta em iframe foi bloqueada pelo navegador. O arquivo PDF foi baixado para você imprimir manualmente.' 
               });
-            } finally {
-              setTimeout(() => {
-                URL.revokeObjectURL(url);
-                try {
+              try {
+                if (document.body.contains(iframe)) {
                   document.body.removeChild(iframe);
-                } catch (e) {
-                  // Ignore if already removed
                 }
-              }, 1000);
+              } catch (e) {}
+              URL.revokeObjectURL(url);
             }
           }, 500);
         };

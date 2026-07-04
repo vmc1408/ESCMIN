@@ -570,11 +570,23 @@ export function Receipts() {
         document.body.appendChild(iframe);
         iframe.onload = () => {
           iframe.contentWindow?.focus();
+          
+          const cleanup = () => {
+            try {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
+              URL.revokeObjectURL(url);
+            } catch (e) {
+              console.error("Cleanup error:", e);
+            }
+          };
+
+          iframe.contentWindow?.addEventListener('afterprint', cleanup);
           iframe.contentWindow?.print();
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            URL.revokeObjectURL(url);
-          }, 3000);
+          
+          // Long fallback to clean up iframe in case afterprint doesn't trigger
+          setTimeout(cleanup, 300000);
         };
         setNotification({ type: 'success', message: 'Enviando PDF do recibo para a impressora...' });
       } catch (err: any) {
