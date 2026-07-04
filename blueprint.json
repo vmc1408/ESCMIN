@@ -181,6 +181,8 @@
         "cep": { "type": "string" },
         "city_uf": { "type": "string" },
         "subtitle": { "type": "string" },
+        "admission_norms": { "type": "string" },
+        "presentation_info": { "type": "string" },
         "updated_at": { "type": "string", "format": "date-time" }
       }
     },

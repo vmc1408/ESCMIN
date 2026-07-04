@@ -414,6 +414,19 @@ export const saveData = async (collectionName: string, id: string | undefined, d
   const finalId = id || data.id || crypto.randomUUID();
   let payload = { ...data, id: finalId };
 
+  if (collectionName === 'institution_settings') {
+    try {
+      if (data.admission_norms !== undefined) {
+        localStorage.setItem('inst_admission_norms', data.admission_norms);
+      }
+      if (data.presentation_info !== undefined) {
+        localStorage.setItem('inst_presentation_info', data.presentation_info);
+      }
+    } catch (e) {
+      console.warn('Failed to save settings locally:', e);
+    }
+  }
+
   try {
     if (isTableUsingFallback(collectionName)) {
       await tryRecoveryFromFallback(collectionName);
@@ -645,7 +658,13 @@ export const deleteData = async (collectionName: string, id: string) => {
  */
 export const getInstitutionSettings = async () => {
   try {
-    if (!isSupabaseConfigured) return null;
+    if (!isSupabaseConfigured) {
+      return {
+        id: '1',
+        admission_norms: localStorage.getItem('inst_admission_norms') || '',
+        presentation_info: localStorage.getItem('inst_presentation_info') || ''
+      };
+    }
     const result = await fetchWithTimeout(
       supabase
         .from('institution_settings')
@@ -656,14 +675,38 @@ export const getInstitutionSettings = async () => {
     );
     
     if (result?.error) {
-      if (result.error.message?.includes('Failed to fetch')) return null;
+      if (result.error.message?.includes('Failed to fetch')) {
+        return {
+          id: '1',
+          admission_norms: localStorage.getItem('inst_admission_norms') || '',
+          presentation_info: localStorage.getItem('inst_presentation_info') || ''
+        };
+      }
       throw result.error;
     }
-    return result?.data;
+    const data = result?.data;
+    if (data) {
+      if (!data.admission_norms) {
+        data.admission_norms = localStorage.getItem('inst_admission_norms') || '';
+      }
+      if (!data.presentation_info) {
+        data.presentation_info = localStorage.getItem('inst_presentation_info') || '';
+      }
+    } else {
+      return {
+        id: '1',
+        admission_norms: localStorage.getItem('inst_admission_norms') || '',
+        presentation_info: localStorage.getItem('inst_presentation_info') || ''
+      };
+    }
+    return data;
   } catch (err: any) {
-    if (err.message?.includes('Failed to fetch')) return null;
     console.warn('[Supabase] Aviso ao buscar configurações da instituição:', err.message);
-    return null;
+    return {
+      id: '1',
+      admission_norms: localStorage.getItem('inst_admission_norms') || '',
+      presentation_info: localStorage.getItem('inst_presentation_info') || ''
+    };
   }
 };
 

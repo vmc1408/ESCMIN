@@ -98,32 +98,50 @@ export const financialService = {
   },
 
   /**
-   * Busca as configurações da instituição do Supabase.
+   * Busca as configurações da instituição do Supabase com fallback local.
    */
   async getInstitutionSettings() {
     try {
-      if (!isSupabaseConfigured) return null;
+      if (!isSupabaseConfigured) {
+        return {
+          id: '1',
+          admission_norms: localStorage.getItem('inst_admission_norms') || '',
+          presentation_info: localStorage.getItem('inst_presentation_info') || ''
+        };
+      }
       
       const { data, error } = await supabase
         .from('institution_settings')
         .select('*')
         .limit(1)
         .maybeSingle();
-  
+   
       if (error) {
         if (error.code === '42P01' || error.message?.includes('not found')) {
-          return null;
+          return {
+            id: '1',
+            admission_norms: localStorage.getItem('inst_admission_norms') || '',
+            presentation_info: localStorage.getItem('inst_presentation_info') || ''
+          };
         }
         throw error;
       }
-      return data;
-    } catch (err: any) {
-      if (err.message?.includes('fetch') || err.message?.includes('TIMEOUT') || err.message?.includes('NetworkError')) {
-        console.warn('[Supabase] Problema de conexão ao buscar instituição. Retornando null.');
-        return null;
+
+      const finalData = data || { id: '1' };
+      if (!finalData.admission_norms) {
+        finalData.admission_norms = localStorage.getItem('inst_admission_norms') || '';
       }
-      console.error('[financialService] Erro ao buscar instituição:', err.message);
-      return null;
+      if (!finalData.presentation_info) {
+        finalData.presentation_info = localStorage.getItem('inst_presentation_info') || '';
+      }
+      return finalData;
+    } catch (err: any) {
+      console.warn('[financialService] Aviso ao buscar configurações da instituição:', err.message);
+      return {
+        id: '1',
+        admission_norms: localStorage.getItem('inst_admission_norms') || '',
+        presentation_info: localStorage.getItem('inst_presentation_info') || ''
+      };
     }
   },
 
