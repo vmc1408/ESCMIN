@@ -964,7 +964,7 @@ export function Receipts() {
               </div>
 
               {/* Dual Pane Body: Form on Left, Live Preview on Right */}
-              <form onSubmit={(e) => handleSaveReceipt(e, 'print')} className="flex flex-col lg:flex-row h-full overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+              <form onSubmit={(e) => e.preventDefault()} className="flex flex-col lg:flex-row h-full overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
                 {/* Form Input Fields */}
                 <div className="lg:w-1/2 p-6 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -1153,9 +1153,10 @@ export function Receipts() {
 
                       {/* Save & Print (Default submit) */}
                       <button 
-                        type="submit"
+                        type="button"
                         tabIndex={-1}
                         disabled={isSaving}
+                        onClick={() => handleSaveReceipt(null, 'print')}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-md shadow-blue-600/10 shrink-0"
                       >
                         {isSaving ? <Loader2 className="animate-spin" size={12} /> : <><Printer size={12} /> Imprimir</>}

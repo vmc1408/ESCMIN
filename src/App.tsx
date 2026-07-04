@@ -13,6 +13,7 @@ import { Grades } from './pages/Grades';
 import { Assessments } from './pages/Assessments';
 import { Bulletin } from './pages/Bulletin';
 import { Documents } from './pages/Documents';
+import { Impressos } from './pages/Impressos';
 import { StudentFicha } from './pages/StudentFicha';
 import { Diocese } from './pages/Diocese';
 import { Import } from './pages/Import';
@@ -168,6 +169,7 @@ function AppContent() {
               <Route path="assessments" element={<ProtectedRoute requiredModule="/assessments"><Assessments /></ProtectedRoute>} />
               <Route path="bulletin" element={<ProtectedRoute requiredModule="/grades"><Bulletin /></ProtectedRoute>} />
               <Route path="documents" element={<ProtectedRoute requiredModule="/documents"><Documents /></ProtectedRoute>} />
+              <Route path="impressos" element={<ProtectedRoute requiredModule="/documents"><Impressos /></ProtectedRoute>} />
               <Route path="student-ficha" element={<ProtectedRoute requiredModule="/students"><StudentFicha /></ProtectedRoute>} />
               <Route path="parishes" element={<ProtectedRoute requiredModule="/parishes"><Diocese /></ProtectedRoute>} />
               <Route path="import" element={<ProtectedRoute requiredModule="/import"><Import /></ProtectedRoute>} />

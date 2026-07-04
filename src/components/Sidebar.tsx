@@ -80,7 +80,6 @@ const navItems = [
         children: [
           { icon: CalendarIcon, label: 'Calendário', path: '/calendar?view=month' },
           { icon: FileText, label: 'Grade Acadêmica', path: '/calendar?view=management' },
-          { icon: Printer, label: 'Relatórios', path: '/calendar?view=reports' },
           { icon: SettingsIcon, label: 'Parâmetros', path: '/calendar?view=parameters' },
         ]
       },
@@ -93,7 +92,13 @@ const navItems = [
           { icon: FileText, label: 'Recibos', path: '/receipts' },
         ]
       },
-      { icon: ReportsIcon, label: 'Relatórios', path: '/reports' },
+      {
+        label: 'Impressos',
+        icon: Printer,
+        children: [
+          { icon: FileText, label: 'Documentos Oficiais', path: '/impressos' },
+        ]
+      },
     ]
   },
   { icon: Church, label: 'Guia Diocese', path: '/parishes' },
