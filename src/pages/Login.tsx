@@ -402,11 +402,14 @@ export function Login() {
           </motion.div>
         </div>
 
-        <div className="relative z-10 pt-12 border-t border-white/5">
+        <div className="relative z-10 pt-12 border-t border-white/5 flex flex-col gap-1">
            <div className="flex items-center gap-2">
               <CheckCircle className="text-amber-500" size={14} />
               <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Sistema de Gestão Acadêmica v2.0</span>
            </div>
+           <p className="text-[8.5px] font-bold uppercase tracking-wider text-white/20 ml-5">
+             Copyright © 2026 Escola Diocesana de Ministério
+           </p>
         </div>
       </div>
 

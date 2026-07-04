@@ -318,7 +318,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       <div className="p-5 border-b border-slate-800 flex items-center justify-between">
         <div className="flex flex-col">
           <h2 className="text-[10px] font-bold uppercase tracking-[0.05em] text-blue-400">SISTEMA ACADEMICO ESCMIN</h2>
-          <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Gestão Educacional</span>
+          <span className="text-[9px] font-medium text-slate-400 uppercase tracking-wider">Gestão Acadêmica</span>
         </div>
         {onClose && (
           <button 
@@ -334,24 +334,28 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         {renderNavItems(filteredNavItems)}
       </nav>
 
-      <div className="p-4 bg-slate-950 border-t border-slate-800">
+      <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col items-center">
         {/* Database Connection Indicator */}
-        <div className="px-3 py-2 bg-slate-900 rounded-md border border-slate-800 flex items-center justify-between group">
-          <div className="flex items-center gap-2">
-            {dbStatus === 'online' ? (
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
-            ) : dbStatus === 'offline' ? (
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-            ) : (
-              <StatusIcon size={12} className="text-slate-500 animate-pulse" />
-            )}
-            <span className={cn(
-              "text-[9px] font-bold uppercase tracking-widest",
-              dbStatus === 'online' ? "text-emerald-500/80" : dbStatus === 'offline' ? "text-red-500/80" : "text-slate-500"
-            )}>
-              {dbStatus === 'online' ? 'Online' : dbStatus === 'offline' ? 'Offline' : '...'}
-            </span>
-          </div>
+        <div className="w-full px-3 py-2 bg-slate-900/50 border border-slate-800/80 flex items-center justify-start gap-2">
+          {dbStatus === 'online' ? (
+            <div className="w-2 h-2 bg-emerald-500 shrink-0"></div>
+          ) : dbStatus === 'offline' ? (
+            <div className="w-2 h-2 bg-red-500 shrink-0"></div>
+          ) : (
+            <div className="w-2 h-2 bg-yellow-500 shrink-0 animate-pulse"></div>
+          )}
+          <span className={cn(
+            "text-[9px] font-black uppercase tracking-widest leading-none",
+            dbStatus === 'online' ? "text-emerald-500" : dbStatus === 'offline' ? "text-red-500" : "text-yellow-500"
+          )}>
+            {dbStatus === 'online' ? 'ONLINE' : dbStatus === 'offline' ? 'OFFLINE' : 'CONECTANDO'}
+          </span>
+        </div>
+
+        {/* Copyright Text */}
+        <div className="text-[8px] text-slate-500 font-bold text-center mt-3 leading-normal w-full uppercase tracking-wider">
+          <p>© Escmin Gestão Acadêmica</p>
+          <p className="text-[7.5px] text-slate-500/80 mt-0.5">Desenvolvido por Mauricio Santos</p>
         </div>
       </div>
     </aside>

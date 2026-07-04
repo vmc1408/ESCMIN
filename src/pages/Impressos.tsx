@@ -608,7 +608,10 @@ export function Impressos() {
             
             {/* Header of Official Documents */}
             {(selectedType === 'declaracao' || selectedType === 'quitacao' || selectedType === 'ficha' || selectedType === 'carta') && (
-              <div className="flex items-center gap-6 pb-4 border-b-2 border-black mb-8 text-left">
+              <div className={cn(
+                "flex items-center gap-6 pb-4 border-b-2 border-black text-left",
+                selectedType === 'ficha' ? "mb-4" : "mb-8"
+              )}>
                 <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
                   {institution?.logo_url ? (
                     <img src={institution.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
@@ -738,10 +741,10 @@ export function Impressos() {
 
             {/* 2. FICHA DE INSCRIÇÃO (CADASTRAL EM BRANCO) */}
             {selectedType === 'ficha' && (
-              <div className="space-y-6 text-[10pt] leading-relaxed font-sans text-black">
+              <div className="space-y-4 text-[10pt] leading-relaxed font-sans text-black">
                 {/* Title */}
-                <div className="text-center pt-2">
-                  <h2 className="text-[14pt] font-extrabold uppercase tracking-widest text-black border-b-2 border-black pb-1.5 max-w-xs mx-auto">
+                <div className="text-center pt-0">
+                  <h2 className="text-[14pt] font-extrabold uppercase tracking-widest text-black max-w-xs mx-auto">
                     Ficha de Inscrição
                   </h2>
                 </div>
@@ -757,8 +760,8 @@ export function Impressos() {
                       <div className="space-y-3">
                         <div>
                           <p className="text-[11px] font-bold uppercase text-slate-600">Inscrição:</p>
-                          <div className="mt-1 h-8 w-28 border border-slate-400 rounded bg-slate-50 flex items-center px-2">
-                            <span className="text-[12px] font-bold text-slate-400">Nº</span>
+                          <div className="mt-1 h-7 w-24 border border-slate-400 rounded bg-slate-50 flex items-center px-2">
+                            <span className="text-[11px] font-bold text-slate-400">Nº</span>
                           </div>
                         </div>
                       </div>
@@ -771,21 +774,21 @@ export function Impressos() {
                       <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
                         CURSO:
                       </h4>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] font-semibold text-slate-800">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[12px] font-bold text-slate-800">
                         <div className="flex items-center gap-2">
-                          <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
                           <span>Teologia</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
                           <span>Latim</span>
                         </div>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
                           <span>Doutrina Social da Igreja</span>
                         </div>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
                           <span>História dos Santos Negros</span>
                         </div>
                       </div>
@@ -814,11 +817,11 @@ export function Impressos() {
                   </div>
 
                   <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-                    <div className="col-span-5 flex items-end gap-2">
+                    <div className="col-span-4 flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Bairro:</span>
                       <div className="flex-1 border-b border-slate-400 h-5" />
                     </div>
-                    <div className="col-span-5 flex items-end gap-2">
+                    <div className="col-span-6 flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Cidade:</span>
                       <div className="flex-1 border-b border-slate-400 h-5" />
                     </div>
@@ -829,15 +832,16 @@ export function Impressos() {
                   </div>
 
                   <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-                    <div className="col-span-4 flex items-end gap-2">
+                    <div className="col-span-3 flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Cep:</span>
                       <div className="flex-1 border-b border-slate-400 h-5" />
                     </div>
                     <div className="col-span-4 flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Celular:</span>
+                      <span className="text-[10px] text-slate-500 font-bold shrink-0">( &nbsp; &nbsp; )</span>
                       <div className="flex-1 border-b border-slate-400 h-5" />
                     </div>
-                    <div className="col-span-4 flex items-center gap-3">
+                    <div className="col-span-5 flex items-center gap-3">
                       <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">WhatsApp:</span>
                       <div className="flex items-center gap-1 text-[9.5px] font-bold">
                         <span>Sim</span>
@@ -853,7 +857,7 @@ export function Impressos() {
                   <div className="grid grid-cols-12 gap-x-4 gap-y-2">
                     <div className="col-span-4 flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Nascimento:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5 flex items-end justify-center text-slate-300 font-mono text-[9px] pb-0.5">___ / ___ / ______</div>
+                      <div className="flex-1 border-b border-slate-400 h-5" />
                     </div>
                     <div className="col-span-4 flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">RG:</span>
