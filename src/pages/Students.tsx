@@ -639,19 +639,19 @@ export function Students() {
 
           {/* TOP CONTROL BOXES */}
           <div className="grid grid-cols-12 gap-3 mb-4">
-            <div className="col-span-4 border border-black/40 p-2 flex flex-col h-[4cm]">
+            <div className="col-span-3 border border-black/40 p-2 flex flex-col h-[4cm]">
               <p className="text-[10pt] font-semibold border-b border-black/10 pb-0.5 mb-2">Controle da Escola</p>
               <div className="flex-1 flex flex-col justify-center items-center">
                 <p className="text-[9pt] font-semibold mb-1 uppercase opacity-40 text-center">Matrícula</p>
-                <div className="border border-black/10 h-10 w-full flex items-center justify-center font-bold text-[15pt] bg-white">
+                <div className="border border-black/10 h-10 w-28 flex items-center justify-center font-bold text-[13pt] bg-white mx-auto">
                   {selectedStudent.registration_number || ''}
                 </div>
               </div>
             </div>
 
-            <div className="col-span-5 border border-black/40 p-2 h-[4cm] flex flex-col">
+            <div className="col-span-6 border border-black/40 p-2 h-[4cm] flex flex-col">
               <p className="text-[9pt] font-bold mb-2 uppercase border-b border-black/10 pb-0.5">CURSO:</p>
-              <div className="flex-1 flex flex-col justify-center gap-1">
+              <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1 content-center">
                 {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
                   const isInPrimaryClass = currentClass?.name?.toLowerCase().includes(course.toLowerCase());
                   const isInExtraEnrollments = studentEnrollments.some(enrollment => {
@@ -672,9 +672,9 @@ export function Students() {
 
                 {/* List all active enrollments explicitly if there are multiple */}
                 {(studentEnrollments.length > 0) && (
-                  <div className="mt-2 pt-2 border-t border-black/10">
-                    <p className="text-[7pt] font-bold uppercase mb-1">Turmas Ativas:</p>
-                    <p className="text-[8.5pt] font-bold leading-tight uppercase">
+                  <div className="col-span-2 mt-1.5 pt-1 border-t border-black/10 flex items-center gap-1.5">
+                    <span className="text-[7pt] font-bold uppercase shrink-0">Turmas:</span>
+                    <p className="text-[8.5pt] font-bold leading-tight uppercase truncate">
                       {[
                         currentClass?.name,
                         ...studentEnrollments

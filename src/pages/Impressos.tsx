@@ -749,7 +749,7 @@ export function Impressos() {
                 {/* Sub-header grid: Controle da Escola, Curso selection, and Foto box */}
                 <div className="grid grid-cols-12 gap-4 border border-black p-3 items-stretch">
                   {/* Left: Controle da Escola */}
-                  <div className="col-span-5 border-r border-slate-300 pr-3 flex flex-col justify-between">
+                  <div className="col-span-3 border-r border-slate-300 pr-3 flex flex-col justify-between">
                     <div>
                       <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
                         Controle da Escola
@@ -757,7 +757,7 @@ export function Impressos() {
                       <div className="space-y-3">
                         <div>
                           <p className="text-[11px] font-bold uppercase text-slate-600">Inscrição:</p>
-                          <div className="mt-1 h-8 border border-slate-400 rounded bg-slate-50 flex items-center px-2">
+                          <div className="mt-1 h-8 w-28 border border-slate-400 rounded bg-slate-50 flex items-center px-2">
                             <span className="text-[12px] font-bold text-slate-400">Nº</span>
                           </div>
                         </div>
@@ -766,21 +766,25 @@ export function Impressos() {
                   </div>
 
                   {/* Middle: CURSO selection */}
-                  <div className="col-span-4 border-r border-slate-300 pr-3 flex flex-col justify-between">
+                  <div className="col-span-6 border-r border-slate-300 pr-3 flex flex-col justify-between">
                     <div>
                       <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
                         CURSO:
                       </h4>
-                      <div className="space-y-2 text-[11px] font-semibold text-slate-800">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] font-semibold text-slate-800">
                         <div className="flex items-center gap-2">
                           <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
                           <span>Teologia</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                          <span>Latim</span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
                           <span>Doutrina Social da Igreja</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mb-0.5">
                           <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
                           <span>História dos Santos Negros</span>
                         </div>
@@ -790,7 +794,7 @@ export function Impressos() {
 
                   {/* Right: COLE FOTO */}
                   <div className="col-span-3 flex items-center justify-center">
-                    <div className="w-[60px] h-[80px] border border-dashed border-slate-400 flex flex-col items-center justify-center text-center p-1 bg-slate-50/50">
+                    <div className="w-[3cm] h-[4cm] border border-dashed border-slate-400 flex flex-col items-center justify-center text-center p-1 bg-slate-50/50">
                       <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight">COLE AQUI</span>
                       <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight mt-0.5">FOTO 3X4</span>
                     </div>
