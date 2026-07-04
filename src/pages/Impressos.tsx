@@ -604,13 +604,13 @@ export function Impressos() {
           </div>
 
           {/* Standard Page Container - Mocking A4 Sheet */}
-          <div className="print-preview-container bg-white border border-slate-350 shadow-xl p-8 md:p-12 min-h-[1123px] max-w-[800px] mx-auto select-text relative">
+          <div className="print-preview-container bg-white border border-slate-350 shadow-xl pt-8 pb-3 px-8 md:pt-12 md:pb-4 md:px-12 min-h-[1123px] max-w-[800px] mx-auto select-text relative flex flex-col">
             
             {/* Header of Official Documents */}
             {(selectedType === 'declaracao' || selectedType === 'quitacao' || selectedType === 'ficha' || selectedType === 'carta') && (
               <div className={cn(
                 "flex items-center gap-6 pb-4 border-b-2 border-black text-left",
-                selectedType === 'ficha' ? "mb-4" : "mb-8"
+                selectedType === 'ficha' ? "mb-1 pb-2" : "mb-8 pb-4"
               )}>
                 <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
                   {institution?.logo_url ? (
@@ -623,14 +623,14 @@ export function Impressos() {
                   )}
                 </div>
                 <div className="flex-1 flex flex-col">
-                  <p className="text-[11px] md:text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight uppercase font-sans">
+                  <p className="text-[10px] md:text-[10pt] font-semibold tracking-widest text-slate-800 leading-tight uppercase font-sans">
                     {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                   </p>
-                  <h1 className="text-[18px] md:text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5 font-sans">
+                  <h1 className="text-[16px] md:text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5 font-sans">
                     {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                   </h1>
                   {institution?.subtitle && (
-                    <p className="text-[11px] md:text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase font-sans">
+                    <p className="text-[10px] md:text-[10.5pt] font-bold text-slate-700 tracking-wide mt-0.5 uppercase font-sans">
                       {institution.subtitle}
                     </p>
                   )}
@@ -741,206 +741,214 @@ export function Impressos() {
 
             {/* 2. FICHA DE INSCRIÇÃO (CADASTRAL EM BRANCO) */}
             {selectedType === 'ficha' && (
-              <div className="space-y-4 text-[10pt] leading-relaxed font-sans text-black">
-                {/* Title */}
-                <div className="text-center pt-0">
-                  <h2 className="text-[14pt] font-extrabold uppercase tracking-widest text-black max-w-xs mx-auto">
-                    Ficha de Inscrição
-                  </h2>
-                </div>
+              <div className="flex-1 flex flex-col justify-between text-[10pt] leading-relaxed font-sans text-black">
+                <div className="space-y-3.5">
+                  {/* Title */}
+                  <div className="text-center pt-0">
+                    <h2 className="text-[14pt] font-extrabold uppercase tracking-widest text-black max-w-xs mx-auto">
+                      Ficha de Inscrição
+                    </h2>
+                  </div>
 
-                {/* Sub-header grid: Controle da Escola, Curso selection, and Foto box */}
-                <div className="grid grid-cols-12 gap-4 border border-black p-3 items-stretch">
-                  {/* Left: Controle da Escola */}
-                  <div className="col-span-3 border-r border-slate-300 pr-3 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
-                        Controle da Escola
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-[11px] font-bold uppercase text-slate-600">Inscrição:</p>
-                          <div className="mt-1 h-7 w-24 border border-slate-400 rounded bg-slate-50 flex items-center px-2">
-                            <span className="text-[11px] font-bold text-slate-400">Nº</span>
+                  {/* Sub-header grid: Controle da Escola, Curso selection, and Foto box */}
+                  <div className="grid grid-cols-12 gap-4 border border-black p-3 items-stretch">
+                    {/* Left: Controle da Escola */}
+                    <div className="col-span-4 border-r border-slate-300 pr-3 flex flex-col justify-between">
+                      <div>
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
+                          Controle da Escola
+                        </h4>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-[11px] font-bold uppercase text-slate-600">Inscrição:</p>
+                            <div className="mt-1 h-8 w-40 border border-slate-400 rounded bg-slate-50 flex items-center px-2">
+                              <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">Nº</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Middle: CURSO selection */}
-                  <div className="col-span-6 border-r border-slate-300 pr-3 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
-                        CURSO:
-                      </h4>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[12px] font-bold text-slate-800">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
-                          <span>Teologia</span>
+                    {/* Middle: CURSO selection */}
+                    <div className="col-span-5 border-r border-slate-300 pr-3 flex flex-col justify-between">
+                      <div>
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
+                          CURSO:
+                        </h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[12px] font-bold text-slate-800">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <span>Teologia</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <span>Latim</span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <span>Doutrina Social da Igreja</span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <span>História dos Santos Negros</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
-                          <span>Latim</span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
-                          <span>Doutrina Social da Igreja</span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <div className="w-4 h-4 border border-black rounded-none shrink-0" />
-                          <span>História dos Santos Negros</span>
-                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: COLE FOTO */}
+                    <div className="col-span-3 flex items-center justify-center">
+                      <div className="w-[3cm] h-[4cm] border border-dashed border-slate-400 flex flex-col items-center justify-center text-center p-1 bg-slate-50/50">
+                        <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight">COLE AQUI</span>
+                        <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight mt-0.5">FOTO 3X4</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right: COLE FOTO */}
-                  <div className="col-span-3 flex items-center justify-center">
-                    <div className="w-[3cm] h-[4cm] border border-dashed border-slate-400 flex flex-col items-center justify-center text-center p-1 bg-slate-50/50">
-                      <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight">COLE AQUI</span>
-                      <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight mt-0.5">FOTO 3X4</span>
+                  {/* Form Fields Section */}
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-end gap-2">
+                      <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Nome:</span>
+                      <div className="flex-1 border-b border-slate-400 h-5" />
                     </div>
-                  </div>
-                </div>
 
-                {/* Form Fields Section */}
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-end gap-2">
-                    <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Nome:</span>
-                    <div className="flex-1 border-b border-slate-400 h-5" />
-                  </div>
+                    <div className="flex items-end gap-2">
+                      <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Endereço:</span>
+                      <div className="flex-1 border-b border-slate-400 h-5" />
+                    </div>
 
-                  <div className="flex items-end gap-2">
-                    <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Endereço:</span>
-                    <div className="flex-1 border-b border-slate-400 h-5" />
-                  </div>
+                    <div className="grid grid-cols-12 gap-x-4 gap-y-2">
+                      <div className="col-span-5 flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Bairro:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                      <div className="col-span-5 flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Cidade:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                      <div className="col-span-2 flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Uf:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                    </div>
 
-                  <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-                    <div className="col-span-4 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Bairro:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      <div className="flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Cep:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Telefone:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5 relative">
+                          <span className="absolute left-1 bottom-0.5 text-[11px] text-slate-700 font-bold">( &nbsp; &nbsp; )</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="col-span-6 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Cidade:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
-                    </div>
-                    <div className="col-span-2 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Uf:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-                    <div className="col-span-3 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Cep:</span>
+                    <div className="flex items-end gap-4">
+                      <div className="flex-1 flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Email:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">WhatsApp:</span>
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                          <span>Sim</span>
+                          <div className="w-3.5 h-3.5 border border-slate-400" />
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                          <span>Não</span>
+                          <div className="w-3.5 h-3.5 border border-slate-400" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-x-4 gap-y-2">
+                      <div className="col-span-4 flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Nascimento:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                      <div className="col-span-4 flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">RG:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                      <div className="col-span-4 flex items-end gap-2">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">CPF:</span>
+                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      </div>
+                    </div>
+
+                    <div className="flex items-end gap-2">
+                      <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">É participante de qual Paróquia/Comunidade?:</span>
                       <div className="flex-1 border-b border-slate-400 h-5" />
                     </div>
-                    <div className="col-span-4 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Celular:</span>
-                      <span className="text-[10px] text-slate-500 font-bold shrink-0">( &nbsp; &nbsp; )</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
-                    </div>
-                    <div className="col-span-5 flex items-center gap-3">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">WhatsApp:</span>
-                      <div className="flex items-center gap-1 text-[9.5px] font-bold">
+
+                    <div className="flex items-center gap-4">
+                      <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Já foi aluno(a) da Escola?:</span>
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold">
                         <span>Sim</span>
                         <div className="w-3.5 h-3.5 border border-slate-400" />
                       </div>
-                      <div className="flex items-center gap-1 text-[9.5px] font-bold">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold">
                         <span>Não</span>
                         <div className="w-3.5 h-3.5 border border-slate-400" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-                    <div className="col-span-4 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Nascimento:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
-                    </div>
-                    <div className="col-span-4 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">RG:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
-                    </div>
-                    <div className="col-span-4 flex items-end gap-2">
-                      <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">CPF:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
-                    </div>
+                  {/* Admission Instructions */}
+                  <div className="pt-4 border-t border-slate-200">
+                    <h3 className="font-extrabold uppercase text-[9.5px] tracking-wider text-slate-800 text-center border-b border-slate-200 pb-1 mb-2">
+                      Informações básicas para admissão ao curso escolhido
+                    </h3>
+                    <ul className="text-[9px] text-slate-700 leading-relaxed space-y-1 font-medium list-none px-1">
+                      {admissionNorms.map((norm, index) => {
+                        const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
+                        return (
+                          <li key={index}>
+                            {!hasIndexPrefix && <strong className="text-slate-900">{index + 1}) </strong>}
+                            {norm}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
 
-                  <div className="flex items-end gap-2">
-                    <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Email:</span>
-                    <div className="flex-1 border-b border-slate-400 h-5" />
-                  </div>
+                  {/* Agreement and signature */}
+                  <div className="pt-4 space-y-6 font-serif">
+                    <p className="text-[12px] text-justify text-slate-800 leading-relaxed">
+                      Eu <span className="inline-block w-[380px] border-b border-slate-400 h-4 translate-y-0.5" />, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
+                    </p>
 
-                  <div className="flex items-end gap-2">
-                    <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">É participante de qual Paróquia?:</span>
-                    <div className="flex-1 border-b border-slate-400 h-5" />
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <span className="font-bold text-slate-700 uppercase text-[9.5px] tracking-wider shrink-0">Já foi aluno(a) da Escola?:</span>
-                    <div className="flex items-center gap-1.5 text-[9.5px] font-bold">
-                      <span>Sim</span>
-                      <div className="w-3.5 h-3.5 border border-slate-400" />
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[9.5px] font-bold">
-                      <span>Não</span>
-                      <div className="w-3.5 h-3.5 border border-slate-400" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Admission Instructions */}
-                <div className="pt-4 border-t border-slate-200">
-                  <h3 className="font-extrabold uppercase text-[9.5px] tracking-wider text-slate-800 text-center border-b border-slate-200 pb-1 mb-2">
-                    Informações básicas para admissão ao curso escolhido
-                  </h3>
-                  <ul className="text-[9px] text-slate-700 leading-relaxed space-y-1 font-medium list-none px-1">
-                    {admissionNorms.map((norm, index) => {
-                      const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
-                      return (
-                        <li key={index}>
-                          {!hasIndexPrefix && <strong className="text-slate-900">{index + 1}) </strong>}
-                          {norm}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-
-                {/* Agreement and signature */}
-                <div className="pt-4 space-y-6 font-serif">
-                  <p className="text-[10px] text-justify text-slate-800 leading-relaxed">
-                    Eu <span className="inline-block w-64 border-b border-slate-400 h-4 translate-y-0.5" />, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
-                  </p>
-
-                  <div className="pt-6 flex justify-between items-end gap-8 font-sans">
-                    <div className="flex items-end gap-1.5 text-[10px] text-slate-800 font-medium w-1/2">
-                      <span className="shrink-0 font-bold">Guarulhos,</span>
-                      <div className="flex-1 border-b border-slate-400 h-4 text-center text-slate-300 font-mono text-[9px]">______ / ______ / _________</div>
-                    </div>
-                    <div className="flex flex-col items-center text-center w-1/2 shrink-0">
-                      <div className="w-full border-b border-slate-400" />
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Aluno(a)</span>
+                    <div className="pt-6 pb-12 flex justify-between items-end gap-12 font-sans">
+                      <div className="flex items-end gap-1.5 text-[11px] text-slate-800 font-medium w-[42%]">
+                        <span className="shrink-0 font-bold">Guarulhos,</span>
+                        <div className="flex-1 border-b border-slate-400 h-4" />
+                      </div>
+                      <div className="flex flex-col items-center text-center w-[34%] shrink-0 translate-y-4">
+                        <div className="w-full border-b border-slate-400" />
+                        <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest mt-1.5">Aluno(a)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Document Footer Divider */}
-                <div className="pt-4 border-t border-black mt-auto flex flex-col justify-end">
-                  <div className="grid grid-cols-12 gap-4 items-start text-left text-[8px] leading-tight text-slate-600 font-sans pt-1">
+                <div className="pt-1.5 border-t border-black mt-auto flex flex-col justify-end">
+                  <div className="grid grid-cols-12 gap-4 items-start text-left text-[8px] leading-tight text-slate-600 font-sans pt-0.5">
                     <div className="col-span-7 space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ENDEREÇO:</p>
                       <p className="font-semibold uppercase">{institution?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP'}</p>
-                      <p className="font-semibold uppercase">Telefone: {institution?.phone || '(11) 2421-2935'} • Email: {institution?.email || 'edm@diocesedeguarulhos.org.br'}</p>
+                      <p className="font-semibold uppercase">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
+                      <p className="font-semibold uppercase">Email: {institution?.email || 'edm@diocesedeguarulhos.org.br'}</p>
                     </div>
                     <div className="col-span-5 text-right space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ATENDIMENTO SECRETARIA:</p>
                       <p className="font-semibold uppercase">De Quarta à Sexta-feira das 14h às 18h</p>
-                      <p className="font-semibold uppercase">Sábado das 09h às 11h30</p>
                     </div>
+                  </div>
+                  <div className="text-center pt-1.5 border-t border-slate-100 mt-1.5 text-[7px] text-slate-400 uppercase tracking-widest font-sans font-medium">
+                    Copyright © {institution?.name || 'Escola Diocesana de Ministérios'}
                   </div>
                 </div>
               </div>
@@ -1049,21 +1057,21 @@ export function Impressos() {
                 </div>
 
                 {/* Document Footer Divider */}
-                <div className="pt-4 border-t border-black mt-auto flex flex-col justify-end">
-                  <div className="grid grid-cols-12 gap-4 items-start text-left text-[8px] leading-tight text-slate-600 font-sans pt-1">
+                <div className="pt-1.5 border-t border-black mt-auto flex flex-col justify-end">
+                  <div className="grid grid-cols-12 gap-4 items-start text-left text-[8px] leading-tight text-slate-600 font-sans pt-0.5">
                     <div className="col-span-7 space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ENDEREÇO:</p>
                       <p className="font-semibold uppercase">{institution?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP'}</p>
-                      <p className="font-semibold uppercase">Telefone: {institution?.phone || '(11) 2421-2935'} • Email: {institution?.email || 'edm@diocesedeguarulhos.org.br'}</p>
+                      <p className="font-semibold uppercase">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
+                      <p className="font-semibold uppercase">Email: {institution?.email || 'edm@diocesedeguarulhos.org.br'}</p>
                     </div>
                     <div className="col-span-5 text-right space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ATENDIMENTO SECRETARIA:</p>
                       <p className="font-semibold uppercase">De Quarta à Sexta-feira das 14h às 18h</p>
-                      <p className="font-semibold uppercase">Sábado das 09h às 11h30</p>
                     </div>
                   </div>
-                  <div className="text-center pt-2 border-t border-slate-100 mt-2 text-[7px] text-slate-400 uppercase tracking-widest font-sans font-medium">
-                    Copyright © {new Date().getFullYear()} {institution?.name || 'Escola Diocesana de Ministérios'} | Departamento Técnico Diocese de Guarulhos
+                  <div className="text-center pt-1.5 border-t border-slate-100 mt-1.5 text-[7px] text-slate-400 uppercase tracking-widest font-sans font-medium">
+                    Copyright © {institution?.name || 'Escola Diocesana de Ministérios'}
                   </div>
                 </div>
               </div>

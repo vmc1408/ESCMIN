@@ -408,7 +408,7 @@ export function Login() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Sistema de Gestão Acadêmica v2.0</span>
            </div>
            <p className="text-[8.5px] font-bold uppercase tracking-wider text-white/20 ml-5">
-             Copyright © 2026 Escola Diocesana de Ministério
+             Copyright © Escola Diocesana de Ministério
            </p>
         </div>
       </div>
