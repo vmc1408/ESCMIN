@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   Search, 
   UserPlus, 
@@ -35,7 +35,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone } from '../lib/utils';
-import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery } from '../lib/database';
+import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery, getInstitutionSettings } from '../lib/database';
 import { Student, Class, Enrollment } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -194,6 +194,21 @@ export function Students() {
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [enrollClassId, setEnrollClassId] = useState('');
   const [institution, setInstitution] = useState<any>(null);
+
+  const admissionNorms = useMemo(() => {
+    if (institution?.admission_norms && institution.admission_norms.trim()) {
+      return institution.admission_norms
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+    }
+    return [
+      "O(a) aluno(a) concorda em priorizar a frequência no curso escolhido.",
+      "Frequência mínima de 75% das aulas para aprovação.",
+      "Nota mínima exigida para promoção é de 5,0 (cinco) por disciplina.",
+      "Compromisso em manter em dia as contribuições estabelecidas."
+    ];
+  }, [institution?.admission_norms]);
   const webcamRef = useRef<Webcam>(null);
   const { user, profile, refreshProfile } = useAuth();
 
@@ -223,8 +238,8 @@ export function Students() {
 
   const fetchInstitution = async () => {
     try {
-      const data = await fetchAll('institution_settings');
-      if (data && data.length > 0) setInstitution(data[0]);
+      const data = await getInstitutionSettings();
+      if (data) setInstitution(data);
     } catch (error) {
       console.error('Error fetching institution:', error);
     }
@@ -790,10 +805,15 @@ export function Students() {
           <div className="mb-2 p-3 bg-white border border-black/20 rounded-none">
             <h4 className="text-[10pt] font-bold uppercase text-center mb-3 tracking-wider">Normas Básicas para Admissão</h4>
             <div className="text-[8.5pt] leading-relaxed space-y-1 font-normal text-slate-800">
-              <p>1) O(a) aluno(a) concorda em priorizar a frequência no curso escolhido.</p>
-              <p>2) Frequência mínima de 75% das aulas para aprovação.</p>
-              <p>3) Nota mínima exigida para promoção é de 5,0 (cinco) por disciplina.</p>
-              <p>4) Compromisso em manter em dia as contribuições estabelecidas.</p>
+              {admissionNorms.map((norm, index) => {
+                const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
+                return (
+                  <p key={index}>
+                    {!hasIndexPrefix && <span>{index + 1}) </span>}
+                    {norm}
+                  </p>
+                );
+              })}
             </div>
           </div>
 
