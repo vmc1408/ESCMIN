@@ -56,6 +56,38 @@ export function Impressos() {
     return `${year}-${month}-${day}`;
   });
 
+  const admissionNorms = useMemo(() => {
+    if (institution?.admission_norms && institution.admission_norms.trim()) {
+      return institution.admission_norms
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+    }
+    return [
+      "No ato da matrícula o(a) aluno(a) concorda em priorizar a frequência no curso escolhido.",
+      "Como critério de aprovação o(a) aluno(a) deverá ter frequência mínima de 75% das aulas.",
+      "A nota mínima exigida para a promoção do(a) aluno(a) é de 5,0 (cinco) por disciplina.",
+      "O(a) aluno(a) se compromete a manter em dia a mensalidade estabelecida dentro do prazo de vencimento."
+    ];
+  }, [institution?.admission_norms]);
+
+  const presentationInfo = useMemo(() => {
+    if (institution?.presentation_info && institution.presentation_info.trim()) {
+      return institution.presentation_info
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+    }
+    return [
+      "Vá até a Secretaria da escola (endereço abaixo no rodapé)",
+      "Leve a carta de apresentação,",
+      "Leve a ficha de inscrição,",
+      "Uma (01) cópia do RG ou CNH,",
+      "Uma (01) Foto 3x4 recente,",
+      "Taxa de matrícula de R$ 100,00."
+    ];
+  }, [institution?.presentation_info]);
+
   // Load Initial Data
   useEffect(() => {
     async function loadData() {
@@ -858,10 +890,15 @@ export function Impressos() {
                     Informações básicas para admissão ao curso escolhido
                   </h3>
                   <ul className="text-[9px] text-slate-700 leading-relaxed space-y-1 font-medium list-none px-1">
-                    <li><strong className="text-slate-900">1)</strong> No ato da matrícula o(a) aluno(a) concorda em priorizar a frequência no curso escolhido.</li>
-                    <li><strong className="text-slate-900">2)</strong> Como critério de aprovação o(a) aluno(a) deverá ter frequência mínima de 75% das aulas.</li>
-                    <li><strong className="text-slate-900">3)</strong> A nota mínima exigida para a promoção do(a) aluno(a) é de 5,0 (cinco) por disciplina.</li>
-                    <li><strong className="text-slate-900">4)</strong> O(a) aluno(a) se compromete a manter em dia a mensalidade estabelecida dentro do prazo de vencimento.</li>
+                    {admissionNorms.map((norm, index) => {
+                      const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
+                      return (
+                        <li key={index}>
+                          {!hasIndexPrefix && <strong className="text-slate-900">{index + 1}) </strong>}
+                          {norm}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
 
@@ -989,12 +1026,15 @@ export function Impressos() {
                         Para efetivar a matrícula,
                       </h4>
                       <ol className="text-[8.5px] text-slate-700 font-semibold space-y-1 list-none leading-normal">
-                        <li><strong className="text-slate-950">1 -</strong> Vá até a Secretaria da escola (endereço abaixo no rodapé)</li>
-                        <li><strong className="text-slate-950">2 -</strong> Leve a carta de apresentação,</li>
-                        <li><strong className="text-slate-950">3 -</strong> Leve a ficha de inscrição,</li>
-                        <li><strong className="text-slate-950">4 -</strong> Uma (01) cópia do RG ou CNH,</li>
-                        <li><strong className="text-slate-950">5 -</strong> Uma (01) Foto 3x4 recente,</li>
-                        <li><strong className="text-slate-950">6 -</strong> Taxa de matrícula de R$ 100,00.</li>
+                        {presentationInfo.map((item, index) => {
+                          const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(item);
+                          return (
+                            <li key={index}>
+                              {!hasIndexPrefix && <strong className="text-slate-950">{index + 1} - </strong>}
+                              {item}
+                            </li>
+                          );
+                        })}
                       </ol>
                     </div>
                   </div>

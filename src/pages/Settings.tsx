@@ -132,7 +132,9 @@ export function Settings() {
     secretary: '',
     cep: '',
     city_uf: '',
-    subtitle: ''
+    subtitle: '',
+    admission_norms: '',
+    presentation_info: ''
   });
 
   // Academic Parameters State
@@ -331,7 +333,7 @@ export function Settings() {
                 try {
                   const baseFields = ['id', 'created_at', 'updated_at', 'user_id', 'status'];
                   const whitelist: Record<string, string[]> = {
-                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'secretary', 'cep', 'city_uf', 'subtitle', 'phone_is_whatsapp', 'updated_at'],
+                    institution_settings: ['id', 'name', 'cnpj', 'address', 'phone', 'email', 'website', 'logo_url', 'footer_text', 'receipt_message', 'secretary', 'cep', 'city_uf', 'subtitle', 'phone_is_whatsapp', 'admission_norms', 'presentation_info', 'updated_at'],
                     users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
                     email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
                     foraries: [...baseFields, 'code', 'name', 'priest_name'],
@@ -1158,6 +1160,51 @@ export function Settings() {
                     />
                   </div>
                 </div>
+
+              {/* Documentos & Textos de Impressão Section */}
+              <div className="lg:col-span-2 space-y-6 pt-6 border-t border-slate-100">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-3 border-b border-slate-100 pb-4 tracking-tight">
+                  <div className="w-8 h-8 rounded bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200">
+                    <FileText size={16} />
+                  </div>
+                  Textos para Documentos de Impressão (Ficha / Carta)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Normas Básicas - Ficha de Inscrição */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Normas Básicas para Admissão (Ficha de Inscrição)</label>
+                    <textarea 
+                      rows={6}
+                      value={institution.admission_norms || ''}
+                      onChange={(e) => setInstitution({...institution, admission_norms: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-semibold text-slate-700 text-sm"
+                      placeholder={`1) No ato da matrícula o(a) aluno(a) concorda em priorizar a frequência no curso escolhido.
+2) Como critério de aprovação o(a) aluno(a) deverá ter frequência mínima de 75% das aulas.
+3) A nota mínima exigida para a promoção do(a) aluno(a) é de 5,0 (cinco) por disciplina.
+4) O(a) aluno(a) se compromete a manter em dia a mensalidade estabelecida dentro do prazo de vencimento.`}
+                    />
+                    <p className="text-[10px] text-slate-400 ml-1">Insira as normas uma por linha. Elas serão exibidas na Ficha de Inscrição.</p>
+                  </div>
+
+                  {/* Requisitos de Matrícula - Carta de Apresentação */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instruções / Requisitos (Carta de Apresentação)</label>
+                    <textarea 
+                      rows={6}
+                      value={institution.presentation_info || ''}
+                      onChange={(e) => setInstitution({...institution, presentation_info: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-transparent rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white focus:border-blue-200 transition-all font-semibold text-slate-700 text-sm"
+                      placeholder={`1 - Vá até a Secretaria da escola (endereço abaixo no rodapé)
+2 - Leve a carta de apresentação,
+3 - Leve a ficha de inscrição,
+4 - Uma (01) cópia do RG ou CNH,
+5 - Uma (01) Foto 3x4 recente,
+6 - Taxa de matrícula de R$ 100,00.`}
+                    />
+                    <p className="text-[10px] text-slate-400 ml-1">Insira os requisitos/instruções um por linha. Eles serão listados no quadro da Carta de Apresentação.</p>
+                  </div>
+                </div>
+              </div>
 
               {/* Visual Section */}
               <div className="lg:col-span-2 space-y-6">

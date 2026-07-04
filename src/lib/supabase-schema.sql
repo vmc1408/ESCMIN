@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS institution_settings (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     logo_url TEXT,
+    admission_norms TEXT,
+    presentation_info TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

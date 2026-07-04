@@ -251,6 +251,8 @@ export interface InstitutionSettings {
   cep?: string;
   city_uf?: string;
   subtitle?: string;
+  admission_norms?: string;
+  presentation_info?: string;
 }
 
 export interface AcademicSettings {
