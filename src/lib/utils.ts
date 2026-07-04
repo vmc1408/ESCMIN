@@ -17,7 +17,7 @@ export function formatCurrency(value: number) {
 export function formatDate(date: string | Date | null | undefined) {
   if (!date) return '---';
   if (typeof date === 'string') {
-    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/);
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (match) {
       const year = parseInt(match[1], 10);
       const month = parseInt(match[2], 10);
@@ -36,7 +36,7 @@ export function formatDate(date: string | Date | null | undefined) {
 export function safeFormat(date: string | Date | null | undefined, formatStr: string, fallback: string = '---') {
   if (!date) return fallback;
   if (typeof date === 'string') {
-    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/);
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (match) {
       const year = parseInt(match[1], 10);
       const month = parseInt(match[2], 10);
@@ -70,7 +70,7 @@ export function parseSafeDate(dateValue: any): Date {
   const dateStr = String(dateValue).trim();
   
   // Try YYYY-MM-DD pure date first to avoid UTC shifts
-  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/);
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (match) {
     const year = parseInt(match[1], 10);
     const month = parseInt(match[2], 10);

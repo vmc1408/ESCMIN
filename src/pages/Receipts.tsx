@@ -643,7 +643,7 @@ export function Receipts() {
 
       {notification && (
         <div className={cn(
-          "p-4 rounded-xl flex items-start gap-3 border shadow-sm animate-in fade-in slide-in-from-top-4 duration-300",
+          "fixed top-6 right-6 z-[9999] max-w-md w-[calc(100%-3rem)] p-4 rounded-xl flex items-start gap-3 border shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300",
           notification.type === 'success' ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
           notification.type === 'error' ? "bg-rose-50 border-rose-200 text-rose-800" :
           "bg-blue-50 border-blue-200 text-blue-800"

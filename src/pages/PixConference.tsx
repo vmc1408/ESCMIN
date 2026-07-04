@@ -182,7 +182,7 @@ export function PixConference() {
   ];
 
   const BANK_PRESETS = {
-    'ITAU': { date: 'Data', payer: 'Descrição', amount: 'Valor', id: 'Número', bank: '' },
+    'ITAU': { date: 'Data', payer: 'Razão Social', amount: 'Valor (R$)', id: 'CPF/CNPJ', bank: '' },
     'SANTANDER': { date: 'Data', payer: 'Nome do Favorecido/Pagador', amount: 'Valor (R$)', id: 'ID Transação', bank: 'Origem' },
     'BB': { date: 'Data', payer: 'Histórico', amount: 'Valor', id: 'Documento', bank: '' },
     'BRADESCO': { date: 'Data', payer: 'Histórico', amount: 'Valor', id: 'Nº Doc', bank: '' },
@@ -642,28 +642,61 @@ export function PixConference() {
           searchName: normalize(s.name)
         }));
         
-        const processed = jsonData.map((row: any, index: number) => {
+        const processed = jsonData.map((row: any, index: number): PixTransaction | null => {
           const keys = Object.keys(row);
           
           const findValue = (searchTerms: string[], customKey?: string) => {
-            if (customKey && row[customKey] !== undefined) return row[customKey];
+            if (customKey && row[customKey] !== undefined && row[customKey] !== null && String(row[customKey]).trim() !== '') {
+              return String(row[customKey]).trim();
+            }
             const foundKey = keys.find(k => searchTerms.some(term => k.toLowerCase().includes(term.toLowerCase())));
-            return foundKey ? row[foundKey] : '';
+            return foundKey && row[foundKey] !== undefined && row[foundKey] !== null ? String(row[foundKey]).trim() : '';
           };
 
           const date = findValue(['data', 'movimento', 'operacao'], customMapping.date);
-          const rawName = findValue(['nome', 'pagador', 'cliente', 'favorecido', 'descricao', 'historico'], customMapping.payer);
           
+          let rawName = findValue(['razao', 'razão', 'nome', 'pagador', 'cliente', 'favorecido', 'descricao', 'descrição', 'lançamento', 'lancamento', 'historico', 'histórico'], customMapping.payer);
+          
+          // Fallback if 'Razão Social' was chosen but is empty for a specific row, or vice versa
+          if (!rawName) {
+            const candidates = ['razão social', 'razao social', 'nome', 'pagador', 'lançamento', 'lancamento', 'descrição', 'descricao', 'histórico', 'historico'];
+            const foundCandidateKey = keys.find(k => candidates.some(c => k.toLowerCase() === c));
+            if (foundCandidateKey) {
+              rawName = String(row[foundCandidateKey] || '').trim();
+            }
+          }
+
           let amount = 0;
           const rawAmount = findValue(['valor', 'quantia', 'montante'], customMapping.amount);
           if (typeof rawAmount === 'number') {
             amount = rawAmount;
           } else if (rawAmount) {
-            amount = parseFloat(String(rawAmount).replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.'));
+            let cleanedAmountStr = String(rawAmount).trim();
+            const isNegative = cleanedAmountStr.startsWith('-') || (cleanedAmountStr.startsWith('(') && cleanedAmountStr.endsWith(')'));
+            
+            cleanedAmountStr = cleanedAmountStr.replace(/[^\d,.-]/g, '');
+            
+            if (cleanedAmountStr) {
+              if (cleanedAmountStr.includes(',') && cleanedAmountStr.includes('.')) {
+                cleanedAmountStr = cleanedAmountStr.replace(/\./g, '').replace(',', '.');
+              } else if (cleanedAmountStr.includes(',')) {
+                cleanedAmountStr = cleanedAmountStr.replace(',', '.');
+              }
+              amount = parseFloat(cleanedAmountStr);
+              if (isNegative && amount > 0) {
+                amount = -amount;
+              }
+            }
           }
 
-          const id = findValue(['id', 'transacao', 'e2e', 'autenticacao', 'nsu', 'documento', 'numero', 'doc', 'ref', 'nº'], customMapping.id);
-          
+          // We filter out transactions with non-positive values, no valid name, or no date
+          if (!date || isNaN(amount) || amount <= 0 || !rawName) {
+            return null;
+          }
+
+          const id = findValue(['id', 'transacao', 'e2e', 'autenticacao', 'nsu', 'documento', 'numero', 'doc', 'ref', 'nº', 'cpf', 'cnpj'], customMapping.id);
+          const document = findValue(['cpf', 'cnpj', 'documento', 'identificação', 'identificacao']);
+
           // Composite unique ID to ensure total uniqueness in the session.
           const stableDate = parseSafeDate(date).toISOString().split('T')[0];
           const cleanId = id ? String(id).trim() : `row${index}`;
@@ -693,6 +726,7 @@ export function PixConference() {
             return { 
               date, 
               payer_name: rawName, 
+              payer_document: document || undefined,
               origin_bank: bank, 
               amount, 
               transaction_id: finalId, 
@@ -739,6 +773,7 @@ export function PixConference() {
           return {
             date,
             payer_name: rawName,
+            payer_document: document || undefined,
             origin_bank: bank,
             amount,
             transaction_id: finalId,
@@ -747,7 +782,7 @@ export function PixConference() {
             is_manual: false,
             created_at: new Date().toISOString()
           };
-        });
+        }).filter((t): t is PixTransaction => t !== null);
 
         // Sort by payer name to keep similar records together
         processed.sort((a, b) => a.payer_name.localeCompare(b.payer_name));
