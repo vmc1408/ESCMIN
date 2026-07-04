@@ -181,18 +181,9 @@ export function Contributions() {
       return a.reference_month - b.reference_month;
     });
 
-    // 2. Prepare data
+    // 2. Prepare data to display in the Print Preview overlay
     setReceiptPreviewData(sortedData);
     setIsPrinting(true);
-    
-    // 2. Small delay for DOM settling (removed window.focus() to prevent premature dialog closing in Chrome/iframes)
-    setTimeout(() => {
-      try {
-        window.print();
-      } catch (e) {
-        console.error("Print command failed, user can use manual button.", e);
-      }
-    }, 800);
   };
 
   const fetchRecentContributions = async () => {
@@ -1886,17 +1877,6 @@ export function Contributions() {
                   <button 
                     onClick={() => {
                       setIsPrintingStatement(true);
-                      setTimeout(() => {
-                        try {
-                          window.print();
-                        } catch (err) {
-                          console.error("Print failed:", err);
-                          setNotification({
-                            type: 'error',
-                            message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
-                          });
-                        }
-                      }, 800);
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
                   >
@@ -2756,7 +2736,7 @@ export function Contributions() {
               </div>
               <div>
                 <h3 className="text-sm font-black uppercase tracking-widest leading-none mb-1">Painel de Impressão</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Utilize os controles abaixo se a janela não abrir.</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Visualize o recibo abaixo e clique em "Abrir Impressora" para imprimir com segurança.</p>
               </div>
             </div>
             
@@ -3002,8 +2982,8 @@ export function Contributions() {
                 <FileText className="text-slate-300" size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider leading-none mb-1">Extrato de Contribuinte</h3>
-                <p className="text-[10px] text-slate-400 uppercase tracking-widest">{selectedStudent.name}</p>
+                <h3 className="text-sm font-bold uppercase tracking-wider leading-none mb-1">Painel de Impressão do Extrato</h3>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">{selectedStudent.name} • Clique em "Imprimir" para iniciar</p>
               </div>
             </div>
             
