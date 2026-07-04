@@ -40,13 +40,13 @@ import { PageHeader } from '../components/PageHeader';
 type TabType = 'dashboard' | 'foranias' | 'parishes' | 'clergy';
 
 const DetailField = ({ label, value, icon, fullWidth = false }: { label: string, value: any, icon: React.ReactNode, fullWidth?: boolean }) => (
-  <div className={cn("space-y-1.5", fullWidth ? "md:col-span-2" : "")}>
+  <div className={cn("space-y-1.5 min-w-0", fullWidth ? "md:col-span-2" : "")}>
     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 border-l-2 border-blue-500/20">{label}</label>
-    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200/80">
-      <div className="text-blue-500">
+    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200/80 min-w-0">
+      <div className="text-blue-500 shrink-0">
         {icon}
       </div>
-      <span className="text-sm font-semibold text-slate-700">{value || 'Não informado'}</span>
+      <span className="text-sm font-semibold text-slate-700 break-all select-all">{value || 'Não informado'}</span>
     </div>
   </div>
 );
@@ -1999,7 +1999,7 @@ export function Diocese() {
                       <DetailField label="Endereço" value={`${selectedItem.address_street || ''}, ${selectedItem.address_number || ''}`} icon={<MapPin size={14} />} fullWidth />
                       <DetailField label="Bairro" value={selectedItem.address_neighborhood} icon={<MapPin size={14} />} />
                       <DetailField label="Cidade/UF" value={`${selectedItem.address_city || ''} - ${selectedItem.address_state || ''}`} icon={<MapPin size={14} />} />
-                      <DetailField label="E-mail Institucional" value={selectedItem.email} icon={<Mail size={14} />} />
+                      <DetailField label="E-mail Institucional" value={selectedItem.email} icon={<Mail size={14} />} fullWidth />
                       <DetailField label="Telefone Fixo" value={selectedItem.phone} icon={<Phone size={14} />} />
                       <DetailField label="Telefone Celular" value={selectedItem.phone_mobile} icon={<PhoneCall size={14} />} />
                       <DetailField label="Data de Fundação" value={selectedItem.foundation_date ? new Date(selectedItem.foundation_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'} icon={<Scroll size={14} />} />
@@ -2061,7 +2061,7 @@ export function Diocese() {
                       <DetailField label="Nome Completo" value={selectedItem.name} icon={<User size={14} />} fullWidth />
                       <DetailField label="Função/Identificação" value={selectedItem.role} icon={<Shield size={14} />} />
                       <DetailField label="Paróquia Vinculada" value={parishes.find(p => p.id === selectedItem.parish_id)?.name} icon={<Church size={14} />} />
-                      <DetailField label="E-mail" value={selectedItem.email} icon={<Mail size={14} />} />
+                      <DetailField label="E-mail" value={selectedItem.email} icon={<Mail size={14} />} fullWidth />
                       <DetailField label="Endereço Residencial" value={`${selectedItem.address || ''}, ${selectedItem.address_number || ''}`} icon={<MapPin size={14} />} fullWidth />
                       <DetailField label="Bairro" value={selectedItem.address_neighborhood} icon={<MapPin size={14} />} />
                       <DetailField label="Cidade/UF" value={`${selectedItem.address_city || ''} - ${selectedItem.address_state || ''}`} icon={<MapPin size={14} />} />
