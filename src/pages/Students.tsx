@@ -730,14 +730,16 @@ export function Students() {
             </div>
 
             <div className="flex gap-4">
-              <div className="flex-[3] flex items-end gap-2">
+              <div className="flex-[2] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Cep:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_zip}</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[22px] whitespace-nowrap">{selectedStudent.address_zip}</span>
               </div>
-              <div className="flex-[5] flex items-end relative gap-2">
+              <div className="flex-[3.5] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Celular:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[22px]">{selectedStudent.phone_mobile}</span>
-                <div className="flex items-center gap-3 ml-2 mb-0.5 text-[9pt]">
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[22px] whitespace-nowrap">{selectedStudent.phone_mobile}</span>
+              </div>
+              <div className="flex-[2.5] flex items-end justify-end mb-0.5 text-[9pt]">
+                <div className="flex items-center gap-3">
                   <span className="text-slate-900 font-semibold uppercase">WhatsApp:</span>
                   <div className="flex items-center gap-1">
                     <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
