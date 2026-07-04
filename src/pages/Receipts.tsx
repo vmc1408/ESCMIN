@@ -582,8 +582,18 @@ export function Receipts() {
             }
           };
 
-          iframe.contentWindow?.addEventListener('afterprint', cleanup);
-          iframe.contentWindow?.print();
+          try {
+            iframe.contentWindow?.addEventListener('afterprint', cleanup);
+          } catch (e) {
+            console.warn("Could not add afterprint listener due to cross-origin restrictions:", e);
+            // If we cannot add the listener, trigger a faster fallback cleanup (e.g. after 15s)
+            setTimeout(cleanup, 15000);
+          }
+          try {
+            iframe.contentWindow?.print();
+          } catch (e) {
+            console.error("Print call failed on iframe:", e);
+          }
           
           // Long fallback to clean up iframe in case afterprint doesn't trigger
           setTimeout(cleanup, 300000);

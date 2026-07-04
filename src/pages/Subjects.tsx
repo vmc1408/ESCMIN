@@ -266,8 +266,17 @@ export function Subjects() {
               URL.revokeObjectURL(url);
             };
 
-            iframe.contentWindow.addEventListener('afterprint', cleanup);
-            iframe.contentWindow.print();
+            try {
+              iframe.contentWindow.addEventListener('afterprint', cleanup);
+            } catch (e) {
+              console.warn("Could not add afterprint listener on Subjects iframe:", e);
+              setTimeout(cleanup, 15000);
+            }
+            try {
+              iframe.contentWindow.print();
+            } catch (e) {
+              console.error("Print call failed on Subjects iframe:", e);
+            }
 
             // Long fallback to clean up iframe in case afterprint doesn't trigger
             setTimeout(cleanup, 300000);
