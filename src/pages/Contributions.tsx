@@ -185,15 +185,14 @@ export function Contributions() {
     setReceiptPreviewData(sortedData);
     setIsPrinting(true);
     
-    // 2. Small delay + focus for maximum hardware reliability
+    // 2. Small delay for DOM settling (removed window.focus() to prevent premature dialog closing in Chrome/iframes)
     setTimeout(() => {
-      window.focus();
       try {
         window.print();
       } catch (e) {
         console.error("Print command failed, user can use manual button.", e);
       }
-    }, 600);
+    }, 800);
   };
 
   const fetchRecentContributions = async () => {
@@ -1888,7 +1887,6 @@ export function Contributions() {
                     onClick={() => {
                       setIsPrintingStatement(true);
                       setTimeout(() => {
-                        window.focus();
                         try {
                           window.print();
                         } catch (err) {
@@ -1898,7 +1896,7 @@ export function Contributions() {
                             message: 'A impressão direta é bloqueada pelo navegador dentro do painel de visualização. Por favor, abra o sistema em uma nova aba para imprimir.'
                           });
                         }
-                      }, 600);
+                      }, 800);
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
                   >
