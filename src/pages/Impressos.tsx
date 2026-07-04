@@ -48,6 +48,13 @@ export function Impressos() {
   const [coSignerTitle, setCoSignerTitle] = useState('Diretor Geral');
   const [showPhotoBorder, setShowPhotoBorder] = useState(true);
   const [isFormFilled, setIsFormFilled] = useState(true);
+  const [documentDate, setDocumentDate] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
 
   // Load Initial Data
   useEffect(() => {
@@ -317,6 +324,17 @@ export function Impressos() {
           <div className="bg-white border border-slate-200 p-5 space-y-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configurações do Documento</h3>
             
+            {/* Data de Emissão do Documento */}
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Data de Emissão</label>
+              <input 
+                type="date"
+                value={documentDate}
+                onChange={(e) => setDocumentDate(e.target.value)}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50"
+              />
+            </div>
+
             {/* Student Search & Select (Applicable for Declaracao, Ficha, Quitacao) */}
             {(selectedType === 'declaracao' || selectedType === 'ficha' || selectedType === 'quitacao') && (
               <div className="space-y-3">
@@ -544,9 +562,18 @@ export function Impressos() {
                       {institution.subtitle}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1 mt-1 border-t border-slate-150 font-sans">
-                    {institution?.cnpj && <span>CNPJ: {institution.cnpj}</span>}
-                    {institution?.address && <span className="hidden sm:inline">| {institution.address}</span>}
+                  <div className="flex flex-wrap items-center gap-x-2 text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1 mt-1 border-t border-slate-150 font-sans">
+                    {[
+                      institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
+                      institution?.address ? institution.address : '',
+                      (institution?.city_uf && (!institution?.address || !institution.address.toLowerCase().includes(institution.city_uf.toLowerCase()))) ? institution.city_uf : '',
+                      institution?.phone ? `TEL: ${institution.phone}` : ''
+                    ].filter(Boolean).map((text, idx, arr) => (
+                      <React.Fragment key={idx}>
+                        <span>{text}</span>
+                        {idx < arr.length - 1 && <span className="text-slate-300">|</span>}
+                      </React.Fragment>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -596,7 +623,7 @@ export function Impressos() {
                     {/* Location & Date */}
                     <div className="text-right pt-12 text-[12px] font-serif">
                       <p className="uppercase tracking-wide font-bold">
-                        {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(new Date().toISOString())}
+                        {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
                       </p>
                     </div>
 
@@ -1029,7 +1056,7 @@ export function Impressos() {
                     {/* Location / Date */}
                     <div className="text-right pt-12 text-[12px] font-serif">
                       <p className="uppercase tracking-wide font-bold">
-                        {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(new Date().toISOString())}
+                        {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
                       </p>
                     </div>
 
