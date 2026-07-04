@@ -521,20 +521,33 @@ export function Impressos() {
             
             {/* Header of Official Documents */}
             {(selectedType === 'declaracao' || selectedType === 'quitacao' || selectedType === 'ficha') && (
-              <div className="flex flex-col items-center text-center pb-8 border-b-2 border-slate-900 mb-8 space-y-2">
-                <div className="w-12 h-12 border-2 border-black flex items-center justify-center font-black text-lg tracking-wider bg-slate-50">
-                  {getInstitutionLogoText()}
+              <div className="flex items-center gap-6 pb-4 border-b-2 border-black mb-8 text-left">
+                <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+                  {institution?.logo_url ? (
+                    <img src={institution.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
+                  ) : (
+                    <div className="w-full h-full border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
+                      <span className="leading-none">SEM</span>
+                      <span className="leading-none">LOGO</span>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-0.5">
-                  <h1 className="text-[16px] font-bold tracking-widest uppercase font-serif">
-                    {institution?.name || 'ESCOLA DE FORMAÇÃO CONCILIAR'}
+                <div className="flex-1 flex flex-col">
+                  <p className="text-[11px] md:text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight uppercase font-sans">
+                    {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
+                  </p>
+                  <h1 className="text-[18px] md:text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5 font-sans">
+                    {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                   </h1>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-sans">
-                    {institution?.cnpj ? `CNPJ: ${institution.cnpj}` : 'CNPJ: 00.000.000/0001-00'} | {institution?.city_uf || 'Catedral Geral / SP'}
-                  </p>
-                  <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest font-sans">
-                    {institution?.address || 'Rua da Catedral, 100 - Centro'}
-                  </p>
+                  {institution?.subtitle && (
+                    <p className="text-[11px] md:text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase font-sans">
+                      {institution.subtitle}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1 mt-1 border-t border-slate-150 font-sans">
+                    {institution?.cnpj && <span>CNPJ: {institution.cnpj}</span>}
+                    {institution?.address && <span className="hidden sm:inline">| {institution.address}</span>}
+                  </div>
                 </div>
               </div>
             )}
