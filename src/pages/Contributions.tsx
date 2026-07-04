@@ -157,15 +157,7 @@ export function Contributions() {
     };
     window.addEventListener('focus', handleFocus);
     
-    const handleAfterPrint = () => {
-      setIsPrinting(false);
-      setIsPrintingStatement(false);
-      setReceiptPreviewData(null);
-    };
-    window.addEventListener('afterprint', handleAfterPrint);
-
     return () => {
-      window.removeEventListener('afterprint', handleAfterPrint);
       window.removeEventListener('focus', handleFocus);
     };
   }, [selectedStudent, selectedYear]);
