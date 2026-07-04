@@ -16,6 +16,18 @@ export function formatCurrency(value: number) {
 
 export function formatDate(date: string | Date | null | undefined) {
   if (!date) return '---';
+  if (typeof date === 'string') {
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const day = parseInt(match[3], 10);
+      const d = new Date(year, month - 1, day);
+      if (!isNaN(d.getTime())) {
+        return new Intl.DateTimeFormat('pt-BR').format(d);
+      }
+    }
+  }
   const d = new Date(date);
   if (isNaN(d.getTime())) return '---';
   return new Intl.DateTimeFormat('pt-BR').format(d);
@@ -23,6 +35,22 @@ export function formatDate(date: string | Date | null | undefined) {
 
 export function safeFormat(date: string | Date | null | undefined, formatStr: string, fallback: string = '---') {
   if (!date) return fallback;
+  if (typeof date === 'string') {
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const day = parseInt(match[3], 10);
+      const d = new Date(year, month - 1, day);
+      if (!isNaN(d.getTime())) {
+        try {
+          return format(d, formatStr);
+        } catch (e) {
+          return fallback;
+        }
+      }
+    }
+  }
   const d = new Date(date);
   if (isNaN(d.getTime())) return fallback;
   try {
@@ -40,6 +68,16 @@ export function parseSafeDate(dateValue: any): Date {
   }
   
   const dateStr = String(dateValue).trim();
+  
+  // Try YYYY-MM-DD pure date first to avoid UTC shifts
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.000)?Z?)?$/);
+  if (match) {
+    const year = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const day = parseInt(match[3], 10);
+    const d = new Date(year, month - 1, day);
+    if (!isNaN(d.getTime())) return d;
+  }
   
   // Try ISO or YYYY-MM-DD
   let d = new Date(dateStr);
