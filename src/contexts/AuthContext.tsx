@@ -392,14 +392,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const canAccess = useCallback((path: string): boolean => {
     if (!profile) return false;
+    
+    // 1. Admin (Administrador Geral) tem acesso irrestrito a todos os recursos
     if (profile.role === 'admin') return true;
     
-    // Lista de módulos restritos para não-admins
-    const adminOnlyModules = ['/import', '/settings', '/users', '/diocese'];
-    if (adminOnlyModules.some(module => path.startsWith(module))) {
+    // Normaliza o caminho ignorando parâmetros de busca (?view=...)
+    const cleanPath = path.split('?')[0];
+
+    // 2. Módulos de controle administrativo supremo (Restritos EXCLUSIVAMENTE ao Admin)
+    const adminOnlyModules = [
+      '/import', 
+      '/settings', 
+      '/users', 
+      '/backup', 
+      '/archive'
+    ];
+    if (adminOnlyModules.some(module => cleanPath.startsWith(module))) {
       return false;
     }
 
+    // 3. Módulos estratégicos e financeiros (Restritos ao Admin e Diretoria)
+    // Secretários são bloqueados por segurança e privacidade de dados
+    const directorOnlyModules = [
+      '/contributions', 
+      '/pix-conference', 
+      '/receipts', 
+      '/reports', 
+      '/parishes',
+      '/teachers'
+    ];
+    if (directorOnlyModules.some(module => cleanPath.startsWith(module))) {
+      return profile.role === 'diretor';
+    }
+
+    // 4. Módulos de operação da secretaria (Acessíveis por todos: Admin, Diretoria, Secretários)
+    // Alunos, Ficha, Chamada, Notas, Turmas, Disciplinas, Calendários, Impressos e Documentos Oficiais.
     return true;
   }, [profile]);
 

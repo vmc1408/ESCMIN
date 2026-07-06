@@ -18,6 +18,7 @@ export function Users() {
   const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name');
   const [groupBy, setGroupBy] = useState<'none' | 'role' | 'status'>('none');
   const [notification, setNotification] = useState<{ type: 'success' | 'err', message: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'directory' | 'permissions'>('directory');
 
   // Webcam
   const webcamRef = React.useRef<Webcam>(null);
@@ -663,8 +664,38 @@ export function Users() {
         )}
       </AnimatePresence>
 
-      {/* Main Content Area */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
+      {/* Tabs de Visualização */}
+      <div className="max-w-4xl mx-auto w-full flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('directory')}
+          className={cn(
+            "pb-3 px-6 text-[10px] font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2",
+            activeTab === 'directory'
+              ? "border-[#00174b] text-[#00174b]"
+              : "border-transparent text-slate-400 hover:text-slate-600"
+          )}
+        >
+          <User size={14} />
+          Gestores Cadastrados
+        </button>
+        <button
+          onClick={() => setActiveTab('permissions')}
+          className={cn(
+            "pb-3 px-6 text-[10px] font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2",
+            activeTab === 'permissions'
+              ? "border-[#00174b] text-[#00174b]"
+              : "border-transparent text-slate-400 hover:text-slate-600"
+          )}
+        >
+          <Shield size={14} />
+          Matriz de Permissões (Níveis de Acesso)
+        </button>
+      </div>
+
+      {activeTab === 'directory' ? (
+        <>
+          {/* Main Content Area */}
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
         {/* Unified Search Bar - Refined */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-4 bg-slate-50/20">
           <div className="relative flex-1">
@@ -963,6 +994,172 @@ export function Users() {
           </div>
         )}
       </div>
+      </>
+      ) : (
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-lg overflow-hidden p-8 space-y-8 animate-fadeIn">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+            <div>
+              <h3 className="text-lg font-black text-[#131b2e] uppercase tracking-tight flex items-center gap-2">
+                <Shield className="text-blue-600 animate-pulse" size={20} />
+                Matriz de Níveis de Acesso & Segurança
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Conheça as permissões, responsabilidades e limites operacionais de cada cargo cadastrado no sistema.
+              </p>
+            </div>
+            <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase tracking-wider self-start md:self-auto">
+              Regras Seguras (LGPD)
+            </div>
+          </div>
+
+          {/* Cards for each Profile */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Admin */}
+            <div className="p-6 bg-violet-50/50 rounded-2xl border border-violet-100 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-bold">
+                    A
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-violet-800 uppercase tracking-widest">Administrador Geral</h4>
+                    <p className="text-[9px] text-violet-600/70 font-bold uppercase tracking-wider">Governança Total</p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                  Controle irrestrito sobre dados, usuários, backups, segurança e parâmetros críticos do sistema.
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-violet-100/50 flex flex-wrap gap-1.5">
+                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md text-[8px] font-black uppercase tracking-wider">Usuários</span>
+                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md text-[8px] font-black uppercase tracking-wider">Backups</span>
+                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md text-[8px] font-black uppercase tracking-wider">Configurações</span>
+              </div>
+            </div>
+
+            {/* Diretor */}
+            <div className="p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+                    D
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-emerald-800 uppercase tracking-widest">Diretoria Escola</h4>
+                    <p className="text-[9px] text-emerald-600/70 font-bold uppercase tracking-wider">Gestão Executiva</p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                  Acesso total ao fluxo financeiro (Contribuições e Pix), relatórios consolidados e gerenciamento de professores.
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-emerald-100/50 flex flex-wrap gap-1.5">
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[8px] font-black uppercase tracking-wider">Financeiro</span>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[8px] font-black uppercase tracking-wider">Professores</span>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[8px] font-black uppercase tracking-wider">Relatórios</span>
+              </div>
+            </div>
+
+            {/* Secretário */}
+            <div className="p-6 bg-amber-50/50 rounded-2xl border border-amber-100 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold">
+                    S
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-amber-800 uppercase tracking-widest">Equipe Secretaria</h4>
+                    <p className="text-[9px] text-amber-600/70 font-bold uppercase tracking-wider">Fluxo Operacional</p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                  Operações diárias da secretaria, controle de faltas (frequência), matrículas de alunos, notas e impressos.
+                </p>
+              </div>
+              <div className="mt-4 pt-4 border-t border-amber-100/50 flex flex-wrap gap-1.5">
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[8px] font-black uppercase tracking-wider">Alunos</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[8px] font-black uppercase tracking-wider">Chamada</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[8px] font-black uppercase tracking-wider">Lançamentos</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Matrix Grid */}
+          <div className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/20">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <h4 className="text-xs font-black text-[#131b2e] uppercase tracking-tight">Tabela Detalhada de Módulos & Permissões</h4>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Enforçado em tempo real</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-sans">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/30 text-slate-400 text-[9px] font-black uppercase tracking-widest">
+                    <th className="px-6 py-3">Módulo / Recurso</th>
+                    <th className="px-6 py-3">Administrador</th>
+                    <th className="px-6 py-3">Diretoria</th>
+                    <th className="px-6 py-3">Secretaria</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {[
+                    { name: "Gestão de Alunos & Fichas Individualizadas", path: "/students", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)" },
+                    { name: "Lançamento de Notas, Chamadas & Boletins", path: "/attendance", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)" },
+                    { name: "Calendário Acadêmico & Turmas", path: "/calendar", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)" },
+                    { name: "Controle Financeiro (Pix, Recibos, Contribuições)", path: "/contributions", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
+                    { name: "Gestão de Professores & Escala Docente", path: "/teachers", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
+                    { name: "Emissão de Relatórios Consolidados", path: "/reports", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
+                    { name: "Guia da Diocese", path: "/parishes", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
+                    { name: "Controle de Usuários & Logins", path: "/users", admin: "Total (L/E)", director: "Apenas Secretaria", secretary: "Bloqueado", blockSec: true },
+                    { name: "Configurações Gerais do Sistema & Segurança", path: "/settings", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
+                    { name: "Cópias de Segurança (Backups) & Recuperação", path: "/backup", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
+                    { name: "Importações em Massa de Planilhas", path: "/import", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
+                    { name: "Arquivo Morto", path: "/archive", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
+                  ].map((row, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50 transition-all">
+                      <td className="px-6 py-4">
+                        <div className="font-black text-[#131b2e]">{row.name}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{row.path}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-1 bg-violet-50 text-violet-700 border border-violet-100 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                          <CheckCircle2 size={12} className="text-violet-500" />
+                          {row.admin}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {row.blockDir ? (
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <XCircle size={12} className="text-slate-400" />
+                            {row.director}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <CheckCircle2 size={12} className="text-emerald-500" />
+                            {row.director}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {row.blockSec ? (
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <XCircle size={12} className="text-slate-400" />
+                            {row.secretary}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <CheckCircle2 size={12} className="text-amber-500" />
+                            {row.secretary}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       <AnimatePresence>
