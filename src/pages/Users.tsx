@@ -490,11 +490,14 @@ export function Users() {
     
     switch (role?.toLowerCase()) {
       case 'administrador':
+      case 'admin':
         return 'bg-violet-50 text-violet-600 border-violet-100';
       case 'diretor':
         return 'bg-emerald-50 text-emerald-600 border-emerald-100';
       case 'secretario':
         return 'bg-amber-50 text-amber-600 border-amber-100';
+      case 'assistente':
+        return 'bg-blue-50 text-blue-600 border-blue-100';
       default:
         return 'bg-slate-50 text-slate-500 border-slate-100';
     }
@@ -505,11 +508,14 @@ export function Users() {
     
     switch (role?.toLowerCase()) {
       case 'administrador':
+      case 'admin':
         return 'bg-violet-50 text-violet-500';
       case 'diretor':
         return 'bg-emerald-50 text-emerald-500';
       case 'secretario':
         return 'bg-amber-50 text-amber-500';
+      case 'assistente':
+        return 'bg-blue-50 text-blue-500';
       default:
         return 'bg-slate-50 text-slate-400';
     }
@@ -530,8 +536,8 @@ export function Users() {
     if (isAdmin) return true; // Admin sees everyone
     
     if (isDirector) {
-      // Director sees all secretaries
-      return u.role === 'secretario';
+      // Director sees all secretaries and assistants
+      return u.role === 'secretario' || u.role === 'assistente';
     }
     
     // Secretary only sees themselves (already handled by isSelf above)
@@ -546,7 +552,7 @@ export function Users() {
     return filteredUsers.reduce((acc, user) => {
       const key = groupBy === 'role' ? user.role : user.status;
       const groupName = groupBy === 'role' 
-        ? (key === 'admin' ? 'Administradores' : key === 'diretor' ? 'Diretoria' : 'Secretários')
+        ? (key === 'admin' ? 'Administradores' : key === 'diretor' ? 'Diretoria' : key === 'secretario' ? 'Secretários Acadêmicos' : 'Assistentes de Secretaria')
         : (key === 'active' ? 'Ativos' : 'Inativos');
         
       if (!acc[groupName]) acc[groupName] = [];
@@ -861,7 +867,7 @@ export function Users() {
                             "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
                             getRoleColor(user.role || '', user.status)
                           )}>
-                            {user.role}
+                            {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : 'Assistente de Secretaria'}
                           </span>
                         </td>
                         <td className="px-8 py-4">
@@ -895,7 +901,7 @@ export function Users() {
                             >
                               <Edit2 size={16} />
                             </button>
-                            {(isAdmin || (isDirector && user.role === 'secretario')) && user.id !== userAuth?.uid && (
+                            {(isAdmin || (isDirector && (user.role === 'secretario' || user.role === 'assistente'))) && user.id !== userAuth?.uid && (
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -956,7 +962,7 @@ export function Users() {
                   "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border",
                   getRoleColor(user.role || '', user.status)
                 )}>
-                  {user.role}
+                  {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : 'Assistente de Secretaria'}
                 </span>
               </div>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-50">
@@ -973,7 +979,7 @@ export function Users() {
                   <Edit2 size={12} />
                   EDITAR
                 </button>
-                {(isAdmin || (isDirector && user.role === 'secretario')) && user.id !== userAuth?.uid && (
+                {(isAdmin || (isDirector && (user.role === 'secretario' || user.role === 'assistente'))) && user.id !== userAuth?.uid && (
                   <button 
                     onClick={(e) => {
                       e.preventDefault();
@@ -1013,73 +1019,96 @@ export function Users() {
           </div>
 
           {/* Cards for each Profile */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Admin */}
-            <div className="p-6 bg-violet-50/50 rounded-2xl border border-violet-100 flex flex-col justify-between">
+            <div className="p-5 bg-violet-50/50 rounded-2xl border border-violet-100 flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-bold text-xs">
                     A
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-violet-800 uppercase tracking-widest">Administrador Geral</h4>
-                    <p className="text-[9px] text-violet-600/70 font-bold uppercase tracking-wider">Governança Total</p>
+                    <h4 className="text-[11px] font-black text-violet-800 uppercase tracking-wider leading-tight">Administrador</h4>
+                    <p className="text-[8px] text-violet-600/70 font-bold uppercase tracking-wider">Governança Total</p>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
                   Controle irrestrito sobre dados, usuários, backups, segurança e parâmetros críticos do sistema.
                 </p>
               </div>
-              <div className="mt-4 pt-4 border-t border-violet-100/50 flex flex-wrap gap-1.5">
-                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md text-[8px] font-black uppercase tracking-wider">Usuários</span>
-                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md text-[8px] font-black uppercase tracking-wider">Backups</span>
-                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-md text-[8px] font-black uppercase tracking-wider">Configurações</span>
+              <div className="mt-4 pt-3 border-t border-violet-100/50 flex flex-wrap gap-1">
+                <span className="px-1.5 py-0.5 bg-violet-100/50 text-violet-700 rounded text-[8px] font-black uppercase tracking-wider">Usuários</span>
+                <span className="px-1.5 py-0.5 bg-violet-100/50 text-violet-700 rounded text-[8px] font-black uppercase tracking-wider">Backups</span>
+                <span className="px-1.5 py-0.5 bg-violet-100/50 text-violet-700 rounded text-[8px] font-black uppercase tracking-wider">Config</span>
               </div>
             </div>
 
             {/* Diretor */}
-            <div className="p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex flex-col justify-between">
+            <div className="p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
                     D
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-emerald-800 uppercase tracking-widest">Diretoria Escola</h4>
-                    <p className="text-[9px] text-emerald-600/70 font-bold uppercase tracking-wider">Gestão Executiva</p>
+                    <h4 className="text-[11px] font-black text-emerald-800 uppercase tracking-wider leading-tight">Diretoria Escola</h4>
+                    <p className="text-[8px] text-emerald-600/70 font-bold uppercase tracking-wider">Gestão Executiva</p>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                  Acesso total ao fluxo financeiro (Contribuições e Pix), relatórios consolidados e gerenciamento de professores.
+                <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+                  Acesso ao fluxo financeiro, relatórios consolidados, escala de professores e controle de secretários.
                 </p>
               </div>
-              <div className="mt-4 pt-4 border-t border-emerald-100/50 flex flex-wrap gap-1.5">
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[8px] font-black uppercase tracking-wider">Financeiro</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[8px] font-black uppercase tracking-wider">Professores</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[8px] font-black uppercase tracking-wider">Relatórios</span>
+              <div className="mt-4 pt-3 border-t border-emerald-100/50 flex flex-wrap gap-1">
+                <span className="px-1.5 py-0.5 bg-emerald-100/50 text-emerald-700 rounded text-[8px] font-black uppercase tracking-wider">Financeiro</span>
+                <span className="px-1.5 py-0.5 bg-emerald-100/50 text-emerald-700 rounded text-[8px] font-black uppercase tracking-wider">Professores</span>
+                <span className="px-1.5 py-0.5 bg-emerald-100/50 text-emerald-700 rounded text-[8px] font-black uppercase tracking-wider">Fichas</span>
               </div>
             </div>
 
-            {/* Secretário */}
-            <div className="p-6 bg-amber-50/50 rounded-2xl border border-amber-100 flex flex-col justify-between">
+            {/* Secretário Acadêmico */}
+            <div className="p-5 bg-amber-50/50 rounded-2xl border border-amber-100 flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold">
-                    S
+                  <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-xs">
+                    SA
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-amber-800 uppercase tracking-widest">Equipe Secretaria</h4>
-                    <p className="text-[9px] text-amber-600/70 font-bold uppercase tracking-wider">Fluxo Operacional</p>
+                    <h4 className="text-[11px] font-black text-amber-800 uppercase tracking-wider leading-tight">Secretário Acadêmico</h4>
+                    <p className="text-[8px] text-amber-600/70 font-bold uppercase tracking-wider">Operações Avançadas</p>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                  Operações diárias da secretaria, controle de faltas (frequência), matrículas de alunos, notas e impressos.
+                <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+                  Controle total de notas, chamadas, calendários, guias, emissão de recibos e recebimento de contribuições.
                 </p>
               </div>
-              <div className="mt-4 pt-4 border-t border-amber-100/50 flex flex-wrap gap-1.5">
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[8px] font-black uppercase tracking-wider">Alunos</span>
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[8px] font-black uppercase tracking-wider">Chamada</span>
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[8px] font-black uppercase tracking-wider">Lançamentos</span>
+              <div className="mt-4 pt-3 border-t border-amber-100/50 flex flex-wrap gap-1">
+                <span className="px-1.5 py-0.5 bg-amber-100/50 text-amber-700 rounded text-[8px] font-black uppercase tracking-wider">Notas & Faltas</span>
+                <span className="px-1.5 py-0.5 bg-amber-100/50 text-amber-700 rounded text-[8px] font-black uppercase tracking-wider">Finanças</span>
+                <span className="px-1.5 py-0.5 bg-amber-100/50 text-amber-700 rounded text-[8px] font-black uppercase tracking-wider">Calendário</span>
+              </div>
+            </div>
+
+            {/* Assistente */}
+            <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                    AS
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-blue-800 uppercase tracking-wider leading-tight">Assistente de Secretaria</h4>
+                    <p className="text-[8px] text-blue-600/70 font-bold uppercase tracking-wider">Nível Operacional Básico</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+                  Operações básicas diárias: matrículas de alunos, lançamentos de frequência, visualização de notas e impressos.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-blue-100/50 flex flex-wrap gap-1">
+                <span className="px-1.5 py-0.5 bg-blue-100/50 text-blue-700 rounded text-[8px] font-black uppercase tracking-wider">Alunos</span>
+                <span className="px-1.5 py-0.5 bg-blue-100/50 text-blue-700 rounded text-[8px] font-black uppercase tracking-wider">Matrículas</span>
+                <span className="px-1.5 py-0.5 bg-blue-100/50 text-blue-700 rounded text-[8px] font-black uppercase tracking-wider">Faltas</span>
               </div>
             </div>
           </div>
@@ -1097,23 +1126,24 @@ export function Users() {
                     <th className="px-6 py-3">Módulo / Recurso</th>
                     <th className="px-6 py-3">Administrador</th>
                     <th className="px-6 py-3">Diretoria</th>
-                    <th className="px-6 py-3">Secretaria</th>
+                    <th className="px-6 py-3">Secretário Acadêmico</th>
+                    <th className="px-6 py-3">Assistente Secretaria</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {[
-                    { name: "Gestão de Alunos & Fichas Individualizadas", path: "/students", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)" },
-                    { name: "Lançamento de Notas, Chamadas & Boletins", path: "/attendance", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)" },
-                    { name: "Calendário Acadêmico & Turmas", path: "/calendar", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)" },
-                    { name: "Controle Financeiro (Pix, Recibos, Contribuições)", path: "/contributions", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
-                    { name: "Gestão de Professores & Escala Docente", path: "/teachers", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
-                    { name: "Emissão de Relatórios Consolidados", path: "/reports", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
-                    { name: "Guia da Diocese", path: "/parishes", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Bloqueado", blockSec: true },
-                    { name: "Controle de Usuários & Logins", path: "/users", admin: "Total (L/E)", director: "Apenas Secretaria", secretary: "Bloqueado", blockSec: true },
-                    { name: "Configurações Gerais do Sistema & Segurança", path: "/settings", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
-                    { name: "Cópias de Segurança (Backups) & Recuperação", path: "/backup", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
-                    { name: "Importações em Massa de Planilhas", path: "/import", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
-                    { name: "Arquivo Morto", path: "/archive", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", blockDir: true, blockSec: true },
+                    { name: "Gestão de Alunos & Fichas Individualizadas", path: "/students", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Total (L/E)" },
+                    { name: "Lançamento de Notas, Chamadas & Boletins", path: "/attendance", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Total (L/E)" },
+                    { name: "Calendário Acadêmico & Turmas", path: "/calendar", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
+                    { name: "Controle Financeiro (Pix, Recibos, Contribuições)", path: "/contributions", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
+                    { name: "Gestão de Professores & Escala Docente", path: "/teachers", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
+                    { name: "Emissão de Relatórios Consolidados", path: "/reports", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
+                    { name: "Guia da Diocese", path: "/parishes", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
+                    { name: "Controle de Usuários & Logins", path: "/users", admin: "Total (L/E)", director: "Apenas Secretaria", secretary: "Bloqueado", assistant: "Bloqueado", blockSec: true, blockAsst: true },
+                    { name: "Configurações Gerais do Sistema & Segurança", path: "/settings", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
+                    { name: "Cópias de Segurança (Backups) & Recuperação", path: "/backup", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
+                    { name: "Importações em Massa de Planilhas", path: "/import", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
+                    { name: "Arquivo Morto", path: "/archive", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-all">
                       <td className="px-6 py-4">
@@ -1149,6 +1179,19 @@ export function Users() {
                           <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
                             <CheckCircle2 size={12} className="text-amber-500" />
                             {row.secretary}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {row.blockAsst ? (
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <XCircle size={12} className="text-slate-400" />
+                            {row.assistant}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <CheckCircle2 size={12} className="text-blue-500" />
+                            {row.assistant}
                           </span>
                         )}
                       </td>
@@ -1309,7 +1352,7 @@ export function Users() {
                             <Shield size={16} />
                          </div>
                          <span className="font-black text-[11px] text-[#131b2e] uppercase tracking-tight">
-                            {formData.role === 'admin' ? 'Administrador' : formData.role === 'diretor' ? 'Diretoria' : 'Secretaria'}
+                            {formData.role === 'admin' ? 'Administrador' : formData.role === 'diretor' ? 'Diretoria' : formData.role === 'secretario' ? 'Secretário Acadêmico' : 'Assistente de Secretaria'}
                          </span>
                        </div>
                     </div>
@@ -1406,7 +1449,8 @@ export function Users() {
                                 >
                                   <option value="admin">Administrador Geral</option>
                                   <option value="diretor">Diretoria Escola</option>
-                                  <option value="secretario">Equipe Secretaria</option>
+                                  <option value="secretario">Secretário Acadêmico</option>
+                                  <option value="assistente">Assistente de Secretaria</option>
                                 </select>
                                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                               </div>

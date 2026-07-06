@@ -17,6 +17,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isDirector: boolean;
   isSecretary: boolean;
+  isAssistant: boolean;
   isMaster: boolean;
   isLocked: boolean;
   lockTimer: number;
@@ -389,6 +390,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = profile?.role === 'admin';
   const isDirector = profile?.role === 'diretor' || isAdmin;
   const isSecretary = profile?.role === 'secretario' || isDirector;
+  const isAssistant = profile?.role === 'assistente' || isSecretary;
 
   const canAccess = useCallback((path: string): boolean => {
     if (!profile) return false;
@@ -398,6 +400,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Normaliza o caminho ignorando parâmetros de busca (?view=...)
     const cleanPath = path.split('?')[0];
+    const urlParams = new URLSearchParams(path.split('?')[1] || '');
+    const viewParam = urlParams.get('view');
 
     // 2. Módulos de controle administrativo supremo (Restritos EXCLUSIVAMENTE ao Admin)
     const adminOnlyModules = [
@@ -411,22 +415,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    // 3. Módulos estratégicos e financeiros (Restritos ao Admin e Diretoria)
-    // Secretários são bloqueados por segurança e privacidade de dados
-    const directorOnlyModules = [
+    // 3. Bloqueio de parâmetros gerais ou parâmetros do calendário para secretários e assistentes
+    // (Somente Admin e Diretores têm permissão)
+    if (cleanPath.startsWith('/calendar') && viewParam === 'parameters') {
+      return profile.role === 'diretor';
+    }
+
+    // 4. Módulos estratégicos, de gestão de professores, guias, relatórios consolidados, calendários e fluxo financeiro
+    // (Acessíveis por: Admin, Diretor, Secretário Acadêmico)
+    // Assistentes de Secretaria são bloqueados desse nível operacional
+    const secretaryAndAboveModules = [
       '/contributions', 
       '/pix-conference', 
       '/receipts', 
       '/reports', 
       '/parishes',
-      '/teachers'
+      '/teachers',
+      '/calendar'
     ];
-    if (directorOnlyModules.some(module => cleanPath.startsWith(module))) {
-      return profile.role === 'diretor';
+    if (secretaryAndAboveModules.some(module => cleanPath.startsWith(module))) {
+      return profile.role === 'diretor' || profile.role === 'secretario';
     }
 
-    // 4. Módulos de operação da secretaria (Acessíveis por todos: Admin, Diretoria, Secretários)
-    // Alunos, Ficha, Chamada, Notas, Turmas, Disciplinas, Calendários, Impressos e Documentos Oficiais.
+    // 5. Módulos de operação básica de secretaria (Acessíveis por todos: Admin, Diretoria, Secretário Acadêmico e Assistente)
+    // Alunos, Ficha, Chamada, Notas, Turmas, Disciplinas, Impressos e Documentos Oficiais.
     return true;
   }, [profile]);
 
@@ -438,6 +450,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin,
     isDirector,
     isSecretary,
+    isAssistant,
     isMaster: profile?.id === 'master-admin' || profile?.email === 'admin@sistema.com',
     isLocked,
     lockTimer,
@@ -454,7 +467,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     switchUser,
     resetToMaster
-  }), [user, profile, isAdmin, isDirector, isSecretary, isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
+  }), [user, profile, isAdmin, isDirector, isSecretary, isAssistant, isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
 
   return (
     <AuthContext.Provider value={contextValue}>
