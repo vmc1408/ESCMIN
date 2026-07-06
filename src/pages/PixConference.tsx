@@ -49,6 +49,7 @@ import { PageHeader } from '../components/PageHeader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { PinInput } from '../components/PinInput';
 
 export function PixConference() {
   const { user: userAuth, profile } = useAuth();
@@ -1782,22 +1783,14 @@ export function PixConference() {
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
                 Chave de Segurança (PIN)
               </label>
-              <input
-                type="password"
-                maxLength={6}
+              <PinInput
                 value={enteredPin}
-                onChange={(e) => {
-                  setEnteredPin(e.target.value.replace(/\D/g, ''));
+                onChange={(val) => {
+                  setEnteredPin(val);
                   setPinError('');
                 }}
-                placeholder="Digite seu PIN ou PIN Admin"
-                className="w-full text-center tracking-[0.5em] font-mono text-lg font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500 focus:bg-white transition-all"
+                error={pinError}
               />
-              {pinError && (
-                <p className="text-[10px] text-red-600 font-bold text-center animate-pulse">
-                  {pinError}
-                </p>
-              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -2762,7 +2755,7 @@ export function PixConference() {
                                             )}
                                             <button 
                                               onClick={() => {
-                                                if (window.confirm("Remover esta transação do histórico permanentemente?")) {
+                                                if (true) {
                                                   handleDeleteHistoryItem(t.id);
                                                 }
                                               }}
