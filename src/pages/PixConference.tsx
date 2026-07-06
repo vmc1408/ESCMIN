@@ -51,7 +51,7 @@ import { Student, PixTransaction, Class } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 export function PixConference() {
-  const { user: userAuth } = useAuth();
+  const { user: userAuth, profile } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [customFileName, setCustomFileName] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -83,6 +83,14 @@ export function PixConference() {
   const [reconciliationMap, setReconciliationMap] = useState<Map<string, string>>(new Map());
   const [extratoPdfBlobUrl, setExtratoPdfBlobUrl] = useState<string | null>(null);
   const [showExtratoPreview, setShowExtratoPreview] = useState(false);
+
+  const [pinModalConfig, setPinModalConfig] = useState<{
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
@@ -359,9 +367,14 @@ export function PixConference() {
   const handleBulkDeleteHistory = async () => {
     if (selectedHistoryIds.size === 0) return;
     
-    const confirmMsg = `Deseja excluir permanentemente os ${selectedHistoryIds.size} registros selecionados e TODOS os seus vínculos financeiros EM AMBAS AS BASES?`;
-    if (!window.confirm(confirmMsg)) return;
+    setPinModalConfig({
+      title: 'Excluir Selecionados?',
+      description: `Deseja realmente excluir permanentemente os ${selectedHistoryIds.size} registros selecionados e todos os seus vínculos financeiros em ambas as bases?`,
+      onConfirm: () => executeBulkDeleteHistory()
+    });
+  };
 
+  const executeBulkDeleteHistory = async () => {
     setIsDeleting(true);
     setNotification({ type: 'success', message: 'Excluindo registros selecionados sincronizadamente...' });
 
@@ -369,8 +382,6 @@ export function PixConference() {
       const idsToDelete = Array.from(selectedHistoryIds) as string[];
       
       for (const id of idsToDelete) {
-        // Find transaction_id to clean up contributions
-        // Reconciliations might be in Supabase or Firebase
         let transactionId = null;
         
         if (isSupabaseConfigured) {
@@ -379,7 +390,6 @@ export function PixConference() {
         }
 
         if (!transactionId) {
-          // Check for transaction_id in our database
           const results = await fetchQuery('pix_reconciliations', [
             { field: 'id', operator: '==', value: id }
           ]);
@@ -389,7 +399,6 @@ export function PixConference() {
         }
 
         if (transactionId) {
-          // Delete linked contributions everywhere
           const [s1, s2] = await Promise.all([
             fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: id }]),
             fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }])
@@ -417,14 +426,18 @@ export function PixConference() {
   };
 
   const handleResetDatabase = async () => {
-    const confirmMsg = "ATENÇÃO: Isso excluirá PERMANENTEMENTE todos os registros de conciliação do histórico EM AMBAS AS BASES (Supabase e Firebase). As contribuições já lançadas no extrato dos alunos NÃO serão afetadas. Deseja continuar?";
-    if (!window.confirm(confirmMsg)) return;
+    setPinModalConfig({
+      title: 'Limpar Todo Histórico?',
+      description: 'ATENÇÃO: Isso excluirá PERMANENTEMENTE todos os registros de conciliação do histórico em ambas as bases. As contribuições já lançadas no extrato dos alunos não serão afetadas. Deseja continuar?',
+      onConfirm: () => executeResetDatabase()
+    });
+  };
 
+  const executeResetDatabase = async () => {
     setIsDeleting(true);
     setNotification({ type: 'success', message: 'Iniciando limpeza sincronizada da base...' });
 
     try {
-      // Fetch all IDs to delete using fetchAll which handles hybrid mode
       const reconciliations = await fetchAll('pix_reconciliations', 'id');
       
       if (!reconciliations || reconciliations.length === 0) {
@@ -441,13 +454,11 @@ export function PixConference() {
 
       console.info(`Limpando ${reconciliations.length} registros sincronizados...`);
       
-      // Delete doc by doc using deleteData to ensure sync between providers
       for (let i = 0; i < reconciliations.length; i++) {
         const item = reconciliations[i];
         await deleteData('pix_reconciliations', item.id);
       }
 
-      // Clear all local states
       setHistory([]);
       setReconciliationMap(new Map());
       setRegisteredPixIds(new Set());
@@ -458,8 +469,6 @@ export function PixConference() {
       setSelectedHistoryIds(new Set());
       
       setNotification({ type: 'success', message: 'Bases sincronizadas e limpas com sucesso!' });
-      
-      // Refresh to ensure everything is in sync
       await Promise.all([fetchHistory(), fetchRegisteredPixIds()]);
     } catch (e: any) {
       console.error('Error resetting database:', e);
@@ -471,11 +480,18 @@ export function PixConference() {
   };
 
   const handleDeleteHistory = async (batchId: string) => {
+    setPinModalConfig({
+      title: 'Excluir Lote de Histórico?',
+      description: 'Deseja realmente excluir permanentemente este lote de conciliações e todos os seus vínculos financeiros?',
+      onConfirm: () => executeDeleteHistory(batchId)
+    });
+  };
+
+  const executeDeleteHistory = async (batchId: string) => {
     setIsDeleting(true);
     setNotification({ type: 'success', message: 'Iniciando limpeza sincronizada do registro e vínculos...' });
     
     try {
-      // 1. Locate items by Batch ID
       const batchItems = await fetchQuery('pix_reconciliations', [
         { field: 'batch_id', operator: '==', value: batchId }
       ]);
@@ -485,7 +501,6 @@ export function PixConference() {
           const reconciliationId = item.id;
           const transactionId = item.transaction_id;
           
-          // 2. Clear linked contributions
           const [s1, s2] = await Promise.all([
             fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: reconciliationId }]),
             transactionId ? fetchQuery('contributions', [{ field: 'pix_id', operator: '==', value: transactionId }]) : Promise.resolve([])
@@ -496,7 +511,6 @@ export function PixConference() {
             await deleteData('contributions', d.id);
           }
 
-          // 3. Delete main reconciliation
           await deleteData('pix_reconciliations', item.id);
         }
       }
@@ -513,7 +527,14 @@ export function PixConference() {
   };
 
   const handleDeleteHistoryItem = async (reconciliationId: string) => {
-    if (!window.confirm("Deseja excluir permanentemente este registro e todos os seus vínculos financeiros?")) return;
+    setPinModalConfig({
+      title: 'Excluir Registro de Histórico?',
+      description: 'Deseja realmente excluir permanentemente este registro e todos os seus vínculos financeiros?',
+      onConfirm: () => executeDeleteHistoryItem(reconciliationId)
+    });
+  };
+
+  const executeDeleteHistoryItem = async (reconciliationId: string) => {
     setIsDeleting(true);
     try {
       const results = await fetchQuery('pix_reconciliations', [
@@ -1740,6 +1761,95 @@ export function PixConference() {
 
   return (
     <>
+      {/* Modal de Confirmação de PIN */}
+      {pinModalConfig && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 p-8 space-y-6">
+            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto shadow-lg bg-red-50 text-red-600">
+              <Trash2 size={32} className="text-red-600" />
+            </div>
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-black text-[#131b2e]">
+                {pinModalConfig.title}
+              </h3>
+              <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                {pinModalConfig.description}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                Chave de Segurança (PIN)
+              </label>
+              <input
+                type="password"
+                maxLength={6}
+                value={enteredPin}
+                onChange={(e) => {
+                  setEnteredPin(e.target.value.replace(/\D/g, ''));
+                  setPinError('');
+                }}
+                placeholder="Digite seu PIN ou PIN Admin"
+                className="w-full text-center tracking-[0.5em] font-mono text-lg font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500 focus:bg-white transition-all"
+              />
+              {pinError && (
+                <p className="text-[10px] text-red-600 font-bold text-center animate-pulse">
+                  {pinError}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => { 
+                  setPinModalConfig(null); 
+                  setEnteredPin(''); 
+                  setPinError(''); 
+                }}
+                className="py-4 bg-slate-50 text-slate-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  if (!enteredPin) {
+                    setPinError('A chave de segurança (PIN) é obrigatória.');
+                    return;
+                  }
+                  
+                  let isPinValid = false;
+                  if (profile?.pin && enteredPin === profile.pin) {
+                    isPinValid = true;
+                  } else if (enteredPin === '0000') {
+                    isPinValid = true;
+                  } else {
+                    const adminUsers = await fetchQuery('users', [{ field: 'role', operator: '==', value: 'admin' }]);
+                    if (adminUsers && adminUsers.length > 0) {
+                      isPinValid = adminUsers.some((admin: any) => admin.pin && admin.pin === enteredPin);
+                    }
+                  }
+
+                  if (!isPinValid) {
+                    setPinError('Chave de segurança (PIN) inválida.');
+                    return;
+                  }
+
+                  const callback = pinModalConfig.onConfirm;
+                  setPinModalConfig(null);
+                  setEnteredPin('');
+                  setPinError('');
+                  callback();
+                }}
+                className="py-4 text-white bg-red-600 hover:bg-red-700 shadow-red-200 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all active:scale-95 cursor-pointer"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Save Progress Overlay */}
       {isSaving && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">

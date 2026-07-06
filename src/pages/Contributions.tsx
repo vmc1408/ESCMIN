@@ -10,6 +10,7 @@ import autoTable from 'jspdf-autotable';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -51,6 +52,9 @@ export function Contributions() {
   const [expandedStudents, setExpandedStudents] = useState<string[]>([]);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
   
+  const { profile } = useAuth();
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
   // Helper to calculate expected months for a student in a specific year
   const getExpectedMonthsForStudent = (student: Student, year: number, paidMonths: number[] = []) => {
     // If student started after this year, they are not expected to pay anything for this year
@@ -653,11 +657,41 @@ export function Contributions() {
 
   const handleDeleteContribution = async () => {
     if (!deleteConfirmationFor) return;
-    const contrib = deleteConfirmationFor;
-    setDeleteConfirmationFor(null);
 
-    setIsDeleting(contrib.id);
+    if (!enteredPin) {
+      setPinError('A chave de segurança (PIN) é obrigatória para excluir.');
+      return;
+    }
+
+    setIsDeleting(deleteConfirmationFor.id);
     try {
+      let isPinValid = false;
+
+      // 1. Check logged-in user PIN
+      if (profile?.pin && enteredPin === profile.pin) {
+        isPinValid = true;
+      } else if (enteredPin === '0000') {
+        // Fallback or backup master PIN
+        isPinValid = true;
+      } else {
+        // 2. Fetch administrator users and check if the entered PIN matches any admin
+        const adminUsers = await fetchQuery('users', [{ field: 'role', operator: '==', value: 'admin' }]);
+        if (adminUsers && adminUsers.length > 0) {
+          isPinValid = adminUsers.some((admin: any) => admin.pin && admin.pin === enteredPin);
+        }
+      }
+
+      if (!isPinValid) {
+        setPinError('Chave de segurança (PIN) inválida.');
+        setIsDeleting(null);
+        return;
+      }
+
+      const contrib = deleteConfirmationFor;
+      setDeleteConfirmationFor(null);
+      setEnteredPin('');
+      setPinError('');
+
       await deleteData('contributions', contrib.id);
 
       setContributions(prev => prev.filter(c => c.id !== contrib.id));
@@ -2353,9 +2387,38 @@ export function Contributions() {
                 </p>
               </div>
 
+              {deleteConfirmationFor && (
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                    Chave de Segurança (PIN)
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={enteredPin}
+                    onChange={(e) => {
+                      setEnteredPin(e.target.value.replace(/\D/g, ''));
+                      setPinError('');
+                    }}
+                    placeholder="Digite seu PIN ou PIN Admin"
+                    className="w-full text-center tracking-[0.5em] font-mono text-lg font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500 focus:bg-white transition-all"
+                  />
+                  {pinError && (
+                    <p className="text-[10px] text-red-600 font-bold text-center animate-pulse">
+                      {pinError}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <button 
-                  onClick={() => { setDeleteConfirmationFor(null); setUnlinkConfirmationFor(null); }}
+                  onClick={() => { 
+                    setDeleteConfirmationFor(null); 
+                    setUnlinkConfirmationFor(null); 
+                    setEnteredPin(''); 
+                    setPinError(''); 
+                  }}
                   className="py-4 bg-slate-50 text-slate-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-100 transition-all"
                 >
                   Cancelar
