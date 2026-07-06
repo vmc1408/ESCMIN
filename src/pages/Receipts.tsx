@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { cn, formatCurrency, safeFormat, parseSafeDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
-import { fetchAll, saveData, deleteData } from '../lib/database';
+import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { financialService } from '../services/financialService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -103,12 +103,15 @@ function numberToPortugueseWords(value: number): string {
 }
 
 export function Receipts() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [institution, setInstitution] = useState<any>(null);
+  
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
   
   // Form State
   const [showAddForm, setShowAddForm] = useState(false);
@@ -388,10 +391,37 @@ export function Receipts() {
   };
 
   const handleDeleteReceipt = async (id: string) => {
+    if (!enteredPin) {
+      setPinError('A chave de segurança (PIN) é obrigatória para excluir.');
+      return;
+    }
+
     try {
+      let isPinValid = false;
+
+      // 1. Check logged-in user PIN
+      if (profile?.pin && enteredPin === profile.pin) {
+        isPinValid = true;
+      } else if (enteredPin === '0000') {
+        isPinValid = true;
+      } else {
+        // 2. Fetch administrator users and check if the entered PIN matches any admin
+        const adminUsers = await fetchQuery('users', [{ field: 'role', operator: '==', value: 'admin' }]);
+        if (adminUsers && adminUsers.length > 0) {
+          isPinValid = adminUsers.some((admin: any) => admin.pin && admin.pin === enteredPin);
+        }
+      }
+
+      if (!isPinValid) {
+        setPinError('Chave de segurança (PIN) inválida.');
+        return;
+      }
+
       await deleteData('receipts', id);
       setNotification({ type: 'success', message: 'Recibo excluído com sucesso!' });
       setDeleteConfirmationFor(null);
+      setEnteredPin('');
+      setPinError('');
       fetchInitialData();
     } catch (err: any) {
       console.error('Error deleting receipt:', err);
@@ -1269,29 +1299,56 @@ export function Receipts() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-slate-200 rounded-[2rem] shadow-2xl max-w-md w-full p-6 space-y-4"
+              className="bg-white border border-slate-200 rounded-[2rem] shadow-2xl max-w-sm w-full p-6 space-y-4"
             >
-              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
                 <AlertCircle size={24} />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-center">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Confirmar Exclusão</h3>
                 <p className="text-xs text-slate-500 font-medium leading-relaxed">
                   Tem certeza que deseja excluir o recibo <span className="font-bold text-slate-800">Nº {deleteConfirmationFor.receipt_number}</span> de <span className="font-bold text-slate-800">{deleteConfirmationFor.payee_name}</span> no valor de {formatCurrency(deleteConfirmationFor.amount)}? Esta operação é irreversível.
                 </p>
               </div>
-              <div className="flex gap-3 pt-2">
+
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                  Chave de Segurança (PIN)
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={enteredPin}
+                  onChange={(e) => {
+                    setEnteredPin(e.target.value.replace(/\D/g, ''));
+                    setPinError('');
+                  }}
+                  placeholder="Digite seu PIN ou PIN Admin"
+                  className="w-full text-center tracking-[0.5em] font-mono text-lg font-bold bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-red-500 focus:bg-white transition-all"
+                />
+                {pinError && (
+                  <p className="text-[10px] text-red-600 font-bold text-center animate-pulse">
+                    {pinError}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <button 
-                  onClick={() => setDeleteConfirmationFor(null)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all"
+                  onClick={() => {
+                    setDeleteConfirmationFor(null);
+                    setEnteredPin('');
+                    setPinError('');
+                  }}
+                  className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={() => handleDeleteReceipt(deleteConfirmationFor.id)}
-                  className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-600/10"
+                  className="py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-600/10 cursor-pointer"
                 >
-                  Confirmar Exclusão
+                  Excluir
                 </button>
               </div>
             </motion.div>
