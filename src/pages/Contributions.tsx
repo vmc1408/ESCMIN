@@ -27,8 +27,12 @@ export function Contributions() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [viewMode, setViewMode] = useState<'individual' | 'period' | 'unpaid'>('individual');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 15);
+    return format(d, 'yyyy-MM-dd');
+  });
+  const [endDate, setEndDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [periodData, setPeriodData] = useState<(Contribution & { student?: Student })[]>([]);
   const [recentContributions, setRecentContributions] = useState<(Contribution & { student?: Student })[]>([]);
   const [filterType, setFilterType] = useState<'payment' | 'created'>('payment');
@@ -322,12 +326,12 @@ export function Contributions() {
     }
   };
 
-  const fetchPeriodContributions = async () => {
+  const fetchPeriodContributions = async (start = startDate, end = endDate) => {
     setLoading(true);
     try {
       const dateField = filterType === 'payment' ? 'payment_date' : 'created_at';
-      const dbStart = parseDateToDB(startDate);
-      const dbEnd = parseDateToDB(endDate);
+      const dbStart = parseDateToDB(start);
+      const dbEnd = parseDateToDB(end);
       
       const filters = [];
       if (dbStart) {
@@ -1347,10 +1351,16 @@ export function Contributions() {
     setSearchTerm('');
     setSearchByName('');
     setStudents([]);
-    setStartDate('');
-    setEndDate('');
+    
+    const d = new Date();
+    d.setDate(d.getDate() - 15);
+    const start = format(d, 'yyyy-MM-dd');
+    const end = format(new Date(), 'yyyy-MM-dd');
+    
+    setStartDate(start);
+    setEndDate(end);
     setViewMode('period');
-    fetchRecentContributions();
+    fetchPeriodContributions(start, end);
   };
 
   const filteredStudents = students;
@@ -1436,7 +1446,7 @@ export function Contributions() {
           {/* Ação */}
           <div className="lg:col-span-2 flex items-end">
             <button 
-              onClick={fetchPeriodContributions}
+              onClick={() => fetchPeriodContributions()}
               className="w-full h-[3.25rem] bg-slate-900 text-white rounded-none font-bold text-[10px] uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm"
             >
               <Search size={14} />

@@ -102,8 +102,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(null);
         setLoading(false);
       }
-    } catch (e) {
-      console.error("[AuthContext] Erro ao buscar perfil:", e);
+    } catch (e: any) {
+      const isOfflineError = 
+        (typeof window !== 'undefined' && !window.navigator.onLine) || 
+        !isConnected ||
+        e?.isOffline || 
+        e?.isTimeout || 
+        e?.message?.toLowerCase().includes('offline') || 
+        e?.message?.toLowerCase().includes('failed to fetch') || 
+        e?.message?.toLowerCase().includes('network error');
+
+      if (isOfflineError) {
+        console.warn("[AuthContext] Dispositivo offline ou erro de rede ao buscar perfil:", e?.message || e);
+      } else {
+        console.error("[AuthContext] Erro ao buscar perfil:", e);
+      }
       setLoading(false);
     }
   }, [user?.uid]);
@@ -115,7 +128,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Pega sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error("[AuthContext] Erro ao buscar sessão inicial:", error);
+        const isOfflineError = 
+          (typeof window !== 'undefined' && !window.navigator.onLine) || 
+          error.message?.toLowerCase().includes('offline') || 
+          error.message?.toLowerCase().includes('failed to fetch') || 
+          error.message?.toLowerCase().includes('network error');
+
+        if (isOfflineError) {
+          console.warn("[AuthContext] Dispositivo offline ou erro de rede ao buscar sessão inicial:", error.message);
+        } else {
+          console.error("[AuthContext] Erro ao buscar sessão inicial:", error);
+        }
         // Se houver erro de token inválido, limpa localStorage do Supabase
         if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token') || error.message?.includes('Invalid Refresh Token')) {
           console.warn("[AuthContext] Token de atualização inválido detectado. Limpando chaves locais do Supabase...");
@@ -248,6 +271,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Bloqueio por inatividade
   useEffect(() => {
+    if (loading) return;
+
     if (!profile?.pin || !isLockEnabled) {
       setLockTimer(lockTimeout);
       setIsLocked(false);
@@ -315,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       events.forEach(event => window.removeEventListener(event, resetTimer));
       if (countdownInterval) clearInterval(countdownInterval);
     };
-  }, [profile?.pin, isLocked, isLockEnabled, lockTimeout]);
+  }, [profile?.pin, isLocked, isLockEnabled, lockTimeout, loading]);
 
   // Desconexão total automática após o dobro do tempo de bloqueio
   useEffect(() => {

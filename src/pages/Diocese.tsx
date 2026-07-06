@@ -777,9 +777,9 @@ export function Diocese() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
-        <SummaryCard label="Total de Foranias" value={foraries.length} icon={<MapIcon size={20} />} color="bg-slate-700" />
-        <SummaryCard label="Paróquias Ativas" value={parishes.length} icon={<Church size={20} />} color="bg-blue-600" />
-        <SummaryCard label="Clero e Membros" value={clergy.length} icon={<Users size={20} />} color="bg-slate-800" />
+        <SummaryCard label="Foranias" value={foraries.length} icon={<MapIcon size={20} />} color="bg-slate-700" />
+        <SummaryCard label="Paróquias" value={parishes.length} icon={<Church size={20} />} color="bg-blue-600" />
+        <SummaryCard label="Clero e Diáconos" value={clergy.length} icon={<Users size={20} />} color="bg-slate-800" />
       </div>
 
       {/* Nav Tabs */}
@@ -831,7 +831,7 @@ export function Diocese() {
             )}
           >
             <Shield size={14} />
-            Clero
+            Clero/Diaconia
           </button>
         </div>
 
@@ -1369,7 +1369,7 @@ export function Diocese() {
                           <div className="flex items-center justify-between">
                             <h4 className="text-[11px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-2">
                               <Users size={14} />
-                              Equipe de Clero e Membros
+                              Equipe de Clero e Diáconos
                             </h4>
                             <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[9px] font-bold uppercase border border-blue-100">
                               {clergy.filter(c => c.parish_id === selectedItem.id).length} Vinculados
@@ -1996,13 +1996,13 @@ export function Diocese() {
                       <DetailField label="Forania" value={foraries.find(f => f.id === selectedItem.forania_id)?.name} icon={<MapIcon size={14} />} />
                       <DetailField label="Padre Responsável" value={selectedItem.priest_name} icon={<User size={14} />} />
                       <DetailField label="CNPJ" value={selectedItem.cnpj} icon={<Building2 size={14} />} />
+                      <DetailField label="Data de Fundação" value={selectedItem.foundation_date ? new Date(selectedItem.foundation_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'} icon={<Scroll size={14} />} />
                       <DetailField label="Endereço" value={`${selectedItem.address_street || ''}, ${selectedItem.address_number || ''}`} icon={<MapPin size={14} />} fullWidth />
                       <DetailField label="Bairro" value={selectedItem.address_neighborhood} icon={<MapPin size={14} />} />
                       <DetailField label="Cidade/UF" value={`${selectedItem.address_city || ''} - ${selectedItem.address_state || ''}`} icon={<MapPin size={14} />} />
                       <DetailField label="E-mail Institucional" value={selectedItem.email} icon={<Mail size={14} />} fullWidth />
                       <DetailField label="Telefone Fixo" value={selectedItem.phone} icon={<Phone size={14} />} />
                       <DetailField label="Telefone Celular" value={selectedItem.phone_mobile} icon={<PhoneCall size={14} />} />
-                      <DetailField label="Data de Fundação" value={selectedItem.foundation_date ? new Date(selectedItem.foundation_date + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'} icon={<Scroll size={14} />} />
                       
                       {selectedItem.notes && (
                         <div className="md:col-span-2 space-y-1.5">

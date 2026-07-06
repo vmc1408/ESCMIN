@@ -1010,8 +1010,18 @@ export function AcademicCalendar() {
           });
         }
       }
-    } catch (error) {
-      console.error("Error syncing holidays:", error);
+    } catch (error: any) {
+      const isOfflineError = 
+        (typeof window !== 'undefined' && !window.navigator.onLine) || 
+        error?.message?.toLowerCase().includes('offline') || 
+        error?.message?.toLowerCase().includes('failed to fetch') || 
+        error?.message?.toLowerCase().includes('network error');
+
+      if (isOfflineError) {
+        console.warn("Dispositivo offline ao sincronizar feriados (Ignorado):", error?.message || error);
+      } else {
+        console.error("Error syncing holidays:", error);
+      }
       if (!silent) setNotification({ type: 'err', message: 'Erro ao sincronizar feriados.' });
     } finally {
       syncInProgress.current = false;

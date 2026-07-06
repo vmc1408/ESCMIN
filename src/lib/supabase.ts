@@ -20,7 +20,7 @@ const setDbConnected = (val: boolean, latency: number | null = null, error: stri
 /**
  * Utility to fetch with timeout
  */
-export const fetchWithTimeout = async (promise: any, timeoutMs = 20000, maxRetries = 1): Promise<any> => {
+export const fetchWithTimeout = async (promise: any, timeoutMs = 5000, maxRetries = 1): Promise<any> => {
   if (typeof window !== 'undefined' && !window.navigator.onLine) {
     return { data: null, error: { message: 'Dispositivo Offline', isOffline: true } };
   }
@@ -139,7 +139,7 @@ export const testConnection = async () => {
     // Timeout curto para pulso de status (não queremos que o app pare esperando isso)
     const response = await fetchWithTimeout(
       supabase.from('users').select('id', { count: 'exact', head: true }).limit(1),
-      10000 
+      3000 
     );
     const latency = Date.now() - startTime;
     
@@ -154,8 +154,14 @@ export const testConnection = async () => {
       if (isAuthError) {
         setDbConnected(true, latency, null);
       } else {
-        // Reduzimos o ruído: só marca offline se não houver resposta nenhuma ou for timeout
-        if (response.error.isTimeout || msg.includes('Failed to fetch')) {
+        // Reduzimos o ruído: só marca offline se não houver resposta nenhuma, for timeout ou offline
+        const isOfflineError = 
+          response.error.isTimeout || 
+          response.error.isOffline || 
+          msg.includes('Failed to fetch') || 
+          msg.toLowerCase().includes('offline');
+
+        if (isOfflineError) {
           setDbConnected(false, latency, msg || 'Tempo de resposta excedido');
         }
       }

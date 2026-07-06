@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured, fetchWithTimeout } from '../lib/supabase';
+import React, { useState, useEffect, useRef } from 'react';
+import { supabase, isSupabaseConfigured, fetchWithTimeout, testConnection } from '../lib/supabase';
 import { saveData, deleteData, fetchCount, getInstitutionSettings } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +9,8 @@ import {
   Lock, 
   Loader2, 
   AlertCircle,
+  AlertTriangle,
+  RefreshCw,
   CheckCircle2,
   Database,
   X,
@@ -37,12 +39,63 @@ export function Login() {
   const [institution, setInstitution] = useState<any>(null);
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0 });
   const [rememberMe, setRememberMe] = useState(false);
-  
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError } = useAuth();
   const from = location.state?.from?.pathname || "/";
   const stateError = location.state?.error;
+
+  const [isRetrying, setIsRetrying] = useState(false);
+  const prevIsConnectedRef = useRef(isConnected);
+
+  // Alerta sonoro / Bip de falha de conexão
+  useEffect(() => {
+    if (!isConnected && prevIsConnectedRef.current) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          
+          const playTone = (freq: number, startTime: number, duration: number, type: 'sine' | 'sawtooth' | 'triangle' = 'triangle') => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, startTime);
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.12, startTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+          };
+
+          const now = ctx.currentTime;
+          playTone(440, now, 0.12, 'sawtooth');
+          playTone(554, now + 0.15, 0.12, 'sawtooth');
+          playTone(659, now + 0.30, 0.25, 'triangle');
+        }
+      } catch (err) {
+        console.warn('Erro ao emitir alerta sonoro de conexão:', err);
+      }
+    }
+    prevIsConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  const handleManualReconnect = async () => {
+    setIsRetrying(true);
+    try {
+      await testConnection();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTimeout(() => {
+        setIsRetrying(false);
+      }, 1000);
+    }
+  };
 
   // Redirect if already logged in and NOT locked and has profile
   useEffect(() => {
@@ -85,8 +138,18 @@ export function Login() {
           students: sCount || 0,
           subjects: subCount || 0
         });
-      } catch (err) {
-        console.error("Init check error:", err);
+      } catch (err: any) {
+        const isOfflineError = 
+          (typeof window !== 'undefined' && !window.navigator.onLine) || 
+          err?.message?.toLowerCase().includes('offline') || 
+          err?.message?.toLowerCase().includes('failed to fetch') || 
+          err?.message?.toLowerCase().includes('network error');
+
+        if (isOfflineError) {
+          console.warn("Dispositivo offline ou erro de rede no checkup de inicialização:", err?.message || err);
+        } else {
+          console.error("Init check error:", err);
+        }
       }
     };
     checkInitialization();
@@ -368,24 +431,69 @@ export function Login() {
             transition={{ delay: 0.2 }}
             className="space-y-12"
           >
-            {/* Connection Error Message */}
-          {!isConnected && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-4"
-            >
-              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
-                <AlertCircle size={24} />
+            {/* Connection Error Full-Screen Modal Overlay */}
+            {!isConnected && (
+              <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="relative overflow-hidden bg-slate-900 border-2 border-red-500 rounded-2xl shadow-2xl max-w-md w-full p-8 text-white flex flex-col items-center text-center"
+                >
+                  {/* Fundo listrado de advertência sutil */}
+                  <div className="absolute inset-0 bg-[linear-gradient(45deg,#ff000005_25%,transparent_25%,transparent_50%,#ff000005_50%,#ff000005_75%,transparent_75%,transparent)] bg-[size:30px_30px] opacity-40 pointer-events-none" />
+                  
+                  <div className="relative mb-6">
+                    {/* Anéis de pulso de perigo */}
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-20 animate-ping" />
+                    <div className="relative p-5 bg-red-600 text-white rounded-full border border-red-400 shadow-lg shadow-red-600/30 flex items-center justify-center">
+                      <AlertTriangle size={36} className="animate-bounce" />
+                    </div>
+                  </div>
+                  
+                  <span className="px-3 py-1 bg-red-600/20 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+                    Alerta de Conectividade
+                  </span>
+                  
+                  <h5 className="text-lg font-black uppercase tracking-wider text-white leading-tight">
+                    Falha de Conexão com o Servidor
+                  </h5>
+                  
+                  <p className="text-xs font-medium text-slate-300 mt-3 leading-relaxed">
+                    Não foi possível conectar ao banco de dados principal. Por favor, verifique a sua conexão com a internet.
+                  </p>
+                  
+                  <div className="my-4 px-4 py-3 bg-red-950/50 border border-red-900/50 rounded-lg w-full text-left">
+                    <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest block mb-0.5">Detalhes da conexão:</span>
+                    <p className="text-[11px] font-mono text-red-200 break-words">{connError || 'Dispositivo offline ou rede instável.'}</p>
+                  </div>
+                  
+                  <p className="text-xs text-slate-400 font-medium mb-2">
+                    Como este sistema opera de modo 100% online, é necessário estabelecer contato estável com o servidor principal para assegurar a integridade das operações.
+                  </p>
+
+                  <p className="text-xs text-red-400 font-semibold mb-6">
+                    Se o problema persistir, sugerimos atualizar a página (F5) ou fechar o sistema e tentar novamente mais tarde.
+                  </p>
+
+                  <div className="flex flex-col gap-2 w-full">
+                    <button
+                      onClick={handleManualReconnect}
+                      disabled={isRetrying}
+                      className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 active:scale-[0.98] text-white font-black text-xs rounded-xl transition-all shadow-lg shadow-red-600/40 uppercase tracking-widest border border-red-500 cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {isRetrying ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin" />
+                          Tentando reconectar...
+                        </>
+                      ) : (
+                        'Tentar Reconectar Agora'
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-              <div className="flex-1">
-                <p className="text-amber-900 font-bold text-[10px] uppercase tracking-wider mb-1">Erro de Conexão</p>
-                <p className="text-amber-700 text-[11px] leading-relaxed font-medium">
-                  Não foi possível conectar ao banco de dados. {connError || 'Verifique sua internet ou se o Supabase está ativo.'}
-                </p>
-              </div>
-            </motion.div>
-          )}
+            )}
 
           <div className="space-y-4">
               <h2 className="text-4xl lg:text-5xl font-bold text-white leading-[1.1]">

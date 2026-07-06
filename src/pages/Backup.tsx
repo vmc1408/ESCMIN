@@ -9,7 +9,7 @@ export function BackupPage() {
         <div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
             <Database className="text-indigo-600 animate-pulse" size={26} />
-            Central de Backup e Nuvem
+            Backup
           </h2>
           <p className="text-[11px] font-black text-indigo-400 uppercase tracking-widest mt-1">
             Restauração, Cópias de Segurança e Sincronização de Dados do Sistema

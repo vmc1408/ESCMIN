@@ -1,4 +1,4 @@
-import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout } from './supabase';
+import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout, isDbConnected, connectionError } from './supabase';
 
 // LocalStorage fallback helpers
 export const isTableUsingFallback = (tableName: string): boolean => {
@@ -122,25 +122,36 @@ export function handleDbError(error: any, operation: any, path: string | null = 
  * Utility to fetch all data from a collection using Supabase
  */
 export const fetchAll = async (collectionName: string, select = '*', orderCol = 'created_at', ascending = false) => {
+  const isOffline = typeof window !== 'undefined' && (!window.navigator.onLine || !isDbConnected);
+
+  const returnLocalData = () => {
+    const localData = getLocalCollection(collectionName);
+    if (orderCol) {
+      localData.sort((a, b) => {
+        const valA = a[orderCol];
+        const valB = b[orderCol];
+        if (valA === undefined) return 1;
+        if (valB === undefined) return -1;
+        if (valA < valB) return ascending ? -1 : 1;
+        if (valA > valB) return ascending ? 1 : -1;
+        return 0;
+      });
+    }
+    return localData;
+  };
+
+  if (isOffline) {
+    console.warn(`[Supabase Offline Fastpath] Buscando localmente de ${collectionName} devido a dispositivo offline.`);
+    return returnLocalData();
+  }
+
   try {
     if (isTableUsingFallback(collectionName)) {
       await tryRecoveryFromFallback(collectionName);
     }
 
     if (isTableUsingFallback(collectionName)) {
-      const localData = getLocalCollection(collectionName);
-      if (orderCol) {
-        localData.sort((a, b) => {
-          const valA = a[orderCol];
-          const valB = b[orderCol];
-          if (valA === undefined) return 1;
-          if (valB === undefined) return -1;
-          if (valA < valB) return ascending ? -1 : 1;
-          if (valA > valB) return ascending ? 1 : -1;
-          return 0;
-        });
-      }
-      return localData;
+      return returnLocalData();
     }
 
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
@@ -151,15 +162,24 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     if (isDatabaseMissingOrCacheError(err)) {
       console.warn(`[Supabase Fetch Fallback] Tabela "${collectionName}" não encontrada. Usando fallback local.`);
       setTableUsingFallback(collectionName, true);
-      return getLocalCollection(collectionName);
+      return returnLocalData();
     }
 
-    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
-      console.warn(`[Supabase] Timeout/Rede ao listar ${collectionName}.`);
-      return getLocalCollection(collectionName);
+    const isOfflineOrNetwork = 
+      err.isOffline || 
+      err.isTimeout || 
+      err.message?.includes('Offline') || 
+      err.message?.includes('offline') || 
+      err.message?.includes('TIMEOUT') || 
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('Network Error');
+
+    if (isOfflineOrNetwork) {
+      console.warn(`[Supabase Offline Fallback] Erro de rede ou offline ao listar ${collectionName}. Usando cópia local.`);
+    } else {
+      console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err.message);
     }
-    console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err.message);
-    return getLocalCollection(collectionName);
+    return returnLocalData();
   }
 };
 
@@ -168,6 +188,13 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
  */
 export const fetchById = async (collectionName: string, id: string, timeoutMs = 20000) => {
   if (!id) return null;
+
+  const isOffline = typeof window !== 'undefined' && (!window.navigator.onLine || !isDbConnected);
+  if (isOffline) {
+    console.warn(`[Supabase Offline Fastpath] Buscando ID ${id} localmente de ${collectionName} devido a dispositivo offline.`);
+    const list = getLocalCollection(collectionName);
+    return list.find((x: any) => x.id === id) || null;
+  }
 
   try {
     if (isTableUsingFallback(collectionName)) {
@@ -210,13 +237,22 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
       return list.find((x: any) => x.id === id) || null;
     }
 
-    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
-      console.warn(`[Supabase] Timeout/Rede ao buscar ${collectionName} ID ${id}.`);
-      const list = getLocalCollection(collectionName);
-      return list.find((x: any) => x.id === id) || null;
+    const isOfflineOrNetwork = 
+      err.isOffline || 
+      err.isTimeout || 
+      err.message?.includes('Offline') || 
+      err.message?.includes('offline') || 
+      err.message?.includes('TIMEOUT') || 
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('Network Error');
+
+    if (isOfflineOrNetwork) {
+      console.warn(`[Supabase Offline Fallback] Erro de rede ou offline ao buscar ${collectionName} ID ${id}. Usando cópia local.`);
+    } else {
+      console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err.message);
     }
-    console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err.message);
-    throw err;
+    const list = getLocalCollection(collectionName);
+    return list.find((x: any) => x.id === id) || null;
   }
 };
 
@@ -229,35 +265,46 @@ export const fetchQuery = async (
   operator?: string, 
   value?: any
 ) => {
+  const isOffline = typeof window !== 'undefined' && (!window.navigator.onLine || !isDbConnected);
+
+  const queryLocalData = () => {
+    const list = getLocalCollection(collectionName);
+    return list.filter(item => {
+      if (Array.isArray(fieldOrFilters)) {
+        return fieldOrFilters.every(filter => {
+          const itemVal = item[filter.field];
+          const op = filter.operator === '==' ? 'eq' : filter.operator;
+          if (op === 'eq') return itemVal === filter.value;
+          if (op === 'neq' || op === '!=') return itemVal !== filter.value;
+          if (op === 'gte' || op === '>=') return itemVal >= filter.value;
+          if (op === '<=') return itemVal <= filter.value;
+          if (op === 'in') return Array.isArray(filter.value) && filter.value.includes(itemVal);
+          return true;
+        });
+      } else if (typeof fieldOrFilters === 'string' && operator) {
+        const itemVal = item[fieldOrFilters];
+        const op = operator === '==' ? 'eq' : operator;
+        if (op === 'eq') return itemVal === value;
+        if (op === 'gte' || op === '>=') return itemVal >= value;
+        if (op === '<=') return itemVal <= value;
+        if (op === 'in') return Array.isArray(value) && value.includes(itemVal);
+      }
+      return true;
+    });
+  };
+
+  if (isOffline) {
+    console.warn(`[Supabase Offline Fastpath] Executando query localmente em ${collectionName} devido a dispositivo offline.`);
+    return queryLocalData();
+  }
+
   try {
     if (isTableUsingFallback(collectionName)) {
       await tryRecoveryFromFallback(collectionName);
     }
 
     if (isTableUsingFallback(collectionName)) {
-      const list = getLocalCollection(collectionName);
-      return list.filter(item => {
-        if (Array.isArray(fieldOrFilters)) {
-          return fieldOrFilters.every(filter => {
-            const itemVal = item[filter.field];
-            const op = filter.operator === '==' ? 'eq' : filter.operator;
-            if (op === 'eq') return itemVal === filter.value;
-            if (op === 'neq' || op === '!=') return itemVal !== filter.value;
-            if (op === 'gte' || op === '>=') return itemVal >= filter.value;
-            if (op === '<=') return itemVal <= filter.value;
-            if (op === 'in') return Array.isArray(filter.value) && filter.value.includes(itemVal);
-            return true;
-          });
-        } else if (typeof fieldOrFilters === 'string' && operator) {
-          const itemVal = item[fieldOrFilters];
-          const op = operator === '==' ? 'eq' : operator;
-          if (op === 'eq') return itemVal === value;
-          if (op === 'gte' || op === '>=') return itemVal >= value;
-          if (op === '<=') return itemVal <= value;
-          if (op === 'in') return Array.isArray(value) && value.includes(itemVal);
-        }
-        return true;
-      });
+      return queryLocalData();
     }
 
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
@@ -293,30 +340,24 @@ export const fetchQuery = async (
   } catch (err: any) {
     if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
-      const list = getLocalCollection(collectionName);
-      return list.filter(item => {
-        if (Array.isArray(fieldOrFilters)) {
-          return fieldOrFilters.every(filter => {
-            const itemVal = item[filter.field];
-            const op = filter.operator === '==' ? 'eq' : filter.operator;
-            if (op === 'eq') return itemVal === filter.value;
-            if (op === 'neq' || op === '!=') return itemVal !== filter.value;
-            if (op === 'gte' || op === '>=') return itemVal >= filter.value;
-            if (op === '<=') return itemVal <= filter.value;
-            if (op === 'in') return Array.isArray(filter.value) && filter.value.includes(itemVal);
-            return true;
-          });
-        }
-        return true;
-      });
+      return queryLocalData();
     }
 
-    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
-      console.warn(`[Supabase] Erro de rede ou timeout na query em ${collectionName}`);
-      return [];
+    const isOfflineOrNetwork = 
+      err.isOffline || 
+      err.isTimeout || 
+      err.message?.includes('Offline') || 
+      err.message?.includes('offline') || 
+      err.message?.includes('TIMEOUT') || 
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('Network Error');
+
+    if (isOfflineOrNetwork) {
+      console.warn(`[Supabase Offline Fallback] Erro de rede ou offline na query em ${collectionName}. Usando cópia local.`);
+    } else {
+      console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, err.message);
     }
-    console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, err.message);
-    return [];
+    return queryLocalData();
   }
 };
 
@@ -324,19 +365,30 @@ export const fetchQuery = async (
  * Count utility using Supabase
  */
 export const fetchCount = async (collectionName: string, status?: string) => {
+  const isOffline = typeof window !== 'undefined' && (!window.navigator.onLine || !isDbConnected);
+
+  const countLocalData = () => {
+    const list = getLocalCollection(collectionName);
+    if (status === 'Ativo') {
+      return list.filter(x => x.status === 'Ativo' || !x.status).length;
+    } else if (status) {
+      return list.filter(x => x.status === status).length;
+    }
+    return list.length;
+  };
+
+  if (isOffline) {
+    console.warn(`[Supabase Offline Fastpath] Contando localmente em ${collectionName} devido a dispositivo offline.`);
+    return countLocalData();
+  }
+
   try {
     if (isTableUsingFallback(collectionName)) {
       await tryRecoveryFromFallback(collectionName);
     }
 
     if (isTableUsingFallback(collectionName)) {
-      const list = getLocalCollection(collectionName);
-      if (status === 'Ativo') {
-        return list.filter(x => x.status === 'Ativo' || !x.status).length;
-      } else if (status) {
-        return list.filter(x => x.status === status).length;
-      }
-      return list.length;
+      return countLocalData();
     }
 
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
@@ -356,21 +408,31 @@ export const fetchCount = async (collectionName: string, status?: string) => {
   } catch (err: any) {
     if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
-      const list = getLocalCollection(collectionName);
-      if (status === 'Ativo') {
-        return list.filter(x => x.status === 'Ativo' || !x.status).length;
-      } else if (status) {
-        return list.filter(x => x.status === status).length;
-      }
-      return list.length;
     }
 
-    if (err.isTimeout || err.message?.includes('TIMEOUT') || err.message?.includes('Failed to fetch')) {
-      console.warn(`[Supabase] Erro de rede ou timeout ao contar em ${collectionName}`);
-      return 0;
+    const isOfflineOrNetwork = 
+      err.isOffline || 
+      err.isTimeout || 
+      err.message?.includes('Offline') || 
+      err.message?.includes('offline') || 
+      err.message?.includes('TIMEOUT') || 
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('Network Error');
+
+    if (isOfflineOrNetwork) {
+      console.warn(`[Supabase Offline Fallback] Erro de rede ou offline ao contar em ${collectionName}. Usando contagem local.`);
+    } else {
+      console.error(`[Supabase] Erro ao contar em ${collectionName}:`, err.message);
     }
-    console.error(`[Supabase] Erro ao contar em ${collectionName}:`, err.message);
-    return 0;
+
+    // Fallback to local collection count on any error
+    const list = getLocalCollection(collectionName);
+    if (status === 'Ativo') {
+      return list.filter(x => x.status === 'Ativo' || !x.status).length;
+    } else if (status) {
+      return list.filter(x => x.status === status).length;
+    }
+    return list.length;
   }
 };
 
@@ -427,6 +489,12 @@ export const saveData = async (collectionName: string, id: string | undefined, d
     }
   }
 
+  const isOffline = typeof window !== 'undefined' && (!window.navigator.onLine || !isDbConnected);
+  if (isOffline) {
+    console.warn(`[Supabase Offline Fastpath] Gravando localmente em ${collectionName} devido a dispositivo offline.`);
+    return saveLocalItem(collectionName, finalId, payload);
+  }
+
   try {
     if (isTableUsingFallback(collectionName)) {
       await tryRecoveryFromFallback(collectionName);
@@ -460,11 +528,17 @@ export const saveData = async (collectionName: string, id: string | undefined, d
             return saveLocalItem(collectionName, finalId, payload);
           }
 
-          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Failed to fetch') || errorMsg.includes('Network Error')) {
-            console.warn(`[Supabase Retry] Erro de rede ou timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
-            attempts++;
-            await wait(1000 * attempts);
-            continue;
+          const isErrorOffline = 
+            errorVal.isOffline || 
+            errorVal.isTimeout || 
+            errorMsgLower.includes('offline') || 
+            errorMsgLower.includes('timeout') || 
+            errorMsgLower.includes('failed to fetch') ||
+            errorMsgLower.includes('network error');
+
+          if (isErrorOffline) {
+            console.warn(`[Supabase Offline Fallback] Erro de rede ou offline ao salvar em ${collectionName}. Usando cópia local.`);
+            return saveLocalItem(collectionName, finalId, payload);
           }
 
           // Missing column fallback
@@ -503,12 +577,23 @@ export const saveData = async (collectionName: string, id: string | undefined, d
         
         return finalId;
       } catch (innerErr: any) {
-        if (innerErr.message?.includes('TIMEOUT')) {
-          attempts++;
-          await wait(1000 * attempts);
-          continue;
+        const innerMsgLower = (innerErr.message || '').toLowerCase();
+        const isInnerOffline = 
+          innerErr.isOffline || 
+          innerErr.isTimeout || 
+          innerMsgLower.includes('offline') || 
+          innerMsgLower.includes('timeout') || 
+          innerMsgLower.includes('failed to fetch') ||
+          innerMsgLower.includes('network error');
+
+        if (isInnerOffline) {
+          console.warn(`[Supabase Offline Fallback] Erro de rede ou offline no loop de gravação em ${collectionName}. Usando cópia local.`);
+          return saveLocalItem(collectionName, finalId, payload);
         }
-        throw innerErr;
+
+        attempts++;
+        await wait(1000 * attempts);
+        continue;
       }
     }
 
@@ -520,8 +605,21 @@ export const saveData = async (collectionName: string, id: string | undefined, d
       return saveLocalItem(collectionName, finalId, payload);
     }
 
-    console.error(`[saveData] Erro fatal em "${collectionName}":`, err.message);
-    throw err;
+    const isOfflineOrNetwork = 
+      err.isOffline || 
+      err.isTimeout || 
+      err.message?.includes('Offline') || 
+      err.message?.includes('offline') || 
+      err.message?.includes('TIMEOUT') || 
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('Network Error');
+
+    if (isOfflineOrNetwork) {
+      console.warn(`[Supabase Fallback] Erro fatal de rede ou offline em "${collectionName}". Gravando localmente.`);
+    } else {
+      console.error(`[saveData] Erro fatal em "${collectionName}":`, err.message);
+    }
+    return saveLocalItem(collectionName, finalId, payload);
   }
 };
 
@@ -535,6 +633,19 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
     ...item,
     id: item.id || crypto.randomUUID()
   }));
+
+  const saveBatchLocally = () => {
+    payloads.forEach(p => {
+      saveLocalItem(collectionName, p.id, p);
+    });
+    return payloads.map(p => p.id);
+  };
+
+  const isOffline = typeof window !== 'undefined' && (!window.navigator.onLine || !isDbConnected);
+  if (isOffline) {
+    console.warn(`[Supabase Offline Fastpath] Salvando lote localmente em ${collectionName} devido a dispositivo offline.`);
+    return saveBatchLocally();
+  }
 
   try {
     if (!isSupabaseConfigured) throw new Error('Supabase not configured');
@@ -552,6 +663,21 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
             ? (errorVal.message || String(errorVal)) 
             : String(errorVal);
 
+          const errorMsgLower = errorMsg.toLowerCase();
+
+          const isErrorOffline = 
+            errorVal.isOffline || 
+            errorVal.isTimeout || 
+            errorMsgLower.includes('offline') || 
+            errorMsgLower.includes('timeout') || 
+            errorMsgLower.includes('failed to fetch') ||
+            errorMsgLower.includes('network error');
+
+          if (isErrorOffline) {
+            console.warn(`[Supabase Batch Fallback] Erro de rede ou offline ao salvar lote em ${collectionName}. Usando cópia local.`);
+            return saveBatchLocally();
+          }
+
           // Retry logic for timeouts or network errors
           if (errorVal.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Failed to fetch') || errorMsg.includes('Network Error')) {
             console.warn(`[Supabase Batch Retry] Erro de rede ou timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
@@ -561,7 +687,6 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
           }
 
           // Missing column fallback
-          const errorMsgLower = errorMsg.toLowerCase();
           const isMissingCol = errorMsgLower.includes('column') && 
                               (errorMsg.includes('not found') || 
                                errorMsg.includes('schema cache') || 
@@ -600,19 +725,43 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
         
         return payloads.map(p => p.id);
       } catch (innerErr: any) {
-        if (innerErr.message?.includes('TIMEOUT')) {
-          attempts++;
-          await wait(1000 * attempts);
-          continue;
+        const innerMsgLower = (innerErr.message || '').toLowerCase();
+        const isInnerOffline = 
+          innerErr.isOffline || 
+          innerErr.isTimeout || 
+          innerMsgLower.includes('offline') || 
+          innerMsgLower.includes('timeout') || 
+          innerMsgLower.includes('failed to fetch') ||
+          innerMsgLower.includes('network error');
+
+        if (isInnerOffline) {
+          console.warn(`[Supabase Offline Fallback] Erro de rede ou offline no lote em ${collectionName}. Usando cópia local.`);
+          return saveBatchLocally();
         }
-        throw innerErr;
+
+        attempts++;
+        await wait(1000 * attempts);
+        continue;
       }
     }
 
     throw new Error(`Falha ao salvar lote em ${collectionName} após várias tentativas.`);
   } catch (err: any) {
-    console.error(`[saveBatch] Erro fatal em "${collectionName}":`, err.message);
-    throw err;
+    const isOfflineOrNetwork = 
+      err.isOffline || 
+      err.isTimeout || 
+      err.message?.includes('Offline') || 
+      err.message?.includes('offline') || 
+      err.message?.includes('TIMEOUT') || 
+      err.message?.includes('Failed to fetch') ||
+      err.message?.includes('Network Error');
+
+    if (isOfflineOrNetwork) {
+      console.warn(`[Supabase Batch Fallback] Erro fatal de rede ou offline ao salvar lote em ${collectionName}. Usando cópia local.`);
+    } else {
+      console.error(`[saveBatch] Erro fatal em "${collectionName}":`, err.message);
+    }
+    return saveBatchLocally();
   }
 };
 

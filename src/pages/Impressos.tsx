@@ -16,7 +16,9 @@ import {
   Phone,
   Mail,
   MapPin,
-  HelpCircle
+  HelpCircle,
+  MessageCircle,
+  X
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
@@ -38,6 +40,7 @@ export function Impressos() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [studentSearch, setStudentSearch] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   // Customization fields
   const [customText, setCustomText] = useState('');
@@ -123,15 +126,7 @@ export function Impressos() {
         setInstitution(instSettings || null);
         
         // Pick first student/class as default
-        if (studs && studs.length > 0) {
-          // Sort active students first
-          const activeOnes = studs.filter(s => s.status === 'Ativo');
-          if (activeOnes.length > 0) {
-            setSelectedStudentId(activeOnes[0].id);
-          } else {
-            setSelectedStudentId(studs[0].id);
-          }
-        }
+        setSelectedStudentId('');
         if (clss && clss.length > 0) {
           setSelectedClassId(clss[0].id);
         }
@@ -160,10 +155,41 @@ export function Impressos() {
   // Derived filtered students list for dropdowns/search
   const filteredStudents = useMemo(() => {
     if (!studentSearch) return students;
-    return students.filter(s => 
-      s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-      (s.registration_number && s.registration_number.toLowerCase().includes(studentSearch.toLowerCase()))
+    const query = studentSearch.toLowerCase().trim();
+    if (!query) return students;
+
+    const matched = students.filter(s => 
+      s.name.toLowerCase().includes(query) ||
+      (s.registration_number && s.registration_number.toLowerCase().includes(query))
     );
+
+    return matched.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      const aReg = a.registration_number ? a.registration_number.toLowerCase() : '';
+      const bReg = b.registration_number ? b.registration_number.toLowerCase() : '';
+
+      // 1. Exact name starts-with
+      const aStartsName = aName.startsWith(query);
+      const bStartsName = bName.startsWith(query);
+      if (aStartsName && !bStartsName) return -1;
+      if (!aStartsName && bStartsName) return 1;
+
+      // 2. Registration number starts-with
+      const aStartsReg = aReg.startsWith(query);
+      const bStartsReg = bReg.startsWith(query);
+      if (aStartsReg && !bStartsReg) return -1;
+      if (!aStartsReg && bStartsReg) return 1;
+
+      // 3. Any word in the name starts-with (e.g. "Da Silva")
+      const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(query));
+      const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(query));
+      if (aWordStarts && !bWordStarts) return -1;
+      if (!aWordStarts && bWordStarts) return 1;
+
+      // 4. Alphabetical by name as fallback
+      return a.name.localeCompare(b.name);
+    });
   }, [students, studentSearch]);
 
   const activeStudent = useMemo(() => {
@@ -274,7 +300,8 @@ export function Impressos() {
       >
         <button
           onClick={handlePrint}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-blue-600/10"
+          disabled={selectedType === 'declaracao' && !selectedStudentId}
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none text-white rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-blue-600/10"
         >
           <Printer size={13} />
           Imprimir Documento
@@ -289,7 +316,10 @@ export function Impressos() {
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modelos Disponíveis</h3>
             <div className="space-y-1.5">
               <button
-                onClick={() => setSelectedType('declaracao')}
+                onClick={() => {
+                  setSelectedType('declaracao');
+                  setSelectedStudentId('');
+                }}
                 className={cn(
                   "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
                   selectedType === 'declaracao' 
@@ -354,7 +384,10 @@ export function Impressos() {
               </button>
 
               <button
-                onClick={() => setSelectedType('quitacao')}
+                onClick={() => {
+                  setSelectedType('quitacao');
+                  setSelectedStudentId('');
+                }}
                 className={cn(
                   "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
                   selectedType === 'quitacao' 
@@ -379,45 +412,102 @@ export function Impressos() {
                 type="date"
                 value={documentDate}
                 onChange={(e) => setDocumentDate(e.target.value)}
-                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50"
+                disabled={(selectedType === 'declaracao' || selectedType === 'quitacao') && !selectedStudentId}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
-            {/* Student Search & Select (Applicable for Declaracao, Quitacao) */}
+            {/* Student Search (Single field) */}
             {(selectedType === 'declaracao' || selectedType === 'quitacao') && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Pesquisar Aluno</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-                    <input 
-                      type="text"
-                      placeholder="NOME OU MATRÍCULA..."
-                      value={studentSearch}
-                      onChange={(e) => setStudentSearch(e.target.value)}
-                      className="w-full pl-8 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold uppercase focus:outline-none focus:border-blue-500"
-                    />
+              <div className="space-y-1.5 relative">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Buscar Aluno *</label>
+                
+                {selectedStudentId ? (
+                  /* Beautiful selected student badge */
+                  <div className="flex items-center justify-between w-full px-3 py-2.5 border border-blue-200 bg-blue-50/70 rounded-xl transition-all shadow-sm">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-full bg-blue-150 flex items-center justify-center text-blue-600 shrink-0 font-bold text-[10px]">
+                        {activeStudent?.name ? activeStudent.name.charAt(0).toUpperCase() : '?'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black text-blue-900 uppercase tracking-wide truncate">
+                          {activeStudent?.name}
+                        </p>
+                        <p className="text-[9px] font-mono text-blue-600/80 uppercase">
+                          Matrícula: {activeStudent?.registration_number || 'Sem Registro'}
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setSelectedStudentId('');
+                        setStudentSearch('');
+                      }}
+                      className="text-blue-500 hover:text-blue-700 p-1.5 rounded-lg hover:bg-blue-100/60 transition-colors shrink-0"
+                      title="Alterar Aluno"
+                    >
+                      <X size={14} className="stroke-[2.5]" />
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  /* Interactive search input */
+                  <div className="relative z-30">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                      <input 
+                        type="text"
+                        placeholder="DIGITE O NOME OU MATRÍCULA..."
+                        value={studentSearch}
+                        onChange={(e) => {
+                          setStudentSearch(e.target.value);
+                          setIsDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsDropdownOpen(true)}
+                        className="w-full pl-8 pr-8 py-2 border border-slate-200 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 bg-white transition-all shadow-sm placeholder:text-slate-400"
+                      />
+                      {studentSearch && (
+                        <button 
+                          type="button"
+                          onClick={() => setStudentSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
 
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Selecionar Aluno *</label>
-                  <select
-                    value={selectedStudentId}
-                    onChange={(e) => setSelectedStudentId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase bg-slate-50"
-                  >
-                    {filteredStudents.length === 0 ? (
-                      <option value="">Nenhum aluno encontrado</option>
-                    ) : (
-                      filteredStudents.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.registration_number || 'S/ RA'})
-                        </option>
-                      ))
+                    {/* Floating Dropdown Results */}
+                    {isDropdownOpen && studentSearch.trim() !== '' && (
+                      <>
+                        <div className="fixed inset-0 z-20" onClick={() => setIsDropdownOpen(false)} />
+                        <div className="absolute z-30 mt-1.5 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 animate-in fade-in slide-in-from-top-1 duration-150">
+                          {filteredStudents.length === 0 ? (
+                            <div className="px-4 py-4 text-center text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                              Nenhum estudante encontrado
+                            </div>
+                          ) : (
+                            filteredStudents.slice(0, 15).map(s => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedStudentId(s.id);
+                                  setStudentSearch('');
+                                  setIsDropdownOpen(false);
+                                }}
+                                className="w-full px-4 py-2.5 text-left hover:bg-blue-50/50 transition-all flex flex-col gap-0.5 group"
+                              >
+                                <span className="text-[11px] font-black text-slate-700 uppercase group-hover:text-blue-700 transition-colors">{s.name}</span>
+                                <span className="text-[9px] font-mono text-slate-450 uppercase">Matrícula: {s.registration_number || 'Sem Registro'}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </>
                     )}
-                  </select>
-                </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -456,7 +546,12 @@ export function Impressos() {
 
             {/* Additional custom fields for Declaracao / Quitacao */}
             {selectedType === 'declaracao' && (
-              <div className="space-y-3 pt-2 border-t border-slate-150">
+              <div className={cn("space-y-3 pt-2 border-t border-slate-150", !selectedStudentId && "opacity-45 pointer-events-none select-none")}>
+                {!selectedStudentId && (
+                  <p className="text-[9.5px] text-amber-700 font-bold bg-amber-50 p-2.5 text-center leading-normal border border-amber-200 rounded-lg">
+                    Selecione um aluno acima para liberar as opções adicionais da Declaração.
+                  </p>
+                )}
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Observação / Adendo Customizado</label>
                   <textarea 
@@ -464,7 +559,8 @@ export function Impressos() {
                     rows={3}
                     value={customText}
                     onChange={(e) => setCustomText(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] font-medium focus:outline-none focus:border-blue-500"
+                    disabled={!selectedStudentId}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[11px] font-medium focus:outline-none focus:border-blue-500 disabled:bg-slate-50"
                   />
                 </div>
 
@@ -473,7 +569,8 @@ export function Impressos() {
                   <select
                     value={signerRole}
                     onChange={(e) => setSignerRole(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none"
+                    disabled={!selectedStudentId}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none disabled:bg-slate-50"
                   >
                     <option value="secretario">Apenas Secretário Acadêmico</option>
                     <option value="diretor">Apenas Diretor Acadêmico</option>
@@ -660,7 +757,7 @@ export function Impressos() {
                   <>
                     {/* Title */}
                     <div className="text-center space-y-2 pt-6">
-                      <h2 className="text-[20px] font-extrabold uppercase tracking-[0.2em] font-serif border-b-2 border-slate-950 pb-2 max-w-md mx-auto">
+                      <h2 className="text-[20px] font-extrabold uppercase tracking-[0.2em] font-serif pb-2 max-w-md mx-auto">
                         Declaração de Matrícula
                       </h2>
                       <p className="text-[10px] text-slate-400 tracking-widest uppercase font-sans">Matrícula Escolar Nº {activeStudent.registration_number}</p>
@@ -705,7 +802,7 @@ export function Impressos() {
                         <div className="flex flex-col items-center gap-1.5 text-center">
                           <div className="w-56 border-b border-black" />
                           <p className="text-[11px] font-bold text-slate-900 uppercase tracking-widest">
-                            {signerName || 'Nome do Assinante'}
+                            {signerName}
                           </p>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                             {signerTitle}
@@ -721,7 +818,7 @@ export function Impressos() {
                         <div className="flex flex-col items-center gap-1.5 text-center">
                           <div className="w-56 border-b border-black" />
                           <p className="text-[11px] font-bold text-slate-900 uppercase tracking-widest">
-                            {signerRole === 'ambos' ? (coSignerName || 'Nome do Diretor') : (signerName || 'Nome do Diretor')}
+                            {signerRole === 'ambos' ? coSignerName : signerName}
                           </p>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                             {signerRole === 'ambos' ? coSignerTitle : signerTitle}
@@ -731,8 +828,16 @@ export function Impressos() {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                    Nenhum aluno selecionado ou cadastrado no sistema.
+                  <div className="flex flex-col items-center justify-center py-32 text-center space-y-4">
+                    <div className="p-4 bg-slate-50 border border-slate-150 rounded-full text-slate-400">
+                      <Search size={32} className="stroke-[1.5]" />
+                    </div>
+                    <div className="space-y-1.5 max-w-sm">
+                      <h4 className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Nenhum Aluno Selecionado</h4>
+                      <p className="text-[11px] text-slate-500 leading-normal">
+                        Para emitir a <strong>Declaração de Matrícula</strong>, por favor busque e selecione o aluno desejado no painel de configurações à esquerda.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -832,47 +937,47 @@ export function Impressos() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      <div className="flex items-end gap-2">
+                    <div className="grid grid-cols-12 gap-x-4 gap-y-2">
+                      <div className="col-span-4 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Cep:</span>
                         <div className="flex-1 border-b border-slate-400 h-5" />
                       </div>
-                      <div className="flex items-end gap-2">
-                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Telefone:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5 relative">
-                          <span className="absolute left-1 bottom-0.5 text-[11px] text-slate-700 font-bold">( &nbsp; &nbsp; )</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-end gap-4">
-                      <div className="flex-1 flex items-end gap-2">
+                      <div className="col-span-8 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Email:</span>
                         <div className="flex-1 border-b border-slate-400 h-5" />
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">WhatsApp:</span>
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                          <span>Sim</span>
-                          <div className="w-3.5 h-3.5 border border-slate-400" />
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                          <span>Não</span>
-                          <div className="w-3.5 h-3.5 border border-slate-400" />
-                        </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-                      <div className="col-span-4 flex items-end gap-2">
-                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Nascimento:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                      <div className="col-span-5 flex items-end gap-2">
+                        <Phone size={15} className="text-slate-800 shrink-0 mb-1" />
+                        <div className="flex-1 border-b border-slate-400 h-5 relative">
+                          <span className="absolute left-1 bottom-0 text-[13px] text-slate-800 font-bold tracking-wide">( &nbsp; &nbsp; &nbsp; ) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span>
+                        </div>
                       </div>
-                      <div className="col-span-4 flex items-end gap-2">
+                      <div className="col-span-3 flex items-center gap-2 self-end h-5">
+                        <MessageCircle size={15} className="text-emerald-600 fill-emerald-100 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                          <span>Sim</span>
+                          <div className="w-3 h-3 border border-slate-400" />
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                          <span>Não</span>
+                          <div className="w-3 h-3 border border-slate-400" />
+                        </div>
+                      </div>
+                      <div className="col-span-4 flex items-end gap-1.5">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0 mb-0.5">Nasc.:</span>
+                        <div className="text-slate-400 font-mono text-[10px] pb-0.5">______ / ______ / ________</div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-x-4 gap-y-2">
+                      <div className="col-span-6 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">RG:</span>
                         <div className="flex-1 border-b border-slate-400 h-5" />
                       </div>
-                      <div className="col-span-4 flex items-end gap-2">
+                      <div className="col-span-6 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">CPF:</span>
                         <div className="flex-1 border-b border-slate-400 h-5" />
                       </div>
@@ -920,14 +1025,17 @@ export function Impressos() {
                       Eu <span className="inline-block w-[380px] border-b border-slate-400 h-4 translate-y-0.5" />, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
                     </p>
 
-                    <div className="pt-6 pb-12 flex justify-between items-end gap-12 font-sans">
-                      <div className="flex items-end gap-1.5 text-[11px] text-slate-800 font-medium w-[42%]">
-                        <span className="shrink-0 font-bold">Guarulhos,</span>
-                        <div className="flex-1 border-b border-slate-400 h-4" />
+                    <div className="pt-6 pb-12 flex justify-between items-start gap-8 font-sans">
+                      <div className="w-1/2 flex flex-col">
+                        <div className="flex items-end gap-1.5 text-[11px] text-slate-800 font-medium h-6 pb-0.5">
+                          <span className="shrink-0 font-bold">Guarulhos,</span>
+                          <div className="flex-1 text-center text-slate-400 font-mono text-[10px]">______ / ______ / _________</div>
+                        </div>
+                        <div className="mt-1 text-[9px] invisible select-none">Spacer</div>
                       </div>
-                      <div className="flex flex-col items-center text-center w-[34%] shrink-0 translate-y-4">
-                        <div className="w-full border-b border-slate-400" />
-                        <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest mt-1.5">Aluno(a)</span>
+                      <div className="w-1/2 shrink-0 flex flex-col items-center">
+                        <div className="w-2/3 border-b border-slate-400 h-6" />
+                        <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest mt-1.5 text-center">Aluno(a)</span>
                       </div>
                     </div>
                   </div>
@@ -961,7 +1069,7 @@ export function Impressos() {
                 <div className="space-y-6">
                   {/* Title */}
                   <div className="text-center pt-2">
-                    <h2 className="text-[14pt] font-extrabold uppercase tracking-widest text-black border-b-2 border-black pb-1.5 max-w-sm mx-auto">
+                    <h2 className="text-[14pt] font-extrabold uppercase tracking-widest text-black pb-1.5 max-w-sm mx-auto">
                       Carta de Apresentação
                     </h2>
                   </div>
@@ -1008,20 +1116,22 @@ export function Impressos() {
                     </div>
 
                     <div className="flex flex-wrap items-end gap-x-2 leading-[2em]">
-                      <span>membro da comunidade paroquial para o CURSO</span>
-                      <span className="flex-1 border-b border-slate-400 min-w-[200px]" />
+                      <span>membro da comunidade paroquial para o CURSO DE TEOLOGIA.</span>
                     </div>
                   </div>
 
                   {/* Date & Signature */}
-                  <div className="pt-10 flex justify-between items-end gap-8 font-sans">
-                    <div className="flex items-end gap-1.5 text-[10px] text-slate-800 font-medium w-1/2">
-                      <span className="shrink-0 font-bold">Guarulhos,</span>
-                      <div className="flex-1 border-b border-slate-400 h-4 text-center text-slate-300 font-mono text-[9px]">______ / ______ / _________</div>
+                  <div className="pt-10 flex justify-between items-start gap-8 font-sans">
+                    <div className="w-1/2 flex flex-col">
+                      <div className="flex items-end gap-1.5 text-[10px] text-slate-800 font-medium h-6 pb-0.5">
+                        <span className="shrink-0 font-bold">Guarulhos,</span>
+                        <div className="flex-1 text-center text-slate-400 font-mono text-[9px]">______ / ______ / _________</div>
+                      </div>
+                      <div className="mt-1 text-[9px] invisible select-none">Spacer</div>
                     </div>
-                    <div className="flex flex-col items-center text-center w-1/2 shrink-0">
-                      <div className="w-full border-b border-slate-400" />
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Assinatura do Padre</span>
+                    <div className="w-1/2 shrink-0 flex flex-col items-center">
+                      <div className="w-2/3 border-b border-slate-400 h-6" />
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 text-center">Assinatura do Padre</span>
                     </div>
                   </div>
 
@@ -1328,7 +1438,7 @@ export function Impressos() {
                       <div className="flex flex-col items-center gap-1.5 text-center">
                         <div className="w-64 border-b border-black" />
                         <p className="text-[11px] font-bold text-slate-900 uppercase tracking-widest">
-                          {signerName || 'Tesoureiro Acadêmico'}
+                          {signerName}
                         </p>
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                           {signerTitle || 'Tesouraria / Gestão de Contas'}
@@ -1337,8 +1447,16 @@ export function Impressos() {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                    Nenhum aluno selecionado.
+                  <div className="flex flex-col items-center justify-center py-32 text-center space-y-4">
+                    <div className="p-4 bg-slate-50 border border-slate-150 rounded-full text-slate-400">
+                      <Search size={32} className="stroke-[1.5]" />
+                    </div>
+                    <div className="space-y-1.5 max-w-sm font-sans">
+                      <h4 className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Nenhum Aluno Selecionado</h4>
+                      <p className="text-[11px] text-slate-500 leading-normal">
+                        Para emitir a <strong>Certidão de Quitação Financeira</strong>, por favor busque e selecione o aluno desejado no painel de configurações à esquerda.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
