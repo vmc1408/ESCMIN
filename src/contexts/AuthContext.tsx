@@ -406,9 +406,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2. Módulos de controle administrativo supremo (Restritos EXCLUSIVAMENTE ao Admin)
     const adminOnlyModules = [
       '/import', 
-      '/settings', 
       '/users', 
-      '/backup', 
       '/archive'
     ];
     if (adminOnlyModules.some(module => cleanPath.startsWith(module))) {
@@ -431,7 +429,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       '/reports', 
       '/parishes',
       '/teachers',
-      '/calendar'
+      '/calendar',
+      '/settings',
+      '/backup'
     ];
     if (secretaryAndAboveModules.some(module => cleanPath.startsWith(module))) {
       return profile.role === 'diretor' || profile.role === 'secretario';

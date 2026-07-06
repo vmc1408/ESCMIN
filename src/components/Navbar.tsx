@@ -107,7 +107,9 @@ export function Navbar() {
 
   const userName = profile?.name || 'Usuário';
   const userRole = profile?.role === 'admin' ? 'Administrador' : 
-                   profile?.role === 'diretor' ? 'Diretor' : 'Secretário';
+                   profile?.role === 'diretor' ? 'Diretor' : 
+                   profile?.role === 'secretario' ? 'Secretário Acadêmico' : 
+                   profile?.role === 'assistente' ? 'Assistente de Secretaria' : 'Usuário';
   const avatarUrl = profile?.avatar_url || '';
 
   return (

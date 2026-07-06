@@ -175,7 +175,13 @@ export function Settings() {
     }
   };
 
-  const { user, profile, refreshProfile, isLockEnabled, lockTimeout, updateLockSettings } = useAuth();
+  const { user, profile, refreshProfile, isLockEnabled, lockTimeout, updateLockSettings, isAdmin } = useAuth();
+
+  useEffect(() => {
+    if (isAdmin !== undefined && !isAdmin && (activeTab === 'security' || activeTab === 'maintenance')) {
+      setActiveTab('institution');
+    }
+  }, [isAdmin, activeTab]);
 
   useEffect(() => {
     if (lockTimeout !== undefined) {
@@ -943,27 +949,31 @@ export function Settings() {
             Acadêmico
           </button>
 
-          <button 
-            onClick={() => setActiveTab('security')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'security' ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <ShieldCheck size={14} />
-            Segurança
-          </button>
+          {isAdmin && (
+            <>
+              <button 
+                onClick={() => setActiveTab('security')}
+                className={cn(
+                  "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                  activeTab === 'security' ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                <ShieldCheck size={14} />
+                Segurança
+              </button>
 
-          <button 
-            onClick={() => setActiveTab('maintenance')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'maintenance' ? "bg-red-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <Database size={14} />
-            Manutenção
-          </button>
+              <button 
+                onClick={() => setActiveTab('maintenance')}
+                className={cn(
+                  "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+                  activeTab === 'maintenance' ? "bg-red-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                <Database size={14} />
+                Manutenção
+              </button>
+            </>
+          )}
         </div>
       </header>
 

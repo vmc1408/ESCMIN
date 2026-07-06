@@ -1140,8 +1140,8 @@ export function Users() {
                     { name: "Emissão de Relatórios Consolidados", path: "/reports", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
                     { name: "Guia da Diocese", path: "/parishes", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
                     { name: "Controle de Usuários & Logins", path: "/users", admin: "Total (L/E)", director: "Apenas Secretaria", secretary: "Bloqueado", assistant: "Bloqueado", blockSec: true, blockAsst: true },
-                    { name: "Configurações Gerais do Sistema & Segurança", path: "/settings", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
-                    { name: "Cópias de Segurança (Backups) & Recuperação", path: "/backup", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
+                    { name: "Configurações Gerais do Sistema & Segurança", path: "/settings", admin: "Total (L/E)", director: "Abas Inst. e Acadêmico", secretary: "Abas Inst. e Acadêmico", assistant: "Bloqueado", blockAsst: true },
+                    { name: "Cópias de Segurança (Backups) & Recuperação", path: "/backup", admin: "Total (L/E)", director: "Apenas Gerar/Baixar", secretary: "Apenas Gerar/Baixar", assistant: "Bloqueado", blockAsst: true },
                     { name: "Importações em Massa de Planilhas", path: "/import", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
                     { name: "Arquivo Morto", path: "/archive", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
                   ].map((row, idx) => (

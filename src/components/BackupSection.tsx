@@ -17,10 +17,12 @@ import {
   Search,
   Check,
   FileArchive,
-  AlertTriangle
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { fetchAll, saveBatch } from '../lib/database';
+import { useAuth } from '../contexts/AuthContext';
 
 // Tipos de Backup
 type BackupType = 'geral' | 'detalhado';
@@ -58,6 +60,7 @@ const COLLECTIONS: CollectionMeta[] = [
 ];
 
 export function BackupSection() {
+  const { isAdmin } = useAuth();
   // Estados Principais
   const [backupType, setBackupType] = useState<BackupType>('geral');
   const [target, setTarget] = useState<BackupTarget>('local');
@@ -602,209 +605,233 @@ export function BackupSection() {
         <div className="lg:col-span-4 space-y-6">
           
           {/* PAINEL DE RESTAURAÇÃO */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100">
-              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                <Upload size={16} className="text-indigo-600" />
-                Restaurar Backup (.json)
-              </h4>
-            </div>
+          {isAdmin ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-5 border-b border-slate-100">
+                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                  <Upload size={16} className="text-indigo-600" />
+                  Restaurar Backup (.json)
+                </h4>
+              </div>
 
-            <div className="p-5 space-y-4">
-              
-              {/* Drop-zone Area */}
-              {!parsedRestoreFile ? (
-                <div 
-                  className={cn(
-                    "border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer select-none",
-                    dragActive ? "border-indigo-500 bg-indigo-50/20" : "border-slate-200 hover:border-slate-300"
-                  )}
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => document.getElementById('restore-file-input')?.click()}
-                >
-                  <input 
-                    type="file" 
-                    id="restore-file-input"
-                    className="hidden" 
-                    accept=".json"
-                    onChange={handleFileChange}
-                  />
-                  <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-3">
-                    <FileJson size={22} className="text-slate-400" />
-                  </div>
-                  <p className="text-xs font-bold text-slate-700 uppercase tracking-tight">Solte o arquivo de backup aqui</p>
-                  <p className="text-[10px] text-slate-400 mt-1 font-bold">ou clique para procurar no dispositivo</p>
-                </div>
-              ) : (
-                <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-xl space-y-4 animate-in zoom-in-95 duration-200">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                      <FileArchive size={16} />
+              <div className="p-5 space-y-4">
+                
+                {/* Drop-zone Area */}
+                {!parsedRestoreFile ? (
+                  <div 
+                    className={cn(
+                      "border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer select-none",
+                      dragActive ? "border-indigo-500 bg-indigo-50/20" : "border-slate-200 hover:border-slate-300"
+                    )}
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById('restore-file-input')?.click()}
+                  >
+                    <input 
+                      type="file" 
+                      id="restore-file-input"
+                      className="hidden" 
+                      accept=".json"
+                      onChange={handleFileChange}
+                    />
+                    <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-3">
+                      <FileJson size={22} className="text-slate-400" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Cópia de Segurança Carregada</p>
-                      <p className="text-[10px] text-slate-500 font-bold truncate mt-0.5">Tipo: {parsedRestoreFile.backup_type?.toUpperCase()}</p>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">Realizado em: {new Date(parsedRestoreFile.timestamp).toLocaleString('pt-BR')}</p>
-                    </div>
+                    <p className="text-xs font-bold text-slate-700 uppercase tracking-tight">Solte o arquivo de backup aqui</p>
+                    <p className="text-[10px] text-slate-400 mt-1 font-bold">ou clique para procurar no dispositivo</p>
                   </div>
-
-                  <div className="p-3 bg-white border border-emerald-100 rounded-lg space-y-1.5">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Registros Selecionados para Restauro:</span>
-                    <div className="text-xs font-bold text-slate-700 space-y-1">
-                      <p className="flex items-center gap-1 text-emerald-800">
-                        <CheckCircle2 size={12} className="text-emerald-500" />
-                        {
-                          Object.keys(parsedRestoreFile.data)
-                            .filter(t => selectedRestoreTables.includes(t))
-                            .reduce((sum, t) => sum + (Array.isArray(parsedRestoreFile.data[t]) ? parsedRestoreFile.data[t].length : 0), 0)
-                        } de {parsedRestoreFile.records_count || 0} registros
-                      </p>
-                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider pl-4">
-                        {selectedRestoreTables.length} de {Object.keys(parsedRestoreFile.data).length} tabelas selecionadas
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Seleção seletiva de tabelas */}
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Tabelas no Backup
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRestoreTables(Object.keys(parsedRestoreFile.data))}
-                          className="text-[9px] font-bold text-emerald-700 hover:underline uppercase tracking-widest"
-                        >
-                          Marcar Tudo
-                        </button>
-                        <span className="text-emerald-200">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRestoreTables([])}
-                          className="text-[9px] font-bold text-emerald-700 hover:underline uppercase tracking-widest"
-                        >
-                          Zerar
-                        </button>
+                ) : (
+                  <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-xl space-y-4 animate-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                        <FileArchive size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Cópia de Segurança Carregada</p>
+                        <p className="text-[10px] text-slate-500 font-bold truncate mt-0.5">Tipo: {parsedRestoreFile.backup_type?.toUpperCase()}</p>
+                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Realizado em: {new Date(parsedRestoreFile.timestamp).toLocaleString('pt-BR')}</p>
                       </div>
                     </div>
 
-                    <div className="bg-white border border-emerald-100 rounded-xl max-h-48 overflow-y-auto custom-scrollbar divide-y divide-slate-100 shadow-inner">
-                      {Object.keys(parsedRestoreFile.data).map((tableId) => {
-                        const items = parsedRestoreFile.data[tableId];
-                        const count = Array.isArray(items) ? items.length : 0;
-                        const tableMeta = COLLECTIONS.find(c => c.id === tableId);
-                        const isChecked = selectedRestoreTables.includes(tableId);
+                    <div className="p-3 bg-white border border-emerald-100 rounded-lg space-y-1.5">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Registros Selecionados para Restauro:</span>
+                      <div className="text-xs font-bold text-slate-700 space-y-1">
+                        <p className="flex items-center gap-1 text-emerald-800">
+                          <CheckCircle2 size={12} className="text-emerald-500" />
+                          {
+                            Object.keys(parsedRestoreFile.data)
+                              .filter(t => selectedRestoreTables.includes(t))
+                              .reduce((sum, t) => sum + (Array.isArray(parsedRestoreFile.data[t]) ? parsedRestoreFile.data[t].length : 0), 0)
+                          } de {parsedRestoreFile.records_count || 0} registros
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider pl-4">
+                          {selectedRestoreTables.length} de {Object.keys(parsedRestoreFile.data).length} tabelas selecionadas
+                        </p>
+                      </div>
+                    </div>
 
-                        return (
-                          <div 
-                            key={tableId}
-                            onClick={() => {
-                              if (isChecked) {
-                                setSelectedRestoreTables(prev => prev.filter(id => id !== tableId));
-                              } else {
-                                setSelectedRestoreTables(prev => [...prev, tableId]);
-                              }
-                            }}
-                            className={cn(
-                              "p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none",
-                              isChecked ? "bg-emerald-50/10" : "opacity-60"
-                            )}
+                    {/* Seleção seletiva de tabelas */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                          Tabelas no Backup
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRestoreTables(Object.keys(parsedRestoreFile.data))}
+                            className="text-[9px] font-bold text-emerald-700 hover:underline uppercase tracking-widest"
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className={cn(
-                                "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                isChecked ? "bg-emerald-600 border-emerald-600 text-white animate-in zoom-in-50 duration-100" : "border-slate-300 bg-white"
+                            Marcar Tudo
+                          </button>
+                          <span className="text-emerald-200">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRestoreTables([])}
+                            className="text-[9px] font-bold text-emerald-700 hover:underline uppercase tracking-widest"
+                          >
+                            Zerar
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-emerald-100 rounded-xl max-h-48 overflow-y-auto custom-scrollbar divide-y divide-slate-100 shadow-inner">
+                        {Object.keys(parsedRestoreFile.data).map((tableId) => {
+                          const items = parsedRestoreFile.data[tableId];
+                          const count = Array.isArray(items) ? items.length : 0;
+                          const tableMeta = COLLECTIONS.find(c => c.id === tableId);
+                          const isChecked = selectedRestoreTables.includes(tableId);
+
+                          return (
+                            <div 
+                              key={tableId}
+                              onClick={() => {
+                                if (isChecked) {
+                                  setSelectedRestoreTables(prev => prev.filter(id => id !== tableId));
+                                } else {
+                                  setSelectedRestoreTables(prev => [...prev, tableId]);
+                                }
+                              }}
+                              className={cn(
+                                "p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none",
+                                isChecked ? "bg-emerald-50/10" : "opacity-60"
+                              )}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={cn(
+                                  "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                  isChecked ? "bg-emerald-600 border-emerald-600 text-white animate-in zoom-in-50 duration-100" : "border-slate-300 bg-white"
+                                )}>
+                                  {isChecked && <Check size={10} strokeWidth={3} />}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-bold text-slate-700 truncate">
+                                    {tableMeta?.label || tableId}
+                                  </p>
+                                  <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest block -mt-0.5">
+                                    {tableMeta?.category || 'Módulo do Sistema'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className={cn(
+                                "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wide shrink-0",
+                                isChecked ? "bg-emerald-100/50 text-emerald-800" : "bg-slate-100 text-slate-400"
                               )}>
-                                {isChecked && <Check size={10} strokeWidth={3} />}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-[11px] font-bold text-slate-700 truncate">
-                                  {tableMeta?.label || tableId}
-                                </p>
-                                <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest block -mt-0.5">
-                                  {tableMeta?.category || 'Módulo do Sistema'}
-                                </span>
-                              </div>
+                                {count} reg
+                              </span>
                             </div>
-                            <span className={cn(
-                              "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wide shrink-0",
-                              isChecked ? "bg-emerald-100/50 text-emerald-800" : "bg-slate-100 text-slate-400"
-                            )}>
-                              {count} reg
-                            </span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Warning Danger */}
+                    <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-2">
+                      <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-amber-700 font-medium leading-relaxed">
+                        <strong>Aviso:</strong> A restauração irá substituir dados com o mesmo identificador (ID) único. Faça um backup prévio dos dados atuais se necessário.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRunRestore}
+                        disabled={isRestoreRunning}
+                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-600/10"
+                      >
+                        {isRestoreRunning ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                        Executar Restauração
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isRestoreRunning}
+                        onClick={() => setParsedRestoreFile(null)}
+                        className="px-3 bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-100 rounded-lg active:scale-95 transition-all"
+                      >
+                        Cancelar
+                      </button>
                     </div>
                   </div>
+                )}
 
-                  {/* Warning Danger */}
-                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-2">
-                    <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-amber-700 font-medium leading-relaxed">
-                      <strong>Aviso:</strong> A restauração irá substituir dados com o mesmo identificador (ID) único. Faça um backup prévio dos dados atuais se necessário.
-                    </p>
+                {restoreError && (
+                  <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-xl flex gap-2 text-[11px] leading-relaxed">
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <p className="font-medium">{restoreError}</p>
                   </div>
+                )}
 
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleRunRestore}
-                      disabled={isRestoreRunning}
-                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-600/10"
-                    >
-                      {isRestoreRunning ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                      Executar Restauração
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isRestoreRunning}
-                      onClick={() => setParsedRestoreFile(null)}
-                      className="px-3 bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-100 rounded-lg active:scale-95 transition-all"
-                    >
-                      Cancelar
-                    </button>
+                {/* Progressão de Restauração */}
+                {isRestoreRunning && (
+                  <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900 uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 size={12} className="animate-spin text-emerald-600" />
+                        {restoreProgress.currentStep}
+                      </span>
+                      <span>{restoreProgress.percent}%</span>
+                    </div>
+                    <div className="h-2 bg-emerald-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-600 transition-all duration-300" 
+                        style={{ width: `${restoreProgress.percent}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
+                      <span>Sincronização Ativa com Supabase</span>
+                      <span>Restauradas: {restoreProgress.completedTablesCount} / {restoreProgress.totalTablesCount}</span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {restoreError && (
-                <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-xl flex gap-2 text-[11px] leading-relaxed">
-                  <AlertCircle size={15} className="shrink-0 mt-0.5" />
-                  <p className="font-medium">{restoreError}</p>
-                </div>
-              )}
-
-              {/* Progressão de Restauração */}
-              {isRestoreRunning && (
-                <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900 uppercase tracking-wider">
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin text-emerald-600" />
-                      {restoreProgress.currentStep}
-                    </span>
-                    <span>{restoreProgress.percent}%</span>
-                  </div>
-                  <div className="h-2 bg-emerald-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-emerald-600 transition-all duration-300" 
-                      style={{ width: `${restoreProgress.percent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
-                    <span>Sincronização Ativa com Supabase</span>
-                    <span>Restauradas: {restoreProgress.completedTablesCount} / {restoreProgress.totalTablesCount}</span>
-                  </div>
-                </div>
-              )}
-
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center space-y-4 shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center mx-auto text-amber-500">
+                <Lock size={22} />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">
+                  Restauração de Backup Bloqueada
+                </h4>
+                <p className="text-[9px] text-amber-600 font-extrabold uppercase tracking-widest">
+                  Permissão Restrita ao Administrador
+                </p>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                Por motivos de segurança e integridade dos dados acadêmicos, a importação e restauração de cópias de segurança (.JSON) está desabilitada para o seu nível de acesso.
+              </p>
+              <div className="p-3.5 bg-white border border-slate-100 rounded-xl text-left">
+                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                  Seu perfil possui permissão ativa para <strong>gerar e baixar</strong> cópias de segurança atualizadas a qualquer momento.
+                </p>
+              </div>
+            </div>
+          )}
 
         </div>
 
