@@ -6,9 +6,10 @@ interface PinInputProps {
   onChange: (value: string) => void;
   length?: number;
   error?: string;
+  onEnter?: () => void;
 }
 
-export function PinInput({ value, onChange, length = 4, error }: PinInputProps) {
+export function PinInput({ value, onChange, length = 4, error, onEnter }: PinInputProps) {
   const [showPin, setShowPin] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +40,12 @@ export function PinInput({ value, onChange, length = 4, error }: PinInputProps) 
           onChange={handleInputChange}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              onEnter?.();
+            }
+          }}
           className="absolute inset-0 w-full h-full opacity-0 cursor-text z-10"
           autoFocus
         />

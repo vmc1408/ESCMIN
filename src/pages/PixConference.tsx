@@ -566,6 +566,39 @@ export function PixConference() {
     }
   };
 
+  const handleConfirmPin = async () => {
+    if (!enteredPin) {
+      setPinError('A chave de segurança (PIN) é obrigatória.');
+      return;
+    }
+    
+    let isPinValid = false;
+    if (profile?.pin && enteredPin === profile.pin) {
+      isPinValid = true;
+    } else if (enteredPin === '0000') {
+      isPinValid = true;
+    } else {
+      const adminUsers = await fetchQuery('users', [{ field: 'role', operator: '==', value: 'admin' }]);
+      if (adminUsers && adminUsers.length > 0) {
+        isPinValid = adminUsers.some((admin: any) => admin.pin && admin.pin === enteredPin);
+      }
+    }
+
+    if (!isPinValid) {
+      setPinError('Chave de segurança (PIN) inválida.');
+      setEnteredPin('');
+      return;
+    }
+
+    if (pinModalConfig) {
+      const callback = pinModalConfig.onConfirm;
+      setPinModalConfig(null);
+      setEnteredPin('');
+      setPinError('');
+      callback();
+    }
+  };
+
   const toggleBatch = (batchId: string) => {
     setExpandedBatches(prev => 
       prev.includes(batchId) 
@@ -1790,6 +1823,7 @@ export function PixConference() {
                   setPinError('');
                 }}
                 error={pinError}
+                onEnter={handleConfirmPin}
               />
             </div>
 
@@ -1805,35 +1839,7 @@ export function PixConference() {
                 Cancelar
               </button>
               <button 
-                onClick={async () => {
-                  if (!enteredPin) {
-                    setPinError('A chave de segurança (PIN) é obrigatória.');
-                    return;
-                  }
-                  
-                  let isPinValid = false;
-                  if (profile?.pin && enteredPin === profile.pin) {
-                    isPinValid = true;
-                  } else if (enteredPin === '0000') {
-                    isPinValid = true;
-                  } else {
-                    const adminUsers = await fetchQuery('users', [{ field: 'role', operator: '==', value: 'admin' }]);
-                    if (adminUsers && adminUsers.length > 0) {
-                      isPinValid = adminUsers.some((admin: any) => admin.pin && admin.pin === enteredPin);
-                    }
-                  }
-
-                  if (!isPinValid) {
-                    setPinError('Chave de segurança (PIN) inválida.');
-                    return;
-                  }
-
-                  const callback = pinModalConfig.onConfirm;
-                  setPinModalConfig(null);
-                  setEnteredPin('');
-                  setPinError('');
-                  callback();
-                }}
+                onClick={handleConfirmPin}
                 className="py-4 text-white bg-red-600 hover:bg-red-700 shadow-red-200 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all active:scale-95 cursor-pointer"
               >
                 Confirmar

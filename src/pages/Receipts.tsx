@@ -415,6 +415,7 @@ export function Receipts() {
 
       if (!isPinValid) {
         setPinError('Chave de segurança (PIN) inválida.');
+        setEnteredPin('');
         return;
       }
 
@@ -1323,6 +1324,7 @@ export function Receipts() {
                     setPinError('');
                   }}
                   error={pinError}
+                  onEnter={() => deleteConfirmationFor && handleDeleteReceipt(deleteConfirmationFor.id)}
                 />
               </div>
 

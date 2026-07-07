@@ -684,6 +684,7 @@ export function Contributions() {
 
       if (!isPinValid) {
         setPinError('Chave de segurança (PIN) inválida.');
+        setEnteredPin('');
         setIsDeleting(null);
         return;
       }
@@ -2400,6 +2401,7 @@ export function Contributions() {
                       setPinError('');
                     }}
                     error={pinError}
+                    onEnter={handleDeleteContribution}
                   />
                 </div>
               )}
