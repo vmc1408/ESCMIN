@@ -884,19 +884,19 @@ export function Impressos() {
                         </h4>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[12px] font-bold text-slate-800">
                           <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
                             <span>Teologia</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
                             <span>Latim</span>
                           </div>
                           <div className="flex items-center gap-2 mb-0.5">
-                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
                             <span>Doutrina Social da Igreja</span>
                           </div>
                           <div className="flex items-center gap-2 mb-0.5">
-                            <div className="w-4 h-4 border border-black rounded-none shrink-0" />
+                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
                             <span>História dos Santos Negros</span>
                           </div>
                         </div>
@@ -916,44 +916,44 @@ export function Impressos() {
                   <div className="space-y-3 pt-1">
                     <div className="flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Nome:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
+                      <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                     </div>
 
                     <div className="flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Endereço:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
+                      <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                     </div>
 
                     <div className="grid grid-cols-12 gap-x-4 gap-y-2">
                       <div className="col-span-5 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Bairro:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                       </div>
                       <div className="col-span-5 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Cidade:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                       </div>
                       <div className="col-span-2 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Uf:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-12 gap-x-4 gap-y-2">
                       <div className="col-span-4 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Cep:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                       </div>
                       <div className="col-span-8 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Email:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-12 gap-x-4 gap-y-2">
                       <div className="col-span-5 flex items-end gap-2">
                         <Phone size={15} className="text-slate-800 shrink-0 mb-1" />
-                        <div className="flex-1 border-b border-slate-400 h-5 relative">
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5 relative">
                           <span className="absolute left-1 bottom-0 text-[13px] text-slate-800 font-bold tracking-wide">( &nbsp; &nbsp; &nbsp; ) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span>
                         </div>
                       </div>
@@ -961,44 +961,44 @@ export function Impressos() {
                         <MessageCircle size={15} className="text-emerald-600 fill-emerald-100 shrink-0" />
                         <div className="flex items-center gap-1.5 text-[10px] font-bold">
                           <span>Sim</span>
-                          <div className="w-3 h-3 border border-slate-400" />
+                          <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm bg-white" />
                         </div>
                         <div className="flex items-center gap-1.5 text-[10px] font-bold">
                           <span>Não</span>
-                          <div className="w-3 h-3 border border-slate-400" />
+                          <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm bg-white" />
                         </div>
                       </div>
                       <div className="col-span-4 flex items-end gap-1.5">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0 mb-0.5">Nasc.:</span>
-                        <div className="text-slate-400 font-mono text-[10px] pb-0.5">______ / ______ / ________</div>
+                        <div className="text-slate-500 font-mono text-[10px] pb-0.5">______ / ______ / ________</div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-12 gap-x-4 gap-y-2">
                       <div className="col-span-6 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">RG:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                       </div>
                       <div className="col-span-6 flex items-end gap-2">
                         <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">CPF:</span>
-                        <div className="flex-1 border-b border-slate-400 h-5" />
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                       </div>
                     </div>
 
                     <div className="flex items-end gap-2">
                       <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">É participante de qual Paróquia/Comunidade?:</span>
-                      <div className="flex-1 border-b border-slate-400 h-5" />
+                      <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5">&nbsp;</div>
                     </div>
 
                     <div className="flex items-center gap-4">
                       <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Já foi aluno(a) da Escola?:</span>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold">
                         <span>Sim</span>
-                        <div className="w-3.5 h-3.5 border border-slate-400" />
+                        <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm bg-white" />
                       </div>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold">
                         <span>Não</span>
-                        <div className="w-3.5 h-3.5 border border-slate-400" />
+                        <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm bg-white" />
                       </div>
                     </div>
                   </div>
@@ -1024,19 +1024,19 @@ export function Impressos() {
                   {/* Agreement and signature */}
                   <div className="pt-4 space-y-6 font-serif">
                     <p className="text-[12px] text-justify text-slate-800 leading-relaxed">
-                      Eu <span className="inline-block w-[380px] border-b border-slate-400 h-4 translate-y-0.5" />, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
+                      Eu <span className="inline-block w-[380px] border-b-2 border-dotted border-slate-500 h-4 translate-y-0.5">&nbsp;</span>, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
                     </p>
 
                     <div className="pt-6 pb-12 flex justify-between items-start gap-8 font-sans">
                       <div className="w-1/2 flex flex-col">
                         <div className="flex items-end gap-1.5 text-[11px] text-slate-800 font-medium h-6 pb-0.5">
                           <span className="shrink-0 font-bold">Guarulhos,</span>
-                          <div className="flex-1 text-center text-slate-400 font-mono text-[10px]">______ / ______ / _________</div>
+                          <div className="flex-1 text-center text-slate-500 font-mono text-[10px]">______ / ______ / _________</div>
                         </div>
                         <div className="mt-1 text-[9px] invisible select-none">Spacer</div>
                       </div>
                       <div className="w-1/2 shrink-0 flex flex-col items-center">
-                        <div className="w-2/3 border-b border-slate-400 h-6" />
+                        <div className="w-2/3 border-b-2 border-slate-500 h-6">&nbsp;</div>
                         <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest mt-1.5 text-center">Aluno(a)</span>
                       </div>
                     </div>
@@ -1087,34 +1087,34 @@ export function Impressos() {
                   <div className="space-y-5 pt-4 text-justify font-serif text-[11pt] leading-[2.2em]">
                     <div className="flex flex-wrap items-end gap-x-2">
                       <span>Eu, Padre</span>
-                      <span className="flex-1 border-b border-slate-400 min-w-[200px]" />
+                      <span className="flex-1 border-b-2 border-dotted border-slate-500 min-w-[200px] h-5 inline-block">&nbsp;</span>
                     </div>
 
                     <div className="flex items-center gap-6 text-[10px] font-bold font-sans uppercase pl-2 select-none">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                        <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
                         <span>pároco</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                        <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
                         <span>vigário</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 border border-black rounded-none shrink-0" />
+                        <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
                         <span>adm. paroquial</span>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap items-end gap-x-2">
                       <span>da Paróquia:</span>
-                      <span className="flex-1 border-b border-slate-400 min-w-[300px]" />
+                      <span className="flex-1 border-b-2 border-dotted border-slate-500 min-w-[300px] h-5 inline-block">&nbsp;</span>
                     </div>
 
                     <p>venho através desta apresentar,</p>
 
                     <div className="flex flex-wrap items-end gap-x-2">
                       <span>O(a) Sr.(a)</span>
-                      <span className="flex-1 border-b border-slate-400 min-w-[300px]" />
+                      <span className="flex-1 border-b-2 border-dotted border-slate-500 min-w-[300px] h-5 inline-block">&nbsp;</span>
                     </div>
 
                     <div className="flex flex-wrap items-end gap-x-2 leading-[2em]">
@@ -1127,12 +1127,12 @@ export function Impressos() {
                     <div className="w-1/2 flex flex-col">
                       <div className="flex items-end gap-1.5 text-[10px] text-slate-800 font-medium h-6 pb-0.5">
                         <span className="shrink-0 font-bold">Guarulhos,</span>
-                        <div className="flex-1 text-center text-slate-400 font-mono text-[9px]">______ / ______ / _________</div>
+                        <div className="flex-1 text-center text-slate-500 font-mono text-[9px]">______ / ______ / _________</div>
                       </div>
                       <div className="mt-1 text-[9px] invisible select-none">Spacer</div>
                     </div>
                     <div className="w-1/2 shrink-0 flex flex-col items-center">
-                      <div className="w-2/3 border-b border-slate-400 h-6" />
+                      <div className="w-2/3 border-b-2 border-slate-500 h-6">&nbsp;</div>
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 text-center">Assinatura do Padre</span>
                     </div>
                   </div>
