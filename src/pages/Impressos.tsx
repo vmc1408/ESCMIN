@@ -858,18 +858,18 @@ export function Impressos() {
                   </div>
 
                   {/* Sub-header grid: Controle da Escola, Curso selection, and Foto box */}
-                  <div className="grid grid-cols-12 gap-4 border border-black p-3 items-stretch">
+                  <div className="grid grid-cols-12 gap-4 border-2 border-slate-900 p-3 items-stretch">
                     {/* Left: Controle da Escola */}
-                    <div className="col-span-4 border-r border-slate-300 pr-3 flex flex-col justify-between">
+                    <div className="col-span-4 border-r-2 border-slate-900 pr-3 flex flex-col justify-between">
                       <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-1 mb-2">
                           Controle da Escola
                         </h4>
                         <div className="space-y-3">
                           <div>
-                            <p className="text-[11px] font-bold uppercase text-slate-600">Inscrição:</p>
-                            <div className="mt-1 h-8 w-40 border border-slate-400 rounded bg-slate-50 flex items-center px-2">
-                              <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">Nº</span>
+                            <p className="text-[11px] font-bold uppercase text-slate-800">Inscrição:</p>
+                            <div className="mt-1 h-8 w-40 border-2 border-slate-900 rounded bg-white flex items-center px-2">
+                              <span className="text-[12px] font-black text-slate-600 uppercase tracking-widest">Nº</span>
                             </div>
                           </div>
                         </div>
@@ -877,9 +877,9 @@ export function Impressos() {
                     </div>
 
                     {/* Middle: CURSO selection */}
-                    <div className="col-span-5 border-r border-slate-300 pr-3 flex flex-col justify-between">
+                    <div className="col-span-5 border-r-2 border-slate-900 pr-3 flex flex-col justify-between">
                       <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-700 border-b border-black pb-1 mb-2">
+                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-1 mb-2">
                           CURSO:
                         </h4>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[12px] font-bold text-slate-800">
@@ -905,9 +905,9 @@ export function Impressos() {
 
                     {/* Right: COLE FOTO */}
                     <div className="col-span-3 flex items-center justify-center">
-                      <div className="w-[3cm] h-[4cm] border border-dashed border-slate-400 flex flex-col items-center justify-center text-center p-1 bg-slate-50/50">
-                        <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight">COLE AQUI</span>
-                        <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider leading-tight mt-0.5">FOTO 3X4</span>
+                      <div className="w-[3cm] h-[4cm] border-2 border-dashed border-slate-800 flex flex-col items-center justify-center text-center p-1 bg-white">
+                        <span className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-tight">COLE AQUI</span>
+                        <span className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-tight mt-0.5">FOTO 3X4</span>
                       </div>
                     </div>
                   </div>
@@ -954,7 +954,7 @@ export function Impressos() {
                       <div className="col-span-5 flex items-end gap-2">
                         <Phone size={15} className="text-slate-800 shrink-0 mb-1" />
                         <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5 relative">
-                          <span className="absolute left-1 bottom-0 text-[13px] text-slate-800 font-bold tracking-wide">( &nbsp; &nbsp; &nbsp; ) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</span>
+                          <span className="absolute left-1 bottom-0 text-[13px] text-slate-800 font-bold tracking-wide">( &nbsp; &nbsp; &nbsp; ) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; &nbsp; &nbsp; &nbsp;</span>
                         </div>
                       </div>
                       <div className="col-span-3 flex items-center gap-2 self-end h-5">
