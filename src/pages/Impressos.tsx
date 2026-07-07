@@ -236,6 +236,8 @@ export function Impressos() {
     return institution?.name?.substring(0, 3).toUpperCase() || 'EFC';
   };
 
+  const isSinglePageType = selectedType === 'declaracao' || selectedType === 'quitacao' || selectedType === 'ficha' || selectedType === 'carta';
+
   if (loading) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
@@ -274,8 +276,13 @@ export function Impressos() {
             width: 100% !important;
             max-width: 100% !important;
             background: #fff !important;
-            min-height: 0 !important;
-            height: auto !important;
+            ${isSinglePageType ? `
+              min-height: 282mm !important;
+              height: 282mm !important;
+            ` : `
+              min-height: 0 !important;
+              height: auto !important;
+            `}
           }
           .print-page-break {
             page-break-after: always !important;
@@ -703,7 +710,13 @@ export function Impressos() {
           </div>
 
           {/* Standard Page Container - Mocking A4 Sheet */}
-          <div id="printable-impressos" className="print-preview-container bg-white border border-slate-350 shadow-xl pt-8 pb-3 px-8 md:pt-12 md:pb-4 md:px-12 min-h-[1123px] max-w-[800px] mx-auto select-text relative flex flex-col">
+          <div 
+            id="printable-impressos" 
+            className={cn(
+              "print-preview-container bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto select-text relative flex flex-col",
+              isSinglePageType ? "h-[1123px] pb-6 md:pb-8" : "min-h-[1123px] pb-3 md:pb-4"
+            )}
+          >
             
             {/* Header of Official Documents */}
             {(selectedType === 'declaracao' || selectedType === 'quitacao' || selectedType === 'ficha' || selectedType === 'carta') && (
@@ -1033,7 +1046,7 @@ export function Impressos() {
                           <span className="shrink-0 font-bold">Guarulhos,</span>
                           <div className="flex-1 text-center text-slate-500 font-mono text-[10px]">______ / ______ / _________</div>
                         </div>
-                        <div className="mt-1 text-[9px] invisible select-none">Spacer</div>
+                        <div className="mt-1 text-[9px] invisible select-none">&nbsp;</div>
                       </div>
                       <div className="w-1/2 shrink-0 flex flex-col items-center">
                         <div className="w-2/3 border-b-2 border-slate-500 h-6">&nbsp;</div>
@@ -1129,7 +1142,7 @@ export function Impressos() {
                         <span className="shrink-0 font-bold">Guarulhos,</span>
                         <div className="flex-1 text-center text-slate-500 font-mono text-[9px]">______ / ______ / _________</div>
                       </div>
-                      <div className="mt-1 text-[9px] invisible select-none">Spacer</div>
+                      <div className="mt-1 text-[9px] invisible select-none">&nbsp;</div>
                     </div>
                     <div className="w-1/2 shrink-0 flex flex-col items-center">
                       <div className="w-2/3 border-b-2 border-slate-500 h-6">&nbsp;</div>
