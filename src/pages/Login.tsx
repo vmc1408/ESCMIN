@@ -47,6 +47,8 @@ export function Login() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [pastedUrl, setPastedUrl] = useState('');
+  const [recoverySession, setRecoverySession] = useState<{ access_token: string; refresh_token: string } | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -435,12 +437,35 @@ export function Login() {
     setError(null);
 
     try {
+      // Garante que a sessão de recuperação esteja ativa e definida no cliente Supabase
+      let activeTokens = recoverySession;
+      if (!activeTokens) {
+        const stored = localStorage.getItem('supabase_recovery_tokens');
+        if (stored) {
+          try {
+            activeTokens = JSON.parse(stored);
+          } catch (e) {
+            console.error("Erro ao analisar supabase_recovery_tokens:", e);
+          }
+        }
+      }
+
+      if (activeTokens) {
+        console.log("[Login] Restaurando sessão de recuperação antes de atualizar a senha...");
+        const { error: setSessionErr } = await supabase.auth.setSession(activeTokens);
+        if (setSessionErr) {
+          console.warn("[Login] Alerta ao restaurar sessão de recuperação:", setSessionErr.message);
+        }
+      }
+
       const { error: sbErr } = await supabase.auth.updateUser({
         password: newPassword
       });
       if (sbErr) throw sbErr;
 
       localStorage.removeItem('supabase_recovery_mode');
+      localStorage.removeItem('supabase_recovery_tokens');
+      setRecoverySession(null);
       setIsResettingPassword(false);
       setNewPassword('');
       setConfirmNewPassword('');
@@ -515,6 +540,94 @@ export function Login() {
       setResetSent(true);
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProcessPastedUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pastedUrl) {
+      setError("Por favor, cole o link recebido no e-mail.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Tenta extrair hash (Implicit grant flow com access_token e refresh_token)
+      let hash = '';
+      if (pastedUrl.includes('#')) {
+        hash = pastedUrl.substring(pastedUrl.indexOf('#'));
+      } else if (pastedUrl.includes('access_token=')) {
+        hash = '?' + pastedUrl;
+      }
+
+      if (hash) {
+        const params = new URLSearchParams(hash.replace('#', '?'));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          const { data, error: sessionErr } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+          if (sessionErr) throw sessionErr;
+
+          const tokens = { access_token: accessToken, refresh_token: refreshToken };
+          setRecoverySession(tokens);
+          localStorage.setItem('supabase_recovery_tokens', JSON.stringify(tokens));
+
+          localStorage.setItem('supabase_recovery_mode', 'true');
+          setIsResettingPassword(true);
+          setIsForgotPassword(false);
+          setIsVerifyingOtp(false);
+          setResetSent(false);
+          setPastedUrl('');
+          setError(null);
+          return;
+        }
+      }
+
+      // 2. Tenta extrair código de PKCE flow (Authorization code flow com ?code=...)
+      let search = '';
+      if (pastedUrl.includes('?')) {
+        search = pastedUrl.substring(pastedUrl.indexOf('?'));
+      } else if (pastedUrl.includes('code=')) {
+        search = '?' + pastedUrl;
+      }
+
+      if (search) {
+        const params = new URLSearchParams(search);
+        const code = params.get('code');
+        if (code) {
+          const { data, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeErr) throw exchangeErr;
+
+          if (data?.session) {
+            const tokens = { 
+              access_token: data.session.access_token, 
+              refresh_token: data.session.refresh_token 
+            };
+            setRecoverySession(tokens);
+            localStorage.setItem('supabase_recovery_tokens', JSON.stringify(tokens));
+          }
+
+          localStorage.setItem('supabase_recovery_mode', 'true');
+          setIsResettingPassword(true);
+          setIsForgotPassword(false);
+          setIsVerifyingOtp(false);
+          setResetSent(false);
+          setPastedUrl('');
+          setError(null);
+          return;
+        }
+      }
+
+      throw new Error("Não foi possível encontrar as credenciais de recuperação (access_token ou code) no link informado. Verifique se copiou o link completo.");
+    } catch (err: any) {
+      setError(err.message || "Erro ao processar o link de recuperação.");
     } finally {
       setLoading(false);
     }
@@ -910,119 +1023,180 @@ export function Login() {
                 )}
               </AnimatePresence>
 
-              <form onSubmit={isForgotPassword ? handleForgotPassword : (isRegistering ? handleRegister : handleLogin)} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail Institucional</label>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                    <input 
-                      type="email"
-                      required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                      placeholder="aluno@diocese.com"
-                    />
-                  </div>
-                </div>
+              {isForgotPassword && resetSent ? (
+                <div className="space-y-6">
+                  <div className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl space-y-4">
+                    <div className="flex items-start gap-3">
+                      <RefreshCw className="text-indigo-600 shrink-0 mt-0.5 animate-spin-slow" size={18} />
+                      <div>
+                        <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-wider">
+                          O Link do E-mail deu erro?
+                        </h3>
+                        <p className="text-[11px] text-slate-600 leading-relaxed font-medium mt-1">
+                          Por estarmos em ambiente de testes, o link recebido por e-mail pode redirecionar incorretamente para <strong>localhost:3000</strong> e dar erro.
+                        </p>
+                      </div>
+                    </div>
 
-                {!isForgotPassword && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                      <input 
-                        type="password"
-                        required={!isForgotPassword}
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                        placeholder="••••••••"
-                      />
+                    <div className="bg-white/80 p-4 rounded-xl border border-indigo-100/55 space-y-3">
+                      <p className="text-[11px] text-slate-700 leading-relaxed font-semibold">
+                        Para resolver isso de forma simples, copie o link completo recebido em seu e-mail e cole-o aqui abaixo:
+                      </p>
+
+                      <form onSubmit={handleProcessPastedUrl} className="space-y-3">
+                        <input 
+                          type="text"
+                          required
+                          value={pastedUrl}
+                          onChange={e => setPastedUrl(e.target.value)}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/5 transition-all"
+                          placeholder="Cole o link do e-mail (ex: http://localhost:3000/#access_token=...)"
+                        />
+                        <button 
+                          type="submit"
+                          disabled={loading}
+                          className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md shadow-indigo-900/10 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                        >
+                          {loading ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                          Processar Link e Redefinir Senha
+                        </button>
+                      </form>
                     </div>
                   </div>
-                )}
 
-                {isRegistering && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="space-y-1.5"
-                  >
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar Senha</label>
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
-                      <input 
-                        type="password"
-                        required
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
-                        placeholder="••••••••"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-
-                {!isRegistering && !isForgotPassword && (
-                   <div className="flex items-center justify-between px-1">
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <div className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                          rememberMe ? "bg-indigo-600 border-indigo-600" : "bg-slate-50 border-slate-300 group-hover:border-slate-400"
-                        )}>
-                          <input 
-                            type="checkbox"
-                            className="hidden"
-                            checked={rememberMe}
-                            onChange={e => setRememberMe(e.target.checked)}
-                          />
-                          {rememberMe && <CheckCircle size={10} className="text-white" />}
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lembrar-me</span>
-                      </label>
-
-                      <button 
-                        type="button" 
-                        onClick={() => setIsForgotPassword(true)}
-                        className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-widest"
-                      >
-                         Esqueceu a senha?
-                      </button>
-                   </div>
-                )}
-
-                <div className="pt-4 space-y-4">
-                  <button 
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
-                    {isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}
-                  </button>
-
-                  {isForgotPassword && (
+                  <div className="pt-2 flex flex-col gap-3">
                     <button 
                       type="button"
                       onClick={() => { setIsVerifyingOtp(true); setIsForgotPassword(false); setError(null); }}
-                      className="w-full text-center text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest mt-2"
+                      className="w-full text-center text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest"
                     >
                       Entrar com Código / Já tenho um código
                     </button>
-                  )}
 
-                  {(isForgotPassword || isRegistering) && (
                     <button 
                       type="button"
-                      onClick={() => { setIsForgotPassword(false); setIsRegistering(false); setError(null); }}
+                      onClick={() => { setIsForgotPassword(false); setResetSent(false); setError(null); }}
                       className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
                     >
                       Voltar para o Login
                     </button>
-                  )}
+                  </div>
                 </div>
-              </form>
+              ) : (
+                <form onSubmit={isForgotPassword ? handleForgotPassword : (isRegistering ? handleRegister : handleLogin)} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail Institucional</label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                      <input 
+                        type="email"
+                        required
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
+                        placeholder="aluno@diocese.com"
+                      />
+                    </div>
+                  </div>
+
+                  {!isForgotPassword && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                        <input 
+                          type="password"
+                          required={!isForgotPassword}
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {isRegistering && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="space-y-1.5"
+                    >
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar Senha</label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#00174b] transition-colors" size={18} />
+                        <input 
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] font-bold text-[#00174b] text-sm focus:bg-white focus:border-[#00174b]/10 focus:ring-4 focus:ring-[#00174b]/5 transition-all outline-none"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {!isRegistering && !isForgotPassword && (
+                     <div className="flex items-center justify-between px-1">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <div className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                            rememberMe ? "bg-indigo-600 border-indigo-600" : "bg-slate-50 border-slate-300 group-hover:border-slate-400"
+                          )}>
+                            <input 
+                              type="checkbox"
+                              className="hidden"
+                              checked={rememberMe}
+                              onChange={e => setRememberMe(e.target.checked)}
+                            />
+                            {rememberMe && <CheckCircle size={10} className="text-white" />}
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lembrar-me</span>
+                        </label>
+
+                        <button 
+                          type="button" 
+                          onClick={() => setIsForgotPassword(true)}
+                          className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-widest"
+                        >
+                           Esqueceu a senha?
+                        </button>
+                     </div>
+                  )}
+
+                  <div className="pt-4 space-y-4">
+                    <button 
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
+                      {isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}
+                    </button>
+
+                    {isForgotPassword && (
+                      <button 
+                        type="button"
+                        onClick={() => { setIsVerifyingOtp(true); setIsForgotPassword(false); setError(null); }}
+                        className="w-full text-center text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest mt-2"
+                      >
+                        Entrar com Código / Já tenho um código
+                      </button>
+                    )}
+
+                    {(isForgotPassword || isRegistering) && (
+                      <button 
+                        type="button"
+                        onClick={() => { setIsForgotPassword(false); setIsRegistering(false); setError(null); }}
+                        className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+                      >
+                        Voltar para o Login
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
             </>
           )}
 
