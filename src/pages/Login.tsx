@@ -244,10 +244,10 @@ export function Login() {
         throw new Error("Este e-mail não está autorizado para primeiro acesso. Entre em contato com a secretaria acadêmica.");
       }
 
-      // Dados para o perfil
-      const userData = preRegRes.data || existingUserRes.data || {
-        name: emailLower.split('@')[0],
-        role: isSystemEmpty ? 'admin' : 'secretario' // Default para primeiro é admin, senão secretario/aluno
+      // Dados para o perfil - preferir o perfil rico pré-cadastrado na tabela 'users' se existir
+      const userData = {
+        name: existingUserRes.data?.full_name || existingUserRes.data?.name || preRegRes.data?.name || preRegRes.data?.metadata?.name || emailLower.split('@')[0],
+        role: existingUserRes.data?.role || preRegRes.data?.role || (isSystemEmpty ? 'admin' : 'secretario')
       };
 
       // Tenta registrar no Supabase Auth
@@ -298,6 +298,7 @@ export function Login() {
           id: finalUserId,
           email: emailLower,
           name: userData.name,
+          full_name: userData.name,
           role: userData.role,
           status: 'active',
           is_pre_registered: false, // Agora é um usuário real
@@ -355,6 +356,7 @@ export function Login() {
           id: userId,
           email: adminEmail,
           name: 'Administrador Root',
+          full_name: 'Administrador Root',
           role: 'admin',
           status: 'active',
           created_at: new Date().toISOString()

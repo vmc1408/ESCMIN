@@ -381,7 +381,9 @@ export function Users() {
         // 3. Register in the global registry FIRST
         try {
           await saveData('email_registry', emailId, { 
+            id: emailId,
             email: emailId, 
+            role: formData.role,
             registered_at: new Date().toISOString(),
             status: 'blocked'
           });
@@ -394,6 +396,7 @@ export function Users() {
           id: emailId,
           email: emailId,
           name: formData.name,
+          full_name: formData.name,
           role: formData.role,
           status: formData.status,
           pin: formData.pin,
