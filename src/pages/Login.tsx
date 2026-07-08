@@ -908,96 +908,6 @@ export function Login() {
                  </div>
                </form>
              </div>
-          ) : isVerifyingOtp ? (
-             <div className="space-y-6">
-               <div className="text-center mb-8">
-                 <h2 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">
-                   Verificar Código
-                 </h2>
-                 <p className="text-slate-400 font-semibold text-[10px] uppercase tracking-[0.2em]">
-                   Digite o código de 6 dígitos enviado ao seu e-mail
-                 </p>
-               </div>
-
-               <AnimatePresence mode="wait">
-                 {error && (
-                   <motion.div 
-                     key="verify-otp-error"
-                     initial={{ opacity: 0, height: 0 }}
-                     animate={{ opacity: 1, height: 'auto' }}
-                     exit={{ opacity: 0, height: 0 }}
-                     className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
-                   >
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
-                     <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
-                   </motion.div>
-                 )}
-               </AnimatePresence>
-
-               <form onSubmit={handleVerifyOtp} className="space-y-4">
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
-                   <div className="relative group">
-                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                     <input 
-                       type="email"
-                       required
-                       value={email}
-                       onChange={e => setEmail(e.target.value)}
-                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                       placeholder="seuemail@exemplo.com"
-                     />
-                   </div>
-                 </div>
-
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Código de 6 dígitos</label>
-                   <div className="relative group">
-                     <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
-                     <input 
-                       type="text"
-                       required
-                       maxLength={6}
-                       value={otpCode}
-                       onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm text-center tracking-[0.5em] focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
-                       placeholder="123456"
-                     />
-                   </div>
-                 </div>
-
-                 <div className="pt-4">
-                   <button 
-                     type="submit"
-                     disabled={loading}
-                     className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
-                   >
-                     {loading ? (
-                       <React.Fragment key="otp-loading">
-                         <Loader2 className="animate-spin" size={20} />
-                         <span>Verificando...</span>
-                       </React.Fragment>
-                     ) : (
-                       <React.Fragment key="otp-ready">
-                         <ArrowRight size={20} />
-                         <span>Verificar Código</span>
-                       </React.Fragment>
-                     )}
-                   </button>
-
-                   <button 
-                     type="button"
-                     onClick={() => {
-                       setIsVerifyingOtp(false);
-                       setError(null);
-                     }}
-                     className="w-full mt-4 text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
-                   >
-                     Voltar ao Login
-                   </button>
-                 </div>
-               </form>
-             </div>
           ) : (
             <>
               <div className="text-center mb-10">
@@ -1049,17 +959,13 @@ export function Login() {
                 {resetSent && (
                   <motion.div 
                     key="login-reset-sent-message"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col gap-2"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3"
                   >
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
-                      <p className="text-xs font-bold text-emerald-700 leading-tight">Link enviado! Verifique seu e-mail.</p>
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-2 bg-white/55 p-3 rounded-xl border border-slate-200 leading-relaxed font-medium text-left">
-                      💡 <strong>Dica de Redirecionamento:</strong> Se ao clicar no link você for enviado para <strong>localhost:3000</strong> e der erro, copie o código de 6 dígitos contido no e-mail e clique em <strong>"Entrar com Código / Já tenho um código"</strong> abaixo para redefinir sua senha diretamente aqui!
-                    </div>
+                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
+                    <p className="text-xs font-bold text-emerald-700 leading-tight">Link enviado! Verifique seu e-mail.</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1071,17 +977,17 @@ export function Login() {
                       <RefreshCw className="text-indigo-600 shrink-0 mt-0.5 animate-spin-slow" size={18} />
                       <div>
                         <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-wider">
-                          O Link do E-mail deu erro?
+                          Dificuldade com o redirecionamento?
                         </h3>
                         <p className="text-[11px] text-slate-600 leading-relaxed font-medium mt-1">
-                          Por estarmos em ambiente de testes, o link recebido por e-mail pode redirecionar incorretamente para <strong>localhost:3000</strong> e dar erro.
+                          Se o redirecionamento automático do e-mail não funcionar no seu navegador, você pode colar o link recebido no campo abaixo para concluir a redefinição de senha com segurança.
                         </p>
                       </div>
                     </div>
 
                     <div className="bg-white/80 p-4 rounded-xl border border-indigo-100/55 space-y-3">
                       <p className="text-[11px] text-slate-700 leading-relaxed font-semibold">
-                        Para resolver isso de forma simples, copie o link completo recebido em seu e-mail e cole-o aqui abaixo:
+                        Copie o link completo recebido em seu e-mail e cole-o aqui:
                       </p>
 
                       <form onSubmit={handleProcessPastedUrl} className="space-y-3">
@@ -1091,7 +997,7 @@ export function Login() {
                           value={pastedUrl}
                           onChange={e => setPastedUrl(e.target.value)}
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/5 transition-all"
-                          placeholder="Cole o link do e-mail (ex: http://localhost:3000/#access_token=...)"
+                          placeholder="Cole o link completo do e-mail (ex: https://...)"
                         />
                         <button 
                           type="submit"
@@ -1115,14 +1021,6 @@ export function Login() {
                   </div>
 
                   <div className="pt-2 flex flex-col gap-3">
-                    <button 
-                      type="button"
-                      onClick={() => { setIsVerifyingOtp(true); setIsForgotPassword(false); setError(null); }}
-                      className="w-full text-center text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest"
-                    >
-                      Entrar com Código / Já tenho um código
-                    </button>
-
                     <button 
                       type="button"
                       onClick={() => { setIsForgotPassword(false); setResetSent(false); setError(null); }}
@@ -1234,15 +1132,7 @@ export function Login() {
                       )}
                     </button>
 
-                    {isForgotPassword && (
-                      <button 
-                        type="button"
-                        onClick={() => { setIsVerifyingOtp(true); setIsForgotPassword(false); setError(null); }}
-                        className="w-full text-center text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest mt-2"
-                      >
-                        Entrar com Código / Já tenho um código
-                      </button>
-                    )}
+
 
                     {(isForgotPassword || isRegistering) && (
                       <button 
