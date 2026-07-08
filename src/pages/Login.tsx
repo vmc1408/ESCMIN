@@ -157,8 +157,8 @@ export function Login() {
       setIsRegistering(false);
       setIsVerifyingOtp(false);
       
-      // Limpa os fragmentos da URL para uma navegação limpa
-      window.history.replaceState(null, '', window.location.pathname);
+      // Limpa os fragmentos da URL para uma navegação limpa sem sair da página de login
+      navigate('/login', { replace: true });
     }
 
     return () => {
@@ -540,7 +540,7 @@ export function Login() {
 
     try {
       const { error: sbErr } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
-        redirectTo: `${window.location.origin}/#/?type=recovery`,
+        redirectTo: `${window.location.origin}/#/login?type=recovery`,
       });
       if (sbErr) throw sbErr;
       setResetSent(true);

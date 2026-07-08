@@ -196,6 +196,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
+      if (event === 'PASSWORD_RECOVERY') {
+        localStorage.setItem('supabase_recovery_mode', 'true');
+        if (session) {
+          const tokens = { 
+            access_token: session.access_token || '', 
+            refresh_token: session.refresh_token || '' 
+          };
+          localStorage.setItem('supabase_recovery_tokens', JSON.stringify(tokens));
+        }
+        window.dispatchEvent(new Event('supabase_recovery'));
+      }
+
       if (session?.user) {
         setUser({
           uid: session.user.id,
