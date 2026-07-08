@@ -811,8 +811,10 @@ export function Login() {
                <AnimatePresence mode="wait">
                  {error && (
                    <motion.div 
+                     key="reset-password-error"
                      initial={{ opacity: 0, height: 0 }}
                      animate={{ opacity: 1, height: 'auto' }}
+                     exit={{ opacity: 0, height: 0 }}
                      className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
                    >
                      <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
@@ -821,8 +823,10 @@ export function Login() {
                  )}
                  {successMessage && (
                    <motion.div 
+                     key="reset-password-success"
                      initial={{ opacity: 0 }}
                      animate={{ opacity: 1 }}
+                     exit={{ opacity: 0 }}
                      className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3"
                    >
                      <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
@@ -900,8 +904,10 @@ export function Login() {
                <AnimatePresence mode="wait">
                  {error && (
                    <motion.div 
+                     key="verify-otp-error"
                      initial={{ opacity: 0, height: 0 }}
                      animate={{ opacity: 1, height: 'auto' }}
+                     exit={{ opacity: 0, height: 0 }}
                      className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
                    >
                      <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
@@ -1003,6 +1009,7 @@ export function Login() {
               <AnimatePresence mode="wait">
                 {error && (
                   <motion.div 
+                    key="login-error-message"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
@@ -1014,6 +1021,7 @@ export function Login() {
                 )}
                 {resetSent && (
                   <motion.div 
+                    key="login-reset-sent-message"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col gap-2"
