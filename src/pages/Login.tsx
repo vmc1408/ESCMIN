@@ -110,10 +110,16 @@ export function Login() {
 
   // Redirect if already logged in and NOT locked and has profile
   useEffect(() => {
-    if (user && profile && !isLocked && !authLoading) {
+    const isRecovery = localStorage.getItem('supabase_recovery_mode') === 'true' || 
+                       isResettingPassword ||
+                       window.location.hash.includes('type=recovery') || 
+                       window.location.hash.includes('access_token=') || 
+                       window.location.search.includes('type=recovery');
+
+    if (user && profile && !isLocked && !authLoading && !isRecovery) {
       navigate(from, { replace: true });
     }
-  }, [user, profile, isLocked, authLoading, navigate, from]);
+  }, [user, profile, isLocked, authLoading, navigate, from, isResettingPassword]);
 
   // Set error from navigation state if present
   useEffect(() => {
