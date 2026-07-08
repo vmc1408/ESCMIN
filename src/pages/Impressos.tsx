@@ -254,6 +254,10 @@ export function Impressos() {
       {/* Dynamic print-only style sheet to format printed pages */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
+          @page {
+            size: A4 portrait !important;
+            margin: 10mm 15mm 4mm 15mm !important;
+          }
           body {
             background-color: #fff !important;
             color: #000 !important;
@@ -277,8 +281,8 @@ export function Impressos() {
             max-width: 100% !important;
             background: #fff !important;
             ${isSinglePageType ? `
-              min-height: 282mm !important;
-              height: 282mm !important;
+              min-height: 283mm !important;
+              height: 283mm !important;
             ` : `
               min-height: 0 !important;
               height: auto !important;
@@ -714,7 +718,7 @@ export function Impressos() {
             id="printable-impressos" 
             className={cn(
               "print-preview-container bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto select-text relative flex flex-col",
-              isSinglePageType ? "h-[1123px] pb-6 md:pb-8" : "min-h-[1123px] pb-3 md:pb-4"
+              isSinglePageType ? "h-[1123px] pb-2 md:pb-3" : "min-h-[1123px] pb-3 md:pb-4"
             )}
           >
             
