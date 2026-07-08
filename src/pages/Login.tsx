@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured, fetchWithTimeout, testConnection } from
 import { saveData, deleteData, fetchCount, getInstitutionSettings } from '../lib/database';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { DEFAULT_LOGO } from '../lib/default-logo';
 import { 
   Shield, 
   Mail, 
@@ -36,7 +37,14 @@ export function Login() {
   const [needsBootstrap, setNeedsBootstrap] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [institution, setInstitution] = useState<any>(null);
+  const [institution, setInstitution] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem('cached_institution_settings');
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0 });
   const [rememberMe, setRememberMe] = useState(false);
   
@@ -650,20 +658,16 @@ export function Login() {
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-16">
             <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-xl overflow-hidden border border-white/10">
-              {institution?.logo_url ? (
-                <img 
-                  src={institution.logo_url} 
-                  alt="Logo" 
-                  className="w-full h-full object-contain p-1"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <Shield className="text-indigo-900" size={28} />
-              )}
+              <img 
+                src={institution?.logo_url || DEFAULT_LOGO} 
+                alt="Logo" 
+                className="w-full h-full object-contain p-1"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">{institution?.city || 'Diocese de Guarulhos'}</p>
-              <h1 className="text-2xl font-bold text-white tracking-tight leading-none">{institution?.name || 'EDM Portal'}</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">{institution?.city_uf || institution?.city || 'GUARULHOS/SP'}</p>
+              <h1 className="text-2xl font-bold text-white tracking-tight leading-none">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
             </div>
           </div>
 

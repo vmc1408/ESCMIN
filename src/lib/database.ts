@@ -803,6 +803,10 @@ export const deleteData = async (collectionName: string, id: string) => {
 export const getInstitutionSettings = async () => {
   try {
     if (!isSupabaseConfigured) {
+      const cached = localStorage.getItem('cached_institution_settings');
+      if (cached) {
+        try { return JSON.parse(cached); } catch (e) {}
+      }
       return {
         id: '1',
         admission_norms: localStorage.getItem('inst_admission_norms') || '',
@@ -819,6 +823,10 @@ export const getInstitutionSettings = async () => {
     );
     
     if (result?.error) {
+      const cached = localStorage.getItem('cached_institution_settings');
+      if (cached) {
+        try { return JSON.parse(cached); } catch (e) {}
+      }
       if (result.error.message?.includes('Failed to fetch')) {
         return {
           id: '1',
@@ -836,7 +844,17 @@ export const getInstitutionSettings = async () => {
       if (!data.presentation_info) {
         data.presentation_info = localStorage.getItem('inst_presentation_info') || '';
       }
+      // Cache successful settings
+      try {
+        localStorage.setItem('cached_institution_settings', JSON.stringify(data));
+      } catch (e) {
+        console.warn('Erro ao salvar configurações no localStorage:', e);
+      }
     } else {
+      const cached = localStorage.getItem('cached_institution_settings');
+      if (cached) {
+        try { return JSON.parse(cached); } catch (e) {}
+      }
       return {
         id: '1',
         admission_norms: localStorage.getItem('inst_admission_norms') || '',
@@ -846,6 +864,10 @@ export const getInstitutionSettings = async () => {
     return data;
   } catch (err: any) {
     console.warn('[Supabase] Aviso ao buscar configurações da instituição:', err.message);
+    const cached = localStorage.getItem('cached_institution_settings');
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) {}
+    }
     return {
       id: '1',
       admission_norms: localStorage.getItem('inst_admission_norms') || '',
