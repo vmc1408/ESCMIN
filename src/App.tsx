@@ -111,7 +111,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const { isConnected, connError, isLocked } = useAuth();
+  const { isConnected, connError, isLocked, user } = useAuth();
   const [showDiagnostic, setShowDiagnostic] = React.useState(false);
 
   React.useEffect(() => {
@@ -148,7 +148,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen">
-      {isLocked && <PinLock />}
+      {user && isLocked && <PinLock />}
       <ImportProvider>
         <Router>
           <Routes>

@@ -234,6 +234,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
+      setIsLocked(false);
+      localStorage.removeItem('app_locked');
+      localStorage.removeItem('app_last_activity');
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
     } finally {

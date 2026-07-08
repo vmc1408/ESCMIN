@@ -793,7 +793,11 @@ export function Login() {
                   disabled={loading}
                   className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
                 >
-                  {loading ? <Loader2 className="animate-spin" /> : <ChevronRight size={20} />}
+                  {loading ? (
+                    <Loader2 key="bootstrap-loader-spinner" className="animate-spin" />
+                  ) : (
+                    <ChevronRight key="bootstrap-chevron-icon" size={20} />
+                  )}
                   {loading ? 'Inicializando...' : 'Criar Administrador'}
                 </button>
              </div>
@@ -872,7 +876,11 @@ export function Login() {
                      disabled={loading}
                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                    >
-                     {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
+                     {loading ? (
+                        <Loader2 key="save-loader-spinner" className="animate-spin" size={20} />
+                      ) : (
+                        <CheckCircle2 key="save-check-icon" size={20} />
+                      )}
                      {loading ? 'Salvando...' : 'Salvar Nova Senha'}
                    </button>
 
@@ -954,7 +962,11 @@ export function Login() {
                      disabled={loading}
                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                    >
-                     {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
+                     {loading ? (
+                        <Loader2 key="otp-loader-spinner" className="animate-spin" size={20} />
+                      ) : (
+                        <ArrowRight key="otp-arrow-icon" size={20} />
+                      )}
                      {loading ? 'Verificando...' : 'Verificar Código'}
                    </button>
 
@@ -1071,7 +1083,11 @@ export function Login() {
                           disabled={loading}
                           className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md shadow-indigo-900/10 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
                         >
-                          {loading ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                          {loading ? (
+                            <Loader2 key="process-loader-spinner" className="animate-spin" size={16} />
+                          ) : (
+                            <CheckCircle2 key="process-check-icon" size={16} />
+                          )}
                           Processar Link e Redefinir Senha
                         </button>
                       </form>
@@ -1152,10 +1168,10 @@ export function Login() {
                   )}
 
                   {!isRegistering && !isForgotPassword && (
-                     <div className="flex items-center justify-between px-1">
-                        <label className="flex items-center gap-2 cursor-pointer group">
+                     <div className="flex items-center justify-between px-1 gap-2">
+                        <label className="flex items-center gap-2 cursor-pointer group shrink-0 select-none">
                           <div className={cn(
-                            "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                            "w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0",
                             rememberMe ? "bg-indigo-600 border-indigo-600" : "bg-slate-50 border-slate-300 group-hover:border-slate-400"
                           )}>
                             <input 
@@ -1166,13 +1182,13 @@ export function Login() {
                             />
                             {rememberMe && <CheckCircle size={10} className="text-white" />}
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lembrar-me</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap shrink-0">Lembrar-me</span>
                         </label>
 
                         <button 
                           type="button" 
                           onClick={() => setIsForgotPassword(true)}
-                          className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-widest"
+                          className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-wider whitespace-nowrap shrink-0"
                         >
                            Esqueceu a senha?
                         </button>
@@ -1185,7 +1201,11 @@ export function Login() {
                       disabled={loading}
                       className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                     >
-                      {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
+                      {loading ? (
+                        <Loader2 key="login-loader-spinner" className="animate-spin" size={20} />
+                      ) : (
+                        <ArrowRight key="login-arrow-icon" size={20} />
+                      )}
                       {isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}
                     </button>
 
@@ -1228,7 +1248,11 @@ export function Login() {
                   disabled={loading}
                   className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle size={14} />}
+                  {loading ? (
+                    <Loader2 key="sync-loader-spinner" className="animate-spin" size={14} />
+                  ) : (
+                    <CheckCircle key="sync-check-icon" size={14} />
+                  )}
                   Tentar Sincronizar
                 </button>
                 <button 
