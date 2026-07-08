@@ -469,18 +469,18 @@ export function Login() {
       });
       if (sbErr) throw sbErr;
 
-      localStorage.removeItem('supabase_recovery_mode');
-      localStorage.removeItem('supabase_recovery_tokens');
-      setRecoverySession(null);
-      setIsResettingPassword(false);
       setNewPassword('');
       setConfirmNewPassword('');
-      setSuccessMessage("Senha redefinida com sucesso! Você já está autenticado no sistema.");
+      setSuccessMessage("Senha redefinida com sucesso! Você já está autenticado no sistema. Redirecionando...");
       
       // Atualiza o perfil caso o usuário já esteja logado
       await refreshProfile();
       
       setTimeout(() => {
+        localStorage.removeItem('supabase_recovery_mode');
+        localStorage.removeItem('supabase_recovery_tokens');
+        setRecoverySession(null);
+        setIsResettingPassword(false);
         setSuccessMessage(null);
         navigate('/');
       }, 3000);
