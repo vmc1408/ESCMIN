@@ -794,11 +794,16 @@ export function Login() {
                   className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
                 >
                   {loading ? (
-                    <Loader2 key="bootstrap-loader-spinner" className="animate-spin" />
+                    <React.Fragment key="bootstrap-loading">
+                      <Loader2 className="animate-spin" />
+                      <span>Inicializando...</span>
+                    </React.Fragment>
                   ) : (
-                    <ChevronRight key="bootstrap-chevron-icon" size={20} />
+                    <React.Fragment key="bootstrap-ready">
+                      <ChevronRight size={20} />
+                      <span>Criar Administrador</span>
+                    </React.Fragment>
                   )}
-                  {loading ? 'Inicializando...' : 'Criar Administrador'}
                 </button>
              </div>
           ) : isResettingPassword ? (
@@ -877,11 +882,16 @@ export function Login() {
                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                    >
                      {loading ? (
-                        <Loader2 key="save-loader-spinner" className="animate-spin" size={20} />
-                      ) : (
-                        <CheckCircle2 key="save-check-icon" size={20} />
-                      )}
-                     {loading ? 'Salvando...' : 'Salvar Nova Senha'}
+                       <React.Fragment key="save-loading">
+                         <Loader2 className="animate-spin" size={20} />
+                         <span>Salvando...</span>
+                       </React.Fragment>
+                     ) : (
+                       <React.Fragment key="save-ready">
+                         <CheckCircle2 size={20} />
+                         <span>Salvar Nova Senha</span>
+                       </React.Fragment>
+                     )}
                    </button>
 
                    <button 
@@ -963,11 +973,16 @@ export function Login() {
                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                    >
                      {loading ? (
-                        <Loader2 key="otp-loader-spinner" className="animate-spin" size={20} />
-                      ) : (
-                        <ArrowRight key="otp-arrow-icon" size={20} />
-                      )}
-                     {loading ? 'Verificando...' : 'Verificar Código'}
+                       <React.Fragment key="otp-loading">
+                         <Loader2 className="animate-spin" size={20} />
+                         <span>Verificando...</span>
+                       </React.Fragment>
+                     ) : (
+                       <React.Fragment key="otp-ready">
+                         <ArrowRight size={20} />
+                         <span>Verificar Código</span>
+                       </React.Fragment>
+                     )}
                    </button>
 
                    <button 
@@ -1084,11 +1099,16 @@ export function Login() {
                           className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-md shadow-indigo-900/10 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
                         >
                           {loading ? (
-                            <Loader2 key="process-loader-spinner" className="animate-spin" size={16} />
+                            <React.Fragment key="pasted-process-loading">
+                              <Loader2 className="animate-spin" size={16} />
+                              <span>Processando...</span>
+                            </React.Fragment>
                           ) : (
-                            <CheckCircle2 key="process-check-icon" size={16} />
+                            <React.Fragment key="pasted-process-ready">
+                              <CheckCircle2 size={16} />
+                              <span>Processar Link e Redefinir Senha</span>
+                            </React.Fragment>
                           )}
-                          Processar Link e Redefinir Senha
                         </button>
                       </form>
                     </div>
@@ -1202,11 +1222,16 @@ export function Login() {
                       className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
                     >
                       {loading ? (
-                        <Loader2 key="login-loader-spinner" className="animate-spin" size={20} />
+                        <React.Fragment key="login-loading">
+                          <Loader2 className="animate-spin" size={20} />
+                          <span>{isForgotPassword ? 'Enviando...' : isRegistering ? 'Ativando...' : 'Acessando...'}</span>
+                        </React.Fragment>
                       ) : (
-                        <ArrowRight key="login-arrow-icon" size={20} />
+                        <React.Fragment key="login-ready">
+                          <ArrowRight size={20} />
+                          <span>{isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}</span>
+                        </React.Fragment>
                       )}
-                      {isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}
                     </button>
 
                     {isForgotPassword && (
@@ -1249,11 +1274,16 @@ export function Login() {
                   className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
                 >
                   {loading ? (
-                    <Loader2 key="sync-loader-spinner" className="animate-spin" size={14} />
+                    <React.Fragment key="sync-loading">
+                      <Loader2 className="animate-spin" size={14} />
+                      <span>Sincronizando...</span>
+                    </React.Fragment>
                   ) : (
-                    <CheckCircle key="sync-check-icon" size={14} />
+                    <React.Fragment key="sync-ready">
+                      <CheckCircle size={14} />
+                      <span>Tentar Sincronizar</span>
+                    </React.Fragment>
                   )}
-                  Tentar Sincronizar
                 </button>
                 <button 
                   onClick={() => logout()}
