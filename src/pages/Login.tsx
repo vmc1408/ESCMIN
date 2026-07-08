@@ -540,7 +540,7 @@ export function Login() {
 
     try {
       const { error: sbErr } = await supabase.auth.resetPasswordForEmail(email.toLowerCase().trim(), {
-        redirectTo: `${window.location.origin}/#/login?type=recovery`,
+        redirectTo: `${window.location.origin}/#/reset-password`,
       });
       if (sbErr) throw sbErr;
       setResetSent(true);

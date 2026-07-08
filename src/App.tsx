@@ -26,6 +26,7 @@ import { BackupPage } from './pages/Backup';
 import { ArchivePage } from './pages/Archive';
 import { Users } from './pages/Users';
 import { Login } from './pages/Login';
+import { ResetPassword } from './pages/ResetPassword';
 import { ImportProvider } from './contexts/ImportContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -110,7 +111,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const { isConnected, connError } = useAuth();
+  const { isConnected, connError, isLocked } = useAuth();
   const [showDiagnostic, setShowDiagnostic] = React.useState(false);
 
   React.useEffect(() => {
@@ -146,12 +147,13 @@ function AppContent() {
   }
 
   return (
-    <>
-      <PinLock />
+    <div className="min-h-screen">
+      {isLocked && <PinLock />}
       <ImportProvider>
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout />
@@ -187,6 +189,6 @@ function AppContent() {
           <GlobalImportOverlay />
         </Router>
       </ImportProvider>
-    </>
+    </div>
   );
 }
