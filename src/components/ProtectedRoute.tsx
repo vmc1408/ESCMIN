@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, AlertCircle, Shield } from 'lucide-react';
-import { motion } from 'motion/react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -27,13 +26,11 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 gap-6 font-sans">
-        <motion.div 
-          animate={{ scale: [1, 1.1, 1] }} 
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-200"
+        <div 
+          className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-200 animate-pulse"
         >
           <Shield className="text-white" size={40} />
-        </motion.div>
+        </div>
         
         <div className="flex flex-col items-center gap-4 text-center max-w-xs">
           <div className="flex flex-col items-center gap-2">
@@ -44,10 +41,8 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
           </div>
 
           {showRetry && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
+            <div 
+              className="space-y-4 transition-all duration-300 transform translate-y-0 opacity-100"
             >
               <p className="text-[11px] text-slate-500 font-medium leading-tight">
                 A resposta do servidor está demorando mais que o esperado.
@@ -58,7 +53,7 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
               >
                 Tentar Sincronizar Agora
               </button>
-            </motion.div>
+            </div>
           )}
         </div>
       </div>

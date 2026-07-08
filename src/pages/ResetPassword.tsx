@@ -245,8 +245,16 @@ export function ResetPassword() {
               disabled={loading}
               className="w-full py-4 bg-[#00174b] text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-blue-900/10 hover:bg-slate-900 transition-all flex items-center justify-center gap-3 disabled:opacity-75"
             >
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
-              {loading ? 'Redefinindo...' : 'Salvar Nova Senha'}
+              {loading ? (
+                <Loader2 key="loader-redefine" className="animate-spin" size={18} />
+              ) : (
+                <CheckCircle2 key="check-redefine" size={18} />
+              )}
+              {loading ? (
+                <span key="text-redefining">Redefinindo...</span>
+              ) : (
+                <span key="text-redefine">Salvar Nova Senha</span>
+              )}
             </button>
           </form>
         )}
@@ -280,8 +288,16 @@ export function ResetPassword() {
                 disabled={loading}
                 className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[9px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
               >
-                {loading ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
-                Processar Link
+                {loading ? (
+                  <Loader2 key="loader-process" className="animate-spin" size={14} />
+                ) : (
+                  <RefreshCw key="refresh-process" size={14} />
+                )}
+                {loading ? (
+                  <span key="text-processing">Processando...</span>
+                ) : (
+                  <span key="text-process">Processar Link</span>
+                )}
               </button>
             </form>
           )}
