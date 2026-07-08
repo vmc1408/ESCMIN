@@ -102,8 +102,8 @@ export function Users() {
       // 1. Process Managers first
       if (managers && managers.length > 0) {
         managers.forEach(u => {
-          // Use ID as primary key, fallback to email if ID is missing (unlikely for users col)
-          const key = u.id || u.email?.toLowerCase().trim() || Math.random().toString();
+          // Use lowercase email as primary key to properly group and deduplicate duplicates
+          const key = u.email?.toLowerCase().trim() || u.id || Math.random().toString();
           const existing = uniqueUsersMap.get(key);
           
           const isPreReg = u.is_pre_registered === true;
@@ -325,6 +325,23 @@ export function Users() {
         }
 
         await saveData('users', selectedUser.id, updatePayload);
+        
+        // Sincroniza com email_registry se o usuário tiver e-mail cadastrado
+        if (selectedUser.email) {
+          const emailId = selectedUser.email.toLowerCase().trim();
+          try {
+            const registryCheck = await fetchById('email_registry', emailId);
+            if (registryCheck) {
+              await saveData('email_registry', emailId, {
+                ...registryCheck,
+                role: formData.role
+              });
+              console.log("[Segurança] Registro central em email_registry atualizado para o cargo:", formData.role);
+            }
+          } catch (regErr) {
+            console.warn("Falha ao atualizar email_registry durante edição:", regErr);
+          }
+        }
         
         // Handle security if it's the current user
         if (userAuth?.uid === selectedUser.id && (newEmail !== userAuth.email || passwordData.newPassword)) {

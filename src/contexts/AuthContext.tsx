@@ -30,7 +30,7 @@ interface AuthContextType {
   latency: number | null;
   unlock: (pin: string) => boolean;
   logout: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: (uid?: string) => Promise<void>;
   switchUser: (newProfile: UserProfile) => void;
   resetToMaster: () => void;
   canAccess: (path: string) => boolean;
@@ -88,17 +88,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(data as UserProfile);
         setLoading(false);
       } else if (!isRetry) {
-        console.warn("[AuthContext] Perfil não encontrado na primeira tentativa. Tentando em segundo plano...");
-        // Se não encontrou, libera a UI (setLoading false) mas continua tentando em background
-        setLoading(false); 
+        console.warn("[AuthContext] Perfil não encontrado na primeira tentativa. Iniciando polling em segundo plano...");
         
-        const retryData = await fetchById('users', targetUid, 15000);
-        if (retryData) {
-          setProfile(retryData as UserProfile);
+        // Mantemos loading = true para evitar piscar o banner de "perfil em sincronização"
+        let foundProfile = null;
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          console.log(`[AuthContext] Tentativa ${attempt} de 5 para carregar perfil em background...`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          try {
+            const retryData = await fetchById('users', targetUid, 3000);
+            if (retryData) {
+              foundProfile = retryData;
+              break;
+            }
+          } catch (err) {
+            console.warn(`[AuthContext] Erro na tentativa ${attempt} de buscar perfil:`, err);
+          }
+        }
+
+        if (foundProfile) {
+          console.log("[AuthContext] Perfil encontrado com sucesso após polling!");
+          setProfile(foundProfile as UserProfile);
         } else {
-          console.warn("[AuthContext] Perfil realmente não encontrado.");
+          console.warn("[AuthContext] Perfil não encontrado após todas as tentativas de polling.");
           setProfile(null);
         }
+        setLoading(false);
       } else {
         setProfile(null);
         setLoading(false);

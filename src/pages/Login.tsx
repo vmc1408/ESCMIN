@@ -324,7 +324,7 @@ export function Login() {
           setIsRegistering(false);
         } else {
           // Força refresh do contexto se já logou
-          await refreshProfile();
+          await refreshProfile(finalUserId);
         }
       }
       
@@ -367,7 +367,7 @@ export function Login() {
           updated_at: new Date().toISOString()
         });
         setNeedsBootstrap(false);
-        refreshProfile();
+        refreshProfile(userId);
       }
     } catch (err: any) {
       setError(err.message);
@@ -732,7 +732,7 @@ export function Login() {
               </div>
               <div className="flex gap-2 w-full">
                 <button 
-                  onClick={() => refreshProfile()}
+                  onClick={() => refreshProfile(user?.uid)}
                   disabled={loading}
                   className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
                 >

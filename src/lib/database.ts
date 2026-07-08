@@ -772,13 +772,10 @@ export const deleteData = async (collectionName: string, id: string) => {
   if (!id) return;
   
   try {
-    if (isTableUsingFallback(collectionName)) {
-      deleteLocalItem(collectionName, id);
-      return;
-    }
+    // Sempre remove localmente também para manter consistência total
+    deleteLocalItem(collectionName, id);
 
-    if (!isSupabaseConfigured) {
-      deleteLocalItem(collectionName, id);
+    if (isTableUsingFallback(collectionName) || !isSupabaseConfigured) {
       return;
     }
     
@@ -786,7 +783,6 @@ export const deleteData = async (collectionName: string, id: string) => {
     if (error) {
       if (isDatabaseMissingOrCacheError(error)) {
         setTableUsingFallback(collectionName, true);
-        deleteLocalItem(collectionName, id);
         return;
       }
       throw error;
@@ -794,7 +790,6 @@ export const deleteData = async (collectionName: string, id: string) => {
   } catch (err: any) {
     if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
-      deleteLocalItem(collectionName, id);
       return;
     }
     console.error(`[deleteData] Erro em "${collectionName}":`, err.message);
