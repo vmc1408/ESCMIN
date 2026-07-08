@@ -39,6 +39,15 @@ export function Login() {
   const [institution, setInstitution] = useState<any>(null);
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0 });
   const [rememberMe, setRememberMe] = useState(false);
+  
+  // Estados para redefinição de senha e OTP bypass
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError } = useAuth();
@@ -112,6 +121,42 @@ export function Login() {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [stateError, navigate, location.pathname]);
+
+  // Detecta se estamos voltando de um fluxo de recuperação de senha (via link/hash do Supabase)
+  useEffect(() => {
+    const checkRecovery = () => {
+      const isRecovery = localStorage.getItem('supabase_recovery_mode') === 'true';
+      if (isRecovery) {
+        setIsResettingPassword(true);
+        setIsForgotPassword(false);
+        setIsRegistering(false);
+        setIsVerifyingOtp(false);
+      }
+    };
+
+    checkRecovery();
+    window.addEventListener('supabase_recovery', checkRecovery);
+    
+    // Processa fragmentos/hashes e search params diretamente (ex: redir direto do Supabase)
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    
+    // Supabase costuma redirecionar no formato /#access_token=...&type=recovery
+    if (hash.includes('type=recovery') || hash.includes('access_token=') || search.includes('type=recovery')) {
+      localStorage.setItem('supabase_recovery_mode', 'true');
+      setIsResettingPassword(true);
+      setIsForgotPassword(false);
+      setIsRegistering(false);
+      setIsVerifyingOtp(false);
+      
+      // Limpa os fragmentos da URL para uma navegação limpa
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+
+    return () => {
+      window.removeEventListener('supabase_recovery', checkRecovery);
+    };
+  }, []);
 
   // Check for first time setup and load info
   useEffect(() => {
@@ -376,6 +421,82 @@ export function Login() {
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setError("A nova senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError("As senhas não coincidem.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: sbErr } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (sbErr) throw sbErr;
+
+      localStorage.removeItem('supabase_recovery_mode');
+      setIsResettingPassword(false);
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setSuccessMessage("Senha redefinida com sucesso! Você já está autenticado no sistema.");
+      
+      // Atualiza o perfil caso o usuário já esteja logado
+      await refreshProfile();
+      
+      setTimeout(() => {
+        setSuccessMessage(null);
+        navigate('/');
+      }, 3000);
+    } catch (err: any) {
+      setError(err.message || "Ocorreu um erro ao atualizar sua senha.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError("Por favor, digite seu e-mail.");
+      return;
+    }
+    if (!otpCode) {
+      setError("Por favor, digite o código de 6 dígitos.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    try {
+      const emailLower = email.toLowerCase().trim();
+      const { data, error: otpErr } = await supabase.auth.verifyOtp({
+        email: emailLower,
+        token: otpCode.trim(),
+        type: 'recovery'
+      });
+      if (otpErr) throw otpErr;
+
+      // Se passou, o usuário já está logado na sessão de recovery.
+      // Agora, podemos redefinir a senha usando a mesma tela.
+      localStorage.setItem('supabase_recovery_mode', 'true');
+      setIsResettingPassword(true);
+      setIsForgotPassword(false);
+      setIsVerifyingOtp(false);
+      setOtpCode('');
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || "Código inválido ou expirado.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
@@ -557,6 +678,174 @@ export function Login() {
                   {loading ? 'Inicializando...' : 'Criar Administrador'}
                 </button>
              </div>
+          ) : isResettingPassword ? (
+             <div className="space-y-6">
+               <div className="text-center mb-8">
+                 <h2 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">
+                   Definir Nova Senha
+                 </h2>
+                 <p className="text-slate-400 font-semibold text-[10px] uppercase tracking-[0.2em]">
+                   Digite a nova senha para sua conta
+                 </p>
+               </div>
+
+               <AnimatePresence mode="wait">
+                 {error && (
+                   <motion.div 
+                     initial={{ opacity: 0, height: 0 }}
+                     animate={{ opacity: 1, height: 'auto' }}
+                     className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
+                   >
+                     <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
+                     <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
+                   </motion.div>
+                 )}
+                 {successMessage && (
+                   <motion.div 
+                     initial={{ opacity: 0 }}
+                     animate={{ opacity: 1 }}
+                     className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3"
+                   >
+                     <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
+                     <p className="text-xs font-bold text-emerald-700 leading-tight">{successMessage}</p>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
+
+               <form onSubmit={handleUpdatePassword} className="space-y-4">
+                 <div className="space-y-1.5">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nova Senha</label>
+                   <div className="relative group">
+                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                     <input 
+                       type="password"
+                       required
+                       value={newPassword}
+                       onChange={e => setNewPassword(e.target.value)}
+                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
+                       placeholder="Mínimo de 6 caracteres"
+                     />
+                   </div>
+                 </div>
+
+                 <div className="space-y-1.5">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirmar Nova Senha</label>
+                   <div className="relative group">
+                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                     <input 
+                       type="password"
+                       required
+                       value={confirmNewPassword}
+                       onChange={e => setConfirmNewPassword(e.target.value)}
+                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
+                       placeholder="Repita sua nova senha"
+                     />
+                   </div>
+                 </div>
+
+                 <div className="pt-4">
+                   <button 
+                     type="submit"
+                     disabled={loading}
+                     className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                   >
+                     {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
+                     {loading ? 'Salvando...' : 'Salvar Nova Senha'}
+                   </button>
+
+                   <button 
+                     type="button"
+                     onClick={() => {
+                       localStorage.removeItem('supabase_recovery_mode');
+                       setIsResettingPassword(false);
+                       setError(null);
+                     }}
+                     className="w-full mt-4 text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+                   >
+                     Cancelar e Voltar ao Login
+                   </button>
+                 </div>
+               </form>
+             </div>
+          ) : isVerifyingOtp ? (
+             <div className="space-y-6">
+               <div className="text-center mb-8">
+                 <h2 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">
+                   Verificar Código
+                 </h2>
+                 <p className="text-slate-400 font-semibold text-[10px] uppercase tracking-[0.2em]">
+                   Digite o código de 6 dígitos enviado ao seu e-mail
+                 </p>
+               </div>
+
+               <AnimatePresence mode="wait">
+                 {error && (
+                   <motion.div 
+                     initial={{ opacity: 0, height: 0 }}
+                     animate={{ opacity: 1, height: 'auto' }}
+                     className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3"
+                   >
+                     <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={16} />
+                     <p className="text-xs font-bold text-red-700 leading-tight">{error}</p>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
+
+               <form onSubmit={handleVerifyOtp} className="space-y-4">
+                 <div className="space-y-1.5">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Seu E-mail</label>
+                   <div className="relative group">
+                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                     <input 
+                       type="email"
+                       required
+                       value={email}
+                       onChange={e => setEmail(e.target.value)}
+                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
+                       placeholder="seuemail@exemplo.com"
+                     />
+                   </div>
+                 </div>
+
+                 <div className="space-y-1.5">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Código de 6 dígitos</label>
+                   <div className="relative group">
+                     <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={18} />
+                     <input 
+                       type="text"
+                       required
+                       maxLength={6}
+                       value={otpCode}
+                       onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                       className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm text-center tracking-[0.5em] focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none"
+                       placeholder="123456"
+                     />
+                   </div>
+                 </div>
+
+                 <div className="pt-4">
+                   <button 
+                     type="submit"
+                     disabled={loading}
+                     className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-900/20 hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                   >
+                     {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
+                     {loading ? 'Verificando...' : 'Verificar Código'}
+                   </button>
+
+                   <button 
+                     type="button"
+                     onClick={() => {
+                       setIsVerifyingOtp(false);
+                       setError(null);
+                     }}
+                     className="w-full mt-4 text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+                   >
+                     Voltar ao Login
+                   </button>
+                 </div>
+               </form>
+             </div>
           ) : (
             <>
               <div className="text-center mb-10">
@@ -608,10 +897,15 @@ export function Login() {
                   <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3"
+                    className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col gap-2"
                   >
-                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
-                    <p className="text-xs font-bold text-emerald-700 leading-tight">Link enviado! Verifique seu e-mail.</p>
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={16} />
+                      <p className="text-xs font-bold text-emerald-700 leading-tight">Link enviado! Verifique seu e-mail.</p>
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-2 bg-white/55 p-3 rounded-xl border border-slate-200 leading-relaxed font-medium text-left">
+                      💡 <strong>Dica de Redirecionamento:</strong> Se ao clicar no link você for enviado para <strong>localhost:3000</strong> e der erro, copie o código de 6 dígitos contido no e-mail e clique em <strong>"Entrar com Código / Já tenho um código"</strong> abaixo para redefinir sua senha diretamente aqui!
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -707,6 +1001,16 @@ export function Login() {
                     {loading ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
                     {isForgotPassword ? 'Enviar Link' : isRegistering ? 'Ativar Minha Conta' : 'Acessar Sistema'}
                   </button>
+
+                  {isForgotPassword && (
+                    <button 
+                      type="button"
+                      onClick={() => { setIsVerifyingOtp(true); setIsForgotPassword(false); setError(null); }}
+                      className="w-full text-center text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest mt-2"
+                    >
+                      Entrar com Código / Já tenho um código
+                    </button>
+                  )}
 
                   {(isForgotPassword || isRegistering) && (
                     <button 
