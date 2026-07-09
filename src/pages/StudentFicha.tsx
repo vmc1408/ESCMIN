@@ -622,12 +622,7 @@ export function StudentFicha() {
     }
   }, [searchTerm]);
 
-  // Auto-select first student if available and none selected
-  useEffect(() => {
-    if (filteredStudentsList.length > 0 && !selectedStudentId) {
-      setSelectedStudentId(filteredStudentsList[0].id);
-    }
-  }, [filteredStudentsList, selectedStudentId]);
+
 
   const activeStudent = useMemo(() => {
     return students.find(s => s.id === selectedStudentId);
