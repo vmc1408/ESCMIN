@@ -865,7 +865,7 @@ export function Impressos() {
 
             {/* 2. FICHA DE INSCRIÇÃO (CADASTRAL EM BRANCO) */}
             {selectedType === 'ficha' && (
-              <div className="flex-1 flex flex-col justify-between text-[10pt] leading-relaxed font-sans text-black">
+              <div className="flex-1 flex flex-col justify-between min-h-[920px] text-[10pt] leading-relaxed font-sans text-black">
                 <div className="space-y-3.5">
                   {/* Title */}
                   <div className="text-center pt-0">
@@ -1084,7 +1084,7 @@ export function Impressos() {
 
             {/* 2.2 CARTA DE APRESENTAÇÃO */}
             {selectedType === 'carta' && (
-              <div className="space-y-6 text-[10.5pt] leading-relaxed font-sans text-black flex flex-col justify-between min-h-[920px]">
+              <div className="flex-1 flex flex-col justify-between min-h-[920px] space-y-6 text-[10.5pt] leading-relaxed font-sans text-black">
                 <div className="space-y-6">
                   {/* Title */}
                   <div className="text-center pt-2">
