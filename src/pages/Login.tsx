@@ -4,6 +4,9 @@ import { saveData, deleteData, fetchCount, getInstitutionSettings } from '../lib
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { DEFAULT_LOGO } from '../lib/default-logo';
+import sedePropriaImg from '../assets/images/sede_propria_guarulhos_1783557147440.jpg';
+import docentesGrupoImg from '../assets/images/corpo_docente_real_1783556897371.jpg';
+import dioceseMapaImg from '../assets/images/diocese_map_exact_1783556695984.jpg';
 import { 
   Shield, 
   Mail, 
@@ -22,7 +25,8 @@ import {
   GraduationCap,
   Calendar,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  Map
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1213,36 +1217,28 @@ function SchoolPillarsCarousel({ stats }: { stats: { classes: number; students: 
 
   const slides = [
     {
-      id: 'disciplinas',
-      icon: <GraduationCap size={20} />,
-      title: "Matriz Curricular Teológica",
-      text: "Grade de disciplinas estruturadas para o aprofundamento das escrituras, da história e do ministério pastoral na Diocese.",
-      badge: `${stats.subjects > 0 ? stats.subjects : '26'} Disciplinas`,
-      image: "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=600&auto=format&fit=crop"
-    },
-    {
-      id: 'alunos',
-      icon: <Users size={20} />,
-      title: "Comunidade Vocacionada",
-      text: "Mais de cem leigos e leigas reunidos em ambiente acadêmico para o fortalecimento da fé e do testemunho cristão.",
-      badge: `Mais de ${stats.students || '111'} Alunos`,
-      image: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=600&auto=format&fit=crop"
-    },
-    {
       id: 'sede',
       icon: <Shield size={20} />,
       title: "Sede Própria & Formativa",
-      text: "Estrutura diocesana completa dedicada ao acolhimento das turmas, biblioteca teológica e momentos comunitários.",
+      text: "Sede própria da escola para abrigar salas de aula, secretaria e momentos formativos.",
       badge: "Sede Própria",
-      image: "https://images.unsplash.com/photo-1548625361-155deee223d0?q=80&w=600&auto=format&fit=crop"
+      image: sedePropriaImg
     },
     {
-      id: 'ensino',
-      icon: <BookOpen size={20} />,
-      title: "Formação para o Laicato",
-      text: "Estudos teológicos e pastorais sólidos que capacitam para a ação pastoral e o serviço missionário nas paróquias.",
-      badge: "Formação Integral",
-      image: "https://images.unsplash.com/photo-1504052434569-70ad58565b90?q=80&w=600&auto=format&fit=crop"
+      id: 'professores',
+      icon: <Users size={20} />,
+      title: "Corpo Docente de Excelência",
+      text: "Professores e orientadores qualificados na formação e ensino do clero e laicato diocesano.",
+      badge: "Nossos Professores",
+      image: docentesGrupoImg
+    },
+    {
+      id: 'diocese',
+      icon: <Map size={20} />,
+      title: "Formação para a Diocese",
+      text: "Formação teológica atuante e de longo alcance para todas as paróquias e foranias.",
+      badge: "Toda a Diocese",
+      image: dioceseMapaImg
     }
   ];
 
@@ -1285,34 +1281,39 @@ function SchoolPillarsCarousel({ stats }: { stats: { classes: number; students: 
 
   return (
     <div 
-      className="relative w-full min-h-[220px] rounded-[2rem] border border-white/10 overflow-hidden bg-gradient-to-br from-white/5 to-white/0 shadow-2xl group/carousel select-none cursor-pointer"
+      className="relative w-full min-h-[230px] rounded-[2rem] border border-white/10 overflow-hidden bg-gradient-to-br from-[#0c1e45] to-[#03112a] shadow-2xl group/carousel select-none cursor-pointer"
       onMouseEnter={() => setIsPlaying(false)}
       onMouseLeave={() => setIsPlaying(true)}
     >
-      {/* Dynamic Background Image with subtle zoom & fade transition */}
+      {/* Ambient background shadow/watermark image */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentIndex}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 0.15, scale: 1 }}
+          initial={{ opacity: 0, scale: 1.02 }}
+          animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="absolute inset-0 w-full h-full"
+          transition={{ duration: 0.6 }}
+          className="absolute inset-0 w-full h-full pointer-events-none"
         >
           <img 
             src={currentSlide.image} 
             alt={currentSlide.title}
-            className="w-full h-full object-cover filter saturate-50"
+            className={cn(
+              "w-full h-full transition-all duration-700",
+              currentSlide.id === 'diocese' 
+                ? "object-contain p-4 md:p-2 md:object-right opacity-[0.35]" 
+                : "object-cover opacity-[0.12] filter saturate-50"
+            )}
             referrerPolicy="no-referrer"
           />
         </motion.div>
       </AnimatePresence>
 
-      {/* Decorative dark overlays to keep text readable */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#00174b] via-[#00174b]/75 to-transparent pointer-events-none" />
+      {/* Decorative gradient overlay to guarantee text legibility */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#03112a] via-[#03112a]/85 to-[#03112a]/30 pointer-events-none" />
 
       {/* Slide Content Layout */}
-      <div className="relative z-10 p-6 flex flex-col justify-between min-h-[220px] h-full">
+      <div className="relative z-10 p-6 flex flex-col justify-between min-h-[230px] h-full">
         {/* Top bar: Icon and Badge */}
         <div className="flex items-center justify-between gap-4">
           <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-amber-500 shadow-inner">
@@ -1324,20 +1325,20 @@ function SchoolPillarsCarousel({ stats }: { stats: { classes: number; students: 
         </div>
 
         {/* Middle part: Title and Description */}
-        <div className="my-3 space-y-1.5">
+        <div className="my-3 space-y-1.5 max-w-xl">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
               className="space-y-1"
             >
               <h3 className="text-white font-black text-sm tracking-wide uppercase">
                 {currentSlide.title}
               </h3>
-              <p className="text-white/70 text-[11px] font-semibold leading-relaxed max-w-md">
+              <p className="text-white/85 text-[11px] font-semibold leading-relaxed">
                 {currentSlide.text}
               </p>
             </motion.div>
