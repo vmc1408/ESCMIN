@@ -1158,10 +1158,10 @@ export function Impressos() {
                   <div className="pt-8 grid grid-cols-12 gap-4 items-stretch">
                     {/* Left: Parish Stamp */}
                     <div className="col-span-5 flex items-center justify-center">
-                      <div className="w-32 h-32 rounded-full border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-center p-2 bg-slate-50/50">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight">Carimbo</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight">da</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight">Paróquia</span>
+                      <div className="w-32 h-32 flex flex-col items-center justify-center text-center p-2">
+                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight">Carimbo</span>
+                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight">da</span>
+                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight">Paróquia</span>
                       </div>
                     </div>
 
