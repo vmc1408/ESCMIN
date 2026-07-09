@@ -1158,11 +1158,11 @@ export function Impressos() {
                   <div className="pt-8 grid grid-cols-12 gap-4 items-stretch">
                     {/* Left: Parish Stamp */}
                     <div className="col-span-5 flex items-center justify-center">
-                      <div className="w-32 h-32 relative flex flex-col items-center justify-center text-center p-2 select-none">
-                        {/* Realistic hand-drawn double-stroke red marker watermark */}
+                      <div className="w-36 h-36 relative flex flex-col items-center justify-center text-center p-2 select-none">
+                        {/* Realistic hand-drawn double-stroke gray marker watermark */}
                         <svg 
                           viewBox="0 0 100 80" 
-                          className="absolute inset-0 w-full h-full text-red-500/8 pointer-events-none stroke-[2.5]" 
+                          className="absolute inset-0 w-full h-full text-slate-400/20 pointer-events-none stroke-[2.5]" 
                           fill="none" 
                           stroke="currentColor" 
                           strokeLinecap="round"
