@@ -1159,15 +1159,18 @@ export function Impressos() {
                     {/* Left: Parish Stamp */}
                     <div className="col-span-5 flex items-center justify-center">
                       <div className="w-32 h-32 relative flex flex-col items-center justify-center text-center p-2 select-none">
-                        {/* Hand-drawn sketchy felt-pen circle as a watermark */}
+                        {/* Realistic hand-drawn double-stroke red marker watermark */}
                         <svg 
-                          viewBox="0 0 100 100" 
-                          className="absolute inset-0 w-full h-full text-slate-300/20 pointer-events-none stroke-[2]" 
+                          viewBox="0 0 100 80" 
+                          className="absolute inset-0 w-full h-full text-red-500/8 pointer-events-none stroke-[2.5]" 
                           fill="none" 
                           stroke="currentColor" 
                           strokeLinecap="round"
                         >
-                          <path d="M 48,15 C 68,13 88,23 88,48 C 88,73 68,88 45,86 C 22,84 12,68 14,44 C 16,20 35,12 55,14 C 67,15 80,21 84,31" />
+                          {/* Inner soft stroke */}
+                          <path d="M 45,18 C 25,19 12,28 10,42 C 8,56 18,68 38,71 C 58,74 85,69 92,54 C 99,39 94,27 78,21 C 63,15 38,18 28,22" />
+                          {/* Outer overlapping stroke */}
+                          <path d="M 48,14 C 28,15 15,24 13,38 C 11,52 21,64 42,67 C 63,70 88,64 95,49 C 102,34 96,22 81,16 C 66,10 44,13 34,17" />
                         </svg>
                         <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight z-10">Carimbo</span>
                         <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight z-10">da</span>
