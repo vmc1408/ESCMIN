@@ -1158,10 +1158,20 @@ export function Impressos() {
                   <div className="pt-8 grid grid-cols-12 gap-4 items-stretch">
                     {/* Left: Parish Stamp */}
                     <div className="col-span-5 flex items-center justify-center">
-                      <div className="w-32 h-32 flex flex-col items-center justify-center text-center p-2">
-                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight">Carimbo</span>
-                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight">da</span>
-                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight">Paróquia</span>
+                      <div className="w-32 h-32 relative flex flex-col items-center justify-center text-center p-2 select-none">
+                        {/* Hand-drawn sketchy felt-pen circle as a watermark */}
+                        <svg 
+                          viewBox="0 0 100 100" 
+                          className="absolute inset-0 w-full h-full text-slate-300/20 pointer-events-none stroke-[2]" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeLinecap="round"
+                        >
+                          <path d="M 48,15 C 68,13 88,23 88,48 C 88,73 68,88 45,86 C 22,84 12,68 14,44 C 16,20 35,12 55,14 C 67,15 80,21 84,31" />
+                        </svg>
+                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight z-10">Carimbo</span>
+                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight z-10">da</span>
+                        <span className="text-[9px] font-black text-slate-300/20 uppercase tracking-wider leading-tight z-10">Paróquia</span>
                       </div>
                     </div>
 
