@@ -82,7 +82,9 @@ export function Impressos() {
   const [labelStartPosition, setLabelStartPosition] = useState<number>(1);
   const [labelFillMode, setLabelFillMode] = useState<'individual' | 'repeat'>('individual');
   const [showLabelCutBorders, setShowLabelCutBorders] = useState<boolean>(true);
-  const [labelContentOption, setLabelContentOption] = useState<'name_only' | 'address' | 'birthday' | 'matricula'>('address');
+  const [labelShowAddress, setLabelShowAddress] = useState<boolean>(true);
+  const [labelShowBirthday, setLabelShowBirthday] = useState<boolean>(false);
+  const [labelShowMatricula, setLabelShowMatricula] = useState<boolean>(false);
 
   const [documentDate, setDocumentDate] = useState<string>(() => {
     const d = new Date();
@@ -936,18 +938,40 @@ export function Impressos() {
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Configuração das Etiquetas (6180)</h4>
                 
                 <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Conteúdo da Etiqueta</label>
-                    <select
-                      value={labelContentOption}
-                      onChange={(e) => setLabelContentOption(e.target.value as any)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 uppercase"
-                    >
-                      <option value="address">Nome + Endereço Completo</option>
-                      <option value="name_only">Apenas Nome do Aluno</option>
-                      <option value="birthday">Nome + Data de Nascimento</option>
-                      <option value="matricula">Nome + Nº de Matrícula (RA)</option>
-                    </select>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Opções de Conteúdo (Se somam na etiqueta)</label>
+                    <div className="space-y-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={labelShowAddress}
+                          onChange={(e) => setLabelShowAddress(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Endereço Completo</span>
+                      </label>
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={labelShowBirthday}
+                          onChange={(e) => setLabelShowBirthday(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Data de Nascimento</span>
+                      </label>
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={labelShowMatricula}
+                          onChange={(e) => setLabelShowMatricula(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Nº de Matrícula (RA)</span>
+                      </label>
+                    </div>
+                    <p className="text-[8.5px] text-slate-400 font-semibold italic leading-snug">
+                      * O nome é sempre exibido. As opções marcadas serão somadas e empilhadas na etiqueta.
+                    </p>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -1872,51 +1896,59 @@ export function Impressos() {
                                   className="pimaco-label-6180 bg-white flex flex-col justify-center relative box-border select-none text-left"
                                 >
                                   {/* Student Name is always shown */}
-                                  <h5 className="text-[9.5px] font-extrabold text-slate-950 uppercase truncate leading-tight tracking-tight">
+                                  <h5 className="text-[9px] font-extrabold text-slate-950 uppercase truncate leading-none tracking-tight mb-0.5">
                                     {student.name}
                                   </h5>
 
-                                  {/* Options: address, birthday, matricula, name_only */}
-                                  {labelContentOption === 'address' && (
-                                    <div className="text-[7.5px] text-slate-600 font-semibold leading-normal mt-0.5 uppercase">
-                                      {student.address_street ? (
-                                        <>
-                                          <p className="truncate">{student.address_street}{student.address_neighborhood ? `, ${student.address_neighborhood}` : ''}</p>
-                                          <p className="truncate">
-                                            {student.address_zip ? `CEP ${student.address_zip} - ` : ''}
-                                            {student.address_city || 'GUARULHOS'}/{student.address_state || 'SP'}
-                                          </p>
-                                        </>
-                                      ) : (
-                                        <p className="text-slate-400 italic font-medium">Endereço não cadastrado</p>
-                                      )}
-                                    </div>
-                                  )}
+                                  <div className="flex-1 min-h-0 flex flex-col justify-center space-y-0.5">
+                                    {/* Option: Address */}
+                                    {labelShowAddress && (
+                                      <div className="text-[7px] text-slate-600 font-semibold leading-tight uppercase">
+                                        {student.address_street ? (
+                                          <>
+                                            <p className="truncate">{student.address_street}{student.address_neighborhood ? `, ${student.address_neighborhood}` : ''}</p>
+                                            <p className="truncate">
+                                              {student.address_zip ? `CEP ${student.address_zip} - ` : ''}
+                                              {student.address_city || 'GUARULHOS'}/{student.address_state || 'SP'}
+                                            </p>
+                                          </>
+                                        ) : (
+                                          <p className="text-slate-400 italic font-medium text-[6.5px]">Endereço não cadastrado</p>
+                                        )}
+                                      </div>
+                                    )}
 
-                                  {labelContentOption === 'birthday' && (
-                                    <div className="text-[8px] text-slate-600 font-medium leading-tight mt-1 flex items-center gap-1">
-                                      <Calendar size={10} className="text-slate-400 shrink-0" />
-                                      <span className="font-semibold uppercase text-slate-500">Nascimento:</span>
-                                      <span className="font-bold text-slate-800">
-                                        {student.birth_date ? formatDateForDisplay(student.birth_date) : 'NÃO CADASTRADO'}
-                                      </span>
-                                    </div>
-                                  )}
+                                    {/* Option: Birthday & Matricula */}
+                                    {(labelShowBirthday || labelShowMatricula) && (
+                                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[7px] text-slate-600 font-semibold leading-none">
+                                        {labelShowBirthday && (
+                                          <div className="flex items-center gap-0.5 truncate">
+                                            <Calendar size={8} className="text-slate-450 shrink-0" />
+                                            <span className="text-[6.5px] font-bold text-slate-500 uppercase">Nasc:</span>
+                                            <span className="font-bold text-slate-800">
+                                              {student.birth_date ? formatDateForDisplay(student.birth_date) : 'N/C'}
+                                            </span>
+                                          </div>
+                                        )}
 
-                                  {labelContentOption === 'matricula' && (
-                                    <div className="text-[8px] text-slate-600 font-medium leading-tight mt-1 flex items-center gap-1">
-                                      <span className="font-semibold uppercase text-slate-500">Matrícula (RA):</span>
-                                      <span className="font-mono font-bold text-slate-800 bg-slate-50 px-1 border border-slate-100 rounded">
-                                        {student.registration_number || 'S/ RA'}
-                                      </span>
-                                    </div>
-                                  )}
+                                        {labelShowMatricula && (
+                                          <div className="flex items-center gap-0.5 truncate">
+                                            <span className="text-[6.5px] font-bold text-slate-500 uppercase">RA:</span>
+                                            <span className="font-mono font-bold text-slate-800">
+                                              {student.registration_number || 'S/ RA'}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
 
-                                  {labelContentOption === 'name_only' && (
-                                    <div className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-1.5 leading-none">
-                                      {student.course || 'ESTUDANTE'}
-                                    </div>
-                                  )}
+                                    {/* Fallback info when absolutely no options are selected (Name only) */}
+                                    {!labelShowAddress && !labelShowBirthday && !labelShowMatricula && (
+                                      <div className="text-[7.5px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
+                                        {student.course || 'ESTUDANTE'}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}
