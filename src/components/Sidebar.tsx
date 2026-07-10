@@ -96,7 +96,12 @@ const navItems = [
         label: 'Impressos',
         icon: Printer,
         children: [
-          { icon: FileText, label: 'Documentos Oficiais', path: '/impressos' },
+          { icon: FileText, label: 'Declaração de Matrícula', path: '/impressos?type=declaracao' },
+          { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
+          { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta' },
+          { icon: PixIcon, label: 'Carteirinhas do Aluno', path: '/impressos?type=carteirinhas' },
+          { icon: FileText, label: 'Diário de Presença', path: '/impressos?type=diario' },
+          { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
         ]
       },
     ]
@@ -197,6 +202,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         const currentSearch = location.search.replace('?', '');
         if (search === 'view=month' && !currentSearch) {
           return true; // monthly calendar is active if no query parameter
+        }
+        if (search === 'type=declaracao' && !currentSearch) {
+          return true; // default impressos page is active if no query parameter
         }
         return currentSearch === search;
       }

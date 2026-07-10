@@ -26,10 +26,14 @@ import { Student, Class } from '../types';
 import { financialService } from '../services/financialService';
 import { cn, formatDateForDisplay } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSearchParams } from 'react-router-dom';
 
 type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'diario' | 'quitacao' | 'carta';
 
 export function Impressos() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const typeParam = searchParams.get('type') as PrintType | null;
+
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [institution, setInstitution] = useState<any>(null);
@@ -37,6 +41,21 @@ export function Impressos() {
 
   // Selector / Filter States
   const [selectedType, setSelectedType] = useState<PrintType>('declaracao');
+
+  // Sync state with URL search param
+  useEffect(() => {
+    if (typeParam && ['declaracao', 'ficha', 'carteirinhas', 'diario', 'quitacao', 'carta'].includes(typeParam)) {
+      setSelectedType(typeParam);
+    }
+  }, [typeParam]);
+
+  const handleSelectType = useCallback((type: PrintType) => {
+    setSelectedType(type);
+    setSearchParams({ type });
+    if (type === 'declaracao' || type === 'quitacao') {
+      setSelectedStudentId('');
+    }
+  }, [setSearchParams]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [studentSearch, setStudentSearch] = useState('');
@@ -51,6 +70,13 @@ export function Impressos() {
   const [coSignerTitle, setCoSignerTitle] = useState('Diretor Geral');
   const [showPhotoBorder, setShowPhotoBorder] = useState(true);
   const [isFormFilled, setIsFormFilled] = useState(true);
+
+  // States for student cards (Pimaco 6183)
+  const [selectedCardStudentIds, setSelectedCardStudentIds] = useState<string[]>([]);
+  const [startPosition, setStartPosition] = useState<number>(1);
+  const [cardFillMode, setCardFillMode] = useState<'individual' | 'repeat'>('individual');
+  const [showCardCutBorders, setShowCardCutBorders] = useState<boolean>(true);
+
   const [documentDate, setDocumentDate] = useState<string>(() => {
     const d = new Date();
     const year = d.getFullYear();
@@ -206,6 +232,59 @@ export function Impressos() {
     return students.filter(s => s.class_id === selectedClassId);
   }, [students, selectedClassId]);
 
+  // Sync selected cards with class students
+  useEffect(() => {
+    if (classStudents && classStudents.length > 0) {
+      setSelectedCardStudentIds(classStudents.map(s => s.id));
+    } else {
+      setSelectedCardStudentIds([]);
+    }
+  }, [classStudents]);
+
+  // Group students into Pimaco 6183 sheets of 10 labels each
+  const cardItemsForPrinting = useMemo(() => {
+    const selectedStudentsToPrint = classStudents.filter(s => selectedCardStudentIds.includes(s.id));
+    
+    if (selectedStudentsToPrint.length === 0) {
+      return [];
+    }
+
+    const items: (Student | null)[] = [];
+
+    // First sheet: insert empty slots before the starting position
+    const emptyStartCount = Math.max(0, startPosition - 1);
+    for (let i = 0; i < emptyStartCount; i++) {
+      items.push(null);
+    }
+
+    if (cardFillMode === 'repeat') {
+      // Repeat the first selected student to fill the remaining slots of the sheet
+      const studentToRepeat = selectedStudentsToPrint[0];
+      const remainingOnFirstSheet = 10 - emptyStartCount;
+      for (let i = 0; i < remainingOnFirstSheet; i++) {
+        items.push(studentToRepeat);
+      }
+    } else {
+      // Sequencial mode
+      selectedStudentsToPrint.forEach(student => {
+        items.push(student);
+      });
+    }
+
+    // Chunk the flat array into sheets of 10 items
+    const sheets: (Student | null)[][] = [];
+    for (let i = 0; i < items.length; i += 10) {
+      const sheet = items.slice(i, i + 10);
+      // Pad the last sheet to always have exactly 10 items (filled with nulls)
+      while (sheet.length < 10) {
+        sheet.push(null);
+      }
+      sheets.push(sheet);
+    }
+
+    return sheets;
+  }, [classStudents, selectedCardStudentIds, startPosition, cardFillMode]);
+
   // Handle standard document print trigger
   const handlePrint = useCallback(() => {
     window.print();
@@ -255,8 +334,8 @@ export function Impressos() {
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
-            size: A4 portrait !important;
-            margin: 10mm 15mm 4mm 15mm !important;
+            size: ${selectedType === 'carteirinhas' ? 'letter portrait' : 'A4 portrait'} !important;
+            margin: ${selectedType === 'carteirinhas' ? '0mm !important' : '10mm 15mm 4mm 15mm !important'};
           }
           body {
             background-color: #fff !important;
@@ -301,6 +380,49 @@ export function Impressos() {
           .bg-slate-50, .bg-slate-100 {
             background-color: transparent !important;
           }
+
+          /* Pimaco 6183 Print Rules */
+          ${selectedType === 'carteirinhas' ? `
+            .pimaco-sheet {
+              display: grid !important;
+              grid-template-columns: 101.6mm 101.6mm !important;
+              grid-auto-rows: 50.8mm !important;
+              column-gap: 3.1mm !important;
+              row-gap: 0mm !important;
+              width: 215.9mm !important;
+              height: 279.4mm !important;
+              padding: 12.7mm 4.8mm !important;
+              margin: 0 auto !important;
+              box-sizing: border-box !important;
+              page-break-after: always !important;
+              page-break-inside: avoid !important;
+              background-color: #fff !important;
+            }
+            .pimaco-label {
+              width: 101.6mm !important;
+              height: 50.8mm !important;
+              max-width: 101.6mm !important;
+              max-height: 50.8mm !important;
+              min-width: 101.6mm !important;
+              min-height: 50.8mm !important;
+              box-sizing: border-box !important;
+              position: relative !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              overflow: hidden !important;
+              background-color: #fff !important;
+              border: ${showCardCutBorders ? '1px dashed #ddd !important' : 'none !important'};
+            }
+            .print-preview-container {
+              padding: 0 !important;
+              margin: 0 !important;
+              width: auto !important;
+              max-width: none !important;
+              box-shadow: none !important;
+              background: transparent !important;
+            }
+          ` : ''}
         }
       `}} />
 
@@ -324,96 +446,6 @@ export function Impressos() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Control Column (35%) */}
         <div className="lg:col-span-4 space-y-6 print:hidden">
-          {/* Section Selector */}
-          <div className="bg-white border border-slate-200 p-5 space-y-3">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Modelos Disponíveis</h3>
-            <div className="space-y-1.5">
-              <button
-                onClick={() => {
-                  setSelectedType('declaracao');
-                  setSelectedStudentId('');
-                }}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
-                  selectedType === 'declaracao' 
-                    ? "bg-slate-900 text-white shadow-sm font-bold" 
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 font-semibold"
-                )}
-              >
-                <FileCheck size={16} className={cn(selectedType === 'declaracao' ? "text-blue-450" : "text-slate-400")} />
-                <span className="text-[11px] uppercase tracking-wider">Declaração de Matrícula</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedType('ficha')}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
-                  selectedType === 'ficha' 
-                    ? "bg-slate-900 text-white shadow-sm font-bold" 
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 font-semibold"
-                )}
-              >
-                <User size={16} className={cn(selectedType === 'ficha' ? "text-blue-450" : "text-slate-400")} />
-                <span className="text-[11px] uppercase tracking-wider">Ficha de Inscrição (Em Branco)</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedType('carta')}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
-                  selectedType === 'carta' 
-                    ? "bg-slate-900 text-white shadow-sm font-bold" 
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 font-semibold"
-                )}
-              >
-                <FileText size={16} className={cn(selectedType === 'carta' ? "text-blue-450" : "text-slate-400")} />
-                <span className="text-[11px] uppercase tracking-wider">Carta de Apresentação</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedType('carteirinhas')}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
-                  selectedType === 'carteirinhas' 
-                    ? "bg-slate-900 text-white shadow-sm font-bold" 
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 font-semibold"
-                )}
-              >
-                <CreditCard size={16} className={cn(selectedType === 'carteirinhas' ? "text-blue-450" : "text-slate-400")} />
-                <span className="text-[11px] uppercase tracking-wider">Carteirinhas do Aluno</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedType('diario')}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
-                  selectedType === 'diario' 
-                    ? "bg-slate-900 text-white shadow-sm font-bold" 
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 font-semibold"
-                )}
-              >
-                <CalendarCheck size={16} className={cn(selectedType === 'diario' ? "text-blue-450" : "text-slate-400")} />
-                <span className="text-[11px] uppercase tracking-wider">Lista / Diário de Presença</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSelectedType('quitacao');
-                  setSelectedStudentId('');
-                }}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center gap-3 transition-all text-left",
-                  selectedType === 'quitacao' 
-                    ? "bg-slate-900 text-white shadow-sm font-bold" 
-                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 font-semibold"
-                )}
-              >
-                <ShieldCheck size={16} className={cn(selectedType === 'quitacao' ? "text-blue-450" : "text-slate-400")} />
-                <span className="text-[11px] uppercase tracking-wider">Certidão de Quitação Financeira</span>
-              </button>
-            </div>
-          </div>
-
           {/* Context-Based Selector (Student or Class) */}
           <div className="bg-white border border-slate-200 p-5 space-y-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configurações do Documento</h3>
@@ -645,24 +677,174 @@ export function Impressos() {
 
             {/* Customization options for Student ID Cards */}
             {selectedType === 'carteirinhas' && (
-              <div className="space-y-3 pt-2 border-t border-slate-150">
-                <div className="flex items-center justify-between">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Exibir Borda de Foto?</label>
-                  <input 
-                    type="checkbox"
-                    checked={showPhotoBorder}
-                    onChange={(e) => setShowPhotoBorder(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                  />
+              <div className="space-y-4 pt-4 border-t border-slate-150">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Configuração das Etiquetas</h4>
+                
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Exibir Borda de Foto?</label>
+                    <input 
+                      type="checkbox"
+                      checked={showPhotoBorder}
+                      onChange={(e) => setShowPhotoBorder(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Cartão Pré-Preenchido?</label>
+                    <input 
+                      type="checkbox"
+                      checked={isFormFilled}
+                      onChange={(e) => setIsFormFilled(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Bordas Guia de Corte?</label>
+                    <input 
+                      type="checkbox"
+                      checked={showCardCutBorders}
+                      onChange={(e) => setShowCardCutBorders(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Cartão Pré-Preenchido?</label>
-                  <input 
-                    type="checkbox"
-                    checked={isFormFilled}
-                    onChange={(e) => setIsFormFilled(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                  />
+
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Modo de Preenchimento</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCardFillMode('individual')}
+                      className={cn(
+                        "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                        cardFillMode === 'individual'
+                          ? "bg-slate-900 border-slate-900 text-white shadow-sm animate-none"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      Sequencial
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCardFillMode('repeat')}
+                      className={cn(
+                        "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                        cardFillMode === 'repeat'
+                          ? "bg-slate-900 border-slate-900 text-white shadow-sm animate-none"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      Repetir 1º Aluno
+                    </button>
+                  </div>
+                  {cardFillMode === 'repeat' && (
+                    <p className="text-[8.5px] font-medium text-blue-600 italic leading-snug">
+                      * Repete o primeiro aluno selecionado em todas as etiquetas disponíveis na folha.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Posição Inicial na Folha (6183)</label>
+                    <span className="text-[9.5px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      Posição: {startPosition}
+                    </span>
+                  </div>
+                  <p className="text-[8.5px] text-slate-400 font-medium leading-normal">
+                    Selecione onde começará a impressão. Útil para reutilizar folhas Pimaco já começadas.
+                  </p>
+                  
+                  {/* Visual 2x5 Grid representing 10 Pimaco labels on Letter sheet */}
+                  <div className="grid grid-cols-2 gap-1.5 max-w-[160px] mx-auto bg-slate-50 p-2 border border-slate-200 rounded-lg">
+                    {Array.from({ length: 10 }).map((_, idx) => {
+                      const pos = idx + 1;
+                      const isBeforeStart = pos < startPosition;
+                      const isStart = pos === startPosition;
+                      return (
+                        <button
+                          key={pos}
+                          type="button"
+                          onClick={() => setStartPosition(pos)}
+                          className={cn(
+                            "h-7 border rounded text-[9px] font-black uppercase transition-all flex items-center justify-center relative select-none",
+                            isBeforeStart 
+                              ? "bg-slate-200 border-slate-300 text-slate-400/60 line-through cursor-pointer"
+                              : isStart
+                                ? "bg-blue-600 border-blue-600 text-white shadow-sm font-extrabold ring-2 ring-blue-500/20"
+                                : "bg-white border-slate-300 text-slate-700 hover:border-blue-500 hover:bg-blue-50/20"
+                          )}
+                          title={`Imprimir a partir da posição ${pos}`}
+                        >
+                          {pos}
+                          {isBeforeStart && (
+                            <span className="absolute inset-0 bg-red-100/5 diagonal-cross opacity-30 pointer-events-none rounded" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Checklist of students to print */}
+                <div className="space-y-2.5 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Estudantes a Imprimir</label>
+                    <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {selectedCardStudentIds.length} selecionado(s)
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCardStudentIds(classStudents.map(s => s.id))}
+                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
+                    >
+                      Todos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCardStudentIds([])}
+                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-slate-50/50 p-1">
+                    {classStudents.map(student => {
+                      const isChecked = selectedCardStudentIds.includes(student.id);
+                      return (
+                        <label
+                          key={student.id}
+                          className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedCardStudentIds(prev => [...prev, student.id]);
+                              } else {
+                                setSelectedCardStudentIds(prev => prev.filter(id => id !== student.id));
+                              }
+                            }}
+                            className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
+                              {student.name}
+                            </p>
+                            <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
+                              RA: {student.registration_number || 'Sem RA'}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -1220,98 +1402,147 @@ export function Impressos() {
             )}
 
 
-            {/* 3. CARTEIRINHAS DO ESTUDANTE */}
+            {/* 3. CARTEIRINHAS DO ESTUDANTE (PIMACO 6183) */}
             {selectedType === 'carteirinhas' && (
               <div className="space-y-8 font-sans">
-                {classStudents.length === 0 ? (
-                  <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-[10px] space-y-2">
+                {cardItemsForPrinting.length === 0 ? (
+                  <div className="text-center py-20 bg-white border border-slate-150 rounded-xl text-slate-400 font-bold uppercase tracking-widest text-[10px] space-y-2 print:hidden">
                     <Info size={24} className="mx-auto text-slate-300" />
-                    <p>Nenhum aluno vinculado à turma "{activeClass?.name || 'Selecionada'}" foi encontrado.</p>
-                    <p className="text-[9px] text-slate-400">Verifique os cadastros dos alunos.</p>
+                    <p>Nenhum aluno selecionado para impressão de carteirinhas.</p>
+                    <p className="text-[9px] text-slate-450 normal-case">Selecione os alunos da turma na aba lateral esquerda para gerar as etiquetas.</p>
                   </div>
                 ) : (
                   <div>
-                    {/* Header for ID card page */}
-                    <div className="text-center pb-6 border-b border-slate-200 mb-8 print:hidden">
-                      <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Exibindo {classStudents.length} Carteiras de Estudantes</h2>
-                      <p className="text-[10px] text-slate-500 mt-1">Abaixo está o layout das carteirinhas de tamanho padrão de bolso que serão impressas juntas.</p>
+                    {/* Header for ID card page in preview */}
+                    <div className="text-center pb-4 border-b border-slate-200 mb-6 print:hidden">
+                      <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                        Modelo de Carteirinhas (Pimaco 6183 / Avery 5163)
+                      </h2>
+                      <p className="text-[10px] text-slate-400 mt-1 max-w-md mx-auto leading-normal">
+                        Etiquetas de <strong>101,6mm x 50,8mm</strong> (10 por folha Letter). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
+                      </p>
+                      <div className="mt-3 flex justify-center gap-4 text-[9px] font-mono font-bold text-slate-500">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
+                          Etiquetas Ativas: {selectedCardStudentIds.length}
+                        </span>
+                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
+                          Total de Folhas: {cardItemsForPrinting.length}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Cards grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4 justify-center">
-                      {classStudents.map((student) => (
-                        <div 
-                          key={student.id} 
-                          className="w-[85mm] h-[55mm] border border-black/80 p-3 bg-white flex flex-col justify-between relative box-border mx-auto select-none print:m-0 print:border"
-                        >
-                          {/* Inner clean borders */}
-                          <div className="absolute inset-1 border border-black/20 pointer-events-none" />
-
-                          {/* Top Header of Card */}
-                          <div className="flex items-center gap-2 pb-1.5 border-b border-slate-900">
-                            <div className="w-6 h-6 border border-black flex items-center justify-center font-black text-[9px] bg-slate-100 shrink-0">
-                              {getInstitutionLogoText()}
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="text-[8px] font-black uppercase tracking-widest text-slate-900 truncate">
-                                {institution?.name || 'ESCOLA DE FORMAÇÃO CONCILIAR'}
-                              </h4>
-                              <p className="text-[6.5px] font-bold text-slate-400 uppercase tracking-wider">CARTEIRA DE ESTUDANTE</p>
-                            </div>
+                    {/* Sheets list container */}
+                    <div className="space-y-12 print:space-y-0">
+                      {cardItemsForPrinting.map((sheet, sheetIdx) => (
+                        <div key={sheetIdx} className="space-y-2 print:space-y-0">
+                          {/* Sheet indicator for screen */}
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mt-6 mb-2 print:hidden flex items-center justify-center gap-1.5">
+                            <span className="w-6 h-[1px] bg-slate-200" />
+                            Folha {sheetIdx + 1} de {cardItemsForPrinting.length}
+                            <span className="w-6 h-[1px] bg-slate-200" />
                           </div>
 
-                          {/* Main Row: Photo and Bio */}
-                          <div className="flex gap-2.5 items-start flex-1 py-2">
-                            {/* Photo Slot */}
-                            <div className={cn(
-                              "w-[20mm] h-[26mm] bg-slate-50 flex items-center justify-center overflow-hidden shrink-0",
-                              showPhotoBorder ? "border border-black" : "border border-slate-150"
-                            )}>
-                              {student.photo_url ? (
-                                <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="text-center p-1">
-                                  <User className="text-slate-300 mx-auto" size={14} />
-                                  <span className="text-[5px] text-slate-400 font-bold block uppercase mt-0.5">FOTO 3X4</span>
+                          {/* 10-Label Grid representing physical Letter Sheet */}
+                          <div className="pimaco-sheet bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border">
+                            {sheet.map((student, slotIdx) => {
+                              if (!student) {
+                                // Empty label / blank slot (for skipped or empty positions)
+                                return (
+                                  <div 
+                                    key={`empty-${sheetIdx}-${slotIdx}`} 
+                                    className="pimaco-label flex flex-col items-center justify-center text-center p-2 border border-dashed border-slate-200/60 bg-slate-50/20 print:bg-transparent print:border-none print:opacity-0 select-none"
+                                  >
+                                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-350 print:hidden">Etiqueta {slotIdx + 1}</span>
+                                    <span className="text-[6px] font-bold uppercase tracking-tight mt-0.5 text-slate-350/80 print:hidden">(Vazio / Pulado)</span>
+                                  </div>
+                                );
+                              }
+
+                              // Filled card slot
+                              return (
+                                <div 
+                                  key={`filled-${sheetIdx}-${slotIdx}-${student.id}`} 
+                                  className="pimaco-label p-2.5 bg-white flex flex-row items-center gap-3 relative box-border select-none overflow-hidden"
+                                >
+                                  {/* Inner subtle alignment line */}
+                                  <div className="absolute inset-1 border border-slate-900/10 pointer-events-none rounded" />
+
+                                  {/* Left: Photo Slot (3x4 aspect ratio, scaled for card height) */}
+                                  <div className={cn(
+                                    "w-[18mm] h-[24mm] bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 rounded-sm relative z-10",
+                                    showPhotoBorder ? "border border-slate-950" : "border border-slate-150"
+                                  )}>
+                                    {student.photo_url ? (
+                                      <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <div className="text-center p-1">
+                                        <User className="text-slate-300 mx-auto" size={13} />
+                                        <span className="text-[5px] text-slate-400 font-bold block uppercase mt-0.5">FOTO 3X4</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Right: Info Area */}
+                                  <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5 relative z-10 text-left">
+                                    {/* Logo and Inst. Header */}
+                                    <div className="flex items-center gap-1.5 pb-1 border-b border-slate-900/15">
+                                      <div className="w-3.5 h-3.5 border border-black flex items-center justify-center font-black text-[6.5px] bg-slate-100 shrink-0">
+                                        {getInstitutionLogoText()}
+                                      </div>
+                                      <h4 className="text-[6.5px] font-black uppercase tracking-wider text-slate-900 truncate">
+                                        {institution?.name || 'ESCOLA DE FORMAÇÃO CONCILIAR'}
+                                      </h4>
+                                    </div>
+
+                                    {/* Main student metadata */}
+                                    <div className="space-y-0.5 py-1">
+                                      <div>
+                                        <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">ESTUDANTE</span>
+                                        <h5 className="text-[8.5px] font-black text-slate-950 uppercase truncate tracking-tight leading-none mt-0.5">
+                                          {isFormFilled ? student.name : '________________________'}
+                                        </h5>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-x-2">
+                                        <div>
+                                          <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">MATRÍCULA / RA</span>
+                                          <span className="text-[6.5px] font-bold font-mono text-slate-900 leading-none">
+                                            {isFormFilled ? (student.registration_number || 'S/ RA') : '________'}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">DOCUMENTO (RG/CPF)</span>
+                                          <span className="text-[6.5px] font-bold font-mono text-slate-900 leading-none truncate block">
+                                            {isFormFilled ? (student.rg || student.cpf || 'Não Consta') : '________'}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">CURSO / CLASSE</span>
+                                        <span className="text-[6.5px] font-bold text-slate-800 uppercase block truncate leading-none mt-0.5">
+                                          {isFormFilled ? `${student.course || 'CURSO'} - ${activeClass?.name}` : '________________________'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Footer items */}
+                                    <div className="flex items-center justify-between border-t border-slate-900/10 pt-1 mt-auto">
+                                      <div>
+                                        <span className="text-[4px] font-black text-slate-400 uppercase tracking-wider block leading-none">VALIDADE</span>
+                                        <span className="text-[6px] font-black font-mono text-emerald-800 leading-none">DEZ / {new Date().getFullYear()}</span>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="text-[4px] font-black text-slate-400 uppercase tracking-wider block leading-none">DIOCESE DE AMPARO</span>
+                                        <span className="text-[5.5px] font-bold text-slate-800 block leading-none uppercase">
+                                          {isFormFilled ? (student.status || 'Ativo') : '________'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-
-                            {/* Bio details */}
-                            <div className="flex-1 min-w-0 space-y-1.5">
-                              <div>
-                                <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">ESTUDANTE</span>
-                                <h5 className="text-[9px] font-black text-slate-950 uppercase truncate tracking-tight leading-tight">{student.name}</h5>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-1">
-                                <div>
-                                  <span className="text-[5px] font-black text-slate-400 uppercase block tracking-wider leading-none">MATRÍCULA / RA</span>
-                                  <span className="text-[7.5px] font-bold font-mono text-slate-900">{student.registration_number || 'S/ RA'}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[5px] font-black text-slate-400 uppercase block tracking-wider leading-none">DOCUMENTO (RG/CPF)</span>
-                                  <span className="text-[7.5px] font-bold font-mono text-slate-900 truncate block">{student.rg || student.cpf || 'Não Informado'}</span>
-                                </div>
-                              </div>
-
-                              <div>
-                                <span className="text-[5px] font-black text-slate-400 uppercase block tracking-wider leading-none">CURSO / CLASSE</span>
-                                <span className="text-[7.5px] font-bold text-slate-800 uppercase block truncate">{student.course || 'TEOLOGIA'} - {activeClass?.name}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Bottom Footer block */}
-                          <div className="flex items-center justify-between border-t border-black/25 pt-1 mt-auto">
-                            <div>
-                              <span className="text-[4.5px] font-black text-slate-400 uppercase tracking-wider block leading-none">VALIDADE</span>
-                              <span className="text-[6.5px] font-black font-mono text-emerald-800 leading-none">DEZ / {new Date().getFullYear()}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-[4.5px] font-black text-slate-400 uppercase tracking-wider block leading-none">DIOCESE DE AMPARO</span>
-                              <span className="text-[6px] font-bold text-slate-850 block leading-none uppercase">{student.status || 'Ativo'}</span>
-                            </div>
+                              );
+                            })}
                           </div>
                         </div>
                       ))}
