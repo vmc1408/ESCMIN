@@ -30,6 +30,7 @@ import {
   FileText,
   Lock,
   Printer,
+  Tag,
   Archive as ArchiveIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -100,6 +101,7 @@ const navItems = [
           { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
           { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta' },
           { icon: PixIcon, label: 'Carteirinhas do Aluno', path: '/impressos?type=carteirinhas' },
+          { icon: Tag, label: 'Etiquetas de Endereço', path: '/impressos?type=etiquetas' },
           { icon: FileText, label: 'Diário de Presença', path: '/impressos?type=diario' },
           { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
         ]

@@ -28,7 +28,7 @@ import { cn, formatDateForDisplay } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 
-type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'diario' | 'quitacao' | 'carta';
+type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'diario' | 'quitacao' | 'carta' | 'etiquetas';
 
 export function Impressos() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,7 +44,7 @@ export function Impressos() {
 
   // Sync state with URL search param
   useEffect(() => {
-    if (typeParam && ['declaracao', 'ficha', 'carteirinhas', 'diario', 'quitacao', 'carta'].includes(typeParam)) {
+    if (typeParam && ['declaracao', 'ficha', 'carteirinhas', 'diario', 'quitacao', 'carta', 'etiquetas'].includes(typeParam)) {
       setSelectedType(typeParam);
     }
   }, [typeParam]);
@@ -76,6 +76,13 @@ export function Impressos() {
   const [startPosition, setStartPosition] = useState<number>(1);
   const [cardFillMode, setCardFillMode] = useState<'individual' | 'repeat'>('individual');
   const [showCardCutBorders, setShowCardCutBorders] = useState<boolean>(true);
+
+  // States for address labels (Pimaco 6180)
+  const [selectedLabelStudentIds, setSelectedLabelStudentIds] = useState<string[]>([]);
+  const [labelStartPosition, setLabelStartPosition] = useState<number>(1);
+  const [labelFillMode, setLabelFillMode] = useState<'individual' | 'repeat'>('individual');
+  const [showLabelCutBorders, setShowLabelCutBorders] = useState<boolean>(true);
+  const [labelContentOption, setLabelContentOption] = useState<'name_only' | 'address' | 'birthday' | 'matricula'>('address');
 
   const [documentDate, setDocumentDate] = useState<string>(() => {
     const d = new Date();
@@ -232,12 +239,14 @@ export function Impressos() {
     return students.filter(s => s.class_id === selectedClassId);
   }, [students, selectedClassId]);
 
-  // Sync selected cards with class students
+  // Sync selected cards and labels with class students
   useEffect(() => {
     if (classStudents && classStudents.length > 0) {
       setSelectedCardStudentIds(classStudents.map(s => s.id));
+      setSelectedLabelStudentIds(classStudents.map(s => s.id));
     } else {
       setSelectedCardStudentIds([]);
+      setSelectedLabelStudentIds([]);
     }
   }, [classStudents]);
 
@@ -284,6 +293,50 @@ export function Impressos() {
 
     return sheets;
   }, [classStudents, selectedCardStudentIds, startPosition, cardFillMode]);
+
+  // Group students into Pimaco 6180 sheets of 30 labels each
+  const labelItemsForPrinting = useMemo(() => {
+    const selectedStudentsToPrint = classStudents.filter(s => selectedLabelStudentIds.includes(s.id));
+    
+    if (selectedStudentsToPrint.length === 0) {
+      return [];
+    }
+
+    const items: (Student | null)[] = [];
+
+    // First sheet: insert empty slots before the starting position
+    const emptyStartCount = Math.max(0, labelStartPosition - 1);
+    for (let i = 0; i < emptyStartCount; i++) {
+      items.push(null);
+    }
+
+    if (labelFillMode === 'repeat') {
+      // Repeat the first selected student to fill the remaining slots of the sheet
+      const studentToRepeat = selectedStudentsToPrint[0];
+      const remainingOnFirstSheet = 30 - emptyStartCount;
+      for (let i = 0; i < remainingOnFirstSheet; i++) {
+        items.push(studentToRepeat);
+      }
+    } else {
+      // Sequencial mode
+      selectedStudentsToPrint.forEach(student => {
+        items.push(student);
+      });
+    }
+
+    // Chunk the flat array into sheets of 30 items
+    const sheets: (Student | null)[][] = [];
+    for (let i = 0; i < items.length; i += 30) {
+      const sheet = items.slice(i, i + 30);
+      // Pad the last sheet to always have exactly 30 items (filled with nulls)
+      while (sheet.length < 30) {
+        sheet.push(null);
+      }
+      sheets.push(sheet);
+    }
+
+    return sheets;
+  }, [classStudents, selectedLabelStudentIds, labelStartPosition, labelFillMode]);
 
   // Handle standard document print trigger
   const handlePrint = useCallback(() => {
@@ -332,10 +385,73 @@ export function Impressos() {
     <div className="relative font-sans text-slate-800 pb-12">
       {/* Dynamic print-only style sheet to format printed pages */}
       <style dangerouslySetInnerHTML={{ __html: `
+        /* General Sheet and Label Grid Layouts (Apply on screen for high fidelity, and overridden in print) */
+        .pimaco-sheet {
+          display: grid;
+          grid-template-columns: 101.6mm 101.6mm;
+          grid-auto-rows: 50.8mm;
+          column-gap: 3.1mm;
+          row-gap: 0mm;
+          width: 215.9mm;
+          height: 279.4mm;
+          padding: 12.7mm 4.8mm;
+          margin: 0 auto;
+          box-sizing: border-box;
+          background-color: #fff;
+        }
+        .pimaco-label {
+          width: 101.6mm;
+          height: 50.8mm;
+          max-width: 101.6mm;
+          max-height: 50.8mm;
+          min-width: 101.6mm;
+          min-height: 50.8mm;
+          box-sizing: border-box;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          overflow: hidden;
+          background-color: #fff;
+          border: ${showCardCutBorders ? '1px dashed #ddd' : 'none'};
+        }
+
+        /* Pimaco 6180 Sheet layout (3 columns, 10 rows = 30 labels) */
+        .pimaco-sheet-6180 {
+          display: grid;
+          grid-template-columns: 66.7mm 66.7mm 66.7mm;
+          grid-auto-rows: 25.4mm;
+          column-gap: 3.2mm;
+          row-gap: 0mm;
+          width: 215.9mm;
+          height: 279.4mm;
+          padding: 12.7mm 4.7mm;
+          margin: 0 auto;
+          box-sizing: border-box;
+          background-color: #fff;
+        }
+        .pimaco-label-6180 {
+          width: 66.7mm;
+          height: 25.4mm;
+          max-width: 66.7mm;
+          max-height: 25.4mm;
+          min-width: 66.7mm;
+          min-height: 25.4mm;
+          box-sizing: border-box;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          overflow: hidden;
+          background-color: #fff;
+          padding: 2.5mm 3.5mm;
+          border: ${showLabelCutBorders ? '1px dashed #ddd' : 'none'};
+        }
+
         @media print {
           @page {
-            size: ${selectedType === 'carteirinhas' ? 'letter portrait' : 'A4 portrait'} !important;
-            margin: ${selectedType === 'carteirinhas' ? '0mm !important' : '10mm 15mm 4mm 15mm !important'};
+            size: ${(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? 'letter portrait' : 'A4 portrait'} !important;
+            margin: ${(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? '0mm !important' : '10mm 15mm 4mm 15mm !important'};
           }
           body {
             background-color: #fff !important;
@@ -358,14 +474,7 @@ export function Impressos() {
             margin: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
-            background: #fff !important;
-            ${isSinglePageType ? `
-              min-height: 283mm !important;
-              height: 283mm !important;
-            ` : `
-              min-height: 0 !important;
-              height: auto !important;
-            `}
+            background: transparent !important;
           }
           .print-page-break {
             page-break-after: always !important;
@@ -381,48 +490,20 @@ export function Impressos() {
             background-color: transparent !important;
           }
 
-          /* Pimaco 6183 Print Rules */
-          ${selectedType === 'carteirinhas' ? `
-            .pimaco-sheet {
-              display: grid !important;
-              grid-template-columns: 101.6mm 101.6mm !important;
-              grid-auto-rows: 50.8mm !important;
-              column-gap: 3.1mm !important;
-              row-gap: 0mm !important;
-              width: 215.9mm !important;
-              height: 279.4mm !important;
-              padding: 12.7mm 4.8mm !important;
-              margin: 0 auto !important;
-              box-sizing: border-box !important;
-              page-break-after: always !important;
-              page-break-inside: avoid !important;
-              background-color: #fff !important;
-            }
-            .pimaco-label {
-              width: 101.6mm !important;
-              height: 50.8mm !important;
-              max-width: 101.6mm !important;
-              max-height: 50.8mm !important;
-              min-width: 101.6mm !important;
-              min-height: 50.8mm !important;
-              box-sizing: border-box !important;
-              position: relative !important;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              overflow: hidden !important;
-              background-color: #fff !important;
-              border: ${showCardCutBorders ? '1px dashed #ddd !important' : 'none !important'};
-            }
-            .print-preview-container {
-              padding: 0 !important;
-              margin: 0 !important;
-              width: auto !important;
-              max-width: none !important;
-              box-shadow: none !important;
-              background: transparent !important;
-            }
-          ` : ''}
+          /* Print Overrides for Pimaco Sheets */
+          .pimaco-sheet, .pimaco-sheet-6180 {
+            display: grid !important;
+            page-break-after: always !important;
+            page-break-inside: avoid !important;
+            background-color: #fff !important;
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 auto !important;
+          }
+          .pimaco-label, .pimaco-label-6180 {
+            page-break-inside: avoid !important;
+            background-color: #fff !important;
+          }
         }
       `}} />
 
@@ -571,8 +652,8 @@ export function Impressos() {
               </div>
             )}
 
-            {/* Class Selector (Applicable for Carteirinhas, Diario) */}
-            {(selectedType === 'carteirinhas' || selectedType === 'diario') && (
+            {/* Class Selector (Applicable for Carteirinhas, Diario, Etiquetas) */}
+            {(selectedType === 'carteirinhas' || selectedType === 'diario' || selectedType === 'etiquetas') && (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Selecionar Turma/Classe</label>
@@ -849,6 +930,176 @@ export function Impressos() {
               </div>
             )}
 
+            {/* Customization options for Addressing Labels (Pimaco 6180) */}
+            {selectedType === 'etiquetas' && (
+              <div className="space-y-4 pt-4 border-t border-slate-150">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Configuração das Etiquetas (6180)</h4>
+                
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Conteúdo da Etiqueta</label>
+                    <select
+                      value={labelContentOption}
+                      onChange={(e) => setLabelContentOption(e.target.value as any)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 uppercase"
+                    >
+                      <option value="address">Nome + Endereço Completo</option>
+                      <option value="name_only">Apenas Nome do Aluno</option>
+                      <option value="birthday">Nome + Data de Nascimento</option>
+                      <option value="matricula">Nome + Nº de Matrícula (RA)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Bordas Guia de Corte?</label>
+                    <input 
+                      type="checkbox"
+                      checked={showLabelCutBorders}
+                      onChange={(e) => setShowLabelCutBorders(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Modo de Preenchimento</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLabelFillMode('individual')}
+                      className={cn(
+                        "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                        labelFillMode === 'individual'
+                          ? "bg-slate-900 border-slate-900 text-white shadow-sm animate-none"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      Sequencial
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLabelFillMode('repeat')}
+                      className={cn(
+                        "py-2 px-2 border rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                        labelFillMode === 'repeat'
+                          ? "bg-slate-900 border-slate-900 text-white shadow-sm animate-none"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      Repetir 1º
+                    </button>
+                  </div>
+                  {labelFillMode === 'repeat' && (
+                    <p className="text-[8.5px] font-medium text-blue-600 italic leading-snug">
+                      * Repete o primeiro aluno selecionado em todas as etiquetas disponíveis na folha.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Posição Inicial na Folha (6180)</label>
+                    <span className="text-[9.5px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      Posição: {labelStartPosition}
+                    </span>
+                  </div>
+                  <p className="text-[8.5px] text-slate-400 font-medium leading-normal">
+                    Selecione onde começará a impressão (1 a 30). Útil para reaproveitar folhas Pimaco já começadas.
+                  </p>
+                  
+                  {/* Visual 3x10 Grid representing 30 Pimaco labels on Letter sheet */}
+                  <div className="grid grid-cols-3 gap-1 max-w-[210px] mx-auto bg-slate-50 p-1.5 border border-slate-200 rounded-lg">
+                    {Array.from({ length: 30 }).map((_, idx) => {
+                      const pos = idx + 1;
+                      const isBeforeStart = pos < labelStartPosition;
+                      const isStart = pos === labelStartPosition;
+                      return (
+                        <button
+                          key={pos}
+                          type="button"
+                          onClick={() => setLabelStartPosition(pos)}
+                          className={cn(
+                            "h-6 border rounded text-[8px] font-black uppercase transition-all flex items-center justify-center relative select-none",
+                            isBeforeStart 
+                              ? "bg-slate-200 border-slate-300 text-slate-400/60 line-through cursor-pointer"
+                              : isStart
+                                ? "bg-blue-600 border-blue-600 text-white shadow-sm font-extrabold ring-2 ring-blue-500/10"
+                                : "bg-white border-slate-200 text-slate-700 hover:border-blue-500 hover:bg-blue-50/20"
+                          )}
+                          title={`Imprimir a partir da posição ${pos}`}
+                        >
+                          {pos}
+                          {isBeforeStart && (
+                            <span className="absolute inset-0 bg-red-100/5 diagonal-cross opacity-35 pointer-events-none rounded" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Checklist of students to print */}
+                <div className="space-y-2.5 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Estudantes a Imprimir</label>
+                    <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {selectedLabelStudentIds.length} selecionado(s)
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLabelStudentIds(classStudents.map(s => s.id))}
+                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
+                    >
+                      Todos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLabelStudentIds([])}
+                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-slate-50/50 p-1">
+                    {classStudents.map(student => {
+                      const isChecked = selectedLabelStudentIds.includes(student.id);
+                      return (
+                        <label
+                          key={student.id}
+                          className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedLabelStudentIds(prev => [...prev, student.id]);
+                              } else {
+                                setSelectedLabelStudentIds(prev => prev.filter(id => id !== student.id));
+                              }
+                            }}
+                            className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
+                              {student.name}
+                            </p>
+                            <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
+                              RA: {student.registration_number || 'Sem RA'}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Quitacao options */}
             {selectedType === 'quitacao' && (
               <div className="space-y-3 pt-2 border-t border-slate-150">
@@ -899,8 +1150,13 @@ export function Impressos() {
           <div 
             id="printable-impressos" 
             className={cn(
-              "print-preview-container bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto select-text relative flex flex-col",
-              isSinglePageType ? "h-[1123px] pb-2 md:pb-3" : "min-h-[1123px] pb-3 md:pb-4"
+              "print-preview-container select-text relative flex flex-col",
+              (selectedType === 'carteirinhas' || selectedType === 'etiquetas')
+                ? "bg-transparent border-none shadow-none p-0 max-w-none w-auto"
+                : cn(
+                    "bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto",
+                    isSinglePageType ? "h-[1123px] pb-2 md:pb-3" : "min-h-[1123px] pb-3 md:pb-4"
+                  )
             )}
           >
             
@@ -1540,6 +1796,127 @@ export function Impressos() {
                                       </div>
                                     </div>
                                   </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+
+            {/* 3.2 ETIQUETAS DE ENDEREÇAMENTO (PIMACO 6180) */}
+            {selectedType === 'etiquetas' && (
+              <div className="space-y-6 font-sans">
+                {labelItemsForPrinting.length === 0 ? (
+                  <div className="text-center py-20 bg-white border border-slate-150 rounded-xl text-slate-400 font-bold uppercase tracking-widest text-[10px] space-y-2 print:hidden">
+                    <Info size={24} className="mx-auto text-slate-300" />
+                    <p>Nenhuma etiqueta de endereçamento selecionada para impressão.</p>
+                    <p className="text-[9px] text-slate-450 normal-case">Selecione os alunos da turma na aba lateral esquerda para gerar as etiquetas.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Header for labels page in preview */}
+                    <div className="text-center pb-4 border-b border-slate-200 mb-6 print:hidden">
+                      <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                        Modelo de Etiquetas (Pimaco 6180 / Avery 5160)
+                      </h2>
+                      <p className="text-[10px] text-slate-400 mt-1 max-w-md mx-auto leading-normal">
+                        Etiquetas de <strong>66,7mm x 25,4mm</strong> (30 por folha Carta). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
+                      </p>
+                      <div className="mt-3 flex justify-center gap-4 text-[9px] font-mono font-bold text-slate-500">
+                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
+                          Etiquetas Ativas: {selectedLabelStudentIds.length}
+                        </span>
+                        <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
+                          Total de Folhas: {labelItemsForPrinting.length}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sheets list container */}
+                    <div className="space-y-12 print:space-y-0">
+                      {labelItemsForPrinting.map((sheet, sheetIdx) => (
+                        <div key={sheetIdx} className="space-y-2 print:space-y-0">
+                          {/* Sheet indicator for screen */}
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mt-6 mb-2 print:hidden flex items-center justify-center gap-1.5">
+                            <span className="w-6 h-[1px] bg-slate-200" />
+                            Folha {sheetIdx + 1} de {labelItemsForPrinting.length}
+                            <span className="w-6 h-[1px] bg-slate-200" />
+                          </div>
+
+                          {/* 30-Label Grid representing physical Letter Sheet */}
+                          <div className="pimaco-sheet-6180 bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border">
+                            {sheet.map((student, slotIdx) => {
+                              if (!student) {
+                                // Empty label / blank slot (for skipped or empty positions)
+                                return (
+                                  <div 
+                                    key={`empty-${sheetIdx}-${slotIdx}`} 
+                                    className="pimaco-label-6180 flex flex-col items-center justify-center text-center p-1 border border-dashed border-slate-200/50 bg-slate-50/10 print:bg-transparent print:border-none print:opacity-0 select-none"
+                                  >
+                                    <span className="text-[7px] font-bold uppercase tracking-wider text-slate-300 print:hidden">Etiqueta {slotIdx + 1}</span>
+                                    <span className="text-[5.5px] font-semibold uppercase tracking-tight mt-0.5 text-slate-300/80 print:hidden">(Vazio)</span>
+                                  </div>
+                                );
+                              }
+
+                              // Filled card slot
+                              return (
+                                <div 
+                                  key={`filled-${sheetIdx}-${slotIdx}-${student.id}`} 
+                                  className="pimaco-label-6180 bg-white flex flex-col justify-center relative box-border select-none text-left"
+                                >
+                                  {/* Student Name is always shown */}
+                                  <h5 className="text-[9.5px] font-extrabold text-slate-950 uppercase truncate leading-tight tracking-tight">
+                                    {student.name}
+                                  </h5>
+
+                                  {/* Options: address, birthday, matricula, name_only */}
+                                  {labelContentOption === 'address' && (
+                                    <div className="text-[7.5px] text-slate-600 font-semibold leading-normal mt-0.5 uppercase">
+                                      {student.address_street ? (
+                                        <>
+                                          <p className="truncate">{student.address_street}{student.address_neighborhood ? `, ${student.address_neighborhood}` : ''}</p>
+                                          <p className="truncate">
+                                            {student.address_zip ? `CEP ${student.address_zip} - ` : ''}
+                                            {student.address_city || 'GUARULHOS'}/{student.address_state || 'SP'}
+                                          </p>
+                                        </>
+                                      ) : (
+                                        <p className="text-slate-400 italic font-medium">Endereço não cadastrado</p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {labelContentOption === 'birthday' && (
+                                    <div className="text-[8px] text-slate-600 font-medium leading-tight mt-1 flex items-center gap-1">
+                                      <Calendar size={10} className="text-slate-400 shrink-0" />
+                                      <span className="font-semibold uppercase text-slate-500">Nascimento:</span>
+                                      <span className="font-bold text-slate-800">
+                                        {student.birth_date ? formatDateForDisplay(student.birth_date) : 'NÃO CADASTRADO'}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {labelContentOption === 'matricula' && (
+                                    <div className="text-[8px] text-slate-600 font-medium leading-tight mt-1 flex items-center gap-1">
+                                      <span className="font-semibold uppercase text-slate-500">Matrícula (RA):</span>
+                                      <span className="font-mono font-bold text-slate-800 bg-slate-50 px-1 border border-slate-100 rounded">
+                                        {student.registration_number || 'S/ RA'}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {labelContentOption === 'name_only' && (
+                                    <div className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-1.5 leading-none">
+                                      {student.course || 'ESTUDANTE'}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
