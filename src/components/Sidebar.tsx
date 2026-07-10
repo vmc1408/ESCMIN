@@ -93,19 +93,19 @@ const navItems = [
           { icon: FileText, label: 'Recibos', path: '/receipts' },
         ]
       },
-      {
-        label: 'Impressos',
-        icon: Printer,
-        children: [
-          { icon: FileText, label: 'Declaração de Matrícula', path: '/impressos?type=declaracao' },
-          { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
-          { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta' },
-          { icon: PixIcon, label: 'Carteirinhas do Aluno', path: '/impressos?type=carteirinhas' },
-          { icon: Tag, label: 'Etiquetas de Endereço', path: '/impressos?type=etiquetas' },
-          { icon: FileText, label: 'Diário de Presença', path: '/impressos?type=diario' },
-          { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
-        ]
-      },
+    ]
+  },
+  {
+    label: 'Impressos',
+    icon: Printer,
+    children: [
+      { icon: FileText, label: 'Declaração de Matrícula', path: '/impressos?type=declaracao' },
+      { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
+      { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta' },
+      { icon: PixIcon, label: 'Carteirinhas do Aluno', path: '/impressos?type=carteirinhas' },
+      { icon: Tag, label: 'Etiquetas de Endereço', path: '/impressos?type=etiquetas' },
+      { icon: FileText, label: 'Diário de Presença', path: '/impressos?type=diario' },
+      { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
     ]
   },
   { icon: Church, label: 'Guia Diocese', path: '/parishes' },
@@ -189,7 +189,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma']);
+  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma', 'Impressos']);
 
   const toggleGroup = (label: string) => {
     setOpenGroups(prev => 

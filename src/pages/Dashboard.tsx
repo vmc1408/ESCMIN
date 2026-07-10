@@ -14,7 +14,8 @@ import {
   Wallet,
   ShieldCheck,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Printer
 } from 'lucide-react';
 import { fetchCount, fetchAll, saveBatch } from '../lib/database';
 import { isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from '../lib/supabase';
@@ -607,6 +608,8 @@ export function Dashboard() {
               <div className="grid grid-cols-2 gap-2">
                  {[
                    { label: 'Matricular', icon: Users, path: '/students' },
+                    { label: 'Gerar Impressos', icon: Printer, path: '/impressos' },
+                    { label: 'Turmas / Classes', icon: GraduationCap, path: '/classes' },
                    { label: 'Cronograma Acadêmico', icon: Activity, path: '/calendar' },
                    { label: 'Ficha do Aluno', icon: UserCircle, path: '/student-ficha' },
                    { label: 'Contribuições', icon: Wallet, path: '/contributions' }
