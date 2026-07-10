@@ -85,6 +85,7 @@ export function Impressos() {
   const [labelShowAddress, setLabelShowAddress] = useState<boolean>(true);
   const [labelShowBirthday, setLabelShowBirthday] = useState<boolean>(false);
   const [labelShowMatricula, setLabelShowMatricula] = useState<boolean>(false);
+  const [labelShowCourse, setLabelShowCourse] = useState<boolean>(true);
 
   const [documentDate, setDocumentDate] = useState<string>(() => {
     const d = new Date();
@@ -162,9 +163,7 @@ export function Impressos() {
         
         // Pick first student/class as default
         setSelectedStudentId('');
-        if (clss && clss.length > 0) {
-          setSelectedClassId(clss[0].id);
-        }
+        setSelectedClassId('');
       } catch (err) {
         console.error("Erro ao carregar dados para impressos:", err);
       } finally {
@@ -443,7 +442,7 @@ export function Impressos() {
           position: relative;
           display: flex;
           flex-direction: column;
-          justify-content: center;
+          justify-content: space-between;
           overflow: hidden;
           background-color: #fff;
           padding: 2.5mm 3.5mm;
@@ -664,6 +663,7 @@ export function Impressos() {
                     onChange={(e) => setSelectedClassId(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase bg-slate-50"
                   >
+                    <option value="">Selecione uma turma...</option>
                     {classes.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
@@ -968,9 +968,18 @@ export function Impressos() {
                         />
                         <span>Nº de Matrícula (RA)</span>
                       </label>
+                      <label className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={labelShowCourse}
+                          onChange={(e) => setLabelShowCourse(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Nome da Turma / Curso</span>
+                      </label>
                     </div>
                     <p className="text-[8.5px] text-slate-400 font-semibold italic leading-snug">
-                      * O nome é sempre exibido. As opções marcadas serão somadas e empilhadas na etiqueta.
+                      * O nome do aluno é sempre exibido. As opções marcadas serão somadas e empilhadas na etiqueta.
                     </p>
                   </div>
 
@@ -1089,36 +1098,42 @@ export function Impressos() {
                   </div>
 
                   <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-slate-50/50 p-1">
-                    {classStudents.map(student => {
-                      const isChecked = selectedLabelStudentIds.includes(student.id);
-                      return (
-                        <label
-                          key={student.id}
-                          className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedLabelStudentIds(prev => [...prev, student.id]);
-                              } else {
-                                setSelectedLabelStudentIds(prev => prev.filter(id => id !== student.id));
-                              }
-                            }}
-                            className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
-                              {student.name}
-                            </p>
-                            <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
-                              RA: {student.registration_number || 'Sem RA'}
-                            </p>
-                          </div>
-                        </label>
-                      );
-                    })}
+                    {classStudents.length === 0 ? (
+                      <p className="text-[9px] text-slate-400 font-bold text-center py-8 uppercase tracking-wider">
+                        {!selectedClassId ? "Selecione uma turma acima" : "Nenhum aluno nesta turma"}
+                      </p>
+                    ) : (
+                      classStudents.map(student => {
+                        const isChecked = selectedLabelStudentIds.includes(student.id);
+                        return (
+                          <label
+                            key={student.id}
+                            className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedLabelStudentIds(prev => [...prev, student.id]);
+                                } else {
+                                  setSelectedLabelStudentIds(prev => prev.filter(id => id !== student.id));
+                                }
+                              }}
+                              className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
+                                {student.name}
+                              </p>
+                              <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
+                                RA: {student.registration_number || 'Sem RA'}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </div>
@@ -1898,12 +1913,12 @@ export function Impressos() {
                                   {/* Top part: RA/Matrícula above the name if checked */}
                                   <div className="flex flex-col">
                                     {labelShowMatricula && (
-                                      <div className="text-[6.5px] font-mono font-bold text-slate-500 uppercase tracking-wider leading-none mb-0.5">
+                                      <div className="text-[7.5px] font-mono font-bold text-slate-500 uppercase tracking-wider leading-none mb-0.5">
                                         Matrícula (RA): <span className="text-slate-800 font-extrabold">{student.registration_number || 'S/ RA'}</span>
                                       </div>
                                     )}
                                     {/* Student Name is always shown */}
-                                    <h5 className="text-[9.5px] font-extrabold text-slate-950 uppercase truncate leading-tight">
+                                    <h5 className="text-[10px] font-black text-slate-950 uppercase truncate leading-tight">
                                       {student.name}
                                     </h5>
                                   </div>
@@ -1911,34 +1926,34 @@ export function Impressos() {
                                   {/* Middle part: Address */}
                                   <div className="flex-1 min-h-0 flex flex-col justify-center my-0.5">
                                     {labelShowAddress && (
-                                      <div className="text-[7px] text-slate-600 font-semibold leading-tight uppercase">
+                                      <div className="text-[8px] text-slate-600 font-semibold leading-tight uppercase space-y-0.5">
                                         {student.address_street ? (
                                           <>
-                                            <p className="truncate">{student.address_street}{student.address_neighborhood ? `, ${student.address_neighborhood}` : ''}</p>
-                                            <p className="truncate text-[6.5px] text-slate-500 font-semibold">
-                                              {student.address_zip ? `CEP ${student.address_zip} - ` : ''}
-                                              {student.address_city || 'GUARULHOS'}/{student.address_state || 'SP'}
-                                            </p>
+                                            <p className="truncate text-slate-850 font-bold">{student.address_street}{student.address_neighborhood ? ` - ${student.address_neighborhood}` : ''}</p>
+                                            <p className="truncate text-slate-500 font-bold text-[7.5px]">CEP: {student.address_zip || 'NÃO CADASTRADO'}</p>
+                                            <p className="truncate text-slate-500 font-bold text-[7.5px]">{student.address_city || 'GUARULHOS'} - {student.address_state || 'SP'}</p>
                                           </>
                                         ) : (
-                                          <p className="text-slate-400 italic font-medium text-[6.5px]">Endereço não cadastrado</p>
+                                          <p className="text-slate-400 italic font-semibold text-[7.5px] normal-case">Endereço não cadastrado</p>
                                         )}
                                       </div>
                                     )}
                                   </div>
 
                                   {/* Bottom part (Footer) */}
-                                  <div className="flex items-center justify-between text-[6.5px] font-bold text-slate-400 border-t border-slate-100 pt-0.5 uppercase tracking-wider mt-auto leading-none">
-                                    <div className="truncate pr-2">
-                                      {student.course || 'ESTUDANTE'}
-                                    </div>
-                                    {labelShowBirthday && (
-                                      <div className="flex items-center gap-0.5 text-slate-600 font-extrabold shrink-0 text-right">
-                                        <Calendar size={8} className="text-slate-400 shrink-0" />
-                                        <span>NASC: {student.birth_date ? formatDateForDisplay(student.birth_date) : 'N/C'}</span>
+                                  {(labelShowCourse || labelShowBirthday) && (
+                                    <div className="flex items-center justify-between text-[7.5px] font-bold text-slate-400 border-t border-slate-100 pt-0.5 uppercase tracking-wider mt-auto leading-none">
+                                      <div className="truncate pr-2">
+                                        {labelShowCourse ? (student.course || 'ESTUDANTE') : ''}
                                       </div>
-                                    )}
-                                  </div>
+                                      {labelShowBirthday && (
+                                        <div className="flex items-center gap-0.5 text-slate-600 font-extrabold shrink-0 text-right">
+                                          <Calendar size={8} className="text-slate-450 shrink-0" />
+                                          <span>NASC: {student.birth_date ? formatDateForDisplay(student.birth_date) : 'N/C'}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
