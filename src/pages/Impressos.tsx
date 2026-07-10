@@ -86,6 +86,7 @@ export function Impressos() {
   const [labelShowBirthday, setLabelShowBirthday] = useState<boolean>(false);
   const [labelShowMatricula, setLabelShowMatricula] = useState<boolean>(false);
   const [labelShowCourse, setLabelShowCourse] = useState<boolean>(true);
+  const [studentSortOrder, setStudentSortOrder] = useState<'name' | 'registration'>('name');
 
   const [documentDate, setDocumentDate] = useState<string>(() => {
     const d = new Date();
@@ -234,11 +235,22 @@ export function Impressos() {
     return classes.find(c => c.id === selectedClassId) || null;
   }, [classes, selectedClassId]);
 
-  // Students enrolled in selected class
+  // Students enrolled in selected class, sorted by name or registration number
   const classStudents = useMemo(() => {
     if (!selectedClassId) return [];
-    return students.filter(s => s.class_id === selectedClassId);
-  }, [students, selectedClassId]);
+    const filtered = students.filter(s => s.class_id === selectedClassId);
+    return filtered.sort((a, b) => {
+      if (studentSortOrder === 'registration') {
+        const aReg = a.registration_number || '';
+        const bReg = b.registration_number || '';
+        if (!aReg && bReg) return 1;
+        if (aReg && !bReg) return -1;
+        if (!aReg && !bReg) return a.name.localeCompare(b.name, 'pt-BR');
+        return aReg.localeCompare(bReg, 'pt-BR', { numeric: true });
+      }
+      return a.name.localeCompare(b.name, 'pt-BR');
+    });
+  }, [students, selectedClassId, studentSortOrder]);
 
   // Sync selected cards and labels with class students
   useEffect(() => {
@@ -669,6 +681,122 @@ export function Impressos() {
                     ))}
                   </select>
                 </div>
+
+                {/* Sort Order Selector (for carteirinhas, etiquetas, and diario) */}
+                {selectedClassId && (selectedType === 'carteirinhas' || selectedType === 'etiquetas' || selectedType === 'diario') && (
+                  <div className="space-y-1 pt-1">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Ordem dos Alunos</label>
+                    <div className="grid grid-cols-2 gap-1.5 bg-slate-50 p-1 border border-slate-200 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setStudentSortOrder('name')}
+                        className={cn(
+                          "py-1 px-1.5 rounded text-[8.5px] font-black uppercase tracking-wider transition-all",
+                          studentSortOrder === 'name'
+                            ? "bg-slate-900 text-white shadow-sm"
+                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-150"
+                        )}
+                      >
+                        Por Nome
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStudentSortOrder('registration')}
+                        className={cn(
+                          "py-1 px-1.5 rounded text-[8.5px] font-black uppercase tracking-wider transition-all",
+                          studentSortOrder === 'registration'
+                            ? "bg-slate-900 text-white shadow-sm"
+                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-150"
+                        )}
+                      >
+                        Por Matrícula / RA
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Checklist of students to print - directly below class selection */}
+                {selectedClassId && (selectedType === 'carteirinhas' || selectedType === 'etiquetas') && (
+                  <div className="space-y-2 pt-2 border-t border-slate-150">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Estudantes a Imprimir</label>
+                      <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        {selectedType === 'carteirinhas' ? selectedCardStudentIds.length : selectedLabelStudentIds.length} selecionado(s)
+                      </span>
+                    </div>
+                    
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedType === 'carteirinhas') {
+                            setSelectedCardStudentIds(classStudents.map(s => s.id));
+                          } else {
+                            setSelectedLabelStudentIds(classStudents.map(s => s.id));
+                          }
+                        }}
+                        className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200"
+                      >
+                        Todos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedType === 'carteirinhas') {
+                            setSelectedCardStudentIds([]);
+                          } else {
+                            setSelectedLabelStudentIds([]);
+                          }
+                        }}
+                        className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-slate-50/50 p-1">
+                      {classStudents.length === 0 ? (
+                        <p className="text-[9px] text-slate-400 font-bold text-center py-8 uppercase tracking-wider">
+                          Nenhum aluno nesta turma
+                        </p>
+                      ) : (
+                        classStudents.map(student => {
+                          const isChecked = selectedType === 'carteirinhas' 
+                            ? selectedCardStudentIds.includes(student.id)
+                            : selectedLabelStudentIds.includes(student.id);
+                          return (
+                            <label
+                              key={student.id}
+                              className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const setList = selectedType === 'carteirinhas' ? setSelectedCardStudentIds : setSelectedLabelStudentIds;
+                                  if (e.target.checked) {
+                                    setList(prev => [...prev, student.id]);
+                                  } else {
+                                    setList(prev => prev.filter(id => id !== student.id));
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
+                                  {student.name}
+                                </p>
+                                <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
+                                  RA: {student.registration_number || 'Sem RA'}
+                                </p>
+                              </div>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -869,66 +997,6 @@ export function Impressos() {
                     })}
                   </div>
                 </div>
-
-                {/* Checklist of students to print */}
-                <div className="space-y-2.5 pt-3 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Estudantes a Imprimir</label>
-                    <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                      {selectedCardStudentIds.length} selecionado(s)
-                    </span>
-                  </div>
-                  
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCardStudentIds(classStudents.map(s => s.id))}
-                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
-                    >
-                      Todos
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCardStudentIds([])}
-                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
-                    >
-                      Limpar
-                    </button>
-                  </div>
-
-                  <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-slate-50/50 p-1">
-                    {classStudents.map(student => {
-                      const isChecked = selectedCardStudentIds.includes(student.id);
-                      return (
-                        <label
-                          key={student.id}
-                          className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedCardStudentIds(prev => [...prev, student.id]);
-                              } else {
-                                setSelectedCardStudentIds(prev => prev.filter(id => id !== student.id));
-                              }
-                            }}
-                            className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
-                              {student.name}
-                            </p>
-                            <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
-                              RA: {student.registration_number || 'Sem RA'}
-                            </p>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1068,72 +1136,6 @@ export function Impressos() {
                         </button>
                       );
                     })}
-                  </div>
-                </div>
-
-                {/* Checklist of students to print */}
-                <div className="space-y-2.5 pt-3 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Estudantes a Imprimir</label>
-                    <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                      {selectedLabelStudentIds.length} selecionado(s)
-                    </span>
-                  </div>
-                  
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLabelStudentIds(classStudents.map(s => s.id))}
-                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
-                    >
-                      Todos
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedLabelStudentIds([])}
-                      className="flex-1 py-1 px-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[8px] rounded border border-slate-200 animate-none"
-                    >
-                      Limpar
-                    </button>
-                  </div>
-
-                  <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-slate-50/50 p-1">
-                    {classStudents.length === 0 ? (
-                      <p className="text-[9px] text-slate-400 font-bold text-center py-8 uppercase tracking-wider">
-                        {!selectedClassId ? "Selecione uma turma acima" : "Nenhum aluno nesta turma"}
-                      </p>
-                    ) : (
-                      classStudents.map(student => {
-                        const isChecked = selectedLabelStudentIds.includes(student.id);
-                        return (
-                          <label
-                            key={student.id}
-                            className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedLabelStudentIds(prev => [...prev, student.id]);
-                                } else {
-                                  setSelectedLabelStudentIds(prev => prev.filter(id => id !== student.id));
-                                }
-                              }}
-                              className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
-                                {student.name}
-                              </p>
-                              <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
-                                RA: {student.registration_number || 'Sem RA'}
-                              </p>
-                            </div>
-                          </label>
-                        );
-                      })
-                    )}
                   </div>
                 </div>
               </div>
