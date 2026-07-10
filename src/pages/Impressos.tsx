@@ -1893,21 +1893,29 @@ export function Impressos() {
                               return (
                                 <div 
                                   key={`filled-${sheetIdx}-${slotIdx}-${student.id}`} 
-                                  className="pimaco-label-6180 bg-white flex flex-col justify-center relative box-border select-none text-left"
+                                  className="pimaco-label-6180 bg-white flex flex-col justify-between relative box-border select-none text-left"
                                 >
-                                  {/* Student Name is always shown */}
-                                  <h5 className="text-[9px] font-extrabold text-slate-950 uppercase truncate leading-none tracking-tight mb-0.5">
-                                    {student.name}
-                                  </h5>
+                                  {/* Top part: RA/Matrícula above the name if checked */}
+                                  <div className="flex flex-col">
+                                    {labelShowMatricula && (
+                                      <div className="text-[6.5px] font-mono font-bold text-slate-500 uppercase tracking-wider leading-none mb-0.5">
+                                        Matrícula (RA): <span className="text-slate-800 font-extrabold">{student.registration_number || 'S/ RA'}</span>
+                                      </div>
+                                    )}
+                                    {/* Student Name is always shown */}
+                                    <h5 className="text-[9.5px] font-extrabold text-slate-950 uppercase truncate leading-tight">
+                                      {student.name}
+                                    </h5>
+                                  </div>
 
-                                  <div className="flex-1 min-h-0 flex flex-col justify-center space-y-0.5">
-                                    {/* Option: Address */}
+                                  {/* Middle part: Address */}
+                                  <div className="flex-1 min-h-0 flex flex-col justify-center my-0.5">
                                     {labelShowAddress && (
                                       <div className="text-[7px] text-slate-600 font-semibold leading-tight uppercase">
                                         {student.address_street ? (
                                           <>
                                             <p className="truncate">{student.address_street}{student.address_neighborhood ? `, ${student.address_neighborhood}` : ''}</p>
-                                            <p className="truncate">
+                                            <p className="truncate text-[6.5px] text-slate-500 font-semibold">
                                               {student.address_zip ? `CEP ${student.address_zip} - ` : ''}
                                               {student.address_city || 'GUARULHOS'}/{student.address_state || 'SP'}
                                             </p>
@@ -1917,35 +1925,17 @@ export function Impressos() {
                                         )}
                                       </div>
                                     )}
+                                  </div>
 
-                                    {/* Option: Birthday & Matricula */}
-                                    {(labelShowBirthday || labelShowMatricula) && (
-                                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[7px] text-slate-600 font-semibold leading-none">
-                                        {labelShowBirthday && (
-                                          <div className="flex items-center gap-0.5 truncate">
-                                            <Calendar size={8} className="text-slate-450 shrink-0" />
-                                            <span className="text-[6.5px] font-bold text-slate-500 uppercase">Nasc:</span>
-                                            <span className="font-bold text-slate-800">
-                                              {student.birth_date ? formatDateForDisplay(student.birth_date) : 'N/C'}
-                                            </span>
-                                          </div>
-                                        )}
-
-                                        {labelShowMatricula && (
-                                          <div className="flex items-center gap-0.5 truncate">
-                                            <span className="text-[6.5px] font-bold text-slate-500 uppercase">RA:</span>
-                                            <span className="font-mono font-bold text-slate-800">
-                                              {student.registration_number || 'S/ RA'}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Fallback info when absolutely no options are selected (Name only) */}
-                                    {!labelShowAddress && !labelShowBirthday && !labelShowMatricula && (
-                                      <div className="text-[7.5px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
-                                        {student.course || 'ESTUDANTE'}
+                                  {/* Bottom part (Footer) */}
+                                  <div className="flex items-center justify-between text-[6.5px] font-bold text-slate-400 border-t border-slate-100 pt-0.5 uppercase tracking-wider mt-auto leading-none">
+                                    <div className="truncate pr-2">
+                                      {student.course || 'ESTUDANTE'}
+                                    </div>
+                                    {labelShowBirthday && (
+                                      <div className="flex items-center gap-0.5 text-slate-600 font-extrabold shrink-0 text-right">
+                                        <Calendar size={8} className="text-slate-400 shrink-0" />
+                                        <span>NASC: {student.birth_date ? formatDateForDisplay(student.birth_date) : 'N/C'}</span>
                                       </div>
                                     )}
                                   </div>
