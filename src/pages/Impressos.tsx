@@ -252,16 +252,17 @@ export function Impressos() {
     });
   }, [students, selectedClassId, studentSortOrder]);
 
-  // Sync selected cards and labels with class students
+  // Sync selected cards and labels with class students only when class changes
   useEffect(() => {
-    if (classStudents && classStudents.length > 0) {
-      setSelectedCardStudentIds(classStudents.map(s => s.id));
-      setSelectedLabelStudentIds(classStudents.map(s => s.id));
+    if (selectedClassId) {
+      const initialStudents = students.filter(s => s.class_id === selectedClassId);
+      setSelectedCardStudentIds(initialStudents.map(s => s.id));
+      setSelectedLabelStudentIds(initialStudents.map(s => s.id));
     } else {
       setSelectedCardStudentIds([]);
       setSelectedLabelStudentIds([]);
     }
-  }, [classStudents]);
+  }, [selectedClassId, students]);
 
   // Group students into Pimaco 6183 sheets of 10 labels each
   const cardItemsForPrinting = useMemo(() => {
