@@ -534,7 +534,7 @@ export function Impressos() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Control Column (35%) */}
-        <div className="lg:col-span-4 space-y-6 print:hidden">
+        <div className="lg:col-span-4 space-y-6 print:hidden lg:sticky lg:top-0 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar">
           {/* Context-Based Selector (Student or Class) */}
           <div className="bg-white border border-slate-200 p-5 space-y-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configurações do Documento</h3>
@@ -1176,7 +1176,7 @@ export function Impressos() {
         </div>
 
         {/* Right Preview Pane (80% / 8 columns) */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar pb-10">
           <div className="flex items-center justify-between print:hidden">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pré-Visualização do Documento (Formato A4)</h3>
             <span className="text-[9px] bg-slate-100 font-black text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-200">Papel A4 Real</span>
