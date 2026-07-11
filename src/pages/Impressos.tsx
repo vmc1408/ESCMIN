@@ -396,9 +396,9 @@ export function Impressos() {
         /* General Sheet and Label Grid Layouts (Apply on screen for high fidelity, and overridden in print) */
         .pimaco-sheet {
           display: grid;
-          grid-template-columns: 101.6mm 101.6mm;
+          grid-template-columns: 99.1mm 99.1mm;
           grid-auto-rows: 50.8mm;
-          column-gap: 3.1mm;
+          column-gap: 8.1mm;
           row-gap: 0mm;
           width: 215.9mm;
           height: 279.4mm;
@@ -408,11 +408,11 @@ export function Impressos() {
           background-color: #fff;
         }
         .pimaco-label {
-          width: 101.6mm;
+          width: 99.1mm;
           height: 50.8mm;
-          max-width: 101.6mm;
+          max-width: 99.1mm;
           max-height: 50.8mm;
-          min-width: 101.6mm;
+          min-width: 99.1mm;
           min-height: 50.8mm;
           box-sizing: border-box;
           position: relative;
@@ -518,7 +518,7 @@ export function Impressos() {
       {/* Page Title */}
       <PageHeader 
         title="Documentos e Impressos" 
-        description="Emissão e impressão direta de declarações, fichas de matrículas, carteirinhas de estudantes e diários." 
+        description="Emissão e impressão direta de declarações, fichas de matrículas, etiquetas para carteirinhas de estudantes e diários." 
         icon={Printer}
         badge="Impressos"
       >
@@ -953,7 +953,7 @@ export function Impressos() {
 
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Posição Inicial na Folha (6183)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Posição Inicial na Folha (8099F)</label>
                     <span className="text-[9.5px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                       Posição: {startPosition}
                     </span>
@@ -1694,13 +1694,13 @@ export function Impressos() {
             )}
 
 
-            {/* 3. CARTEIRINHAS DO ESTUDANTE (PIMACO 6183) */}
+            {/* 3. ETIQUETAS PARA CARTEIRINHA (PIMACO 8099F) */}
             {selectedType === 'carteirinhas' && (
               <div className="space-y-8 font-sans">
                 {cardItemsForPrinting.length === 0 ? (
                   <div className="text-center py-20 bg-white border border-slate-150 rounded-xl text-slate-400 font-bold uppercase tracking-widest text-[10px] space-y-2 print:hidden">
                     <Info size={24} className="mx-auto text-slate-300" />
-                    <p>Nenhum aluno selecionado para impressão de carteirinhas.</p>
+                    <p>Nenhum aluno selecionado para impressão de etiquetas para carteirinha.</p>
                     <p className="text-[9px] text-slate-450 normal-case">Selecione os alunos da turma na aba lateral esquerda para gerar as etiquetas.</p>
                   </div>
                 ) : (
@@ -1708,10 +1708,10 @@ export function Impressos() {
                     {/* Header for ID card page in preview */}
                     <div className="text-center pb-4 border-b border-slate-200 mb-6 print:hidden">
                       <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                        Modelo de Carteirinhas (Pimaco 6183 / Avery 5163)
+                        Modelo de Etiquetas para Carteirinha (Pimaco 8099F / Avery 5163 / Avery 8163)
                       </h2>
                       <p className="text-[10px] text-slate-400 mt-1 max-w-md mx-auto leading-normal">
-                        Etiquetas de <strong>101,6mm x 50,8mm</strong> (10 por folha Letter). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
+                        Etiquetas de <strong>99,1mm x 50,8mm</strong> (10 por folha Carta). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
                       </p>
                       <div className="mt-3 flex justify-center gap-4 text-[9px] font-mono font-bold text-slate-500">
                         <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
