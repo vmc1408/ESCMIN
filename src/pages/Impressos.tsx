@@ -1244,8 +1244,12 @@ export function Impressos() {
         {/* Right Preview Pane (80% / 8 columns) */}
         <div className="lg:col-span-8 space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar pb-10">
           <div className="flex items-center justify-between print:hidden">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pré-Visualização do Documento (Formato A4)</h3>
-            <span className="text-[9px] bg-slate-100 font-black text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-200">Papel A4 Real</span>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Pré-Visualização do Documento {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? '(Formato Carta)' : '(Formato A4)'}
+            </h3>
+            <span className="text-[9px] bg-slate-100 font-black text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-200">
+              {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? 'Papel Carta Real' : 'Papel A4 Real'}
+            </span>
           </div>
 
           {/* Standard Page Container - Mocking A4 Sheet */}
