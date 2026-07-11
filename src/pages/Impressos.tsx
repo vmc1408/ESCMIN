@@ -22,13 +22,13 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
-import { Student, Class } from '../types';
+import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
 import { cn, formatDateForDisplay } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 
-type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'diario' | 'quitacao' | 'carta' | 'etiquetas';
+type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'quitacao' | 'carta' | 'etiquetas';
 
 export function Impressos() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,6 +36,7 @@ export function Impressos() {
 
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [contributions, setContributions] = useState<Contribution[]>([]);
   const [institution, setInstitution] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +45,7 @@ export function Impressos() {
 
   // Sync state with URL search param
   useEffect(() => {
-    if (typeParam && ['declaracao', 'ficha', 'carteirinhas', 'diario', 'quitacao', 'carta', 'etiquetas'].includes(typeParam)) {
+    if (typeParam && ['declaracao', 'ficha', 'carteirinhas', 'quitacao', 'carta', 'etiquetas'].includes(typeParam)) {
       setSelectedType(typeParam);
     }
   }, [typeParam]);
@@ -133,13 +134,15 @@ export function Impressos() {
     async function loadData() {
       try {
         setLoading(true);
-        const [studs, clss, instSettings] = await Promise.all([
+        const [studs, clss, instSettings, conts] = await Promise.all([
           fetchAll('students', '*', 'name'),
           fetchAll('classes', '*', 'name'),
-          financialService.getInstitutionSettings()
+          financialService.getInstitutionSettings(),
+          financialService.getContributions()
         ]);
         
         setStudents(studs || []);
+        setContributions(conts || []);
         
         // Normalize classes (subject_ids handling)
         const normalizedClasses = (clss || []).map((cls: Class) => {
@@ -234,6 +237,69 @@ export function Impressos() {
   const activeClass = useMemo(() => {
     return classes.find(c => c.id === selectedClassId) || null;
   }, [classes, selectedClassId]);
+
+  // Find pending payments for the activeStudent
+  const pendingPayments = useMemo(() => {
+    if (!activeStudent) return { isPending: false, months: [], year: new Date().getFullYear() };
+    
+    // Filter contributions for this student in the current year
+    const currentYear = new Date().getFullYear();
+    const studentConts = contributions.filter(
+      c => c.student_id === activeStudent.id && c.reference_year === currentYear
+    );
+    
+    // Check months starting from their start_date month (if it falls in the current year), otherwise from January
+    let startCheckMonth = 1; // Default to January
+    if (activeStudent.start_date) {
+      const dateParts = activeStudent.start_date.split('/');
+      if (dateParts.length === 3) {
+        const startYear = parseInt(dateParts[2], 10);
+        const startMonth = parseInt(dateParts[1], 10);
+        if (startYear === currentYear) {
+          startCheckMonth = startMonth;
+        }
+      } else {
+        const datePartsDash = activeStudent.start_date.split('-');
+        if (datePartsDash.length === 3) {
+          const startYear = parseInt(datePartsDash[0], 10);
+          const startMonth = parseInt(datePartsDash[1], 10);
+          if (startYear === currentYear) {
+            startCheckMonth = startMonth;
+          }
+        }
+      }
+    }
+    
+    const currentMonth = new Date().getMonth() + 1;
+    const unpaidMonths: number[] = [];
+    
+    // Check months up to the current month
+    for (let m = startCheckMonth; m <= currentMonth; m++) {
+      const paid = studentConts.some(c => c.reference_month === m);
+      if (!paid) {
+        unpaidMonths.push(m);
+      }
+    }
+    
+    const MONTH_NAMES: { [key: number]: string } = {
+      1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+      7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+    };
+    
+    return {
+      isPending: unpaidMonths.length > 0,
+      months: unpaidMonths.map(m => MONTH_NAMES[m] || `Mês ${m}`),
+      year: currentYear
+    };
+  }, [activeStudent, contributions]);
+
+  const formatPendingMonthsText = useCallback((months: string[]) => {
+    if (months.length === 0) return '';
+    if (months.length === 1) return months[0];
+    const last = months[months.length - 1];
+    const rest = months.slice(0, months.length - 1);
+    return `${rest.join(', ')} e ${last}`;
+  }, []);
 
   // Students enrolled in selected class, sorted by name or registration number
   const classStudents = useMemo(() => {
@@ -660,8 +726,8 @@ export function Impressos() {
               </div>
             )}
 
-            {/* Class Selector (Applicable for Carteirinhas, Diario, Etiquetas) */}
-            {(selectedType === 'carteirinhas' || selectedType === 'diario' || selectedType === 'etiquetas') && (
+            {/* Class Selector (Applicable for Carteirinhas, Etiquetas) */}
+            {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') && (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Selecionar Turma/Classe</label>
@@ -677,8 +743,8 @@ export function Impressos() {
                   </select>
                 </div>
 
-                {/* Sort Order Selector (for carteirinhas, etiquetas, and diario) */}
-                {selectedClassId && (selectedType === 'carteirinhas' || selectedType === 'etiquetas' || selectedType === 'diario') && (
+                {/* Sort Order Selector (for carteirinhas, etiquetas) */}
+                {selectedClassId && (selectedType === 'carteirinhas' || selectedType === 'etiquetas') && (
                   <div className="space-y-1 pt-1">
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Ordem dos Alunos</label>
                     <div className="grid grid-cols-2 gap-1.5 bg-slate-50 p-1 border border-slate-200 rounded-lg">
@@ -1964,95 +2030,6 @@ export function Impressos() {
             )}
 
 
-            {/* 4. DIÁRIO / LISTA DE PRESENÇA EM BRANCO */}
-            {selectedType === 'diario' && (
-              <div className="space-y-6 font-sans">
-                {/* School Header Panel */}
-                <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4">
-                  <div className="space-y-1">
-                    <h2 className="text-[14px] font-black uppercase tracking-wider text-slate-950">
-                      {institution?.name || 'ESCOLA DE FORMAÇÃO CONCILIAR'}
-                    </h2>
-                    <h3 className="text-[12px] font-bold uppercase text-slate-700">Diário / Ficha de Chamada e Assiduidade</h3>
-                  </div>
-                  <div className="text-right text-[10px] font-mono space-y-0.5">
-                    <p className="font-bold">ANO LETIVO: {new Date().getFullYear()}</p>
-                    <p className="text-slate-500 uppercase font-bold">Turma: {activeClass?.name || '---'}</p>
-                  </div>
-                </div>
-
-                {/* Info Bar */}
-                <div className="grid grid-cols-4 gap-4 border border-black p-3 bg-neutral-50/50 text-[10px] uppercase font-bold">
-                  <div>
-                    <span className="text-slate-400 block text-[8px]">DISCIPLINA:</span>
-                    <span className="text-slate-900 font-black">______________________</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[8px]">PROFESSOR:</span>
-                    <span className="text-slate-900 font-black">______________________</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[8px]">PERÍODO / SEMESTRE:</span>
-                    <span className="text-slate-900 font-black">{activeClass?.semester || '1º Semestre'} / {activeClass?.period || 'Noite'}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[8px]">TOTAL ALUNOS:</span>
-                    <span className="text-slate-900 font-black">{classStudents.length} ATIVOS</span>
-                  </div>
-                </div>
-
-                {/* Grid roll-call table */}
-                <table className="w-full text-left border-collapse text-[10px] border-2 border-black">
-                  <thead>
-                    <tr className="bg-neutral-100 uppercase text-[8px] font-black border-b-2 border-black h-9">
-                      <th className="p-1.5 border-r border-black text-center w-8">Nº</th>
-                      <th className="p-1.5 border-r border-black w-1/3">Nome do Estudante</th>
-                      {/* Generates 12 blank columns for days */}
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <th key={i} className="border-r border-black text-center text-[7px] w-8 p-1">
-                          __/__
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-black/50">
-                    {classStudents.length === 0 ? (
-                      <tr>
-                        <td colSpan={14} className="p-6 text-center text-slate-500 font-bold uppercase tracking-wider">
-                          Nenhum aluno matriculado nesta turma para listar.
-                        </td>
-                      </tr>
-                    ) : (
-                      classStudents.map((student, idx) => (
-                        <tr key={student.id} className="h-8">
-                          <td className="p-1 border-r border-black text-center font-bold font-mono text-slate-600">{idx + 1}</td>
-                          <td className="p-1.5 border-r border-black font-black uppercase text-slate-950 truncate max-w-[200px]">{student.name}</td>
-                          {Array.from({ length: 12 }).map((_, i) => (
-                            <td key={i} className="border-r border-black p-0 bg-white" />
-                          ))}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-
-                {/* Sheet instructions / footer signature */}
-                <div className="pt-16 flex justify-between items-end gap-12 text-[10px] font-sans">
-                  <div className="space-y-1 text-slate-500 max-w-sm">
-                    <p className="font-bold uppercase text-[8px]">Instruções para Lançamento:</p>
-                    <p className="text-[8px] leading-tight italic">
-                      Lançar "P" para presenças, "F" para faltas injustificadas e "J" para justificadas devidamente autorizadas pela diretoria acadêmica acadêmica.
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-center text-center w-56 shrink-0">
-                    <div className="w-full border-b border-black" />
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">Assinatura do Professor Docente</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-
             {/* 5. DECLARAÇÃO DE QUITAÇÃO FINANCEIRA */}
             {selectedType === 'quitacao' && (
               <div className="space-y-12">
@@ -2067,36 +2044,23 @@ export function Impressos() {
                     </div>
 
                     {/* Body text */}
-                    <div className="text-[13px] text-slate-800 leading-[2.2] text-justify font-serif space-y-6 pt-6">
+                    <div className="text-[14px] text-slate-800 leading-[2.4] text-justify font-serif space-y-6 pt-6">
                       <p>
-                        A tesouraria e diretoria administrativa da <strong className="text-black font-extrabold text-[14px] uppercase tracking-wide">{institution?.name || 'Escola de Formação Conciliar'}</strong>, no uso de suas competências regimentais, certifica que o(a) estudante:
+                        A tesouraria e diretoria administrativa da <strong className="text-black font-extrabold uppercase tracking-wide">{institution?.name || 'Escola de Formação Conciliar'}</strong>, no uso de suas competências regimentais, certifica para os devidos fins que o(a) estudante <strong className="text-black font-extrabold uppercase">{activeStudent.name}</strong>, inscrito(a) sob o Registro Geral nº <strong className="text-black font-mono">{activeStudent.registration_number || '---'}</strong>:
                       </p>
 
-                      <div className="bg-slate-50/50 border border-slate-200 p-5 rounded-none font-sans space-y-2 uppercase text-[11px] font-bold">
-                        <div className="flex">
-                          <span className="text-slate-400 w-28">Estudante:</span>
-                          <span className="text-slate-950 font-black text-[12px]">{activeStudent.name}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-slate-400 w-28">Registro Geral:</span>
-                          <span className="text-slate-900 font-mono">{activeStudent.registration_number || '---'}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-slate-400 w-28">Turma Vinculada:</span>
-                          <span className="text-slate-900">{activeClass?.name || 'Ativa'}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-slate-400 w-28">Status Atual:</span>
-                          <span className="text-emerald-800 font-black">{activeStudent.status || 'Ativo'}</span>
-                        </div>
-                      </div>
+                      {pendingPayments.isPending ? (
+                        <p>
+                          Apresenta <strong className="text-red-700 font-extrabold">pendência financeira em aberto</strong> referente ao(s) mês(es) de <strong className="text-black font-extrabold">{formatPendingMonthsText(pendingPayments.months)}</strong> do ano de <strong className="text-black font-extrabold">{pendingPayments.year}</strong>, não se encontrando plenamente em dia com o caixa desta instituição de ensino até a presente data.
+                        </p>
+                      ) : (
+                        <p>
+                          Encontra-se com todas as parcelas e contribuições de ajuda de custo acadêmicas devidamente quitadas e em dia com o caixa desta instituição de ensino, não constando nenhuma pendência financeira ou débito pendente até a presente data.
+                        </p>
+                      )}
 
                       <p>
-                        Certificamos plenamente que o aluno acima mencionado encontra-se com todas as parcelas e contribuições de ajuda de custo acadêmicas devidamente quitadas e em dia com o caixa desta instituição de ensino, não constando nenhuma pendência financeira ou débito pendente até a presente data.
-                      </p>
-
-                      <p>
-                        Por ser verdade e a pedido da parte interessada para que conste e produza seus devidos fins legais, expedimos e assinamos o presente termo de quitação geral.
+                        Por ser verdade e a pedido da parte interessada para que conste e produza seus devidos fins legais, expedimos e assinamos o presente termo.
                       </p>
                     </div>
 

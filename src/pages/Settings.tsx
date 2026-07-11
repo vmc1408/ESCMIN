@@ -90,6 +90,14 @@ const extractYearFromText = (text: string | undefined): number | null => {
 
 export function Settings() {
   const location = useLocation();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const handleTopSave = useCallback(() => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
+    }
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'institution' | 'maintenance' | 'academic' | 'security'>(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
@@ -428,8 +436,8 @@ export function Settings() {
     }
   };
 
-  const handleSaveAcademicParams = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveAcademicParams = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     try {
       setSaving(true);
       const dataToSave = {
@@ -600,8 +608,8 @@ export function Settings() {
       .substring(0, 15);
   };
 
-  const handleSaveInstitution = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveInstitution = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     try {
       setSaving(true);
       
@@ -919,63 +927,26 @@ export function Settings() {
 
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="max-w-6xl mx-auto space-y-6 relative">
+      {/* Sticky Header with Title and save button */}
+      <div className="sticky top-[-8px] md:top-[-16px] bg-slate-100/95 backdrop-blur-md z-40 py-4 -mx-2 md:-mx-4 px-2 md:px-4 border-b border-slate-200/80 flex flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Configurações</h2>
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão da Instituição e Parâmetros do Sistema</p>
         </div>
 
-        <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm flex-wrap gap-1">
-          <button 
-            onClick={() => setActiveTab('institution')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'institution' ? "bg-slate-800 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
+        {/* Top Save Button */}
+        {(activeTab === 'institution' || activeTab === 'academic') && (
+          <button
+            onClick={handleTopSave}
+            disabled={saving}
+            className="px-6 py-2.5 bg-[#00174b] text-white rounded-xl font-black flex items-center gap-2 hover:bg-blue-900 transition-all shadow-md active:scale-95 disabled:opacity-50 text-[11px] uppercase tracking-wider"
           >
-            <Building2 size={14} />
-            Instituição
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            Salvar Configurações
           </button>
-
-          <button 
-            onClick={() => setActiveTab('academic')}
-            className={cn(
-              "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'academic' ? "bg-emerald-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <Clock size={14} />
-            Acadêmico
-          </button>
-
-          {isAdmin && (
-            <>
-              <button 
-                onClick={() => setActiveTab('security')}
-                className={cn(
-                  "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-                  activeTab === 'security' ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                <ShieldCheck size={14} />
-                Segurança
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('maintenance')}
-                className={cn(
-                  "px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-                  activeTab === 'maintenance' ? "bg-red-600 text-white shadow-md" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                <Database size={14} />
-                Manutenção
-              </button>
-            </>
-          )}
-        </div>
-      </header>
+        )}
+      </div>
 
       {notification && (
         <div className={cn(
@@ -990,9 +961,73 @@ export function Settings() {
         </div>
       )}
 
-      {activeTab === 'institution' && (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-          <form onSubmit={handleSaveInstitution} className="p-8 md:p-10 space-y-10">
+      {/* Grid Layout for Side Menu + Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+        {/* Left Column: Vertical Menu */}
+        <div className="lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-1 lg:sticky lg:top-[80px] z-20">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1.5">Módulos</p>
+          <button 
+            onClick={() => setActiveTab('institution')}
+            className={cn(
+              "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
+              activeTab === 'institution' 
+                ? "bg-slate-800 text-white shadow-md font-extrabold" 
+                : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+            )}
+          >
+            <Building2 size={16} />
+            Instituição
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('academic')}
+            className={cn(
+              "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
+              activeTab === 'academic' 
+                ? "bg-emerald-600 text-white shadow-md font-extrabold" 
+                : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+            )}
+          >
+            <Clock size={16} />
+            Acadêmico
+          </button>
+
+          {isAdmin && (
+            <>
+              <button 
+                onClick={() => setActiveTab('security')}
+                className={cn(
+                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
+                  activeTab === 'security' 
+                    ? "bg-amber-600 text-white shadow-md font-extrabold" 
+                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                <ShieldCheck size={16} />
+                Segurança
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('maintenance')}
+                className={cn(
+                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
+                  activeTab === 'maintenance' 
+                    ? "bg-red-600 text-white shadow-md font-extrabold" 
+                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                <Database size={16} />
+                Manutenção
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Right Column: Active Tab Content */}
+        <div className="lg:col-span-3 space-y-6">
+          {activeTab === 'institution' && (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+              <form ref={formRef} onSubmit={handleSaveInstitution} className="p-8 md:p-10 space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
               {/* Identificação & Endereço Section */}
               <div className="lg:col-span-2 space-y-6">
@@ -1356,7 +1391,7 @@ export function Settings() {
           </div>
 
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden p-8 md:p-10">
-            <form onSubmit={handleSaveAcademicParams} className="space-y-10">
+            <form ref={formRef} onSubmit={handleSaveAcademicParams} className="space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-emerald-600">Média de Aprovação</label>
@@ -1837,7 +1872,8 @@ export function Settings() {
           </div>
         </div>
       )}
-
+        </div>
+      </div>
 
           {schemaReport && (
             <div className="mt-8 bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">

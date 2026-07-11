@@ -90,6 +90,7 @@ const navItems = [
         children: [
           { icon: PixIcon, label: 'Contribuições', path: '/contributions' },
           { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference' },
+          { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
           { icon: FileText, label: 'Recibos', path: '/receipts' },
         ]
       },
@@ -99,13 +100,11 @@ const navItems = [
     label: 'Impressos',
     icon: Printer,
     children: [
-      { icon: FileText, label: 'Declaração de Matrícula', path: '/impressos?type=declaracao' },
-      { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
       { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta' },
+      { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
+      { icon: FileText, label: 'Declaração de Matrícula', path: '/impressos?type=declaracao' },
       { icon: PixIcon, label: 'Etiqueta para Carteirinha', path: '/impressos?type=carteirinhas' },
       { icon: Tag, label: 'Etiquetas de Endereço', path: '/impressos?type=etiquetas' },
-      { icon: FileText, label: 'Diário de Presença', path: '/impressos?type=diario' },
-      { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
     ]
   },
   { icon: Church, label: 'Guia Diocese', path: '/parishes' },
