@@ -574,6 +574,9 @@ export function Impressos() {
             border: none !important;
             margin: 0 auto !important;
           }
+          .pimaco-sheet.pimaco-sheet-last, .pimaco-sheet-6180.pimaco-sheet-last {
+            page-break-after: avoid !important;
+          }
           .pimaco-label, .pimaco-label-6180 {
             page-break-inside: avoid !important;
             background-color: #fff !important;
@@ -1805,7 +1808,10 @@ export function Impressos() {
                           </div>
 
                           {/* 10-Label Grid representing physical Letter Sheet */}
-                          <div className="pimaco-sheet bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border">
+                          <div className={cn(
+                            "pimaco-sheet bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border",
+                            sheetIdx === cardItemsForPrinting.length - 1 && "pimaco-sheet-last"
+                          )}>
                             {sheet.map((student, slotIdx) => {
                               if (!student) {
                                 // Empty label / blank slot (for skipped or empty positions)
@@ -1956,7 +1962,10 @@ export function Impressos() {
                           </div>
 
                           {/* 30-Label Grid representing physical Letter Sheet */}
-                          <div className="pimaco-sheet-6180 bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border">
+                          <div className={cn(
+                            "pimaco-sheet-6180 bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border",
+                            sheetIdx === labelItemsForPrinting.length - 1 && "pimaco-sheet-last"
+                          )}>
                             {sheet.map((student, slotIdx) => {
                               if (!student) {
                                 // Empty label / blank slot (for skipped or empty positions)
