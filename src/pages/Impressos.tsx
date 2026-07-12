@@ -1851,8 +1851,19 @@ export function Impressos() {
                                   <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5 relative z-10 text-left">
                                     {/* Logo and Inst. Header */}
                                     <div className="flex items-center gap-1.5 pb-1 border-b border-slate-900/15">
-                                      <div className="w-3.5 h-3.5 border border-black flex items-center justify-center font-black text-[6.5px] bg-slate-100 shrink-0">
-                                        {getInstitutionLogoText()}
+                                      <div className="w-4 h-4 border border-slate-900/10 flex items-center justify-center bg-white shrink-0 overflow-hidden rounded-sm">
+                                        {institution?.logo_url ? (
+                                          <img 
+                                            src={institution.logo_url} 
+                                            alt="" 
+                                            className="w-full h-full object-contain" 
+                                            referrerPolicy="no-referrer" 
+                                          />
+                                        ) : (
+                                          <span className="font-black text-[5.5px] text-slate-800 uppercase leading-none">
+                                            {getInstitutionLogoText()}
+                                          </span>
+                                        )}
                                       </div>
                                       <h4 className="text-[6.5px] font-black uppercase tracking-wider text-slate-900 truncate">
                                         {institution?.name || 'ESCOLA DE FORMAÇÃO CONCILIAR'}
@@ -1898,9 +1909,9 @@ export function Impressos() {
                                         <span className="text-[6px] font-black font-mono text-emerald-800 leading-none">DEZ / {new Date().getFullYear()}</span>
                                       </div>
                                       <div className="text-right">
-                                        <span className="text-[4px] font-black text-slate-400 uppercase tracking-wider block leading-none">DIOCESE DE AMPARO</span>
-                                        <span className="text-[5.5px] font-bold text-slate-800 block leading-none uppercase">
-                                          {isFormFilled ? (student.status || 'Ativo') : '________'}
+                                        <span className="text-[4px] font-black text-slate-400 uppercase tracking-wider block leading-none">ALUNO(A) DESDE</span>
+                                        <span className="text-[5.5px] font-bold font-mono text-slate-800 block leading-none uppercase">
+                                          {isFormFilled ? (student.start_date ? formatDateForDisplay(student.start_date) : (student.created_at ? formatDateForDisplay(student.created_at) : 'N/D')) : '________'}
                                         </span>
                                       </div>
                                     </div>
