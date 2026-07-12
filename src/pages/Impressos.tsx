@@ -456,7 +456,7 @@ export function Impressos() {
   }
 
   return (
-    <div className="relative font-sans text-slate-800 pb-12">
+    <div className="relative font-sans text-slate-800 pb-12 print:pb-0 print:p-0 print:m-0">
       {/* Dynamic print-only style sheet to format printed pages */}
       <style dangerouslySetInnerHTML={{ __html: `
         /* General Sheet and Label Grid Layouts (Apply on screen for high fidelity, and overridden in print) */
@@ -567,15 +567,11 @@ export function Impressos() {
           /* Print Overrides for Pimaco Sheets */
           .pimaco-sheet, .pimaco-sheet-6180 {
             display: grid !important;
-            page-break-after: always !important;
             page-break-inside: avoid !important;
             background-color: #fff !important;
             box-shadow: none !important;
             border: none !important;
             margin: 0 auto !important;
-          }
-          .pimaco-sheet.pimaco-sheet-last, .pimaco-sheet-6180.pimaco-sheet-last {
-            page-break-after: avoid !important;
           }
           .pimaco-label, .pimaco-label-6180 {
             page-break-inside: avoid !important;
@@ -601,24 +597,26 @@ export function Impressos() {
         </button>
       </PageHeader>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start print:block print:p-0 print:m-0">
         {/* Left Control Column (35%) */}
         <div className="lg:col-span-4 space-y-6 print:hidden lg:sticky lg:top-0 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar">
           {/* Context-Based Selector (Student or Class) */}
           <div className="bg-white border border-slate-200 p-5 space-y-4">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configurações do Documento</h3>
             
-            {/* Data de Emissão do Documento */}
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Data de Emissão</label>
-              <input 
-                type="date"
-                value={documentDate}
-                onChange={(e) => setDocumentDate(e.target.value)}
-                disabled={(selectedType === 'declaracao' || selectedType === 'quitacao') && !selectedStudentId}
-                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            </div>
+            {/* Data de Emissão do Documento - Only show where logically used (Declarations/Discharge) */}
+            {(selectedType === 'declaracao' || selectedType === 'quitacao') && (
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Data de Emissão</label>
+                <input 
+                  type="date"
+                  value={documentDate}
+                  onChange={(e) => setDocumentDate(e.target.value)}
+                  disabled={(selectedType === 'declaracao' || selectedType === 'quitacao') && !selectedStudentId}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            )}
 
             {/* Student Search (Single field) */}
             {(selectedType === 'declaracao' || selectedType === 'quitacao') && (
@@ -1245,7 +1243,7 @@ export function Impressos() {
         </div>
 
         {/* Right Preview Pane (80% / 8 columns) */}
-        <div className="lg:col-span-8 space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar pb-10">
+        <div className="lg:col-span-8 space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar pb-10 print:pb-0 print:p-0 print:m-0 print:max-h-none print:overflow-visible">
           <div className="flex items-center justify-between print:hidden">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
               Pré-Visualização do Documento {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? '(Formato Carta)' : '(Formato A4)'}
@@ -1810,7 +1808,7 @@ export function Impressos() {
                           {/* 10-Label Grid representing physical Letter Sheet */}
                           <div className={cn(
                             "pimaco-sheet bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border",
-                            sheetIdx === cardItemsForPrinting.length - 1 && "pimaco-sheet-last"
+                            sheetIdx < cardItemsForPrinting.length - 1 && "print-page-break"
                           )}>
                             {sheet.map((student, slotIdx) => {
                               if (!student) {
@@ -1964,7 +1962,7 @@ export function Impressos() {
                           {/* 30-Label Grid representing physical Letter Sheet */}
                           <div className={cn(
                             "pimaco-sheet-6180 bg-white shadow-xl mx-auto border border-slate-200 print:shadow-none print:border-none print:m-0 box-border",
-                            sheetIdx === labelItemsForPrinting.length - 1 && "pimaco-sheet-last"
+                            sheetIdx < labelItemsForPrinting.length - 1 && "print-page-break"
                           )}>
                             {sheet.map((student, slotIdx) => {
                               if (!student) {
