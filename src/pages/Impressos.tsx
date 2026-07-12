@@ -482,9 +482,6 @@ export function Impressos() {
           min-height: 50.8mm;
           box-sizing: border-box;
           position: relative;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
           overflow: hidden;
           background-color: #fff;
           border: ${showCardCutBorders ? '1px dashed #ddd' : 'none'};
@@ -1828,24 +1825,26 @@ export function Impressos() {
                               return (
                                 <div 
                                   key={`filled-${sheetIdx}-${slotIdx}-${student.id}`} 
-                                  className="pimaco-label p-2.5 bg-white flex flex-row items-center gap-3 relative box-border select-none overflow-hidden"
+                                  className="pimaco-label p-2.5 bg-white flex flex-row items-stretch gap-3.5 relative box-border select-none overflow-hidden"
                                 >
                                   {/* Inner subtle alignment line */}
                                   <div className="absolute inset-1 border border-slate-900/10 pointer-events-none rounded" />
 
                                   {/* Left: Photo Slot (3x4 aspect ratio, scaled for card height) */}
-                                  <div className={cn(
-                                    "w-[18mm] h-[24mm] bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 rounded-sm relative z-10",
-                                    showPhotoBorder ? "border border-slate-950" : "border border-slate-150"
-                                  )}>
-                                    {student.photo_url ? (
-                                      <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                    ) : (
-                                      <div className="text-center p-1">
-                                        <User className="text-slate-300 mx-auto" size={13} />
-                                        <span className="text-[5px] text-slate-400 font-bold block uppercase mt-0.5">FOTO 3X4</span>
-                                      </div>
-                                    )}
+                                  <div className="flex flex-col justify-center shrink-0">
+                                    <div className={cn(
+                                      "w-[21mm] h-[28mm] bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 rounded-sm relative z-10",
+                                      showPhotoBorder ? "border border-slate-950" : "border border-slate-150"
+                                    )}>
+                                      {student.photo_url ? (
+                                        <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                      ) : (
+                                        <div className="text-center p-1">
+                                          <User className="text-slate-300 mx-auto" size={16} />
+                                          <span className="text-[5.5px] text-slate-400 font-bold block uppercase mt-0.5">FOTO 3X4</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* Right: Info Area */}
