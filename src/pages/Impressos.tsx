@@ -1851,7 +1851,7 @@ export function Impressos() {
                                   <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5 relative z-10 text-left">
                                     {/* Logo and Inst. Header */}
                                     <div className="flex items-center gap-1.5 pb-1 border-b border-slate-900/15">
-                                      <div className="w-4 h-4 border border-slate-900/10 flex items-center justify-center bg-white shrink-0 overflow-hidden rounded-sm">
+                                      <div className="w-5 h-5 border border-slate-900/10 flex items-center justify-center bg-white shrink-0 overflow-hidden rounded-sm">
                                         {institution?.logo_url ? (
                                           <img 
                                             src={institution.logo_url} 
@@ -1860,43 +1860,43 @@ export function Impressos() {
                                             referrerPolicy="no-referrer" 
                                           />
                                         ) : (
-                                          <span className="font-black text-[5.5px] text-slate-800 uppercase leading-none">
+                                          <span className="font-black text-[6.5px] text-slate-800 uppercase leading-none">
                                             {getInstitutionLogoText()}
                                           </span>
                                         )}
                                       </div>
-                                      <h4 className="text-[6.5px] font-black uppercase tracking-wider text-slate-900 truncate">
+                                      <h4 className="text-[8px] font-black uppercase tracking-wider text-slate-900 truncate">
                                         {institution?.name || 'ESCOLA DE FORMAÇÃO CONCILIAR'}
                                       </h4>
                                     </div>
 
                                     {/* Main student metadata */}
-                                    <div className="space-y-0.5 py-1">
+                                    <div className="space-y-1.5 py-1">
                                       <div>
-                                        <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">ESTUDANTE</span>
-                                        <h5 className="text-[8.5px] font-black text-slate-950 uppercase truncate tracking-tight leading-none mt-0.5">
+                                        <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">ESTUDANTE</span>
+                                        <h5 className="text-[11px] font-black text-slate-950 uppercase truncate tracking-tight leading-none mt-1">
                                           {isFormFilled ? student.name : '________________________'}
                                         </h5>
                                       </div>
 
                                       <div className="grid grid-cols-2 gap-x-2">
                                         <div>
-                                          <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">MATRÍCULA / RA</span>
-                                          <span className="text-[6.5px] font-bold font-mono text-slate-900 leading-none">
+                                          <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">MATRÍCULA / RA</span>
+                                          <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none">
                                             {isFormFilled ? (student.registration_number || 'S/ RA') : '________'}
                                           </span>
                                         </div>
                                         <div>
-                                          <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">DOCUMENTO (RG/CPF)</span>
-                                          <span className="text-[6.5px] font-bold font-mono text-slate-900 leading-none truncate block">
+                                          <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">DOCUMENTO (RG/CPF)</span>
+                                          <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none truncate block">
                                             {isFormFilled ? (student.rg || student.cpf || 'Não Consta') : '________'}
                                           </span>
                                         </div>
                                       </div>
 
                                       <div>
-                                        <span className="text-[4.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">CURSO / CLASSE</span>
-                                        <span className="text-[6.5px] font-bold text-slate-800 uppercase block truncate leading-none mt-0.5">
+                                        <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">CURSO / CLASSE</span>
+                                        <span className="text-[8.5px] font-bold text-slate-800 uppercase block truncate leading-none mt-1">
                                           {isFormFilled ? `${student.course || 'CURSO'} - ${activeClass?.name}` : '________________________'}
                                         </span>
                                       </div>
@@ -1905,12 +1905,12 @@ export function Impressos() {
                                     {/* Footer items */}
                                     <div className="flex items-center justify-between border-t border-slate-900/10 pt-1 mt-auto">
                                       <div>
-                                        <span className="text-[4px] font-black text-slate-400 uppercase tracking-wider block leading-none">VALIDADE</span>
-                                        <span className="text-[6px] font-black font-mono text-emerald-800 leading-none">DEZ / {new Date().getFullYear()}</span>
+                                        <span className="text-[5px] font-black text-slate-400 uppercase tracking-wider block leading-none">VALIDADE</span>
+                                        <span className="text-[8px] font-black font-mono text-emerald-800 leading-none">DEZ / {new Date().getFullYear()}</span>
                                       </div>
                                       <div className="text-right">
-                                        <span className="text-[4px] font-black text-slate-400 uppercase tracking-wider block leading-none">ALUNO(A) DESDE</span>
-                                        <span className="text-[5.5px] font-bold font-mono text-slate-800 block leading-none uppercase">
+                                        <span className="text-[5px] font-black text-slate-400 uppercase tracking-wider block leading-none">ALUNO(A) DESDE</span>
+                                        <span className="text-[7.5px] font-bold font-mono text-slate-800 block leading-none uppercase">
                                           {isFormFilled ? (student.start_date ? formatDateForDisplay(student.start_date) : (student.created_at ? formatDateForDisplay(student.created_at) : 'N/D')) : '________'}
                                         </span>
                                       </div>
