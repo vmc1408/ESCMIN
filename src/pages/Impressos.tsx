@@ -83,10 +83,10 @@ export function Impressos() {
   const [labelStartPosition, setLabelStartPosition] = useState<number>(1);
   const [labelFillMode, setLabelFillMode] = useState<'individual' | 'repeat'>('individual');
   const [showLabelCutBorders, setShowLabelCutBorders] = useState<boolean>(true);
-  const [labelShowAddress, setLabelShowAddress] = useState<boolean>(true);
+  const [labelShowAddress, setLabelShowAddress] = useState<boolean>(false);
   const [labelShowBirthday, setLabelShowBirthday] = useState<boolean>(false);
   const [labelShowMatricula, setLabelShowMatricula] = useState<boolean>(false);
-  const [labelShowCourse, setLabelShowCourse] = useState<boolean>(true);
+  const [labelShowCourse, setLabelShowCourse] = useState<boolean>(false);
   const [studentSortOrder, setStudentSortOrder] = useState<'name' | 'registration'>('name');
 
   const [documentDate, setDocumentDate] = useState<string>(() => {
