@@ -494,9 +494,9 @@ export function Impressos() {
           grid-auto-rows: 25.0mm;
           column-gap: 3.0mm;
           row-gap: 0mm;
-          width: 215.9mm;
-          height: 279.4mm;
-          padding: 12.0mm 5.0mm 13.0mm 5.0mm;
+          width: 217.0mm;
+          height: 279.0mm;
+          padding: 12.0mm 5.0mm 13.0mm 11.0mm;
           margin: 0 auto;
           box-sizing: border-box;
           background-color: #fff;
