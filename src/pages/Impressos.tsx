@@ -496,7 +496,7 @@ export function Impressos() {
           row-gap: 0mm;
           width: 217.0mm;
           height: 279.0mm;
-          padding: 12.0mm 5.0mm 13.0mm 11.0mm;
+          padding: 14.5mm 5.0mm 14.5mm 11.0mm;
           margin: 0 auto;
           box-sizing: border-box;
           background-color: #fff;
@@ -521,7 +521,7 @@ export function Impressos() {
 
         @media print {
           @page {
-            size: ${(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? 'letter portrait' : 'A4 portrait'} !important;
+            size: ${selectedType === 'etiquetas' ? '217mm 279mm' : (selectedType === 'carteirinhas' ? 'letter portrait' : 'A4 portrait')} !important;
             margin: ${(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? '0mm !important' : '10mm 15mm 4mm 15mm !important'};
           }
           body {
@@ -1943,10 +1943,10 @@ export function Impressos() {
                     {/* Header for labels page in preview */}
                     <div className="text-center pb-4 border-b border-slate-200 mb-6 print:hidden">
                       <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                        Modelo de Etiquetas (Pimaco 6180 / Avery 5160)
+                        Modelo de Etiquetas (Pimaco 6180 / Customizado)
                       </h2>
                       <p className="text-[10px] text-slate-400 mt-1 max-w-md mx-auto leading-normal">
-                        Etiquetas de <strong>66,7mm x 25,4mm</strong> (30 por folha Carta). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
+                        Etiquetas de <strong>65,0mm x 25,0mm</strong> (30 por folha de 217,0mm x 279,0mm). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
                       </p>
                       <div className="mt-3 flex justify-center gap-4 text-[9px] font-mono font-bold text-slate-500">
                         <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
