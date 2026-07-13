@@ -494,27 +494,27 @@ export function Impressos() {
     <div className="relative font-sans text-slate-800 pb-12 print:pb-0 print:p-0 print:m-0">
       {/* Dynamic print-only style sheet to format printed pages */}
       <style dangerouslySetInnerHTML={{ __html: `
-        /* General Sheet and Label Grid Layouts (Apply on screen for high fidelity, and overridden in print) */
+        /* Pimaco 6183 Sheet layout (2 columns, 5 rows = 10 labels) */
         .pimaco-sheet {
           display: grid;
-          grid-template-columns: 99.1mm 99.1mm;
-          grid-auto-rows: 50.8mm;
-          column-gap: 8.1mm;
-          row-gap: 0mm;
+          grid-template-columns: 80.0mm 80.0mm;
+          grid-auto-rows: 46.0mm;
+          column-gap: 6.0mm;
+          row-gap: 6.0mm;
           width: 215.9mm;
           height: 279.4mm;
-          padding: 12.7mm 4.8mm;
+          padding: 24.0mm 28.0mm 24.0mm 28.0mm;
           margin: 0 auto;
           box-sizing: border-box;
           background-color: #fff;
         }
         .pimaco-label {
-          width: 99.1mm;
-          height: 50.8mm;
-          max-width: 99.1mm;
-          max-height: 50.8mm;
-          min-width: 99.1mm;
-          min-height: 50.8mm;
+          width: 80.0mm;
+          height: 46.0mm;
+          max-width: 80.0mm;
+          max-height: 46.0mm;
+          min-width: 80.0mm;
+          min-height: 46.0mm;
           box-sizing: border-box;
           position: relative;
           overflow: hidden;
@@ -1811,10 +1811,10 @@ export function Impressos() {
                     {/* Header for ID card page in preview */}
                     <div className="text-center pb-4 border-b border-slate-200 mb-6 print:hidden">
                       <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                        Modelo de Etiquetas para Carteirinha (Pimaco 8099F / Avery 5163 / Avery 8163)
+                        Modelo de Etiquetas para Carteirinha (Customizado / 8,0cm x 4,6cm)
                       </h2>
                       <p className="text-[10px] text-slate-400 mt-1 max-w-md mx-auto leading-normal">
-                        Etiquetas de <strong>99,1mm x 50,8mm</strong> (10 por folha Carta). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
+                        Etiquetas de <strong>80,0mm x 46,0mm</strong> (10 por folha Carta). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
                       </p>
                       <div className="mt-3 flex justify-center gap-4 text-[9px] font-mono font-bold text-slate-500">
                         <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
