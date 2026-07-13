@@ -490,24 +490,24 @@ export function Impressos() {
         /* Pimaco 6180 Sheet layout (3 columns, 10 rows = 30 labels) */
         .pimaco-sheet-6180 {
           display: grid;
-          grid-template-columns: 66.7mm 66.7mm 66.7mm;
-          grid-auto-rows: 25.4mm;
-          column-gap: 3.2mm;
+          grid-template-columns: 65.0mm 65.0mm 65.0mm;
+          grid-auto-rows: 25.0mm;
+          column-gap: 3.0mm;
           row-gap: 0mm;
           width: 215.9mm;
           height: 279.4mm;
-          padding: 12.7mm 4.7mm;
+          padding: 12.0mm 5.0mm 13.0mm 5.0mm;
           margin: 0 auto;
           box-sizing: border-box;
           background-color: #fff;
         }
         .pimaco-label-6180 {
-          width: 66.7mm;
-          height: 25.4mm;
-          max-width: 66.7mm;
-          max-height: 25.4mm;
-          min-width: 66.7mm;
-          min-height: 25.4mm;
+          width: 65.0mm;
+          height: 25.0mm;
+          max-width: 65.0mm;
+          max-height: 25.0mm;
+          min-width: 65.0mm;
+          min-height: 25.0mm;
           box-sizing: border-box;
           position: relative;
           display: flex;
