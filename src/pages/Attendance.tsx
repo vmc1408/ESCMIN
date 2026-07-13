@@ -11,6 +11,7 @@ import {
   Printer,
   FileText,
   ChevronDown,
+  ChevronUp,
   Clock,
   BookOpen,
   School,
@@ -18,7 +19,8 @@ import {
   Loader2,
   Download,
   Edit,
-  Unlock
+  Unlock,
+  Settings
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
@@ -108,6 +110,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [classEvents, setClassEvents] = useState<any[]>([]);
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState<boolean>(false);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -303,6 +306,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         setAttendance(attendanceMap);
       } else {
         setAttendance({});
+      }
+
+      if (selectedClass && selectedSubject && studentsList && studentsList.length > 0) {
+        setIsFiltersCollapsed(true);
+      } else {
+        setIsFiltersCollapsed(false);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -1001,7 +1010,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               try {
                 iframe.contentWindow.print();
               } catch (e) {
-                console.error("Print call failed on Attendance iframe:", e);
+                console.warn("Print call failed on Attendance iframe, triggering fallback:", e);
+                throw e;
               }
 
               // Fallback cleanup after 5 minutes
@@ -1652,185 +1662,288 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       {/* Main Content Area */}
       <div className="bg-white rounded-none border border-slate-200 shadow-sm text-slate-900">
         {/* Filter Bar */}
-        <div className="p-4 md:p-5 border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-md">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Turma</label>
-              <div className="relative group">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
-                  <School size={16} />
+        <div className="p-3 md:p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-md transition-all duration-300">
+          {isFiltersCollapsed && selectedClass ? (
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full">
+              {/* Selections Summary */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-700">
+                <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1">
+                  <School size={13} className="text-slate-500" />
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Turma:</span>
+                  <span className="font-semibold text-slate-900 truncate max-w-[150px] sm:max-w-[250px]">
+                    {classes.find(c => c.id === selectedClass)?.name || 'Nenhuma'}
+                  </span>
                 </div>
-                <select
-                  value={selectedClass}
-                  onChange={e => {
-                    setSelectedClass(e.target.value);
-                    setSelectedSubject('');
-                  }}
-                  className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
+                
+                {selectedSubject && (
+                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1">
+                    <BookOpen size={13} className="text-slate-500" />
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Disciplina:</span>
+                    <span className="font-semibold text-slate-900 truncate max-w-[150px] sm:max-w-[200px]">
+                      {filteredSubjects.find(s => s.id === selectedSubject)?.name?.toUpperCase() || 'Nenhuma'}
+                    </span>
+                  </div>
+                )}
+
+                {activeTab === 'marking' && selectedDate && (
+                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1">
+                    <CalendarIcon size={13} className="text-slate-500" />
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Data:</span>
+                    <span className="font-semibold text-slate-900 font-mono">
+                      {selectedDate}
+                    </span>
+                  </div>
+                )}
+
+                {activeTab === 'monthly' && (
+                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1">
+                    <CalendarIcon size={13} className="text-slate-500" />
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Período:</span>
+                    <span className="font-semibold text-slate-900">
+                      {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][selectedMonth].toUpperCase()} / {selectedYear}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Compact Stats for Daily Attendance */}
+              <div className="flex items-center gap-3.5 flex-wrap">
+                {activeTab === 'marking' && selectedSubject && students.length > 0 && (
+                  <div className="flex items-center gap-1 sm:gap-1.5 text-[9px] font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-800 text-white border border-slate-750">
+                      <span>MATR:</span>
+                      <span>{attendanceStats.total}</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-800">
+                      <span className="text-slate-500">PRES:</span>
+                      <span className="text-slate-900">{attendanceStats.present}</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700">
+                      <span className="text-rose-500">FALTA:</span>
+                      <span className="text-rose-900">{attendanceStats.absent}</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-205 text-amber-800">
+                      <span className="text-amber-500">ABON:</span>
+                      <span className="text-amber-900">{attendanceStats.justified}</span>
+                    </div>
+                    {attendanceStats.missing > 0 && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-dashed border-slate-300 text-slate-600 animate-pulse">
+                        <span className="text-slate-400">PEND:</span>
+                        <span>{attendanceStats.missing}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Toggle Button to Expand */}
+                <button
+                  type="button"
+                  onClick={() => setIsFiltersCollapsed(false)}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 text-white hover:bg-slate-900 text-[10px] font-bold uppercase tracking-widest border border-slate-700 shadow-sm transition-all duration-200 cursor-pointer h-7"
                 >
-                  <option value="">SELECIONAR TURMA...</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
-                </select>
-                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
+                  <Settings size={12} />
+                  <span>Alterar Filtros</span>
+                  <ChevronDown size={12} />
+                </button>
               </div>
             </div>
-
-            {(activeTab === 'marking' || activeTab === 'monthly') && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Disciplina</label>
-                <div className="relative group">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
-                    <BookOpen size={16} />
-                   </div>
-                  <select
-                    value={selectedSubject}
-                    onChange={e => setSelectedSubject(e.target.value)}
-                    disabled={!selectedClass}
-                    className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
+          ) : (
+            // Expanded View (with clear button to collapse)
+            <div>
+              <div className="flex items-center justify-between mb-4 border-b border-slate-200/60 pb-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Parâmetros da Chamada</span>
+                {selectedClass && (
+                  <button
+                    type="button"
+                    onClick={() => setIsFiltersCollapsed(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-800 text-[9px] font-bold uppercase tracking-widest border border-slate-250 transition-all shadow-sm"
                   >
-                    <option value="">SELECIONAR DISCIPLINA...</option>
-                    {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
-                </div>
+                    <ChevronUp size={13} />
+                    <span>Recolher Filtros</span>
+                  </button>
+                )}
               </div>
-            )}
 
-            {activeTab === 'monthly' && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Período</label>
-                <div className="grid grid-cols-5 gap-3">
-                  <div className="col-span-3 relative group">
-                    <select
-                      value={selectedMonth}
-                      onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none"
-                    >
-                      {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
-                        <option key={i} value={i}>{m.toUpperCase()}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-                  <div className="col-span-2 relative group">
-                    <select
-                      value={selectedYear}
-                      onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none text-center"
-                    >
-                      {[2024, 2025, 2026, 2027, 2028].map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'marking' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Data</label>
-                </div>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="col-span-3 relative group">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Turma</label>
+                  <div className="relative group">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
-                      <CalendarIcon size={16} />
+                      <School size={16} />
                     </div>
                     <select
-                      disabled={!selectedClass || availableDates.length === 0}
-                      value={parseDateToDB(selectedDate)}
-                      onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
-                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none"
+                      value={selectedClass}
+                      onChange={e => {
+                        setSelectedClass(e.target.value);
+                        setSelectedSubject('');
+                      }}
+                      className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                     >
-                      <option value="">DATA...</option>
-                      {[...availableDates].reverse().map(date => (
-                        <option key={date.dbValue} value={date.dbValue}>
-                          {date.label.toUpperCase()}
-                        </option>
-                      ))}
+                      <option value="">SELECIONAR TURMA...</option>
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                     </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                  </div>
-                  <div className="col-span-1 relative group">
-                    <select
-                      value={selectedYear}
-                      onChange={e => setSelectedYear(parseInt(e.target.value))}
-                      className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
-                    >
-                      {[2024, 2025, 2026, 2027, 2028].map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Placar em Tempo Real centralizado no formulário */}
-          {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-slate-200 flex justify-center w-full">
-              <div className="flex flex-wrap items-center justify-center gap-3.5 select-none">
-                {/* Matriculados */}
-                <div className="flex items-center border border-slate-200 bg-white pr-4">
-                  <div className="w-10 h-10 bg-slate-800 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
-                    {attendanceStats.total}
-                  </div>
-                  <div className="pl-3 text-left">
-                    <p className="text-[9px] font-bold text-slate-800 uppercase tracking-wider leading-none">Matriculados</p>
-                    <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Total</p>
+                    <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                   </div>
                 </div>
 
-                {/* Presentes */}
-                <div className="flex items-center border border-slate-200 bg-white pr-4">
-                  <div className="w-10 h-10 bg-slate-600 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
-                    {attendanceStats.present}
-                  </div>
-                  <div className="pl-3 text-left">
-                    <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider leading-none">Presentes</p>
-                    <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Lançados P</p>
-                  </div>
-                </div>
-
-                {/* Faltantes */}
-                <div className="flex items-center border border-rose-200 bg-white pr-4">
-                  <div className="w-10 h-10 bg-rose-700 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
-                    {attendanceStats.absent}
-                  </div>
-                  <div className="pl-3 text-left">
-                    <p className="text-[9px] font-bold text-rose-800 uppercase tracking-wider leading-none">Faltantes</p>
-                    <p className="text-[8px] font-semibold text-rose-500 uppercase tracking-widest mt-0.5">Lançados F</p>
-                  </div>
-                </div>
-
-                {/* Abonados */}
-                <div className="flex items-center border border-amber-200 bg-white pr-4">
-                  <div className="w-10 h-10 bg-amber-600 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base">
-                    {attendanceStats.justified}
-                  </div>
-                  <div className="pl-3 text-left">
-                    <p className="text-[9px] font-bold text-amber-805 uppercase tracking-wider leading-none">Abonados</p>
-                    <p className="text-[8px] font-semibold text-amber-600 uppercase tracking-widest mt-0.5">Lançados J</p>
-                  </div>
-                </div>
-
-                {/* Pendentes */}
-                {attendanceStats.missing > 0 && (
-                  <div className="flex items-center border border-dashed border-slate-300 bg-white pr-4">
-                    <div className="w-10 h-10 bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-sm md:text-base">
-                      {attendanceStats.missing}
+                {(activeTab === 'marking' || activeTab === 'monthly') && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Disciplina</label>
+                    <div className="relative group">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                        <BookOpen size={16} />
+                      </div>
+                      <select
+                        value={selectedSubject}
+                        onChange={e => setSelectedSubject(e.target.value)}
+                        disabled={!selectedClass}
+                        className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
+                      >
+                        <option value="">SELECIONAR DISCIPLINA...</option>
+                        {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                     </div>
-                    <div className="pl-3 text-left">
-                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none">Pendentes</p>
-                      <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">A Marcar</p>
+                  </div>
+                )}
+
+                {activeTab === 'monthly' && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">Período</label>
+                    <div className="grid grid-cols-5 gap-3">
+                      <div className="col-span-3 relative group">
+                        <select
+                          value={selectedMonth}
+                          onChange={e => setSelectedMonth(parseInt(e.target.value))}
+                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none"
+                        >
+                          {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
+                            <option key={i} value={i}>{m.toUpperCase()}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                      <div className="col-span-2 relative group">
+                        <select
+                          value={selectedYear}
+                          onChange={e => setSelectedYear(parseInt(e.target.value))}
+                          className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none text-center"
+                        >
+                          {[2024, 2025, 2026, 2027, 2028].map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'marking' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Data</label>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="col-span-3 relative group">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
+                          <CalendarIcon size={16} />
+                        </div>
+                        <select
+                          disabled={!selectedClass || availableDates.length === 0}
+                          value={parseDateToDB(selectedDate)}
+                          onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
+                          className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none"
+                        >
+                          <option value="">DATA...</option>
+                          {[...availableDates].reverse().map(date => (
+                            <option key={date.dbValue} value={date.dbValue}>
+                              {date.label.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                      </div>
+                      <div className="col-span-1 relative group">
+                        <select
+                          value={selectedYear}
+                          onChange={e => setSelectedYear(parseInt(e.target.value))}
+                          className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
+                        >
+                          {[2024, 2025, 2026, 2027, 2028].map(y => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Placar em Tempo Real centralizado no formulário */}
+              {activeTab === 'marking' && selectedClass && selectedSubject && students.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-slate-200 flex justify-center w-full">
+                  <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap items-center justify-center gap-2.5 sm:gap-3.5 select-none w-full max-w-2xl md:max-w-none">
+                    {/* Matriculados */}
+                    <div className="flex items-center border border-slate-200 bg-white pr-4 w-full sm:w-auto min-w-[130px]">
+                      <div className="w-10 h-10 bg-slate-800 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base shrink-0">
+                        {attendanceStats.total}
+                      </div>
+                      <div className="pl-3 text-left truncate">
+                        <p className="text-[9px] font-bold text-slate-800 uppercase tracking-wider leading-none truncate">Matriculados</p>
+                        <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Total</p>
+                      </div>
+                    </div>
+
+                    {/* Presentes */}
+                    <div className="flex items-center border border-slate-200 bg-white pr-4 w-full sm:w-auto min-w-[130px]">
+                      <div className="w-10 h-10 bg-slate-600 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base shrink-0">
+                        {attendanceStats.present}
+                      </div>
+                      <div className="pl-3 text-left truncate">
+                        <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider leading-none truncate">Presentes</p>
+                        <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">Lançados P</p>
+                      </div>
+                    </div>
+
+                    {/* Faltantes */}
+                    <div className="flex items-center border border-rose-200 bg-white pr-4 w-full sm:w-auto min-w-[130px]">
+                      <div className="w-10 h-10 bg-rose-700 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base shrink-0">
+                        {attendanceStats.absent}
+                      </div>
+                      <div className="pl-3 text-left truncate">
+                        <p className="text-[9px] font-bold text-rose-800 uppercase tracking-wider leading-none truncate">Faltantes</p>
+                        <p className="text-[8px] font-semibold text-rose-500 uppercase tracking-widest mt-0.5">Lançados F</p>
+                      </div>
+                    </div>
+
+                    {/* Abonados */}
+                    <div className="flex items-center border border-amber-200 bg-white pr-4 w-full sm:w-auto min-w-[130px]">
+                      <div className="w-10 h-10 bg-amber-600 text-white font-bold flex items-center justify-center text-sm shadow-sm md:text-base shrink-0">
+                        {attendanceStats.justified}
+                      </div>
+                      <div className="pl-3 text-left truncate">
+                        <p className="text-[9px] font-bold text-amber-805 uppercase tracking-wider leading-none truncate">Abonados</p>
+                        <p className="text-[8px] font-semibold text-amber-600 uppercase tracking-widest mt-0.5">Lançados J</p>
+                      </div>
+                    </div>
+
+                    {/* Pendentes */}
+                    {attendanceStats.missing > 0 && (
+                      <div className="flex items-center border border-dashed border-slate-300 bg-white pr-4 w-full sm:w-auto min-w-[130px]">
+                        <div className="w-10 h-10 bg-slate-100 text-slate-600 font-bold flex items-center justify-center text-sm md:text-base shrink-0">
+                          {attendanceStats.missing}
+                        </div>
+                        <div className="pl-3 text-left truncate">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider leading-none truncate">Pendentes</p>
+                          <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">A Marcar</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

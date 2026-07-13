@@ -624,7 +624,10 @@ export function Receipts() {
           try {
             iframe.contentWindow?.print();
           } catch (e) {
-            console.error("Print call failed on iframe:", e);
+            console.warn("Print call failed on Receipts iframe, falling back to download:", e);
+            doc.save(`Recibo_N_${receipt.receipt_number}.pdf`);
+            setNotification({ type: 'success', message: 'Impressão direta indisponível. O PDF do recibo foi baixado.' });
+            cleanup();
           }
           
           // Long fallback to clean up iframe in case afterprint doesn't trigger

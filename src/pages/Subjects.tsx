@@ -275,7 +275,8 @@ export function Subjects() {
             try {
               iframe.contentWindow.print();
             } catch (e) {
-              console.error("Print call failed on Subjects iframe:", e);
+              console.warn("Print call failed on Subjects iframe, triggering fallback:", e);
+              throw e;
             }
 
             // Long fallback to clean up iframe in case afterprint doesn't trigger

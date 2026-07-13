@@ -348,7 +348,13 @@ export function Classes() {
             try {
               iframe.contentWindow.print();
             } catch (e) {
-              console.error("Print call failed on Classes iframe:", e);
+              console.warn("Print call failed on Classes iframe, downloading PDF instead:", e);
+              doc.save("Lista_Turmas.pdf");
+              setNotification({
+                type: 'success',
+                message: 'A impressão direta em iframe foi bloqueada pelo navegador. O arquivo PDF foi baixado para você imprimir manualmente.'
+              });
+              cleanup();
             }
 
             // Long fallback to clean up iframe in case afterprint doesn't trigger

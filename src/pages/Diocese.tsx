@@ -1505,8 +1505,8 @@ export function Diocese() {
                           <MapPin size={14} />
                           Localização
                         </h4>
-                        <div className="grid grid-cols-4 gap-4">
-                          <div className="col-span-3 space-y-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                          <div className="col-span-1 sm:col-span-3 space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Logradouro (Rua, Av...)</label>
                             <input 
                               type="text"
@@ -1527,7 +1527,7 @@ export function Diocese() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Bairro</label>
                             <input 
@@ -1549,8 +1549,8 @@ export function Diocese() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="col-span-2 space-y-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="col-span-1 sm:col-span-2 space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Cidade</label>
                             <input 
                               type="text"

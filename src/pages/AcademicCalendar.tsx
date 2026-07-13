@@ -2482,18 +2482,18 @@ export function AcademicCalendar() {
             </div>
           ) : viewMode === 'month' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-              <div className="bg-white p-8 rounded-none shadow-sm overflow-visible border border-slate-100">
+              <div className="bg-white p-2 sm:p-4 md:p-8 rounded-none shadow-sm overflow-visible border border-slate-100">
                 {/* Calendário Mensal Estilizado */}
                 <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-none overflow-visible shadow-inner">
                   {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                    <div key={day} className="bg-slate-50 py-3 text-center border-b border-slate-100">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{day.substring(0, 3)}</span>
+                    <div key={day} className="bg-slate-50 py-2 sm:py-3 text-center border-b border-slate-100">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] sm:tracking-[0.2em]">{day.substring(0, 3)}</span>
                     </div>
                   ))}
                   
                   {/* Células Vazias (Início do Mês) */}
                   {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => (
-                    <div key={`empty-month-${i}`} className="bg-white/50 aspect-[4/3] md:aspect-auto md:h-32" />
+                    <div key={`empty-month-${i}`} className="bg-white/50 min-h-[65px] sm:min-h-[90px] md:min-h-[130px]" />
                   ))}
 
                   {/* Dias do Mês */}
@@ -2562,7 +2562,7 @@ export function AcademicCalendar() {
                           }
                         }}
                         className={cn(
-                          "aspect-[4/3] md:aspect-auto md:min-h-[140px] p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-100",
+                          "min-h-[65px] sm:min-h-[90px] md:min-h-[130px] p-1 sm:p-1.5 md:p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-100",
                           !isToday && !isVacation && !isHolidayCell && !classDayBg ? "bg-white" : "",
                           classDayBg,
                           isToday && "bg-slate-50/20",
@@ -2594,7 +2594,7 @@ export function AcademicCalendar() {
                         <div className="flex justify-between items-start">
                           <div className="relative group/date">
                             <span className={cn(
-                              "w-7 h-7 flex items-center justify-center rounded-none text-xs font-bold transition-all",
+                              "w-5 h-5 sm:w-7 sm:h-7 flex items-center justify-center rounded-none text-[10px] sm:text-xs font-bold transition-all",
                               isToday ? "bg-slate-800 text-white shadow-lg shadow-none" : "text-slate-500 group-hover/cell:text-slate-800"
                             )}>
                               {day}
@@ -2655,15 +2655,15 @@ export function AcademicCalendar() {
                                 });
                                 setIsEditing(true);
                               }}
-                              className="opacity-0 group-hover/cell:opacity-100 p-1 text-slate-800 hover:bg-blue-100 rounded-none transition-all"
+                              className="hidden md:block opacity-0 group-hover/cell:opacity-100 p-1 text-slate-800 hover:bg-blue-100 rounded-none transition-all"
                             >
                               <Plus size={14} />
                             </button>
                           )}
                         </div>
 
-                        {/* Resumo de Eventos */}
-                        <div className="flex flex-col gap-1 mt-1 overflow-visible flex-1 pb-1">
+                        {/* Resumo de Eventos - Desktop View */}
+                        <div className="hidden md:flex flex-col gap-1 mt-1 overflow-visible flex-1 pb-1">
                           {dayEvents
                             .filter(e => e.type !== 'event')
                             .map(event => (
@@ -2758,6 +2758,28 @@ export function AcademicCalendar() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Resumo de Eventos - Mobile View (Dots Compactos) */}
+                        <div className="flex md:hidden flex-wrap gap-1 justify-center mt-auto pb-1">
+                          {dayEvents
+                            .filter(e => e.type !== 'event')
+                            .slice(0, 3)
+                            .map(event => (
+                              <div 
+                                key={event.id}
+                                className={cn(
+                                  "w-1.5 h-1.5 rounded-full border border-white/60 shadow-xs",
+                                  getTypeColor(event.type, event.start_date)
+                                )}
+                                title={event.title}
+                              />
+                          ))}
+                          {dayEvents.filter(e => e.type !== 'event').length > 3 && (
+                            <span className="text-[7px] font-black text-slate-400 leading-none self-center">
+                              +
+                            </span>
+                          )}
+                        </div>
                       </motion.div>
                     );
                   })}
@@ -2767,7 +2789,7 @@ export function AcademicCalendar() {
                     const totalCells = firstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth()) + daysInMonth(currentDate.getFullYear(), currentDate.getMonth());
                     const remaining = (7 - (totalCells % 7)) % 7;
                     return Array.from({ length: remaining }).map((_, i) => (
-                      <div key={`empty-end-${i}`} className="bg-white/50 aspect-[4/3] md:aspect-auto md:h-32" />
+                      <div key={`empty-end-${i}`} className="bg-white/50 min-h-[65px] sm:min-h-[90px] md:min-h-[130px]" />
                     ));
                   })()}
                 </div>
