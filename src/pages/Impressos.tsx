@@ -97,6 +97,41 @@ export function Impressos() {
     return `${year}-${month}-${day}`;
   });
 
+  // Limpa todas as configurações, seleções e pré-definições ao trocar de módulo de impressão
+  useEffect(() => {
+    setSelectedStudentId('');
+    setSelectedClassId('');
+    setStudentSearch('');
+    setIsDropdownOpen(false);
+    setCustomText('');
+    setSignerRole('secretario');
+    setSignerName('');
+    setSignerTitle('Secretário Acadêmico');
+    setCoSignerName('');
+    setCoSignerTitle('Diretor Geral');
+    setShowPhotoBorder(true);
+    setIsFormFilled(true);
+    setSelectedCardStudentIds([]);
+    setStartPosition(1);
+    setCardFillMode('individual');
+    setShowCardCutBorders(true);
+    setSelectedLabelStudentIds([]);
+    setLabelStartPosition(1);
+    setLabelFillMode('individual');
+    setShowLabelCutBorders(true);
+    setLabelShowAddress(false);
+    setLabelShowBirthday(false);
+    setLabelShowMatricula(false);
+    setLabelShowCourse(false);
+    setStudentSortOrder('name');
+    
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setDocumentDate(`${year}-${month}-${day}`);
+  }, [selectedType]);
+
   const admissionNorms = useMemo(() => {
     if (institution?.admission_norms && institution.admission_norms.trim()) {
       return institution.admission_norms

@@ -124,6 +124,15 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [isConnected]);
 
+  React.useEffect(() => {
+    // Ao carregar o sistema (primeira montagem/recarregamento), redireciona sempre para a página inicial
+    const currentHash = window.location.hash;
+    const isPublicRoute = currentHash.includes('#/login') || currentHash.includes('#/reset-password');
+    if (currentHash && currentHash !== '#/' && currentHash !== '#' && !isPublicRoute) {
+      window.location.hash = '#/';
+    }
+  }, []);
+
   if (!isSupabaseConfigured) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center font-sans">
