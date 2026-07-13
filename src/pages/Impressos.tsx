@@ -500,7 +500,7 @@ export function Impressos() {
           grid-template-columns: 80.0mm 80.0mm;
           grid-auto-rows: 46.0mm;
           column-gap: 6.0mm;
-          row-gap: 6.0mm;
+          row-gap: 0mm;
           width: 215.9mm;
           height: 279.4mm;
           padding: 24.0mm 28.0mm 24.0mm 28.0mm;
