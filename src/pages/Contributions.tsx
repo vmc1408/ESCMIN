@@ -1404,7 +1404,7 @@ export function Contributions() {
   return (
     <>
       <div className={cn(
-        "h-[calc(100vh-8rem)] flex flex-col gap-2 print:hidden",
+        "lg:h-[calc(100vh-8rem)] h-auto flex flex-col gap-4 print:hidden lg:overflow-hidden",
         isPrinting && "hidden"
       )}>
       <PageHeader
@@ -1415,13 +1415,13 @@ export function Contributions() {
       >
         <button 
           onClick={clearSelection}
-          className="h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-wider"
+          className="w-full sm:w-auto h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-wider"
         >
           <X size={14} /> Limpar Filtros
         </button>
       </PageHeader>
 
-      <div className="bg-white p-5 rounded-none shadow-sm border border-slate-200/80 flex flex-col gap-3">
+      <div className="bg-white p-3 sm:p-5 rounded-none shadow-sm border border-slate-200/80 flex flex-col gap-3 shrink-0">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-none border border-slate-200/50">
           {/* Busca por Nome */}
           <div className="lg:col-span-4 space-y-1.5">
@@ -1445,7 +1445,7 @@ export function Contributions() {
 
           {/* Filtro de Tipo de Data */}
           <div className="lg:col-span-2 space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-3">Tipo</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
             <input 
               type="text"
               readOnly
@@ -1456,9 +1456,9 @@ export function Contributions() {
           </div>
 
           <div className="lg:col-span-4 space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-3">Período</label>
-            <div className="flex items-center gap-2 bg-white p-1 rounded-none border border-slate-200 h-[3.25rem]">
-              <div className="flex-1 flex items-center px-3 gap-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Período</label>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white sm:p-1 p-2 rounded-none border border-slate-200 h-auto sm:h-[3.25rem]">
+              <div className="flex-1 flex items-center px-3 py-1 sm:py-0 gap-2 border-b sm:border-b-0 border-slate-100 sm:border-r border-slate-200">
                 <Calendar size={14} className="text-slate-300" />
                 <input 
                   type="date" 
@@ -1467,8 +1467,8 @@ export function Contributions() {
                   className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0"
                 />
               </div>
-              <div className="w-px h-6 bg-slate-100" />
-              <div className="flex-1 flex items-center px-3 gap-2">
+              <div className="flex-1 flex items-center px-3 py-1 sm:py-0 gap-2">
+                <Calendar size={14} className="text-slate-300 sm:hidden" />
                 <input 
                   type="date" 
                   value={endDate}
@@ -1492,11 +1492,13 @@ export function Contributions() {
         </div>
       </div>
 
-      <div className="flex-1 flex gap-2 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-2 lg:overflow-hidden overflow-visible">
         {/* Sidebar - Conditional Results or Recent */}
         <div className={cn(
-          "w-80 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden transition-all duration-300 order-last",
-          searchTerm.length > 0 || students.length > 0 ? "translate-x-0" : "-translate-x-full opacity-0 pointer-events-none w-0"
+          "w-full lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden transition-all duration-300 lg:order-last shrink-0",
+          searchTerm.length > 0 || students.length > 0 
+            ? "block" 
+            : "hidden lg:block lg:w-0 lg:opacity-0 lg:pointer-events-none"
         )}>
             <div className="p-4 border-b border-slate-50">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
@@ -1505,7 +1507,7 @@ export function Contributions() {
               </h3>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="flex-1 overflow-y-auto max-h-60 lg:max-h-none p-2 space-y-1">
             {students.length === 0 && searchTerm.length >= 3 && !isSearching && (
               <div className="p-8 text-center space-y-3">
                 <Search size={32} className="mx-auto text-slate-200" />
@@ -1546,20 +1548,20 @@ export function Contributions() {
         {/* Main Workspace */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
           {/* Aba de navegação de modos de visualização */}
-          <div className="flex border-b border-slate-100 bg-slate-50/40 p-1.5 shrink-0 gap-1.5">
+          <div className="flex flex-wrap sm:flex-nowrap border-b border-slate-100 bg-slate-50/40 p-1.5 shrink-0 gap-1 sm:gap-1.5">
             <button
               onClick={() => {
                 setViewMode('period');
                 fetchPeriodContributions();
               }}
               className={cn(
-                "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2",
+                "flex-1 py-2 px-1.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
                 viewMode === 'period' 
                   ? "bg-[#131b2e] text-white shadow-lg" 
                   : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
               )}
             >
-              <Calendar size={14} />
+              <Calendar size={13} className="shrink-0" />
               Lançamentos do Período
             </button>
             <button
@@ -1571,15 +1573,15 @@ export function Contributions() {
                 }
               }}
               className={cn(
-                "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2",
+                "flex-1 py-2 px-1.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
                 viewMode === 'individual' 
                   ? "bg-[#131b2e] text-white shadow-lg" 
                   : "text-slate-500 hover:text-slate-800 hover:bg-slate-50",
                 !selectedStudent && "opacity-50 cursor-not-allowed"
               )}
             >
-              <UserIcon size={14} />
-              Ficha Individual {selectedStudent ? `(${selectedStudent.name.split(' ')[0]})` : ''}
+              <UserIcon size={13} className="shrink-0" />
+              Ficha {selectedStudent ? `(${selectedStudent.name.split(' ')[0]})` : 'Individual'}
             </button>
             <button
               onClick={() => {
@@ -1587,14 +1589,14 @@ export function Contributions() {
                 fetchUnpaidData();
               }}
               className={cn(
-                "flex-1 py-2.5 px-4 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2",
+                "flex-1 py-2 px-1.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
                 viewMode === 'unpaid' 
                   ? "bg-[#131b2e] text-white shadow-lg" 
                   : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
               )}
             >
-              <AlertCircle size={14} />
-              Mensalidades em Aberto
+              <AlertCircle size={13} className="shrink-0" />
+              Inadimplência
             </button>
           </div>
 
@@ -1743,7 +1745,8 @@ export function Contributions() {
 
                     {/* Table List of Debtors */}
                     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                      <table className="w-full text-left border-collapse">
+                      <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse min-w-[900px]">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-100">
                             <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Estudante</th>
@@ -1869,6 +1872,7 @@ export function Contributions() {
                           })}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1877,20 +1881,20 @@ export function Contributions() {
           ) : selectedStudent && viewMode === 'individual' ? (
           <>
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-3xl bg-blue-600 flex items-center justify-center text-white text-2xl font-black shadow-xl shadow-blue-200">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl md:rounded-3xl bg-blue-600 flex items-center justify-center text-white text-lg md:text-2xl font-black shadow-xl shadow-blue-200">
                     {selectedStudent.name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-[#131b2e] leading-tight">{selectedStudent.name}</h3>
-                    <div className="flex items-center gap-3 text-xs font-bold text-slate-500 mt-1">
+                    <h3 className="text-lg md:text-xl font-black text-[#131b2e] leading-tight">{selectedStudent.name}</h3>
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs font-bold text-slate-500 mt-1">
                       <span className="flex items-center gap-1"><Calendar size={14} /> {selectedStudent.registration_number}</span>
-                      <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-lg text-[10px] font-black uppercase tracking-wider">{selectedStudent.status}</span>
+                      <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-lg text-[9px] md:text-[10px] font-black uppercase tracking-wider">{selectedStudent.status}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
                     <button 
                       onClick={() => setSelectedYear(selectedYear - 1)}
@@ -1898,7 +1902,7 @@ export function Contributions() {
                     >
                       <ChevronLeft size={14} />
                     </button>
-                    <span className="px-2 text-sm font-black text-[#131b2e]">{selectedYear}</span>
+                    <span className="px-2 text-xs md:text-sm font-black text-[#131b2e]">{selectedYear}</span>
                     <button 
                       onClick={() => setSelectedYear(selectedYear + 1)}
                       className="p-1 px-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
@@ -1913,7 +1917,7 @@ export function Contributions() {
                                 generateSelectedReceipts(selectedForPrint, 'print');
                                 setSelectedForPrint([]);
                               }}
-                              className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg active:scale-95 animate-in fade-in slide-in-from-right-4"
+                              className="flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-all shadow-lg active:scale-95 animate-in fade-in slide-in-from-right-4"
                             >
                               <Printer size={14} />
                               ({selectedForPrint.length})
@@ -1924,9 +1928,9 @@ export function Contributions() {
                     onClick={() => {
                       setIsPrintingStatement(true);
                     }}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-[#00174b] text-white rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-widest hover:bg-[#002a8a] transition-all shadow-lg active:scale-95"
                   >
-                    <FileText size={16} />
+                    <FileText size={14} />
                     Extrato
                   </button>
                 </div>
@@ -2080,9 +2084,9 @@ export function Contributions() {
           </>
           ) : viewMode === 'period' ? (
             <div className="flex-1 flex flex-col p-4 overflow-hidden">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                     <FileText size={16} />
                   </div>
                   <div>
@@ -2092,16 +2096,16 @@ export function Contributions() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 flex items-center gap-4">
                     <div className="flex flex-col items-center">
                       <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-0.5">Total</p>
-                      <p className="text-base font-black text-[#131b2e]">{formatCurrency(periodData.reduce((acc, c) => acc + c.amount, 0))}</p>
+                      <p className="text-sm md:text-base font-black text-[#131b2e]">{formatCurrency(periodData.reduce((acc, c) => acc + c.amount, 0))}</p>
                     </div>
                     <div className="w-px h-6 bg-emerald-200" />
                     <div className="flex flex-col items-center text-right">
                       <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-0.5">Registros</p>
-                      <p className="text-base font-black text-[#131b2e]">{periodData.length}</p>
+                      <p className="text-sm md:text-base font-black text-[#131b2e]">{periodData.length}</p>
                     </div>
                   </div>
 
@@ -2111,7 +2115,7 @@ export function Contributions() {
                         onClick={() => {
                           triggerDirectPrint(selectedForPrint);
                         }}
-                        className="px-4 py-3 bg-white text-emerald-600 border border-emerald-600 rounded-2xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-50 transition-all flex items-center gap-2 shadow-sm"
+                        className="px-3 py-2 md:px-4 md:py-3 bg-white text-emerald-600 border border-emerald-600 rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-wider hover:bg-emerald-50 transition-all flex items-center gap-1.5 shadow-sm"
                       >
                         <FileDown size={14} />
                         Ver ({selectedForPrint.length})
@@ -2121,7 +2125,7 @@ export function Contributions() {
                           generateSelectedReceipts(selectedForPrint, 'print');
                           setSelectedForPrint([]);
                         }}
-                        className="px-4 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                        className="px-3 py-2 md:px-4 md:py-3 bg-emerald-600 text-white rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
                       >
                         <Printer size={14} />
                         Imprimir Seleção
@@ -2132,7 +2136,8 @@ export function Contributions() {
               </div>
 
               <div className="flex-1 overflow-y-auto rounded-3xl border border-slate-100 shadow-sm bg-white">
-                <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100">
                       <th className="px-6 py-4 w-10"></th>
@@ -2352,6 +2357,7 @@ export function Contributions() {
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           ) : (

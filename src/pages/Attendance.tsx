@@ -976,6 +976,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           }
         };
 
+        const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+        if (isInIframe) {
+          triggerDownload();
+          setIsPrinting(false);
+          return;
+        }
+
         const iframe = document.createElement('iframe');
         iframe.style.position = 'fixed';
         iframe.style.right = '0';
