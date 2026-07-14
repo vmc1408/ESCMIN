@@ -607,20 +607,70 @@ export function Dashboard() {
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Acesso Rápido</h4>
               <div className="grid grid-cols-2 gap-2">
                  {[
-                   { label: 'Matricular', icon: Users, path: '/students' },
-                    { label: 'Gerar Impressos', icon: Printer, path: '/impressos' },
-                    { label: 'Turmas / Classes', icon: GraduationCap, path: '/classes' },
-                   { label: 'Cronograma Acadêmico', icon: Activity, path: '/calendar' },
-                   { label: 'Ficha do Aluno', icon: UserCircle, path: '/student-ficha' },
-                   { label: 'Contribuições', icon: Wallet, path: '/contributions' }
+                   { 
+                     label: 'Matricular', 
+                     icon: Users, 
+                     path: '/students', 
+                     bg: 'bg-indigo-50/45 hover:bg-indigo-50/85 border-indigo-100/70 hover:border-indigo-200', 
+                     iconColor: 'text-indigo-600', 
+                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(99,102,241,0.12)]' 
+                   },
+                   { 
+                     label: 'Gerar Impressos', 
+                     icon: Printer, 
+                     path: '/impressos', 
+                     bg: 'bg-sky-50/45 hover:bg-sky-50/85 border-sky-100/70 hover:border-sky-200', 
+                     iconColor: 'text-sky-600', 
+                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(56,189,248,0.12)]' 
+                   },
+                   { 
+                     label: 'Turmas / Classes', 
+                     icon: GraduationCap, 
+                     path: '/classes', 
+                     bg: 'bg-emerald-50/45 hover:bg-emerald-50/85 border-emerald-100/70 hover:border-emerald-200', 
+                     iconColor: 'text-emerald-600', 
+                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(16,185,129,0.12)]' 
+                   },
+                   { 
+                     label: 'Cronograma Acadêmico', 
+                     icon: Activity, 
+                     path: '/calendar', 
+                     bg: 'bg-amber-50/45 hover:bg-amber-50/85 border-amber-100/70 hover:border-amber-200', 
+                     iconColor: 'text-amber-600', 
+                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(245,158,11,0.12)]' 
+                   },
+                   { 
+                     label: 'Ficha do Aluno', 
+                     icon: UserCircle, 
+                     path: '/student-ficha', 
+                     bg: 'bg-rose-50/45 hover:bg-rose-50/85 border-rose-100/70 hover:border-rose-200', 
+                     iconColor: 'text-rose-600', 
+                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(244,63,94,0.12)]' 
+                   },
+                   { 
+                     label: 'Contribuições', 
+                     icon: Wallet, 
+                     path: '/contributions', 
+                     bg: 'bg-violet-50/45 hover:bg-violet-50/85 border-violet-100/70 hover:border-violet-200', 
+                     iconColor: 'text-violet-600', 
+                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(139,92,246,0.12)]' 
+                   }
                  ].map((item, i) => (
                     <button 
                       key={i}
                       onClick={() => item.path !== '#' && navigate(item.path)}
-                      className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-md hover:bg-slate-100 hover:border-slate-200 transition-all group"
+                      className={cn(
+                        "flex flex-col items-start gap-1.5 p-2.5 border rounded-lg transition-all duration-300 text-left group hover:-translate-y-0.5",
+                        item.bg,
+                        item.hoverShadow
+                      )}
                     >
-                       <item.icon size={16} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                       <span className="text-[11px] font-bold text-slate-600 group-hover:text-slate-800">{item.label}</span>
+                      <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100 transition-colors duration-300">
+                        <item.icon size={15} className={cn("transition-transform duration-300 group-hover:scale-110 shrink-0", item.iconColor)} />
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors tracking-tight leading-tight uppercase">
+                        {item.label}
+                      </span>
                     </button>
                  ))}
               </div>
