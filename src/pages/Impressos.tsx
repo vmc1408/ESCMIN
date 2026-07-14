@@ -1923,16 +1923,16 @@ export function Impressos() {
                                         </h5>
                                       </div>
 
-                                      <div className="grid grid-cols-2 gap-x-2">
-                                        <div>
+                                      <div className="grid grid-cols-2 gap-x-2 mt-2">
+                                        <div className="flex flex-col justify-start">
                                           <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">MATRÍCULA / RA</span>
-                                          <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none">
+                                          <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none block mt-1">
                                             {isFormFilled ? (student.registration_number || 'S/ RA') : '\u00A0'}
                                           </span>
                                         </div>
-                                        <div>
-                                          <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">DOCUMENTO (RG/CPF)</span>
-                                          <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none truncate block">
+                                        <div className="flex flex-col justify-start text-right">
+                                          <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none text-right">DOCUMENTO (RG/CPF)</span>
+                                          <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none block mt-1 truncate text-right">
                                             {isFormFilled ? (student.rg || student.cpf || 'Não Consta') : '\u00A0'}
                                           </span>
                                         </div>
