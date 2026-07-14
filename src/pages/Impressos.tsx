@@ -996,11 +996,11 @@ export function Impressos() {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Cartão Pré-Preenchido?</label>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Cartão em Branco?</label>
                     <input 
                       type="checkbox"
-                      checked={isFormFilled}
-                      onChange={(e) => setIsFormFilled(e.target.checked)}
+                      checked={!isFormFilled}
+                      onChange={(e) => setIsFormFilled(!e.target.checked)}
                       className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                     />
                   </div>
@@ -1869,14 +1869,14 @@ export function Impressos() {
                                   <div className="flex flex-col justify-center shrink-0">
                                     <div className={cn(
                                       "w-[21mm] h-[28mm] bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 rounded-sm relative z-10",
-                                      showPhotoBorder ? "border border-slate-950" : "border border-slate-150"
+                                      showPhotoBorder ? "border border-slate-950" : "border border-transparent"
                                     )}>
                                       {student.photo_url ? (
                                         <img src={student.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                       ) : (
                                         <div className="text-center p-1">
                                           <User className="text-slate-300 mx-auto" size={16} />
-                                          <span className="text-[5.5px] text-slate-400 font-bold block uppercase mt-0.5">FOTO 3X4</span>
+                                          <span className="text-[5.5px] text-slate-400 font-bold block uppercase mt-0.5">FOTO</span>
                                         </div>
                                       )}
                                     </div>
