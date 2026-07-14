@@ -535,6 +535,16 @@ export function Impressos() {
         .pimaco-label:nth-child(2) {
           top: -5.0mm;
         }
+        /* 4ª linha (etiquetas 7 e 8) desce 0,5 cm */
+        .pimaco-label:nth-child(7),
+        .pimaco-label:nth-child(8) {
+          top: 5.0mm;
+        }
+        /* 5ª linha (etiquetas 9 e 10) desce 0,5 cm */
+        .pimaco-label:nth-child(9),
+        .pimaco-label:nth-child(10) {
+          top: 5.0mm;
+        }
 
         /* Pimaco 6180 Sheet layout (3 columns, 10 rows = 30 labels) */
         .pimaco-sheet-6180 {
