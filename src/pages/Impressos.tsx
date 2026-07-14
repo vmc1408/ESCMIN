@@ -1919,7 +1919,7 @@ export function Impressos() {
                                             maxHeight: '2.2em'
                                           }}
                                         >
-                                          {isFormFilled ? student.name : '________________________'}
+                                          {isFormFilled ? student.name : '\u00A0'}
                                         </h5>
                                       </div>
 
@@ -1927,13 +1927,13 @@ export function Impressos() {
                                         <div>
                                           <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">MATRÍCULA / RA</span>
                                           <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none">
-                                            {isFormFilled ? (student.registration_number || 'S/ RA') : '________'}
+                                            {isFormFilled ? (student.registration_number || 'S/ RA') : '\u00A0'}
                                           </span>
                                         </div>
                                         <div>
                                           <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">DOCUMENTO (RG/CPF)</span>
                                           <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none truncate block">
-                                            {isFormFilled ? (student.rg || student.cpf || 'Não Consta') : '________'}
+                                            {isFormFilled ? (student.rg || student.cpf || 'Não Consta') : '\u00A0'}
                                           </span>
                                         </div>
                                       </div>
@@ -1941,7 +1941,7 @@ export function Impressos() {
                                       <div>
                                         <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">CURSO / CLASSE</span>
                                         <span className="text-[8.5px] font-bold text-slate-800 uppercase block truncate leading-none mt-0.5">
-                                          {isFormFilled ? `${student.course || 'CURSO'} - ${activeClass?.name}` : '________________________'}
+                                          {isFormFilled ? `${student.course || 'CURSO'} - ${activeClass?.name}` : '\u00A0'}
                                         </span>
                                       </div>
                                     </div>
@@ -1955,7 +1955,7 @@ export function Impressos() {
                                       <div className="text-right">
                                         <span className="text-[5px] font-black text-slate-400 uppercase tracking-wider block leading-none">ALUNO(A) DESDE</span>
                                         <span className="text-[7.5px] font-bold font-mono text-slate-800 block leading-none uppercase">
-                                          {isFormFilled ? (student.start_date ? formatDateForDisplay(student.start_date) : (student.created_at ? formatDateForDisplay(student.created_at) : 'N/D')) : '________'}
+                                          {isFormFilled ? (student.start_date ? formatDateForDisplay(student.start_date) : (student.created_at ? formatDateForDisplay(student.created_at) : 'N/D')) : '\u00A0'}
                                         </span>
                                       </div>
                                     </div>
