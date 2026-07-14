@@ -530,25 +530,10 @@ export function Impressos() {
         .pimaco-label:nth-child(even) {
           left: -1.0mm;
         }
-        /* 1ª linha (etiquetas 1 e 2) sobe 0,5 cm */
-        .pimaco-label:nth-child(1),
-        .pimaco-label:nth-child(2) {
-          top: -5.0mm;
-        }
-        /* 2ª linha (etiquetas 3 e 4) sobe 0,2 cm */
-        .pimaco-label:nth-child(3),
-        .pimaco-label:nth-child(4) {
-          top: -2.0mm;
-        }
-        /* 4ª linha (etiquetas 7 e 8) desce 0,5 cm */
-        .pimaco-label:nth-child(7),
-        .pimaco-label:nth-child(8) {
-          top: 5.0mm;
-        }
-        /* 5ª linha (etiquetas 9 e 10) desce 0,3 cm */
+        /* 5ª linha (etiquetas 9 e 10) desce 0,5 cm */
         .pimaco-label:nth-child(9),
         .pimaco-label:nth-child(10) {
-          top: 3.0mm;
+          top: 5.0mm;
         }
 
         /* Pimaco 6180 Sheet layout (3 columns, 10 rows = 30 labels) */
@@ -1891,9 +1876,6 @@ export function Impressos() {
                                   key={`filled-${sheetIdx}-${slotIdx}-${student.id}`} 
                                   className="pimaco-label p-2.5 bg-white flex flex-row items-stretch gap-3.5 relative box-border select-none overflow-hidden"
                                 >
-                                  {/* Inner subtle alignment line */}
-                                  <div className="absolute inset-1 border border-slate-900/10 pointer-events-none rounded" />
-
                                   {/* Left: Photo Slot (3x4 aspect ratio, scaled for card height) */}
                                   <div className="flex flex-col justify-center shrink-0">
                                     <div className={cn(
