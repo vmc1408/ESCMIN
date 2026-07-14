@@ -530,6 +530,16 @@ export function Impressos() {
         .pimaco-label:nth-child(even) {
           left: -1.0mm;
         }
+        /* 1ª linha (etiquetas 1 e 2) sobe 0,5 cm */
+        .pimaco-label:nth-child(1),
+        .pimaco-label:nth-child(2) {
+          top: -5.0mm;
+        }
+        /* 2ª linha (etiquetas 3 e 4) sobe 0,2 cm */
+        .pimaco-label:nth-child(3),
+        .pimaco-label:nth-child(4) {
+          top: -2.0mm;
+        }
         /* 4ª linha (etiquetas 7 e 8) desce 0,5 cm */
         .pimaco-label:nth-child(7),
         .pimaco-label:nth-child(8) {
