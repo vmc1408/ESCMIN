@@ -526,19 +526,19 @@ export function Impressos() {
         .pimaco-label:nth-child(odd) {
           left: -5.0mm;
         }
-        /* Segunda coluna recua 0,2 cm para a esquerda */
+        /* Segunda coluna recua 0,1 cm para a esquerda */
         .pimaco-label:nth-child(even) {
-          left: -2.0mm;
+          left: -1.0mm;
         }
         /* 4ª linha (etiquetas 7 e 8) desce 0,5 cm */
         .pimaco-label:nth-child(7),
         .pimaco-label:nth-child(8) {
           top: 5.0mm;
         }
-        /* 5ª linha (etiquetas 9 e 10) desce 0,5 cm */
+        /* 5ª linha (etiquetas 9 e 10) desce 0,3 cm */
         .pimaco-label:nth-child(9),
         .pimaco-label:nth-child(10) {
-          top: 5.0mm;
+          top: 3.0mm;
         }
 
         /* Pimaco 6180 Sheet layout (3 columns, 10 rows = 30 labels) */
