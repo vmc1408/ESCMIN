@@ -500,10 +500,10 @@ export function Impressos() {
           grid-template-columns: 80.0mm 80.0mm;
           grid-auto-rows: 46.0mm;
           column-gap: 6.0mm;
-          row-gap: 0mm;
+          row-gap: 4.0mm;
           width: 215.9mm;
           height: 279.4mm;
-          padding: 24.0mm 28.0mm 24.0mm 28.0mm;
+          padding: 19.0mm 28.0mm 24.0mm 28.0mm;
           margin: 0 auto;
           box-sizing: border-box;
           background-color: #fff;
@@ -529,21 +529,6 @@ export function Impressos() {
         /* Segunda coluna recua 0,1 cm para a esquerda */
         .pimaco-label:nth-child(even) {
           left: -1.0mm;
-        }
-        /* 1ª linha (etiquetas 1 e 2) sobe 0,5 cm */
-        .pimaco-label:nth-child(1),
-        .pimaco-label:nth-child(2) {
-          top: -5.0mm;
-        }
-        /* 4ª linha (etiquetas 7 e 8) desce 0,5 cm */
-        .pimaco-label:nth-child(7),
-        .pimaco-label:nth-child(8) {
-          top: 5.0mm;
-        }
-        /* 5ª linha (etiquetas 9 e 10) desce 0,5 cm */
-        .pimaco-label:nth-child(9),
-        .pimaco-label:nth-child(10) {
-          top: 5.0mm;
         }
 
         /* Pimaco 6180 Sheet layout (3 columns, 10 rows = 30 labels) */
