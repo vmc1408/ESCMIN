@@ -561,6 +561,20 @@ export function Impressos() {
           background-color: #fff;
           padding: 2.0mm 3.2mm;
           border: ${showLabelCutBorders ? '1px dashed #ddd' : 'none'};
+          top: -7.0mm;
+        }
+        /* Ajustes específicos de colunas para etiquetas de endereçamento (Pimaco 6180) */
+        /* Primeira coluna recua 1,3 cm para a esquerda */
+        .pimaco-label-6180:nth-child(3n+1) {
+          left: -13.0mm;
+        }
+        /* Segunda coluna recua 0,8 cm para a esquerda */
+        .pimaco-label-6180:nth-child(3n+2) {
+          left: -8.0mm;
+        }
+        /* Terceira coluna recua 0,1 cm para a esquerda */
+        .pimaco-label-6180:nth-child(3n) {
+          left: -1.0mm;
         }
 
         @media print {
