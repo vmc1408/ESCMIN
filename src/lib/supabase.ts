@@ -228,7 +228,8 @@ export const syncUserWithSupabase = async (userData: { uid: string; email: strin
  * Carrega os dados em lotes até que todos os registros sejam recuperados.
  */
 export const fetchRecursive = async (tableName: string, options: { select?: string, orderCol?: string, ascending?: boolean, timeoutMs?: number } = {}) => {
-  const { select = '*', orderCol = 'created_at', ascending = false } = options;
+  let { select = '*', orderCol = 'created_at', ascending = false } = options;
+
   let allData: any[] = [];
   let from = 0;
   const step = 1000;

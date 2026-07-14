@@ -45,6 +45,7 @@ const navItems = [
   {
     label: 'Gestão Escolar',
     icon: ClassesIcon,
+    isPrimary: true,
     children: [
       {
         label: 'Cadastros',
@@ -99,6 +100,7 @@ const navItems = [
   {
     label: 'Impressos',
     icon: Printer,
+    isPrimary: true,
     children: [
       { icon: FileText, label: 'Carta de Apresentação', path: '/impressos?type=carta' },
       { icon: UserIcon, label: 'Ficha de Inscrição', path: '/impressos?type=ficha' },
@@ -253,13 +255,182 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     return false;
   };
 
-  const renderNavItems = (items: any[], depth = 0) => {
+  const getItemTheme = (item: any, parentLabel?: string) => {
+    const label = item.label;
+    
+    // Primary Top Level Groups
+    if (label === 'Gestão Escolar') {
+      return {
+        iconColor: 'text-indigo-400',
+        textColor: 'text-slate-100',
+        activeIconColor: 'text-indigo-300',
+        activeTextColor: 'text-white'
+      };
+    }
+    
+    if (label === 'Impressos') {
+      return {
+        iconColor: 'text-sky-400',
+        textColor: 'text-slate-100',
+        activeIconColor: 'text-sky-300',
+        activeTextColor: 'text-white'
+      };
+    }
+
+    // Guia Diocese
+    if (label === 'Guia Diocese' || item.path === '/parishes') {
+      return {
+        iconColor: 'text-amber-500',
+        textColor: 'text-amber-100',
+        activeIconColor: 'text-amber-400',
+        activeTextColor: 'text-white'
+      };
+    }
+
+    // Dashboard
+    if (label === 'Dashboard' || item.path === '/') {
+      return {
+        iconColor: 'text-indigo-400',
+        textColor: 'text-slate-100',
+        activeIconColor: 'text-white',
+        activeTextColor: 'text-white'
+      };
+    }
+
+    // Financeiro Section (Emerald)
+    if (
+      label === 'Financeiro' || 
+      parentLabel === 'Financeiro' || 
+      item.path?.includes('quitacao') || 
+      item.path === '/contributions' || 
+      item.path === '/pix-conference' || 
+      item.path === '/receipts'
+    ) {
+      return {
+        iconColor: 'text-emerald-500',
+        textColor: 'text-slate-300',
+        activeIconColor: 'text-emerald-400',
+        activeTextColor: 'text-white'
+      };
+    }
+
+    // Impressos Children (Sky)
+    if (
+      parentLabel === 'Impressos' ||
+      item.path?.includes('type=carta') ||
+      item.path?.includes('type=ficha') ||
+      item.path?.includes('type=declaracao') ||
+      item.path?.includes('type=carteirinhas') ||
+      item.path?.includes('type=etiquetas')
+    ) {
+      return {
+        iconColor: 'text-sky-400',
+        textColor: 'text-slate-300',
+        activeIconColor: 'text-sky-300',
+        activeTextColor: 'text-white'
+      };
+    }
+
+    // Acadêmico Groups and Children (Indigo / Blue)
+    if (
+      label === 'Cadastros' || parentLabel === 'Cadastros' ||
+      label === 'Avaliações' || parentLabel === 'Avaliações' ||
+      label === 'Frequência' || parentLabel === 'Frequência' ||
+      label === 'Cronograma' || parentLabel === 'Cronograma' ||
+      item.path === '/students' || item.path === '/teachers' || item.path === '/classes' || item.path === '/subjects' ||
+      item.path === '/assessments' || item.path === '/grades' || item.path === '/bulletin' || item.path === '/student-ficha' || item.path === '/documents' ||
+      item.path === '/attendance' || item.path === '/monthly-attendance' || item.path?.includes('calendar')
+    ) {
+      return {
+        iconColor: 'text-indigo-400/80',
+        textColor: 'text-slate-300',
+        activeIconColor: 'text-indigo-300',
+        activeTextColor: 'text-white'
+      };
+    }
+
+    // Defaults / Config / Users
+    return {
+      iconColor: 'text-slate-400',
+      textColor: 'text-slate-300',
+      activeIconColor: 'text-white',
+      activeTextColor: 'text-white'
+    };
+  };
+
+  const renderNavItems = (items: any[], depth = 0, parentLabel?: string) => {
     return items.map((item) => {
       const hasChildren = item.children && item.children.length > 0;
       const isOpen = openGroups.includes(item.label);
       const isActive = item.path ? isPathActive(item.path) : isGroupActive(item);
 
+      // Destacar Módulos Principais no topo da Sidebar (Gestão Escolar e Impressos) - Destaque Natural sem Caixas
+      if (depth === 0 && (item.label === 'Gestão Escolar' || item.label === 'Impressos')) {
+        const isGestao = item.label === 'Gesto Escolar' || item.label === 'Gestão Escolar';
+        const theme = getItemTheme(item);
+        
+        return (
+          <div key={item.label} className="space-y-1 my-3">
+            {/* Linha Divisória Sutil entre os blocos (apenas se não for o primeiro) */}
+            {!isGestao && <div className="border-t border-slate-800/50 my-4 mx-3" />}
+
+            {/* Pasta Toggle Principal */}
+            <button
+              onClick={() => toggleGroup(item.label)}
+              className={cn(
+                "w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-md transition-all duration-200",
+                isGestao ? "border-l-4 border-indigo-500 bg-indigo-950/15" : "border-l-4 border-sky-500 bg-sky-950/15",
+                isActive 
+                  ? "text-white" 
+                  : "text-slate-200 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <div className="flex items-center gap-2.5">
+                {item.icon && (
+                  <item.icon 
+                    size={16} 
+                    className={cn(
+                      "transition-colors duration-200 shrink-0",
+                      isActive ? "text-white" : theme.iconColor
+                    )} 
+                  />
+                )}
+                <span className="text-[12.5px] font-extrabold uppercase tracking-wide text-slate-100">
+                  {item.label}
+                </span>
+              </div>
+              {isOpen ? (
+                <ChevronDown size={14} className={isGestao ? "text-indigo-400" : "text-sky-400"} />
+              ) : (
+                <ChevronRight size={14} className={isGestao ? "text-indigo-400" : "text-sky-400"} />
+              )}
+            </button>
+
+            {/* Conteúdos da Pasta Principal */}
+            <AnimatePresence mode="wait">
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className={cn(
+                    "space-y-1 mt-1 pl-3.5 ml-4 border-l-2",
+                    isGestao ? "border-indigo-500/20" : "border-sky-500/20"
+                  )}>
+                    {renderNavItems(item.children, depth + 1, item.label)}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      }
+
       if (hasChildren) {
+        const theme = getItemTheme(item, parentLabel);
         return (
           <div key={item.label} className="space-y-0.5">
             <button
@@ -270,7 +441,15 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               )}
             >
               <div className="flex items-center gap-3">
-                {item.icon && <item.icon size={15} className={cn(isActive ? "text-blue-400" : "text-slate-500")} />}
+                {item.icon && (
+                  <item.icon 
+                    size={15} 
+                    className={cn(
+                      "transition-colors duration-200 shrink-0",
+                      isActive ? "text-white" : theme.iconColor
+                    )} 
+                  />
+                )}
                 <span className={cn(
                   "text-[10px] font-bold uppercase tracking-wider",
                   isActive ? "text-white" : "text-slate-400"
@@ -294,7 +473,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                     "space-y-0.5 mt-0.5",
                     depth === 0 ? "ml-4 border-l border-white/5 pl-2" : "ml-3 border-l border-white/5 pl-2"
                   )}>
-                    {renderNavItems(item.children, depth + 1)}
+                    {renderNavItems(item.children, depth + 1, item.label)}
                   </div>
                 </motion.div>
               )}
@@ -303,6 +482,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         );
       }
 
+      const theme = getItemTheme(item, parentLabel);
       return (
         <Link
           key={item.path}
@@ -311,11 +491,19 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           className={cn(
             "flex items-center gap-3 px-3.5 py-2 rounded-md transition-all duration-200",
             isActive 
-              ? "bg-blue-600 text-white shadow-sm shadow-blue-900/15" 
+              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/15" 
               : "text-slate-300 hover:text-white hover:bg-white/5"
           )}
         >
-          {item.icon && <item.icon size={15} />}
+          {item.icon && (
+            <item.icon 
+              size={15} 
+              className={cn(
+                "transition-colors duration-200 shrink-0",
+                isActive ? "text-white" : theme.iconColor
+              )} 
+            />
+          )}
           <span className="text-[13px] font-medium">{item.label}</span>
         </Link>
       );
