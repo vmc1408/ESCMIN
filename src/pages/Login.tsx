@@ -65,7 +65,11 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError } = useAuth();
-  const from = location.state?.from?.pathname || "/";
+  
+  // Se houver sinalização de logout total, força a rota de destino a ser o Dashboard ("/")
+  const isForcedDashboard = localStorage.getItem('force_dashboard_on_login') === 'true';
+  const from = isForcedDashboard ? "/" : (location.state?.from?.pathname || "/");
+  
   const stateError = location.state?.error;
 
   const [isRetrying, setIsRetrying] = useState(false);
@@ -129,6 +133,7 @@ export function Login() {
                        window.location.search.includes('type=recovery');
 
     if (user && profile && !isLocked && !authLoading && !isRecovery) {
+      localStorage.removeItem('force_dashboard_on_login');
       navigate(from, { replace: true });
     }
   }, [user, profile, isLocked, authLoading, navigate, from, isResettingPassword]);

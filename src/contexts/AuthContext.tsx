@@ -231,6 +231,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       setLoading(true);
+      // Sinaliza que o próximo login deve ir obrigatoriamente para o Dashboard (logout total)
+      localStorage.setItem('force_dashboard_on_login', 'true');
+      window.location.hash = '#/';
+      
       await supabase.auth.signOut();
       setUser(null);
       setProfile(null);
