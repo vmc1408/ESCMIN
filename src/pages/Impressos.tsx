@@ -82,7 +82,7 @@ export function Impressos() {
   const [selectedLabelStudentIds, setSelectedLabelStudentIds] = useState<string[]>([]);
   const [labelStartPosition, setLabelStartPosition] = useState<number>(1);
   const [labelFillMode, setLabelFillMode] = useState<'individual' | 'repeat'>('individual');
-  const [showLabelCutBorders, setShowLabelCutBorders] = useState<boolean>(true);
+  const [showLabelCutBorders, setShowLabelCutBorders] = useState<boolean>(false);
   const [labelShowAddress, setLabelShowAddress] = useState<boolean>(false);
   const [labelShowBirthday, setLabelShowBirthday] = useState<boolean>(false);
   const [labelShowMatricula, setLabelShowMatricula] = useState<boolean>(false);
@@ -550,7 +550,7 @@ export function Impressos() {
           justify-content: space-between;
           overflow: hidden;
           background-color: #fff;
-          padding: 2.5mm 3.5mm;
+          padding: 2.0mm 3.2mm;
           border: ${showLabelCutBorders ? '1px dashed #ddd' : 'none'};
         }
 
@@ -2037,23 +2037,32 @@ export function Impressos() {
                                       </div>
                                     )}
                                     {/* Student Name is always shown */}
-                                    <h5 className="text-[10px] font-black text-slate-950 uppercase truncate leading-tight">
+                                    <h5 
+                                      className="text-[9.5px] font-black text-slate-950 uppercase whitespace-normal break-words leading-[1.1]"
+                                      style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        maxHeight: '2.2em'
+                                      }}
+                                    >
                                       {student.name}
                                     </h5>
                                   </div>
 
                                   {/* Middle part: Address */}
-                                  <div className="flex-1 min-h-0 flex flex-col justify-center my-0.5">
+                                  <div className="flex-1 min-h-0 flex flex-col justify-center my-0">
                                     {labelShowAddress && (
-                                      <div className="text-[8px] text-slate-600 font-semibold leading-tight uppercase space-y-0.5">
+                                      <div className="text-[7.5px] text-slate-600 font-semibold leading-tight uppercase space-y-0">
                                         {student.address_street ? (
                                           <>
                                             <p className="truncate text-slate-850 font-bold">{student.address_street}{student.address_neighborhood ? ` - ${student.address_neighborhood}` : ''}</p>
-                                            <p className="truncate text-slate-500 font-bold text-[7.5px]">CEP: {student.address_zip || 'NÃO CADASTRADO'}</p>
-                                            <p className="truncate text-slate-500 font-bold text-[7.5px]">{student.address_city || 'GUARULHOS'} - {student.address_state || 'SP'}</p>
+                                            <p className="truncate text-slate-500 font-bold text-[7px]">CEP: {student.address_zip || 'NÃO CADASTRADO'}</p>
+                                            <p className="truncate text-slate-500 font-bold text-[7px]">{student.address_city || 'GUARULHOS'} - {student.address_state || 'SP'}</p>
                                           </>
                                         ) : (
-                                          <p className="text-slate-400 italic font-semibold text-[7.5px] normal-case">Endereço não cadastrado</p>
+                                          <p className="text-slate-400 italic font-semibold text-[7px] normal-case">Endereço não cadastrado</p>
                                         )}
                                       </div>
                                     )}
@@ -2061,13 +2070,13 @@ export function Impressos() {
 
                                   {/* Bottom part (Footer) */}
                                   {(labelShowCourse || labelShowBirthday) && (
-                                    <div className="flex items-center justify-between text-[7.5px] font-bold text-slate-400 border-t border-slate-100 pt-0.5 uppercase tracking-wider mt-auto leading-none">
+                                    <div className="flex items-center justify-between text-[7px] font-bold text-slate-400 border-t border-slate-100 pt-0.5 uppercase tracking-wider mt-auto leading-none">
                                       <div className="truncate pr-2">
                                         {labelShowCourse ? (student.course || 'ESTUDANTE') : ''}
                                       </div>
                                       {labelShowBirthday && (
                                         <div className="flex items-center gap-0.5 text-slate-600 font-extrabold shrink-0 text-right">
-                                          <Calendar size={8} className="text-slate-450 shrink-0" />
+                                          <Calendar size={7} className="text-slate-450 shrink-0" />
                                           <span>NASC: {student.birth_date ? formatDateForDisplay(student.birth_date) : 'N/C'}</span>
                                         </div>
                                       )}
