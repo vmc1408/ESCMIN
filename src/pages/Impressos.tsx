@@ -76,7 +76,7 @@ export function Impressos() {
   const [selectedCardStudentIds, setSelectedCardStudentIds] = useState<string[]>([]);
   const [startPosition, setStartPosition] = useState<number>(1);
   const [cardFillMode, setCardFillMode] = useState<'individual' | 'repeat'>('individual');
-  const [showCardCutBorders, setShowCardCutBorders] = useState<boolean>(true);
+  const [showCardCutBorders, setShowCardCutBorders] = useState<boolean>(false);
 
   // States for address labels (Pimaco 6180)
   const [selectedLabelStudentIds, setSelectedLabelStudentIds] = useState<string[]>([]);
@@ -114,11 +114,11 @@ export function Impressos() {
     setSelectedCardStudentIds([]);
     setStartPosition(1);
     setCardFillMode('individual');
-    setShowCardCutBorders(true);
+    setShowCardCutBorders(false);
     setSelectedLabelStudentIds([]);
     setLabelStartPosition(1);
     setLabelFillMode('individual');
-    setShowLabelCutBorders(true);
+    setShowLabelCutBorders(false);
     setLabelShowAddress(false);
     setLabelShowBirthday(false);
     setLabelShowMatricula(false);
@@ -1906,10 +1906,19 @@ export function Impressos() {
                                     </div>
 
                                     {/* Main student metadata */}
-                                    <div className="space-y-1.5 py-1">
+                                    <div className="space-y-1 py-0.5">
                                       <div>
                                         <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">ESTUDANTE</span>
-                                        <h5 className="text-[11px] font-black text-slate-950 uppercase truncate tracking-tight leading-none mt-1">
+                                        <h5 
+                                          className="text-[10px] font-black text-slate-950 uppercase whitespace-normal break-words leading-[1.1] mt-0.5"
+                                          style={{
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden',
+                                            maxHeight: '2.2em'
+                                          }}
+                                        >
                                           {isFormFilled ? student.name : '________________________'}
                                         </h5>
                                       </div>
@@ -1931,7 +1940,7 @@ export function Impressos() {
 
                                       <div>
                                         <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">CURSO / CLASSE</span>
-                                        <span className="text-[8.5px] font-bold text-slate-800 uppercase block truncate leading-none mt-1">
+                                        <span className="text-[8.5px] font-bold text-slate-800 uppercase block truncate leading-none mt-0.5">
                                           {isFormFilled ? `${student.course || 'CURSO'} - ${activeClass?.name}` : '________________________'}
                                         </span>
                                       </div>
