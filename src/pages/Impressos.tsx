@@ -69,7 +69,7 @@ export function Impressos() {
   const [signerTitle, setSignerTitle] = useState('Secretário Acadêmico');
   const [coSignerName, setCoSignerName] = useState('');
   const [coSignerTitle, setCoSignerTitle] = useState('Diretor Geral');
-  const [showPhotoBorder, setShowPhotoBorder] = useState(true);
+  const [showPhotoBorder, setShowPhotoBorder] = useState(false);
   const [isFormFilled, setIsFormFilled] = useState(true);
 
   // States for student cards (Pimaco 6183)
@@ -109,7 +109,7 @@ export function Impressos() {
     setSignerTitle('Secretário Acadêmico');
     setCoSignerName('');
     setCoSignerTitle('Diretor Geral');
-    setShowPhotoBorder(true);
+    setShowPhotoBorder(false);
     setIsFormFilled(true);
     setSelectedCardStudentIds([]);
     setStartPosition(1);
