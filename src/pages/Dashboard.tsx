@@ -472,7 +472,8 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Informative Stat Cards - Hidden on Mobile */}
+      <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, idx) => (
           <motion.div 
             key={stat.label}
@@ -513,11 +514,12 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Ocupação Acadêmica */}
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
-          className="lg:col-span-8 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden"
+          className="order-2 lg:order-1 lg:col-span-8 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden"
         >
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white overflow-hidden">
             <div className="flex items-center gap-3">
@@ -601,7 +603,7 @@ export function Dashboard() {
            initial={{ opacity: 0, x: 10 }}
            animate={{ opacity: 1, x: 0 }}
            transition={{ delay: 0.5 }}
-           className="lg:col-span-4"
+           className="order-1 lg:order-2 lg:col-span-4"
         >
            <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Acesso Rápido</h4>

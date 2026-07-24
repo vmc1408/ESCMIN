@@ -1081,25 +1081,25 @@ export function Students() {
 
       {/* Main Content (Student Details or Registration Form) */}
       <div className={cn(
-        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
-        actualListCollapsed ? "flex-grow flex-1 max-w-5xl w-[100%] mx-auto opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 w-full min-w-0 max-w-5xl mx-auto",
+        actualListCollapsed ? "flex-grow flex-1 opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
       )}>
         {selectedStudent || isEditing ? (
           <>
             {notification && (
               <div className={cn(
-                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-none shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2",
+                "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-none shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-2 max-w-[90vw]",
                 notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
               )}>
-                {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                <p className="text-[11px] font-bold uppercase tracking-wider">{notification.message}</p>
+                {notification.type === 'success' ? <CheckCircle2 size={16} className="shrink-0" /> : <AlertCircle size={16} className="shrink-0" />}
+                <p className="text-[11px] font-bold uppercase tracking-wider truncate">{notification.message}</p>
               </div>
             )}
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-5">
-                <div className="relative group">
-                  <div className="w-20 h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
+            <div className="p-3 sm:px-6 sm:py-4 border-b border-slate-100 bg-slate-50/30">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                <div className="relative group shrink-0">
+                  <div className="w-16 sm:w-20 h-22 sm:h-28 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 relative">
                     {formData.photo_url ? (
                       <img src={formData.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -1128,14 +1128,14 @@ export function Students() {
                     </div>
                   )}
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight leading-tight truncate">
                     {isEditing ? (selectedStudent ? 'Editar Aluno' : 'Novo Registro') : formData.name}
                   </h3>
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Matrícula: {formData.registration_number || '---'}</span>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">Matrícula: {formData.registration_number || '---'}</span>
                     <span className={cn(
-                      "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border tracking-wider",
+                      "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border tracking-wider shrink-0",
                       formData.status === 'Ativo' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-500 border-slate-200"
                     )}>
                       {formData.status}
@@ -1143,7 +1143,7 @@ export function Students() {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:justify-end">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full md:w-auto md:justify-end">
                 {!isEditing && selectedStudent && (
                   <>
                     <button 
@@ -1422,20 +1422,20 @@ export function Students() {
 
                       {/* Enrollment Management - Integrated directly */}
                       {selectedStudent?.id ? (
-                        <div className="col-span-12 p-5 bg-slate-50/30 border border-slate-200 rounded-none space-y-4 mt-2 mb-6 shadow-sm">
+                        <div className="col-span-12 p-3 sm:p-5 bg-slate-50/30 border border-slate-200 rounded-none space-y-3 sm:space-y-4 mt-2 mb-6 shadow-sm overflow-hidden">
                           <div className="flex items-center justify-between">
                             <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                              <BookOpen size={14} />
-                              Matrículas em Outras Turmas
+                              <BookOpen size={14} className="shrink-0" />
+                              <span className="truncate">Matrículas em Outras Turmas</span>
                             </h4>
                           </div>
 
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <select 
                               disabled={!isEditing}
                               value={enrollClassId}
                               onChange={(e) => setEnrollClassId(e.target.value)}
-                              className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-none text-xs focus:ring-1 focus:ring-slate-500/10 outline-none shadow-sm disabled:opacity-50"
+                              className="w-full sm:flex-1 px-3 py-2 bg-white border border-slate-200 rounded-none text-xs focus:ring-1 focus:ring-slate-500/10 outline-none shadow-sm disabled:opacity-50 min-w-0"
                             >
                               <option value="">Matricular em outra turma...</option>
                               {classes.filter(c => c.status === 'Ativo' && c.id !== formData.class_id).map(c => (
@@ -1448,7 +1448,7 @@ export function Students() {
                                 setEnrollClassId('');
                               }}
                               disabled={!enrollClassId || !isEditing}
-                              className="px-4 py-2 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase hover:bg-slate-900 transition-all disabled:opacity-50 flex items-center gap-1 shadow-sm"
+                              className="w-full sm:w-auto px-4 py-2 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase hover:bg-slate-900 transition-all disabled:opacity-50 flex items-center justify-center gap-1 shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
                             >
                               <Plus size={14} />
                               Matricular

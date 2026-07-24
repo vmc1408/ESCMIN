@@ -26,7 +26,8 @@ import {
   Calendar,
   CheckCircle,
   ArrowRight,
-  Map
+  Map,
+  Zap
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -658,25 +659,31 @@ export function Login() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col lg:flex-row overflow-hidden font-sans">
-      {/* Left side: Information (Decorative/Branding) */}
-      <div className="lg:w-[45%] bg-[#00174b] p-8 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+      {/* Left side: Information (Fixed Presentation with Original Map & Branding) - Hidden on Mobile */}
+      <div className="hidden lg:flex lg:w-[48%] xl:w-[50%] bg-[#00174b] p-6 sm:p-8 lg:p-12 xl:p-14 flex-col justify-between relative overflow-hidden shrink-0">
         {/* Background Patterns */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-400/5 rounded-full -ml-32 -mb-32 blur-3xl pointer-events-none" />
         
-        <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-16">
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-xl overflow-hidden border border-white/10">
+        <div className="relative z-10 flex flex-col justify-between h-full space-y-6">
+          {/* Top Header */}
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
               <img 
                 src={institution?.logo_url || DEFAULT_LOGO} 
                 alt="Logo" 
-                className="w-full h-full object-contain p-1"
+                className="w-full h-full object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:scale-105 transition-transform"
                 referrerPolicy="no-referrer"
               />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">{institution?.city_uf || institution?.city || 'GUARULHOS/SP'}</p>
-              <h1 className="text-2xl font-bold text-white tracking-tight leading-none">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-500">
+                {(() => {
+                  const cityRaw = (institution?.city || institution?.city_uf || 'GUARULHOS').split('/')[0].trim();
+                  return cityRaw.toUpperCase().startsWith('DIOCESE DE') ? cityRaw.toUpperCase() : `DIOCESE DE ${cityRaw.toUpperCase()}`;
+                })()}
+              </p>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
             </div>
           </div>
 
@@ -684,7 +691,7 @@ export function Login() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="space-y-12"
+            className="flex flex-col space-y-6 my-auto"
           >
             {/* Connection Error Full-Screen Modal Overlay */}
             {!isConnected && (
@@ -694,11 +701,9 @@ export function Login() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   className="relative overflow-hidden bg-slate-900 border-2 border-red-500 rounded-2xl shadow-2xl max-w-md w-full p-8 text-white flex flex-col items-center text-center"
                 >
-                  {/* Fundo listrado de advertência sutil */}
                   <div className="absolute inset-0 bg-[linear-gradient(45deg,#ff000005_25%,transparent_25%,transparent_50%,#ff000005_50%,#ff000005_75%,transparent_75%,transparent)] bg-[size:30px_30px] opacity-40 pointer-events-none" />
                   
                   <div className="relative mb-6">
-                    {/* Anéis de pulso de perigo */}
                     <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-20 animate-ping" />
                     <div className="relative p-5 bg-red-600 text-white rounded-full border border-red-400 shadow-lg shadow-red-600/30 flex items-center justify-center">
                       <AlertTriangle size={36} className="animate-bounce" />
@@ -750,29 +755,54 @@ export function Login() {
               </div>
             )}
 
-          <div className="space-y-4">
-              <h2 className="text-4xl lg:text-5xl font-bold text-white leading-[1.1]">
+            {/* Presentation Headline */}
+            <div className="space-y-4">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.1] tracking-tight">
                 Formação para o <span className="text-amber-500">Serviço</span> e Missão
               </h2>
-              <p className="text-white/60 font-medium text-lg max-w-md">
+              <p className="text-white/70 font-medium text-sm lg:text-base max-w-lg leading-relaxed">
                 Espaço de crescimento teológico e pastoral para leigos e leigas. {institution?.city ? `Atuando em ${institution.city}.` : ''}
               </p>
             </div>
 
-            <div className="pb-8">
-              <SchoolPillarsCarousel stats={stats} />
+            {/* Clean Feature Pillars (No image) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm space-y-1.5 hover:bg-white/10 transition-colors">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <Shield size={20} />
+                </div>
+                <h3 className="text-sm font-bold text-white">Sede Própria & Formativa</h3>
+                <p className="text-xs text-white/65 leading-relaxed">Infraestrutura dedicada a salas de aula, secretaria e momentos formativos.</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm space-y-1.5 hover:bg-white/10 transition-colors">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                  <Users size={20} />
+                </div>
+                <h3 className="text-sm font-bold text-white">Corpo Docente de Excelência</h3>
+                <p className="text-xs text-white/65 leading-relaxed">Professores e orientadores qualificados na formação do clero e laicato.</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm sm:col-span-2 space-y-1.5 hover:bg-white/10 transition-colors">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Map size={20} />
+                </div>
+                <h3 className="text-sm font-bold text-white">Atuação Diocesana Integrada</h3>
+                <p className="text-xs text-white/65 leading-relaxed">Alcance integrado para paróquias, comunidades e foranias regionais.</p>
+              </div>
             </div>
           </motion.div>
-        </div>
 
-        <div className="relative z-10 pt-12 border-t border-white/5 flex flex-col gap-1">
-           <div className="flex items-center gap-2">
+          {/* Footer Branding */}
+          <div className="relative z-10 pt-4 border-t border-white/10 flex flex-col gap-1">
+            <div className="flex items-center gap-2">
               <CheckCircle className="text-amber-500" size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Sistema de Gestão Acadêmica v2.0</span>
-           </div>
-           <p className="text-[8.5px] font-bold uppercase tracking-wider text-white/20 ml-5">
-             Copyright © Escola Diocesana de Ministério
-           </p>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Sistema de Gestão Acadêmica v2.0</span>
+            </div>
+            <p className="text-[9px] font-bold uppercase tracking-wider text-white/25 ml-5">
+              Escola Diocesana de Ministério
+            </p>
+          </div>
         </div>
       </div>
 
@@ -783,6 +813,24 @@ export function Login() {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm"
         >
+          {/* Mobile Institution Header (visible only on mobile) */}
+          <div className="lg:hidden flex flex-col items-center text-center mb-8">
+            <div className="w-16 h-16 mb-2.5 flex items-center justify-center">
+              <img 
+                src={institution?.logo_url || DEFAULT_LOGO} 
+                alt="Logo" 
+                className="w-full h-full object-contain drop-shadow-sm"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-600">
+              {(() => {
+                const cityRaw = (institution?.city || institution?.city_uf || 'GUARULHOS').split('/')[0].trim();
+                return cityRaw.toUpperCase().startsWith('DIOCESE DE') ? cityRaw.toUpperCase() : `DIOCESE DE ${cityRaw.toUpperCase()}`;
+              })()}
+            </p>
+            <h1 className="text-lg font-bold text-[#00174b] tracking-tight leading-snug">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
+          </div>
           {needsBootstrap ? (
              <div className="space-y-8">
                 <div className="text-center">
@@ -923,8 +971,8 @@ export function Login() {
              </div>
           ) : (
             <>
-              <div className="text-center mb-10">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">
+              <div className="text-center mb-6 sm:mb-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-1.5 uppercase tracking-tight">
                   {isRegistering ? 'Primeiro Acesso' : isForgotPassword ? 'Recuperar Acesso' : 'Bem-vindo'}
                 </h2>
                 <p className="text-slate-400 font-semibold text-[10px] uppercase tracking-[0.2em]">
@@ -934,11 +982,11 @@ export function Login() {
 
               {/* Tabs for Login/Register */}
               {!isForgotPassword && (
-                <div className="flex bg-slate-100 p-1 rounded-xl mb-8 border border-slate-200">
+                <div className="flex bg-slate-100 p-1 rounded-xl mb-5 border border-slate-200">
                   <button 
                     onClick={() => { setIsRegistering(false); setError(null); }}
                     className={cn(
-                      "flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                      "flex-1 py-2.5 sm:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                       !isRegistering ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     )}
                   >
@@ -947,12 +995,79 @@ export function Login() {
                   <button 
                     onClick={() => { setIsRegistering(true); setError(null); }}
                     className={cn(
-                      "flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                      "flex-1 py-2.5 sm:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                       isRegistering ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                     )}
                   >
                     Primeiro Acesso
                   </button>
+                </div>
+              )}
+
+              {/* Acesso Rápido / Quick Profile Selection */}
+              {!isForgotPassword && !isRegistering && (
+                <div className="mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                      <Zap size={12} className="text-amber-500 fill-amber-500" /> Acesso Rápido
+                    </span>
+                    <span className="text-[9px] font-medium text-slate-400">Preenchimento fácil</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('aluno@diocese.com');
+                        setIsRegistering(false);
+                        setError(null);
+                      }}
+                      className={cn(
+                        "px-2 py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 active:scale-95 shadow-2xs cursor-pointer",
+                        email === 'aluno@diocese.com' 
+                          ? "bg-indigo-50 border-indigo-500 text-indigo-700" 
+                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                      )}
+                    >
+                      <GraduationCap size={15} className="text-blue-600" />
+                      <span>Aluno</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('professor@diocese.com');
+                        setIsRegistering(false);
+                        setError(null);
+                      }}
+                      className={cn(
+                        "px-2 py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 active:scale-95 shadow-2xs cursor-pointer",
+                        email === 'professor@diocese.com' 
+                          ? "bg-indigo-50 border-indigo-500 text-indigo-700" 
+                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                      )}
+                    >
+                      <Users size={15} className="text-emerald-600" />
+                      <span>Professor</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail('admin@diocese.com');
+                        setIsRegistering(false);
+                        setError(null);
+                      }}
+                      className={cn(
+                        "px-2 py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 active:scale-95 shadow-2xs cursor-pointer",
+                        email === 'admin@diocese.com' 
+                          ? "bg-indigo-50 border-indigo-500 text-indigo-700" 
+                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+                      )}
+                    >
+                      <Shield size={15} className="text-amber-600" />
+                      <span>Secretaria</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1286,110 +1401,108 @@ function SchoolPillarsCarousel({ stats }: { stats: { classes: number; students: 
 
   return (
     <div 
-      className="relative w-full min-h-[230px] rounded-[2rem] border border-white/10 overflow-hidden bg-gradient-to-br from-[#0c1e45] to-[#03112a] shadow-2xl group/carousel select-none cursor-pointer"
+      className="relative w-full min-h-[250px] rounded-[2rem] border border-white/10 overflow-hidden bg-gradient-to-br from-[#0c1e45] to-[#03112a] shadow-2xl group/carousel select-none cursor-pointer p-6"
       onMouseEnter={() => setIsPlaying(false)}
       onMouseLeave={() => setIsPlaying(true)}
     >
-      {/* Ambient background shadow/watermark image */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentIndex}
-          initial={{ opacity: 0, scale: 1.02 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6 }}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-        >
-          <img 
-            src={currentSlide.image} 
-            alt={currentSlide.title}
-            className={cn(
-              "w-full h-full transition-all duration-700",
-              currentSlide.id === 'diocese' 
-                ? "object-contain p-4 md:p-2 md:object-right opacity-[0.35]" 
-                : "object-cover opacity-[0.12] filter saturate-50"
-            )}
-            referrerPolicy="no-referrer"
-          />
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Decorative gradient overlay to guarantee text legibility */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#03112a] via-[#03112a]/85 to-[#03112a]/30 pointer-events-none" />
-
       {/* Slide Content Layout */}
-      <div className="relative z-10 p-6 flex flex-col justify-between min-h-[230px] h-full">
-        {/* Top bar: Icon and Badge */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-amber-500 shadow-inner">
-            {currentSlide.icon}
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 min-h-[200px] h-full">
+        {/* Left column: Info + Controls */}
+        <div className="flex-1 flex flex-col justify-between h-full space-y-4 w-full">
+          {/* Top bar: Icon and Badge */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-amber-500 shadow-inner">
+              {currentSlide.icon}
+            </div>
+            <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-black text-[9px] uppercase tracking-wider rounded-full">
+              {currentSlide.badge}
+            </span>
           </div>
-          <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-black text-[9px] uppercase tracking-wider rounded-full">
-            {currentSlide.badge}
-          </span>
-        </div>
 
-        {/* Middle part: Title and Description */}
-        <div className="my-3 space-y-1.5 max-w-xl">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-1"
-            >
-              <h3 className="text-white font-black text-sm tracking-wide uppercase">
-                {currentSlide.title}
-              </h3>
-              <p className="text-white/85 text-[11px] font-semibold leading-relaxed">
-                {currentSlide.text}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Bottom bar: Indicator Dots + Arrow controls */}
-        <div className="flex items-center justify-between pt-2 border-t border-white/5">
-          {/* Custom Indicator dots with progress fills */}
-          <div className="flex items-center gap-2">
-            {slides.map((slide, idx) => (
-              <button
-                key={slide.id}
-                onClick={() => handleSelect(idx)}
-                className="group relative h-1.5 rounded-full transition-all duration-300 overflow-hidden bg-white/20"
-                style={{ width: currentIndex === idx ? '32px' : '8px' }}
+          {/* Middle part: Title and Description */}
+          <div className="my-2 space-y-1.5">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-1"
               >
-                {currentIndex === idx && (
-                  <motion.div 
-                    className="absolute top-0 left-0 h-full bg-amber-500 rounded-full"
-                    style={{ width: `${progress}%` }}
-                    layoutId="progress-bar"
-                  />
-                )}
-                {currentIndex !== idx && (
-                  <div className="absolute inset-0 bg-transparent group-hover:bg-white/40 rounded-full" />
-                )}
-              </button>
-            ))}
+                <h3 className="text-white font-black text-sm md:text-base tracking-wide uppercase">
+                  {currentSlide.title}
+                </h3>
+                <p className="text-white/85 text-[11px] md:text-xs font-semibold leading-relaxed">
+                  {currentSlide.text}
+                </p>
+              </motion.div>
+            </AnimatePresence>
           </div>
 
-          {/* Quick Nav Controls */}
-          <div className="flex items-center gap-1.5">
-            <button 
-              onClick={handlePrev}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button 
-              onClick={handleNext}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
-            >
-              <ChevronRight size={14} />
-            </button>
+          {/* Bottom bar: Indicator Dots + Arrow controls */}
+          <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-auto">
+            {/* Custom Indicator dots with progress fills */}
+            <div className="flex items-center gap-2">
+              {slides.map((slide, idx) => (
+                <button
+                  key={slide.id}
+                  onClick={() => handleSelect(idx)}
+                  className="group relative h-1.5 rounded-full transition-all duration-300 overflow-hidden bg-white/20"
+                  style={{ width: currentIndex === idx ? '32px' : '8px' }}
+                >
+                  {currentIndex === idx && (
+                    <motion.div 
+                      className="absolute top-0 left-0 h-full bg-amber-500 rounded-full"
+                      style={{ width: `${progress}%` }}
+                      layoutId="progress-bar"
+                    />
+                  )}
+                  {currentIndex !== idx && (
+                    <div className="absolute inset-0 bg-transparent group-hover:bg-white/40 rounded-full" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Nav Controls */}
+            <div className="flex items-center gap-1.5">
+              <button 
+                onClick={handlePrev}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button 
+                onClick={handleNext}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 text-white/60 hover:text-white transition-all"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* Right column: Highlighted & Enlarged Featured Image without background box */}
+        <div className="shrink-0 flex items-center justify-center relative w-full md:w-auto h-40 md:h-52">
+          <AnimatePresence mode="wait">
+            <motion.img 
+              key={currentIndex}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.4 }}
+              src={currentSlide.image} 
+              alt={currentSlide.title}
+              className={cn(
+                "h-full max-h-52 md:max-h-64 w-auto object-contain transition-all duration-500",
+                currentSlide.id === 'diocese' 
+                  ? "scale-125 md:scale-135 drop-shadow-[0_12px_32px_rgba(0,0,0,0.9)] contrast-110 saturate-110" 
+                  : "rounded-2xl border border-white/20 shadow-2xl brightness-105 scale-105"
+              )}
+              referrerPolicy="no-referrer"
+            />
+          </AnimatePresence>
         </div>
       </div>
     </div>

@@ -68,16 +68,18 @@ export function Welcome() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#00174b]/10 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-[#00174b] rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 overflow-hidden border border-[#00174b]/10">
+            <div className="w-14 h-14 flex items-center justify-center shrink-0">
               {institution?.logo_url ? (
                 <img 
                   src={institution.logo_url} 
                   alt="Logo" 
-                  className="w-full h-full object-contain p-2"
+                  className="w-full h-full object-contain drop-shadow-md hover:scale-105 transition-transform"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <Shield className="text-white" size={28} />
+                <div className="w-12 h-12 bg-[#00174b] rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+                  <Shield className="text-white" size={28} />
+                </div>
               )}
             </div>
             <div className="flex flex-col">
