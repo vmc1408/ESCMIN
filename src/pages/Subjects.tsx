@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Printer,
-  Filter
+  Filter,
+  Users
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -36,10 +37,14 @@ interface Subject {
 
 interface Teacher {
   id: string;
+  code?: string;
   name: string;
   subject_ids?: string[];
   status: string;
   observations?: string;
+  photo_url?: string;
+  email?: string;
+  phone_mobile?: string;
 }
 
 // Memoized List Item to prevent lag
@@ -48,13 +53,15 @@ const SubjectItem = React.memo(({
   isSelected, 
   onSelect, 
   className,
-  teacherName
+  teacherName,
+  qualifiedCount
 }: { 
   subject: Subject, 
   isSelected: boolean, 
   onSelect: (s: Subject) => void,
   className?: string,
-  teacherName?: string
+  teacherName?: string,
+  qualifiedCount?: number
 }) => {
   return (
     <button
@@ -88,7 +95,11 @@ const SubjectItem = React.memo(({
           <p className="text-[10px] text-slate-500 truncate">
             {subject.year ? `${subject.year} • ` : ''}
             {subject.semester ? `${subject.semester} • ` : ''} 
-            {teacherName || 'Sem Professor'}
+            {teacherName 
+              ? `Prof: ${teacherName}` 
+              : (qualifiedCount && qualifiedCount > 0 
+                  ? `${qualifiedCount} prof. habilitado${qualifiedCount > 1 ? 's' : ''}` 
+                  : 'Sem Professor')}
           </p>
         </div>
       </div>
@@ -124,7 +135,7 @@ export function Subjects() {
     try {
       const [subjectsData, teachersData, instData] = await Promise.all([
         fetchAll('subjects', '*', 'name', true),
-        fetchAll('teachers', 'id, name, subject_ids, status, observations', 'name', true),
+        fetchAll('teachers', '*', 'name', true),
         fetchAll('institution_settings')
       ]);
       
@@ -174,6 +185,27 @@ export function Subjects() {
     }
   }, []);
 
+  const getQualifiedTeachers = React.useCallback((subjectId?: string) => {
+    if (!subjectId) return [];
+    return teachers.filter(t => {
+      let sIds = t.subject_ids || [];
+      if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
+        sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+      }
+      if ((!sIds || sIds.length === 0) && t.observations) {
+        const match = t.observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
+        if (match && match[1]) {
+          try { sIds = JSON.parse(match[1]); } catch (e) {}
+        }
+      }
+      return Array.isArray(sIds) && sIds.includes(subjectId);
+    });
+  }, [teachers]);
+
+  const currentSubjectId = selectedSubject?.id || formData.id;
+  const qualifiedTeachers = getQualifiedTeachers(currentSubjectId);
+  const otherTeachers = teachers.filter(t => !qualifiedTeachers.some(qt => qt.id === t.id));
+
   useEffect(() => {
     fetchSubjects();
   }, [fetchSubjects]);
@@ -214,12 +246,17 @@ export function Subjects() {
 
       const tableData = filteredSubjects.map(s => {
         const teacher = teachers.find(t => t.id === s.teacher_id);
+        const qualCount = getQualifiedTeachers(s.id).length;
+        const teacherText = teacher 
+          ? teacher.name.toUpperCase() 
+          : (qualCount > 0 ? `SEM RESP. (${qualCount} HAB.)` : 'SEM PROFESSOR');
+
         return [
           s.code,
           s.name.toUpperCase(),
           s.year || '---',
           s.semester || '---',
-          teacher?.name || '---',
+          teacherText,
           s.status || 'Ativo'
         ];
       });
@@ -561,6 +598,7 @@ export function Subjects() {
             </div>
           ) : filteredSubjects.map((subject) => {
             const teacher = teachers.find(t => t.id === subject.teacher_id);
+            const qualCount = getQualifiedTeachers(subject.id).length;
             return (
               <SubjectItem
                 key={subject.id}
@@ -568,6 +606,7 @@ export function Subjects() {
                 isSelected={selectedSubject?.id === subject.id}
                 onSelect={handleSelectSubject}
                 teacherName={teacher?.name}
+                qualifiedCount={qualCount}
               />
             );
           })}
@@ -798,55 +837,37 @@ export function Subjects() {
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         tabIndex={4}
                       >
-                        <option value="">Selecione um professor</option>
-                        {teachers
-                          .filter(t => {
-                            // Only show teachers who have this subject in their registration
-                            if (!selectedSubject?.id) return true;
-                            
-                            let sIds = t.subject_ids || [];
-                            if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
-                              sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
-                            }
-
-                            // Fallback: check metadata in observations
-                            if ((!sIds || sIds.length === 0) && (t as any).observations) {
-                              const match = (t as any).observations.match(/\[SUBJECTS:(.+?)\]/);
-                              if (match && match[1]) {
-                                try {
-                                  sIds = JSON.parse(match[1]);
-                                } catch (e) {
-                                  console.warn('Failed to parse metadata');
-                                }
-                              }
-                            }
-                            
-                            return Array.isArray(sIds) && sIds.includes(selectedSubject.id);
-                          })
-                          .map(teacher => (
+                        <option value="">Selecione o professor responsável...</option>
+                        {qualifiedTeachers.length > 0 ? (
+                          <>
+                            <optgroup label="⭐ Professores Habilitados (que escolheram esta disciplina)">
+                              {qualifiedTeachers.map(teacher => (
+                                <option key={teacher.id} value={teacher.id}>
+                                  ✓ {teacher.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                            {otherTeachers.length > 0 && (
+                              <optgroup label="Outros Professores">
+                                {otherTeachers.map(teacher => (
+                                  <option key={teacher.id} value={teacher.id}>
+                                    {teacher.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </>
+                        ) : (
+                          teachers.map(teacher => (
                             <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
                           ))
-                        }
+                        )}
                       </select>
-                      {selectedSubject?.id && teachers.filter(t => {
-                        let sIds = t.subject_ids || [];
-                        if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
-                           sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
-                        }
-                        // Fallback: check metadata in observations
-                        if ((!sIds || sIds.length === 0) && (t as any).observations) {
-                          const match = (t as any).observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
-                          if (match && match[1]) {
-                            try {
-                              sIds = JSON.parse(match[1]);
-                            } catch (e) {
-                              // ignore
-                            }
-                          }
-                        }
-                        return Array.isArray(sIds) && sIds.includes(selectedSubject.id);
-                      }).length === 0 && (
-                        <p className="text-[10px] text-amber-600 font-medium mt-1">Nenhum professor habilitado para esta disciplina.</p>
+                      {currentSubjectId && qualifiedTeachers.length === 0 && (
+                        <p className="text-[10px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+                          <AlertCircle size={12} className="shrink-0" />
+                          Nenhum professor selecionou esta disciplina no seu cadastro.
+                        </p>
                       )}
                     </div>
                     <div className="col-span-12 md:col-span-4 space-y-1">
@@ -864,6 +885,77 @@ export function Subjects() {
                       </select>
                     </div>
                   </div>
+                </section>
+
+                {/* Professores Habilitados no Cadastro */}
+                <section className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <Users size={14} className="text-slate-500" />
+                      Professores Habilitados para esta Disciplina
+                    </h4>
+                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 border border-slate-200">
+                      {qualifiedTeachers.length} {qualifiedTeachers.length === 1 ? 'professor' : 'professores'}
+                    </span>
+                  </div>
+
+                  {qualifiedTeachers.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {qualifiedTeachers.map(teacher => {
+                        const isResponsable = formData.teacher_id === teacher.id;
+                        return (
+                          <div 
+                            key={teacher.id}
+                            className={cn(
+                              "p-3 bg-slate-50 border transition-all flex items-center gap-3 relative group",
+                              isResponsable 
+                                ? "border-amber-400 bg-amber-50/40 ring-1 ring-amber-400/20" 
+                                : "border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/60"
+                            )}
+                          >
+                            <div className="w-10 h-10 bg-white border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-600 shrink-0 overflow-hidden relative">
+                              {teacher.photo_url ? (
+                                <img src={teacher.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <span className="uppercase">{teacher.name.substring(0, 2)}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate">{teacher.name}</p>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                {isResponsable ? (
+                                  <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-bold uppercase tracking-wider">
+                                    Professor Responsável
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 border border-emerald-100 uppercase tracking-tight">
+                                    Habilitado
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {isEditing && !isResponsable && (
+                              <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, teacher_id: teacher.id })}
+                                className="text-[9px] font-bold text-slate-700 hover:text-amber-700 bg-white hover:bg-amber-50 border border-slate-200 px-2 py-1 shadow-2xs transition-all uppercase shrink-0 cursor-pointer"
+                                title="Definir como Responsável"
+                              >
+                                Tornar Resp.
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-50/80 border border-dashed border-slate-200 text-center space-y-1">
+                      <p className="text-xs font-bold text-slate-600">Nenhum professor selecionou esta disciplina no seu cadastro.</p>
+                      <p className="text-[10px] text-slate-400">
+                        No menu Professores, ao cadastrar/editar cada professor, é possível selecionar as disciplinas que ele está apto a lecionar.
+                      </p>
+                    </div>
+                  )}
                 </section>
 
                 {/* Content */}
@@ -982,6 +1074,15 @@ export function Subjects() {
                     <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Professor Responsável</p>
                     <p className="text-[11pt] font-bold uppercase">{teachers.find(t => t.id === selectedSubject.teacher_id)?.name || 'NÃO DEFINIDO'}</p>
                   </div>
+                </div>
+
+                <div className="border-b border-black/10 pb-2">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Professores Habilitados no Cadastro</p>
+                  <p className="text-[10pt] font-bold uppercase">
+                    {getQualifiedTeachers(selectedSubject.id).length > 0 
+                      ? getQualifiedTeachers(selectedSubject.id).map(t => t.name).join(', ') 
+                      : 'NENHUM PROFESSOR CADASTRADO PARA ESTA DISCIPLINA'}
+                  </p>
                 </div>
 
                 <div className="border-b border-black/10 pb-2">
