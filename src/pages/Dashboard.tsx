@@ -72,6 +72,40 @@ export function Dashboard() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
 
+  const [acadSettings, setAcadSettings] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem('academic_settings_current');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const activeSemesterNum = useMemo(() => {
+    const now = new Date();
+    if (acadSettings) {
+      if (acadSettings.current_term) {
+        const num = parseInt(String(acadSettings.current_term), 10);
+        if (num === 1 || num === 2) return num;
+      }
+      if (acadSettings.term2_start) {
+        const t2Start = new Date(acadSettings.term2_start + 'T00:00:00');
+        const t2End = acadSettings.term2_end ? new Date(acadSettings.term2_end + 'T23:59:59') : null;
+        if (now >= t2Start && (!t2End || now <= t2End)) {
+          return 2;
+        }
+        if (acadSettings.term1_start) {
+          const t1Start = new Date(acadSettings.term1_start + 'T00:00:00');
+          const t1End = acadSettings.term1_end ? new Date(acadSettings.term1_end + 'T23:59:59') : null;
+          if (now >= t1Start && t1End && now <= t1End) {
+            return 1;
+          }
+        }
+      }
+    }
+    return (now.getMonth() + 1) >= 7 ? 2 : 1;
+  }, [acadSettings]);
+
   const prevSyncErrorRef = useRef<string | null>(null);
 
   // Som único / Bip audível de falha de conexão
@@ -152,16 +186,22 @@ export function Dashboard() {
     try {
       setSyncError(null);
       // Run updates in parallel
-      const [studentsData, classesData, subjectsData, teachersData] = await Promise.all([
+      const [studentsData, classesData, subjectsData, teachersData, acadData] = await Promise.all([
         fetchAll('students'),
         fetchAll('classes'),
         fetchAll('subjects'),
         fetchAll('teachers'),
+        fetchAll('academic_settings').catch(() => []),
         updateCategory('students', 'students'),
         updateCategory('teachers', 'teachers'),
         updateCategory('classes', 'classes'),
         updateCategory('subjects', 'subjects')
       ]);
+
+      if (acadData && acadData.length > 0) {
+        const current = acadData.find((s: any) => s.id === 'current') || acadData[0];
+        setAcadSettings(current);
+      }
       
       if (studentsData) setStudents(studentsData);
       
@@ -742,7 +782,7 @@ export function Dashboard() {
                   }
                 }
 
-                const otherSubs: Subject[] = [];
+                const activeSubs = activeSemesterNum === 1 ? sem1Subs : sem2Subs;
 
                 return (
                   <motion.div 
@@ -770,25 +810,23 @@ export function Dashboard() {
                             <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest">{c.period}</p>
                           </div>
                         </div>
-                        {c.count > 0 && (
-                          <button 
-                            onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
-                            className="w-6 h-6 rounded bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all flex items-center justify-center border border-slate-200 shrink-0 cursor-pointer"
-                            title="Ver Alunos da Turma"
-                          >
-                            <Eye size={13} />
-                          </button>
-                        )}
                       </div>
 
-                      {/* Informações das Matérias do 1º e 2º Semestre + Professores (em 2 linhas: Matéria acima, Professor abaixo) */}
+                      {/* Informações das Matérias Apenas do Semestre Ativo */}
                       {!c.unallocated && (
-                        <div className="my-2 py-1.5 px-2 bg-slate-50/80 border border-slate-100 rounded text-[10px] leading-tight space-y-2 overflow-hidden">
-                          {sem1Subs.length > 0 && (
-                            <div className="flex items-start gap-1.5 min-w-0">
-                              <span className="font-bold text-[8px] text-blue-700 bg-blue-50 px-1 py-0.5 rounded shrink-0 border border-blue-100 uppercase tracking-tight mt-0.5">1º Sem</span>
-                              <div className="min-w-0 flex-1 space-y-1">
-                                {sem1Subs.map(s => {
+                        <div className="my-2 py-1.5 px-2 bg-slate-50/80 border border-slate-100 rounded text-[10px] leading-tight overflow-hidden">
+                          <div className="flex items-start gap-1.5 min-w-0">
+                            <span className={cn(
+                              "font-bold text-[8px] px-1 py-0.5 rounded shrink-0 border uppercase tracking-tight mt-0.5",
+                              activeSemesterNum === 1 
+                                ? "text-blue-700 bg-blue-50 border-blue-100" 
+                                : "text-emerald-700 bg-emerald-50 border-emerald-100"
+                            )}>
+                              {activeSemesterNum}º Sem
+                            </span>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              {activeSubs.length > 0 ? (
+                                activeSubs.map(s => {
                                   const t = getSubjectTeacher(s);
                                   return (
                                     <div key={s.id} className="min-w-0 leading-tight">
@@ -796,55 +834,39 @@ export function Dashboard() {
                                       <p className="text-[8.5px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
                                     </div>
                                   );
-                                })}
-                              </div>
+                                })
+                              ) : (
+                                <p className="text-[9px] text-slate-400 italic py-0.5">
+                                  {classSubjectList.length > 0 ? `Sem matérias no ${activeSemesterNum}º Semestre` : 'Sem matérias vinculadas'}
+                                </p>
+                              )}
                             </div>
-                          )}
-                          {sem2Subs.length > 0 && (
-                            <div className="flex items-start gap-1.5 min-w-0">
-                              <span className="font-bold text-[8px] text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded shrink-0 border border-emerald-100 uppercase tracking-tight mt-0.5">2º Sem</span>
-                              <div className="min-w-0 flex-1 space-y-1">
-                                {sem2Subs.map(s => {
-                                  const t = getSubjectTeacher(s);
-                                  return (
-                                    <div key={s.id} className="min-w-0 leading-tight">
-                                      <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
-                                      <p className="text-[8.5px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                          {otherSubs.length > 0 && (
-                            <div className="flex items-start gap-1.5 min-w-0">
-                              <span className="font-bold text-[8px] text-slate-600 bg-slate-100 px-1 py-0.5 rounded shrink-0 border border-slate-200 uppercase tracking-tight mt-0.5">Matérias</span>
-                              <div className="min-w-0 flex-1 space-y-1">
-                                {otherSubs.map(s => {
-                                  const t = getSubjectTeacher(s);
-                                  return (
-                                    <div key={s.id} className="min-w-0 leading-tight">
-                                      <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
-                                      <p className="text-[8.5px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                          {classSubjectList.length === 0 && (
-                            <p className="text-[9px] text-slate-400 italic py-0.5">Sem matérias vinculadas</p>
-                          )}
+                          </div>
                         </div>
                       )}
                     </div>
 
-                    <div className="mt-2 space-y-1">
-                      <div className="flex justify-between items-end px-1">
-                         <span className="text-[10px] font-bold text-slate-700">{c.percentage}%</span>
-                         <span className="text-[10px] font-medium text-slate-500">{c.count} Alunos</span>
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1">
+                      <div className="flex justify-between items-center px-0.5">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[11px] font-bold text-slate-800">{c.percentage}%</span>
+                          <span className="text-[8.5px] font-semibold text-slate-400 uppercase tracking-wider">Ocupação Acadêmica</span>
+                        </div>
+
+                        {c.count > 0 ? (
+                          <button 
+                            onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
+                            className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded border border-slate-200/80 hover:border-blue-200 text-[9.5px] font-bold transition-all cursor-pointer group shrink-0"
+                            title="Ver Alunos da Turma"
+                          >
+                            <span>{c.count} Alunos</span>
+                            <Eye size={12} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                          </button>
+                        ) : (
+                          <span className="text-[9.5px] font-medium text-slate-400 px-1">0 Alunos</span>
+                        )}
                       </div>
-                      <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(c.percentage, 100)}%` }}
