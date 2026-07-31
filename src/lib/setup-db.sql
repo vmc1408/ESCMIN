@@ -20,6 +20,9 @@ ALTER TABLE students ADD COLUMN IF NOT EXISTS guardian_cpf TEXT;
 
 -- 2. Tabela de Turmas (classes)
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS start_date DATE;
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS subject_id_sem1 TEXT;
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS subject_id_sem2 TEXT;
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS subject_ids TEXT[];
 
 -- 3. Tabela de Configurações da Instituição
 -- Se a tabela já existir com UUID, o script lidará com isso

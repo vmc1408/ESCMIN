@@ -22,7 +22,7 @@ import { isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
-import { Student, Class } from '../types';
+import { Student, Class, Subject, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Dashboard() {
@@ -69,6 +69,8 @@ export function Dashboard() {
 
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
 
   const prevSyncErrorRef = useRef<string | null>(null);
 
@@ -150,9 +152,11 @@ export function Dashboard() {
     try {
       setSyncError(null);
       // Run updates in parallel
-      const [studentsData, classesData] = await Promise.all([
+      const [studentsData, classesData, subjectsData, teachersData] = await Promise.all([
         fetchAll('students'),
         fetchAll('classes'),
+        fetchAll('subjects'),
+        fetchAll('teachers'),
         updateCategory('students', 'students'),
         updateCategory('teachers', 'teachers'),
         updateCategory('classes', 'classes'),
@@ -160,7 +164,44 @@ export function Dashboard() {
       ]);
       
       if (studentsData) setStudents(studentsData);
-      if (classesData) setClasses(classesData);
+      if (subjectsData) setSubjects(subjectsData);
+      if (teachersData) setTeachers(teachersData);
+
+      if (classesData) {
+        const normalizedClasses = (classesData || []).map((cls: Class) => {
+          let normalized = { ...cls };
+          let sIds: string[] = [];
+          if (Array.isArray((normalized as any).subject_ids)) {
+            sIds = (normalized as any).subject_ids;
+          } else if (typeof (normalized as any).subject_ids === 'string') {
+            try {
+              const parsed = JSON.parse((normalized as any).subject_ids);
+              sIds = Array.isArray(parsed) ? parsed : [parsed];
+            } catch (e) {
+              sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
+            }
+          } else if ((normalized as any).subject_id) {
+            sIds = [(normalized as any).subject_id];
+          }
+
+          if (normalized.observations) {
+            const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+            if (match && match[1]) {
+              try {
+                const meta = JSON.parse(match[1]);
+                if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
+                  sIds = meta.subject_ids;
+                } else if (sIds.length === 0 && meta.subject_id) {
+                  sIds = [meta.subject_id];
+                }
+              } catch (e) {}
+            }
+          }
+          normalized.subject_ids = sIds;
+          return normalized;
+        });
+        setClasses(normalizedClasses);
+      }
       
       const now = new Date();
       setLastUpdated(now);
@@ -203,6 +244,7 @@ export function Dashboard() {
         code: c.code,
         name: c.name,
         period: c.period,
+        subject_ids: c.subject_ids || [],
         count,
         percentage: stats.students.active > 0 ? Math.round((count / stats.students.active) * 100) : 0,
         unallocated: false
@@ -220,6 +262,7 @@ export function Dashboard() {
         code: 'S/T',
         name: 'Sem Turma / Turma Inativa',
         period: '---' as any,
+        subject_ids: [],
         count: unallocatedCount,
         percentage: stats.students.active > 0 ? Math.round((unallocatedCount / stats.students.active) * 100) : 0,
         unallocated: true
@@ -539,57 +582,127 @@ export function Dashboard() {
           
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/30">
             {studentsByClass.length > 0 ? (
-              studentsByClass.map((c, i) => (
-                <motion.div 
-                  key={i} 
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className={cn(
-                    "p-4 rounded-md border bg-white transition-all shadow-sm flex flex-col h-full",
-                    c.borderClass
-                  )}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "h-8 px-2 flex items-center justify-center text-white font-bold text-[10px] whitespace-nowrap rounded",
-                        "bg-slate-700",
-                        c.color
-                      )}>
-                        {c.code}
-                      </div>
-                      <div className="min-w-0">
-                        <h5 className="text-[13px] font-bold text-slate-800 tracking-tight truncate">{c.name}</h5>
-                        <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest">{c.period}</p>
-                      </div>
-                    </div>
-                    {c.count > 0 && (
-                      <button 
-                        onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
-                        className="w-6 h-6 rounded bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all flex items-center justify-center border border-slate-200"
-                      >
-                        <Eye size={14} />
-                      </button>
-                    )}
-                  </div>
+              studentsByClass.map((c, i) => {
+                const classSubjectList = (c.subject_ids || [])
+                  .map(sid => subjects.find(s => s.id === sid))
+                  .filter(Boolean) as Subject[];
 
-                  <div className="mt-auto space-y-1.5">
-                    <div className="flex justify-between items-end px-1">
-                       <span className="text-[10px] font-bold text-slate-700">{c.percentage}%</span>
-                       <span className="text-[10px] font-medium text-slate-500">{c.count} Alunos</span>
+                const sem1Subs = classSubjectList.filter(s => (s.semester || '').includes('1'));
+                const sem2Subs = classSubjectList.filter(s => (s.semester || '').includes('2'));
+                const otherSubs = classSubjectList.filter(s => !(s.semester || '').includes('1') && !(s.semester || '').includes('2'));
+
+                return (
+                  <motion.div 
+                    key={i} 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className={cn(
+                      "p-3.5 rounded-md border bg-white transition-all shadow-sm flex flex-col justify-between h-full min-h-[140px]",
+                      c.borderClass
+                    )}
+                  >
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                          <div className={cn(
+                            "h-7 px-2 flex items-center justify-center text-white font-bold text-[10px] whitespace-nowrap rounded shrink-0",
+                            "bg-slate-700",
+                            c.color
+                          )}>
+                            {c.code}
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="text-[12.5px] font-bold text-slate-800 tracking-tight truncate">{c.name}</h5>
+                            <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest">{c.period}</p>
+                          </div>
+                        </div>
+                        {c.count > 0 && (
+                          <button 
+                            onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
+                            className="w-6 h-6 rounded bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all flex items-center justify-center border border-slate-200 shrink-0 cursor-pointer"
+                            title="Ver Alunos da Turma"
+                          >
+                            <Eye size={13} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Informações das Matérias do 1º e 2º Semestre + Professores (em 2 linhas: Matéria acima, Professor abaixo) */}
+                      {!c.unallocated && (
+                        <div className="my-2 py-1.5 px-2 bg-slate-50/80 border border-slate-100 rounded text-[10px] leading-tight space-y-2 overflow-hidden">
+                          {sem1Subs.length > 0 && (
+                            <div className="flex items-start gap-1.5 min-w-0">
+                              <span className="font-bold text-[8px] text-blue-700 bg-blue-50 px-1 py-0.5 rounded shrink-0 border border-blue-100 uppercase tracking-tight mt-0.5">1º Sem</span>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                {sem1Subs.map(s => {
+                                  const t = teachers.find(teach => teach.id === s.teacher_id);
+                                  return (
+                                    <div key={s.id} className="min-w-0 leading-tight">
+                                      <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
+                                      <p className="text-[8.5px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          {sem2Subs.length > 0 && (
+                            <div className="flex items-start gap-1.5 min-w-0">
+                              <span className="font-bold text-[8px] text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded shrink-0 border border-emerald-100 uppercase tracking-tight mt-0.5">2º Sem</span>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                {sem2Subs.map(s => {
+                                  const t = teachers.find(teach => teach.id === s.teacher_id);
+                                  return (
+                                    <div key={s.id} className="min-w-0 leading-tight">
+                                      <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
+                                      <p className="text-[8.5px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          {otherSubs.length > 0 && (
+                            <div className="flex items-start gap-1.5 min-w-0">
+                              <span className="font-bold text-[8px] text-slate-600 bg-slate-100 px-1 py-0.5 rounded shrink-0 border border-slate-200 uppercase tracking-tight mt-0.5">Matérias</span>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                {otherSubs.map(s => {
+                                  const t = teachers.find(teach => teach.id === s.teacher_id);
+                                  return (
+                                    <div key={s.id} className="min-w-0 leading-tight">
+                                      <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
+                                      <p className="text-[8.5px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          {classSubjectList.length === 0 && (
+                            <p className="text-[9px] text-slate-400 italic py-0.5">Sem matérias vinculadas</p>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(c.percentage, 100)}%` }}
-                        transition={{ duration: 1, ease: "easeOut", delay: i * 0.05 }}
-                        className={cn("h-full", c.color)} 
-                      />
+
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between items-end px-1">
+                         <span className="text-[10px] font-bold text-slate-700">{c.percentage}%</span>
+                         <span className="text-[10px] font-medium text-slate-500">{c.count} Alunos</span>
+                      </div>
+                      <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(c.percentage, 100)}%` }}
+                          transition={{ duration: 1, ease: "easeOut", delay: i * 0.05 }}
+                          className={cn("h-full", c.color)} 
+                        />
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))
+                  </motion.div>
+                );
+              })
             ) : (
                <div className="col-span-full py-10 flex flex-col items-center gap-3 text-slate-400">
                   <RefreshCw size={24} className="animate-spin opacity-30" />

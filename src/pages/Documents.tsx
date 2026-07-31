@@ -460,8 +460,10 @@ export function Documents() {
               const meta = JSON.parse(match[1]);
               if (!normalized.year) normalized.year = meta.year;
               if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
-              if (sIds.length === 0 && (meta.subject_ids || meta.subject_id)) {
-                sIds = meta.subject_ids || [meta.subject_id];
+              if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
+                sIds = meta.subject_ids;
+              } else if (sIds.length === 0 && meta.subject_id) {
+                sIds = [meta.subject_id];
               }
               isSpecial = !!meta.is_special;
             } catch (e) {}

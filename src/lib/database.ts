@@ -61,15 +61,19 @@ export const isDatabaseMissingOrCacheError = (err: any): boolean => {
   const msg = (typeof err === 'string' ? err : err.message || err.details || String(err)).toLowerCase();
   const code = String(err.code || '').toLowerCase();
   
+  // If error mentions column or property, it is NOT a missing table error
+  if (msg.includes('column') || msg.includes('property')) {
+    return false;
+  }
+  
   return (
-    msg.includes('relation') ||
-    msg.includes('does not exist') ||
+    (msg.includes('relation') && msg.includes('does not exist')) ||
     msg.includes('could not find the table') ||
-    msg.includes('schema cache') ||
-    msg.includes('not found') ||
+    (msg.includes('table') && msg.includes('not found')) ||
+    (msg.includes('table') && msg.includes('does not exist')) ||
+    (msg.includes('table') && msg.includes('schema cache')) ||
     code === '42p01' ||
-    code === 'pgrst204' ||
-    code === 'pgrst116'
+    code === 'pgrst205'
   );
 };
 

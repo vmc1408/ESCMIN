@@ -97,6 +97,9 @@ export interface Class {
   days_of_week: string[];
   year?: string;
   semester: string;
+  subject_id?: string;
+  subject_id_sem1?: string;
+  subject_id_sem2?: string;
   subject_ids?: string[];
   start_date?: string;
   observations?: string;

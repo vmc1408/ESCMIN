@@ -1004,72 +1004,7 @@ export function Login() {
                 </div>
               )}
 
-              {/* Acesso Rápido / Quick Profile Selection */}
-              {!isForgotPassword && !isRegistering && (
-                <div className="mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <Zap size={12} className="text-amber-500 fill-amber-500" /> Acesso Rápido
-                    </span>
-                    <span className="text-[9px] font-medium text-slate-400">Preenchimento fácil</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmail('aluno@diocese.com');
-                        setIsRegistering(false);
-                        setError(null);
-                      }}
-                      className={cn(
-                        "px-2 py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 active:scale-95 shadow-2xs cursor-pointer",
-                        email === 'aluno@diocese.com' 
-                          ? "bg-indigo-50 border-indigo-500 text-indigo-700" 
-                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                      )}
-                    >
-                      <GraduationCap size={15} className="text-blue-600" />
-                      <span>Aluno</span>
-                    </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmail('professor@diocese.com');
-                        setIsRegistering(false);
-                        setError(null);
-                      }}
-                      className={cn(
-                        "px-2 py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 active:scale-95 shadow-2xs cursor-pointer",
-                        email === 'professor@diocese.com' 
-                          ? "bg-indigo-50 border-indigo-500 text-indigo-700" 
-                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                      )}
-                    >
-                      <Users size={15} className="text-emerald-600" />
-                      <span>Professor</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmail('admin@diocese.com');
-                        setIsRegistering(false);
-                        setError(null);
-                      }}
-                      className={cn(
-                        "px-2 py-2 rounded-xl border text-[10px] font-bold transition-all flex flex-col items-center gap-1 active:scale-95 shadow-2xs cursor-pointer",
-                        email === 'admin@diocese.com' 
-                          ? "bg-indigo-50 border-indigo-500 text-indigo-700" 
-                          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                      )}
-                    >
-                      <Shield size={15} className="text-amber-600" />
-                      <span>Secretaria</span>
-                    </button>
-                  </div>
-                </div>
-              )}
 
               <AnimatePresence mode="wait">
                 {error && (
