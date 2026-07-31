@@ -228,79 +228,99 @@ export function Classes() {
     return (now.getMonth() + 1) >= 7 ? '2º Semestre' : '1º Semestre';
   }, [acadSettings]);
 
-  // Derived single subject ID for 1º and 2º semester in formData
-  const sem1SubjectId = React.useMemo(() => {
-    if (formData.subject_id_sem1 !== undefined && formData.subject_id_sem1 !== null) {
-      return formData.subject_id_sem1;
+  // Derived subject IDs for 1º and 2º semester (1º and 2º horario each, total 4 slots)
+  const sem1H1SubjectId = React.useMemo(() => {
+    if (formData.subject_id_sem1_h1 !== undefined && formData.subject_id_sem1_h1 !== null) {
+      return formData.subject_id_sem1_h1;
     }
+    if (formData.subject_id_sem1) return formData.subject_id_sem1;
     const currentIds = formData.subject_ids || [];
-    if (currentIds.length === 0) return '';
-    
-    // Check if there is a subject explicitly designated as 1st semester
-    const explicit1 = currentIds.find(id => {
-      if (!id) return false;
+    const sem1Subs = currentIds.filter(id => {
       const s = subjects.find(sub => sub.id === id);
       if (!s) return false;
       const sem = (s.semester || '').toLowerCase();
       const name = (s.name || '').toLowerCase();
       return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
     });
-    if (explicit1) return explicit1;
+    return sem1Subs[0] || currentIds[0] || '';
+  }, [formData.subject_id_sem1_h1, formData.subject_id_sem1, formData.subject_ids, subjects]);
 
-    // If first item is explicitly 2nd semester only
-    const firstSub = currentIds[0] ? subjects.find(sub => sub.id === currentIds[0]) : null;
-    if (firstSub) {
-      const sem = (firstSub.semester || '').toLowerCase();
-      const name = (firstSub.name || '').toLowerCase();
-      if ((sem.includes('2') || name.includes('2º') || name.includes('2 sem')) && !sem.includes('1') && !name.includes('1º')) {
-        return '';
-      }
-    }
-
-    return currentIds[0] || '';
-  }, [formData.subject_id_sem1, formData.subject_ids, subjects]);
-
-  const sem2SubjectId = React.useMemo(() => {
-    if (formData.subject_id_sem2 !== undefined && formData.subject_id_sem2 !== null) {
-      return formData.subject_id_sem2;
+  const sem1H2SubjectId = React.useMemo(() => {
+    if (formData.subject_id_sem1_h2 !== undefined && formData.subject_id_sem1_h2 !== null) {
+      return formData.subject_id_sem1_h2;
     }
     const currentIds = formData.subject_ids || [];
-    if (currentIds.length === 0) return '';
+    const sem1Subs = currentIds.filter(id => {
+      const s = subjects.find(sub => sub.id === id);
+      if (!s) return false;
+      const sem = (s.semester || '').toLowerCase();
+      const name = (s.name || '').toLowerCase();
+      return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
+    });
+    if (sem1Subs.length > 1) {
+      return sem1Subs.find(id => id !== sem1H1SubjectId) || '';
+    }
+    return '';
+  }, [formData.subject_id_sem1_h2, formData.subject_ids, subjects, sem1H1SubjectId]);
 
-    // Check if there is a subject explicitly designated as 2nd semester
-    const explicit2 = currentIds.find(id => {
-      if (!id) return false;
+  const sem2H1SubjectId = React.useMemo(() => {
+    if (formData.subject_id_sem2_h1 !== undefined && formData.subject_id_sem2_h1 !== null) {
+      return formData.subject_id_sem2_h1;
+    }
+    if (formData.subject_id_sem2) return formData.subject_id_sem2;
+    const currentIds = formData.subject_ids || [];
+    const sem2Subs = currentIds.filter(id => {
       const s = subjects.find(sub => sub.id === id);
       if (!s) return false;
       const sem = (s.semester || '').toLowerCase();
       const name = (s.name || '').toLowerCase();
       return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
     });
-    if (explicit2 && explicit2 !== sem1SubjectId) return explicit2;
+    return sem2Subs[0] || currentIds.find(id => id !== sem1H1SubjectId && id !== sem1H2SubjectId) || '';
+  }, [formData.subject_id_sem2_h1, formData.subject_id_sem2, formData.subject_ids, subjects, sem1H1SubjectId, sem1H2SubjectId]);
 
-    // If array has 2 items, return index 1 if it differs from sem1
-    if (currentIds.length > 1 && currentIds[1] && currentIds[1] !== sem1SubjectId) {
-      return currentIds[1];
+  const sem2H2SubjectId = React.useMemo(() => {
+    if (formData.subject_id_sem2_h2 !== undefined && formData.subject_id_sem2_h2 !== null) {
+      return formData.subject_id_sem2_h2;
+    }
+    const currentIds = formData.subject_ids || [];
+    const sem2Subs = currentIds.filter(id => {
+      const s = subjects.find(sub => sub.id === id);
+      if (!s) return false;
+      const sem = (s.semester || '').toLowerCase();
+      const name = (s.name || '').toLowerCase();
+      return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
+    });
+    if (sem2Subs.length > 1) {
+      return sem2Subs.find(id => id !== sem2H1SubjectId) || '';
+    }
+    return '';
+  }, [formData.subject_id_sem2_h2, formData.subject_ids, subjects, sem2H1SubjectId]);
+
+  const handleSetSemesterSubject = (semesterNum: 1 | 2, slotNum: 1 | 2, subjectId: string) => {
+    let s1h1 = semesterNum === 1 && slotNum === 1 ? subjectId : sem1H1SubjectId;
+    let s1h2 = semesterNum === 1 && slotNum === 2 ? subjectId : sem1H2SubjectId;
+    let s2h1 = semesterNum === 2 && slotNum === 1 ? subjectId : sem2H1SubjectId;
+    let s2h2 = semesterNum === 2 && slotNum === 2 ? subjectId : sem2H2SubjectId;
+
+    if (subjectId) {
+      if (!(semesterNum === 1 && slotNum === 1) && s1h1 === subjectId) s1h1 = '';
+      if (!(semesterNum === 1 && slotNum === 2) && s1h2 === subjectId) s1h2 = '';
+      if (!(semesterNum === 2 && slotNum === 1) && s2h1 === subjectId) s2h1 = '';
+      if (!(semesterNum === 2 && slotNum === 2) && s2h2 === subjectId) s2h2 = '';
     }
 
-    // If single item, check if it differs from sem1
-    return currentIds.find(id => id && id !== sem1SubjectId) || '';
-  }, [formData.subject_id_sem2, formData.subject_ids, subjects, sem1SubjectId]);
-
-  const handleSetSemesterSubject = (semesterNum: 1 | 2, subjectId: string) => {
-    let s1 = semesterNum === 1 ? subjectId : (formData.subject_id_sem1 !== undefined && formData.subject_id_sem1 !== null ? formData.subject_id_sem1 : sem1SubjectId);
-    let s2 = semesterNum === 2 ? subjectId : (formData.subject_id_sem2 !== undefined && formData.subject_id_sem2 !== null ? formData.subject_id_sem2 : sem2SubjectId);
-
-    if (semesterNum === 1 && s1 === s2) s2 = '';
-    if (semesterNum === 2 && s2 === s1) s1 = '';
-
-    const newSubjectIds = Array.from(new Set([s1, s2])).filter(Boolean);
+    const cleanSubjectIds = Array.from(new Set([s1h1, s1h2, s2h1, s2h2])).filter(Boolean);
 
     setFormData({
       ...formData,
-      subject_id_sem1: s1,
-      subject_id_sem2: s2,
-      subject_ids: newSubjectIds
+      subject_id_sem1_h1: s1h1,
+      subject_id_sem1_h2: s1h2,
+      subject_id_sem2_h1: s2h1,
+      subject_id_sem2_h2: s2h2,
+      subject_id_sem1: s1h1 || s1h2 || '',
+      subject_id_sem2: s2h1 || s2h2 || '',
+      subject_ids: cleanSubjectIds
     });
   };
 
@@ -388,8 +408,10 @@ export function Classes() {
         }
 
         let isSpecial = false;
-        let metaSem1 = (normalized as any).subject_id_sem1 || '';
-        let metaSem2 = (normalized as any).subject_id_sem2 || '';
+        let metaSem1H1 = (normalized as any).subject_id_sem1_h1 || (normalized as any).subject_id_sem1 || '';
+        let metaSem1H2 = (normalized as any).subject_id_sem1_h2 || '';
+        let metaSem2H1 = (normalized as any).subject_id_sem2_h1 || (normalized as any).subject_id_sem2 || '';
+        let metaSem2H2 = (normalized as any).subject_id_sem2_h2 || '';
 
         if (normalized.observations) {
           const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
@@ -398,8 +420,12 @@ export function Classes() {
               const meta = JSON.parse(match[1]);
               if (!normalized.year) normalized.year = meta.year;
               if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
-              if (meta.subject_id_sem1 !== undefined) metaSem1 = meta.subject_id_sem1;
-              if (meta.subject_id_sem2 !== undefined) metaSem2 = meta.subject_id_sem2;
+              if (meta.subject_id_sem1_h1 !== undefined) metaSem1H1 = meta.subject_id_sem1_h1;
+              if (meta.subject_id_sem1_h2 !== undefined) metaSem1H2 = meta.subject_id_sem1_h2;
+              if (meta.subject_id_sem2_h1 !== undefined) metaSem2H1 = meta.subject_id_sem2_h1;
+              if (meta.subject_id_sem2_h2 !== undefined) metaSem2H2 = meta.subject_id_sem2_h2;
+              if (meta.subject_id_sem1 !== undefined && !metaSem1H1) metaSem1H1 = meta.subject_id_sem1;
+              if (meta.subject_id_sem2 !== undefined && !metaSem2H1) metaSem2H1 = meta.subject_id_sem2;
               if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
                 sIds = meta.subject_ids;
               } else if (sIds.length === 0 && meta.subject_id) {
@@ -410,8 +436,8 @@ export function Classes() {
           }
         }
 
-        // Infer sem1 / sem2 if missing
-        if ((!metaSem1 && !metaSem2) && sIds.length > 0) {
+        // Infer sem1 and sem2 slots if missing
+        if ((!metaSem1H1 && !metaSem1H2 && !metaSem2H1 && !metaSem2H2) && sIds.length > 0) {
           const loadedSubs = sIds.map(sid => normalizedSubjects.find(s => s.id === sid)).filter(Boolean);
           const isSem1Sub = (s: any) => {
             const sem = (s?.semester || '').toLowerCase();
@@ -424,30 +450,30 @@ export function Classes() {
             return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
           };
 
-          const exp1 = loadedSubs.find(s => isSem1Sub(s));
-          const exp2 = loadedSubs.find(s => isSem2Sub(s));
+          const s1List = loadedSubs.filter(s => isSem1Sub(s));
+          const s2List = loadedSubs.filter(s => isSem2Sub(s));
 
-          if (exp1) metaSem1 = exp1.id;
-          if (exp2 && exp2.id !== metaSem1) metaSem2 = exp2.id;
+          if (s1List[0]) metaSem1H1 = s1List[0].id;
+          if (s1List[1]) metaSem1H2 = s1List[1].id;
+          if (s2List[0]) metaSem2H1 = s2List[0].id;
+          if (s2List[1]) metaSem2H2 = s2List[1].id;
 
-          if (!metaSem1 && !metaSem2) {
-            if (sIds.length === 1 && loadedSubs[0]) {
-              if (isSem2Sub(loadedSubs[0]) && !isSem1Sub(loadedSubs[0])) {
-                metaSem2 = sIds[0];
-              } else {
-                metaSem1 = sIds[0];
-              }
-            } else {
-              metaSem1 = sIds[0] || '';
-              metaSem2 = sIds[1] || '';
-            }
+          if (!metaSem1H1 && !metaSem2H1) {
+            metaSem1H1 = sIds[0] || '';
+            metaSem1H2 = sIds[1] || '';
+            metaSem2H1 = sIds[2] || '';
+            metaSem2H2 = sIds[3] || '';
           }
         }
 
-        const consolidatedSids = Array.from(new Set([metaSem1, metaSem2, ...sIds])).filter(Boolean);
+        const consolidatedSids = Array.from(new Set([metaSem1H1, metaSem1H2, metaSem2H1, metaSem2H2, ...sIds])).filter(Boolean);
 
-        (normalized as any).subject_id_sem1 = metaSem1;
-        (normalized as any).subject_id_sem2 = metaSem2;
+        (normalized as any).subject_id_sem1_h1 = metaSem1H1;
+        (normalized as any).subject_id_sem1_h2 = metaSem1H2;
+        (normalized as any).subject_id_sem2_h1 = metaSem2H1;
+        (normalized as any).subject_id_sem2_h2 = metaSem2H2;
+        (normalized as any).subject_id_sem1 = metaSem1H1 || metaSem1H2;
+        (normalized as any).subject_id_sem2 = metaSem2H1 || metaSem2H2;
         normalized.subject_ids = consolidatedSids;
         (normalized as any).is_special = isSpecial;
 
@@ -490,6 +516,10 @@ export function Classes() {
     setFormData({
       ...cls,
       start_date: cls.start_date || '',
+      subject_id_sem1_h1: (cls as any).subject_id_sem1_h1 || (cls as any).subject_id_sem1 || '',
+      subject_id_sem1_h2: (cls as any).subject_id_sem1_h2 || '',
+      subject_id_sem2_h1: (cls as any).subject_id_sem2_h1 || (cls as any).subject_id_sem2 || '',
+      subject_id_sem2_h2: (cls as any).subject_id_sem2_h2 || '',
       subject_id_sem1: (cls as any).subject_id_sem1 || '',
       subject_id_sem2: (cls as any).subject_id_sem2 || '',
       subject_ids: cls.subject_ids || []
@@ -627,6 +657,10 @@ export function Classes() {
       year: '1º Ano',
       start_date: '',
       semester: '1º Semestre',
+      subject_id_sem1_h1: '',
+      subject_id_sem1_h2: '',
+      subject_id_sem2_h1: '',
+      subject_id_sem2_h2: '',
       subject_id_sem1: '',
       subject_id_sem2: '',
       subject_ids: [],
@@ -650,27 +684,38 @@ export function Classes() {
     try {
       setLoading(true);
       
-      const s1 = formData.subject_id_sem1 !== undefined && formData.subject_id_sem1 !== null ? formData.subject_id_sem1 : sem1SubjectId;
-      const s2 = formData.subject_id_sem2 !== undefined && formData.subject_id_sem2 !== null ? formData.subject_id_sem2 : sem2SubjectId;
-      const cleanSubjectIds = Array.from(new Set([s1, s2])).filter(Boolean);
+      const s1h1 = formData.subject_id_sem1_h1 !== undefined && formData.subject_id_sem1_h1 !== null ? formData.subject_id_sem1_h1 : sem1H1SubjectId;
+      const s1h2 = formData.subject_id_sem1_h2 !== undefined && formData.subject_id_sem1_h2 !== null ? formData.subject_id_sem1_h2 : sem1H2SubjectId;
+      const s2h1 = formData.subject_id_sem2_h1 !== undefined && formData.subject_id_sem2_h1 !== null ? formData.subject_id_sem2_h1 : sem2H1SubjectId;
+      const s2h2 = formData.subject_id_sem2_h2 !== undefined && formData.subject_id_sem2_h2 !== null ? formData.subject_id_sem2_h2 : sem2H2SubjectId;
+
+      const cleanSubjectIds = Array.from(new Set([s1h1, s1h2, s2h1, s2h2])).filter(Boolean);
 
       const syncData = {
         ...formData,
         start_date: parseDateToDB(formData.start_date),
-        subject_id: s1 || s2 || null,
-        subject_id_sem1: s1 || null,
-        subject_id_sem2: s2 || null,
+        subject_id: s1h1 || s1h2 || s2h1 || s2h2 || null,
+        subject_id_sem1: s1h1 || s1h2 || null,
+        subject_id_sem2: s2h1 || s2h2 || null,
+        subject_id_sem1_h1: s1h1 || null,
+        subject_id_sem1_h2: s1h2 || null,
+        subject_id_sem2_h1: s2h1 || null,
+        subject_id_sem2_h2: s2h2 || null,
         subject_ids: cleanSubjectIds
       };
 
       // PROACTIVE METADATA SYNC:
-      // Always sync year, semester, subject_id_sem1, subject_id_sem2, subject_ids and is_special into observations metadata 
+      // Always sync year, semester, subject slots, subject_ids and is_special into observations metadata 
       // before saving. This ensures data persistence even if Supabase columns are missing.
       const metadata: any = {};
       if (formData.year) metadata.year = formData.year;
       if (formData.semester) metadata.semester = formData.semester;
-      metadata.subject_id_sem1 = s1 || '';
-      metadata.subject_id_sem2 = s2 || '';
+      metadata.subject_id_sem1_h1 = s1h1 || '';
+      metadata.subject_id_sem1_h2 = s1h2 || '';
+      metadata.subject_id_sem2_h1 = s2h1 || '';
+      metadata.subject_id_sem2_h2 = s2h2 || '';
+      metadata.subject_id_sem1 = s1h1 || s1h2 || '';
+      metadata.subject_id_sem2 = s2h1 || s2h2 || '';
       metadata.subject_ids = cleanSubjectIds;
       if (formData.is_special !== undefined) metadata.is_special = formData.is_special;
       
@@ -694,8 +739,12 @@ export function Classes() {
       const updatedData = { 
         ...syncData, 
         id: savedId,
-        subject_id_sem1: s1,
-        subject_id_sem2: s2,
+        subject_id_sem1_h1: s1h1,
+        subject_id_sem1_h2: s1h2,
+        subject_id_sem2_h1: s2h1,
+        subject_id_sem2_h2: s2h2,
+        subject_id_sem1: s1h1 || s1h2,
+        subject_id_sem2: s2h1 || s2h2,
         subject_ids: cleanSubjectIds,
         start_date: syncData.start_date
       } as Class;
@@ -1347,82 +1396,152 @@ export function Classes() {
                       </div>
                     </div>
 
-                    {/* Matriz Curricular Ativa (1 Disciplina por Semestre) */}
+                    {/* Matriz Curricular Ativa (2 Disciplinas por Semestre - 1º e 2º Horário) */}
                     <div className="col-span-12 space-y-5 pt-4">
                       <div className="flex items-baseline justify-between ml-1 pb-1 border-b border-slate-100">
                         <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                           <BookOpen size={14} className="text-slate-400" />
-                          Matriz Curricular Ativa (1 Disciplina por Semestre)
+                          Matriz Curricular (2 Disciplinas por Semestre - 1º e 2º Horário)
                         </label>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                          Máximo de 1 disciplina no 1º sem e 1 no 2º sem
+                          Até 4 disciplinas (2 no 1º sem e 2 no 2º sem)
                         </p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* 1º SEMESTRE */}
-                        <div className="p-4 bg-blue-50/40 border border-blue-100/80 rounded-none space-y-3">
+                        <div className="p-4 bg-blue-50/40 border border-blue-100/80 rounded-none space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-bold text-blue-800 bg-blue-100/90 px-2 py-0.5 uppercase tracking-wider border border-blue-200/60">
                               1º Semestre
                             </span>
                             <span className="text-[9px] font-bold text-blue-600/80 uppercase tracking-tight">
-                              {sem1SubjectId ? '1 de 1 Definida' : '0 de 1 Definida'}
+                              {[sem1H1SubjectId, sem1H2SubjectId].filter(Boolean).length} de 2 Definidas
                             </span>
                           </div>
 
-                          <div className="relative group">
-                            <select 
-                              disabled={!isEditing}
-                              value={sem1SubjectId}
-                              onChange={(e) => handleSetSemesterSubject(1, e.target.value)}
-                              className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
-                            >
-                              <option value="">Selecionar Disciplina do 1º Semestre...</option>
-                              {getSemOptions(1, sem1SubjectId).map(subject => (
-                                <option 
-                                  key={subject.id} 
-                                  value={subject.id}
-                                  disabled={subject.id === sem2SubjectId}
-                                >
-                                  [{subject.code}] {subject.name.toUpperCase()}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:rotate-180 transition-transform pointer-events-none" />
+                          {/* 1º Horário */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-blue-900/70 uppercase tracking-wider flex items-center gap-1.5">
+                              <Clock size={12} className="text-blue-500" />
+                              1º Horário (1ª Matéria)
+                            </label>
+                            <div className="relative group">
+                              <select 
+                                disabled={!isEditing}
+                                value={sem1H1SubjectId}
+                                onChange={(e) => handleSetSemesterSubject(1, 1, e.target.value)}
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                              >
+                                <option value="">Selecionar 1º Horário (1º Semestre)...</option>
+                                {getSemOptions(1, sem1H1SubjectId).map(subject => (
+                                  <option 
+                                    key={subject.id} 
+                                    value={subject.id}
+                                    disabled={[sem1H2SubjectId, sem2H1SubjectId, sem2H2SubjectId].includes(subject.id)}
+                                  >
+                                    [{subject.code}] {subject.name.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:rotate-180 transition-transform pointer-events-none" />
+                            </div>
+                          </div>
+
+                          {/* 2º Horário */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-blue-900/70 uppercase tracking-wider flex items-center gap-1.5">
+                              <Clock size={12} className="text-blue-500" />
+                              2º Horário (2ª Matéria)
+                            </label>
+                            <div className="relative group">
+                              <select 
+                                disabled={!isEditing}
+                                value={sem1H2SubjectId}
+                                onChange={(e) => handleSetSemesterSubject(1, 2, e.target.value)}
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                              >
+                                <option value="">Selecionar 2º Horário (1º Semestre)...</option>
+                                {getSemOptions(1, sem1H2SubjectId).map(subject => (
+                                  <option 
+                                    key={subject.id} 
+                                    value={subject.id}
+                                    disabled={[sem1H1SubjectId, sem2H1SubjectId, sem2H2SubjectId].includes(subject.id)}
+                                  >
+                                    [{subject.code}] {subject.name.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:rotate-180 transition-transform pointer-events-none" />
+                            </div>
                           </div>
                         </div>
 
                         {/* 2º SEMESTRE */}
-                        <div className="p-4 bg-emerald-50/40 border border-emerald-100/80 rounded-none space-y-3">
+                        <div className="p-4 bg-emerald-50/40 border border-emerald-100/80 rounded-none space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 uppercase tracking-wider border border-emerald-200/60">
                               2º Semestre
                             </span>
                             <span className="text-[9px] font-bold text-emerald-600/80 uppercase tracking-tight">
-                              {sem2SubjectId ? '1 de 1 Definida' : '0 de 1 Definida'}
+                              {[sem2H1SubjectId, sem2H2SubjectId].filter(Boolean).length} de 2 Definidas
                             </span>
                           </div>
 
-                          <div className="relative group">
-                            <select 
-                              disabled={!isEditing}
-                              value={sem2SubjectId}
-                              onChange={(e) => handleSetSemesterSubject(2, e.target.value)}
-                              className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
-                            >
-                              <option value="">Selecionar Disciplina do 2º Semestre...</option>
-                              {getSemOptions(2, sem2SubjectId).map(subject => (
-                                <option 
-                                  key={subject.id} 
-                                  value={subject.id}
-                                  disabled={subject.id === sem1SubjectId}
-                                >
-                                  [{subject.code}] {subject.name.toUpperCase()}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:rotate-180 transition-transform pointer-events-none" />
+                          {/* 1º Horário */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-emerald-900/70 uppercase tracking-wider flex items-center gap-1.5">
+                              <Clock size={12} className="text-emerald-500" />
+                              1º Horário (1ª Matéria)
+                            </label>
+                            <div className="relative group">
+                              <select 
+                                disabled={!isEditing}
+                                value={sem2H1SubjectId}
+                                onChange={(e) => handleSetSemesterSubject(2, 1, e.target.value)}
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                              >
+                                <option value="">Selecionar 1º Horário (2º Semestre)...</option>
+                                {getSemOptions(2, sem2H1SubjectId).map(subject => (
+                                  <option 
+                                    key={subject.id} 
+                                    value={subject.id}
+                                    disabled={[sem1H1SubjectId, sem1H2SubjectId, sem2H2SubjectId].includes(subject.id)}
+                                  >
+                                    [{subject.code}] {subject.name.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:rotate-180 transition-transform pointer-events-none" />
+                            </div>
+                          </div>
+
+                          {/* 2º Horário */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-emerald-900/70 uppercase tracking-wider flex items-center gap-1.5">
+                              <Clock size={12} className="text-emerald-500" />
+                              2º Horário (2ª Matéria)
+                            </label>
+                            <div className="relative group">
+                              <select 
+                                disabled={!isEditing}
+                                value={sem2H2SubjectId}
+                                onChange={(e) => handleSetSemesterSubject(2, 2, e.target.value)}
+                                className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
+                              >
+                                <option value="">Selecionar 2º Horário (2º Semestre)...</option>
+                                {getSemOptions(2, sem2H2SubjectId).map(subject => (
+                                  <option 
+                                    key={subject.id} 
+                                    value={subject.id}
+                                    disabled={[sem1H1SubjectId, sem1H2SubjectId, sem2H1SubjectId].includes(subject.id)}
+                                  >
+                                    [{subject.code}] {subject.name.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:rotate-180 transition-transform pointer-events-none" />
+                            </div>
                           </div>
                         </div>
                       </div>

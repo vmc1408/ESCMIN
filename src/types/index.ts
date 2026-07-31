@@ -99,7 +99,11 @@ export interface Class {
   semester: string;
   subject_id?: string;
   subject_id_sem1?: string;
+  subject_id_sem1_h1?: string;
+  subject_id_sem1_h2?: string;
   subject_id_sem2?: string;
+  subject_id_sem2_h1?: string;
+  subject_id_sem2_h2?: string;
   subject_ids?: string[];
   start_date?: string;
   observations?: string;
