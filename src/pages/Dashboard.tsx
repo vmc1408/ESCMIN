@@ -164,8 +164,44 @@ export function Dashboard() {
       ]);
       
       if (studentsData) setStudents(studentsData);
-      if (subjectsData) setSubjects(subjectsData);
-      if (teachersData) setTeachers(teachersData);
+      
+      if (subjectsData) {
+        const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
+          let normalized = { ...s };
+          if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
+            const match = normalized.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
+            if (match && match[1]) {
+              try {
+                const meta = JSON.parse(match[1]);
+                if (!normalized.semester) normalized.semester = meta.semester;
+                if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
+                if (!normalized.year) normalized.year = meta.year;
+              } catch (e) {}
+            }
+          }
+          return normalized;
+        });
+        setSubjects(normalizedSubjects);
+      }
+
+      if (teachersData) {
+        const normalizedTeachers = (teachersData || []).map((t: Teacher) => {
+          let normalized = { ...t };
+          let sIds = normalized.subject_ids || [];
+          if (typeof sIds === 'string' && (sIds as string).startsWith('{')) {
+            sIds = (sIds as string).replace(/[{}]/g, '').split(',').filter(Boolean);
+          }
+          if ((!sIds || sIds.length === 0) && normalized.observations) {
+            const match = normalized.observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
+            if (match && match[1]) {
+              try { sIds = JSON.parse(match[1]); } catch (e) {}
+            }
+          }
+          normalized.subject_ids = Array.isArray(sIds) ? sIds : [];
+          return normalized;
+        });
+        setTeachers(normalizedTeachers);
+      }
 
       if (classesData) {
         const normalizedClasses = (classesData || []).map((cls: Class) => {
@@ -378,6 +414,34 @@ export function Dashboard() {
       setIsDeactivating(false);
     }
   };
+
+  const getSubjectTeacher = useCallback((s: Subject) => {
+    if (s.teacher_id) {
+      const t = teachers.find(teach => teach.id === s.teacher_id);
+      if (t) return t;
+    }
+
+    if (s.program_content) {
+      const match = s.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
+      if (match && match[1]) {
+        try {
+          const meta = JSON.parse(match[1]);
+          if (meta.teacher_id) {
+            const t = teachers.find(teach => teach.id === meta.teacher_id);
+            if (t) return t;
+          }
+        } catch (e) {}
+      }
+    }
+
+    const teacherWithSubject = teachers.find(teach => {
+      const sIds = teach.subject_ids || [];
+      if (Array.isArray(sIds) && sIds.includes(s.id)) return true;
+      return false;
+    });
+
+    return teacherWithSubject || null;
+  }, [teachers]);
 
   const handleViewStudents = (classId: string, className: string, isUnallocated: boolean) => {
     let filtered: Student[] = [];
@@ -725,7 +789,7 @@ export function Dashboard() {
                               <span className="font-bold text-[8px] text-blue-700 bg-blue-50 px-1 py-0.5 rounded shrink-0 border border-blue-100 uppercase tracking-tight mt-0.5">1º Sem</span>
                               <div className="min-w-0 flex-1 space-y-1">
                                 {sem1Subs.map(s => {
-                                  const t = teachers.find(teach => teach.id === s.teacher_id);
+                                  const t = getSubjectTeacher(s);
                                   return (
                                     <div key={s.id} className="min-w-0 leading-tight">
                                       <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
@@ -741,7 +805,7 @@ export function Dashboard() {
                               <span className="font-bold text-[8px] text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded shrink-0 border border-emerald-100 uppercase tracking-tight mt-0.5">2º Sem</span>
                               <div className="min-w-0 flex-1 space-y-1">
                                 {sem2Subs.map(s => {
-                                  const t = teachers.find(teach => teach.id === s.teacher_id);
+                                  const t = getSubjectTeacher(s);
                                   return (
                                     <div key={s.id} className="min-w-0 leading-tight">
                                       <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
@@ -757,7 +821,7 @@ export function Dashboard() {
                               <span className="font-bold text-[8px] text-slate-600 bg-slate-100 px-1 py-0.5 rounded shrink-0 border border-slate-200 uppercase tracking-tight mt-0.5">Matérias</span>
                               <div className="min-w-0 flex-1 space-y-1">
                                 {otherSubs.map(s => {
-                                  const t = teachers.find(teach => teach.id === s.teacher_id);
+                                  const t = getSubjectTeacher(s);
                                   return (
                                     <div key={s.id} className="min-w-0 leading-tight">
                                       <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
