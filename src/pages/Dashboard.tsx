@@ -15,11 +15,101 @@ import {
   ShieldCheck,
   TrendingUp,
   AlertTriangle,
-  Printer
+  Printer,
+  Calendar,
+  Repeat
 } from 'lucide-react';
+
+const formatDateBR = (dateStr?: string) => {
+  if (!dateStr) return '';
+  if (dateStr.includes('/')) return dateStr;
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+export interface SchedulePeriod {
+  label: string;
+  dayNum?: number;
+  t1Start: string;
+  t1End: string;
+  t2Start: string;
+  t2End: string;
+}
+
+const WEEKDAY_NAMES: Record<number, string> = {
+  0: 'Domingo',
+  1: 'Segunda-feira',
+  2: 'Terça-feira',
+  3: 'Quarta-feira',
+  4: 'Quinta-feira',
+  5: 'Sexta-feira',
+  6: 'Sábado'
+};
+
+const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] => {
+  const periods: SchedulePeriod[] = [];
+  const seenLabels = new Set<string>();
+
+  let combined = { ...(settings || {}) };
+  try {
+    const stored = localStorage.getItem('academic_settings_current');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      combined = { ...parsed, ...combined };
+      if (parsed.weekday_terms) {
+        combined.weekday_terms = { ...(parsed.weekday_terms || {}), ...(combined.weekday_terms || {}) };
+      }
+    }
+  } catch (e) {}
+
+  if (combined.weekday_terms) {
+    const dayKeys = Object.keys(combined.weekday_terms)
+      .map(k => Number(k))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+
+    for (const d of dayKeys) {
+      const termObj = combined.weekday_terms[d] || combined.weekday_terms[String(d)];
+      if (termObj && (termObj.term1_start || termObj.term1_end || termObj.term2_start || termObj.term2_end)) {
+        const labelName = WEEKDAY_NAMES[d] || `Dia ${d}`;
+        if (!seenLabels.has(labelName)) {
+          seenLabels.add(labelName);
+          periods.push({
+            label: labelName,
+            dayNum: d,
+            t1Start: termObj.term1_start || '',
+            t1End: termObj.term1_end || '',
+            t2Start: termObj.term2_start || '',
+            t2End: termObj.term2_end || ''
+          });
+        }
+      }
+    }
+  }
+
+  const rootT1Start = combined.term1_start || '';
+  const rootT1End = combined.term1_end || '';
+  const rootT2Start = combined.term2_start || '';
+  const rootT2End = combined.term2_end || '';
+
+  if (periods.length === 0 && (rootT1Start || rootT1End || rootT2Start || rootT2End)) {
+    periods.push({
+      label: 'Geral',
+      t1Start: rootT1Start,
+      t1End: rootT1End,
+      t2Start: rootT2Start,
+      t2End: rootT2End
+    });
+  }
+
+  return periods;
+};
 import { fetchCount, fetchAll, saveBatch } from '../lib/database';
 import { isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from '../lib/supabase';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { Student, Class, Subject, Teacher } from '../types';
@@ -201,6 +291,11 @@ export function Dashboard() {
       if (acadData && acadData.length > 0) {
         const current = acadData.find((s: any) => s.id === 'current') || acadData[0];
         setAcadSettings(current);
+      } else {
+        try {
+          const byId = await fetchById('academic_settings', 'current');
+          if (byId) setAcadSettings(byId);
+        } catch (e) {}
       }
       
       if (studentsData) setStudents(studentsData);
@@ -371,35 +466,57 @@ export function Dashboard() {
       });
     }
 
-    // Sort by Name (A-Z) and Year (Desc)
+    // Helper to rank classes: 1º ano (1), 2º ano (2), 3º ano (3), 4º ano (4), Cursos Extras (5)
+    const getClassRank = (item: { name?: string; code?: string; unallocated?: boolean }) => {
+      if (item.unallocated) return 99;
+
+      const name = (item.name || '').toLowerCase();
+      const code = (item.code || '').toLowerCase();
+
+      // Explicit ordinal year in name or code
+      if (name.includes('1º ano') || name.includes('1° ano') || name.includes('1 ano') || name.includes('1ºano') || name.includes('1°ano')) return 1;
+      if (name.includes('2º ano') || name.includes('2° ano') || name.includes('2 ano') || name.includes('2ºano') || name.includes('2°ano')) return 2;
+      if (name.includes('3º ano') || name.includes('3° ano') || name.includes('3 ano') || name.includes('3ºano') || name.includes('3°ano')) return 3;
+      if (name.includes('4º ano') || name.includes('4° ano') || name.includes('4 ano') || name.includes('4ºano') || name.includes('4°ano')) return 4;
+
+      // Extract 4-digit year (e.g. 2026, 2025, 2024, 2023) or 2-digit code suffix
+      let yearNum = 0;
+      const match4 = name.match(/20\d\d/) || code.match(/20\d\d/);
+      if (match4) {
+        yearNum = parseInt(match4[0], 10);
+      } else {
+        const match2 = code.match(/(\d\d)$/);
+        if (match2) {
+          const yr = parseInt(match2[1], 10);
+          yearNum = yr < 100 ? 2000 + yr : yr;
+        }
+      }
+
+      // Check if it's the core degree program (e.g. Teologia)
+      const isCoreProgram = name.includes('teologia') || code.startsWith('teo');
+
+      if (isCoreProgram) {
+        if (yearNum === 2026) return 1; // 1º Ano
+        if (yearNum === 2025) return 2; // 2º Ano
+        if (yearNum === 2024) return 3; // 3º Ano
+        if (yearNum === 2023) return 4; // 4º Ano
+      }
+
+      // Extra course / extension (e.g. Doutrina Social da Igreja 2026, DS-2026)
+      return 5;
+    };
+
+    // Sort by Rank (1º ano -> 2º ano -> 3º ano -> 4º ano -> Cursos extras)
     const sorted = [...classStats].sort((a, b) => {
-      // First sort by unallocated status (move to end)
-      if (a.unallocated && !b.unallocated) return 1;
-      if (!a.unallocated && b.unallocated) return -1;
+      const rankA = getClassRank(a);
+      const rankB = getClassRank(b);
 
-      // Helper to extract year and base name
-      const extract = (s: string) => {
-        const match = s.match(/\d{4}/);
-        const yr = match ? parseInt(match[0]) : 0;
-        const name = s.replace(/\d{4}/, '').trim().toLowerCase();
-        return { yr, name };
-      };
-
-      const infoA = extract(a.name || '');
-      const infoB = extract(b.name || '');
-
-      // 1. Base Name (Alphabetical A-Z)
-      if (infoA.name !== infoB.name) {
-        return infoA.name.localeCompare(infoB.name);
+      if (rankA !== rankB) {
+        return rankA - rankB;
       }
 
-      // 2. Year (Descending)
-      if (infoA.yr !== infoB.yr) {
-        return infoB.yr - infoA.yr;
-      }
-
-      // 3. Fallback to Code
-      return (a.code || '').localeCompare(b.code || '');
+      // If same rank, sort alphabetically by name
+      return (a.name || '').localeCompare(b.name || '');
     });
 
     // Assign refined color schemes
@@ -546,6 +663,43 @@ export function Dashboard() {
     { label: 'Professores', stats: stats.teachers, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-100/50', border: 'border-emerald-200/50' },
   ];
 
+  const periods = useMemo(() => getAllAcademicSchedulePeriods(acadSettings), [acadSettings]);
+  const [activePeriodIndex, setActivePeriodIndex] = useState(0);
+  const [isPeriodPaused, setIsPeriodPaused] = useState(false);
+
+  useEffect(() => {
+    if (periods.length <= 1 || isPeriodPaused) return;
+    const interval = setInterval(() => {
+      setActivePeriodIndex((prev) => (prev + 1) % periods.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [periods.length, isPeriodPaused]);
+
+  const currentPeriod = periods[activePeriodIndex % Math.max(1, periods.length)] || {
+    label: 'Cronograma',
+    t1Start: '',
+    t1End: '',
+    t2Start: '',
+    t2End: ''
+  };
+
+  const formatPeriodDisplay = (startStr: string, endStr: string) => {
+    if (startStr && endStr) {
+      return (
+        <>
+          {formatDateBR(startStr)} <span className="text-slate-400 font-normal mx-0.5">até</span> {formatDateBR(endStr)}
+        </>
+      );
+    }
+    if (startStr) {
+      return <>A partir de {formatDateBR(startStr)}</>;
+    }
+    if (endStr) {
+      return <>Até {formatDateBR(endStr)}</>;
+    }
+    return <span className="text-slate-400 font-medium italic">A definir no Cronograma</span>;
+  };
+
   return (
     <div className="space-y-8 p-1">
       <PageHeader
@@ -553,12 +707,106 @@ export function Dashboard() {
         description="Painel de monitoramento e controle de informações internas da instituição."
         icon={Activity}
       >
-        {isRefreshing && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
-            <RefreshCw size={11} className="animate-spin" />
-            Sincronizando...
+        <div 
+          className="flex flex-col gap-2 items-stretch sm:items-end"
+          onMouseEnter={() => setIsPeriodPaused(true)}
+          onMouseLeave={() => setIsPeriodPaused(false)}
+        >
+          {periods.length > 1 && (
+            <div className="flex items-center gap-1.5 self-center sm:self-end bg-slate-100/90 border border-slate-200/80 p-1 rounded-xl shadow-2xs">
+              <span className="flex items-center gap-1 text-[9px] font-black uppercase text-slate-500 tracking-wider px-2 py-0.5">
+                <Repeat size={11} className="text-purple-600 animate-spin" />
+                <span className="hidden sm:inline">Cronogramas:</span>
+              </span>
+              {periods.map((p, idx) => {
+                const isActive = idx === (activePeriodIndex % periods.length);
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setActivePeriodIndex(idx)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer ${
+                      isActive 
+                        ? 'bg-purple-600 text-white shadow-xs scale-102' 
+                        : 'text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="flex items-center gap-2.5 px-3.5 py-2 bg-purple-50/90 border border-purple-200/80 rounded-xl text-slate-800 shadow-2xs min-w-[210px] relative overflow-hidden">
+              <div className="p-1.5 bg-purple-600 text-white rounded-lg shrink-0">
+                <Calendar size={14} />
+              </div>
+              <div className="text-[11px] leading-tight font-sans flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-extrabold text-purple-900 uppercase text-[9.5px] tracking-wider">
+                    1º Semestre
+                  </p>
+                  {periods.length > 1 && (
+                    <span className="text-[8.5px] font-extrabold bg-purple-200/90 text-purple-900 px-1.5 py-0.2 rounded uppercase">
+                      {currentPeriod.label}
+                    </span>
+                  )}
+                </div>
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={`t1-${currentPeriod.label}-${currentPeriod.t1Start}`}
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -3 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-bold text-slate-700 mt-0.5"
+                  >
+                    {formatPeriodDisplay(currentPeriod.t1Start, currentPeriod.t1End)}
+                  </motion.p>
+                </AnimatePresence>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 px-3.5 py-2 bg-indigo-50/90 border border-indigo-200/80 rounded-xl text-slate-800 shadow-2xs min-w-[210px] relative overflow-hidden">
+              <div className="p-1.5 bg-indigo-600 text-white rounded-lg shrink-0">
+                <Calendar size={14} />
+              </div>
+              <div className="text-[11px] leading-tight font-sans flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-extrabold text-indigo-900 uppercase text-[9.5px] tracking-wider">
+                    2º Semestre
+                  </p>
+                  {periods.length > 1 && (
+                    <span className="text-[8.5px] font-extrabold bg-indigo-200/90 text-indigo-900 px-1.5 py-0.2 rounded uppercase">
+                      {currentPeriod.label}
+                    </span>
+                  )}
+                </div>
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={`t2-${currentPeriod.label}-${currentPeriod.t2Start}`}
+                    initial={{ opacity: 0, y: 3 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -3 }}
+                    transition={{ duration: 0.2 }}
+                    className="font-bold text-slate-700 mt-0.5"
+                  >
+                    {formatPeriodDisplay(currentPeriod.t2Start, currentPeriod.t2End)}
+                  </motion.p>
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {isRefreshing && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
+                <RefreshCw size={11} className="animate-spin" />
+                <span>Sincronizando...</span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </PageHeader>
 
       {(syncError || !isConnected) && (
@@ -791,53 +1039,53 @@ export function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
                     className={cn(
-                      "p-3.5 rounded-md border bg-white transition-all shadow-sm flex flex-col justify-between h-full min-h-[140px]",
+                      "p-2.5 sm:p-3 rounded-md border bg-white transition-all shadow-2xs flex flex-col justify-between h-full",
                       c.borderClass
                     )}
                   >
                     <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                      <div className="flex justify-between items-start mb-1.5">
+                        <div className="flex items-center gap-2 min-w-0 pr-1">
                           <div className={cn(
-                            "h-7 px-2 flex items-center justify-center text-white font-bold text-[10px] whitespace-nowrap rounded shrink-0",
+                            "h-6 px-1.5 flex items-center justify-center text-white font-bold text-[9px] whitespace-nowrap rounded shrink-0",
                             "bg-slate-700",
                             c.color
                           )}>
                             {c.code}
                           </div>
                           <div className="min-w-0">
-                            <h5 className="text-[12.5px] font-bold text-slate-800 tracking-tight truncate">{c.name}</h5>
-                            <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest">{c.period}</p>
+                            <h5 className="text-[12px] font-bold text-slate-800 tracking-tight truncate leading-snug">{c.name}</h5>
+                            <p className="text-[8.5px] font-medium text-slate-500 uppercase tracking-wider">{c.period}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* Informações das Matérias Apenas do Semestre Ativo */}
                       {!c.unallocated && (
-                        <div className="my-2 py-1.5 px-2 bg-slate-50/80 border border-slate-100 rounded text-[10px] leading-tight overflow-hidden">
+                        <div className="my-1.5 py-1 px-1.5 bg-slate-50/90 border border-slate-100/90 rounded text-[9.5px] leading-tight overflow-hidden">
                           <div className="flex items-start gap-1.5 min-w-0">
                             <span className={cn(
-                              "font-bold text-[8px] px-1 py-0.5 rounded shrink-0 border uppercase tracking-tight mt-0.5",
+                              "font-bold text-[7.5px] px-1 py-0.5 rounded shrink-0 border uppercase tracking-tight mt-0.5",
                               activeSemesterNum === 1 
                                 ? "text-blue-700 bg-blue-50 border-blue-100" 
                                 : "text-emerald-700 bg-emerald-50 border-emerald-100"
                             )}>
                               {activeSemesterNum}º Sem
                             </span>
-                            <div className="min-w-0 flex-1 space-y-1">
+                            <div className="min-w-0 flex-1 space-y-0.5">
                               {activeSubs.length > 0 ? (
                                 activeSubs.map(s => {
                                   const t = getSubjectTeacher(s);
                                   return (
-                                    <div key={s.id} className="min-w-0 leading-tight">
-                                      <p className="text-[9.5px] font-bold text-slate-800 truncate">{s.name}</p>
-                                      <p className="text-[8.5px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
+                                    <div key={s.id} className="min-w-0 leading-tight py-0.5">
+                                      <p className="text-[9px] font-bold text-slate-800 truncate">{s.name}</p>
+                                      <p className="text-[8px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
                                     </div>
                                   );
                                 })
                               ) : (
-                                <p className="text-[9px] text-slate-400 italic py-0.5">
-                                  {classSubjectList.length > 0 ? `Sem matérias no ${activeSemesterNum}º Semestre` : 'Sem matérias vinculadas'}
+                                <p className="text-[8.5px] text-slate-400 italic py-0.5">
+                                  {classSubjectList.length > 0 ? `Sem matérias no ${activeSemesterNum}º Sem` : 'Sem matérias vinculadas'}
                                 </p>
                               )}
                             </div>
@@ -846,27 +1094,27 @@ export function Dashboard() {
                       )}
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1">
+                    <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
                       <div className="flex justify-between items-center px-0.5">
                         <div className="flex items-baseline gap-1">
-                          <span className="text-[11px] font-bold text-slate-800">{c.percentage}%</span>
-                          <span className="text-[8.5px] font-semibold text-slate-400 uppercase tracking-wider">Ocupação Acadêmica</span>
+                          <span className="text-[10.5px] font-bold text-slate-800">{c.percentage}%</span>
+                          <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Ocupação Acadêmica</span>
                         </div>
 
                         {c.count > 0 ? (
                           <button 
                             onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
-                            className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded border border-slate-200/80 hover:border-blue-200 text-[9.5px] font-bold transition-all cursor-pointer group shrink-0"
+                            className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded border border-slate-200/80 hover:border-blue-200 text-[9px] font-bold transition-all cursor-pointer group shrink-0"
                             title="Ver Alunos da Turma"
                           >
                             <span>{c.count} Alunos</span>
-                            <Eye size={12} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
+                            <Eye size={11} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
                           </button>
                         ) : (
-                          <span className="text-[9.5px] font-medium text-slate-400 px-1">0 Alunos</span>
+                          <span className="text-[9px] font-medium text-slate-400 px-1">0 Alunos</span>
                         )}
                       </div>
-                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(c.percentage, 100)}%` }}
