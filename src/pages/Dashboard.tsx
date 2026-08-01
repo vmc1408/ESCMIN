@@ -893,8 +893,94 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Informative Stat Cards - Hidden on Mobile */}
-      <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Acesso Rápido - Posicionado acima dos Cards Informativos */}
+      <motion.div
+        initial={{ opacity: 0, y: -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-5 rounded-lg shadow-sm border border-slate-200"
+      >
+        <div className="flex items-center justify-between mb-3.5">
+          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Acesso Rápido</h4>
+          <div className="flex items-center gap-2">
+            <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">Último Update: {lastUpdated.toLocaleTimeString()}</span>
+            <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase tracking-widest border border-blue-100">
+              Sincronizado
+            </span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { 
+              label: 'Matricular', 
+              icon: Users, 
+              path: '/students', 
+              bg: 'bg-indigo-50/45 hover:bg-indigo-50/85 border-indigo-100/70 hover:border-indigo-200', 
+              iconColor: 'text-indigo-600', 
+              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(99,102,241,0.12)]' 
+            },
+            { 
+              label: 'Gerar Impressos', 
+              icon: Printer, 
+              path: '/impressos', 
+              bg: 'bg-sky-50/45 hover:bg-sky-50/85 border-sky-100/70 hover:border-sky-200', 
+              iconColor: 'text-sky-600', 
+              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(56,189,248,0.12)]' 
+            },
+            { 
+              label: 'Turmas / Classes', 
+              icon: GraduationCap, 
+              path: '/classes', 
+              bg: 'bg-emerald-50/45 hover:bg-emerald-50/85 border-emerald-100/70 hover:border-emerald-200', 
+              iconColor: 'text-emerald-600', 
+              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(16,185,129,0.12)]' 
+            },
+            { 
+              label: 'Cronograma Acadêmico', 
+              icon: Activity, 
+              path: '/calendar', 
+              bg: 'bg-amber-50/45 hover:bg-amber-50/85 border-amber-100/70 hover:border-amber-200', 
+              iconColor: 'text-amber-600', 
+              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(245,158,11,0.12)]' 
+            },
+            { 
+              label: 'Ficha do Aluno', 
+              icon: UserCircle, 
+              path: '/student-ficha', 
+              bg: 'bg-rose-50/45 hover:bg-rose-50/85 border-rose-100/70 hover:border-rose-200', 
+              iconColor: 'text-rose-600', 
+              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(244,63,94,0.12)]' 
+            },
+            { 
+              label: 'Contribuições', 
+              icon: Wallet, 
+              path: '/contributions', 
+              bg: 'bg-violet-50/45 hover:bg-violet-50/85 border-violet-100/70 hover:border-violet-200', 
+              iconColor: 'text-violet-600', 
+              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(139,92,246,0.12)]' 
+            }
+          ].map((item, i) => (
+            <button 
+              key={i}
+              onClick={() => item.path !== '#' && navigate(item.path)}
+              className={cn(
+                "flex flex-col items-start gap-1.5 p-3 border rounded-lg transition-all duration-300 text-left group hover:-translate-y-0.5 cursor-pointer w-full",
+                item.bg,
+                item.hoverShadow
+              )}
+            >
+              <div className="p-1.5 rounded-md bg-white shadow-sm border border-slate-100 transition-colors duration-300">
+                <item.icon size={16} className={cn("transition-transform duration-300 group-hover:scale-110 shrink-0", item.iconColor)} />
+              </div>
+              <span className="text-[9.5px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors tracking-tight leading-tight uppercase">
+                {item.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Informative Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, idx) => (
           <motion.div 
             key={stat.label}
@@ -934,31 +1020,30 @@ export function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Ocupação Acadêmica */}
-        <motion.div
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="order-2 lg:order-1 lg:col-span-8 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden"
-        >
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white overflow-hidden">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
-                <Activity size={16} />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">Ocupação Acadêmica</h3>
-                <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Distribuição por Turma</p>
-              </div>
+      {/* Ocupação Acadêmica - Ajustada em 3 por linha */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden"
+      >
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white overflow-hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Activity size={16} />
             </div>
-            <div className="flex items-center gap-2 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold uppercase tracking-widest border border-emerald-100">
-              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
-              Tempo Real
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Ocupação Acadêmica</h3>
+              <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Distribuição por Turma</p>
             </div>
           </div>
-          
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/30">
+          <div className="flex items-center gap-2 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold uppercase tracking-widest border border-emerald-100">
+            <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+            Tempo Real
+          </div>
+        </div>
+        
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/30">
             {studentsByClass.length > 0 ? (
               studentsByClass.map((c, i) => {
                 const classSubjectList = (c.subject_ids || [])
@@ -1134,97 +1219,6 @@ export function Dashboard() {
             )}
           </div>
         </motion.div>
-
-        <motion.div
-           initial={{ opacity: 0, x: 10 }}
-           animate={{ opacity: 1, x: 0 }}
-           transition={{ delay: 0.5 }}
-           className="order-1 lg:order-2 lg:col-span-4"
-        >
-           <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Acesso Rápido</h4>
-              <div className="grid grid-cols-2 gap-2">
-                 {[
-                   { 
-                     label: 'Matricular', 
-                     icon: Users, 
-                     path: '/students', 
-                     bg: 'bg-indigo-50/45 hover:bg-indigo-50/85 border-indigo-100/70 hover:border-indigo-200', 
-                     iconColor: 'text-indigo-600', 
-                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(99,102,241,0.12)]' 
-                   },
-                   { 
-                     label: 'Gerar Impressos', 
-                     icon: Printer, 
-                     path: '/impressos', 
-                     bg: 'bg-sky-50/45 hover:bg-sky-50/85 border-sky-100/70 hover:border-sky-200', 
-                     iconColor: 'text-sky-600', 
-                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(56,189,248,0.12)]' 
-                   },
-                   { 
-                     label: 'Turmas / Classes', 
-                     icon: GraduationCap, 
-                     path: '/classes', 
-                     bg: 'bg-emerald-50/45 hover:bg-emerald-50/85 border-emerald-100/70 hover:border-emerald-200', 
-                     iconColor: 'text-emerald-600', 
-                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(16,185,129,0.12)]' 
-                   },
-                   { 
-                     label: 'Cronograma Acadêmico', 
-                     icon: Activity, 
-                     path: '/calendar', 
-                     bg: 'bg-amber-50/45 hover:bg-amber-50/85 border-amber-100/70 hover:border-amber-200', 
-                     iconColor: 'text-amber-600', 
-                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(245,158,11,0.12)]' 
-                   },
-                   { 
-                     label: 'Ficha do Aluno', 
-                     icon: UserCircle, 
-                     path: '/student-ficha', 
-                     bg: 'bg-rose-50/45 hover:bg-rose-50/85 border-rose-100/70 hover:border-rose-200', 
-                     iconColor: 'text-rose-600', 
-                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(244,63,94,0.12)]' 
-                   },
-                   { 
-                     label: 'Contribuições', 
-                     icon: Wallet, 
-                     path: '/contributions', 
-                     bg: 'bg-violet-50/45 hover:bg-violet-50/85 border-violet-100/70 hover:border-violet-200', 
-                     iconColor: 'text-violet-600', 
-                     hoverShadow: 'hover:shadow-[0_6px_16px_rgba(139,92,246,0.12)]' 
-                   }
-                 ].map((item, i) => (
-                    <button 
-                      key={i}
-                      onClick={() => item.path !== '#' && navigate(item.path)}
-                      className={cn(
-                        "flex flex-col items-start gap-1.5 p-2.5 border rounded-lg transition-all duration-300 text-left group hover:-translate-y-0.5",
-                        item.bg,
-                        item.hoverShadow
-                      )}
-                    >
-                      <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100 transition-colors duration-300">
-                        <item.icon size={15} className={cn("transition-transform duration-300 group-hover:scale-110 shrink-0", item.iconColor)} />
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors tracking-tight leading-tight uppercase">
-                        {item.label}
-                      </span>
-                    </button>
-                 ))}
-              </div>
-              
-              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                 <div className="flex flex-col">
-                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Último Update</span>
-                    <span className="text-[10px] font-medium text-slate-600">{lastUpdated.toLocaleTimeString()}</span>
-                 </div>
-                 <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase tracking-widest border border-blue-100">
-                    Sincronizado
-                 </div>
-              </div>
-           </div>
-        </motion.div>
-      </div>
 
       {/* Students Modal */}
       {showStudentsModal && (
