@@ -91,8 +91,9 @@ export interface Class {
   id: string;
   code: string;
   name: string;
+  course?: string;
   room?: string;
-  status: 'Ativo' | 'Inativo';
+  status: 'Ativo' | 'Inativo' | 'Encerrada';
   period: 'Manhã' | 'Tarde' | 'Noite';
   days_of_week: string[];
   year?: string;
