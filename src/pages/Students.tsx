@@ -245,8 +245,28 @@ export function Students() {
     }
   };
 
+  const handleNew = useCallback(() => {
+    setSelectedStudent(null);
+    const nextReg = generateNextRegistrationNumber(students);
+    setFormData({
+      ...INITIAL_STUDENT_STATE,
+      name: '',
+      status: 'Ativo',
+      registration_number: nextReg,
+    });
+    setIsEditing(true);
+    setHoverShowList(false);
+  }, [students]);
+
   // Handle auto-selection from Dashboard deep links
   useEffect(() => {
+    const isNew = (location.state as any)?.action === 'new' || (location.state as any)?.isNew;
+    if (isNew) {
+      handleNew();
+      window.history.replaceState({}, document.title);
+      return;
+    }
+
     const studentId = (location.state as any)?.studentId;
     if (studentId && students.length > 0) {
       const student = students.find(s => s.id === studentId);
@@ -266,7 +286,7 @@ export function Students() {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [students, location.state]);
+  }, [students, location.state, handleNew]);
 
   // Auto-fill student start date and course based on selected class
   useEffect(() => {
@@ -439,19 +459,6 @@ export function Students() {
     setHoverShowList(false);
     fetchEnrollments(student.id);
   }, []);
-
-  const handleNew = () => {
-    setSelectedStudent(null);
-    const nextReg = generateNextRegistrationNumber(students);
-    setFormData({
-      ...INITIAL_STUDENT_STATE,
-      name: '',
-      status: 'Ativo',
-      registration_number: nextReg,
-    });
-    setIsEditing(true);
-    setHoverShowList(false);
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

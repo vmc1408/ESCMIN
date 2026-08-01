@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
+  UserPlus,
   GraduationCap, 
   BookOpen, 
   UserCheck, 
@@ -912,11 +913,20 @@ export function Dashboard() {
           {[
             { 
               label: 'Matricular', 
-              icon: Users, 
+              icon: UserPlus, 
               path: '/students', 
+              state: { action: 'new' },
               bg: 'bg-indigo-50/45 hover:bg-indigo-50/85 border-indigo-100/70 hover:border-indigo-200', 
               iconColor: 'text-indigo-600', 
               hoverShadow: 'hover:shadow-[0_6px_16px_rgba(99,102,241,0.12)]' 
+            },
+            { 
+              label: 'Ficha do Aluno', 
+              icon: UserCircle, 
+              path: '/student-ficha', 
+              bg: 'bg-rose-50/45 hover:bg-rose-50/85 border-rose-100/70 hover:border-rose-200', 
+              iconColor: 'text-rose-600', 
+              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(244,63,94,0.12)]' 
             },
             { 
               label: 'Gerar Impressos', 
@@ -935,20 +945,12 @@ export function Dashboard() {
               hoverShadow: 'hover:shadow-[0_6px_16px_rgba(16,185,129,0.12)]' 
             },
             { 
-              label: 'Cronograma Acadêmico', 
-              icon: Activity, 
+              label: 'Calendário', 
+              icon: Calendar, 
               path: '/calendar', 
               bg: 'bg-amber-50/45 hover:bg-amber-50/85 border-amber-100/70 hover:border-amber-200', 
               iconColor: 'text-amber-600', 
               hoverShadow: 'hover:shadow-[0_6px_16px_rgba(245,158,11,0.12)]' 
-            },
-            { 
-              label: 'Ficha do Aluno', 
-              icon: UserCircle, 
-              path: '/student-ficha', 
-              bg: 'bg-rose-50/45 hover:bg-rose-50/85 border-rose-100/70 hover:border-rose-200', 
-              iconColor: 'text-rose-600', 
-              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(244,63,94,0.12)]' 
             },
             { 
               label: 'Contribuições', 
@@ -961,7 +963,11 @@ export function Dashboard() {
           ].map((item, i) => (
             <button 
               key={i}
-              onClick={() => item.path !== '#' && navigate(item.path)}
+              onClick={() => {
+                if (item.path !== '#') {
+                  navigate(item.path, item.state ? { state: item.state } : undefined);
+                }
+              }}
               className={cn(
                 "flex flex-col items-start gap-1.5 p-3 border rounded-lg transition-all duration-300 text-left group hover:-translate-y-0.5 cursor-pointer w-full",
                 item.bg,
