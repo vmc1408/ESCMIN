@@ -10,6 +10,7 @@ import {
   RefreshCw, 
   Activity, 
   Eye, 
+  EyeOff,
   X,
   UserCircle,
   Wallet,
@@ -18,7 +19,9 @@ import {
   AlertTriangle,
   Printer,
   Calendar,
-  Repeat
+  Repeat,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const formatDateBR = (dateStr?: string) => {
@@ -366,6 +369,9 @@ export function Dashboard() {
             if (match && match[1]) {
               try {
                 const meta = JSON.parse(match[1]);
+                if (meta.start_year && (!normalized.start_year || String(normalized.start_year).trim() === '')) {
+                  (normalized as any).start_year = String(meta.start_year).trim();
+                }
                 if (meta.subject_id_sem1_h1 !== undefined) metaSem1H1 = meta.subject_id_sem1_h1;
                 if (meta.subject_id_sem1_h2 !== undefined) metaSem1H2 = meta.subject_id_sem1_h2;
                 if (meta.subject_id_sem2_h1 !== undefined) metaSem2H1 = meta.subject_id_sem2_h1;
@@ -423,9 +429,70 @@ export function Dashboard() {
   const [selectedClassLabel, setSelectedClassLabel] = useState("");
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [isUnallocatedContext, setIsUnallocatedContext] = useState(false);
+  const [showDisciplines, setShowDisciplines] = useState(true);
+
+  // Helper to extract exact academic base year for a class (Ano Letivo field)
+  const getClassAcademicYear = useCallback((c: any): string => {
+    if (c.unallocated) return 'S/T';
+
+    // 1. Primary source: start_year field (Campo 2 Ano Letivo in class form)
+    if (c.start_year && String(c.start_year).trim().length === 4) {
+      return String(c.start_year).trim();
+    }
+
+    // 2. Secondary source: observations metadata
+    if (c.observations) {
+      const match = c.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+      if (match && match[1]) {
+        try {
+          const meta = JSON.parse(match[1]);
+          if (meta.start_year && String(meta.start_year).trim().length === 4) {
+            return String(meta.start_year).trim();
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 3. Fallback: start_date or created_at
+    if (c.start_date && String(c.start_date).length >= 4) {
+      const yr = String(c.start_date).substring(0, 4);
+      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
+    }
+    if (c.created_at && String(c.created_at).length >= 4) {
+      const yr = String(c.created_at).substring(0, 4);
+      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
+    }
+
+    return '2026';
+  }, []);
+
+  // Helper to determine if a class matches the selected academic year
+  const isClassActiveInAcademicYear = useCallback((c: any, selectedYear: string): boolean => {
+    if (!selectedYear || selectedYear === 'Todos') return true;
+    if (c.unallocated) return false; // Do not show Sem Turma when filtering by a specific year
+    return getClassAcademicYear(c) === selectedYear;
+  }, [getClassAcademicYear]);
+
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('2026');
+
+  // Available academic years derived strictly from existing classes in database
+  const availableAcademicYears = useMemo(() => {
+    const yrSet = new Set<string>(['2026']);
+    classes.forEach(c => {
+      if (c.unallocated) return;
+      const yr = getClassAcademicYear(c);
+      if (yr && yr !== 'S/T' && !isNaN(Number(yr))) {
+        yrSet.add(yr);
+      }
+    });
+    return Array.from(yrSet).sort((a, b) => Number(b) - Number(a));
+  }, [classes, getClassAcademicYear]);
 
   const studentsByClass = useMemo(() => {
-    const activeClasses = classes.filter(c => c.status === 'Ativo');
+    const activeClasses = classes.filter(c => {
+      if (c.status !== 'Ativo') return false;
+      return isClassActiveInAcademicYear(c, selectedAcademicYear);
+    });
     const activeStudents = students.filter(s => s.status === 'Ativo' || !s.status);
     
     // Create base stats from active classes
@@ -454,7 +521,7 @@ export function Dashboard() {
     const unallocated = activeStudents.filter(s => !s.class_id || !activeClassIds.has(s.class_id));
     const unallocatedCount = unallocated.length;
 
-    if (unallocatedCount > 0) {
+    if (unallocatedCount > 0 && selectedAcademicYear === 'Todos') {
       classStats.push({
         id: 'unallocated',
         code: 'S/T',
@@ -468,8 +535,14 @@ export function Dashboard() {
     }
 
     // Helper to rank classes: 1º ano (1), 2º ano (2), 3º ano (3), 4º ano (4), Cursos Extras (5)
-    const getClassRank = (item: { name?: string; code?: string; unallocated?: boolean }) => {
+    const getClassRank = (item: { name?: string; code?: string; unallocated?: boolean; start_year?: string; year?: string }) => {
       if (item.unallocated) return 99;
+
+      const yearStr = (item.year || '').toLowerCase();
+      if (yearStr.includes('1º') || yearStr.includes('1°') || yearStr.includes('1 ano')) return 1;
+      if (yearStr.includes('2º') || yearStr.includes('2°') || yearStr.includes('2 ano')) return 2;
+      if (yearStr.includes('3º') || yearStr.includes('3°') || yearStr.includes('3 ano')) return 3;
+      if (yearStr.includes('4º') || yearStr.includes('4°') || yearStr.includes('4 ano')) return 4;
 
       const name = (item.name || '').toLowerCase();
       const code = (item.code || '').toLowerCase();
@@ -480,30 +553,14 @@ export function Dashboard() {
       if (name.includes('3º ano') || name.includes('3° ano') || name.includes('3 ano') || name.includes('3ºano') || name.includes('3°ano')) return 3;
       if (name.includes('4º ano') || name.includes('4° ano') || name.includes('4 ano') || name.includes('4ºano') || name.includes('4°ano')) return 4;
 
-      // Extract 4-digit year (e.g. 2026, 2025, 2024, 2023) or 2-digit code suffix
-      let yearNum = 0;
-      const match4 = name.match(/20\d\d/) || code.match(/20\d\d/);
-      if (match4) {
-        yearNum = parseInt(match4[0], 10);
-      } else {
-        const match2 = code.match(/(\d\d)$/);
-        if (match2) {
-          const yr = parseInt(match2[1], 10);
-          yearNum = yr < 100 ? 2000 + yr : yr;
-        }
-      }
-
       // Check if it's the core degree program (e.g. Teologia)
       const isCoreProgram = name.includes('teologia') || code.startsWith('teo');
 
       if (isCoreProgram) {
-        if (yearNum === 2026) return 1; // 1º Ano
-        if (yearNum === 2025) return 2; // 2º Ano
-        if (yearNum === 2024) return 3; // 3º Ano
-        if (yearNum === 2023) return 4; // 4º Ano
+        return 1;
       }
 
-      // Extra course / extension (e.g. Doutrina Social da Igreja 2026, DS-2026)
+      // Extra course / extension (e.g. Doutrina Social da Igreja)
       return 5;
     };
 
@@ -547,7 +604,7 @@ export function Dashboard() {
         textClass: scheme.text
       };
     });
-  }, [classes, students, stats.students.active]);
+  }, [classes, students, stats.students.active, selectedAcademicYear]);
 
   const [isDeactivating, setIsDeactivating] = useState(false);
 
@@ -1033,19 +1090,140 @@ export function Dashboard() {
         transition={{ delay: 0.2 }}
         className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white overflow-hidden">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <Activity size={16} />
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-800">Ocupação Acadêmica</h3>
-              <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Distribuição por Turma</p>
+              <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">
+                Turmas Ativas {selectedAcademicYear === 'Todos' ? '(Todos os Anos)' : `(${selectedAcademicYear})`}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[8px] font-bold uppercase tracking-widest border border-emerald-100">
-            <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
-            Tempo Real
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Toggle Visibilidade das Disciplinas */}
+            <button
+              type="button"
+              onClick={() => setShowDisciplines(!showDisciplines)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-2xs select-none active:scale-[0.98]",
+                showDisciplines
+                  ? "bg-blue-50 border-blue-200 text-blue-900 hover:bg-blue-100/80"
+                  : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200/80"
+              )}
+              title={showDisciplines ? "Ocultar Disciplinas nas Turmas" : "Exibir Disciplinas nas Turmas"}
+            >
+              {showDisciplines ? (
+                <>
+                  <EyeOff size={14} className="text-blue-700" />
+                  <span>Ocultar Matérias</span>
+                </>
+              ) : (
+                <>
+                  <Eye size={14} className="text-slate-600" />
+                  <span>Exibir Matérias</span>
+                </>
+              )}
+            </button>
+
+            {/* Seleção de Turma(s) por Ano */}
+            <div className="flex items-center bg-slate-100/80 p-1 rounded-lg border border-slate-200/90 shadow-2xs gap-1">
+              {(() => {
+                const currentYrIdx = availableAcademicYears.indexOf(selectedAcademicYear);
+                const isAtOldest = selectedAcademicYear !== 'Todos' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
+                const isAtNewest = selectedAcademicYear !== 'Todos' && currentYrIdx === 0;
+
+                return (
+                  <>
+                    {/* Botão Ano Anterior */}
+                    <button
+                      type="button"
+                      disabled={isAtOldest}
+                      onClick={() => {
+                        if (selectedAcademicYear === 'Todos') {
+                          setSelectedAcademicYear('2026');
+                        } else {
+                          const idx = availableAcademicYears.indexOf(selectedAcademicYear);
+                          if (idx !== -1 && idx < availableAcademicYears.length - 1) {
+                            setSelectedAcademicYear(availableAcademicYears[idx + 1]);
+                          }
+                        }
+                      }}
+                      className={cn(
+                        "p-1.5 rounded transition-all cursor-pointer shrink-0 select-none",
+                        isAtOldest
+                          ? "text-slate-300 cursor-not-allowed opacity-60"
+                          : "text-slate-600 hover:text-blue-900 hover:bg-white"
+                      )}
+                      title={
+                        isAtOldest
+                          ? `Não há turmas cadastradas em anos anteriores a ${selectedAcademicYear}`
+                          : "Voltar para o Ano Anterior com Turmas"
+                      }
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    <div className="flex items-center gap-1.5 px-1">
+                      <Calendar size={14} className="text-blue-800 shrink-0" />
+                      <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider whitespace-nowrap hidden sm:inline">
+                        Turma(s):
+                      </span>
+                      <select
+                        id="dash-academic-year"
+                        value={selectedAcademicYear}
+                        onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                        className="bg-white text-xs font-black text-blue-950 border border-slate-300 rounded px-2.5 py-1 outline-none cursor-pointer hover:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all uppercase tracking-wider"
+                      >
+                        {availableAcademicYears.map(yr => (
+                          <option key={yr} value={yr}>
+                            ANO {yr}
+                          </option>
+                        ))}
+                        <option value="Todos">TODOS OS ANOS</option>
+                      </select>
+                    </div>
+
+                    {/* Botão Próximo Ano */}
+                    <button
+                      type="button"
+                      disabled={isAtNewest}
+                      onClick={() => {
+                        if (selectedAcademicYear === 'Todos') {
+                          setSelectedAcademicYear('2026');
+                        } else {
+                          const idx = availableAcademicYears.indexOf(selectedAcademicYear);
+                          if (idx > 0) {
+                            setSelectedAcademicYear(availableAcademicYears[idx - 1]);
+                          }
+                        }
+                      }}
+                      className={cn(
+                        "p-1.5 rounded transition-all cursor-pointer shrink-0 select-none",
+                        isAtNewest
+                          ? "text-slate-300 cursor-not-allowed opacity-60"
+                          : "text-slate-600 hover:text-blue-900 hover:bg-white"
+                      )}
+                      title={
+                        isAtNewest
+                          ? `Não há turmas cadastradas em anos futuros a ${selectedAcademicYear}`
+                          : "Avançar para o Próximo Ano com Turmas"
+                      }
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-md text-[8.5px] font-black uppercase tracking-widest border border-emerald-200 shrink-0">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              Tempo Real
+            </div>
           </div>
         </div>
         
@@ -1152,7 +1330,7 @@ export function Dashboard() {
                       </div>
 
                       {/* Informações das Matérias Apenas do Semestre Ativo */}
-                      {!c.unallocated && (
+                      {!c.unallocated && showDisciplines && (
                         <div className="my-1.5 py-1 px-1.5 bg-slate-50/90 border border-slate-100/90 rounded text-[9.5px] leading-tight overflow-hidden">
                           <div className="flex items-start gap-1.5 min-w-0">
                             <span className={cn(
@@ -1218,9 +1396,21 @@ export function Dashboard() {
                 );
               })
             ) : (
-               <div className="col-span-full py-10 flex flex-col items-center gap-3 text-slate-400">
-                  <RefreshCw size={24} className="animate-spin opacity-30" />
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Consultando Banco de Dados...</span>
+               <div className="col-span-full py-10 flex flex-col items-center justify-center gap-3 text-slate-500">
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider text-center">
+                    {selectedAcademicYear === 'Todos' 
+                      ? 'Nenhuma turma ativa encontrada.' 
+                      : `Nenhuma turma ativa para o ano de ${selectedAcademicYear}.`}
+                  </p>
+                  {selectedAcademicYear !== 'Todos' && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAcademicYear('Todos')}
+                      className="px-3 py-1.5 bg-blue-900 text-white text-[10px] font-extrabold uppercase tracking-widest hover:bg-blue-950 transition-colors cursor-pointer rounded"
+                    >
+                      Exibir Todos os Anos
+                    </button>
+                  )}
                </div>
             )}
           </div>

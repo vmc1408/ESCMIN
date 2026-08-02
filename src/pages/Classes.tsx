@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Printer,
   Filter,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   BookOpen,
@@ -68,13 +69,13 @@ interface Subject {
 }
 
 const DAYS = [
-  { label: 'Segunda', value: 'Segunda' },
-  { label: 'Terça', value: 'Terça' },
-  { label: 'Quarta', value: 'Quarta' },
-  { label: 'Quinta', value: 'Quinta' },
-  { label: 'Sexta', value: 'Sexta' },
-  { label: 'Sábado', value: 'Sábado' },
-  { label: 'Domingo', value: 'Domingo' },
+  { label: 'Segunda', value: 'Segunda', dotColor: 'bg-blue-500' },
+  { label: 'Terça', value: 'Terça', dotColor: 'bg-purple-500' },
+  { label: 'Quarta', value: 'Quarta', dotColor: 'bg-emerald-500' },
+  { label: 'Quinta', value: 'Quinta', dotColor: 'bg-amber-500' },
+  { label: 'Sexta', value: 'Sexta', dotColor: 'bg-rose-500' },
+  { label: 'Sábado', value: 'Sábado', dotColor: 'bg-indigo-500' },
+  { label: 'Domingo', value: 'Domingo', dotColor: 'bg-cyan-500' },
 ];
 
 const formatToISODate = (dateStr: string | undefined): string => {
@@ -189,7 +190,62 @@ export function Classes() {
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>('Todos');
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('Todos');
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('Todos');
+  const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('2026');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+
+  // Helper to extract exact academic base year for a class (Ano Letivo field)
+  const getClassAcademicYear = React.useCallback((c: any): string => {
+    if (c.unallocated) return 'S/T';
+
+    // 1. Primary source: start_year field (Campo 2 Ano Letivo in class form)
+    if (c.start_year && String(c.start_year).trim().length === 4) {
+      return String(c.start_year).trim();
+    }
+
+    // 2. Secondary source: observations metadata
+    if (c.observations) {
+      const match = c.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+      if (match && match[1]) {
+        try {
+          const meta = JSON.parse(match[1]);
+          if (meta.start_year && String(meta.start_year).trim().length === 4) {
+            return String(meta.start_year).trim();
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 3. Fallback: start_date or created_at
+    if (c.start_date && String(c.start_date).length >= 4) {
+      const yr = String(c.start_date).substring(0, 4);
+      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
+    }
+    if (c.created_at && String(c.created_at).length >= 4) {
+      const yr = String(c.created_at).substring(0, 4);
+      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
+    }
+
+    return '2026';
+  }, []);
+
+  // Helper to determine if a class matches the selected academic year
+  const isClassActiveInAcademicYear = React.useCallback((c: any, selectedYear: string): boolean => {
+    if (!selectedYear || selectedYear === 'Todos') return true;
+    if (c.unallocated) return false;
+    return getClassAcademicYear(c) === selectedYear;
+  }, [getClassAcademicYear]);
+
+  const availableAcademicYears = React.useMemo(() => {
+    const yrSet = new Set<string>(['2026']);
+    classes.forEach(c => {
+      if (c.unallocated) return;
+      const yr = getClassAcademicYear(c);
+      if (yr && yr !== 'S/T' && !isNaN(Number(yr))) {
+        yrSet.add(yr);
+      }
+    });
+    return Array.from(yrSet).sort((a, b) => Number(b) - Number(a));
+  }, [classes, getClassAcademicYear]);
 
   // Import / Promotion Modal State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -311,14 +367,21 @@ export function Classes() {
     'Teologia',
     'Latim',
     'Doutrina Social da Igreja',
-    'História dos Santos Negros'
+    'História dos Santos Negros',
+    'Outros'
   ], []);
 
-  const generateAutoClassName = React.useCallback((course: string, startYear: string | number, academicYear: string) => {
-    if (!course) return '';
+  const isNameLocked = React.useMemo(() => {
+    const c = (formData.course || '').trim().toLowerCase();
+    return !c.includes('outros');
+  }, [formData.course]);
 
-    const yrStr = String(startYear || new Date().getFullYear()).trim();
-    const yr2Digits = yrStr.length >= 2 ? yrStr.slice(-2) : yrStr;
+  const generateAutoClassName = React.useCallback((course: string, startYear: string | number, academicYear: string) => {
+    if (!course || !startYear) return '';
+
+    const yrStr = String(startYear).trim();
+    if (!yrStr || yrStr.length < 2) return '';
+    const yr2Digits = yrStr.slice(-2);
 
     const STOP_WORDS = new Set([
       'de', 'da', 'do', 'dos', 'das', 'na', 'no', 'nas', 'nos',
@@ -334,6 +397,10 @@ export function Classes() {
       prefix = 'DSI';
     } else if (lower.includes('santos') && lower.includes('negros')) {
       prefix = 'HSN';
+    } else if (lower.includes('teologia')) {
+      prefix = 'TEO';
+    } else if (lower.includes('latim')) {
+      prefix = 'LAT';
     } else {
       const words = cleanCourse
         .split(/\s+/)
@@ -354,8 +421,8 @@ export function Classes() {
       }
     }
 
-    const cleanAcademicYear = academicYear ? academicYear.trim() : '1º Ano';
-    return `${prefix}-${yr2Digits} ${cleanAcademicYear}`.toUpperCase();
+    const cleanAcademicYear = academicYear ? academicYear.trim() : '';
+    return cleanAcademicYear ? `${prefix}-${yr2Digits} ${cleanAcademicYear}`.toUpperCase() : `${prefix}-${yr2Digits}`.toUpperCase();
   }, []);
 
   const courseSuggestions = React.useMemo(() => {
@@ -367,25 +434,66 @@ export function Classes() {
     return Array.from(set);
   }, [classes, PREDEFINED_COURSES]);
 
-  const autoFoundSubjects = React.useMemo(() => {
-    if (!formData.year) return [];
-    const yearMatched = subjects.filter(s => {
-      if (formData.year === 'Curso Extra') return s.year === 'Curso Extra' || !s.year;
-      return s.year === formData.year;
+  const getSubjectsForCourseAndYear = React.useCallback((allSubjects: Subject[], courseName: string, yearStr: string) => {
+    if (!yearStr) return [];
+    const yearMatched = allSubjects.filter(s => {
+      if (yearStr === 'Curso Extra') return s.year === 'Curso Extra' || !s.year;
+      return s.year === yearStr;
     });
 
-    if (formData.course && formData.course !== 'Outros') {
-      const courseKeyword = formData.course.toLowerCase().split(' ')[0];
-      const courseMatched = yearMatched.filter(s => {
-        const sName = (s.name || '').toLowerCase();
-        const sProgram = (s.program_content || '').toLowerCase();
-        return sName.includes(courseKeyword) || sProgram.includes(courseKeyword);
-      });
-      if (courseMatched.length > 0) return courseMatched;
-    }
+    if (!courseName) return [];
 
-    return yearMatched;
-  }, [subjects, formData.year, formData.course]);
+    const lowerCourse = courseName.toLowerCase().trim();
+    if (lowerCourse.includes('outros')) return yearMatched;
+
+    const STOP_WORDS = new Set([
+      'de', 'da', 'do', 'dos', 'das', 'na', 'no', 'nas', 'nos',
+      'para', 'com', 'em', 'e', 'a', 'o', 'os', 'as', 'por'
+    ]);
+
+    return yearMatched.filter(s => {
+      const sCourse = ((s as any).course || '').toLowerCase();
+      const sName = (s.name || '').toLowerCase();
+      const sProgram = (s.program_content || '').toLowerCase();
+
+      if (sCourse && sCourse.includes(lowerCourse)) return true;
+
+      if (lowerCourse.includes('teologia')) {
+        if (sCourse && !sCourse.includes('teologia')) return false;
+        const isLatim = sName.includes('latim');
+        const isDsi = sName.includes('doutrina') || sName.includes('dsi');
+        const isHsn = sName.includes('santos') || sName.includes('negros') || sName.includes('hsn');
+        return !isLatim && !isDsi && !isHsn;
+      }
+
+      if (lowerCourse.includes('latim')) {
+        return sName.includes('latim') || sProgram.includes('latim') || sCourse.includes('latim');
+      }
+
+      if (lowerCourse.includes('doutrina')) {
+        return sName.includes('doutrina') || sName.includes('dsi') || sProgram.includes('doutrina') || sCourse.includes('doutrina');
+      }
+
+      if (lowerCourse.includes('santos') || lowerCourse.includes('negros')) {
+        return sName.includes('santos') || sName.includes('negros') || sName.includes('hsn') || sProgram.includes('santos') || sCourse.includes('santos');
+      }
+
+      const firstWord = lowerCourse
+        .split(/\s+/)
+        .filter(w => !STOP_WORDS.has(w))[0];
+
+      if (firstWord && firstWord.length >= 3) {
+        return sName.includes(firstWord) || sProgram.includes(firstWord) || sCourse.includes(firstWord);
+      }
+
+      return false;
+    });
+  }, []);
+
+  const autoFoundSubjects = React.useMemo(() => {
+    if (!formData.year || !formData.course) return [];
+    return getSubjectsForCourseAndYear(subjects, formData.course, formData.year);
+  }, [subjects, formData.year, formData.course, getSubjectsForCourseAndYear]);
 
   const sem1AutoSubs = React.useMemo(() => {
     const s1h1 = subjects.find(s => s.id === sem1H1SubjectId);
@@ -406,21 +514,7 @@ export function Classes() {
     newStartYear: string | number,
     newAcademicYear: string
   ) => {
-    const yearSubs = subjects.filter(s => {
-      if (newAcademicYear === 'Curso Extra') return s.year === 'Curso Extra' || !s.year;
-      return s.year === newAcademicYear;
-    });
-
-    let matched = yearSubs;
-    if (newCourse && newCourse !== 'Outros') {
-      const courseKeyword = newCourse.toLowerCase().split(' ')[0];
-      const courseSpecific = yearSubs.filter(s => {
-        const sName = (s.name || '').toLowerCase();
-        const sProgram = (s.program_content || '').toLowerCase();
-        return sName.includes(courseKeyword) || sProgram.includes(courseKeyword);
-      });
-      if (courseSpecific.length > 0) matched = courseSpecific;
-    }
+    const matched = getSubjectsForCourseAndYear(subjects, newCourse, newAcademicYear);
 
     const sem1Subs = matched.filter(s => (s.semester || '').includes('1'));
     const sem2Subs = matched.filter(s => (s.semester || '').includes('2'));
@@ -447,10 +541,10 @@ export function Classes() {
       subject_id_sem2: s2h1 || s2h2 || '',
       subject_ids: cleanSubjectIds
     }));
-  }, [subjects, generateAutoClassName]);
+  }, [subjects, generateAutoClassName, getSubjectsForCourseAndYear]);
 
   const handleSelectYear = React.useCallback((newYear: string) => {
-    const currentCourse = formData.course || 'Teologia';
+    const currentCourse = formData.course || '';
     const currentStartYear = formData.start_year || new Date().getFullYear();
     handleSelectCourseStartYearAndAcademicYear(currentCourse, currentStartYear, newYear);
   }, [formData.course, formData.start_year, handleSelectCourseStartYearAndAcademicYear]);
@@ -578,6 +672,9 @@ export function Classes() {
               const meta = JSON.parse(match[1]);
               if (!normalized.year) normalized.year = meta.year;
               if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
+              if (meta.start_year && (!normalized.start_year || String(normalized.start_year).trim() === '')) {
+                (normalized as any).start_year = String(meta.start_year).trim();
+              }
               if (meta.subject_id_sem1_h1 !== undefined) metaSem1H1 = meta.subject_id_sem1_h1;
               if (meta.subject_id_sem1_h2 !== undefined) metaSem1H2 = meta.subject_id_sem1_h2;
               if (meta.subject_id_sem2_h1 !== undefined) metaSem2H1 = meta.subject_id_sem2_h1;
@@ -846,43 +943,24 @@ export function Classes() {
     }, 0);
     const nextCode = String(maxCode + 1).padStart(3, '0');
 
-    const defaultCourse = 'Teologia';
-    const defaultStartYear = String(new Date().getFullYear());
-    const defaultYear = '1º Ano';
-    const autoName = generateAutoClassName(defaultCourse, defaultStartYear, defaultYear);
-
-    const year1Subs = subjects.filter(s => {
-      if (defaultYear === 'Curso Extra') return s.year === 'Curso Extra' || !s.year;
-      return s.year === defaultYear;
-    });
-
-    const sem1Subs = year1Subs.filter(s => (s.semester || '').includes('1'));
-    const sem2Subs = year1Subs.filter(s => (s.semester || '').includes('2'));
-
-    const s1h1 = sem1Subs[0]?.id || '';
-    const s1h2 = sem1Subs[1]?.id || '';
-    const s2h1 = sem2Subs[0]?.id || '';
-    const s2h2 = sem2Subs[1]?.id || '';
-    const cleanSubjectIds = Array.from(new Set([s1h1, s1h2, s2h1, s2h2])).filter(Boolean);
-
     setFormData({
-      course: defaultCourse,
-      start_year: defaultStartYear,
-      name: autoName,
+      course: '',
+      start_year: '',
+      name: '',
       code: nextCode,
       status: 'Ativo',
-      days_of_week: ['Segunda', 'Quarta'],
-      period: 'Noite',
-      year: defaultYear,
-      start_date: `${defaultStartYear}-02-01`,
+      days_of_week: [],
+      period: '',
+      year: '',
+      start_date: '',
       semester: '1º Semestre',
-      subject_id_sem1_h1: s1h1,
-      subject_id_sem1_h2: s1h2,
-      subject_id_sem2_h1: s2h1,
-      subject_id_sem2_h2: s2h2,
-      subject_id_sem1: s1h1 || s1h2,
-      subject_id_sem2: s2h1 || s2h2,
-      subject_ids: cleanSubjectIds,
+      subject_id_sem1_h1: '',
+      subject_id_sem1_h2: '',
+      subject_id_sem2_h1: '',
+      subject_id_sem2_h2: '',
+      subject_id_sem1: '',
+      subject_id_sem2: '',
+      subject_ids: [],
       is_special: false
     });
     setIsEditing(true);
@@ -900,6 +978,28 @@ export function Classes() {
   };
 
   const handleSave = async () => {
+    // Validate Mandatory Fields 1, 2, and 3
+    if (!formData.course) {
+      alert('Atenção: O Campo 1 (Curso Escolhido) é obrigatório!');
+      return;
+    }
+
+    const startYrNum = parseInt(String(formData.start_year || ''), 10);
+    if (!formData.start_year || isNaN(startYrNum) || startYrNum < 1999 || startYrNum > 2100) {
+      alert('Atenção: O Campo 2 (Ano Letivo) é obrigatório e deve conter um ano válido entre 1999 e 2100!');
+      return;
+    }
+
+    if (!formData.year) {
+      alert('Atenção: O Campo 3 (Ano Acadêmico) é obrigatório!');
+      return;
+    }
+
+    if (!formData.name) {
+      alert('Atenção: O Nome / Identificador da Turma é obrigatório!');
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -928,6 +1028,7 @@ export function Classes() {
       // before saving. This ensures data persistence even if Supabase columns are missing.
       const metadata: any = {};
       if (formData.year) metadata.year = formData.year;
+      if (formData.start_year) metadata.start_year = formData.start_year;
       if (formData.semester) metadata.semester = formData.semester;
       metadata.subject_id_sem1_h1 = s1h1 || '';
       metadata.subject_id_sem1_h2 = s1h2 || '';
@@ -1267,7 +1368,9 @@ export function Classes() {
         return true;
       })();
 
-      return matchesSearch && matchesStatus && matchesYear && matchesSemester && matchesPeriod;
+      const matchesAcademicYear = isClassActiveInAcademicYear(c, selectedAcademicYearFilter);
+
+      return matchesSearch && matchesStatus && matchesYear && matchesSemester && matchesPeriod && matchesAcademicYear;
     });
 
     return [...result].sort((a, b) => {
@@ -1282,9 +1385,9 @@ export function Classes() {
       if (sortBy === 'period') return a.period.localeCompare(b.period);
       return a.name.localeCompare(b.name);
     });
-  }, [classes, subjects, searchTerm, statusFilter, selectedYearFilter, selectedSemesterFilter, selectedPeriodFilter, sortBy]);
+  }, [classes, subjects, searchTerm, statusFilter, selectedYearFilter, selectedSemesterFilter, selectedPeriodFilter, selectedAcademicYearFilter, sortBy, isClassActiveInAcademicYear]);
 
-  const hasActiveFilters = searchTerm !== '' || selectedYearFilter !== 'Todos' || selectedSemesterFilter !== 'Todos' || statusFilter !== 'Todos' || selectedPeriodFilter !== 'Todos';
+  const hasActiveFilters = searchTerm !== '' || selectedYearFilter !== 'Todos' || selectedSemesterFilter !== 'Todos' || statusFilter !== 'Todos' || selectedPeriodFilter !== 'Todos' || selectedAcademicYearFilter !== 'Todos';
 
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -1292,6 +1395,7 @@ export function Classes() {
     setSelectedSemesterFilter('Todos');
     setStatusFilter('Todos');
     setSelectedPeriodFilter('Todos');
+    setSelectedAcademicYearFilter('Todos');
   };
 
   const actualListCollapsed = selectedClass !== null || isEditing;
@@ -1352,6 +1456,97 @@ export function Classes() {
                     <X size={14} />
                   </button>
                 )}
+              </div>
+
+              {/* Academic Year Filter Widget with Steppers */}
+              <div className="space-y-1.5 bg-slate-50 p-2 border border-slate-200/80 rounded">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    <Calendar size={13} className="text-blue-800" /> Turma(s):
+                  </label>
+                </div>
+
+                <div className="flex items-center bg-white p-0.5 border border-slate-300 rounded gap-1 shadow-2xs">
+                  {(() => {
+                    const currentYrIdx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
+                    const isAtOldest = selectedAcademicYearFilter !== 'Todos' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
+                    const isAtNewest = selectedAcademicYearFilter !== 'Todos' && currentYrIdx === 0;
+
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          disabled={isAtOldest}
+                          onClick={() => {
+                            if (selectedAcademicYearFilter === 'Todos') {
+                              setSelectedAcademicYearFilter('2026');
+                            } else {
+                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
+                              if (idx !== -1 && idx < availableAcademicYears.length - 1) {
+                                setSelectedAcademicYearFilter(availableAcademicYears[idx + 1]);
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
+                            isAtOldest
+                              ? "text-slate-300 cursor-not-allowed opacity-60"
+                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-100"
+                          )}
+                          title={
+                            isAtOldest
+                              ? `Não há turmas cadastradas em anos anteriores a ${selectedAcademicYearFilter}`
+                              : "Voltar para o Ano Anterior com Turmas"
+                          }
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+
+                        <select
+                          id="classes-academic-year-select"
+                          value={selectedAcademicYearFilter}
+                          onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
+                          className="flex-1 bg-transparent text-xs font-black text-blue-950 outline-none cursor-pointer hover:text-blue-700 transition-all uppercase tracking-wider py-1"
+                        >
+                          {availableAcademicYears.map(yr => (
+                            <option key={yr} value={yr}>
+                              ANO {yr}
+                            </option>
+                          ))}
+                          <option value="Todos">TODOS OS ANOS</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          disabled={isAtNewest}
+                          onClick={() => {
+                            if (selectedAcademicYearFilter === 'Todos') {
+                              setSelectedAcademicYearFilter('2026');
+                            } else {
+                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
+                              if (idx > 0) {
+                                setSelectedAcademicYearFilter(availableAcademicYears[idx - 1]);
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
+                            isAtNewest
+                              ? "text-slate-300 cursor-not-allowed opacity-60"
+                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-100"
+                          )}
+                          title={
+                            isAtNewest
+                              ? `Não há turmas cadastradas em anos futuros a ${selectedAcademicYearFilter}`
+                              : "Avançar para o Próximo Ano com Turmas"
+                          }
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* Dynamic Select Menu for Módulo/Ano and Semestre */}
@@ -1723,197 +1918,284 @@ export function Classes() {
                   
                   <div className="grid grid-cols-12 gap-4 md:gap-8">
                     <div className="col-span-12 space-y-6">
-                      {/* Step 1 & Step 2: Course & Start Year Selection */}
-                      <div className="grid grid-cols-12 gap-4 md:gap-8 bg-blue-50/30 p-5 border border-blue-100/80">
-                        {/* Step 1: Course */}
-                        <div className="col-span-12 md:col-span-6 space-y-2">
-                          <div className="flex items-center justify-between ml-0.5">
-                            <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-2">
-                              <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">1</span>
-                              Curso Escolhido (Ficha de Inscrição)
-                            </label>
-                            <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider">
-                              1º Passo
-                            </span>
+                      {/* Step 1, Step 2 & Turno: Course, Start Year & Shift Selection */}
+                      <div className="bg-blue-50/30 p-5 border border-blue-100/80 space-y-4">
+                        <div className="flex flex-wrap items-end gap-3 md:gap-5">
+                          {/* Code / ID (Auto) */}
+                          <div className="w-full sm:w-[90px] space-y-1.5 shrink-0">
+                            <div className="flex items-center justify-between ml-0.5">
+                              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest">
+                                CÓD.
+                              </label>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                AUTO
+                              </span>
+                            </div>
+                            <input 
+                              type="text"
+                              readOnly
+                              disabled
+                              value={formData.code || ''}
+                              placeholder="001"
+                              className="w-full px-3 py-2.5 bg-slate-100/90 border border-slate-300 text-xs font-mono font-black text-slate-600 text-center cursor-not-allowed outline-none uppercase"
+                            />
                           </div>
-                          <select
-                            disabled={!isEditing}
-                            value={formData.course || 'Teologia'}
-                            onChange={(e) => handleSelectCourseStartYearAndAcademicYear(e.target.value, formData.start_year || new Date().getFullYear(), formData.year || '1º Ano')}
-                            className="w-full px-4 py-3 bg-white border border-slate-300 text-sm font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase"
-                          >
-                            {PREDEFINED_COURSES.map(courseName => (
-                              <option key={courseName} value={courseName}>{courseName}</option>
-                            ))}
-                            <option value="Outros">Outros / Personalizado</option>
-                          </select>
+
+                          {/* Step 1: Course */}
+                          <div className="flex-1 min-w-[200px] max-w-sm space-y-1.5">
+                            <div className="flex items-center justify-between ml-0.5">
+                              <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
+                                <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">1</span>
+                                Curso Escolhido <span className="text-rose-600 font-black">*</span>
+                              </label>
+                              <span className="text-[9px] font-extrabold text-blue-700 uppercase tracking-wider">
+                                OBRIGATÓRIO
+                              </span>
+                            </div>
+                            <select
+                              disabled={!isEditing}
+                              value={formData.course || ''}
+                              onChange={(e) => handleSelectCourseStartYearAndAcademicYear(e.target.value, formData.start_year || '', formData.year || '')}
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase"
+                            >
+                              <option value="">-- SELECIONE O CURSO --</option>
+                              {PREDEFINED_COURSES.map(courseName => (
+                                <option key={courseName} value={courseName}>
+                                  {courseName === 'Outros' ? 'OUTROS / PERSONALIZADO' : courseName.toUpperCase()}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Step 2: Start Year / Reference Academic Year */}
+                          <div className="w-full sm:w-[150px] space-y-1.5 shrink-0 relative">
+                            <div className="flex items-center justify-between ml-0.5">
+                              <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
+                                <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">2</span>
+                                Ano Letivo <span className="text-rose-600 font-black">*</span>
+                              </label>
+                            </div>
+                            <input
+                              type="text"
+                              disabled={!isEditing}
+                              maxLength={4}
+                              placeholder="EX: 2026"
+                              value={formData.start_year || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                handleSelectCourseStartYearAndAcademicYear(formData.course || '', val, formData.year || '');
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const yrNum = parseInt(formData.start_year || '', 10);
+                                  if (formData.start_year && (isNaN(yrNum) || yrNum < 1999 || yrNum > 2100)) {
+                                    alert('Ano letivo inválido! O ano deve estar entre 1999 e 2100.');
+                                    return;
+                                  }
+                                  document.getElementById('period-select')?.focus();
+                                }
+                              }}
+                              className={cn(
+                                "w-full px-3.5 py-2.5 bg-white border text-xs font-black outline-none transition-all font-mono placeholder:text-slate-300 uppercase",
+                                formData.start_year && formData.start_year.length === 4 && (parseInt(formData.start_year, 10) < 1999 || parseInt(formData.start_year, 10) > 2100)
+                                  ? "border-rose-500 text-rose-700 focus:ring-4 focus:ring-rose-500/10"
+                                  : "border-slate-300 text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600"
+                              )}
+                            />
+                            {formData.start_year && formData.start_year.length === 4 && (parseInt(formData.start_year, 10) < 1999 || parseInt(formData.start_year, 10) > 2100) && (
+                              <div className="absolute top-full left-0 mt-1 whitespace-nowrap z-20 bg-rose-600 text-white border border-rose-700 px-2 py-1 shadow-md text-[9px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                                <span>⚠️</span> Ano inválido! (1999-2100)
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Turno de Aula */}
+                          <div className="w-full sm:w-[180px] space-y-1.5 shrink-0">
+                            <div className="flex items-center justify-between ml-0.5">
+                              <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
+                                <Clock size={13} className="text-blue-900 shrink-0" />
+                                Turno de Aula
+                              </label>
+                              <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider">
+                                PERÍODO
+                              </span>
+                            </div>
+                            <select
+                              id="period-select"
+                              disabled={!isEditing}
+                              value={formData.period || ''}
+                              onChange={(e) => setFormData({ ...formData, period: e.target.value as any })}
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase"
+                            >
+                              <option value="">-- SELECIONE TURNO --</option>
+                              <option value="Noite">NOITE</option>
+                              <option value="Manhã">MANHÃ</option>
+                              <option value="Tarde">TARDE</option>
+                              <option value="Sábado">SÁBADO</option>
+                              <option value="Integral">INTEGRAL</option>
+                            </select>
+                          </div>
                         </div>
 
-                        {/* Step 2: Start Year */}
-                        <div className="col-span-12 md:col-span-6 space-y-2">
-                          <div className="flex items-center justify-between ml-0.5">
-                            <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-2">
-                              <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">2</span>
-                              Ano de Início da Turma / Ingresso
+                        {/* Dias de Aula na Semana */}
+                        <div className="w-full space-y-2 pt-3 border-t border-blue-100/60">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 ml-0.5">
+                            <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
+                              <Calendar size={13} className="text-blue-900 shrink-0" />
+                              Dias de Aula na Semana
                             </label>
                             <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider">
-                              2º Passo
+                              {formData.days_of_week && formData.days_of_week.length > 0 
+                                ? `${formData.days_of_week.length} DIA(S): ${formData.days_of_week.join(', ')}`
+                                : 'NENHUM DIA SELECIONADO'}
                             </span>
                           </div>
-                          <select
-                            disabled={!isEditing}
-                            value={formData.start_year || String(new Date().getFullYear())}
-                            onChange={(e) => handleSelectCourseStartYearAndAcademicYear(formData.course || 'Teologia', e.target.value, formData.year || '1º Ano')}
-                            className="w-full px-4 py-3 bg-white border border-slate-300 text-sm font-extrabold text-slate-800 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase"
-                          >
-                            {[2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032].map(yr => (
-                              <option key={yr} value={String(yr)}>ANO LETIVO {yr}</option>
-                            ))}
-                          </select>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {DAYS.map((day) => {
+                              const isSelected = formData.days_of_week?.includes(day.value);
+                              return (
+                                <button
+                                  key={day.value}
+                                  type="button"
+                                  disabled={!isEditing}
+                                  onClick={() => toggleDay(day.value)}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-none text-[10px] font-extrabold uppercase tracking-wider transition-all border flex items-center gap-1.5 cursor-pointer group",
+                                    isSelected
+                                      ? "bg-blue-900 border-blue-900 text-white shadow-xs"
+                                      : "bg-white border-slate-300 text-slate-700 hover:border-slate-400 disabled:opacity-50"
+                                  )}
+                                >
+                                  <div className={cn(
+                                    "w-2.5 h-2.5 rounded-xs transition-all shrink-0",
+                                    day.dotColor,
+                                    isSelected ? "ring-2 ring-white/60 scale-110" : "opacity-75 group-hover:opacity-100"
+                                  )} />
+                                  {day.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
 
                         {/* Step 3: Academic Year */}
-                        <div className="col-span-12 space-y-2 pt-2 border-t border-blue-100/60">
+                        <div className="w-full space-y-2 pt-3 border-t border-blue-100/60">
                           <div className="flex items-center justify-between ml-0.5">
-                            <label className="text-[11px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                              <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">3</span>
-                              Ano Acadêmico (Grade Curricular)
+                            <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-2">
+                              <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-xs">3</span>
+                              Ano Acadêmico <span className="text-rose-600 font-black">*</span>
                             </label>
-                            <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider">
-                              3º Passo (Sincroniza disciplinas)
+                            <span className="text-[9px] font-extrabold text-blue-800 bg-blue-100/80 px-2 py-0.5 border border-blue-200 uppercase tracking-wider">
+                              {formData.year ? `SELECIONADO: ${formData.year}` : 'CLIQUE EM UMA OPÇÃO ABAIXO'}
                             </span>
                           </div>
-                          <div className="flex bg-white p-1 gap-1.5 border border-slate-300">
-                            {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => (
-                              <button
-                                key={year}
-                                type="button"
-                                disabled={!isEditing}
-                                onClick={() => handleSelectCourseStartYearAndAcademicYear(formData.course || 'Teologia', formData.start_year || new Date().getFullYear(), year)}
-                                className={cn(
-                                  "flex-1 py-3 text-[10px] font-extrabold uppercase tracking-widest transition-all duration-200",
-                                  formData.year === year 
-                                    ? "bg-blue-900 text-white shadow-sm" 
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30"
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-100/80 p-2 border border-slate-300/80">
+                            {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((year) => {
+                              const isSelected = formData.year === year;
+                              return (
+                                <button
+                                  key={year}
+                                  type="button"
+                                  disabled={!isEditing}
+                                  onClick={() => handleSelectCourseStartYearAndAcademicYear(formData.course || '', formData.start_year || '', year)}
+                                  className={cn(
+                                    "group relative flex items-center justify-center gap-2 py-3 px-3.5 text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 cursor-pointer outline-none select-none active:scale-[0.98]",
+                                    isSelected 
+                                      ? "bg-gradient-to-r from-blue-900 via-blue-950 to-indigo-950 text-white border-blue-900 shadow-md ring-2 ring-blue-500/30 z-10" 
+                                      : "bg-white text-slate-700 border-slate-300 hover:border-blue-500 hover:bg-blue-50/70 hover:text-blue-900 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                                  )}
+                                >
+                                  {isSelected ? (
+                                    <CheckCircle2 size={15} className="text-amber-400 shrink-0 animate-in zoom-in-75 duration-150" />
+                                  ) : (
+                                    <span className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 group-hover:border-blue-500 group-hover:bg-blue-100/50 shrink-0 transition-colors" />
+                                  )}
+                                  <span className="truncate">{year}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Step 4, Sala, & Alunos Ativos in the same row */}
+                        <div className="flex flex-wrap md:flex-nowrap items-start gap-4 pt-2">
+                          {/* Field 1: Nome / Identificador da Turma */}
+                          <div className="flex-[2] min-w-[220px] space-y-1.5">
+                            <div className="flex items-center justify-between ml-0.5">
+                              <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
+                                {isNameLocked ? (
+                                  <Lock size={13} className="text-slate-500" />
+                                ) : (
+                                  <Unlock size={13} className="text-emerald-600" />
                                 )}
-                              >
-                                {year}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Step 4: Auto-Generated Name */}
-                        <div className="col-span-12 md:col-span-8 space-y-2 pt-2">
-                          <div className="flex items-center justify-between ml-0.5">
-                            <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest">
-                              Nome / Identificador Automático da Turma
-                            </label>
-                            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 uppercase tracking-wider border border-emerald-200">
-                              Gerado Automaticamente
-                            </span>
-                          </div>
-                          <input 
-                            type="text"
-                            disabled={!isEditing}
-                            placeholder="EX: TEO-27 1º ANO, DSI-27 1º ANO..."
-                            value={formData.name || ''}
-                            onChange={(e) => setFormData({...formData, name: e.target.value})}
-                            onKeyDown={handleKeyDown}
-                            className="w-full px-4 py-3 bg-white border border-slate-300 text-sm font-black text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase placeholder:text-slate-300"
-                            tabIndex={1}
-                          />
-                          <p className="text-[9.5px] font-medium text-slate-500 italic ml-0.5">
-                            Padrão automático: Sigla/Iniciais do curso + 2 dígitos do ano de início + Ano Acadêmico (Ex: TEO-27 1º ANO, LAT-27 1º ANO, DSI-27 1º ANO, HSN-27 1º ANO).
-                          </p>
-                        </div>
-
-                        <div className="col-span-12 sm:col-span-4 space-y-2 pt-2">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-0.5">Código Sequencial da Turma</label>
-                          <input 
-                            type="text"
-                            readOnly
-                            disabled
-                            value={formData.code || ''}
-                            className="w-full px-4 py-3 bg-slate-100/90 border border-slate-200 text-sm font-mono font-bold text-slate-600 cursor-not-allowed outline-none"
-                          />
-                        </div>
-
-                        <div className="col-span-12 sm:col-span-8 space-y-2">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-0.5">Sala / Local das Aulas</label>
-                          <input 
-                            type="text"
-                            disabled={!isEditing}
-                            placeholder="EX: SALA 01 / AUDITÓRIO"
-                            value={formData.room || ''}
-                            onChange={(e) => setFormData({...formData, room: e.target.value})}
-                            onKeyDown={handleKeyDown}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-500/10 outline-none transition-all"
-                            tabIndex={2}
-                          />
-                        </div>
-
-                        <div className="col-span-12 sm:col-span-4 space-y-2">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-0.5">Alunos Ativos</label>
-                          <div className="flex items-center gap-3 bg-white p-2.5 border border-slate-200 h-[46px]">
-                            <div className="w-7 h-7 bg-blue-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                              <Users size={14} />
+                                Nome / Identificador da Turma
+                              </label>
+                              {isNameLocked ? (
+                                <span className="text-[9px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 uppercase tracking-wider border border-slate-300 flex items-center gap-1">
+                                  <Lock size={10} /> BLOQUEADO
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 uppercase tracking-wider border border-emerald-300 flex items-center gap-1">
+                                  <Unlock size={10} /> LIBERADO
+                                </span>
+                              )}
                             </div>
-                            <div>
-                              <span className="text-xs font-extrabold text-slate-900 uppercase block leading-tight">
-                                {selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '---'}
-                              </span>
-                              <p className="text-[8.5px] font-semibold text-slate-400 uppercase tracking-wider">Matriculados</p>
+                            <input 
+                              type="text"
+                              disabled={!isEditing || isNameLocked}
+                              placeholder="EX: TEO-27 1º ANO, DSI-27 1º ANO..."
+                              value={formData.name || ''}
+                              onChange={(e) => setFormData({...formData, name: e.target.value})}
+                              onKeyDown={handleKeyDown}
+                              className={cn(
+                                "w-full px-3.5 py-2.5 border text-xs font-black outline-none transition-all uppercase placeholder:text-slate-300 h-[42px]",
+                                isNameLocked
+                                  ? "bg-slate-100/90 text-slate-600 border-slate-300 cursor-not-allowed"
+                                  : "bg-white text-blue-950 border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600"
+                              )}
+                              tabIndex={1}
+                            />
+                            <p className="text-[9px] font-medium text-slate-500 italic ml-0.5 leading-tight">
+                              {isNameLocked 
+                                ? "Gerado automaticamente pelo Curso e Ano. Selecione 'Outros' para personalizar."
+                                : "Digite o nome personalizado para esta turma."}
+                            </p>
+                          </div>
+
+                          {/* Field 2: Sala / Local das Aulas */}
+                          <div className="flex-[1.5] min-w-[180px] space-y-1.5">
+                            <div className="flex items-center justify-between ml-0.5 h-[17px]">
+                              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Sala / Local das Aulas</label>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Auto-detected Registered Subjects Banner */}
-                      <div className="bg-slate-900 text-white p-4 space-y-3 border-l-4 border-emerald-500 shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
-                            <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-300">
-                              Disciplinas Cadastradas para o {formData.year || 'Ano Selecionado'} ({formData.name || 'Curso'})
-                            </span>
-                          </div>
-                          <span className="text-[9.5px] font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 uppercase tracking-wider border border-emerald-500/30">
-                            {autoFoundSubjects.length} Disciplina(s) Encontrada(s)
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
-                          <div className="bg-slate-800/90 p-3 border border-slate-700/80 space-y-1.5">
-                            <span className="text-[10px] font-extrabold text-blue-400 uppercase tracking-widest block">
-                              1º Semestre (Carregadas Automaticamente):
-                            </span>
-                            {sem1AutoSubs.length > 0 ? (
-                              sem1AutoSubs.map((s, idx) => (
-                                <div key={s.id || idx} className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
-                                  <span className="uppercase">{idx + 1}º Horário: <strong className="text-white font-extrabold">[{s.code}] {s.name}</strong></span>
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-xs text-slate-400 italic">Nenhuma disciplina cadastrada no sistema para 1º sem do {formData.year}</span>
-                            )}
+                            <input 
+                              type="text"
+                              disabled={!isEditing}
+                              placeholder="EX: SALA 01 / AUDITÓRIO"
+                              value={formData.room || ''}
+                              onChange={(e) => setFormData({...formData, room: e.target.value})}
+                              onKeyDown={handleKeyDown}
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-500/10 outline-none transition-all h-[42px]"
+                              tabIndex={2}
+                            />
                           </div>
 
-                          <div className="bg-slate-800/90 p-3 border border-slate-700/80 space-y-1.5">
-                            <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-widest block">
-                              2º Semestre (Carregadas Automaticamente):
-                            </span>
-                            {sem2AutoSubs.length > 0 ? (
-                              sem2AutoSubs.map((s, idx) => (
-                                <div key={s.id || idx} className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                                  <span className="uppercase">{idx + 1}º Horário: <strong className="text-white font-extrabold">[{s.code}] {s.name}</strong></span>
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-xs text-slate-400 italic">Nenhuma disciplina cadastrada no sistema para 2º sem do {formData.year}</span>
-                            )}
+                          {/* Field 3: Alunos Ativos */}
+                          <div className="w-full md:w-[170px] shrink-0 space-y-1.5">
+                            <div className="flex items-center justify-between ml-0.5 h-[17px]">
+                              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</label>
+                            </div>
+                            <div className="flex items-center gap-2.5 bg-white px-3 py-2 border border-slate-300 h-[42px]">
+                              <div className="w-6 h-6 bg-blue-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                                <Users size={13} />
+                              </div>
+                              <div>
+                                <span className="text-xs font-extrabold text-slate-900 uppercase block leading-none">
+                                  {selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '---'}
+                                </span>
+                                <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Matriculados</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2070,90 +2352,10 @@ export function Classes() {
                       </div>
                     </div>
 
-                    <div className="col-span-12 grid grid-cols-12 gap-4 md:gap-8 pt-8">
-                       <div className="col-span-12 sm:col-span-3 space-y-3">
-                        <div className="flex items-center justify-between ml-1">
-                          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Código da Turma</label>
-                          <span className="text-[8px] font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 uppercase border border-blue-100 tracking-wider">
-                            Sequencial Automático
-                          </span>
-                        </div>
-                        <input 
-                          type="text"
-                          readOnly
-                          disabled
-                          value={formData.code || ''}
-                          className="w-full px-6 py-4 bg-slate-100/90 border border-slate-200 rounded-none text-sm font-mono font-bold text-slate-600 cursor-not-allowed shadow-xs outline-none"
-                          tabIndex={1}
-                        />
-                      </div>
-                      <div className="col-span-12 sm:col-span-6 space-y-3">
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Nome Identificador do Curso</label>
-                        <input 
-                          type="text"
-                          disabled={!isEditing}
-                          placeholder="EX: TEOLOGIA AVANÇADA 2026"
-                          value={formData.name || ''}
-                          onChange={(e) => setFormData({...formData, name: e.target.value})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 focus:border-slate-400 shadow-sm outline-none transition-all uppercase placeholder:text-slate-300"
-                          tabIndex={2}
-                        />
-                      </div>
-                      <div className="col-span-12 sm:col-span-3 space-y-3">
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Sala / Local</label>
-                        <input 
-                          type="text"
-                          disabled={!isEditing}
-                          value={formData.room || ''}
-                          onChange={(e) => setFormData({...formData, room: e.target.value})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-6 py-4 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 shadow-sm outline-none transition-all"
-                          tabIndex={3}
-                        />
-                      </div>
-                    </div>
 
-                    <div className="col-span-12 grid grid-cols-12 gap-4 md:gap-8">
-                       <div className="col-span-12 sm:col-span-4 space-y-3 pt-2">
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Data Prevista de Início</label>
-                        <div className="relative group">
-                          <input 
-                            type="date"
-                            disabled={!isEditing}
-                            value={formData.start_date || ''}
-                            onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                            onKeyDown={handleKeyDown}
-                            className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-none text-sm font-bold text-slate-700 focus:ring-8 focus:ring-slate-500/5 shadow-sm outline-none transition-all"
-                            tabIndex={5}
-                          />
-                          <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        </div>
-                      </div>
-                      <div className="col-span-12 sm:col-span-8 space-y-3 pt-2">
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Turno de Aula</label>
-                        <div className="flex bg-slate-100 rounded-none p-1.5 gap-1.5 shadow-inner border border-slate-200/50">
-                          {['Manhã', 'Tarde', 'Noite'].map(p => (
-                            <button
-                              key={p}
-                              disabled={!isEditing}
-                              onClick={() => setFormData({...formData, period: p as any})}
-                              className={cn(
-                                "flex-1 py-3 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
-                                formData.period === p 
-                                  ? "bg-white text-slate-800 shadow-md border border-slate-100" 
-                                  : "text-slate-400 hover:text-slate-600"
-                              )}
-                            >
-                              {p}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
 
                     {/* Regime do Curso / Turma Especial Option */}
-                    <div className="col-span-12 pt-4">
+                    <div className="col-span-12 pt-2">
                       <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1 block mb-3">Características Acadêmicas</label>
                       <button
                         type="button"
@@ -2184,53 +2386,6 @@ export function Classes() {
                       </button>
                     </div>
 
-                  </div>
-                </section>
-
-                {/* Days of Week */}
-                <section className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 border border-slate-200 shadow-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-none bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-                        <Clock size={16} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                          Dias de Aula na Semana
-                        </h4>
-                        <p className="text-[10px] text-slate-500 font-semibold">
-                          {formData.days_of_week && formData.days_of_week.length > 0 
-                            ? `${formData.days_of_week.length} dia(s): ${formData.days_of_week.join(', ')}`
-                            : 'Nenhum dia selecionado'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {DAYS.map((day) => {
-                        const isSelected = formData.days_of_week?.includes(day.value);
-                        return (
-                          <button
-                            key={day.value}
-                            type="button"
-                            disabled={!isEditing}
-                            onClick={() => toggleDay(day.value)}
-                            className={cn(
-                              "px-2.5 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-wider transition-all border flex items-center gap-1.5 cursor-pointer",
-                              isSelected
-                                ? "bg-slate-800 border-slate-800 text-white shadow-xs"
-                                : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-700 disabled:opacity-50"
-                            )}
-                          >
-                            <div className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              isSelected ? "bg-emerald-400" : "bg-slate-300"
-                            )} />
-                            {day.label}
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
                 </section>
 
