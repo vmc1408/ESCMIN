@@ -879,23 +879,23 @@ export function Classes() {
     doc.setFont('helvetica', 'bold');
     doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 26);
 
-    // Document Title & Metadata
+    // Header divider line (separating Institutional Header from Document Title)
+    doc.setDrawColor(0, 23, 75);
+    doc.setLineWidth(0.6);
+    doc.line(margin, 35, pageWidth - margin, 35);
+
+    // 2. Document Title & Metadata (Below the divider line)
     doc.setFontSize(11);
     doc.setTextColor(0, 23, 75);
     doc.setFont('helvetica', 'bold');
-    doc.text(`LISTA DE ALUNOS MATRICULADOS`, textStartX, 32);
+    doc.text(`LISTA DE ALUNOS MATRICULADOS`, margin, 42);
 
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     doc.setFont('helvetica', 'normal');
-    doc.text(`TURMA: ${className.toUpperCase()} (${classCode}) • TOTAL: ${modalStudents.length} ALUNO(S) • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, textStartX, 37);
+    doc.text(`TURMA: ${className.toUpperCase()} (${classCode}) • TOTAL: ${modalStudents.length} ALUNO(S) • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, margin, 47);
 
-    // Header divider line
-    doc.setDrawColor(0, 23, 75);
-    doc.setLineWidth(0.6);
-    doc.line(margin, 40, pageWidth - margin, 40);
-
-    // 2. Table of Students
+    // 3. Table of Students
     const tableRows = modalStudents.map((s, idx) => [
       idx + 1,
       (s.name || s.full_name || '---').toUpperCase(),
@@ -905,7 +905,7 @@ export function Classes() {
     ]);
 
     autoTable(doc, {
-      startY: 44,
+      startY: 52,
       head: [['#', 'NOME DO ALUNO', 'MATRÍCULA', 'CPF', 'STATUS']],
       body: tableRows,
       headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
