@@ -850,14 +850,52 @@ export function Classes() {
     const classCode = selectedClass?.code || formData.code || '---';
 
     const doc = new jsPDF();
-    
-    doc.setFontSize(14);
-    doc.text(`Lista de Alunos Matriculados`, 14, 15);
-    doc.setFontSize(11);
-    doc.text(`Turma: ${className} (${classCode})`, 14, 22);
-    doc.setFontSize(9);
-    doc.text(`Total de Alunos: ${modalStudents.length} | Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+    const margin = 14;
+    const pageWidth = doc.internal.pageSize.width;
 
+    // 1. Institutional Header
+    let textStartX = margin;
+    if (inst?.logo_url) {
+      try {
+        doc.addImage(inst.logo_url, 'PNG', margin, 10, 22, 22);
+        textStartX = margin + 26;
+      } catch (e) {
+        console.error('Error adding logo to PDF', e);
+      }
+    }
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'bold');
+    doc.text((inst?.diocese_name || 'DIOCESE DE GUARULHOS').toUpperCase(), textStartX, 15);
+
+    doc.setFontSize(13);
+    doc.setTextColor(0, 23, 75);
+    doc.setFont('helvetica', 'bold');
+    doc.text((inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, 21);
+
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'bold');
+    doc.text((inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, 26);
+
+    // Document Title & Metadata
+    doc.setFontSize(11);
+    doc.setTextColor(0, 23, 75);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`LISTA DE ALUNOS MATRICULADOS`, textStartX, 32);
+
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`TURMA: ${className.toUpperCase()} (${classCode}) • TOTAL: ${modalStudents.length} ALUNO(S) • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, textStartX, 37);
+
+    // Header divider line
+    doc.setDrawColor(0, 23, 75);
+    doc.setLineWidth(0.6);
+    doc.line(margin, 40, pageWidth - margin, 40);
+
+    // 2. Table of Students
     const tableRows = modalStudents.map((s, idx) => [
       idx + 1,
       (s.name || s.full_name || '---').toUpperCase(),
@@ -867,15 +905,63 @@ export function Classes() {
     ]);
 
     autoTable(doc, {
-      startY: 32,
-      head: [['#', 'Nome do Aluno', 'Matrícula', 'CPF', 'Status']],
+      startY: 44,
+      head: [['#', 'NOME DO ALUNO', 'MATRÍCULA', 'CPF', 'STATUS']],
       body: tableRows,
-      headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 3 }
+      headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 8.5, cellPadding: 2.5, font: 'helvetica' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      margin: { left: margin, right: margin }
     });
 
-    doc.save(`Alunos_Turma_${classCode}.pdf`);
-  }, [selectedClass, formData, modalStudents]);
+    // 3. Institutional Footer
+    const totalPages = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7.5);
+      doc.setTextColor(140, 140, 140);
+      doc.setFont('helvetica', 'normal');
+      const footerText = `SISTEMA ESCMIN • ${inst?.name || 'Escola Diocesana de Ministérios'} • Documento emitido em ${new Date().toLocaleString('pt-BR')} • Página ${i} de ${totalPages}`;
+      doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 8, { align: 'center' });
+    }
+
+    // 4. Direct Print Execution (No File Save Download)
+    doc.autoPrint();
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      setTimeout(() => {
+        if (iframe.contentWindow) {
+          const cleanup = () => {
+            try {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
+            } catch (e) {}
+            URL.revokeObjectURL(url);
+          };
+
+          try {
+            iframe.contentWindow.addEventListener('afterprint', cleanup);
+          } catch (e) {}
+
+          try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            setTimeout(cleanup, 12000);
+          } catch (e) {
+            console.warn("Direct print failed on iframe, opening blob URL:", e);
+            window.open(url, '_blank');
+          }
+        }
+      }, 300);
+    };
+  }, [selectedClass, formData, modalStudents, inst]);
 
   const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
@@ -3141,10 +3227,10 @@ export function Classes() {
                   onClick={handleExportClassStudentListPDF}
                   disabled={modalStudents.length === 0}
                   className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Exportar Lista em PDF"
+                  title="Imprimir Lista de Alunos"
                 >
                   <Printer size={14} />
-                  <span>Imprimir PDF</span>
+                  <span>Imprimir</span>
                 </button>
               </div>
             </div>
