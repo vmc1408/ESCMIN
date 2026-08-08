@@ -267,6 +267,11 @@ export function Students() {
       return;
     }
 
+    const classId = (location.state as any)?.classId;
+    if (classId) {
+      setSelectedClassId(classId);
+    }
+
     const studentId = (location.state as any)?.studentId;
     if (studentId && students.length > 0) {
       const student = students.find(s => s.id === studentId);

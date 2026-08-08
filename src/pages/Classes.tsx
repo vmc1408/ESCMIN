@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Edit2, 
@@ -28,7 +29,8 @@ import {
   Layers,
   SlidersHorizontal,
   Lock,
-  Unlock
+  Unlock,
+  Eye
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
@@ -165,6 +167,7 @@ const ClassItem = React.memo(({
 });
 
 export function Classes() {
+  const navigate = useNavigate();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [inst, setInst] = useState<any>(null);
@@ -177,6 +180,10 @@ export function Classes() {
   const [hoverShowList, setHoverShowList] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [showStudentsModal, setShowStudentsModal] = useState(false);
+  const [modalStudents, setModalStudents] = useState<any[]>([]);
+  const [loadingModalStudents, setLoadingModalStudents] = useState(false);
+  const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [formData, setFormData] = useState<Partial<Class>>({
     status: 'Ativo',
     days_of_week: [],
@@ -800,6 +807,75 @@ export function Classes() {
 
     return () => { isMounted = false; };
   }, [selectedClass]);
+
+  const handleOpenStudentsModal = React.useCallback(async (targetClass?: Class) => {
+    const clsToUse = targetClass || selectedClass;
+    if (!clsToUse) return;
+    
+    setShowStudentsModal(true);
+    setLoadingModalStudents(true);
+    setModalSearchTerm('');
+
+    try {
+      const [enrollments, studentsData] = await Promise.all([
+        fetchAll('enrollments').catch(() => []),
+        fetchAll('students').catch(() => [])
+      ]);
+
+      const classId = clsToUse.id;
+      const classEnrollments = (enrollments || []).filter((e: any) => e.class_id === classId && (e.status || 'Ativo') === 'Ativo');
+      const enrolledIds = new Set<string>();
+      classEnrollments.forEach((e: any) => { if (e.student_id) enrolledIds.add(e.student_id); });
+
+      const matched = (studentsData || []).filter((s: any) => {
+        const isDirect = s.class_id === classId;
+        const isEnrolled = enrolledIds.has(s.id);
+        return isDirect || isEnrolled;
+      });
+
+      matched.sort((a: any, b: any) => (a.name || a.full_name || '').localeCompare(b.name || b.full_name || ''));
+
+      setModalStudents(matched);
+      setSelectedClassStudentCount(matched.length);
+    } catch (err) {
+      console.error('Erro ao carregar lista de alunos:', err);
+    } finally {
+      setLoadingModalStudents(false);
+    }
+  }, [selectedClass]);
+
+  const handleExportClassStudentListPDF = React.useCallback(() => {
+    if (!selectedClass && !formData.name) return;
+    const className = selectedClass?.name || formData.name || 'Turma';
+    const classCode = selectedClass?.code || formData.code || '---';
+
+    const doc = new jsPDF();
+    
+    doc.setFontSize(14);
+    doc.text(`Lista de Alunos Matriculados`, 14, 15);
+    doc.setFontSize(11);
+    doc.text(`Turma: ${className} (${classCode})`, 14, 22);
+    doc.setFontSize(9);
+    doc.text(`Total de Alunos: ${modalStudents.length} | Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+
+    const tableRows = modalStudents.map((s, idx) => [
+      idx + 1,
+      (s.name || s.full_name || '---').toUpperCase(),
+      s.registration_number || s.code || '---',
+      s.cpf || '---',
+      s.status || 'Ativo'
+    ]);
+
+    autoTable(doc, {
+      startY: 32,
+      head: [['#', 'Nome do Aluno', 'Matrícula', 'CPF', 'Status']],
+      body: tableRows,
+      headStyles: { fillColor: [0, 23, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 3 }
+    });
+
+    doc.save(`Alunos_Turma_${classCode}.pdf`);
+  }, [selectedClass, formData, modalStudents]);
 
   const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
@@ -1813,10 +1889,16 @@ export function Classes() {
                       {formData.status || 'Ativo'}
                     </div>
                     {selectedClass && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest bg-blue-50 text-blue-800 border border-blue-200/80 shadow-xs">
-                        <Users size={12} className="text-blue-600" />
+                      <button
+                        type="button"
+                        onClick={() => handleOpenStudentsModal()}
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-[9px] font-extrabold uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-300 transition-all cursor-pointer shadow-xs group"
+                        title="Clique para ver a lista de alunos matriculados nesta turma"
+                      >
+                        <Users size={12} className="text-blue-700 group-hover:scale-110 transition-transform" />
                         <span>{selectedClassStudentCount !== null ? `${selectedClassStudentCount} Alunos Matriculados` : 'Carregando Alunos...'}</span>
-                      </div>
+                        <Eye size={12} className="text-blue-600 ml-1 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
                     )}
                   </div>
                 </div>
@@ -1885,6 +1967,16 @@ export function Classes() {
                         title="Imprimir"
                       >
                         <Printer size={16} />
+                      </button>
+
+                      <button 
+                        type="button"
+                        onClick={() => handleOpenStudentsModal()}
+                        className="h-10 px-4 bg-blue-900 hover:bg-blue-950 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider cursor-pointer"
+                        title="Ver lista de alunos matriculados nesta turma"
+                      >
+                        <Users size={15} />
+                        <span>Alunos Matriculados ({selectedClassStudentCount ?? 0})</span>
                       </button>
 
                       <button 
@@ -2181,21 +2273,31 @@ export function Classes() {
                           </div>
 
                           {/* Field 3: Alunos Ativos */}
-                          <div className="w-full md:w-[170px] shrink-0 space-y-1.5">
+                          <div className="w-full md:w-[180px] shrink-0 space-y-1.5">
                             <div className="flex items-center justify-between ml-0.5 h-[17px]">
                               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</label>
                             </div>
-                            <div className="flex items-center gap-2.5 bg-white px-3 py-2 border border-slate-300 h-[42px]">
-                              <div className="w-6 h-6 bg-blue-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                                <Users size={13} />
+                            <button
+                              type="button"
+                              onClick={() => handleOpenStudentsModal()}
+                              className="w-full flex items-center justify-between gap-2 bg-white hover:bg-blue-50/80 px-3 py-2 border border-slate-300 hover:border-blue-500 transition-all h-[42px] text-left cursor-pointer group shadow-2xs rounded-none"
+                              title="Clique para ver a lista completa de alunos desta turma"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-6 h-6 bg-blue-900 text-white flex items-center justify-center font-bold text-xs shrink-0 group-hover:bg-blue-950 transition-colors">
+                                  <Users size={13} />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-extrabold text-slate-900 uppercase block leading-none truncate">
+                                    {selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '---'}
+                                  </span>
+                                  <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Matriculados</p>
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-xs font-extrabold text-slate-900 uppercase block leading-none">
-                                  {selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '---'}
-                                </span>
-                                <p className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Matriculados</p>
-                              </div>
-                            </div>
+                              <span className="text-[9px] font-black text-blue-800 bg-blue-100/90 group-hover:bg-blue-900 group-hover:text-white px-1.5 py-0.5 uppercase tracking-wider transition-all border border-blue-200 shrink-0">
+                                Ver
+                              </span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -2984,6 +3086,185 @@ export function Classes() {
                     <span>Confirmar Importação</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Lista de Alunos Matriculados */}
+      {showStudentsModal && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-300 shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-800 text-white flex items-center justify-center shrink-0">
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold uppercase tracking-wide flex items-center gap-2">
+                    Alunos Matriculados
+                    <span className="text-[10px] bg-blue-700 text-white px-2 py-0.5 rounded-none font-black">
+                      {modalStudents.length} ALUNO(S)
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-300 font-medium uppercase tracking-wider">
+                    TURMA: {selectedClass?.name || formData.name || '---'} ({selectedClass?.code || formData.code || '---'})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowStudentsModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Toolbar (Search & Export) */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <div className="relative flex-1 w-full">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="BUSCAR POR NOME, MATRÍCULA OU CPF..."
+                  value={modalSearchTerm}
+                  onChange={(e) => setModalSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 text-xs font-bold text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all uppercase"
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={handleExportClassStudentListPDF}
+                  disabled={modalStudents.length === 0}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Exportar Lista em PDF"
+                >
+                  <Printer size={14} />
+                  <span>Imprimir PDF</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Student List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[250px] bg-slate-100/50">
+              {loadingModalStudents ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
+                  <Loader2 size={32} className="animate-spin text-blue-900" />
+                  <p className="text-xs font-bold uppercase tracking-wider">Carregando lista de alunos...</p>
+                </div>
+              ) : modalStudents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2 bg-white border border-dashed border-slate-300 p-8">
+                  <Users size={36} className="text-slate-300" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Nenhum aluno matriculado nesta turma</p>
+                  <p className="text-[10px] text-slate-400">Você pode matricular ou vincular alunos através do menu de Gestão de Alunos.</p>
+                </div>
+              ) : (() => {
+                const filtered = modalStudents.filter(s => {
+                  if (!modalSearchTerm) return true;
+                  const term = modalSearchTerm.toLowerCase();
+                  const name = (s.name || s.full_name || '').toLowerCase();
+                  const reg = (s.registration_number || s.code || '').toLowerCase();
+                  const cpf = (s.cpf || '').toLowerCase();
+                  return name.includes(term) || reg.includes(term) || cpf.includes(term);
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-slate-400 text-xs font-bold uppercase bg-white border border-slate-200">
+                      Nenhum aluno encontrado para "{modalSearchTerm}"
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-500 uppercase tracking-wider px-2">
+                      <span>Exibindo {filtered.length} de {modalStudents.length} aluno(s)</span>
+                    </div>
+                    <div className="bg-white border border-slate-200 divide-y divide-slate-100 shadow-2xs">
+                      {filtered.map((s, idx) => (
+                        <div
+                          key={s.id || idx}
+                          className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 bg-blue-950 text-white font-extrabold text-xs flex items-center justify-center shrink-0 uppercase">
+                              {(s.name || s.full_name || 'A').substring(0, 2)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-slate-900 uppercase tracking-wide truncate">
+                                {s.name || s.full_name || 'Aluno sem nome'}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 font-semibold uppercase">
+                                <span>MATRÍCULA: {s.registration_number || s.code || '---'}</span>
+                                {s.cpf && (
+                                  <>
+                                    <span>•</span>
+                                    <span>CPF: {s.cpf}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                            <span className={cn(
+                              "text-[9px] font-black px-2 py-0.5 uppercase tracking-wider border",
+                              (s.status || 'Ativo') === 'Inativo'
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            )}>
+                              {s.status || 'Ativo'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowStudentsModal(false);
+                                navigate('/students', { state: { studentId: s.id } });
+                              }}
+                              className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
+                              title="Ver ficha completa do aluno"
+                            >
+                              <span>Ver Ficha</span>
+                              <ArrowRight size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStudentsModal(false);
+                  if (selectedClass) {
+                    navigate('/students', { state: { classId: selectedClass.id } });
+                  } else {
+                    navigate('/students');
+                  }
+                }}
+                className="text-xs font-bold text-blue-300 hover:text-white uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>Ir para Gestão Geral de Alunos</span>
+                <ArrowRight size={14} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowStudentsModal(false)}
+                className="w-full sm:w-auto px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>
