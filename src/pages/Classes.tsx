@@ -184,6 +184,7 @@ export function Classes() {
   const [modalStudents, setModalStudents] = useState<any[]>([]);
   const [loadingModalStudents, setLoadingModalStudents] = useState(false);
   const [modalSearchTerm, setModalSearchTerm] = useState('');
+  const [includeEmissionDate, setIncludeEmissionDate] = useState(false);
   const [formData, setFormData] = useState<Partial<Class>>({
     status: 'Ativo',
     days_of_week: [],
@@ -885,15 +886,29 @@ export function Classes() {
     doc.line(margin, 35, pageWidth - margin, 35);
 
     // 2. Document Title & Metadata (Below the divider line)
+    // Left side: Title & Class Info
     doc.setFontSize(11);
     doc.setTextColor(0, 23, 75);
     doc.setFont('helvetica', 'bold');
     doc.text(`LISTA DE ALUNOS MATRICULADOS`, margin, 42);
 
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(100, 100, 100);
     doc.setFont('helvetica', 'normal');
-    doc.text(`TURMA: ${className.toUpperCase()} (${classCode}) • TOTAL: ${modalStudents.length} ALUNO(S) • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, margin, 47);
+    doc.text(`TURMA: ${className.toUpperCase()} (${classCode})`, margin, 47);
+
+    // Right side: Total Students & Optional Emission Date
+    doc.setFontSize(9);
+    doc.setTextColor(0, 23, 75);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL: ${modalStudents.length} ALUNO(S)`, pageWidth - margin, 42, { align: 'right' });
+
+    if (includeEmissionDate) {
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 47, { align: 'right' });
+    }
 
     // 3. Table of Students
     const tableRows = modalStudents.map((s, idx) => [
@@ -914,15 +929,22 @@ export function Classes() {
       margin: { left: margin, right: margin }
     });
 
-    // 3. Institutional Footer
+    // 4. Institutional Footer
     const totalPages = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(7.5);
       doc.setTextColor(140, 140, 140);
       doc.setFont('helvetica', 'normal');
-      const footerText = `SISTEMA ESCMIN • ${inst?.name || 'Escola Diocesana de Ministérios'} • Documento emitido em ${new Date().toLocaleString('pt-BR')} • Página ${i} de ${totalPages}`;
-      doc.text(footerText, pageWidth / 2, doc.internal.pageSize.height - 8, { align: 'center' });
+
+      let footerLeft = `SISTEMA ESCMIN • ${inst?.name || 'Escola Diocesana de Ministérios'}`;
+      if (includeEmissionDate) {
+        footerLeft += ` • Emissão: ${new Date().toLocaleString('pt-BR')}`;
+      }
+      doc.text(footerLeft, margin, doc.internal.pageSize.height - 8, { align: 'left' });
+
+      // Page numbering right-aligned
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, doc.internal.pageSize.height - 8, { align: 'right' });
     }
 
     // 4. Direct Print Execution (No File Save Download)
@@ -961,7 +983,7 @@ export function Classes() {
         }
       }, 300);
     };
-  }, [selectedClass, formData, modalStudents, inst]);
+  }, [selectedClass, formData, modalStudents, inst, includeEmissionDate]);
 
   const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
@@ -3221,12 +3243,21 @@ export function Classes() {
                   className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 text-xs font-bold text-slate-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 transition-all uppercase"
                 />
               </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto shrink-0">
+                <label className="flex items-center gap-2 text-[11px] font-bold text-slate-700 bg-white border border-slate-300 px-3 py-2 cursor-pointer hover:bg-slate-100/80 transition-colors select-none shadow-2xs">
+                  <input
+                    type="checkbox"
+                    checked={includeEmissionDate}
+                    onChange={(e) => setIncludeEmissionDate(e.target.checked)}
+                    className="w-3.5 h-3.5 text-blue-900 focus:ring-blue-500 rounded-none border-slate-300 cursor-pointer"
+                  />
+                  <span>Data/Hora de Emissão</span>
+                </label>
                 <button
                   type="button"
                   onClick={handleExportClassStudentListPDF}
                   disabled={modalStudents.length === 0}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
                   title="Imprimir Lista de Alunos"
                 >
                   <Printer size={14} />
