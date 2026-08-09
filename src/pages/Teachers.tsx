@@ -56,7 +56,29 @@ interface Subject {
   code: string;
   name: string;
   status: 'Ativo' | 'Inativo';
+  year?: string;
+  semester?: string;
+  program_content?: string;
 }
+
+const groupSubjectsBySemester = (subList: Subject[]) => {
+  const sem1: Subject[] = [];
+  const sem2: Subject[] = [];
+  const others: Subject[] = [];
+
+  subList.forEach(s => {
+    const sem = (s.semester || '').toLowerCase();
+    if (sem.includes('1') || sem.includes('1º') || sem.includes('1o')) {
+      sem1.push(s);
+    } else if (sem.includes('2') || sem.includes('2º') || sem.includes('2o')) {
+      sem2.push(s);
+    } else {
+      others.push(s);
+    }
+  });
+
+  return { sem1, sem2, others };
+};
 
 // Masking helpers
 const maskCPF = (value: string) => {
@@ -142,6 +164,7 @@ export function Teachers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
+  const [semesterFilter, setSemesterFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'code' | 'subject'>('name');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -158,9 +181,24 @@ export function Teachers() {
     try {
       const [teachersData, subjectsData, instData] = await Promise.all([
         fetchAll('teachers', '*', 'name', true),
-        fetchAll('subjects', 'id, code, name, status', 'name', true),
+        fetchAll('subjects', '*', 'name', true),
         fetchAll('institution_settings')
       ]);
+
+      const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
+        let normalized = { ...s };
+        if (!normalized.semester && normalized.program_content) {
+          const match = normalized.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (meta.semester) normalized.semester = meta.semester;
+            } catch (e) {}
+          }
+        }
+        return normalized;
+      });
+
       const normalizedTeachers = (teachersData || []).map((t: Teacher) => {
         let normalized = { ...t };
         let sIds = normalized.subject_ids || [];
@@ -189,7 +227,7 @@ export function Teachers() {
       });
 
       setTeachers(normalizedTeachers);
-      setSubjects(subjectsData || []);
+      setSubjects(normalizedSubjects);
       if (instData && instData.length > 0) setInst(instData[0]);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -265,7 +303,7 @@ export function Teachers() {
       doc.setFontSize(9);
       doc.setTextColor(100);
       doc.setFont('helvetica', 'normal');
-      doc.text(`RELAÇÃO DE CORPO DOCENTE • FILTRO: ${statusFilter.toUpperCase()}`, 38, 24);
+      doc.text(`RELAÇÃO DE CORPO DOCENTE • FILTRO: ${statusFilter.toUpperCase()}${semesterFilter !== 'all' ? ` • SEMESTRE: ${semesterFilter.toUpperCase()}` : ''}`, 38, 24);
       doc.text(`${inst?.city_uf || ''} • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, 38, 29);
 
       doc.setDrawColor(0, 23, 75);
@@ -273,16 +311,19 @@ export function Teachers() {
       doc.line(margin, 35, pageWidth - margin, 35);
 
       const tableData = filteredTeachers.map(t => {
-        const teacherSubjects = subjects
-          .filter(s => t.subject_ids?.includes(s.id))
-          .map(s => s.name)
-          .join(', ');
+        const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
+        const { sem1, sem2, others } = groupSubjectsBySemester(tSubList);
+
+        const parts: string[] = [];
+        if (sem1.length > 0) parts.push(`1º SEM: ${sem1.map(s => s.name).join(', ')}`);
+        if (sem2.length > 0) parts.push(`2º SEM: ${sem2.map(s => s.name).join(', ')}`);
+        if (others.length > 0) parts.push(`OUTRAS: ${others.map(s => s.name).join(', ')}`);
           
         return [
           t.code,
           t.name.toUpperCase(),
           t.email || '---',
-          teacherSubjects || '---',
+          parts.join('\n') || '---',
           t.status || 'Ativo'
         ];
       });
@@ -564,11 +605,14 @@ export function Teachers() {
       doc.setFontSize(10);
       doc.setTextColor(0);
       
-      // Get subject names
-      const teacherSubjects = subjects
-        .filter(s => teacher.subject_ids?.includes(s.id))
-        .map(s => s.name)
-        .join(', ');
+      // Get subjects grouped by semester
+      const tSubList = subjects.filter(s => teacher.subject_ids?.includes(s.id));
+      const { sem1, sem2, others } = groupSubjectsBySemester(tSubList);
+
+      const parts: string[] = [];
+      if (sem1.length > 0) parts.push(`1º SEM: ${sem1.map(s => s.name).join(', ')}`);
+      if (sem2.length > 0) parts.push(`2º SEM: ${sem2.map(s => s.name).join(', ')}`);
+      if (others.length > 0) parts.push(`OUTRAS: ${others.map(s => s.name).join(', ')}`);
 
       const personalData = [
         ['Nome:', teacher.name],
@@ -576,7 +620,7 @@ export function Teachers() {
         ['CPF:', teacher.cpf || '---'],
         ['RG:', teacher.rg || '---'],
         ['E-mail:', teacher.email || '---'],
-        ['Disciplinas:', teacherSubjects || 'Nenhuma selecionada']
+        ['Disciplinas:', parts.join('\n') || 'Nenhuma selecionada']
       ];
 
       autoTable(doc, {
@@ -659,7 +703,13 @@ export function Teachers() {
     
     // Get subject names and objects
     const teacherSubjectList = subjects.filter(s => selectedTeacher.subject_ids?.includes(s.id));
-    const teacherSubjects = teacherSubjectList.map(s => s.name).join(', ');
+    const { sem1, sem2, others } = groupSubjectsBySemester(teacherSubjectList);
+
+    const summaryParts: string[] = [];
+    if (sem1.length > 0) summaryParts.push(`1º SEM: ${sem1.map(s => s.name).join(', ')}`);
+    if (sem2.length > 0) summaryParts.push(`2º SEM: ${sem2.map(s => s.name).join(', ')}`);
+    if (others.length > 0) summaryParts.push(`OUTRAS: ${others.map(s => s.name).join(', ')}`);
+    const teacherSubjectsSummary = summaryParts.join(' | ');
 
     return (
       <div id="printable-teacher-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[285mm] mx-auto">
@@ -691,7 +741,7 @@ export function Teachers() {
             <h2 className="text-[16pt] font-bold uppercase tracking-widest w-fit mx-auto pb-0.5 border-b-2 border-black">Ficha do Professor</h2>
           </div>
 
-          {/* TOP CONTROL BOXES - Matching Student Record Style */}
+          {/* TOP CONTROL BOXES */}
           <div className="grid grid-cols-12 gap-3 mb-6">
             <div className="col-span-4 border border-black/40 p-3 flex flex-col h-32 justify-between">
               <p className="text-[10pt] font-bold border-b border-black/10 pb-1 uppercase tracking-tight">Controle</p>
@@ -707,7 +757,7 @@ export function Teachers() {
               <p className="text-[10pt] font-bold uppercase border-b border-black/10 pb-1 tracking-tight">Disciplinas Ministradas:</p>
               <div className="flex-1 pt-1 overflow-hidden flex items-center">
                 <p className="text-[8.5pt] font-bold leading-snug uppercase text-slate-900 line-clamp-3">
-                  {teacherSubjects || 'NENHUMA SELECIONADA'}
+                  {teacherSubjectsSummary || 'NENHUMA SELECIONADA'}
                 </p>
               </div>
             </div>
@@ -773,22 +823,63 @@ export function Teachers() {
               </div>
             </div>
 
-            {/* Disciplinas Detalhadas */}
-            <div className="space-y-1 pt-1">
-              <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Disciplinas Habilitadas / Ministradas</p>
-              <div className="border border-black/10 p-3 rounded bg-slate-50/20">
-                {teacherSubjectList.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-1 text-[9.5pt] font-bold uppercase text-slate-900">
-                    {teacherSubjectList.map(s => (
+            {/* Disciplinas Detalhadas Divididas por Semestre */}
+            <div className="space-y-2 pt-1">
+              <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Disciplinas Ministradas por Semestre</p>
+              <div className="grid grid-cols-2 gap-3">
+                {/* 1º SEMESTRE */}
+                <div className="border border-black/20 p-3 rounded bg-slate-50/20">
+                  <p className="text-[9pt] font-bold uppercase text-[#00174b] border-b border-black/10 pb-1 mb-2 flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+                    1º SEMESTRE
+                  </p>
+                  {sem1.length > 0 ? (
+                    <ul className="list-disc list-inside space-y-1 text-[9pt] font-bold uppercase text-slate-900">
+                      {sem1.map(s => (
+                        <li key={s.id}>
+                          {s.code ? `[${s.code}] ` : ''}{s.name}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[8.5pt] text-slate-400 italic">Nenhuma disciplina do 1º semestre.</p>
+                  )}
+                </div>
+
+                {/* 2º SEMESTRE */}
+                <div className="border border-black/20 p-3 rounded bg-slate-50/20">
+                  <p className="text-[9pt] font-bold uppercase text-[#00174b] border-b border-black/10 pb-1 mb-2 flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
+                    2º SEMESTRE
+                  </p>
+                  {sem2.length > 0 ? (
+                    <ul className="list-disc list-inside space-y-1 text-[9pt] font-bold uppercase text-slate-900">
+                      {sem2.map(s => (
+                        <li key={s.id}>
+                          {s.code ? `[${s.code}] ` : ''}{s.name}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[8.5pt] text-slate-400 italic">Nenhuma disciplina do 2º semestre.</p>
+                  )}
+                </div>
+              </div>
+
+              {others.length > 0 && (
+                <div className="border border-black/20 p-3 rounded bg-slate-50/20 mt-2">
+                  <p className="text-[9pt] font-bold uppercase text-[#00174b] border-b border-black/10 pb-1 mb-2">
+                    OUTRAS DISCIPLINAS
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-[9pt] font-bold uppercase text-slate-900">
+                    {others.map(s => (
                       <li key={s.id}>
                         {s.code ? `[${s.code}] ` : ''}{s.name}
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  <p className="text-[9pt] text-slate-400 italic">Nenhuma disciplina cadastrada para este professor.</p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Observações Gerais */}
@@ -824,7 +915,16 @@ export function Teachers() {
       
       const matchesSubject = subjectFilter === 'all' || (t.subject_ids || []).includes(subjectFilter);
       
-      return matchesSearch && matchesStatus && matchesSubject;
+      const matchesSemester = semesterFilter === 'all' || (t.subject_ids || []).some(id => {
+        const sub = subjects.find(s => s.id === id);
+        if (!sub) return false;
+        const sem = (sub.semester || '').toLowerCase();
+        if (semesterFilter === '1º Semestre') return sem.includes('1') || sem.includes('1º') || sem.includes('1o');
+        if (semesterFilter === '2º Semestre') return sem.includes('2') || sem.includes('2º') || sem.includes('2o');
+        return true;
+      });
+      
+      return matchesSearch && matchesStatus && matchesSubject && matchesSemester;
     });
 
     return [...result].sort((a, b) => {
@@ -836,7 +936,7 @@ export function Teachers() {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [teachers, searchTerm, statusFilter, subjectFilter, sortBy, subjects]);
+  }, [teachers, searchTerm, statusFilter, subjectFilter, semesterFilter, sortBy, subjects]);
 
   const actualListCollapsed = selectedTeacher !== null || isEditing;
 
@@ -933,13 +1033,22 @@ export function Teachers() {
               ))}
             </div>
             
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              <select
+                value={semesterFilter}
+                onChange={(e) => setSemesterFilter(e.target.value)}
+                className="px-2 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
+              >
+                <option value="all">Semestres (Todos)</option>
+                <option value="1º Semestre">1º Semestre</option>
+                <option value="2º Semestre">2º Semestre</option>
+              </select>
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
+                className="px-2 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
-                <option value="all">Filtrar Disciplina (Ativas)</option>
+                <option value="all">Disciplinas (Todas)</option>
                 {subjects.filter(s => s.status === 'Ativo').map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -947,11 +1056,11 @@ export function Teachers() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10"
+                className="px-2 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
-                <option value="name">Ordenar por Nome</option>
-                <option value="code">Ordenar por Código</option>
-                <option value="subject">Ordenar por Disciplina</option>
+                <option value="name">Por Nome</option>
+                <option value="code">Por Código</option>
+                <option value="subject">Por Disciplina</option>
               </select>
             </div>
           </div>
@@ -1333,47 +1442,76 @@ export function Teachers() {
                     {subjects.length === 0 ? (
                       <p className="text-xs text-slate-500 py-4 text-center">Nenhuma disciplina cadastrada no sistema.</p>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                        {subjects.filter(s => s.status === 'Ativo' || (formData.subject_ids || []).includes(s.id)).map((subject) => (
-                          <label 
-                            key={subject.id}
-                            className={cn(
-                              "flex items-center gap-2 p-2 rounded-none cursor-pointer transition-all border border-transparent",
-                              (formData.subject_ids || []).includes(subject.id) 
-                                ? "bg-slate-50 border-slate-200 text-slate-900" 
-                                : "hover:bg-white hover:border-slate-200 text-slate-600",
-                              !isEditing && "cursor-default opacity-80"
-                            )}
-                          >
-                            <input 
-                              type="checkbox"
-                              disabled={!isEditing}
-                              checked={(formData.subject_ids || []).includes(subject.id)}
-                              onChange={(e) => {
-                                const current = formData.subject_ids || [];
-                                if (e.target.checked) {
-                                  setFormData({ ...formData, subject_ids: [...current, subject.id] });
-                                } else {
-                                  setFormData({ ...formData, subject_ids: current.filter(id => id !== subject.id) });
-                                }
-                              }}
-                              className="hidden"
-                            />
-                            <div className={cn(
-                              "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                              (formData.subject_ids || []).includes(subject.id)
-                                ? "bg-slate-800 border-slate-500 text-white"
-                                : "bg-white border-slate-300"
-                            )}>
-                              {(formData.subject_ids || []).includes(subject.id) && <Plus size={10} className="stroke-[4]" />}
+                      (() => {
+                        const activeSubjects = subjects.filter(s => s.status === 'Ativo' || (formData.subject_ids || []).includes(s.id));
+                        const { sem1, sem2, others } = groupSubjectsBySemester(activeSubjects);
+
+                        const renderSubjectGroup = (title: string, groupList: Subject[], badgeColor: string) => {
+                          if (groupList.length === 0) return null;
+                          return (
+                            <div className="space-y-2 mb-4 last:mb-0">
+                              <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
+                                <span className={cn("w-2 h-2 rounded-full", badgeColor)}></span>
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{title}</span>
+                                <span className="text-[10px] text-slate-400 font-semibold">({groupList.length})</span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                {groupList.map((subject) => {
+                                  const isSelected = (formData.subject_ids || []).includes(subject.id);
+                                  return (
+                                    <label 
+                                      key={subject.id}
+                                      className={cn(
+                                        "flex items-center gap-2 p-2 rounded-none cursor-pointer transition-all border",
+                                        isSelected 
+                                          ? "bg-white border-slate-300 shadow-sm text-slate-900 font-bold" 
+                                          : "bg-slate-50 border-transparent hover:bg-white hover:border-slate-200 text-slate-600",
+                                        !isEditing && "cursor-default opacity-80"
+                                      )}
+                                    >
+                                      <input 
+                                        type="checkbox"
+                                        disabled={!isEditing}
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          if (!isEditing) return;
+                                          const current = formData.subject_ids || [];
+                                          if (e.target.checked) {
+                                            setFormData({ ...formData, subject_ids: [...current, subject.id] });
+                                          } else {
+                                            setFormData({ ...formData, subject_ids: current.filter(id => id !== subject.id) });
+                                          }
+                                        }}
+                                        className="hidden"
+                                      />
+                                      <div className={cn(
+                                        "w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0",
+                                        isSelected 
+                                          ? "bg-slate-800 border-slate-800 text-white" 
+                                          : "bg-white border-slate-300"
+                                      )}>
+                                        {isSelected && <Plus size={10} className="stroke-[4]" />}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-[10px] font-bold truncate">{subject.name}</p>
+                                        <p className="text-[8px] text-slate-400 font-mono tracking-tighter">{subject.code}</p>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-bold truncate">{subject.name}</p>
-                              <p className="text-[8px] text-slate-400 font-mono tracking-tighter">{subject.code}</p>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
+                          );
+                        };
+
+                        return (
+                          <div>
+                            {renderSubjectGroup('1º Semestre', sem1, 'bg-blue-600')}
+                            {renderSubjectGroup('2º Semestre', sem2, 'bg-emerald-600')}
+                            {renderSubjectGroup('Outras Disciplinas', others, 'bg-slate-400')}
+                          </div>
+                        );
+                      })()
                     )}
                     {!isEditing && (formData.subject_ids || []).length === 0 && (
                       <p className="text-xs text-slate-400 italic">Professor sem disciplinas vinculadas.</p>
