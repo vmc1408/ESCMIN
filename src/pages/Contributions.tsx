@@ -128,6 +128,9 @@ export function Contributions() {
   const [unpaidClassFilter, setUnpaidClassFilter] = useState<string>('');
   const [unpaidSearchTerm, setUnpaidSearchTerm] = useState<string>('');
   const [unpaidYear, setUnpaidYear] = useState<number>(new Date().getFullYear());
+  const [hideStudentName, setHideStudentName] = useState<boolean>(false);
+  const [showDateTime, setShowDateTime] = useState<boolean>(true);
+  const [showPendingTotalizer, setShowPendingTotalizer] = useState<boolean>(true);
 
   const toggleStudentExpansion = (studentId: string) => {
     setExpandedStudents(prev => 
@@ -215,7 +218,6 @@ export function Contributions() {
       setRecentContributions(dataWithStudents as any);
       if (!selectedStudent && viewMode === 'individual' && !initialStudentId) {
         setPeriodData(dataWithStudents as any);
-        setViewMode('period');
       }
     } catch (error) {
       console.error('Error fetching recent:', error);
@@ -513,50 +515,107 @@ export function Contributions() {
     return getExpectedMonthsForStudent(selectedStudent, selectedYear, paidMonths);
   }, [selectedStudent, selectedYear, contributions, academicSettingsList]);
 
-  // Generate PDF report for unpaid fees (Relatório de Mensalidades em Aberto)
+  // Generate PDF report and trigger direct print for unpaid fees (Relatório de Inadimplência)
   const generateUnpaidReport = () => {
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
       const margin = 14;
 
-      // Header Banner
-      doc.setFillColor(19, 27, 46); // Deep Navy background
-      doc.rect(0, 0, pageWidth, 40, 'F');
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(255, 255, 255);
-      const title = 'RELATÓRIO DE MENSALIDADES EM ABERTO';
-      doc.text(title, margin, 18);
+      let currentY = 12;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.setTextColor(226, 232, 240);
-      const yearText = `ANO DE REFERÊNCIA DO RELATÓRIO: ${unpaidYear}`;
-      doc.text(yearText, margin, 25);
-      
-      const genDate = `GERADO EM: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`.toUpperCase();
-      doc.text(genDate, margin, 30);
-
-      // Filter text
-      let filterText = 'FILTRO DE SELEÇÃO: TODAS AS TURMAS';
-      if (unpaidClassFilter !== 'all') {
-        const cls = classes.find(c => c.id === unpaidClassFilter);
-        filterText = `FILTRO DE SELEÇÃO: TURMA ${cls?.name?.toUpperCase() || unpaidClassFilter}`;
+      // 1. Institutional Header
+      let textStartX = margin;
+      if (institution?.logo_url) {
+        try {
+          doc.addImage(institution.logo_url, 'PNG', margin, currentY, 20, 20);
+          textStartX = margin + 24;
+        } catch (e) {
+          console.error('Error adding logo to PDF', e);
+        }
       }
-      doc.text(filterText, margin, 35);
 
-      // Table data
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'bold');
+      doc.text((institution?.diocese_name || 'DIOCESE DE GUARULHOS').toUpperCase(), textStartX, currentY + 5);
+
+      doc.setFontSize(12);
+      doc.setTextColor(19, 27, 46);
+      doc.setFont('helvetica', 'bold');
+      doc.text((institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS').toUpperCase(), textStartX, currentY + 11);
+
+      doc.setFontSize(8.5);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'bold');
+      doc.text((institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO').toUpperCase(), textStartX, currentY + 16);
+
+      currentY += 22;
+
+      // Divider Line
+      doc.setDrawColor(19, 27, 46);
+      doc.setLineWidth(0.6);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+
+      currentY += 7;
+
+      // 2. Report Title & Subheader Info
+      doc.setFontSize(11);
+      doc.setTextColor(19, 27, 46);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RELATÓRIO DE INADIMPLÊNCIA / MENSALIDADES EM ABERTO', margin, currentY);
+
+      // Date and Time aligned to the right side (only if showDateTime is enabled)
+      if (showDateTime) {
+        const emissionDateTime = `EMISSÃO: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(emissionDateTime.toUpperCase(), pageWidth - margin, currentY, { align: 'right' });
+      }
+
+      currentY += 6;
+
+      const selectedClassName = unpaidClassFilter === 'all'
+        ? 'TODAS AS TURMAS'
+        : (classes.find(c => c.id === unpaidClassFilter)?.name?.toUpperCase() || 'TURMA SELECIONADA');
+
+      // Prominent Class Title & Academic Reference Year
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(19, 27, 46);
+      doc.text(`TURMA: ${selectedClassName}   •   ANO LETIVO: ${unpaidYear}`, margin, currentY);
+
+      currentY += 5;
+      if (hideStudentName) {
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(180, 40, 40);
+        doc.text('IDENTIFICAÇÃO RESERVADA: EXIBINDO APENAS NÚMERO DE REGISTRO / MATRÍCULA (NOMES OCULTOS)', margin, currentY);
+      } else {
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text('IDENTIFICAÇÃO PADRÃO: NOME COMPLETO E NÚMERO DE REGISTRO ACADÊMICO (RA)', margin, currentY);
+      }
+
+      currentY += 5;
+
+      // 3. Table Rows
       const tableRows = unpaidReportList.map((item, index) => {
         const studentName = item.student.name?.toUpperCase() || 'SEM NOME';
         const studentRA = item.student.registration_number || 'S/ RA';
         const className = classes.find(c => c.id === item.student.class_id)?.name?.toUpperCase() || 'SEM TURMA';
         const pendingMonthsText = item.unpaidMonths.map(m => MONTHS[m - 1].substring(0, 3).toUpperCase()).join(', ');
         
+        const identification = hideStudentName 
+          ? `REGISTRO N°: ${studentRA}`
+          : `${studentName}\n(${studentRA})`;
+
         return [
           index + 1,
-          `${studentName}\n(${studentRA})`,
+          identification,
           className,
           item.pendingCount,
           pendingMonthsText,
@@ -565,47 +624,90 @@ export function Contributions() {
       });
 
       autoTable(doc, {
-        startY: 45,
-        head: [['#', 'ESTUDANTE / REGISTRO ACADÊMICO', 'TURMA VINCULADA', 'MESES DEV.', 'MESES PENDENTES', 'VALOR ESTIMADO']],
+        startY: currentY,
+        head: [[
+          '#', 
+          hideStudentName ? 'N° REGISTRO ACADÊMICO (MATRÍCULA)' : 'ESTUDANTE / REGISTRO ACADÊMICO', 
+          'TURMA VINCULADA', 
+          'MESES DEV.', 
+          'MESES PENDENTES', 
+          'VALOR ESTIMADO'
+        ]],
         body: tableRows,
         theme: 'striped',
         headStyles: {
-          fillColor: [15, 23, 42],
+          fillColor: [19, 27, 46],
           textColor: [255, 255, 255],
           fontSize: 8.5,
           fontStyle: 'bold'
         },
         bodyStyles: {
           fontSize: 8,
-          textColor: [50, 50, 50]
+          textColor: [40, 40, 40]
         },
         columnStyles: {
           0: { cellWidth: 10 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 40 },
-          3: { cellWidth: 20, halign: 'center' },
-          4: { cellWidth: 40 },
-          5: { cellWidth: 20, halign: 'right' }
+          1: { cellWidth: 62 },
+          2: { cellWidth: 38 },
+          3: { cellWidth: 18, halign: 'center' },
+          4: { cellWidth: 32 },
+          5: { cellWidth: 22, halign: 'right' }
         },
         margin: { left: margin, right: margin }
       });
 
-      // Total summary at the bottom
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.setTextColor(15, 23, 42);
-      
-      const totalStudents = unpaidReportList.length;
-      const totalEstimatedDebt = unpaidReportList.reduce((acc, curr) => acc + curr.estimatedDebt, 0);
-      
-      doc.text(`TOTAL DE ALUNOS COM REGISTRO DE PENDÊNCIA: ${totalStudents}`, margin, finalY);
-      doc.text(`VALOR TOTAL PENDENTE ESTIMADO CONSOLIDADO: ${formatCurrency(totalEstimatedDebt)}`, margin, finalY + 6);
+      // Total Summary (Opção de exibição do totalizador de pendentes)
+      if (showPendingTotalizer) {
+        const finalY = (doc as any).lastAutoTable.finalY + 8;
+        if (finalY + 20 < pageHeight - 15) {
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(margin, finalY, pageWidth - (margin * 2), 16, 'FD');
 
-      doc.save(`Relatorio_Mensalidades_Aberto_${unpaidYear}.pdf`);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(19, 27, 46);
+
+          const totalStudents = unpaidReportList.length;
+          const totalEstimatedDebt = unpaidReportList.reduce((acc, curr) => acc + curr.estimatedDebt, 0);
+
+          doc.text(`TOTAL DE ALUNOS COM PENDÊNCIA(S): ${totalStudents}`, margin + 4, finalY + 6);
+          doc.text(`VALOR TOTAL PENDENTE ESTIMADO: ${formatCurrency(totalEstimatedDebt)}`, margin + 4, finalY + 11.5);
+        }
+      }
+
+      // Footer with page numbering
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(120, 120, 120);
+        
+        const footerLeft = `SISTEMA ESCMIN • ${institution?.name || 'Escola Diocesana de Ministérios'} • Relatório de Inadimplência`;
+        
+        doc.text(footerLeft, margin, pageHeight - 8, { align: 'left' });
+        doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+      }
+
+      // 4. Print Execution (Opens PDF window for printing)
+      doc.autoPrint();
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+
+      try {
+        const printWin = window.open(url, '_blank');
+        if (!printWin) {
+          doc.save(`Relatorio_Inadimplencia_${unpaidYear}.pdf`);
+        }
+      } catch (err) {
+        console.error('Error opening print window:', err);
+        doc.save(`Relatorio_Inadimplencia_${unpaidYear}.pdf`);
+      }
     } catch (error) {
       console.error('Error generating unpaid report:', error);
-      alert('Erro ao gerar relatório de mensalidades em aberto');
+      alert('Erro ao imprimir relatório de inadimplência');
     }
   };
 
@@ -1446,7 +1548,7 @@ export function Contributions() {
                   type="date" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
+                  className="bg-transparent border-none text-sm sm:text-base font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
                 />
               </div>
               <div className="flex-1 flex items-center px-2.5 py-1 sm:py-0 gap-1.5">
@@ -1455,7 +1557,7 @@ export function Contributions() {
                   type="date" 
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
+                  className="bg-transparent border-none text-sm sm:text-base font-black uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
                 />
               </div>
             </div>
@@ -1604,6 +1706,39 @@ export function Contributions() {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-3">
+                  {/* Opções do Relatório */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                      <input 
+                        type="checkbox" 
+                        checked={hideStudentName} 
+                        onChange={(e) => setHideStudentName(e.target.checked)} 
+                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-4 h-4 cursor-pointer accent-[#131b2e]" 
+                      />
+                      <span className="whitespace-nowrap">Ocultar Nome</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                      <input 
+                        type="checkbox" 
+                        checked={showPendingTotalizer} 
+                        onChange={(e) => setShowPendingTotalizer(e.target.checked)} 
+                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-4 h-4 cursor-pointer accent-[#131b2e]" 
+                      />
+                      <span className="whitespace-nowrap">Totalizador</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 transition-all select-none border border-slate-200/60">
+                      <input 
+                        type="checkbox" 
+                        checked={showDateTime} 
+                        onChange={(e) => setShowDateTime(e.target.checked)} 
+                        className="rounded border-slate-300 text-[#131b2e] focus:ring-slate-400 w-4 h-4 cursor-pointer accent-[#131b2e]" 
+                      />
+                      <span className="whitespace-nowrap">Data e Hora</span>
+                    </label>
+                  </div>
+
                   {/* Selector of Year */}
                   <div className="flex items-center bg-slate-100 p-1 rounded-xl">
                     <button 
@@ -1633,7 +1768,7 @@ export function Contributions() {
                   <select
                     value={unpaidClassFilter}
                     onChange={(e) => setUnpaidClassFilter(e.target.value)}
-                    className="h-10 px-3 bg-slate-100 border-none rounded-xl text-xs font-black text-[#131b2e] focus:ring-2 focus:ring-slate-200"
+                    className="h-10 px-3 bg-slate-100 border-none rounded-xl text-xs font-black text-[#131b2e] focus:ring-2 focus:ring-slate-200 cursor-pointer"
                   >
                     <option value="">SELECIONE UMA TURMA...</option>
                     <option value="all">TODAS AS TURMAS</option>
@@ -1642,14 +1777,15 @@ export function Contributions() {
                     ))}
                   </select>
 
-                  {/* Print Report PDF Button */}
+                  {/* Direct Print Button */}
                   <button
                     onClick={generateUnpaidReport}
                     disabled={!unpaidClassFilter || unpaidReportList.length === 0}
-                    className="h-10 px-4 bg-[#131b2e] text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:scale-95"
+                    className="h-10 px-4 bg-[#131b2e] text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
+                    title="Imprimir relatório de inadimplência"
                   >
-                    <FileDown size={15} />
-                    Exportar PDF
+                    <Printer size={15} />
+                    Imprimir Relatório
                   </button>
                 </div>
               </div>
@@ -1766,10 +1902,12 @@ export function Contributions() {
                                       "w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm",
                                       hasOverdue ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
                                     )}>
-                                      {item.student.name.charAt(0)}
+                                      {hideStudentName ? '#' : item.student.name.charAt(0)}
                                     </div>
                                     <div>
-                                      <p className="text-sm font-black text-[#131b2e] leading-snug">{item.student.name}</p>
+                                      <p className="text-sm font-black text-[#131b2e] leading-snug">
+                                        {hideStudentName ? 'ALUNO RESERVADO' : item.student.name}
+                                      </p>
                                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.student.registration_number}</p>
                                     </div>
                                   </div>
