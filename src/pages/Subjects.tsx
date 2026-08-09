@@ -223,6 +223,7 @@ export function Subjects() {
       const margin = 15;
       const pageWidth = doc.internal.pageSize.width;
 
+      // Header - Institution info ONLY above divider
       if (inst?.logo_url) {
         try {
           doc.addImage(inst.logo_url, 'PNG', margin, 10, 20, 20);
@@ -234,15 +235,34 @@ export function Subjects() {
       doc.setFont('helvetica', 'bold');
       doc.text(inst?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 38, 18);
       
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setTextColor(100);
       doc.setFont('helvetica', 'normal');
-      doc.text(`RELAÇÃO DE DISCIPLINAS • FILTRO: ${statusFilter.toUpperCase()}${semesterFilter !== 'Todos' ? ` • ${semesterFilter.toUpperCase()}` : ''}`, 38, 24);
-      doc.text(`${inst?.city_uf || ''} • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, 38, 29);
+      const instInfo = [inst?.address, inst?.city_uf, inst?.phone ? `TEL: ${inst.phone}` : ''].filter(Boolean).join(' • ');
+      doc.text(instInfo || 'GUARULHOS/SP', 38, 24);
 
+      // Divider line
       doc.setDrawColor(0, 23, 75);
       doc.setLineWidth(0.5);
-      doc.line(margin, 35, pageWidth - margin, 35);
+      doc.line(margin, 32, pageWidth - margin, 32);
+
+      // Below the line: Report title & selected filters
+      doc.setFontSize(11);
+      doc.setTextColor(0, 23, 75);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RELAÇÃO DE DISCIPLINAS', margin, 40);
+
+      doc.setFontSize(8);
+      doc.setTextColor(80);
+      doc.setFont('helvetica', 'normal');
+      const filterLabels = [`FILTRO: ${statusFilter.toUpperCase()}`];
+      if (semesterFilter !== 'Todos') {
+        filterLabels.push(`SEMESTRE: ${semesterFilter.toUpperCase()}`);
+      } else {
+        filterLabels.push('SEMESTRE: TODOS');
+      }
+      doc.text(filterLabels.join(' • '), margin, 45);
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 45, { align: 'right' });
 
       const tableData = filteredSubjects.map(s => {
         const teacher = teachers.find(t => t.id === s.teacher_id);
@@ -262,7 +282,7 @@ export function Subjects() {
       });
 
       autoTable(doc, {
-        startY: 40,
+        startY: 50,
         head: [['CÓD.', 'NOME DA DISCIPLINA', 'ANO', 'SEM.', 'PROFESSOR', 'STATUS']],
         body: tableData,
         headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },

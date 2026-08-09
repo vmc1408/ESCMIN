@@ -68,9 +68,17 @@ const groupSubjectsBySemester = (subList: Subject[]) => {
 
   subList.forEach(s => {
     const sem = (s.semester || '').toLowerCase();
-    if (sem.includes('1') || sem.includes('1º') || sem.includes('1o')) {
+    const name = (s.name || '').toLowerCase();
+
+    if (
+      sem.includes('1') || sem.includes('1º') || sem.includes('1o') ||
+      name.includes('1º sem') || name.includes('1o sem') || name.includes('1 sem')
+    ) {
       sem1.push(s);
-    } else if (sem.includes('2') || sem.includes('2º') || sem.includes('2o')) {
+    } else if (
+      sem.includes('2') || sem.includes('2º') || sem.includes('2o') ||
+      name.includes('2º sem') || name.includes('2o sem') || name.includes('2 sem')
+    ) {
       sem2.push(s);
     } else {
       others.push(s);
@@ -286,7 +294,7 @@ export function Teachers() {
       const margin = 15;
       const pageWidth = doc.internal.pageSize.width;
 
-      // Header
+      // Header - Institution info ONLY above the divider
       if (inst?.logo_url) {
         try {
           doc.addImage(inst.logo_url, 'PNG', margin, 10, 20, 20);
@@ -300,24 +308,55 @@ export function Teachers() {
       doc.setFont('helvetica', 'bold');
       doc.text(inst?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIOS', 38, 18);
       
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setTextColor(100);
       doc.setFont('helvetica', 'normal');
-      doc.text(`RELAÇÃO DE CORPO DOCENTE • FILTRO: ${statusFilter.toUpperCase()}${semesterFilter !== 'all' ? ` • SEMESTRE: ${semesterFilter.toUpperCase()}` : ''}`, 38, 24);
-      doc.text(`${inst?.city_uf || ''} • EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, 38, 29);
+      const instInfo = [inst?.address, inst?.city_uf, inst?.phone ? `TEL: ${inst.phone}` : ''].filter(Boolean).join(' • ');
+      doc.text(instInfo || 'GUARULHOS/SP', 38, 24);
 
+      // Divider line
       doc.setDrawColor(0, 23, 75);
       doc.setLineWidth(0.5);
-      doc.line(margin, 35, pageWidth - margin, 35);
+      doc.line(margin, 32, pageWidth - margin, 32);
+
+      // Below the line: Report name, selected filters, emission date
+      doc.setFontSize(11);
+      doc.setTextColor(0, 23, 75);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RELAÇÃO DE CORPO DOCENTE', margin, 40);
+
+      doc.setFontSize(8);
+      doc.setTextColor(80);
+      doc.setFont('helvetica', 'normal');
+      
+      const filterLabels: string[] = [`FILTRO: ${statusFilter.toUpperCase()}`];
+      if (semesterFilter !== 'all') {
+        filterLabels.push(`SEMESTRE: ${semesterFilter.toUpperCase()}`);
+      } else {
+        filterLabels.push('SEMESTRE: TODOS');
+      }
+      if (subjectFilter !== 'all') {
+        const subName = subjects.find(s => s.id === subjectFilter)?.name;
+        if (subName) filterLabels.push(`DISCIPLINA: ${subName.toUpperCase()}`);
+      }
+
+      doc.text(filterLabels.join(' • '), margin, 45);
+      doc.text(`EMISSÃO: ${new Date().toLocaleString('pt-BR')}`, pageWidth - margin, 45, { align: 'right' });
 
       const tableData = filteredTeachers.map(t => {
         const tSubList = subjects.filter(s => t.subject_ids?.includes(s.id));
         const { sem1, sem2, others } = groupSubjectsBySemester(tSubList);
 
         const parts: string[] = [];
-        if (sem1.length > 0) parts.push(`1º SEM: ${sem1.map(s => s.name).join(', ')}`);
-        if (sem2.length > 0) parts.push(`2º SEM: ${sem2.map(s => s.name).join(', ')}`);
-        if (others.length > 0) parts.push(`OUTRAS: ${others.map(s => s.name).join(', ')}`);
+        if (semesterFilter === '1º Semestre') {
+          if (sem1.length > 0) parts.push(`1º SEM: ${sem1.map(s => s.name).join(', ')}`);
+        } else if (semesterFilter === '2º Semestre') {
+          if (sem2.length > 0) parts.push(`2º SEM: ${sem2.map(s => s.name).join(', ')}`);
+        } else {
+          if (sem1.length > 0) parts.push(`1º SEM: ${sem1.map(s => s.name).join(', ')}`);
+          if (sem2.length > 0) parts.push(`2º SEM: ${sem2.map(s => s.name).join(', ')}`);
+          if (others.length > 0) parts.push(`OUTRAS: ${others.map(s => s.name).join(', ')}`);
+        }
           
         return [
           t.code,
@@ -329,7 +368,7 @@ export function Teachers() {
       });
 
       autoTable(doc, {
-        startY: 40,
+        startY: 50,
         head: [['CÓD.', 'NOME DO PROFESSOR', 'E-MAIL', 'DISCIPLINAS', 'STATUS']],
         body: tableData,
         headStyles: { fillColor: [0, 23, 75], textColor: 255, fontSize: 8, fontStyle: 'bold' },
@@ -919,8 +958,13 @@ export function Teachers() {
         const sub = subjects.find(s => s.id === id);
         if (!sub) return false;
         const sem = (sub.semester || '').toLowerCase();
-        if (semesterFilter === '1º Semestre') return sem.includes('1') || sem.includes('1º') || sem.includes('1o');
-        if (semesterFilter === '2º Semestre') return sem.includes('2') || sem.includes('2º') || sem.includes('2o');
+        const name = (sub.name || '').toLowerCase();
+        if (semesterFilter === '1º Semestre') {
+          return sem.includes('1') || sem.includes('1º') || sem.includes('1o') || name.includes('1º sem') || name.includes('1o sem') || name.includes('1 sem');
+        }
+        if (semesterFilter === '2º Semestre') {
+          return sem.includes('2') || sem.includes('2º') || sem.includes('2o') || name.includes('2º sem') || name.includes('2o sem') || name.includes('2 sem');
+        }
         return true;
       });
       
