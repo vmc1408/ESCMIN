@@ -1642,97 +1642,6 @@ export function Classes() {
                 )}
               </div>
 
-              {/* Academic Year Filter Widget with Steppers */}
-              <div className="space-y-1.5 bg-slate-50 p-2 border border-slate-200/80 rounded">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    <Calendar size={13} className="text-blue-800" /> Turma(s):
-                  </label>
-                </div>
-
-                <div className="flex items-center bg-white p-0.5 border border-slate-300 rounded gap-1 shadow-2xs">
-                  {(() => {
-                    const currentYrIdx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
-                    const isAtOldest = selectedAcademicYearFilter !== 'Todos' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
-                    const isAtNewest = selectedAcademicYearFilter !== 'Todos' && currentYrIdx === 0;
-
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          disabled={isAtOldest}
-                          onClick={() => {
-                            if (selectedAcademicYearFilter === 'Todos') {
-                              setSelectedAcademicYearFilter('2026');
-                            } else {
-                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
-                              if (idx !== -1 && idx < availableAcademicYears.length - 1) {
-                                setSelectedAcademicYearFilter(availableAcademicYears[idx + 1]);
-                              }
-                            }
-                          }}
-                          className={cn(
-                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
-                            isAtOldest
-                              ? "text-slate-300 cursor-not-allowed opacity-60"
-                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-100"
-                          )}
-                          title={
-                            isAtOldest
-                              ? `Não há turmas cadastradas em anos anteriores a ${selectedAcademicYearFilter}`
-                              : "Voltar para o Ano Anterior com Turmas"
-                          }
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-
-                        <select
-                          id="classes-academic-year-select"
-                          value={selectedAcademicYearFilter}
-                          onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
-                          className="flex-1 bg-transparent text-xs font-black text-blue-950 outline-none cursor-pointer hover:text-blue-700 transition-all uppercase tracking-wider py-1"
-                        >
-                          {availableAcademicYears.map(yr => (
-                            <option key={yr} value={yr}>
-                              ANO {yr}
-                            </option>
-                          ))}
-                          <option value="Todos">TODOS OS ANOS</option>
-                        </select>
-
-                        <button
-                          type="button"
-                          disabled={isAtNewest}
-                          onClick={() => {
-                            if (selectedAcademicYearFilter === 'Todos') {
-                              setSelectedAcademicYearFilter('2026');
-                            } else {
-                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
-                              if (idx > 0) {
-                                setSelectedAcademicYearFilter(availableAcademicYears[idx - 1]);
-                              }
-                            }
-                          }}
-                          className={cn(
-                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
-                            isAtNewest
-                              ? "text-slate-300 cursor-not-allowed opacity-60"
-                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-100"
-                          )}
-                          title={
-                            isAtNewest
-                              ? `Não há turmas cadastradas em anos futuros a ${selectedAcademicYearFilter}`
-                              : "Avançar para o Próximo Ano com Turmas"
-                          }
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-
               {/* Dynamic Select Menu for Módulo/Ano and Semestre */}
               <div className="grid grid-cols-1 gap-2">
                 {/* Ano Letivo / Módulo Select */}
@@ -2695,14 +2604,102 @@ export function Classes() {
             {/* Grid of All Classes */}
             <div className="space-y-4 pt-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 border border-slate-200">
-                <div className="flex items-center gap-2.5">
-                  <School className="text-slate-700" size={18} />
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    Catálogo de Turmas
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <School className="text-slate-700" size={18} />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Catálogo de Turmas
+                    </span>
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 font-extrabold text-[10px] border border-slate-200">
+                      {filteredClasses.length} {filteredClasses.length === 1 ? 'turma encontrada' : 'turmas encontradas'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quadros de navegação de Ano Letivo */}
+                <div className="flex items-center bg-slate-50 px-2 py-1 border border-slate-300 rounded gap-1 shadow-2xs">
+                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1 mr-1">
+                    <Calendar size={13} className="text-blue-800" /> Ano:
                   </span>
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 font-extrabold text-[10px] border border-slate-200">
-                    {filteredClasses.length} {filteredClasses.length === 1 ? 'turma encontrada' : 'turmas encontradas'}
-                  </span>
+                  {(() => {
+                    const currentYrIdx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
+                    const isAtOldest = selectedAcademicYearFilter !== 'Todos' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
+                    const isAtNewest = selectedAcademicYearFilter !== 'Todos' && currentYrIdx === 0;
+
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          disabled={isAtOldest}
+                          onClick={() => {
+                            if (selectedAcademicYearFilter === 'Todos') {
+                              setSelectedAcademicYearFilter('2026');
+                            } else {
+                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
+                              if (idx !== -1 && idx < availableAcademicYears.length - 1) {
+                                setSelectedAcademicYearFilter(availableAcademicYears[idx + 1]);
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
+                            isAtOldest
+                              ? "text-slate-300 cursor-not-allowed opacity-60"
+                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-200"
+                          )}
+                          title={
+                            isAtOldest
+                              ? `Não há turmas cadastradas em anos anteriores a ${selectedAcademicYearFilter}`
+                              : "Voltar para o Ano Anterior com Turmas"
+                          }
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+
+                        <select
+                          id="classes-academic-year-select"
+                          value={selectedAcademicYearFilter}
+                          onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
+                          className="bg-transparent text-xs font-black text-blue-950 outline-none cursor-pointer hover:text-blue-700 transition-all uppercase tracking-wider py-0.5 px-1"
+                        >
+                          {availableAcademicYears.map(yr => (
+                            <option key={yr} value={yr}>
+                              ANO {yr}
+                            </option>
+                          ))}
+                          <option value="Todos">TODOS OS ANOS</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          disabled={isAtNewest}
+                          onClick={() => {
+                            if (selectedAcademicYearFilter === 'Todos') {
+                              setSelectedAcademicYearFilter('2026');
+                            } else {
+                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
+                              if (idx > 0) {
+                                setSelectedAcademicYearFilter(availableAcademicYears[idx - 1]);
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
+                            isAtNewest
+                              ? "text-slate-300 cursor-not-allowed opacity-60"
+                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-200"
+                          )}
+                          title={
+                            isAtNewest
+                              ? `Não há turmas cadastradas em anos futuros a ${selectedAcademicYearFilter}`
+                              : "Avançar para o Próximo Ano com Turmas"
+                          }
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {hasActiveFilters && (
