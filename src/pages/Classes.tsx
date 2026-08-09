@@ -2604,19 +2604,17 @@ export function Classes() {
             {/* Grid of All Classes */}
             <div className="space-y-4 pt-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 border border-slate-200">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <div className="flex items-center gap-2">
-                    <School className="text-slate-700" size={18} />
-                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Catálogo de Turmas
-                    </span>
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 font-extrabold text-[10px] border border-slate-200">
-                      {filteredClasses.length} {filteredClasses.length === 1 ? 'turma encontrada' : 'turmas encontradas'}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <School className="text-slate-700" size={18} />
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Catálogo de Turmas
+                  </span>
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 font-extrabold text-[10px] border border-slate-200">
+                    {filteredClasses.length} {filteredClasses.length === 1 ? 'turma encontrada' : 'turmas encontradas'}
+                  </span>
                 </div>
 
-                {/* Quadros de navegação de Ano Letivo */}
+                {/* Quadros de navegação de Ano Letivo (posicionado à direita) */}
                 <div className="flex items-center bg-slate-50 px-2 py-1 border border-slate-300 rounded gap-1 shadow-2xs">
                   <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1 mr-1">
                     <Calendar size={13} className="text-blue-800" /> Ano:
@@ -2713,22 +2711,6 @@ export function Classes() {
                     );
                   })()}
                 </div>
-
-                {hasActiveFilters && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                      Filtros definidos no menu
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleClearFilters}
-                      className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[9.5px] font-extrabold uppercase tracking-wider border border-rose-200 transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <RotateCcw size={11} />
-                      <span>Limpar Filtros</span>
-                    </button>
-                  </div>
-                )}
               </div>
 
               {filteredClasses.length === 0 ? (
