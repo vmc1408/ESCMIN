@@ -951,20 +951,14 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Acesso Rápido - Posicionado acima dos Cards Informativos */}
+      {/* Acesso Rápido - Botões Flutuantes sem Quadro */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-5 rounded-lg shadow-sm border border-slate-200"
+        className="space-y-2.5"
       >
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center justify-between px-1">
           <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Acesso Rápido</h4>
-          <div className="flex items-center gap-2">
-            <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">Último Update: {lastUpdated.toLocaleTimeString()}</span>
-            <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-bold uppercase tracking-widest border border-blue-100">
-              Sincronizado
-            </span>
-          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
@@ -973,49 +967,55 @@ export function Dashboard() {
               icon: UserPlus, 
               path: '/students', 
               state: { action: 'new' },
-              bg: 'bg-indigo-50/45 hover:bg-indigo-50/85 border-indigo-100/70 hover:border-indigo-200', 
+              bg: 'bg-white hover:bg-indigo-50/50 border-slate-200 hover:border-indigo-200', 
               iconColor: 'text-indigo-600', 
-              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(99,102,241,0.12)]' 
+              iconBg: 'bg-indigo-50/80',
+              hoverShadow: 'shadow-sm hover:shadow-md hover:-translate-y-1' 
             },
             { 
               label: 'Ficha do Aluno', 
               icon: UserCircle, 
               path: '/student-ficha', 
-              bg: 'bg-rose-50/45 hover:bg-rose-50/85 border-rose-100/70 hover:border-rose-200', 
+              bg: 'bg-white hover:bg-rose-50/50 border-slate-200 hover:border-rose-200', 
               iconColor: 'text-rose-600', 
-              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(244,63,94,0.12)]' 
+              iconBg: 'bg-rose-50/80',
+              hoverShadow: 'shadow-sm hover:shadow-md hover:-translate-y-1' 
             },
             { 
               label: 'Gerar Impressos', 
               icon: Printer, 
               path: '/impressos', 
-              bg: 'bg-sky-50/45 hover:bg-sky-50/85 border-sky-100/70 hover:border-sky-200', 
+              bg: 'bg-white hover:bg-sky-50/50 border-slate-200 hover:border-sky-200', 
               iconColor: 'text-sky-600', 
-              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(56,189,248,0.12)]' 
+              iconBg: 'bg-sky-50/80',
+              hoverShadow: 'shadow-sm hover:shadow-md hover:-translate-y-1' 
             },
             { 
               label: 'Turmas / Classes', 
               icon: GraduationCap, 
               path: '/classes', 
-              bg: 'bg-emerald-50/45 hover:bg-emerald-50/85 border-emerald-100/70 hover:border-emerald-200', 
+              bg: 'bg-white hover:bg-emerald-50/50 border-slate-200 hover:border-emerald-200', 
               iconColor: 'text-emerald-600', 
-              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(16,185,129,0.12)]' 
+              iconBg: 'bg-emerald-50/80',
+              hoverShadow: 'shadow-sm hover:shadow-md hover:-translate-y-1' 
             },
             { 
               label: 'Calendário', 
               icon: Calendar, 
               path: '/calendar', 
-              bg: 'bg-amber-50/45 hover:bg-amber-50/85 border-amber-100/70 hover:border-amber-200', 
+              bg: 'bg-white hover:bg-amber-50/50 border-slate-200 hover:border-amber-200', 
               iconColor: 'text-amber-600', 
-              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(245,158,11,0.12)]' 
+              iconBg: 'bg-amber-50/80',
+              hoverShadow: 'shadow-sm hover:shadow-md hover:-translate-y-1' 
             },
             { 
               label: 'Contribuições', 
               icon: Wallet, 
               path: '/contributions', 
-              bg: 'bg-violet-50/45 hover:bg-violet-50/85 border-violet-100/70 hover:border-violet-200', 
+              bg: 'bg-white hover:bg-violet-50/50 border-slate-200 hover:border-violet-200', 
               iconColor: 'text-violet-600', 
-              hoverShadow: 'hover:shadow-[0_6px_16px_rgba(139,92,246,0.12)]' 
+              iconBg: 'bg-violet-50/80',
+              hoverShadow: 'shadow-sm hover:shadow-md hover:-translate-y-1' 
             }
           ].map((item, i) => (
             <button 
@@ -1026,15 +1026,15 @@ export function Dashboard() {
                 }
               }}
               className={cn(
-                "flex flex-col items-start gap-1.5 p-3 border rounded-lg transition-all duration-300 text-left group hover:-translate-y-0.5 cursor-pointer w-full",
+                "flex flex-row items-center gap-2.5 px-3.5 py-2.5 border rounded-lg transition-all duration-300 text-left group cursor-pointer w-full min-h-[44px]",
                 item.bg,
                 item.hoverShadow
               )}
             >
-              <div className="p-1.5 rounded-md bg-white shadow-sm border border-slate-100 transition-colors duration-300">
+              <div className={cn("p-1.5 rounded-md transition-all duration-300 shrink-0", item.iconBg)}>
                 <item.icon size={16} className={cn("transition-transform duration-300 group-hover:scale-110 shrink-0", item.iconColor)} />
               </div>
-              <span className="text-[9.5px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors tracking-tight leading-tight uppercase">
+              <span className="text-[9.5px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors tracking-tight leading-tight uppercase truncate">
                 {item.label}
               </span>
             </button>
