@@ -657,11 +657,9 @@ export function Teachers() {
   const PrintableTeacher = () => {
     if (!selectedTeacher) return null;
     
-    // Get subject names
-    const teacherSubjects = subjects
-      .filter(s => selectedTeacher.subject_ids?.includes(s.id))
-      .map(s => s.name)
-      .join(', ');
+    // Get subject names and objects
+    const teacherSubjectList = subjects.filter(s => selectedTeacher.subject_ids?.includes(s.id));
+    const teacherSubjects = teacherSubjectList.map(s => s.name).join(', ');
 
     return (
       <div id="printable-teacher-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[285mm] mx-auto">
@@ -705,10 +703,10 @@ export function Teachers() {
               </div>
             </div>
 
-            <div className="col-span-5 border border-black/40 p-3 h-32">
-              <p className="text-[10pt] font-bold mb-3 uppercase border-b border-black/10 pb-1 tracking-tight">Disciplinas:</p>
-              <div className="overflow-y-auto h-20 pr-1 custom-scrollbar-mini">
-                <p className="text-[9pt] font-bold leading-tight uppercase text-slate-900">
+            <div className="col-span-5 border border-black/40 p-3 h-32 flex flex-col justify-between">
+              <p className="text-[10pt] font-bold uppercase border-b border-black/10 pb-1 tracking-tight">Disciplinas Ministradas:</p>
+              <div className="flex-1 pt-1 overflow-hidden flex items-center">
+                <p className="text-[8.5pt] font-bold leading-snug uppercase text-slate-900 line-clamp-3">
                   {teacherSubjects || 'NENHUMA SELECIONADA'}
                 </p>
               </div>
@@ -727,7 +725,7 @@ export function Teachers() {
           </div>
 
           {/* Teacher Detailed Info */}
-          <div className="border border-black/40 p-6 rounded-none space-y-6">
+          <div className="border border-black/40 p-6 rounded-none space-y-5">
             <div className="grid grid-cols-1 gap-6">
               <div className="space-y-1">
                 <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Nome Completo do Professor</p>
@@ -775,19 +773,39 @@ export function Teachers() {
               </div>
             </div>
 
-            {selectedTeacher.observations && (
-              <div className="space-y-1 pt-4">
-                <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Observações Gerais</p>
-                <div className="text-[10pt] font-medium border border-black/10 p-4 rounded bg-slate-50/20 whitespace-pre-wrap leading-relaxed min-h-[100px]">
-                  {(selectedTeacher.observations || '')
+            {/* Disciplinas Detalhadas */}
+            <div className="space-y-1 pt-1">
+              <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Disciplinas Habilitadas / Ministradas</p>
+              <div className="border border-black/10 p-3 rounded bg-slate-50/20">
+                {teacherSubjectList.length > 0 ? (
+                  <ul className="list-disc list-inside space-y-1 text-[9.5pt] font-bold uppercase text-slate-900">
+                    {teacherSubjectList.map(s => (
+                      <li key={s.id}>
+                        {s.code ? `[${s.code}] ` : ''}{s.name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[9pt] text-slate-400 italic">Nenhuma disciplina cadastrada para este professor.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Observações Gerais */}
+            <div className="space-y-1 pt-1">
+              <p className="text-[9pt] font-bold text-slate-500 uppercase tracking-tighter">Observações Gerais</p>
+              <div className="text-[9.5pt] font-medium border border-black/10 p-3 rounded bg-slate-50/20 whitespace-pre-wrap leading-relaxed min-h-[60px]">
+                {(() => {
+                  const cleanedObs = (selectedTeacher.observations || '')
                     .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
                     .replace(/\[SUBJECTS:\[[\s\S]*?\]\]/g, '')
                     .replace(/\[PHOTO_URL:[\s\S]*?\]/g, '')
                     .replace(/\]\]$/g, '')
-                    .trim()}
-                </div>
+                    .trim();
+                  return cleanedObs || '---';
+                })()}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Institutional Footer Removed */}
