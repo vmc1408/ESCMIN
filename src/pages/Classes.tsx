@@ -198,7 +198,7 @@ export function Classes() {
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>('Todos');
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('Todos');
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('Todos');
-  const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('2026');
+  const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('Todos');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
   // Helper to extract exact academic base year for a class (Ano Letivo field)
@@ -2633,7 +2633,7 @@ export function Classes() {
                           disabled={isAtOldest}
                           onClick={() => {
                             if (selectedAcademicYearFilter === 'Todos') {
-                              setSelectedAcademicYearFilter('2026');
+                              setSelectedAcademicYearFilter(availableAcademicYears[0] || '2026');
                             } else {
                               const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
                               if (idx !== -1 && idx < availableAcademicYears.length - 1) {
@@ -2662,12 +2662,12 @@ export function Classes() {
                           onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
                           className="bg-transparent text-xs font-black text-blue-950 outline-none cursor-pointer hover:text-blue-700 transition-all uppercase tracking-wider py-0.5 px-1"
                         >
+                          <option value="Todos">TODOS OS ANOS</option>
                           {availableAcademicYears.map(yr => (
                             <option key={yr} value={yr}>
                               ANO {yr}
                             </option>
                           ))}
-                          <option value="Todos">TODOS OS ANOS</option>
                         </select>
 
                         <button
@@ -2675,7 +2675,7 @@ export function Classes() {
                           disabled={isAtNewest}
                           onClick={() => {
                             if (selectedAcademicYearFilter === 'Todos') {
-                              setSelectedAcademicYearFilter('2026');
+                              setSelectedAcademicYearFilter(availableAcademicYears[availableAcademicYears.length - 1] || '2026');
                             } else {
                               const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
                               if (idx > 0) {
@@ -2697,6 +2697,18 @@ export function Classes() {
                         >
                           <ChevronRight size={16} />
                         </button>
+
+                        {selectedAcademicYearFilter !== 'Todos' && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAcademicYearFilter('Todos')}
+                            className="ml-1 px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shadow-2xs uppercase tracking-wider"
+                            title="Limpar seleção de ano e voltar para Todos os Anos"
+                          >
+                            <X size={12} className="stroke-[2.5]" />
+                            <span>Limpar</span>
+                          </button>
+                        )}
                       </>
                     );
                   })()}
