@@ -3525,6 +3525,8 @@ export function Classes() {
                           .replace(/\[METADATA:[\s\S]*?\]/gi, '')
                           .replace(/\{[\s\S]*?\}/g, '')
                           .replace(/is_special\s*:\s*(true|false)/gi, '')
+                          .replace(/["']?is_special["']?\s*:\s*(true|false)/gi, '')
+                          .replace(/is_special/gi, '')
                           .replace(/["'{}\[\]]/g, '')
                           .replace(/,+/g, '')
                           .replace(/\n\s*\n/g, '\n')
@@ -3534,21 +3536,6 @@ export function Classes() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* SIGNATURE BLOCK */}
-            <div className="my-8 flex justify-between items-end px-4">
-              <div className="space-y-1">
-                <p className="text-[10pt] font-bold text-slate-800">
-                  Guarulhos, {new Date().toLocaleDateString('pt-BR')}
-                </p>
-                <p className="text-[8pt] text-slate-400 font-medium">Local e Data</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="w-[85mm] border-t-2 border-black mb-1"></div>
-                <p className="text-[10pt] font-bold uppercase tracking-widest text-[#00174b]">Assinatura da Secretaria</p>
-                <p className="text-[7pt] text-slate-400 font-bold mt-1 tracking-tighter">Escola Diocesana de Ministérios - ESMIN</p>
               </div>
             </div>
 
