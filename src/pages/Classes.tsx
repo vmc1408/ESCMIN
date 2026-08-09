@@ -198,7 +198,7 @@ export function Classes() {
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>('Todos');
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('Todos');
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('Todos');
-  const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('Todos');
+  const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('ATUAL');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
   // Helper to extract exact academic base year for a class (Ano Letivo field)
@@ -236,12 +236,15 @@ export function Classes() {
     return '2026';
   }, []);
 
+  const currentAcademicYear = React.useMemo(() => new Date().getFullYear().toString(), []);
+
   // Helper to determine if a class matches the selected academic year
   const isClassActiveInAcademicYear = React.useCallback((c: any, selectedYear: string): boolean => {
     if (!selectedYear || selectedYear === 'Todos') return true;
     if (c.unallocated) return false;
-    return getClassAcademicYear(c) === selectedYear;
-  }, [getClassAcademicYear]);
+    const targetYear = selectedYear === 'ATUAL' ? currentAcademicYear : selectedYear;
+    return getClassAcademicYear(c) === targetYear;
+  }, [getClassAcademicYear, currentAcademicYear]);
 
   const availableAcademicYears = React.useMemo(() => {
     const yrSet = new Set<string>(['2026']);
@@ -2620,9 +2623,10 @@ export function Classes() {
                     <Calendar size={13} className="text-blue-800" /> Ano:
                   </span>
                   {(() => {
-                    const currentYrIdx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
-                    const isAtOldest = selectedAcademicYearFilter !== 'Todos' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
-                    const isAtNewest = selectedAcademicYearFilter !== 'Todos' && currentYrIdx === 0;
+                    const activeYr = selectedAcademicYearFilter === 'ATUAL' ? currentAcademicYear : selectedAcademicYearFilter;
+                    const currentYrIdx = availableAcademicYears.indexOf(activeYr);
+                    const isAtOldest = currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1;
+                    const isAtNewest = currentYrIdx === 0;
 
                     return (
                       <>
@@ -2630,13 +2634,10 @@ export function Classes() {
                           type="button"
                           disabled={isAtOldest}
                           onClick={() => {
-                            if (selectedAcademicYearFilter === 'Todos') {
-                              setSelectedAcademicYearFilter(availableAcademicYears[0] || '2026');
-                            } else {
-                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
-                              if (idx !== -1 && idx < availableAcademicYears.length - 1) {
-                                setSelectedAcademicYearFilter(availableAcademicYears[idx + 1]);
-                              }
+                            const effectiveYr = selectedAcademicYearFilter === 'ATUAL' ? currentAcademicYear : selectedAcademicYearFilter;
+                            const idx = availableAcademicYears.indexOf(effectiveYr);
+                            if (idx !== -1 && idx < availableAcademicYears.length - 1) {
+                              setSelectedAcademicYearFilter(availableAcademicYears[idx + 1]);
                             }
                           }}
                           className={cn(
@@ -2647,7 +2648,7 @@ export function Classes() {
                           )}
                           title={
                             isAtOldest
-                              ? `Não há turmas cadastradas em anos anteriores a ${selectedAcademicYearFilter}`
+                              ? `Não há turmas cadastradas em anos anteriores`
                               : "Voltar para o Ano Anterior com Turmas"
                           }
                         >
@@ -2660,25 +2661,23 @@ export function Classes() {
                           onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
                           className="bg-transparent text-xs font-black text-blue-950 outline-none cursor-pointer hover:text-blue-700 transition-all uppercase tracking-wider py-0.5 px-1"
                         >
-                          <option value="Todos">TODOS OS ANOS</option>
+                          <option value="ATUAL">ATUAL</option>
                           {availableAcademicYears.map(yr => (
                             <option key={yr} value={yr}>
                               ANO {yr}
                             </option>
                           ))}
+                          <option value="Todos">TODOS OS ANOS</option>
                         </select>
 
                         <button
                           type="button"
                           disabled={isAtNewest}
                           onClick={() => {
-                            if (selectedAcademicYearFilter === 'Todos') {
-                              setSelectedAcademicYearFilter(availableAcademicYears[availableAcademicYears.length - 1] || '2026');
-                            } else {
-                              const idx = availableAcademicYears.indexOf(selectedAcademicYearFilter);
-                              if (idx > 0) {
-                                setSelectedAcademicYearFilter(availableAcademicYears[idx - 1]);
-                              }
+                            const effectiveYr = selectedAcademicYearFilter === 'ATUAL' ? currentAcademicYear : selectedAcademicYearFilter;
+                            const idx = availableAcademicYears.indexOf(effectiveYr);
+                            if (idx > 0) {
+                              setSelectedAcademicYearFilter(availableAcademicYears[idx - 1]);
                             }
                           }}
                           className={cn(
@@ -2689,24 +2688,28 @@ export function Classes() {
                           )}
                           title={
                             isAtNewest
-                              ? `Não há turmas cadastradas em anos futuros a ${selectedAcademicYearFilter}`
+                              ? `Não há turmas cadastradas em anos futuros`
                               : "Avançar para o Próximo Ano com Turmas"
                           }
                         >
                           <ChevronRight size={16} />
                         </button>
 
-                        {selectedAcademicYearFilter !== 'Todos' && (
+                        {/* Espaço reservado fixo para o botão limpar evitar movimentação ou redimensionamento do quadro */}
+                        <div className="w-[72px] shrink-0 flex justify-end">
                           <button
                             type="button"
-                            onClick={() => setSelectedAcademicYearFilter('Todos')}
-                            className="ml-1 px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shadow-2xs uppercase tracking-wider"
-                            title="Limpar seleção de ano e voltar para Todos os Anos"
+                            onClick={() => setSelectedAcademicYearFilter('ATUAL')}
+                            className={cn(
+                              "px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shadow-2xs uppercase tracking-wider",
+                              selectedAcademicYearFilter === 'ATUAL' ? "invisible pointer-events-none" : "visible"
+                            )}
+                            title="Limpar seleção de ano e voltar para o Ano Atual"
                           >
                             <X size={12} className="stroke-[2.5]" />
                             <span>Limpar</span>
                           </button>
-                        )}
+                        </div>
                       </>
                     );
                   })()}
