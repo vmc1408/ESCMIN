@@ -3384,176 +3384,178 @@ export function Classes() {
 
       {/* Printable Class Record */}
       {selectedClass && (
-        <div id="printable-class-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[285mm] mx-auto">
-          <div className="w-full max-w-[210mm] mx-auto bg-white p-8 flex flex-col h-full">
-            {/* Institutional Header */}
-            <div className="flex items-center gap-6 mb-6 pb-2 border-b-2 border-black">
-              <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
-                {inst?.logo_url ? (
-                  <img src={inst.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
-                ) : (
-                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
-                    <span className="leading-none">SEM</span>
-                    <span className="leading-none">LOGO</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 flex flex-col">
-                <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-                <h1 className="text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
-                  {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                </h1>
-                <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
-                  {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
-                </p>
-              </div>
-            </div>
-
-            {/* Document Title */}
-            <div className="bg-black text-white py-2 px-4 mb-6 flex justify-between items-center">
-              <h2 className="text-[14pt] font-bold uppercase tracking-widest">FICHA DA TURMA</h2>
-              <span className="text-[10pt] font-bold">Turma: {selectedClass.code}</span>
-            </div>
-
-            {/* Content Section */}
-            <div className="space-y-6 flex-1">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="border-b border-black/10 pb-2">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Nome do Curso / Turma</p>
-                  <p className="text-[12pt] font-bold uppercase text-[#00174b]">{selectedClass.name}</p>
+        <div id="printable-class-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full min-h-[270mm] mx-auto">
+          <div className="w-full max-w-[210mm] mx-auto bg-white px-6 pt-1 pb-2 flex flex-col justify-between min-h-[270mm]">
+            <div>
+              {/* Institutional Header */}
+              <div className="flex items-center gap-5 mb-3 pb-2 border-b-2 border-black">
+                <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+                  {inst?.logo_url ? (
+                    <img src={inst.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
+                  ) : (
+                    <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
+                      <span className="leading-none">SEM</span>
+                      <span className="leading-none">LOGO</span>
+                    </div>
+                  )}
                 </div>
-                
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Ano Letivo</p>
-                    <p className="text-[11pt] font-bold">{selectedClass.year || '---'}</p>
-                  </div>
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Semestre</p>
-                    <p className="text-[11pt] font-bold uppercase">{selectedClass.semester || '---'}</p>
-                  </div>
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Período</p>
-                    <p className="text-[11pt] font-bold uppercase">{selectedClass.period || '---'}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Sala</p>
-                    <p className="text-[11pt] font-bold uppercase">{selectedClass.room || '---'}</p>
-                  </div>
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Duração</p>
-                    <p className="text-[11pt] font-bold uppercase">Início em: {selectedClass.start_date || '---'}</p>
-                  </div>
-                </div>
-
-                <div className="border-b border-black/10 pb-2">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Dias da Semana</p>
-                  <p className="text-[11pt] font-bold uppercase">{(selectedClass.days_of_week || []).join(', ') || 'Não definidos'}</p>
-                </div>
-
-                <div className="border-b border-black/10 pb-2">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Disciplinas Vinculadas (Matriz Curricular)</p>
-                  <div className="space-y-2 mt-2">
-                    {(() => {
-                      const classSubs = (selectedClass.subject_ids || [])
-                        .map(sid => subjects.find(s => s.id === sid))
-                        .filter(Boolean) as Subject[];
-                      const printSem1 = classSubs.filter(s => (s.semester || '').includes('1'));
-                      const printSem2 = classSubs.filter(s => (s.semester || '').includes('2'));
-                      const printOther = classSubs.filter(s => !(s.semester || '').includes('1') && !(s.semester || '').includes('2'));
-
-                      if (classSubs.length === 0) {
-                        return <p className="text-[10pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>;
-                      }
-
-                      return (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-[8.5pt] font-bold text-blue-800 uppercase tracking-wider mb-1">1º Semestre:</p>
-                            {printSem1.length > 0 ? (
-                              printSem1.map(s => (
-                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                                  [{s.code}] {s.name}
-                                </p>
-                              ))
-                            ) : (
-                              <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[8.5pt] font-bold text-emerald-800 uppercase tracking-wider mb-1">2º Semestre:</p>
-                            {printSem2.length > 0 ? (
-                              printSem2.map(s => (
-                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                                  [{s.code}] {s.name}
-                                </p>
-                              ))
-                            ) : (
-                              <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
-                            )}
-                          </div>
-                          {printOther.length > 0 && (
-                            <div className="col-span-2">
-                              <p className="text-[8.5pt] font-bold text-slate-700 uppercase tracking-wider mb-1">Outras Disciplinas:</p>
-                              {printOther.map(s => (
-                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
-                                  [{s.code}] {s.name}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div className="border-b border-black/10 pb-2">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Observações da Turma</p>
-                  <div className="text-[10pt] leading-relaxed text-justify whitespace-pre-line min-h-[100px]">
-                    {(selectedClass.observations || '').replace(/\[METADATA:.+?\]/, '').trim() || 'Sem observações adicionais.'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Signature Area */}
-              <div className="mt-12 flex justify-between items-end px-4">
-                <div className="space-y-1">
-                  <p className="text-[10pt] font-bold text-slate-800">
-                    Guarulhos, {new Date().toLocaleDateString('pt-BR')}
+                <div className="flex-1 flex flex-col">
+                  <p className="text-[10pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
+                  <h1 className="text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
+                    {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                  </h1>
+                  <p className="text-[10.5pt] font-bold text-slate-700 tracking-wide mt-0.5 uppercase">
+                    {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                   </p>
-                  <p className="text-[8pt] text-slate-400 font-medium">Local e Data</p>
                 </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-[85mm] border-t-2 border-black mb-1"></div>
-                  <p className="text-[10pt] font-bold uppercase tracking-widest text-[#00174b]">Assinatura da Secretaria</p>
-                  <p className="text-[7pt] text-slate-400 font-bold mt-1 tracking-tighter">Escola Diocesana de Ministérios - ESMIN</p>
+              </div>
+
+              {/* Document Title */}
+              <div className="bg-black text-white py-1.5 px-4 mb-4 flex justify-between items-center">
+                <h2 className="text-[13pt] font-bold uppercase tracking-widest">FICHA DA TURMA</h2>
+                <span className="text-[10pt] font-bold">Turma: {selectedClass.code}</span>
+              </div>
+
+              {/* Content Section */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="border-b border-black/10 pb-1.5">
+                    <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Nome do Curso / Turma</p>
+                    <p className="text-[11.5pt] font-bold uppercase text-[#00174b]">{selectedClass.name}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="border-b border-black/10 pb-1.5">
+                      <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Ano Letivo</p>
+                      <p className="text-[10.5pt] font-bold">{selectedClass.year || '---'}</p>
+                    </div>
+                    <div className="border-b border-black/10 pb-1.5">
+                      <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Semestre</p>
+                      <p className="text-[10.5pt] font-bold uppercase">{selectedClass.semester || '---'}</p>
+                    </div>
+                    <div className="border-b border-black/10 pb-1.5">
+                      <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Período</p>
+                      <p className="text-[10.5pt] font-bold uppercase">{selectedClass.period || '---'}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="border-b border-black/10 pb-1.5">
+                      <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Sala</p>
+                      <p className="text-[10.5pt] font-bold uppercase">{selectedClass.room || '---'}</p>
+                    </div>
+                    <div className="border-b border-black/10 pb-1.5">
+                      <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Duração</p>
+                      <p className="text-[10.5pt] font-bold uppercase">Início em: {selectedClass.start_date || '---'}</p>
+                    </div>
+                  </div>
+
+                  <div className="border-b border-black/10 pb-1.5">
+                    <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Dias da Semana</p>
+                    <p className="text-[10.5pt] font-bold uppercase">{(selectedClass.days_of_week || []).join(', ') || 'Não definidos'}</p>
+                  </div>
+
+                  <div className="border-b border-black/10 pb-1.5">
+                    <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Disciplinas Vinculadas (Matriz Curricular)</p>
+                    <div className="space-y-2 mt-1.5">
+                      {(() => {
+                        const classSubs = (selectedClass.subject_ids || [])
+                          .map(sid => subjects.find(s => s.id === sid))
+                          .filter(Boolean) as Subject[];
+                        const printSem1 = classSubs.filter(s => (s.semester || '').includes('1'));
+                        const printSem2 = classSubs.filter(s => (s.semester || '').includes('2'));
+                        const printOther = classSubs.filter(s => !(s.semester || '').includes('1') && !(s.semester || '').includes('2'));
+
+                        if (classSubs.length === 0) {
+                          return <p className="text-[9.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>;
+                        }
+
+                        return (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-[8pt] font-bold text-blue-800 uppercase tracking-wider mb-1">1º Semestre:</p>
+                              {printSem1.length > 0 ? (
+                                printSem1.map(s => (
+                                  <p key={s.id} className="text-[9pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                    [{s.code}] {s.name}
+                                  </p>
+                                ))
+                              ) : (
+                                <p className="text-[8pt] text-slate-400 italic ml-1">Nenhuma</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-[8pt] font-bold text-emerald-800 uppercase tracking-wider mb-1">2º Semestre:</p>
+                              {printSem2.length > 0 ? (
+                                printSem2.map(s => (
+                                  <p key={s.id} className="text-[9pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                    [{s.code}] {s.name}
+                                  </p>
+                                ))
+                              ) : (
+                                <p className="text-[8pt] text-slate-400 italic ml-1">Nenhuma</p>
+                              )}
+                            </div>
+                            {printOther.length > 0 && (
+                              <div className="col-span-2">
+                                <p className="text-[8pt] font-bold text-slate-700 uppercase tracking-wider mb-1">Outras Disciplinas:</p>
+                                {printOther.map(s => (
+                                  <p key={s.id} className="text-[9pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                                    [{s.code}] {s.name}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="border-b border-black/10 pb-1.5">
+                    <p className="text-[7.5pt] font-bold text-slate-400 uppercase mb-0.5">Observações da Turma</p>
+                    <div className="text-[9.5pt] leading-relaxed text-justify whitespace-pre-line min-h-[40px]">
+                      {(selectedClass.observations || '').replace(/\[METADATA:.+?\]/, '').trim() || 'Sem observações adicionais.'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Signature Area */}
+                <div className="pt-4 pb-2 flex justify-between items-end px-2">
+                  <div className="space-y-0.5">
+                    <p className="text-[9.5pt] font-bold text-slate-800">
+                      Guarulhos, {new Date().toLocaleDateString('pt-BR')}
+                    </p>
+                    <p className="text-[7.5pt] text-slate-400 font-medium">Local e Data</p>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="w-[75mm] border-t-2 border-black mb-1"></div>
+                    <p className="text-[9.5pt] font-bold uppercase tracking-widest text-[#00174b]">Assinatura da Secretaria</p>
+                    <p className="text-[7pt] text-slate-400 font-bold mt-0.5 tracking-tight">Escola Diocesana de Ministérios - ESMIN</p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Institutional Footer */}
-            <div className="mt-auto border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-bold text-black uppercase tracking-tight mb-2">
-              <div className="flex-1 space-y-1">
-                <p className="leading-none text-[9pt]">
+            <div className="mt-auto border-t-2 border-black pt-2 flex justify-between items-start text-[8pt] font-bold text-black uppercase tracking-tight">
+              <div className="flex-1 space-y-0.5">
+                <p className="leading-none text-[8.5pt]">
                   {inst?.address}
                 </p>
                 {(inst?.cep || inst?.city_uf) && (
-                  <p className="leading-none text-[9pt]">
+                  <p className="leading-none text-[8.5pt]">
                     {inst?.cep ? `CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
                   </p>
                 )}
-                <div className="flex items-center gap-4 leading-none font-bold text-[9pt]">
+                <div className="flex items-center gap-3 leading-none font-bold text-[8.5pt] pt-0.5">
                   {inst?.phone && (
                     <span className="flex items-center gap-1.5">
                       TEL: {inst.phone}
-                      <svg viewBox="0 0 24 24" width="12" height="12" fill="#25D366" className="shrink-0">
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="#25D366" className="shrink-0">
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                       </svg>
                     </span>
@@ -3567,9 +3569,9 @@ export function Classes() {
                 </div>
               </div>
               {inst?.secretary && (
-                <div className="text-right max-w-[450px] leading-tight text-black font-bold uppercase text-[8pt]">
-                  <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
-                  <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{inst.secretary}</p>
+                <div className="text-right max-w-[400px] leading-tight text-black font-bold uppercase text-[7.5pt]">
+                  <p className="whitespace-pre-line underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[8pt]">{inst.secretary}</p>
                 </div>
               )}
             </div>
