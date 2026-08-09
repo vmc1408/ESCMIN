@@ -1412,23 +1412,16 @@ export function Contributions() {
         description="Lançamento e controle de contribuições de uso interno da tesouraria."
         icon={TrendingUp}
         badge="Tesouraria & Conferência"
-      >
-        <button 
-          onClick={clearSelection}
-          className="w-full sm:w-auto h-10 px-4 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-wider"
-        >
-          <X size={14} /> Limpar Filtros
-        </button>
-      </PageHeader>
+      />
 
       <div className="bg-white p-3 sm:p-5 rounded-none shadow-sm border border-slate-200/80 flex flex-col gap-3 shrink-0">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-none border border-slate-200/50">
-          {/* Busca por Nome */}
-          <div className="lg:col-span-4 space-y-1.5">
+          {/* Busca por Nome / Matrícula (Comprimento reduzido) */}
+          <div className="lg:col-span-3 space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome / Matrícula</label>
             <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {isSearching ? <Loader2 size={16} className="text-blue-500 animate-spin" /> : <Search size={16} className="text-slate-400" />}
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {isSearching ? <Loader2 size={15} className="text-blue-500 animate-spin" /> : <Search size={15} className="text-slate-400" />}
               </div>
               <input 
                 type="text"
@@ -1438,80 +1431,76 @@ export function Contributions() {
                   setSearchByName(e.target.value);
                   handleSearchStudents(e.target.value);
                 }}
-                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-none text-sm focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all font-medium text-slate-700"
+                className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-none text-xs focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all font-medium text-slate-700 h-[3.25rem]"
               />
             </div>
           </div>
 
-          {/* Filtro de Tipo de Data */}
-          <div className="lg:col-span-2 space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
-            <input 
-              type="text"
-              readOnly
-              value="AUTOMÁTICO"
-              className="w-full px-4 h-[3.25rem] bg-slate-100/60 border border-slate-200 rounded-none text-xs font-black uppercase tracking-wider text-slate-500 cursor-not-allowed select-none flex items-center justify-center text-center"
-              title="O tipo é detectado automaticamente nas informações consultadas (Pagamento Direto ou PIX por Importação)."
-            />
-          </div>
-
-          <div className="lg:col-span-4 space-y-1.5">
+          {/* Período (Ajustado ao tamanho adequado) */}
+          <div className="lg:col-span-5 space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Período</label>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white sm:p-1 p-2 rounded-none border border-slate-200 h-auto sm:h-[3.25rem]">
-              <div className="flex-1 flex items-center px-3 py-1 sm:py-0 gap-2 border-b sm:border-b-0 border-slate-100 sm:border-r border-slate-200">
-                <Calendar size={14} className="text-slate-300" />
+              <div className="flex-1 flex items-center px-2.5 py-1 sm:py-0 gap-1.5 border-b sm:border-b-0 border-slate-100 sm:border-r border-slate-200">
+                <Calendar size={14} className="text-slate-400 shrink-0" />
                 <input 
                   type="date" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0"
+                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
                 />
               </div>
-              <div className="flex-1 flex items-center px-3 py-1 sm:py-0 gap-2">
-                <Calendar size={14} className="text-slate-300 sm:hidden" />
+              <div className="flex-1 flex items-center px-2.5 py-1 sm:py-0 gap-1.5">
+                <Calendar size={14} className="text-slate-400 shrink-0 sm:hidden" />
                 <input 
                   type="date" 
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0"
+                  className="bg-transparent border-none text-xs font-bold uppercase text-[#131b2e] focus:ring-0 w-full p-0 cursor-pointer"
                 />
               </div>
             </div>
           </div>
 
-          {/* Ação */}
-          <div className="lg:col-span-2 flex items-end">
+          {/* Botões Lado a Lado: Filtrar e Limpar */}
+          <div className="lg:col-span-4 flex items-end gap-2">
             <button 
               onClick={() => fetchPeriodContributions()}
-              className="w-full h-[3.25rem] bg-slate-900 text-white rounded-none font-bold text-[10px] uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-sm"
+              className="flex-1 h-[3.25rem] bg-slate-900 text-white rounded-none font-bold text-[10px] uppercase tracking-wider hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
             >
               <Search size={14} />
               Filtrar
+            </button>
+            <button 
+              onClick={clearSelection}
+              className="flex-1 h-[3.25rem] bg-white border border-slate-200 text-slate-700 rounded-none hover:bg-slate-100 transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-sm text-[10px] font-bold uppercase tracking-wider"
+            >
+              <X size={14} />
+              Limpar
             </button>
           </div>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-2 lg:overflow-hidden overflow-visible">
-        {/* Sidebar - Conditional Results or Recent */}
+        {/* Sidebar - Aba Resultados com Fundo Bordô Claro */}
         <div className={cn(
-          "w-full lg:w-80 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden transition-all duration-300 lg:order-last shrink-0",
+          "w-full lg:w-80 bg-[#fdf2f4] rounded-2xl shadow-sm border border-rose-200/80 flex flex-col overflow-hidden transition-all duration-300 lg:order-last shrink-0",
           searchTerm.length > 0 || students.length > 0 
             ? "block" 
             : "hidden lg:block lg:w-0 lg:opacity-0 lg:pointer-events-none"
         )}>
-            <div className="p-4 border-b border-slate-50">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+            <div className="p-4 border-b border-rose-200/60 bg-rose-100/50">
+              <h3 className="text-[10px] font-black text-rose-900 uppercase tracking-widest flex items-center justify-between">
                 Resultados
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[10px]">{students.length}</span>
+                <span className="px-2 py-0.5 bg-rose-200 text-rose-950 font-black rounded-lg text-[10px]">{students.length}</span>
               </h3>
             </div>
 
             <div className="flex-1 overflow-y-auto max-h-60 lg:max-h-none p-2 space-y-1">
             {students.length === 0 && searchTerm.length >= 3 && !isSearching && (
               <div className="p-8 text-center space-y-3">
-                <Search size={32} className="mx-auto text-slate-200" />
-                <p className="text-xs font-bold text-slate-400">Nenhum contribuinte encontrado.</p>
+                <Search size={32} className="mx-auto text-rose-300" />
+                <p className="text-xs font-bold text-rose-800/70">Nenhum contribuinte encontrado.</p>
               </div>
             )}
             {students.map((student) => (
@@ -1519,23 +1508,23 @@ export function Contributions() {
                 key={student.id}
                 onClick={() => { setViewMode('individual'); handleSelectStudent(student); }}
                 className={cn(
-                  "w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left",
+                  "w-full flex items-center gap-3.5 p-3.5 rounded-xl transition-all text-left cursor-pointer",
                   selectedStudent?.id === student.id 
-                    ? "bg-blue-600 text-white shadow-xl shadow-blue-200" 
-                    : "hover:bg-slate-50 text-slate-600 border border-transparent"
+                    ? "bg-[#721c24] text-white shadow-lg shadow-rose-900/20" 
+                    : "bg-white/80 hover:bg-white text-slate-700 border border-rose-100/80 shadow-xs"
                 )}
               >
                 <div className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px]",
-                  selectedStudent?.id === student.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+                  "w-9 h-9 rounded-lg flex items-center justify-center font-black text-[10px] shrink-0",
+                  selectedStudent?.id === student.id ? "bg-white/20 text-white" : "bg-rose-100/70 text-rose-900"
                 )}>
                   {student.registration_number.split('/')[0]}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black truncate">{student.name}</p>
                   <p className={cn(
-                    "text-[10px] font-bold truncate opacity-60",
-                    selectedStudent?.id === student.id ? "text-white" : "text-slate-400"
+                    "text-[10px] font-bold truncate opacity-80",
+                    selectedStudent?.id === student.id ? "text-rose-100" : "text-rose-900/70"
                   )}>
                     {student.registration_number}
                   </p>
