@@ -2629,7 +2629,7 @@ export function Contributions() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                   {MONTHS.map((m, idx) => (
                     <button
                       key={m}

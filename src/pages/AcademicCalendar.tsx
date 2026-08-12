@@ -2096,7 +2096,7 @@ export function AcademicCalendar() {
 
                   <div className="grid grid-cols-1 gap-4">
                     {/* Lista Cronológica */}
-                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-x-auto min-h-[400px]">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200">
@@ -2267,7 +2267,7 @@ export function AcademicCalendar() {
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-200">
@@ -4453,20 +4453,20 @@ export function AcademicCalendar() {
       {/* Modal de Opções de Impressão */}
       <AnimatePresence>
         {showPrintOptions && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[250] flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[250] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-none p-8 max-w-2xl w-full shadow-2xl border border-slate-100"
+              className="bg-white rounded-none p-4 sm:p-6 md:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 my-auto"
             >
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6 sm:mb-8">
                 <div className="flex items-center gap-3">
                   <div className="p-3 bg-slate-50 text-slate-800 rounded-none">
                     <Printer size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tighter leading-none">Centro de Impressão</h2>
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-800 uppercase tracking-tighter leading-none">Centro de Impressão</h2>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Selecione o formato de relatório desejado</p>
                   </div>
                 </div>
@@ -4484,7 +4484,7 @@ export function AcademicCalendar() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {[
                   { id: 'class_schedule', title: 'Relatório de Aulas', icon: FileDown, desc: 'Lista mensal filtrável por turma e dia.' },
                   { id: 'holiday_list', title: 'Lista de Feriados', icon: Bookmark, desc: 'Listagem completa dos feriados nacionais e locais.' },
@@ -4495,16 +4495,16 @@ export function AcademicCalendar() {
                     key={option.id}
                     onClick={() => setPrintType(option.id as any)}
                     className={cn(
-                      "p-6 rounded-none border-2 transition-all text-left flex flex-col gap-3 group",
+                      "p-4 sm:p-5 rounded-none border-2 transition-all text-left flex flex-col gap-2.5 group",
                       printType === option.id 
-                        ? "bg-slate-800 border-blue-600 text-white shadow-xl shadow-none scale-105" 
+                        ? "bg-slate-800 border-blue-600 text-white shadow-xl scale-[1.02]" 
                         : "bg-slate-50 border-slate-100 hover:border-slate-300 text-slate-600"
                     )}
                   >
-                    <option.icon size={24} className={printType === option.id ? "text-white" : "text-slate-700"} />
+                    <option.icon size={22} className={printType === option.id ? "text-white" : "text-slate-700"} />
                     <div>
                       <h3 className="text-[11px] font-bold uppercase tracking-widest leading-tight">{option.title}</h3>
-                      <p className={cn("text-[8.5px] mt-2 font-medium leading-relaxed", printType === option.id ? "text-blue-100" : "text-slate-400")}>
+                      <p className={cn("text-[8.5px] mt-1.5 font-medium leading-relaxed", printType === option.id ? "text-blue-100" : "text-slate-400")}>
                         {option.desc}
                       </p>
                     </div>
@@ -4516,18 +4516,18 @@ export function AcademicCalendar() {
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 p-6 bg-slate-50 rounded-none border border-slate-100 mb-8"
+                  className="space-y-4 p-4 sm:p-6 bg-slate-50 rounded-none border border-slate-100 mb-6 sm:mb-8"
                 >
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <Filter size={14} /> Filtros de Relatório
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
                       <select 
                         value={printFilters.class_id}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, class_id: e.target.value }))}
-                        className="w-full bg-white border border-slate-200 rounded-none px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
+                        className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todas as Turmas Ativas</option>
                         {classes.map(c => (
@@ -4540,7 +4540,7 @@ export function AcademicCalendar() {
                       <select 
                         value={printFilters.month}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, month: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
-                        className="w-full bg-white border border-slate-200 rounded-none px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
+                        className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todo o Ano Letivo</option>
                         {Array.from({ length: 12 }, (_, i) => (
@@ -4555,7 +4555,7 @@ export function AcademicCalendar() {
                       <select 
                         value={printFilters.weekday}
                         onChange={(e) => setPrintFilters(prev => ({ ...prev, weekday: e.target.value === 'all' ? 'all' : parseInt(e.target.value) }))}
-                        className="w-full bg-white border border-slate-200 rounded-none px-4 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
+                        className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
                       >
                         <option value="all">Todos os Dias de Aula</option>
                         <option value="1">Segunda-feira</option>
