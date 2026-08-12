@@ -729,7 +729,7 @@ export function Dashboard() {
     if (periods.length <= 1 || isPeriodPaused) return;
     const interval = setInterval(() => {
       setActivePeriodIndex((prev) => (prev + 1) % periods.length);
-    }, 4000);
+    }, 8000);
     return () => clearInterval(interval);
   }, [periods.length, isPeriodPaused]);
 
@@ -772,8 +772,8 @@ export function Dashboard() {
         >
           {periods.length > 1 && (
             <div className="flex items-center gap-1.5 self-center sm:self-end bg-slate-100/90 border border-slate-200/80 p-1 rounded-xl shadow-2xs">
-              <span className="flex items-center gap-1 text-[9px] font-black uppercase text-slate-500 tracking-wider px-2 py-0.5">
-                <Repeat size={11} className="text-purple-600 animate-spin" />
+              <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-slate-500 tracking-wider px-2 py-0.5">
+                <Repeat size={11} className="text-slate-500" />
                 <span className="hidden sm:inline">Cronogramas:</span>
               </span>
               {periods.map((p, idx) => {
@@ -783,9 +783,9 @@ export function Dashboard() {
                     key={p.label}
                     type="button"
                     onClick={() => setActivePeriodIndex(idx)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-lg text-[10px] font-extrabold tracking-wide transition-all duration-300 cursor-pointer ${
                       isActive 
-                        ? 'bg-purple-600 text-white shadow-xs scale-102' 
+                        ? 'bg-[#131b2e] text-white shadow-xs font-black' 
                         : 'text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
                     }`}
                   >
@@ -797,17 +797,17 @@ export function Dashboard() {
           )}
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <div className="flex items-center gap-2.5 px-3.5 py-2 bg-purple-50/90 border border-purple-200/80 rounded-xl text-slate-800 shadow-2xs min-w-[210px] relative overflow-hidden">
-              <div className="p-1.5 bg-purple-600 text-white rounded-lg shrink-0">
+            <div className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-50/90 border border-slate-200/80 rounded-xl text-slate-800 shadow-2xs min-w-[210px] relative overflow-hidden transition-all duration-300">
+              <div className="p-1.5 bg-[#131b2e] text-white rounded-lg shrink-0">
                 <Calendar size={14} />
               </div>
               <div className="text-[11px] leading-tight font-sans flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-extrabold text-purple-900 uppercase text-[9.5px] tracking-wider">
+                  <p className="font-extrabold text-slate-900 uppercase text-[9.5px] tracking-wider">
                     1º Semestre
                   </p>
                   {periods.length > 1 && (
-                    <span className="text-[8.5px] font-extrabold bg-purple-200/90 text-purple-900 px-1.5 py-0.2 rounded uppercase">
+                    <span className="text-[8.5px] font-extrabold bg-slate-200/90 text-slate-700 px-1.5 py-0.2 rounded uppercase transition-all duration-300">
                       {currentPeriod.label}
                     </span>
                   )}
@@ -815,10 +815,10 @@ export function Dashboard() {
                 <AnimatePresence mode="wait">
                   <motion.p
                     key={`t1-${currentPeriod.label}-${currentPeriod.t1Start}`}
-                    initial={{ opacity: 0, y: 3 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -3 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
                     className="font-bold text-slate-700 mt-0.5"
                   >
                     {formatPeriodDisplay(currentPeriod.t1Start, currentPeriod.t1End)}
@@ -827,17 +827,17 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 px-3.5 py-2 bg-indigo-50/90 border border-indigo-200/80 rounded-xl text-slate-800 shadow-2xs min-w-[210px] relative overflow-hidden">
-              <div className="p-1.5 bg-indigo-600 text-white rounded-lg shrink-0">
+            <div className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-50/90 border border-slate-200/80 rounded-xl text-slate-800 shadow-2xs min-w-[210px] relative overflow-hidden transition-all duration-300">
+              <div className="p-1.5 bg-[#131b2e] text-white rounded-lg shrink-0">
                 <Calendar size={14} />
               </div>
               <div className="text-[11px] leading-tight font-sans flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-extrabold text-indigo-900 uppercase text-[9.5px] tracking-wider">
+                  <p className="font-extrabold text-slate-900 uppercase text-[9.5px] tracking-wider">
                     2º Semestre
                   </p>
                   {periods.length > 1 && (
-                    <span className="text-[8.5px] font-extrabold bg-indigo-200/90 text-indigo-900 px-1.5 py-0.2 rounded uppercase">
+                    <span className="text-[8.5px] font-extrabold bg-slate-200/90 text-slate-700 px-1.5 py-0.2 rounded uppercase transition-all duration-300">
                       {currentPeriod.label}
                     </span>
                   )}
@@ -845,10 +845,10 @@ export function Dashboard() {
                 <AnimatePresence mode="wait">
                   <motion.p
                     key={`t2-${currentPeriod.label}-${currentPeriod.t2Start}`}
-                    initial={{ opacity: 0, y: 3 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -3 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
                     className="font-bold text-slate-700 mt-0.5"
                   >
                     {formatPeriodDisplay(currentPeriod.t2Start, currentPeriod.t2End)}
@@ -858,8 +858,8 @@ export function Dashboard() {
             </div>
 
             {isRefreshing && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
-                <RefreshCw size={11} className="animate-spin" />
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
+                <RefreshCw size={11} className="animate-spin text-slate-500" />
                 <span>Sincronizando...</span>
               </div>
             )}
