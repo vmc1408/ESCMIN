@@ -52,6 +52,7 @@ export function Contributions() {
   const [isPrintingStatement, setIsPrintingStatement] = useState(false);
   const [expandedStudents, setExpandedStudents] = useState<string[]>([]);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
+  const [isResultsCollapsed, setIsResultsCollapsed] = useState(false);
   
   const { profile } = useAuth();
   const [enteredPin, setEnteredPin] = useState('');
@@ -307,6 +308,7 @@ export function Contributions() {
       return;
     }
 
+    setIsResultsCollapsed(false);
     setIsSearching(true);
     try {
       const [nameData, regData] = await Promise.all([
@@ -720,6 +722,7 @@ export function Contributions() {
   const handleSelectStudent = (student: Student) => {
     setSelectedStudent(student);
     setSelectedForPrint([]);
+    setIsResultsCollapsed(true);
   };
 
   const togglePrintSelection = (contribution: Contribution) => {
@@ -1585,56 +1588,85 @@ export function Contributions() {
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-2 lg:overflow-hidden overflow-visible">
         {/* Sidebar - Aba Resultados com Fundo Bordô Claro */}
-        <div className={cn(
-          "w-full lg:w-80 bg-[#fdf2f4] rounded-2xl shadow-sm border border-rose-200/80 flex flex-col overflow-hidden transition-all duration-300 lg:order-last shrink-0",
-          searchTerm.length > 0 || students.length > 0 
-            ? "block" 
-            : "hidden lg:block lg:w-0 lg:opacity-0 lg:pointer-events-none"
-        )}>
-            <div className="p-4 border-b border-rose-200/60 bg-rose-100/50">
-              <h3 className="text-[10px] font-black text-rose-900 uppercase tracking-widest flex items-center justify-between">
-                Resultados
-                <span className="px-2 py-0.5 bg-rose-200 text-rose-950 font-black rounded-lg text-[10px]">{students.length}</span>
-              </h3>
-            </div>
-
-            <div className="flex-1 overflow-y-auto max-h-60 lg:max-h-none p-2 space-y-1">
-            {students.length === 0 && searchTerm.length >= 3 && !isSearching && (
-              <div className="p-8 text-center space-y-3">
-                <Search size={32} className="mx-auto text-rose-300" />
-                <p className="text-xs font-bold text-rose-800/70">Nenhum contribuinte encontrado.</p>
-              </div>
-            )}
-            {students.map((student) => (
+        {students.length > 0 && (
+          isResultsCollapsed ? (
+            /* Collapsed State */
+            <div className="lg:w-12 w-full bg-[#fdf2f4] rounded-2xl border border-rose-200/80 flex lg:flex-col items-center justify-between p-2 shrink-0 transition-all duration-300 lg:order-last shadow-xs">
               <button
-                key={student.id}
-                onClick={() => { setViewMode('individual'); handleSelectStudent(student); }}
-                className={cn(
-                  "w-full flex items-center gap-3.5 p-3.5 rounded-xl transition-all text-left cursor-pointer",
-                  selectedStudent?.id === student.id 
-                    ? "bg-[#721c24] text-white shadow-lg shadow-rose-900/20" 
-                    : "bg-white/80 hover:bg-white text-slate-700 border border-rose-100/80 shadow-xs"
-                )}
+                onClick={() => setIsResultsCollapsed(false)}
+                className="w-full flex lg:flex-col items-center justify-between lg:justify-center gap-2 text-rose-900 hover:text-rose-950 font-black text-xs cursor-pointer p-1.5 rounded-xl hover:bg-rose-100/80 transition-all group"
+                title="Expandir resultados de busca"
               >
-                <div className={cn(
-                  "w-9 h-9 rounded-lg flex items-center justify-center font-black text-[10px] shrink-0",
-                  selectedStudent?.id === student.id ? "bg-white/20 text-white" : "bg-rose-100/70 text-rose-900"
-                )}>
-                  {student.registration_number.split('/')[0]}
+                <div className="p-2 bg-rose-200/80 text-rose-950 rounded-xl group-hover:scale-105 transition-transform flex items-center justify-center">
+                  <ChevronLeft size={16} className="hidden lg:block" />
+                  <ChevronDown size={16} className="lg:hidden" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black truncate">{student.name}</p>
-                  <p className={cn(
-                    "text-[10px] font-bold truncate opacity-80",
-                    selectedStudent?.id === student.id ? "text-rose-100" : "text-rose-900/70"
-                  )}>
-                    {student.registration_number}
-                  </p>
-                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest [writing-mode:vertical-lr] rotate-180 hidden lg:block py-2">
+                  Resultados ({students.length})
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider lg:hidden">
+                  Ver Resultados ({students.length})
+                </span>
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
+          ) : (
+            /* Expanded State */
+            <div className="w-full lg:w-80 bg-[#fdf2f4] rounded-2xl shadow-sm border border-rose-200/80 flex flex-col overflow-hidden transition-all duration-300 lg:order-last shrink-0">
+              <div className="p-3.5 sm:p-4 border-b border-rose-200/60 bg-rose-100/50 flex items-center justify-between">
+                <h3 className="text-[10px] font-black text-rose-900 uppercase tracking-widest flex items-center gap-2">
+                  Resultados
+                  <span className="px-2 py-0.5 bg-rose-200 text-rose-950 font-black rounded-lg text-[10px]">{students.length}</span>
+                </h3>
+                <button
+                  onClick={() => setIsResultsCollapsed(true)}
+                  className="px-2 py-1 bg-rose-200/60 hover:bg-rose-200 text-rose-900 hover:text-rose-950 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                  title="Recolher aba de resultados"
+                >
+                  <span>Recolher</span>
+                  <ChevronRight size={14} className="hidden lg:block" />
+                  <ChevronUp size={14} className="lg:hidden" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto max-h-60 lg:max-h-none p-2 space-y-1">
+                {students.length === 0 && searchTerm.length >= 3 && !isSearching && (
+                  <div className="p-8 text-center space-y-3">
+                    <Search size={32} className="mx-auto text-rose-300" />
+                    <p className="text-xs font-bold text-rose-800/70">Nenhum contribuinte encontrado.</p>
+                  </div>
+                )}
+                {students.map((student) => (
+                  <button
+                    key={student.id}
+                    onClick={() => { setViewMode('individual'); handleSelectStudent(student); }}
+                    className={cn(
+                      "w-full flex items-center gap-3.5 p-3.5 rounded-xl transition-all text-left cursor-pointer",
+                      selectedStudent?.id === student.id 
+                        ? "bg-[#721c24] text-white shadow-lg shadow-rose-900/20" 
+                        : "bg-white/80 hover:bg-white text-slate-700 border border-rose-100/80 shadow-xs"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg flex items-center justify-center font-black text-[10px] shrink-0",
+                      selectedStudent?.id === student.id ? "bg-white/20 text-white" : "bg-rose-100/70 text-rose-900"
+                    )}>
+                      {student.registration_number.split('/')[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black truncate">{student.name}</p>
+                      <p className={cn(
+                        "text-[10px] font-bold truncate opacity-80",
+                        selectedStudent?.id === student.id ? "text-rose-100" : "text-rose-900/70"
+                      )}>
+                        {student.registration_number}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        )}
 
         {/* Main Workspace */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
