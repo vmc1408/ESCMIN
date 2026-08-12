@@ -2627,31 +2627,32 @@ export function Contributions() {
 
       {/* Modal de Registro Manual */}
       {manualMonths.length > 0 && (
-        <div className="fixed inset-0 bg-[#00174b]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-            <div className="p-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
-                  <Plus size={24} />
+        <div className="fixed inset-0 bg-[#00174b]/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col my-auto max-h-[95vh]">
+            <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-200 shrink-0">
+                  <Plus size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-[#00174b]">Registrar Contribuição</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Lançamento na Ficha do Aluno • {selectedYear}</p>
+                  <h3 className="text-lg font-black text-[#00174b] leading-tight">Registrar Contribuição</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Lançamento na Ficha do Aluno • {selectedYear}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setManualMonths([])}
-                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                title="Fechar"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-8 space-y-6 overflow-y-auto">
-              {/* Seleção de Meses - Estilo mais profissional */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Selecione os Meses</label>
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
+              {/* Seleção de Meses - 6 colunas para caber em 2 linhas compactas */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selecione os Meses</label>
                   {manualMonths.length > 0 && (
                     <button 
                       onClick={() => setManualMonths([])}
@@ -2661,16 +2662,16 @@ export function Contributions() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-50 p-2 rounded-xl border border-slate-100">
                   {MONTHS.map((m, idx) => (
                     <button
                       key={m}
                       onClick={() => toggleManualMonth(idx)}
                       className={cn(
-                        "py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border-2",
+                        "py-2 px-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border",
                         manualMonths.includes(idx) 
-                          ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 scale-[1.02]" 
-                          : "bg-white border-white text-slate-500 hover:border-blue-100 hover:text-blue-600"
+                          ? "bg-blue-600 border-blue-600 text-white shadow-sm scale-[1.02]" 
+                          : "bg-white border-slate-100 text-slate-600 hover:border-blue-200 hover:text-blue-600"
                       )}
                     >
                       {m.substring(0, 3)}
@@ -2678,65 +2679,66 @@ export function Contributions() {
                   ))}
                 </div>
                 {manualMonths.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 px-2">
+                  <div className="flex flex-wrap gap-1 px-1">
                     {manualMonths.map(mIdx => (
-                      <span key={mIdx} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase border border-blue-100">
+                      <span key={mIdx} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black uppercase border border-blue-100">
                         {MONTHS[mIdx]}
                       </span>
                     ))}
                   </div>
                 )}
                 {manualMonths.length > 1 && (
-                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-start gap-2">
-                    <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-700 font-bold leading-tight">Atenção: O valor total de R$ {manualAmount} será dividido proporcionalmente entre os {manualMonths.length} meses selecionados.</p>
+                  <div className="bg-amber-50 px-3 py-2 rounded-lg border border-amber-100 flex items-center gap-2">
+                    <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                    <p className="text-[11px] text-amber-800 font-bold leading-tight">O valor de R$ {manualAmount} será rateado proporcionalmente entre os {manualMonths.length} meses selecionados.</p>
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Valor */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Valor Total</label>
+              {/* Grid Responsivo para Valores e Datas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Valor Total */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor Total</label>
                   <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">R$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-base">R$</span>
                     <input 
                       type="text"
                       value={manualAmount}
                       onChange={(e) => setManualAmount(e.target.value)}
                       onBlur={formatManualAmount}
                       onKeyDown={(e) => e.key === 'Enter' && formatManualAmount()}
-                      className="w-full bg-slate-50 border-0 rounded-2xl py-4 pl-14 pr-6 text-2xl font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-11 pr-4 text-xl font-black text-[#00174b] focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300"
                       placeholder="0,00"
                     />
                   </div>
                 </div>
 
                 {/* Data do Pagamento */}
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Data do Pagamento</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data do Pagamento</label>
                   <input 
                     type="date"
                     value={manualDate}
                     onChange={(e) => setManualDate(e.target.value)}
-                    className="w-full bg-slate-50 border-0 rounded-2xl py-4 px-6 text-xl font-black text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm font-bold text-[#00174b] focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all h-[46px]"
                   />
                 </div>
               </div>
 
-              {/* Método */}
-              <div className="space-y-2">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Forma de Recebimento</label>
-                <div className="grid grid-cols-3 gap-3">
+              {/* Forma de Recebimento */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Recebimento</label>
+                <div className="grid grid-cols-3 gap-2">
                   {(['Dinheiro', 'PIX', 'Cartão'] as const).map((method) => (
                     <button
                       key={method}
                       onClick={() => setManualMethod(method)}
                       className={cn(
-                        "py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border-2",
+                        "py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border",
                         manualMethod === method 
-                          ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
-                          : "bg-white border-slate-100 text-slate-400 hover:border-blue-200 hover:text-blue-500"
+                          ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100" 
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-200 hover:text-blue-600"
                       )}
                     >
                       {method}
@@ -2746,30 +2748,30 @@ export function Contributions() {
               </div>
 
               {/* Observações */}
-              <div className="space-y-2">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-2">Observações</label>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
                 <textarea 
                   value={manualObservations}
                   onChange={(e) => setManualObservations(e.target.value)}
                   placeholder="Informações adicionais sobre este pagamento..."
-                  className="w-full bg-slate-50 border-0 rounded-2xl py-4 px-6 text-sm font-medium text-[#00174b] focus:ring-2 focus:ring-blue-500 transition-all resize-none h-24"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs font-medium text-[#00174b] focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all resize-none h-16"
                 />
               </div>
               
-              <div className="pt-4">
+              <div className="pt-2">
                 <button 
                   onClick={saveManualContribution}
                   disabled={isSavingManual || manualMonths.length === 0}
-                  className="w-full bg-[#00174b] text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-800 transition-all shadow-xl shadow-blue-900/20 disabled:opacity-50"
+                  className="w-full bg-[#00174b] text-white py-3 rounded-xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2.5 hover:bg-blue-900 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 cursor-pointer"
                 >
                   {isSavingManual ? (
                     <>
-                      <Loader2 size={20} className="animate-spin" />
+                      <Loader2 size={18} className="animate-spin" />
                       Salvando Contribuições...
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 size={20} />
+                      <CheckCircle2 size={18} />
                       Registrar {manualMonths.length > 1 ? `${manualMonths.length} Meses` : 'Pagamento'}
                     </>
                   )}
