@@ -674,221 +674,257 @@ export function Diocese() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const generateDiocesePDFDoc = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    let currentY = margin;
 
-  const handleExportPDF = () => {
-    try {
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 10;
-      let currentY = margin;
+    const emissionDate = new Date();
+    const emissionText = `Emissão: ${emissionDate.toLocaleDateString('pt-BR')} às ${emissionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    const systemOfficialName = institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR';
 
-      const emissionDate = new Date();
-      const emissionText = `Emissão: ${emissionDate.toLocaleDateString('pt-BR')} às ${emissionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-      const systemOfficialName = institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR';
+    const drawPageHeader = () => {
+      // Header Banner
+      doc.setFillColor(15, 23, 42); // slate-900
+      doc.roundedRect(margin, margin, pageWidth - (margin * 2), 18, 1, 1, 'F');
 
-      const drawPageHeader = () => {
-        // Header Banner
-        doc.setFillColor(15, 23, 42); // slate-900
-        doc.roundedRect(margin, margin, pageWidth - (margin * 2), 18, 1, 1, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.text(systemOfficialName, margin + 5, margin + 5.5);
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
-        doc.text(systemOfficialName, margin + 5, margin + 5.5);
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(203, 213, 225); // slate-300
+      doc.text('DIOCESE DE GUARULHOS', margin + 5, margin + 11);
 
-        doc.setFontSize(8.5);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(203, 213, 225); // slate-300
-        doc.text('DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO', margin + 5, margin + 11);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text('RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA', margin + 5, margin + 15.5);
 
-        doc.setFontSize(7.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(148, 163, 184); // slate-400
-        doc.text('RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA', margin + 5, margin + 15.5);
+      doc.setFontSize(7.5);
+      doc.setTextColor(203, 213, 225);
+      doc.text(emissionText, pageWidth - margin - 5, margin + 8.5, { align: 'right' });
+    };
 
-        doc.setFontSize(7.5);
-        doc.setTextColor(203, 213, 225);
-        doc.text(emissionText, pageWidth - margin - 5, margin + 8.5, { align: 'right' });
-      };
+    // Grouping data by Forania
+    const foraniasToDisplay = reportForaniaFilter === 'all' 
+      ? foraries 
+      : foraries.filter(f => f.id === reportForaniaFilter);
 
-      // Grouping data by Forania
-      const foraniasToDisplay = reportForaniaFilter === 'all' 
-        ? foraries 
-        : foraries.filter(f => f.id === reportForaniaFilter);
+    const parishesWithoutForania = parishes.filter(p => !p.forania_id || !foraries.some(f => f.id === p.forania_id));
 
-      const parishesWithoutForania = parishes.filter(p => !p.forania_id || !foraries.some(f => f.id === p.forania_id));
+    let renderedForaniasCount = 0;
 
-      let renderedForaniasCount = 0;
+    for (let i = 0; i < foraniasToDisplay.length; i++) {
+      const forania = foraniasToDisplay[i];
+      let foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
+      
+      if (reportSearch.trim()) {
+        const q = reportSearch.toLowerCase().trim();
+        foraniaParishes = foraniaParishes.filter(p => {
+          const clergyData = getParishClergy(p, clergy);
+          const priestMatch = clergyData.priests.some(pr => pr.name.toLowerCase().includes(q));
+          const deaconMatch = clergyData.deacons.some(d => d.toLowerCase().includes(q));
+          return p.name.toLowerCase().includes(q) || 
+                 (p.cnpj && p.cnpj.toLowerCase().includes(q)) || 
+                 priestMatch || 
+                 deaconMatch;
+        });
+      }
 
-      for (let i = 0; i < foraniasToDisplay.length; i++) {
-        const forania = foraniasToDisplay[i];
-        let foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
-        
-        if (reportSearch.trim()) {
-          const q = reportSearch.toLowerCase().trim();
-          foraniaParishes = foraniaParishes.filter(p => {
-            const clergyData = getParishClergy(p, clergy);
-            const priestMatch = clergyData.priests.some(pr => pr.name.toLowerCase().includes(q));
-            const deaconMatch = clergyData.deacons.some(d => d.toLowerCase().includes(q));
-            return p.name.toLowerCase().includes(q) || 
-                   (p.cnpj && p.cnpj.toLowerCase().includes(q)) || 
-                   priestMatch || 
-                   deaconMatch;
-          });
-        }
+      if (foraniaParishes.length === 0 && reportSearch.trim()) continue;
 
-        if (foraniaParishes.length === 0 && reportSearch.trim()) continue;
+      // Page break for each forania
+      if (renderedForaniasCount > 0) {
+        doc.addPage();
+      }
+      renderedForaniasCount++;
 
-        // Page break for each forania
+      drawPageHeader();
+      currentY = margin + 20.5;
+
+      const priestForaneo = forania.priest_name ? `   •   Padre Forâneo: Pe. ${forania.priest_name}` : '';
+      const foraniaTitle = `${forania.code ? `FORANIA ${forania.code} — ` : ''}${forania.name.toUpperCase()}${priestForaneo}   (${foraniaParishes.length} ${foraniaParishes.length === 1 ? 'paróquia' : 'paróquias'})`;
+
+      doc.setFillColor(30, 41, 59); // slate-800
+      doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.text(foraniaTitle, margin + 4, currentY + 4.8);
+      currentY += 7.5;
+
+      const tableData = foraniaParishes.map(p => {
+        const cData = getParishClergy(p, clergy);
+        const addressParts = [
+          p.address_neighborhood,
+          p.address_city ? `${p.address_city}${p.address_state ? `/${p.address_state}` : ''}` : ''
+        ].filter(Boolean).join(' - ');
+
+        const contactParts = [p.phone, p.email].filter(Boolean).join(' | ');
+
+        const parishCell = `${p.name}${addressParts ? `\n${addressParts}` : ''}${contactParts ? `\nContato: ${contactParts}` : ''}`;
+
+        const priestsCell = cData.priests.length > 0 
+          ? cData.priests.map(pr => `${pr.name} (${pr.role})`).join('\n')
+          : 'A designar';
+
+        const deaconsCell = cData.deacons.length > 0
+          ? cData.deacons.join('\n')
+          : '—';
+
+        return [
+          parishCell,
+          formatCNPJ(p.cnpj),
+          priestsCell,
+          deaconsCell
+        ];
+      });
+
+      if (tableData.length === 0) {
+        tableData.push(['Nenhuma paróquia cadastrada nesta forania.', '—', '—', '—']);
+      }
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['PARÓQUIA / LOCALIZAÇÃO', 'CNPJ', 'PADRE(S) RESPONSÁVEL(IS)', 'DIÁCONO(S)']],
+        body: tableData,
+        margin: { left: margin, right: margin },
+        styles: {
+          fontSize: 7.5,
+          cellPadding: 2.5,
+          valign: 'middle',
+          textColor: [30, 41, 59],
+          lineColor: [226, 232, 240],
+          lineWidth: 0.2
+        },
+        headStyles: {
+          fillColor: [241, 245, 249],
+          textColor: [15, 23, 42],
+          fontStyle: 'bold',
+          fontSize: 7.5
+        },
+        columnStyles: {
+          0: { cellWidth: 105 },
+          1: { cellWidth: 42, fontStyle: 'bold' },
+          2: { cellWidth: 75 },
+          3: { cellWidth: 'auto' }
+        },
+        theme: 'grid'
+      });
+    }
+
+    // Parishes without forania (if any)
+    if (reportForaniaFilter === 'all' && parishesWithoutForania.length > 0) {
+      let unassigned = parishesWithoutForania;
+      if (reportSearch.trim()) {
+        const q = reportSearch.toLowerCase().trim();
+        unassigned = unassigned.filter(p => {
+          const cData = getParishClergy(p, clergy);
+          const priestMatch = cData.priests.some(pr => pr.name.toLowerCase().includes(q));
+          const deaconMatch = cData.deacons.some(d => d.toLowerCase().includes(q));
+          return p.name.toLowerCase().includes(q) || 
+                 (p.cnpj && p.cnpj.toLowerCase().includes(q)) ||
+                 priestMatch || 
+                 deaconMatch;
+        });
+      }
+
+      if (unassigned.length > 0) {
         if (renderedForaniasCount > 0) {
           doc.addPage();
         }
-        renderedForaniasCount++;
-
         drawPageHeader();
         currentY = margin + 20.5;
 
-        const priestForaneo = forania.priest_name ? `   •   Padre Forâneo: Pe. ${forania.priest_name}` : '';
-        const foraniaTitle = `${forania.code ? `FORANIA ${forania.code} — ` : ''}${forania.name.toUpperCase()}${priestForaneo}   (${foraniaParishes.length} ${foraniaParishes.length === 1 ? 'paróquia' : 'paróquias'})`;
-
-        doc.setFillColor(30, 41, 59); // slate-800
+        doc.setFillColor(71, 85, 105); // slate-600
         doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8.5);
-        doc.text(foraniaTitle, margin + 4, currentY + 4.8);
+        doc.text(`OUTRAS COMUNIDADES / SEM FORANIA DEFINIDA (${unassigned.length} ${unassigned.length === 1 ? 'paróquia' : 'paróquias'})`, margin + 4, currentY + 4.8);
         currentY += 7.5;
 
-        const tableData = foraniaParishes.map(p => {
+        const tableData = unassigned.map(p => {
           const cData = getParishClergy(p, clergy);
-          const addressParts = [
-            p.address_neighborhood,
-            p.address_city ? `${p.address_city}${p.address_state ? `/${p.address_state}` : ''}` : ''
-          ].filter(Boolean).join(' - ');
-
-          const contactParts = [p.phone, p.email].filter(Boolean).join(' | ');
-
-          const parishCell = `${p.name}${addressParts ? `\n${addressParts}` : ''}${contactParts ? `\nContato: ${contactParts}` : ''}`;
-
-          const priestsCell = cData.priests.length > 0 
-            ? cData.priests.map(pr => `${pr.name} (${pr.role})`).join('\n')
-            : 'A designar';
-
-          const deaconsCell = cData.deacons.length > 0
-            ? cData.deacons.join('\n')
-            : '—';
-
+          const priestsCell = cData.priests.length > 0 ? cData.priests.map(pr => `${pr.name} (${pr.role})`).join('\n') : 'A designar';
+          const deaconsCell = cData.deacons.length > 0 ? cData.deacons.join('\n') : '—';
           return [
-            parishCell,
+            p.name,
             formatCNPJ(p.cnpj),
             priestsCell,
             deaconsCell
           ];
         });
 
-        if (tableData.length === 0) {
-          tableData.push(['Nenhuma paróquia cadastrada nesta forania.', '—', '—', '—']);
-        }
-
         autoTable(doc, {
           startY: currentY,
           head: [['PARÓQUIA / LOCALIZAÇÃO', 'CNPJ', 'PADRE(S) RESPONSÁVEL(IS)', 'DIÁCONO(S)']],
           body: tableData,
           margin: { left: margin, right: margin },
-          styles: {
-            fontSize: 7.5,
-            cellPadding: 2.5,
-            valign: 'middle',
-            textColor: [30, 41, 59],
-            lineColor: [226, 232, 240],
-            lineWidth: 0.2
-          },
-          headStyles: {
-            fillColor: [241, 245, 249],
-            textColor: [15, 23, 42],
-            fontStyle: 'bold',
-            fontSize: 7.5
-          },
-          columnStyles: {
-            0: { cellWidth: 105 },
-            1: { cellWidth: 42, fontStyle: 'bold' },
-            2: { cellWidth: 75 },
-            3: { cellWidth: 'auto' }
-          },
+          styles: { fontSize: 7.5, cellPadding: 2.5, valign: 'middle' },
+          headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
+          columnStyles: { 0: { cellWidth: 105 }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 75 }, 3: { cellWidth: 'auto' } },
           theme: 'grid'
         });
       }
+    }
 
-      // Parishes without forania (if any)
-      if (reportForaniaFilter === 'all' && parishesWithoutForania.length > 0) {
-        let unassigned = parishesWithoutForania;
-        if (reportSearch.trim()) {
-          const q = reportSearch.toLowerCase().trim();
-          unassigned = unassigned.filter(p => {
-            const cData = getParishClergy(p, clergy);
-            const priestMatch = cData.priests.some(pr => pr.name.toLowerCase().includes(q));
-            const deaconMatch = cData.deacons.some(d => d.toLowerCase().includes(q));
-            return p.name.toLowerCase().includes(q) || 
-                   (p.cnpj && p.cnpj.toLowerCase().includes(q)) ||
-                   priestMatch || 
-                   deaconMatch;
-          });
-        }
+    // Add page numbers and footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Página ${i} de ${totalPages} • ${systemOfficialName} • Diocese de Guarulhos`, margin, pageHeight - 5);
+      doc.text('Documento Administrativo Oficial', pageWidth - margin, pageHeight - 5, { align: 'right' });
+    }
 
-        if (unassigned.length > 0) {
-          if (renderedForaniasCount > 0) {
-            doc.addPage();
+    return doc;
+  };
+
+  const handlePrint = () => {
+    try {
+      const doc = generateDiocesePDFDoc();
+      if (!doc) {
+        window.print();
+        return;
+      }
+      doc.autoPrint();
+      const blobUrl = String(doc.output('bloburl'));
+      const printIframe = document.createElement('iframe');
+      printIframe.style.position = 'fixed';
+      printIframe.style.right = '0';
+      printIframe.style.bottom = '0';
+      printIframe.style.width = '0';
+      printIframe.style.height = '0';
+      printIframe.style.border = '0';
+      printIframe.src = blobUrl;
+      document.body.appendChild(printIframe);
+      printIframe.onload = () => {
+        setTimeout(() => {
+          try {
+            printIframe.contentWindow?.focus();
+            printIframe.contentWindow?.print();
+          } catch (err) {
+            window.open(blobUrl, '_blank');
           }
-          drawPageHeader();
-          currentY = margin + 20.5;
+        }, 200);
+      };
+    } catch (error) {
+      console.error('Error triggering print:', error);
+      window.print();
+    }
+  };
 
-          doc.setFillColor(71, 85, 105); // slate-600
-          doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
-          doc.setTextColor(255, 255, 255);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8.5);
-          doc.text(`OUTRAS COMUNIDADES / SEM FORANIA DEFINIDA (${unassigned.length} ${unassigned.length === 1 ? 'paróquia' : 'paróquias'})`, margin + 4, currentY + 4.8);
-          currentY += 7.5;
-
-          const tableData = unassigned.map(p => {
-            const cData = getParishClergy(p, clergy);
-            const priestsCell = cData.priests.length > 0 ? cData.priests.map(pr => `${pr.name} (${pr.role})`).join('\n') : 'A designar';
-            const deaconsCell = cData.deacons.length > 0 ? cData.deacons.join('\n') : '—';
-            return [
-              p.name,
-              formatCNPJ(p.cnpj),
-              priestsCell,
-              deaconsCell
-            ];
-          });
-
-          autoTable(doc, {
-            startY: currentY,
-            head: [['PARÓQUIA / LOCALIZAÇÃO', 'CNPJ', 'PADRE(S) RESPONSÁVEL(IS)', 'DIÁCONO(S)']],
-            body: tableData,
-            margin: { left: margin, right: margin },
-            styles: { fontSize: 7.5, cellPadding: 2.5, valign: 'middle' },
-            headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' },
-            columnStyles: { 0: { cellWidth: 105 }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 75 }, 3: { cellWidth: 'auto' } },
-            theme: 'grid'
-          });
-        }
-      }
-
-      // Add page numbers and footer
-      const totalPages = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(7);
-        doc.setTextColor(148, 163, 184);
-        doc.text(`Página ${i} de ${totalPages} • ${systemOfficialName} • Diocese de Guarulhos — Chancelaria do Bispado`, margin, pageHeight - 5);
-        doc.text('Documento Administrativo Oficial', pageWidth - margin, pageHeight - 5, { align: 'right' });
-      }
-
+  const handleExportPDF = () => {
+    try {
+      const doc = generateDiocesePDFDoc();
+      if (!doc) return;
       doc.save(`Relatorio_Paroquias_Clero_Diocese_${new Date().toISOString().split('T')[0]}.pdf`);
       setNotification({ type: 'success', message: 'Relatório em PDF gerado com sucesso!' });
     } catch (error) {
@@ -2245,7 +2281,7 @@ export function Diocese() {
                       {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
                     </h1>
                     <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
-                      DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO
+                      DIOCESE DE GUARULHOS
                     </h2>
                     <p className="text-[8pt] font-medium text-slate-400">
                       RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA
@@ -2255,9 +2291,6 @@ export function Diocese() {
                     <p className="text-[8pt] font-medium text-slate-300 uppercase tracking-wider">
                       Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    <span className="inline-block mt-1 bg-slate-800 text-[7.5pt] font-bold uppercase tracking-wider text-slate-200 px-2 py-0.5 rounded border border-slate-700">
-                      Documento Administrativo Oficial
-                    </span>
                   </div>
                 </div>
 
@@ -2359,7 +2392,7 @@ export function Diocese() {
                 {/* Page Footer */}
                 <div className="mt-2 pt-1 border-t border-slate-300 flex justify-between items-center text-[7.5pt] text-slate-500">
                   <p className="font-medium text-slate-600">
-                    {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos — Chancelaria do Bispado
+                    {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos
                   </p>
                   <p className="text-slate-500">Documento Administrativo Oficial</p>
                 </div>
@@ -2376,7 +2409,7 @@ export function Diocese() {
                     {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
                   </h1>
                   <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
-                    DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO
+                    DIOCESE DE GUARULHOS
                   </h2>
                   <p className="text-[8pt] font-medium text-slate-400">
                     RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL • OUTRAS COMUNIDADES
@@ -2386,9 +2419,6 @@ export function Diocese() {
                   <p className="text-[8pt] font-medium text-slate-300 uppercase tracking-wider">
                     Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
-                  <span className="inline-block mt-1 bg-slate-800 text-[7.5pt] font-bold uppercase tracking-wider text-slate-200 px-2 py-0.5 rounded border border-slate-700">
-                    Documento Administrativo Oficial
-                  </span>
                 </div>
               </div>
 
@@ -2460,7 +2490,7 @@ export function Diocese() {
 
               <div className="mt-2 pt-1 border-t border-slate-300 flex justify-between items-center text-[7.5pt] text-slate-500">
                 <p className="font-medium text-slate-600">
-                  {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos — Chancelaria do Bispado
+                  {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos
                 </p>
                 <p className="text-slate-500">Documento Administrativo Oficial</p>
               </div>
@@ -2570,7 +2600,7 @@ export function Diocese() {
                           {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
                         </h1>
                         <p className="text-xs font-bold uppercase tracking-widest text-slate-600">
-                          DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO
+                          DIOCESE DE GUARULHOS
                         </p>
                       </div>
                     </div>
@@ -2793,10 +2823,10 @@ export function Diocese() {
                       <p className="font-bold text-slate-800 uppercase">
                         {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos
                       </p>
-                      <p className="text-[11px]">Documento oficial para consulta e fins administrativos • Chancelaria do Bispado</p>
+                      <p className="text-[11px]">Documento oficial para consulta e fins administrativos</p>
                     </div>
                     <div className="w-64 border-t border-slate-400 pt-2 text-center text-[10px] font-bold uppercase text-slate-700">
-                      Chancelaria do Bispado
+                      Diocese de Guarulhos
                     </div>
                   </div>
                 </div>
