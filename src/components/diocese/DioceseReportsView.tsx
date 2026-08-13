@@ -1,0 +1,464 @@
+import React from 'react';
+import { 
+  Printer, 
+  FileDown, 
+  Bookmark, 
+  Target, 
+  LayoutGrid, 
+  Filter, 
+  Search, 
+  Church, 
+  Map as MapIcon, 
+  MapPin, 
+  User, 
+  Building2 
+} from 'lucide-react';
+import { PageHeader } from '../PageHeader';
+import { Parish, Foraria, ClergyLeity, InstitutionSettings } from '../../types';
+import { cn } from '../../lib/utils';
+import { formatCNPJ, getParishClergy, DioceseReportType } from '../../types/diocese';
+
+interface DioceseReportsViewProps {
+  parishes: Parish[];
+  foraries: Foraria[];
+  clergy: ClergyLeity[];
+  institution: InstitutionSettings | null;
+  reportType: DioceseReportType;
+  setReportType: (type: DioceseReportType) => void;
+  reportForaniaFilter: string;
+  setReportForaniaFilter: (filter: string) => void;
+  reportSearch: string;
+  setReportSearch: (search: string) => void;
+  handlePrint: () => void;
+  handleExportPDF: () => void;
+  getFilteredReportStats: () => {
+    foraniasCount: number;
+    parishesCount: number;
+    priestsCount: number;
+    deaconsCount: number;
+  };
+  getReportTitle: () => string;
+}
+
+export function DioceseReportsView({
+  parishes,
+  foraries,
+  clergy,
+  institution,
+  reportType,
+  setReportType,
+  reportForaniaFilter,
+  setReportForaniaFilter,
+  reportSearch,
+  setReportSearch,
+  handlePrint,
+  handleExportPDF,
+  getFilteredReportStats,
+  getReportTitle,
+}: DioceseReportsViewProps) {
+  const stats = getFilteredReportStats();
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6 pb-20">
+      <PageHeader
+        title="Relatórios e Impressão"
+        description="Centro oficial de emissão, visualização e impressão de relatórios da Diocese de Guarulhos."
+        icon={Printer}
+      >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handlePrint}
+            className="h-10 px-4 bg-white border border-slate-200 text-slate-700 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            title="Imprimir documento via navegador"
+          >
+            <Printer size={14} className="text-slate-600" />
+            Imprimir Relatório
+          </button>
+          <button
+            onClick={handleExportPDF}
+            className="h-10 px-4 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-sm cursor-pointer"
+            title="Baixar arquivo PDF formatado"
+          >
+            <FileDown size={14} className="text-blue-400" />
+            Gerar PDF Oficial
+          </button>
+        </div>
+      </PageHeader>
+
+      {/* 4 Selectable Format Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 print:hidden">
+        {[
+          { 
+            id: 'parishes_by_forania' as DioceseReportType, 
+            title: 'Relatório por Foranias', 
+            icon: FileDown, 
+            desc: 'Quadro completo agrupado por foranias com CNPJ, padres e diáconos.' 
+          },
+          { 
+            id: 'forania_summary' as DioceseReportType, 
+            title: 'Quadro de Foranias', 
+            icon: Bookmark, 
+            desc: 'Resumo executivo de Foranias, Vigários Forâneos e totalização de paróquias.' 
+          },
+          { 
+            id: 'clergy_directory' as DioceseReportType, 
+            title: 'Diretório do Clero', 
+            icon: Target, 
+            desc: 'Relação nominal de Padres, Vigários e Diáconos com atribuições.' 
+          },
+          { 
+            id: 'parishes_cnpj_list' as DioceseReportType, 
+            title: 'Paróquias & CNPJ', 
+            icon: LayoutGrid, 
+            desc: 'Relação cadastral oficial de Paróquias com CNPJ e contatos.' 
+          }
+        ].map((option) => (
+          <button
+            key={option.id}
+            onClick={() => setReportType(option.id)}
+            className={cn(
+              "p-4 sm:p-5 rounded-none border-2 transition-all text-left flex flex-col gap-2.5 group cursor-pointer",
+              reportType === option.id 
+                ? "bg-slate-800 border-blue-600 text-white shadow-xl scale-[1.02]" 
+                : "bg-white border-slate-200 hover:border-slate-300 text-slate-600 shadow-sm"
+            )}
+          >
+            <option.icon size={22} className={reportType === option.id ? "text-white" : "text-slate-700"} />
+            <div>
+              <h3 className="text-[11px] font-bold uppercase tracking-widest leading-tight">{option.title}</h3>
+              <p className={cn("text-[8.5px] mt-1.5 font-medium leading-relaxed", reportType === option.id ? "text-blue-100" : "text-slate-400")}>
+                {option.desc}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Filters Configuration Box */}
+      <div className="space-y-4 p-4 sm:p-6 bg-white rounded-none border border-slate-200 shadow-sm print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <Filter size={14} /> Filtros e Personalização do Relatório
+          </h4>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50 px-2.5 py-1 border border-slate-200 w-fit">
+            {stats.parishesCount} Paróquias • {stats.priestsCount + stats.deaconsCount} Clérigos
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Forania Específica</label>
+            <select 
+              value={reportForaniaFilter}
+              onChange={(e) => setReportForaniaFilter(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
+            >
+              <option value="all">Todas as Foranias ({foraries.length})</option>
+              {foraries.map(f => (
+                <option key={f.id} value={f.id}>
+                  {f.code ? `Forania ${f.code} - ` : ''}{f.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Filtro Rápido (Texto / Busca)</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text"
+                placeholder="Nome, CNPJ, Padre, Diácono..."
+                value={reportSearch}
+                onChange={(e) => setReportSearch(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-none pl-9 pr-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-200"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Document Preview */}
+      <div className="bg-slate-100 border border-slate-200 p-4 md:p-8 print:hidden shadow-inner">
+        <div className="max-w-5xl mx-auto bg-white rounded-none shadow-xl border border-slate-300 p-6 md:p-10 text-slate-900">
+          {/* Header Banner */}
+          <div className="bg-white border-b-2 border-slate-900 pb-5 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-4">
+              {institution?.logo_url ? (
+                <img
+                  src={institution.logo_url}
+                  alt="Logotipo"
+                  className="w-14 h-14 object-contain rounded"
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
+              <div>
+                <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-slate-900 leading-tight">
+                  {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
+                </h2>
+                <p className="text-xs sm:text-sm font-bold text-slate-600 uppercase tracking-widest">
+                  DIOCESE DE GUARULHOS
+                </p>
+                <p className="text-xs font-bold text-blue-700 uppercase mt-1">
+                  {getReportTitle()}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-left sm:text-right space-y-1 text-xs text-slate-500">
+              <p className="font-semibold text-slate-600">
+                Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+              <p className="font-bold text-slate-800 uppercase tracking-wide">
+                {stats.parishesCount} {stats.parishesCount === 1 ? 'Paróquia' : 'Paróquias'} • {stats.priestsCount} Padres • {stats.deaconsCount} Diáconos
+              </p>
+            </div>
+          </div>
+
+          {/* Model 1: parishes_by_forania */}
+          {reportType === 'parishes_by_forania' && (
+            <div className="space-y-8">
+              {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania) => {
+                const foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
+                const filteredForaniaParishes = reportSearch.trim()
+                  ? foraniaParishes.filter(p => {
+                      const q = reportSearch.toLowerCase().trim();
+                      const cData = getParishClergy(p, clergy);
+                      const priestMatch = cData.priests.some(pr => pr.name.toLowerCase().includes(q));
+                      const deaconMatch = cData.deacons.some(d => d.toLowerCase().includes(q));
+                      return p.name.toLowerCase().includes(q) || (p.cnpj && p.cnpj.toLowerCase().includes(q)) || priestMatch || deaconMatch;
+                    })
+                  : foraniaParishes;
+
+                if (filteredForaniaParishes.length === 0 && reportSearch.trim()) return null;
+
+                return (
+                  <div key={forania.id} className="border border-slate-300 rounded-none overflow-hidden">
+                    <div className="bg-slate-100 text-slate-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-300">
+                      <div className="flex items-center gap-3">
+                        <MapIcon size={18} className="text-slate-700" />
+                        <div>
+                          <span className="font-bold text-sm uppercase tracking-wide">
+                            {forania.code ? `FORANIA ${forania.code} — ` : ''}{forania.name}
+                          </span>
+                          {forania.priest_name && (
+                            <span className="text-xs text-slate-600 ml-3 font-normal">
+                              • Padre Forâneo: <strong className="text-slate-900 font-bold">Pe. {forania.priest_name}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider bg-white px-2.5 py-1 rounded-none text-slate-800 border border-slate-300">
+                        {filteredForaniaParishes.length} {filteredForaniaParishes.length === 1 ? 'Paróquia' : 'Paróquias'}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-300 text-slate-800 font-bold uppercase text-[10px]">
+                            <th className="py-3 px-4 w-[34%] border-r border-slate-200">Paróquia / Localização</th>
+                            <th className="py-3 px-4 w-[20%] border-r border-slate-200">CNPJ</th>
+                            <th className="py-3 px-4 w-[26%] border-r border-slate-200">Padre(s) Responsável(is)</th>
+                            <th className="py-3 px-4 w-[20%]">Diácono(s)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {filteredForaniaParishes.length > 0 ? (
+                            filteredForaniaParishes.map((parish) => {
+                              const clergyData = getParishClergy(parish, clergy);
+                              return (
+                                <tr key={parish.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="py-3 px-4 align-top border-r border-slate-200">
+                                    <div className="flex items-start gap-2">
+                                      <Church size={15} className="text-blue-600 shrink-0 mt-0.5" />
+                                      <div>
+                                        <p className="font-bold text-slate-900 uppercase text-xs leading-tight">
+                                          {parish.name}
+                                        </p>
+                                        {(parish.address_neighborhood || parish.address_city) && (
+                                          <p className="text-[10px] text-slate-600 mt-1 flex items-center gap-1">
+                                            <MapPin size={11} className="text-slate-400" />
+                                            {[parish.address_neighborhood, parish.address_city ? `${parish.address_city}${parish.address_state ? `/${parish.address_state}` : ''}` : ''].filter(Boolean).join(' • ')}
+                                          </p>
+                                        )}
+                                        {(parish.phone || parish.email) && (
+                                          <p className="text-[9.5px] text-slate-500 mt-0.5">
+                                            {[parish.phone ? `Tel: ${parish.phone}` : '', parish.email].filter(Boolean).join(' | ')}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-4 align-top border-r border-slate-200">
+                                    <span className="font-mono font-semibold text-slate-800 text-[11px] bg-slate-100 px-2 py-0.5 rounded-none border border-slate-200 inline-block">
+                                      {formatCNPJ(parish.cnpj)}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 align-top border-r border-slate-200">
+                                    {clergyData.priests.length > 0 ? (
+                                      <div className="space-y-1.5">
+                                        {clergyData.priests.map((p, idx) => (
+                                          <div key={idx} className="leading-tight">
+                                            <p className="font-bold text-slate-800 text-xs">{p.name}</p>
+                                            <span className="inline-block text-[9px] font-semibold uppercase px-1.5 py-0.2 bg-blue-50 text-blue-700 rounded-none border border-blue-100">
+                                              {p.role}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-400 italic text-xs">A designar</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 align-top">
+                                    {clergyData.deacons.length > 0 ? (
+                                      <div className="space-y-1">
+                                        {clergyData.deacons.map((d, idx) => (
+                                          <p key={idx} className="font-semibold text-slate-700 text-xs leading-tight">{d}</p>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-400 text-xs">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="py-4 text-center text-slate-400 italic text-xs">
+                                Nenhuma paróquia vinculada a esta forania.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Model 2: forania_summary */}
+          {reportType === 'forania_summary' && (
+            <div className="border border-slate-300 rounded-none overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold uppercase text-[10px]">
+                    <th className="py-3 px-4 border-r border-slate-200 w-20">Código</th>
+                    <th className="py-3 px-4 border-r border-slate-200">Nome da Forania</th>
+                    <th className="py-3 px-4 border-r border-slate-200">Vigário Forâneo</th>
+                    <th className="py-3 px-4 text-center w-32">Qtd. Paróquias</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania) => {
+                    const foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
+                    return (
+                      <tr key={forania.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 border-r border-slate-200">{forania.code || '-'}</td>
+                        <td className="py-3 px-4 font-bold text-slate-900 uppercase border-r border-slate-200">{forania.name}</td>
+                        <td className="py-3 px-4 text-slate-800 border-r border-slate-200">
+                          {forania.priest_name ? `Pe. ${forania.priest_name}` : <span className="text-slate-400 italic">Não designado</span>}
+                        </td>
+                        <td className="py-3 px-4 text-center font-bold text-slate-800">{foraniaParishes.length}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Model 3: clergy_directory */}
+          {reportType === 'clergy_directory' && (
+            <div className="border border-slate-300 rounded-none overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold uppercase text-[10px]">
+                    <th className="py-3 px-4 border-r border-slate-200 w-[30%]">Nome do Clérigo</th>
+                    <th className="py-3 px-4 border-r border-slate-200 w-[18%]">Função / Título</th>
+                    <th className="py-3 px-4 border-r border-slate-200 w-[32%]">Paróquia de Atuação</th>
+                    <th className="py-3 px-4 w-[20%]">Contato / E-mail</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {clergy
+                    .filter(c => {
+                      const q = reportSearch.toLowerCase().trim();
+                      if (!q) return true;
+                      return c.name.toLowerCase().includes(q) || (c.role && c.role.toLowerCase().includes(q)) || (c.email && c.email.toLowerCase().includes(q));
+                    })
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((c) => {
+                      const parish = parishes.find(p => p.id === c.parish_id);
+                      return (
+                        <tr key={c.id} className="hover:bg-slate-50">
+                          <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{c.name}</td>
+                          <td className="py-3 px-4 font-semibold text-slate-700 uppercase text-[10px] border-r border-slate-200">{c.role || 'Membro do Clero'}</td>
+                          <td className="py-3 px-4 text-slate-800 border-r border-slate-200">{parish ? parish.name : <span className="text-slate-400 italic">Geral / Sem Paróquia</span>}</td>
+                          <td className="py-3 px-4 text-slate-600 text-[11px]">{[c.phone, c.email].filter(Boolean).join(' • ') || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Model 4: parishes_cnpj_list */}
+          {reportType === 'parishes_cnpj_list' && (
+            <div className="border border-slate-300 rounded-none overflow-hidden">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold uppercase text-[10px]">
+                    <th className="py-3 px-4 border-r border-slate-200 w-[35%]">Paróquia</th>
+                    <th className="py-3 px-4 border-r border-slate-200 w-[18%]">CNPJ</th>
+                    <th className="py-3 px-4 border-r border-slate-200 w-[20%]">Forania</th>
+                    <th className="py-3 px-4 w-[27%]">Bairro / Cidade</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {parishes
+                    .filter(p => {
+                      if (reportForaniaFilter !== 'all' && p.forania_id !== reportForaniaFilter) return false;
+                      const q = reportSearch.toLowerCase().trim();
+                      if (!q) return true;
+                      return p.name.toLowerCase().includes(q) || (p.cnpj && p.cnpj.toLowerCase().includes(q));
+                    })
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((p) => {
+                      const f = foraries.find(forania => forania.id === p.forania_id);
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50">
+                          <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{p.name}</td>
+                          <td className="py-3 px-4 font-mono font-bold text-slate-800 border-r border-slate-200">{formatCNPJ(p.cnpj)}</td>
+                          <td className="py-3 px-4 text-slate-700 border-r border-slate-200">{f ? (f.code ? `Forania ${f.code}` : f.name) : 'Sem Forania'}</td>
+                          <td className="py-3 px-4 text-slate-600">{[p.address_neighborhood, p.address_city].filter(Boolean).join(' - ') || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Document Footer */}
+          <div className="mt-10 pt-4 border-t-2 border-slate-300 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+            <div>
+              <p className="font-bold text-slate-800 uppercase">
+                {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'} • DIOCESE DE GUARULHOS
+              </p>
+              <p className="text-[11px]">Documento oficial para consulta e fins administrativos</p>
+            </div>
+            <div className="text-right text-[11px] text-slate-500 font-medium">
+              Documento Administrativo Oficial
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

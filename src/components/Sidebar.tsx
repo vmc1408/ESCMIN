@@ -30,6 +30,7 @@ import {
   FileText,
   Lock,
   Printer,
+  Scroll,
   Tag,
   Archive as ArchiveIcon
 } from 'lucide-react';
@@ -109,7 +110,15 @@ const navItems = [
       { icon: Tag, label: 'Etiquetas de Endereço', path: '/impressos?type=etiquetas' },
     ]
   },
-  { icon: Church, label: 'Guia Diocese', path: '/parishes' },
+  {
+    label: 'Guia Diocese',
+    icon: Church,
+    isPrimary: true,
+    children: [
+      { icon: Scroll, label: 'Gestão da Diocese', path: '/parishes?view=management' },
+      { icon: Printer, label: 'Relatórios e Impressão', path: '/parishes?view=reports' },
+    ]
+  },
   { icon: UserManagementIcon, label: 'Usuários', path: '/users' },
   { 
     label: 'Configurações', 
@@ -190,7 +199,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
   }, []);
 
-  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma', 'Impressos']);
+  const [openGroups, setOpenGroups] = useState<string[]>(['Gestão Escolar', 'Cadastros', 'Avaliações', 'Frequência', 'Financeiro', 'Cronograma', 'Impressos', 'Guia Diocese']);
 
   const toggleGroup = (label: string) => {
     setOpenGroups(prev => 
@@ -206,6 +215,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         if (search === 'view=month' && !currentSearch) {
           return true; // monthly calendar is active if no query parameter
         }
+        if (search === 'view=management' && (!currentSearch || currentSearch === 'view=management')) {
+          return true; // default diocese management is active if no query parameter
+        }
         if (search === 'type=declaracao' && !currentSearch) {
           return true; // default impressos page is active if no query parameter
         }
@@ -219,6 +231,12 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       const params = new URLSearchParams(location.search);
       const tab = params.get('tab');
       return !tab || tab === 'institution';
+    }
+
+    if (path === '/parishes' && location.pathname === '/parishes') {
+      const params = new URLSearchParams(location.search);
+      const view = params.get('view');
+      return !view || view === 'management';
     }
 
     return location.pathname === path;
@@ -278,7 +296,12 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     }
 
     // Guia Diocese
-    if (label === 'Guia Diocese' || item.path === '/parishes') {
+    if (
+      label === 'Guia Diocese' || 
+      parentLabel === 'Guia Diocese' || 
+      item.path === '/parishes' ||
+      item.path?.startsWith('/parishes')
+    ) {
       return {
         iconColor: 'text-amber-500',
         textColor: 'text-amber-100',
