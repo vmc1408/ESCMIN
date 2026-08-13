@@ -35,10 +35,10 @@ import {
   FileText,
   CheckCircle2
 } from 'lucide-react';
-import { fetchAll, saveData, deleteData } from '../lib/database';
+import { fetchAll, saveData, deleteData, getInstitutionSettings } from '../lib/database';
 import { cn, maskCEP, maskPhone, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { Parish, Foraria, ClergyLeity, ClergyRole } from '../types';
+import { Parish, Foraria, ClergyLeity, ClergyRole, InstitutionSettings } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 
@@ -132,6 +132,7 @@ export function Diocese() {
   const [itemToDelete, setItemToDelete] = useState<any>(null);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [institution, setInstitution] = useState<InstitutionSettings | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Report Modal States
@@ -477,14 +478,18 @@ export function Diocese() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [pData, fData, cData] = await Promise.all([
+      const [pData, fData, cData, instData] = await Promise.all([
         fetchAll('parishes', '*', 'name', true),
         fetchAll('foraries', '*', 'code', true),
-        fetchAll('clergy_leity', '*', 'code', true)
+        fetchAll('clergy_leity', '*', 'code', true),
+        getInstitutionSettings().catch(() => null)
       ]);
       setParishes(pData || []);
       setForaries(fData || []);
       setClergy(cData || []);
+      if (instData) {
+        setInstitution(instData);
+      }
     } catch (error) {
       console.error('Error fetching diocese data:', error);
     } finally {
@@ -683,24 +688,31 @@ export function Diocese() {
 
       const emissionDate = new Date();
       const emissionText = `Emissão: ${emissionDate.toLocaleDateString('pt-BR')} às ${emissionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      const systemOfficialName = institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR';
 
       const drawPageHeader = () => {
-        // Diocesan Header Banner
+        // Header Banner
         doc.setFillColor(15, 23, 42); // slate-900
-        doc.roundedRect(margin, margin, pageWidth - (margin * 2), 16, 1, 1, 'F');
+        doc.roundedRect(margin, margin, pageWidth - (margin * 2), 18, 1, 1, 'F');
 
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.text('DIOCESE DE GUARULHOS — CÚRIA DIOCESANA', margin + 5, margin + 6.5);
+        doc.setFontSize(10.5);
+        doc.text(systemOfficialName, margin + 5, margin + 5.5);
 
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'bold');
         doc.setTextColor(203, 213, 225); // slate-300
-        doc.text('RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA', margin + 5, margin + 12);
+        doc.text('DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO', margin + 5, margin + 11);
 
         doc.setFontSize(7.5);
-        doc.text(emissionText, pageWidth - margin - 5, margin + 9.5, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text('RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA', margin + 5, margin + 15.5);
+
+        doc.setFontSize(7.5);
+        doc.setTextColor(203, 213, 225);
+        doc.text(emissionText, pageWidth - margin - 5, margin + 8.5, { align: 'right' });
       };
 
       // Grouping data by Forania
@@ -738,7 +750,7 @@ export function Diocese() {
         renderedForaniasCount++;
 
         drawPageHeader();
-        currentY = margin + 19;
+        currentY = margin + 20.5;
 
         const priestForaneo = forania.priest_name ? `   •   Padre Forâneo: Pe. ${forania.priest_name}` : '';
         const foraniaTitle = `${forania.code ? `FORANIA ${forania.code} — ` : ''}${forania.name.toUpperCase()}${priestForaneo}   (${foraniaParishes.length} ${foraniaParishes.length === 1 ? 'paróquia' : 'paróquias'})`;
@@ -832,7 +844,7 @@ export function Diocese() {
             doc.addPage();
           }
           drawPageHeader();
-          currentY = margin + 19;
+          currentY = margin + 20.5;
 
           doc.setFillColor(71, 85, 105); // slate-600
           doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
@@ -873,7 +885,7 @@ export function Diocese() {
         doc.setPage(i);
         doc.setFontSize(7);
         doc.setTextColor(148, 163, 184);
-        doc.text(`Página ${i} de ${totalPages} • Diocese de Guarulhos — Chancelaria do Bispado`, margin, pageHeight - 5);
+        doc.text(`Página ${i} de ${totalPages} • ${systemOfficialName} • Diocese de Guarulhos — Chancelaria do Bispado`, margin, pageHeight - 5);
         doc.text('Documento Administrativo Oficial', pageWidth - margin, pageHeight - 5, { align: 'right' });
       }
 
@@ -2159,16 +2171,19 @@ export function Diocese() {
           @media print {
             @page {
               size: A4 landscape !important;
-              margin: 8mm 10mm 8mm 10mm !important;
+              margin: 10mm 10mm 10mm 10mm !important;
             }
             html, body {
               width: 100% !important;
               height: auto !important;
               background: #ffffff !important;
-              color: #000000 !important;
+              color: #0f172a !important;
               overflow: visible !important;
               margin: 0 !important;
               padding: 0 !important;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             #printable-diocese-report {
               display: block !important;
@@ -2189,7 +2204,8 @@ export function Diocese() {
               box-sizing: border-box !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
-              margin-bottom: 24px !important;
+              margin: 0 0 20px 0 !important;
+              padding: 0 !important;
             }
             .forania-print-page:not(:first-child) {
               page-break-before: always !important;
@@ -2222,51 +2238,60 @@ export function Diocese() {
 
             return (
               <div key={forania.id} className="forania-print-page">
-                {/* Official Diocesan Header on every printed page */}
-                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-3">
-                  <div className="flex items-center gap-3">
-                    <Church size={28} className="text-slate-900" />
-                    <div>
-                      <h1 className="text-base font-black uppercase tracking-tight text-slate-900 leading-none">DIOCESE DE GUARULHOS</h1>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mt-0.5">Chancelaria do Bispado • Cúria Diocesana</p>
-                    </div>
+                {/* Official System & Diocesan Header Banner (Identical to PDF Header) */}
+                <div className="bg-[#0f172a] text-white p-3.5 rounded-sm mb-2 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h1 className="text-[12pt] font-black uppercase tracking-wider text-white leading-tight">
+                      {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
+                    </h1>
+                    <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
+                      DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO
+                    </h2>
+                    <p className="text-[8pt] font-medium text-slate-400">
+                      RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA
+                    </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white px-3 py-1 inline-block">
-                      Relatório Oficial por Forania
-                    </span>
-                    <p className="text-[8.5px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">
+                    <p className="text-[8pt] font-medium text-slate-300 uppercase tracking-wider">
                       Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
+                    <span className="inline-block mt-1 bg-slate-800 text-[7.5pt] font-bold uppercase tracking-wider text-slate-200 px-2 py-0.5 rounded border border-slate-700">
+                      Documento Administrativo Oficial
+                    </span>
                   </div>
                 </div>
 
                 {/* Forania Header Banner */}
-                <div className="bg-slate-800 text-white px-4 py-2 flex items-center justify-between border-x border-t border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <MapIcon size={16} className="text-slate-300" />
-                    <span className="font-black text-xs uppercase tracking-wider">
+                <div className="bg-[#1e293b] text-white px-3 py-1.5 flex items-center justify-between border border-[#1e293b]">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[9pt] uppercase tracking-wider">
                       {forania.code ? `FORANIA ${forania.code} — ` : ''}{forania.name}
                     </span>
                     {forania.priest_name && (
-                      <span className="text-[10px] font-medium text-slate-300 border-l border-slate-600 pl-3">
-                        Padre Forâneo: <strong className="text-white">Pe. {forania.priest_name}</strong>
+                      <span className="text-[8.5pt] font-medium text-slate-300 border-l border-slate-600 pl-2">
+                        Padre Forâneo: <strong className="text-white font-bold">Pe. {forania.priest_name}</strong>
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-700 px-2.5 py-0.5 text-slate-200">
+                  <span className="text-[8pt] font-bold uppercase tracking-wider text-slate-200">
                     {filteredForaniaParishes.length} {filteredForaniaParishes.length === 1 ? 'Paróquia' : 'Paróquias'}
                   </span>
                 </div>
 
                 {/* Parishes Table */}
-                <table className="w-full text-left text-xs border-collapse border border-slate-300">
+                <table className="w-full text-left text-[8pt] border-collapse border border-slate-300 table-fixed">
+                  <colgroup>
+                    <col style={{ width: '38%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '27%' }} />
+                    <col style={{ width: '20%' }} />
+                  </colgroup>
                   <thead>
-                    <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold uppercase text-[9.5px]">
-                      <th className="py-2 px-3 w-[36%] border-r border-slate-200">Paróquia / Localização</th>
-                      <th className="py-2 px-3 w-[20%] border-r border-slate-200">CNPJ</th>
-                      <th className="py-2 px-3 w-[26%] border-r border-slate-200">Padre(s) Responsável(is)</th>
-                      <th className="py-2 px-3 w-[18%]">Diácono(s)</th>
+                    <tr className="bg-[#f1f5f9] border-b border-slate-300 text-[#0f172a] font-bold uppercase text-[7.5pt]">
+                      <th className="py-2 px-2.5 border-r border-slate-300">Paróquia / Localização</th>
+                      <th className="py-2 px-2.5 border-r border-slate-300">CNPJ</th>
+                      <th className="py-2 px-2.5 border-r border-slate-300">Padre(s) Responsável(is)</th>
+                      <th className="py-2 px-2.5">Diácono(s)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -2274,48 +2299,48 @@ export function Diocese() {
                       filteredForaniaParishes.map((parish) => {
                         const clergyData = getParishClergy(parish, clergy);
                         return (
-                          <tr key={parish.id} className="hover:bg-slate-50/80">
-                            <td className="py-2 px-3 align-top border-r border-slate-200">
-                              <p className="font-bold text-slate-900 uppercase text-[11px] leading-tight">{parish.name}</p>
+                          <tr key={parish.id} className="border-b border-slate-200">
+                            <td className="py-2 px-2.5 align-top border-r border-slate-200">
+                              <p className="font-bold text-slate-900 uppercase text-[8.5pt] leading-tight">{parish.name}</p>
                               {(parish.address_neighborhood || parish.address_city) && (
-                                <p className="text-[9.5px] text-slate-600 mt-0.5">
-                                  {[parish.address_neighborhood, parish.address_city ? `${parish.address_city}${parish.address_state ? `/${parish.address_state}` : ''}` : ''].filter(Boolean).join(' • ')}
+                                <p className="text-[7.5pt] text-slate-600 mt-0.5">
+                                  {[parish.address_neighborhood, parish.address_city ? `${parish.address_city}${parish.address_state ? `/${parish.address_state}` : ''}` : ''].filter(Boolean).join(' - ')}
                                 </p>
                               )}
                               {(parish.phone || parish.email) && (
-                                <p className="text-[9px] text-slate-500 mt-0.5">
-                                  {[parish.phone, parish.email].filter(Boolean).join(' | ')}
+                                <p className="text-[7pt] text-slate-500 mt-0.5">
+                                  {[parish.phone ? `Tel: ${parish.phone}` : '', parish.email].filter(Boolean).join(' | ')}
                                 </p>
                               )}
                             </td>
-                            <td className="py-2 px-3 align-top border-r border-slate-200">
-                              <span className="font-mono font-semibold text-slate-800 text-[10.5px]">
+                            <td className="py-2 px-2.5 align-top border-r border-slate-200">
+                              <span className="font-mono font-bold text-slate-800 text-[8pt]">
                                 {formatCNPJ(parish.cnpj)}
                               </span>
                             </td>
-                            <td className="py-2 px-3 align-top border-r border-slate-200">
+                            <td className="py-2 px-2.5 align-top border-r border-slate-200">
                               {clergyData.priests.length > 0 ? (
                                 <div className="space-y-1">
                                   {clergyData.priests.map((p, idx) => (
                                     <div key={idx} className="leading-tight">
-                                      <p className="font-bold text-slate-800 text-[10.5px]">{p.name}</p>
-                                      <span className="text-[8.5px] font-medium uppercase text-slate-500">{p.role}</span>
+                                      <p className="font-bold text-slate-800 text-[8pt]">{p.name}</p>
+                                      <span className="text-[7pt] font-medium uppercase text-slate-500">({p.role})</span>
                                     </div>
                                   ))}
                                 </div>
                               ) : (
-                                <span className="text-slate-400 italic text-[10px]">A designar</span>
+                                <span className="text-slate-400 italic text-[7.5pt]">A designar</span>
                               )}
                             </td>
-                            <td className="py-2 px-3 align-top">
+                            <td className="py-2 px-2.5 align-top">
                               {clergyData.deacons.length > 0 ? (
                                 <div className="space-y-1">
                                   {clergyData.deacons.map((d, idx) => (
-                                    <p key={idx} className="font-semibold text-slate-700 text-[10.5px] leading-tight">{d}</p>
+                                    <p key={idx} className="font-semibold text-slate-700 text-[8pt] leading-tight">{d}</p>
                                   ))}
                                 </div>
                               ) : (
-                                <span className="text-slate-400 text-[10px]">—</span>
+                                <span className="text-slate-400 text-[7.5pt]">—</span>
                               )}
                             </td>
                           </tr>
@@ -2323,7 +2348,7 @@ export function Diocese() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={4} className="py-4 text-center text-slate-400 italic text-xs">
+                        <td colSpan={4} className="py-3 text-center text-slate-400 italic text-[8pt]">
                           Nenhuma paróquia vinculada a esta forania.
                         </td>
                       </tr>
@@ -2332,9 +2357,11 @@ export function Diocese() {
                 </table>
 
                 {/* Page Footer */}
-                <div className="mt-3 pt-2 border-t border-slate-300 flex justify-between items-center text-[9px] text-slate-500">
-                  <p className="font-bold text-slate-700 uppercase">Diocese de Guarulhos — Cúria Diocesana</p>
-                  <p className="text-slate-500">Documento Administrativo Oficial • Chancelaria do Bispado</p>
+                <div className="mt-2 pt-1 border-t border-slate-300 flex justify-between items-center text-[7.5pt] text-slate-500">
+                  <p className="font-medium text-slate-600">
+                    {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos — Chancelaria do Bispado
+                  </p>
+                  <p className="text-slate-500">Documento Administrativo Oficial</p>
                 </div>
               </div>
             );
@@ -2343,39 +2370,49 @@ export function Diocese() {
           {/* Parishes without Forania */}
           {reportForaniaFilter === 'all' && parishes.some(p => !p.forania_id || !foraries.some(f => f.id === p.forania_id)) && (
             <div className="forania-print-page">
-              <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-3">
-                <div className="flex items-center gap-3">
-                  <Church size={28} className="text-slate-900" />
-                  <div>
-                    <h1 className="text-base font-black uppercase tracking-tight text-slate-900 leading-none">DIOCESE DE GUARULHOS</h1>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 mt-0.5">Chancelaria do Bispado • Cúria Diocesana</p>
-                  </div>
+              <div className="bg-[#0f172a] text-white p-3.5 rounded-sm mb-2 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <h1 className="text-[12pt] font-black uppercase tracking-wider text-white leading-tight">
+                    {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
+                  </h1>
+                  <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
+                    DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO
+                  </h2>
+                  <p className="text-[8pt] font-medium text-slate-400">
+                    RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL • OUTRAS COMUNIDADES
+                  </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white px-3 py-1 inline-block">
-                    Relatório Oficial • Outras Comunidades
-                  </span>
-                  <p className="text-[8.5px] font-bold text-slate-500 mt-0.5 uppercase tracking-wider">
+                  <p className="text-[8pt] font-medium text-slate-300 uppercase tracking-wider">
                     Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
+                  <span className="inline-block mt-1 bg-slate-800 text-[7.5pt] font-bold uppercase tracking-wider text-slate-200 px-2 py-0.5 rounded border border-slate-700">
+                    Documento Administrativo Oficial
+                  </span>
                 </div>
               </div>
 
-              <div className="bg-slate-700 text-white px-4 py-2 flex items-center justify-between border-x border-t border-slate-700">
-                <span className="font-black text-xs uppercase tracking-wider">
+              <div className="bg-[#475569] text-white px-3 py-1.5 flex items-center justify-between border border-[#475569]">
+                <span className="font-bold text-[9pt] uppercase tracking-wider">
                   OUTRAS COMUNIDADES / SEM FORANIA DEFINIDA
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-600 px-2.5 py-0.5 text-slate-200">
+                <span className="text-[8pt] font-bold uppercase tracking-wider text-slate-200">
                   {parishes.filter(p => !p.forania_id || !foraries.some(f => f.id === p.forania_id)).length} Paróquias
                 </span>
               </div>
-              <table className="w-full text-left text-xs border-collapse border border-slate-300">
+              <table className="w-full text-left text-[8pt] border-collapse border border-slate-300 table-fixed">
+                <colgroup>
+                  <col style={{ width: '38%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '27%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
                 <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold uppercase text-[9.5px]">
-                    <th className="py-2 px-3 w-[36%] border-r border-slate-200">Paróquia / Localização</th>
-                    <th className="py-2 px-3 w-[20%] border-r border-slate-200">CNPJ</th>
-                    <th className="py-2 px-3 w-[26%] border-r border-slate-200">Padre(s) Responsável(is)</th>
-                    <th className="py-2 px-3 w-[18%]">Diácono(s)</th>
+                  <tr className="bg-[#f1f5f9] border-b border-slate-300 text-[#0f172a] font-bold uppercase text-[7.5pt]">
+                    <th className="py-2 px-2.5 border-r border-slate-300">Paróquia / Localização</th>
+                    <th className="py-2 px-2.5 border-r border-slate-300">CNPJ</th>
+                    <th className="py-2 px-2.5 border-r border-slate-300">Padre(s) Responsável(is)</th>
+                    <th className="py-2 px-2.5">Diácono(s)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -2384,35 +2421,35 @@ export function Diocese() {
                     .map((parish) => {
                       const clergyData = getParishClergy(parish, clergy);
                       return (
-                        <tr key={parish.id} className="hover:bg-slate-50/80">
-                          <td className="py-2 px-3 align-top border-r border-slate-200">
-                            <p className="font-bold text-slate-900 uppercase text-[11px] leading-tight">{parish.name}</p>
+                        <tr key={parish.id} className="border-b border-slate-200">
+                          <td className="py-2 px-2.5 align-top border-r border-slate-200">
+                            <p className="font-bold text-slate-900 uppercase text-[8.5pt] leading-tight">{parish.name}</p>
                           </td>
-                          <td className="py-2 px-3 align-top border-r border-slate-200">
-                            <span className="font-mono font-semibold text-slate-800 text-[10.5px]">
+                          <td className="py-2 px-2.5 align-top border-r border-slate-200">
+                            <span className="font-mono font-bold text-slate-800 text-[8pt]">
                               {formatCNPJ(parish.cnpj)}
                             </span>
                           </td>
-                          <td className="py-2 px-3 align-top border-r border-slate-200">
+                          <td className="py-2 px-2.5 align-top border-r border-slate-200">
                             {clergyData.priests.length > 0 ? (
                               <div className="space-y-1">
                                 {clergyData.priests.map((p, idx) => (
-                                  <p key={idx} className="font-bold text-slate-800 text-[10.5px] leading-tight">{p.name}</p>
+                                  <p key={idx} className="font-bold text-slate-800 text-[8pt] leading-tight">{p.name}</p>
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-slate-400 italic text-[10px]">A designar</span>
+                              <span className="text-slate-400 italic text-[7.5pt]">A designar</span>
                             )}
                           </td>
-                          <td className="py-2 px-3 align-top">
+                          <td className="py-2 px-2.5 align-top">
                             {clergyData.deacons.length > 0 ? (
                               <div className="space-y-1">
                                 {clergyData.deacons.map((d, idx) => (
-                                  <p key={idx} className="font-semibold text-slate-700 text-[10.5px] leading-tight">{d}</p>
+                                  <p key={idx} className="font-semibold text-slate-700 text-[8pt] leading-tight">{d}</p>
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-slate-400 text-[10px]">—</span>
+                              <span className="text-slate-400 text-[7.5pt]">—</span>
                             )}
                           </td>
                         </tr>
@@ -2421,9 +2458,11 @@ export function Diocese() {
                 </tbody>
               </table>
 
-              <div className="mt-3 pt-2 border-t border-slate-300 flex justify-between items-center text-[9px] text-slate-500">
-                <p className="font-bold text-slate-700 uppercase">Diocese de Guarulhos — Cúria Diocesana</p>
-                <p className="text-slate-500">Documento Administrativo Oficial • Chancelaria do Bispado</p>
+              <div className="mt-2 pt-1 border-t border-slate-300 flex justify-between items-center text-[7.5pt] text-slate-500">
+                <p className="font-medium text-slate-600">
+                  {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos — Chancelaria do Bispado
+                </p>
+                <p className="text-slate-500">Documento Administrativo Oficial</p>
               </div>
             </div>
           )}
@@ -2527,8 +2566,12 @@ export function Diocese() {
                         <Church size={28} />
                       </div>
                       <div className="text-left">
-                        <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900">DIOCESE DE GUARULHOS</h1>
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-600">Chancelaria do Bispado • Cúria Diocesana</p>
+                        <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">
+                          {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
+                        </h1>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-600">
+                          DIOCESE DE GUARULHOS — CHANCELARIA DO BISPADO
+                        </p>
                       </div>
                     </div>
 
@@ -2747,8 +2790,10 @@ export function Diocese() {
                   {/* Document Footer */}
                   <div className="mt-14 pt-6 border-t-2 border-slate-300 flex flex-col md:flex-row justify-between items-center gap-6 text-xs text-slate-500">
                     <div>
-                      <p className="font-bold text-slate-800 uppercase">Diocese de Guarulhos — Cúria Diocesana</p>
-                      <p className="text-[11px]">Documento oficial para consulta e fins administrativos</p>
+                      <p className="font-bold text-slate-800 uppercase">
+                        {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos
+                      </p>
+                      <p className="text-[11px]">Documento oficial para consulta e fins administrativos • Chancelaria do Bispado</p>
                     </div>
                     <div className="w-64 border-t border-slate-400 pt-2 text-center text-[10px] font-bold uppercase text-slate-700">
                       Chancelaria do Bispado
