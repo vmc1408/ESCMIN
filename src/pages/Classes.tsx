@@ -43,19 +43,26 @@ interface Class {
   id: string;
   code: string;
   name: string;
+  course?: string;
   room?: string;
   status: 'Ativo' | 'Inativo' | 'Encerrada';
   days_of_week: string[];
   year?: string;
+  start_year?: string;
   semester: string;
   subject_id?: string;
   subject_id_sem1?: string;
+  subject_id_sem1_h1?: string;
+  subject_id_sem1_h2?: string;
   subject_id_sem2?: string;
+  subject_id_sem2_h1?: string;
+  subject_id_sem2_h2?: string;
   subject_ids?: string[];
   start_date?: string;
-  period: 'Manhã' | 'Tarde' | 'Noite';
+  period?: 'Manhã' | 'Tarde' | 'Noite' | string;
   observations?: string;
   is_special?: boolean;
+  unallocated?: boolean;
   created_at: string;
   user_id: string;
 }
@@ -68,6 +75,7 @@ interface Subject {
   semester?: string;
   status?: string;
   teacher_id?: string;
+  program_content?: string;
 }
 
 const DAYS = [

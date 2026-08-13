@@ -94,9 +94,10 @@ export interface Class {
   course?: string;
   room?: string;
   status: 'Ativo' | 'Inativo' | 'Encerrada';
-  period: 'Manhã' | 'Tarde' | 'Noite';
+  period?: 'Manhã' | 'Tarde' | 'Noite' | string;
   days_of_week: string[];
   year?: string;
+  start_year?: string;
   semester: string;
   subject_id?: string;
   subject_id_sem1?: string;
@@ -109,6 +110,7 @@ export interface Class {
   start_date?: string;
   observations?: string;
   is_special?: boolean;
+  unallocated?: boolean;
   user_id: string;
   created_at: string;
 }

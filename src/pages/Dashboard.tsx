@@ -111,7 +111,7 @@ const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] => {
 
   return periods;
 };
-import { fetchCount, fetchAll, saveBatch } from '../lib/database';
+import { fetchCount, fetchAll, fetchById, saveBatch } from '../lib/database';
 import { isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -528,6 +528,12 @@ export function Dashboard() {
         name: 'Sem Turma / Turma Inativa',
         period: '---' as any,
         subject_ids: [],
+        subject_id_sem1_h1: undefined,
+        subject_id_sem1_h2: undefined,
+        subject_id_sem2_h1: undefined,
+        subject_id_sem2_h2: undefined,
+        subject_id_sem1: undefined,
+        subject_id_sem2: undefined,
         count: unallocatedCount,
         percentage: stats.students.active > 0 ? Math.round((unallocatedCount / stats.students.active) * 100) : 0,
         unallocated: true
