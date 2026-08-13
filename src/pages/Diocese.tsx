@@ -783,7 +783,7 @@ export function Diocese() {
     const emissionDate = new Date();
     const emissionText = `Emissão: ${emissionDate.toLocaleDateString('pt-BR')} às ${emissionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
     const systemOfficialName = institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO';
-    const dioceseOfficialName = institution?.subtitle?.toUpperCase() || 'DIOCESE DE GUARULHOS';
+    const dioceseOfficialName = 'DIOCESE DE GUARULHOS';
     const reportTitle = getReportTitle();
     const reportStats = getFilteredReportStats();
 
@@ -2599,7 +2599,7 @@ export function Diocese() {
                   {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
                 </h1>
                 <h2 className="text-[8.5pt] font-bold uppercase tracking-wider text-slate-600">
-                  {institution?.subtitle?.toUpperCase() || 'DIOCESE DE GUARULHOS'}
+                  DIOCESE DE GUARULHOS
                 </h2>
                 <p className="text-[8pt] font-bold text-blue-800 uppercase">
                   {getReportTitle()}
@@ -3149,7 +3149,7 @@ export function Diocese() {
                                 {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
                               </h1>
                               <p className="text-xs font-bold uppercase tracking-widest text-slate-600">
-                                {institution?.subtitle?.toUpperCase() || 'DIOCESE DE GUARULHOS'}
+                                DIOCESE DE GUARULHOS
                               </p>
                               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
                                 Cúria Diocesana • Documento Administrativo Oficial
@@ -3410,15 +3410,15 @@ export function Diocese() {
                   )}
 
                   {/* Document Footer */}
-                  <div className="mt-14 pt-6 border-t-2 border-slate-300 flex flex-col md:flex-row justify-between items-center gap-6 text-xs text-slate-500">
+                  <div className="mt-10 pt-4 border-t-2 border-slate-300 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500">
                     <div>
                       <p className="font-bold text-slate-800 uppercase">
-                        {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'} • {institution?.subtitle || 'Diocese de Guarulhos'}
+                        {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'} • DIOCESE DE GUARULHOS
                       </p>
                       <p className="text-[11px]">Documento oficial para consulta e fins administrativos</p>
                     </div>
-                    <div className="w-64 border-t border-slate-400 pt-2 text-center text-[10px] font-bold uppercase text-slate-700">
-                      {institution?.subtitle || 'Diocese de Guarulhos'}
+                    <div className="text-right text-[11px] text-slate-500 font-medium">
+                      Documento Administrativo Oficial
                     </div>
                   </div>
                 </div>
