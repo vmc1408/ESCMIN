@@ -674,6 +674,76 @@ export function Diocese() {
     }
   };
 
+  const getReportTitle = () => {
+    if (reportForaniaFilter !== 'all') {
+      const selectedForania = foraries.find(f => f.id === reportForaniaFilter);
+      if (selectedForania) {
+        const foraniaLabel = selectedForania.code ? `FORANIA ${selectedForania.code} — ${selectedForania.name.toUpperCase()}` : selectedForania.name.toUpperCase();
+        return `RELATÓRIO OFICIAL DE PARÓQUIAS E CLERO — ${foraniaLabel}${reportSearch.trim() ? ` (FILTRO: "${reportSearch.toUpperCase()}")` : ''}`;
+      }
+    }
+    if (reportSearch.trim()) {
+      return `RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO (FILTRO: "${reportSearch.toUpperCase()}")`;
+    }
+    return 'RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA';
+  };
+
+  const getFilteredReportStats = () => {
+    const foraniasToFilter = reportForaniaFilter === 'all' 
+      ? foraries 
+      : foraries.filter(f => f.id === reportForaniaFilter);
+
+    const matchedParishes: Parish[] = [];
+    const matchedForaniasSet = new Set<string>();
+
+    foraniasToFilter.forEach(f => {
+      const pList = parishes.filter(p => p.forania_id === f.id);
+      const filteredPList = reportSearch.trim()
+        ? pList.filter(p => {
+            const q = reportSearch.toLowerCase().trim();
+            const cData = getParishClergy(p, clergy);
+            const priestMatch = cData.priests.some(pr => pr.name.toLowerCase().includes(q));
+            const deaconMatch = cData.deacons.some(d => d.toLowerCase().includes(q));
+            return p.name.toLowerCase().includes(q) || (p.cnpj && p.cnpj.toLowerCase().includes(q)) || priestMatch || deaconMatch;
+          })
+        : pList;
+
+      if (filteredPList.length > 0) {
+        matchedForaniasSet.add(f.id);
+        matchedParishes.push(...filteredPList);
+      }
+    });
+
+    if (reportForaniaFilter === 'all') {
+      const unassigned = parishes.filter(p => !p.forania_id || !foraries.some(f => f.id === p.forania_id));
+      const filteredUnassigned = reportSearch.trim()
+        ? unassigned.filter(p => {
+            const q = reportSearch.toLowerCase().trim();
+            const cData = getParishClergy(p, clergy);
+            const priestMatch = cData.priests.some(pr => pr.name.toLowerCase().includes(q));
+            const deaconMatch = cData.deacons.some(d => d.toLowerCase().includes(q));
+            return p.name.toLowerCase().includes(q) || (p.cnpj && p.cnpj.toLowerCase().includes(q)) || priestMatch || deaconMatch;
+          })
+        : unassigned;
+      matchedParishes.push(...filteredUnassigned);
+    }
+
+    let priestCount = 0;
+    let deaconCount = 0;
+    matchedParishes.forEach(p => {
+      const cData = getParishClergy(p, clergy);
+      priestCount += cData.priests.length;
+      deaconCount += cData.deacons.length;
+    });
+
+    return {
+      foraniasCount: matchedForaniasSet.size,
+      parishesCount: matchedParishes.length,
+      priestsCount: priestCount,
+      deaconsCount: deaconCount
+    };
+  };
+
   const generateDiocesePDFDoc = () => {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -683,31 +753,50 @@ export function Diocese() {
 
     const emissionDate = new Date();
     const emissionText = `Emissão: ${emissionDate.toLocaleDateString('pt-BR')} às ${emissionDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-    const systemOfficialName = institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR';
+    const systemOfficialName = institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO';
+    const dioceseOfficialName = institution?.subtitle?.toUpperCase() || 'DIOCESE DE GUARULHOS';
+    const reportTitle = getReportTitle();
+    const reportStats = getFilteredReportStats();
 
     const drawPageHeader = () => {
       // Header Banner
       doc.setFillColor(15, 23, 42); // slate-900
-      doc.roundedRect(margin, margin, pageWidth - (margin * 2), 18, 1, 1, 'F');
+      doc.roundedRect(margin, margin, pageWidth - (margin * 2), 19, 1, 1, 'F');
+
+      let textStartX = margin + 5;
+      if (institution?.logo_url) {
+        try {
+          doc.addImage(institution.logo_url, 'auto', margin + 3, margin + 2.5, 14, 14);
+          textStartX = margin + 20;
+        } catch (e) {
+          // ignore if image load fails
+        }
+      }
 
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10.5);
-      doc.text(systemOfficialName, margin + 5, margin + 5.5);
+      doc.text(systemOfficialName, textStartX, margin + 5.5);
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(203, 213, 225); // slate-300
-      doc.text('DIOCESE DE GUARULHOS', margin + 5, margin + 11);
+      doc.text(dioceseOfficialName, textStartX, margin + 10.5);
 
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(148, 163, 184); // slate-400
-      doc.text('RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA', margin + 5, margin + 15.5);
+      const truncatedTitle = doc.splitTextToSize(reportTitle, pageWidth - margin - textStartX - 75)[0] || reportTitle;
+      doc.text(truncatedTitle, textStartX, margin + 15.5);
 
       doc.setFontSize(7.5);
       doc.setTextColor(203, 213, 225);
-      doc.text(emissionText, pageWidth - margin - 5, margin + 8.5, { align: 'right' });
+      doc.text(emissionText, pageWidth - margin - 5, margin + 7.5, { align: 'right' });
+
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      const statsSummary = `${reportStats.parishesCount} ${reportStats.parishesCount === 1 ? 'paróquia' : 'paróquias'} • ${reportStats.priestsCount} padres • ${reportStats.deaconsCount} diáconos`;
+      doc.text(statsSummary, pageWidth - margin - 5, margin + 13.5, { align: 'right' });
     };
 
     // Grouping data by Forania
@@ -2276,20 +2365,33 @@ export function Diocese() {
               <div key={forania.id} className="forania-print-page">
                 {/* Official System & Diocesan Header Banner (Identical to PDF Header) */}
                 <div className="bg-[#0f172a] text-white p-3.5 rounded-sm mb-2 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h1 className="text-[12pt] font-black uppercase tracking-wider text-white leading-tight">
-                      {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
-                    </h1>
-                    <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
-                      DIOCESE DE GUARULHOS
-                    </h2>
-                    <p className="text-[8pt] font-medium text-slate-400">
-                      RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA
-                    </p>
+                  <div className="flex items-center gap-3.5">
+                    {institution?.logo_url ? (
+                      <img
+                        src={institution.logo_url}
+                        alt="Logotipo"
+                        className="w-12 h-12 object-contain rounded"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : null}
+                    <div className="space-y-0.5">
+                      <h1 className="text-[12pt] font-black uppercase tracking-wider text-white leading-tight">
+                        {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
+                      </h1>
+                      <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
+                        {institution?.subtitle?.toUpperCase() || 'DIOCESE DE GUARULHOS'}
+                      </h2>
+                      <p className="text-[8pt] font-medium text-slate-400">
+                        {getReportTitle()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right space-y-1">
                     <p className="text-[8pt] font-medium text-slate-300 uppercase tracking-wider">
                       Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="text-[7.5pt] text-slate-300 font-bold uppercase tracking-wider">
+                      {getFilteredReportStats().parishesCount} {getFilteredReportStats().parishesCount === 1 ? 'Paróquia' : 'Paróquias'} • {getFilteredReportStats().priestsCount} Padres • {getFilteredReportStats().deaconsCount} Diáconos
                     </p>
                   </div>
                 </div>
@@ -2404,20 +2506,33 @@ export function Diocese() {
           {reportForaniaFilter === 'all' && parishes.some(p => !p.forania_id || !foraries.some(f => f.id === p.forania_id)) && (
             <div className="forania-print-page">
               <div className="bg-[#0f172a] text-white p-3.5 rounded-sm mb-2 flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <h1 className="text-[12pt] font-black uppercase tracking-wider text-white leading-tight">
-                    {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
-                  </h1>
-                  <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
-                    DIOCESE DE GUARULHOS
-                  </h2>
-                  <p className="text-[8pt] font-medium text-slate-400">
-                    RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL • OUTRAS COMUNIDADES
-                  </p>
+                <div className="flex items-center gap-3.5">
+                  {institution?.logo_url ? (
+                    <img
+                      src={institution.logo_url}
+                      alt="Logotipo"
+                      className="w-12 h-12 object-contain rounded"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : null}
+                  <div className="space-y-0.5">
+                    <h1 className="text-[12pt] font-black uppercase tracking-wider text-white leading-tight">
+                      {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
+                    </h1>
+                    <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-300">
+                      {institution?.subtitle?.toUpperCase() || 'DIOCESE DE GUARULHOS'}
+                    </h2>
+                    <p className="text-[8pt] font-medium text-slate-400">
+                      {getReportTitle()} • OUTRAS COMUNIDADES
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right space-y-1">
                   <p className="text-[8pt] font-medium text-slate-300 uppercase tracking-wider">
                     Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="text-[7.5pt] text-slate-300 font-bold uppercase tracking-wider">
+                    {getFilteredReportStats().parishesCount} {getFilteredReportStats().parishesCount === 1 ? 'Paróquia' : 'Paróquias'} • {getFilteredReportStats().priestsCount} Padres • {getFilteredReportStats().deaconsCount} Diáconos
                   </p>
                 </div>
               </div>
@@ -2590,39 +2705,54 @@ export function Diocese() {
               <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar bg-slate-200/70">
                 <div className="max-w-5xl mx-auto bg-white rounded-lg shadow-xl border border-slate-300 p-6 md:p-10 text-slate-900">
                   {/* Diocesan Header */}
-                  <div className="text-center space-y-2 mb-8 border-b-2 border-slate-900 pb-6">
-                    <div className="flex items-center justify-center gap-4">
-                      <div className="w-12 h-12 bg-slate-900 text-white rounded-lg flex items-center justify-center shadow-md">
-                        <Church size={28} />
-                      </div>
-                      <div className="text-left">
-                        <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">
-                          {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN - GESTÃO ESCOLAR'}
-                        </h1>
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-600">
-                          DIOCESE DE GUARULHOS
-                        </p>
-                      </div>
-                    </div>
+                  {(() => {
+                    const currentReportTitle = getReportTitle();
+                    const currentReportStats = getFilteredReportStats();
+                    return (
+                      <div className="text-center space-y-3 mb-8 border-b-2 border-slate-900 pb-6">
+                        <div className="flex items-center justify-center gap-4">
+                          {institution?.logo_url ? (
+                            <img
+                              src={institution.logo_url}
+                              alt="Logotipo"
+                              className="w-14 h-14 object-contain rounded-lg shadow-sm"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-slate-900 text-white rounded-lg flex items-center justify-center shadow-md">
+                              <Church size={28} />
+                            </div>
+                          )}
+                          <div className="text-left">
+                            <h1 className="text-xl font-black uppercase tracking-tight text-slate-900 leading-tight">
+                              {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
+                            </h1>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-600">
+                              {institution?.subtitle?.toUpperCase() || 'DIOCESE DE GUARULHOS'}
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="pt-2">
-                      <span className="inline-block bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded">
-                        Relatório Oficial de Paróquias, CNPJ e Clero Responsável por Forania
-                      </span>
-                    </div>
+                        <div className="pt-2">
+                          <span className="inline-block bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded shadow-sm">
+                            {currentReportTitle}
+                          </span>
+                        </div>
 
-                    <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider pt-2">
-                      <span>Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span>•</span>
-                      <span>{foraries.length} Foranias</span>
-                      <span>•</span>
-                      <span>{parishes.length} Paróquias Cadastradas</span>
-                      <span>•</span>
-                      <span>{clergy.filter(c => c.role === 'pároco' || c.role === 'vigário').length} Padres</span>
-                      <span>•</span>
-                      <span>{clergy.filter(c => c.role === 'diácono').length} Diáconos</span>
-                    </div>
-                  </div>
+                        <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider pt-2">
+                          <span>Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>•</span>
+                          <span>{currentReportStats.foraniasCount} {currentReportStats.foraniasCount === 1 ? 'Forania Exibida' : 'Foranias'}</span>
+                          <span>•</span>
+                          <span>{currentReportStats.parishesCount} {currentReportStats.parishesCount === 1 ? 'Paróquia' : 'Paróquias'} {reportForaniaFilter !== 'all' || reportSearch ? 'Filtradas' : 'Cadastradas'}</span>
+                          <span>•</span>
+                          <span>{currentReportStats.priestsCount} {currentReportStats.priestsCount === 1 ? 'Padre' : 'Padres'}</span>
+                          <span>•</span>
+                          <span>{currentReportStats.deaconsCount} {currentReportStats.deaconsCount === 1 ? 'Diácono' : 'Diáconos'}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* List of Foranias and Parishes */}
                   <div className="space-y-8">
@@ -2821,12 +2951,12 @@ export function Diocese() {
                   <div className="mt-14 pt-6 border-t-2 border-slate-300 flex flex-col md:flex-row justify-between items-center gap-6 text-xs text-slate-500">
                     <div>
                       <p className="font-bold text-slate-800 uppercase">
-                        {institution?.name?.toUpperCase() || 'SISTEMA ESCMIN'} • Diocese de Guarulhos
+                        {institution?.name?.toUpperCase() || 'ESCOLA DIOCESANA DE MINISTÉRIO'} • {institution?.subtitle || 'Diocese de Guarulhos'}
                       </p>
                       <p className="text-[11px]">Documento oficial para consulta e fins administrativos</p>
                     </div>
                     <div className="w-64 border-t border-slate-400 pt-2 text-center text-[10px] font-bold uppercase text-slate-700">
-                      Diocese de Guarulhos
+                      {institution?.subtitle || 'Diocese de Guarulhos'}
                     </div>
                   </div>
                 </div>
