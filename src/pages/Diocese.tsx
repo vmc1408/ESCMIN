@@ -104,6 +104,10 @@ export function Diocese() {
   const [reportType, setReportType] = useState<DioceseReportType>('parishes_by_forania');
   const [reportForaniaFilter, setReportForaniaFilter] = useState<string>('all');
   const [reportSearch, setReportSearch] = useState('');
+  const [reportParishesByForaniaSort, setReportParishesByForaniaSort] = useState<'name' | 'cnpj'>('name');
+  const [reportClergyRoleFilter, setReportClergyRoleFilter] = useState<string>('all');
+  const [reportClergyGroupBy, setReportClergyGroupBy] = useState<'none' | 'forania' | 'role'>('none');
+  const [reportParishesCnpjSort, setReportParishesCnpjSort] = useState<'name' | 'cnpj'>('name');
 
   // Form States
   const [forariaForm, setForariaForm] = useState<Partial<Foraria>>({
@@ -355,31 +359,50 @@ export function Diocese() {
     }
     
     if (reportType === 'clergy_directory') {
+      let base = 'DIRETÓRIO GERAL DO CLERO DIOCESANO';
       if (reportForaniaFilter !== 'all') {
         const selectedForania = foraries.find(f => f.id === reportForaniaFilter);
         const fName = selectedForania ? (selectedForania.code ? `FORANIA ${selectedForania.code} — ${selectedForania.name.toUpperCase()}` : selectedForania.name.toUpperCase()) : '';
-        return `DIRETÓRIO GERAL DO CLERO DIOCESANO — ${fName}${searchSuffix}`;
+        base = `DIRETÓRIO DO CLERO — ${fName}`;
       }
-      return `DIRETÓRIO GERAL DO CLERO DIOCESANO (PADRES, VIGÁRIOS E DIÁCONOS)${searchSuffix}`;
+      if (reportClergyRoleFilter !== 'all') {
+        base += ` [FUNÇÃO: ${reportClergyRoleFilter.toUpperCase()}]`;
+      }
+      if (reportClergyGroupBy === 'forania') {
+        base += ' [AGRUPADO POR FORANIA]';
+      } else if (reportClergyGroupBy === 'role') {
+        base += ' [AGRUPADO POR FUNÇÃO/TÍTULO]';
+      }
+      return `${base}${searchSuffix}`;
     }
     
     if (reportType === 'parishes_cnpj_list') {
+      let base = 'RELAÇÃO OFICIAL DE PARÓQUIAS E CNPJ';
       if (reportForaniaFilter !== 'all') {
         const selectedForania = foraries.find(f => f.id === reportForaniaFilter);
         const fName = selectedForania ? (selectedForania.code ? `FORANIA ${selectedForania.code} — ${selectedForania.name.toUpperCase()}` : selectedForania.name.toUpperCase()) : '';
-        return `RELAÇÃO DE PARÓQUIAS E CNPJ — ${fName}${searchSuffix}`;
+        base = `RELAÇÃO DE PARÓQUIAS E CNPJ — ${fName}`;
       }
-      return `RELAÇÃO OFICIAL DE PARÓQUIAS, CNPJ E ENDEREÇOS${searchSuffix}`;
+      if (reportParishesCnpjSort === 'cnpj') {
+        base += ' [ORDENADO POR CNPJ]';
+      } else {
+        base += ' [ORDENADO POR NOME]';
+      }
+      return `${base}${searchSuffix}`;
     }
 
+    let base = 'RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA';
     if (reportForaniaFilter !== 'all') {
       const selectedForania = foraries.find(f => f.id === reportForaniaFilter);
       if (selectedForania) {
         const foraniaLabel = selectedForania.code ? `FORANIA ${selectedForania.code} — ${selectedForania.name.toUpperCase()}` : selectedForania.name.toUpperCase();
-        return `RELATÓRIO OFICIAL DE PARÓQUIAS E CLERO — ${foraniaLabel}${searchSuffix}`;
+        base = `RELATÓRIO OFICIAL DE PARÓQUIAS E CLERO — ${foraniaLabel}`;
       }
     }
-    return `RELATÓRIO OFICIAL DE PARÓQUIAS, CNPJ E CLERO RESPONSÁVEL POR FORANIA${searchSuffix}`;
+    if (reportParishesByForaniaSort === 'cnpj') {
+      base += ' [ORDENADO POR CNPJ]';
+    }
+    return `${base}${searchSuffix}`;
   };
 
   const getFilteredReportStats = () => {
@@ -424,11 +447,38 @@ export function Diocese() {
 
     let priestCount = 0;
     let deaconCount = 0;
-    matchedParishes.forEach(p => {
-      const cData = getParishClergy(p, clergy);
-      priestCount += cData.priests.length;
-      deaconCount += cData.deacons.length;
-    });
+
+    if (reportType === 'clergy_directory') {
+      let cl = clergy;
+      if (reportForaniaFilter !== 'all') {
+        const pIds = new Set(matchedParishes.map(p => p.id));
+        cl = cl.filter(c => c.parish_id && pIds.has(c.parish_id));
+      }
+      if (reportClergyRoleFilter !== 'all') {
+        cl = cl.filter(c => (c.role || '').toLowerCase() === reportClergyRoleFilter.toLowerCase());
+      }
+      if (reportSearch.trim()) {
+        const q = reportSearch.toLowerCase().trim();
+        cl = cl.filter(c => {
+          const parish = parishes.find(p => p.id === c.parish_id);
+          return (
+            c.name.toLowerCase().includes(q) || 
+            (c.role && c.role.toLowerCase().includes(q)) || 
+            (parish && parish.name.toLowerCase().includes(q)) ||
+            (c.email && c.email.toLowerCase().includes(q)) ||
+            (c.phone && c.phone.toLowerCase().includes(q))
+          );
+        });
+      }
+      priestCount = cl.filter(c => (c.role || '').toLowerCase() !== 'diácono').length;
+      deaconCount = cl.filter(c => (c.role || '').toLowerCase() === 'diácono').length;
+    } else {
+      matchedParishes.forEach(p => {
+        const cData = getParishClergy(p, clergy);
+        priestCount += cData.priests.length;
+        deaconCount += cData.deacons.length;
+      });
+    }
 
     return {
       foraniasCount: reportForaniaFilter === 'all' ? foraries.length : matchedForaniasSet.size,
@@ -570,13 +620,17 @@ export function Diocese() {
         filteredClergy = filteredClergy.filter(c => c.parish_id && foraniaParishIds.has(c.parish_id));
       }
 
+      if (reportClergyRoleFilter !== 'all') {
+        filteredClergy = filteredClergy.filter(c => (c.role || '').toLowerCase() === reportClergyRoleFilter.toLowerCase());
+      }
+
       if (reportSearch.trim()) {
         const q = reportSearch.toLowerCase().trim();
         filteredClergy = filteredClergy.filter(c => {
           const parish = parishes.find(p => p.id === c.parish_id);
           return (
             c.name.toLowerCase().includes(q) || 
-            c.role.toLowerCase().includes(q) || 
+            (c.role && c.role.toLowerCase().includes(q)) || 
             (parish && parish.name.toLowerCase().includes(q)) ||
             (c.email && c.email.toLowerCase().includes(q)) ||
             (c.phone && c.phone.toLowerCase().includes(q))
@@ -584,50 +638,228 @@ export function Diocese() {
         });
       }
 
-      filteredClergy.sort((a, b) => a.name.localeCompare(b.name));
+      if (reportClergyGroupBy === 'forania') {
+        // Group by Forania
+        const foraniasToDisplay = reportForaniaFilter === 'all' 
+          ? foraries 
+          : foraries.filter(f => f.id === reportForaniaFilter);
 
-      const clergyRows = filteredClergy.map(c => {
-        const parish = parishes.find(p => p.id === c.parish_id);
-        const forania = parish ? foraries.find(f => f.id === parish.forania_id) : null;
-        const contacts = [c.phone, c.email].filter(Boolean).join(' | ') || 'Não informado';
+        let renderedGroups = 0;
 
-        return [
-          c.name,
-          c.role.toUpperCase(),
-          parish?.name || 'Diocese / Cúria',
-          forania ? (forania.code ? `Forania ${forania.code}` : forania.name) : '—',
-          contacts
-        ];
-      });
+        for (let i = 0; i < foraniasToDisplay.length; i++) {
+          const forania = foraniasToDisplay[i];
+          const foraniaParishIds = new Set(parishes.filter(p => p.forania_id === forania.id).map(p => p.id));
+          const foraniaClergy = filteredClergy
+            .filter(c => c.parish_id && foraniaParishIds.has(c.parish_id))
+            .sort((a, b) => a.name.localeCompare(b.name));
 
-      autoTable(doc, {
-        startY: currentY,
-        head: [['NOME DO CLÉRIGO', 'FUNÇÃO ECLESIÁSTICA', 'PARÓQUIA DE ATUAÇÃO', 'FORANIA', 'CONTATO']],
-        body: clergyRows.length > 0 ? clergyRows : [['Nenhum membro do clero localizado com os filtros selecionados.', '—', '—', '—', '—']],
-        margin: { left: margin, right: margin },
-        styles: {
-          fontSize: 7.5,
-          cellPadding: 2.5,
-          valign: 'middle',
-          textColor: [30, 41, 59],
-          lineColor: [226, 232, 240],
-          lineWidth: 0.2
-        },
-        headStyles: {
-          fillColor: [241, 245, 249],
-          textColor: [15, 23, 42],
-          fontStyle: 'bold',
-          fontSize: 7.5
-        },
-        columnStyles: {
-          0: { cellWidth: 70, fontStyle: 'bold' },
-          1: { cellWidth: 42 },
-          2: { cellWidth: 75 },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 'auto' }
-        },
-        theme: 'grid'
-      });
+          if (foraniaClergy.length === 0 && (reportSearch.trim() || reportClergyRoleFilter !== 'all')) continue;
+
+          if (renderedGroups > 0 && currentY > pageHeight - 55) {
+            doc.addPage();
+            drawPageHeader();
+            currentY = margin + 22;
+          }
+          renderedGroups++;
+
+          const priestForaneo = forania.priest_name ? `   •   Padre Forâneo: Pe. ${forania.priest_name}` : '';
+          const groupTitle = `${forania.code ? `FORANIA ${forania.code} — ` : ''}${forania.name.toUpperCase()}${priestForaneo}   (${foraniaClergy.length} ${foraniaClergy.length === 1 ? 'clérigo' : 'clérigos'})`;
+
+          doc.setFillColor(241, 245, 249);
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(margin, currentY, pageWidth - (margin * 2), 7.5, 0.5, 0.5, 'FD');
+          doc.setTextColor(15, 23, 42);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.text(groupTitle, margin + 4, currentY + 5.2);
+          currentY += 8.5;
+
+          const groupRows = foraniaClergy.map(c => {
+            const parish = parishes.find(p => p.id === c.parish_id);
+            const contacts = [c.phone, c.email].filter(Boolean).join(' | ') || 'Não informado';
+            return [
+              c.name,
+              (c.role || 'Membro do Clero').toUpperCase(),
+              parish?.name || 'Diocese / Cúria',
+              contacts
+            ];
+          });
+
+          autoTable(doc, {
+            startY: currentY,
+            head: [['NOME DO CLÉRIGO', 'FUNÇÃO ECLESIÁSTICA', 'PARÓQUIA DE ATUAÇÃO', 'CONTATO']],
+            body: groupRows.length > 0 ? groupRows : [['Nenhum membro do clero nesta forania com os filtros aplicados.', '—', '—', '—']],
+            margin: { left: margin, right: margin },
+            styles: { fontSize: 7.5, cellPadding: 2.5, valign: 'middle', textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.2 },
+            headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 7.5 },
+            columnStyles: { 0: { cellWidth: 80, fontStyle: 'bold' }, 1: { cellWidth: 50 }, 2: { cellWidth: 85 }, 3: { cellWidth: 'auto' } },
+            theme: 'grid'
+          });
+
+          // @ts-ignore
+          currentY = (doc as any).lastAutoTable.finalY + 6;
+        }
+
+        // Unassigned or general curia clergy
+        const unassignedClergy = filteredClergy
+          .filter(c => !c.parish_id || !parishes.some(p => p.id === c.parish_id && p.forania_id && foraries.some(f => f.id === p.forania_id)))
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        if (reportForaniaFilter === 'all' && unassignedClergy.length > 0) {
+          if (currentY > pageHeight - 55) {
+            doc.addPage();
+            drawPageHeader();
+            currentY = margin + 22;
+          }
+
+          doc.setFillColor(241, 245, 249);
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(margin, currentY, pageWidth - (margin * 2), 7.5, 0.5, 0.5, 'FD');
+          doc.setTextColor(15, 23, 42);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.text(`CÚRIA DIOCESANA / SEM FORANIA DEFINIDA (${unassignedClergy.length} clérigos)`, margin + 4, currentY + 5.2);
+          currentY += 8.5;
+
+          const groupRows = unassignedClergy.map(c => {
+            const parish = parishes.find(p => p.id === c.parish_id);
+            const contacts = [c.phone, c.email].filter(Boolean).join(' | ') || 'Não informado';
+            return [
+              c.name,
+              (c.role || 'Membro do Clero').toUpperCase(),
+              parish?.name || 'Diocese / Cúria Geral',
+              contacts
+            ];
+          });
+
+          autoTable(doc, {
+            startY: currentY,
+            head: [['NOME DO CLÉRIGO', 'FUNÇÃO ECLESIÁSTICA', 'PARÓQUIA DE ATUAÇÃO', 'CONTATO']],
+            body: groupRows,
+            margin: { left: margin, right: margin },
+            styles: { fontSize: 7.5, cellPadding: 2.5, valign: 'middle', textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.2 },
+            headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 7.5 },
+            columnStyles: { 0: { cellWidth: 80, fontStyle: 'bold' }, 1: { cellWidth: 50 }, 2: { cellWidth: 85 }, 3: { cellWidth: 'auto' } },
+            theme: 'grid'
+          });
+        }
+      } else if (reportClergyGroupBy === 'role') {
+        // Group by Role / Title
+        const distinctRoles = Array.from(new Set(filteredClergy.map(c => (c.role || 'outros').trim().toLowerCase()))).sort((a, b) => {
+          const priorityOrder = ['pároco', 'vigário', 'vigário paroquial', 'vigário forâneo', 'diácono'];
+          const idxA = priorityOrder.indexOf(a);
+          const idxB = priorityOrder.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return a.localeCompare(b);
+        });
+
+        let renderedGroups = 0;
+
+        for (let i = 0; i < distinctRoles.length; i++) {
+          const roleKey = distinctRoles[i];
+          const roleClergy = filteredClergy
+            .filter(c => (c.role || 'outros').trim().toLowerCase() === roleKey)
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+          if (roleClergy.length === 0) continue;
+
+          if (renderedGroups > 0 && currentY > pageHeight - 55) {
+            doc.addPage();
+            drawPageHeader();
+            currentY = margin + 22;
+          }
+          renderedGroups++;
+
+          const roleLabel = roleKey.toUpperCase();
+          const groupTitle = `${roleLabel} (${roleClergy.length} ${roleClergy.length === 1 ? 'membro' : 'membros'})`;
+
+          doc.setFillColor(241, 245, 249);
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(margin, currentY, pageWidth - (margin * 2), 7.5, 0.5, 0.5, 'FD');
+          doc.setTextColor(15, 23, 42);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.text(groupTitle, margin + 4, currentY + 5.2);
+          currentY += 8.5;
+
+          const groupRows = roleClergy.map(c => {
+            const parish = parishes.find(p => p.id === c.parish_id);
+            const forania = parish ? foraries.find(f => f.id === parish.forania_id) : null;
+            const contacts = [c.phone, c.email].filter(Boolean).join(' | ') || 'Não informado';
+            return [
+              c.name,
+              parish?.name || 'Diocese / Cúria',
+              forania ? (forania.code ? `Forania ${forania.code}` : forania.name) : '—',
+              contacts
+            ];
+          });
+
+          autoTable(doc, {
+            startY: currentY,
+            head: [['NOME DO CLÉRIGO', 'PARÓQUIA DE ATUAÇÃO', 'FORANIA', 'CONTATO']],
+            body: groupRows,
+            margin: { left: margin, right: margin },
+            styles: { fontSize: 7.5, cellPadding: 2.5, valign: 'middle', textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.2 },
+            headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 7.5 },
+            columnStyles: { 0: { cellWidth: 80, fontStyle: 'bold' }, 1: { cellWidth: 85 }, 2: { cellWidth: 45 }, 3: { cellWidth: 'auto' } },
+            theme: 'grid'
+          });
+
+          // @ts-ignore
+          currentY = (doc as any).lastAutoTable.finalY + 6;
+        }
+      } else {
+        // Flat alphabetical list
+        filteredClergy.sort((a, b) => a.name.localeCompare(b.name));
+
+        const clergyRows = filteredClergy.map(c => {
+          const parish = parishes.find(p => p.id === c.parish_id);
+          const forania = parish ? foraries.find(f => f.id === parish.forania_id) : null;
+          const contacts = [c.phone, c.email].filter(Boolean).join(' | ') || 'Não informado';
+
+          return [
+            c.name,
+            (c.role || 'Membro do Clero').toUpperCase(),
+            parish?.name || 'Diocese / Cúria',
+            forania ? (forania.code ? `Forania ${forania.code}` : forania.name) : '—',
+            contacts
+          ];
+        });
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [['NOME DO CLÉRIGO', 'FUNÇÃO ECLESIÁSTICA', 'PARÓQUIA DE ATUAÇÃO', 'FORANIA', 'CONTATO']],
+          body: clergyRows.length > 0 ? clergyRows : [['Nenhum membro do clero localizado com os filtros selecionados.', '—', '—', '—', '—']],
+          margin: { left: margin, right: margin },
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2.5,
+            valign: 'middle',
+            textColor: [30, 41, 59],
+            lineColor: [226, 232, 240],
+            lineWidth: 0.2
+          },
+          headStyles: {
+            fillColor: [241, 245, 249],
+            textColor: [15, 23, 42],
+            fontStyle: 'bold',
+            fontSize: 7.5
+          },
+          columnStyles: {
+            0: { cellWidth: 70, fontStyle: 'bold' },
+            1: { cellWidth: 42 },
+            2: { cellWidth: 75 },
+            3: { cellWidth: 35 },
+            4: { cellWidth: 'auto' }
+          },
+          theme: 'grid'
+        });
+      }
     } else if (reportType === 'parishes_cnpj_list') {
       drawPageHeader();
       currentY = margin + 22;
@@ -647,7 +879,18 @@ export function Diocese() {
         );
       }
 
-      filteredParishes.sort((a, b) => a.name.localeCompare(b.name));
+      if (reportParishesCnpjSort === 'cnpj') {
+        filteredParishes.sort((a, b) => {
+          const cleanA = (a.cnpj || '').replace(/\D/g, '');
+          const cleanB = (b.cnpj || '').replace(/\D/g, '');
+          if (!cleanA && !cleanB) return a.name.localeCompare(b.name);
+          if (!cleanA) return 1;
+          if (!cleanB) return -1;
+          return cleanA.localeCompare(cleanB);
+        });
+      } else {
+        filteredParishes.sort((a, b) => a.name.localeCompare(b.name));
+      }
 
       const parishRows = filteredParishes.map(p => {
         const forania = foraries.find(f => f.id === p.forania_id);
@@ -719,6 +962,19 @@ export function Diocese() {
         }
 
         if (foraniaParishes.length === 0 && reportSearch.trim()) continue;
+
+        if (reportParishesByForaniaSort === 'cnpj') {
+          foraniaParishes.sort((a, b) => {
+            const cleanA = (a.cnpj || '').replace(/\D/g, '');
+            const cleanB = (b.cnpj || '').replace(/\D/g, '');
+            if (!cleanA && !cleanB) return a.name.localeCompare(b.name);
+            if (!cleanA) return 1;
+            if (!cleanB) return -1;
+            return cleanA.localeCompare(cleanB);
+          });
+        } else {
+          foraniaParishes.sort((a, b) => a.name.localeCompare(b.name));
+        }
 
         // Page break for each forania
         if (renderedForaniasCount > 0) {
@@ -818,6 +1074,19 @@ export function Diocese() {
                    priestMatch || 
                    deaconMatch;
           });
+        }
+
+        if (reportParishesByForaniaSort === 'cnpj') {
+          unassigned.sort((a, b) => {
+            const cleanA = (a.cnpj || '').replace(/\D/g, '');
+            const cleanB = (b.cnpj || '').replace(/\D/g, '');
+            if (!cleanA && !cleanB) return a.name.localeCompare(b.name);
+            if (!cleanA) return 1;
+            if (!cleanB) return -1;
+            return cleanA.localeCompare(cleanB);
+          });
+        } else {
+          unassigned.sort((a, b) => a.name.localeCompare(b.name));
         }
 
         if (unassigned.length > 0) {
@@ -1061,6 +1330,14 @@ export function Diocese() {
           setReportForaniaFilter={setReportForaniaFilter}
           reportSearch={reportSearch}
           setReportSearch={setReportSearch}
+          reportParishesByForaniaSort={reportParishesByForaniaSort}
+          setReportParishesByForaniaSort={setReportParishesByForaniaSort}
+          reportClergyRoleFilter={reportClergyRoleFilter}
+          setReportClergyRoleFilter={setReportClergyRoleFilter}
+          reportClergyGroupBy={reportClergyGroupBy}
+          setReportClergyGroupBy={setReportClergyGroupBy}
+          reportParishesCnpjSort={reportParishesCnpjSort}
+          setReportParishesCnpjSort={setReportParishesCnpjSort}
           handlePrint={handlePrint}
           handleExportPDF={handleExportPDF}
           getFilteredReportStats={getFilteredReportStats}
