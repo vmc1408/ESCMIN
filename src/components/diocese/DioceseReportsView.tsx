@@ -217,7 +217,7 @@ export function DioceseReportsView({
               <option value="all">Todas as Foranias ({foraries.length})</option>
               {foraries.map(f => (
                 <option key={f.id} value={f.id}>
-                  {f.code ? `Forania ${f.code} - ` : ''}{f.name}
+                  {f.name}
                 </option>
               ))}
             </select>
@@ -388,7 +388,7 @@ export function DioceseReportsView({
                         <MapIcon size={18} className="text-slate-700" />
                         <div>
                           <span className="font-bold text-sm uppercase tracking-wide">
-                            {forania.code ? `FORANIA ${forania.code} — ` : ''}{forania.name}
+                            FORANIA {forania.name}
                           </span>
                           {forania.priest_name && (
                             <span className="text-xs text-slate-600 ml-3 font-normal">
@@ -501,7 +501,6 @@ export function DioceseReportsView({
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold uppercase text-[10px]">
-                    <th className="py-3 px-4 border-r border-slate-200 w-20">Código</th>
                     <th className="py-3 px-4 border-r border-slate-200">Nome da Forania</th>
                     <th className="py-3 px-4 border-r border-slate-200">Vigário Forâneo</th>
                     <th className="py-3 px-4 text-center w-32">Qtd. Paróquias</th>
@@ -512,7 +511,6 @@ export function DioceseReportsView({
                     const foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
                     return (
                       <tr key={forania.id} className="hover:bg-slate-50">
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700 border-r border-slate-200">{forania.code || '-'}</td>
                         <td className="py-3 px-4 font-bold text-slate-900 uppercase border-r border-slate-200">{forania.name}</td>
                         <td className="py-3 px-4 text-slate-800 border-r border-slate-200">
                           {forania.priest_name ? `Pe. ${forania.priest_name}` : <span className="text-slate-400 italic">Não designado</span>}
@@ -559,7 +557,7 @@ export function DioceseReportsView({
                             <MapIcon size={18} className="text-slate-700" />
                             <div>
                               <span className="font-bold text-sm uppercase tracking-wide">
-                                {forania.code ? `FORANIA ${forania.code} — ` : ''}{forania.name}
+                                FORANIA {forania.name}
                               </span>
                               {forania.priest_name && (
                                 <span className="text-xs text-slate-600 ml-3 font-normal">
@@ -677,7 +675,7 @@ export function DioceseReportsView({
                                       {parish ? parish.name : <span className="text-slate-400 italic">Geral / Sem Paróquia</span>}
                                     </td>
                                     <td className="py-3 px-4 text-slate-700 border-r border-slate-200">
-                                      {forania ? (forania.code ? `Forania ${forania.code}` : forania.name) : '—'}
+                                      {forania ? forania.name : '—'}
                                     </td>
                                     <td className="py-3 px-4 text-slate-600 text-[11px]">
                                       {[c.phone, c.email].filter(Boolean).join(' • ') || '—'}
@@ -769,7 +767,7 @@ export function DioceseReportsView({
                         <tr key={p.id} className="hover:bg-slate-50">
                           <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{p.name}</td>
                           <td className="py-3 px-4 font-mono font-bold text-slate-800 border-r border-slate-200">{formatCNPJ(p.cnpj)}</td>
-                          <td className="py-3 px-4 text-slate-700 border-r border-slate-200">{f ? (f.code ? `Forania ${f.code}` : f.name) : 'Sem Forania'}</td>
+                          <td className="py-3 px-4 text-slate-700 border-r border-slate-200">{f ? f.name : 'Sem Forania'}</td>
                           <td className="py-3 px-4 text-slate-600">{[p.address_neighborhood, p.address_city].filter(Boolean).join(' - ') || '—'}</td>
                         </tr>
                       );

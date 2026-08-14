@@ -104,10 +104,10 @@ export function Diocese() {
   const [reportType, setReportType] = useState<DioceseReportType>('parishes_by_forania');
   const [reportForaniaFilter, setReportForaniaFilter] = useState<string>('all');
   const [reportSearch, setReportSearch] = useState('');
-  const [reportParishesByForaniaSort, setReportParishesByForaniaSort] = useState<'name' | 'cnpj'>('name');
+  const [reportParishesByForaniaSort, setReportParishesByForaniaSort] = useState<'name' | 'cnpj'>('cnpj');
   const [reportClergyRoleFilter, setReportClergyRoleFilter] = useState<string>('all');
   const [reportClergyGroupBy, setReportClergyGroupBy] = useState<'none' | 'forania' | 'role'>('none');
-  const [reportParishesCnpjSort, setReportParishesCnpjSort] = useState<'name' | 'cnpj'>('name');
+  const [reportParishesCnpjSort, setReportParishesCnpjSort] = useState<'name' | 'cnpj'>('cnpj');
 
   // Form States
   const [forariaForm, setForariaForm] = useState<Partial<Foraria>>({
@@ -395,7 +395,7 @@ export function Diocese() {
     if (reportForaniaFilter !== 'all') {
       const selectedForania = foraries.find(f => f.id === reportForaniaFilter);
       if (selectedForania) {
-        const foraniaLabel = selectedForania.code ? `FORANIA ${selectedForania.code} — ${selectedForania.name.toUpperCase()}` : selectedForania.name.toUpperCase();
+        const foraniaLabel = `FORANIA ${selectedForania.name.toUpperCase()}`;
         base = `RELATÓRIO OFICIAL DE PARÓQUIAS E CLERO — ${foraniaLabel}`;
       }
     }
@@ -567,7 +567,6 @@ export function Diocese() {
         });
 
         return [
-          f.code || '—',
           f.name.toUpperCase(),
           f.priest_name ? `Pe. ${f.priest_name}` : 'A designar',
           String(foraniaParishes.length),
@@ -583,7 +582,7 @@ export function Diocese() {
 
       autoTable(doc, {
         startY: currentY,
-        head: [['CÓDIGO', 'FORANIA', 'VIGÁRIO FORÂNEO RESPONSÁVEL', 'PARÓQUIAS', 'PADRES', 'DIÁCONOS']],
+        head: [['NOME DA FORANIA', 'VIGÁRIO FORÂNEO RESPONSÁVEL', 'PARÓQUIAS', 'PADRES', 'DIÁCONOS']],
         body: filteredSummary,
         margin: { left: margin, right: margin },
         styles: {
@@ -601,12 +600,11 @@ export function Diocese() {
           fontSize: 8
         },
         columnStyles: {
-          0: { cellWidth: 20, fontStyle: 'bold', halign: 'center' },
-          1: { cellWidth: 70, fontStyle: 'bold' },
-          2: { cellWidth: 85 },
-          3: { cellWidth: 32, halign: 'center' },
-          4: { cellWidth: 35, halign: 'center' },
-          5: { cellWidth: 'auto', halign: 'center' }
+          0: { cellWidth: 80, fontStyle: 'bold' },
+          1: { cellWidth: 95 },
+          2: { cellWidth: 32, halign: 'center' },
+          3: { cellWidth: 35, halign: 'center' },
+          4: { cellWidth: 'auto', halign: 'center' }
         },
         theme: 'grid'
       });
@@ -668,7 +666,7 @@ export function Diocese() {
           renderedGroups++;
 
           const priestForaneo = forania.priest_name ? `   •   Padre Forâneo: Pe. ${forania.priest_name}` : '';
-          const groupTitle = `${forania.code ? `FORANIA ${forania.code} — ` : ''}${forania.name.toUpperCase()}${priestForaneo}   (${foraniaClergy.length} ${foraniaClergy.length === 1 ? 'clérigo' : 'clérigos'})`;
+          const groupTitle = `FORANIA ${forania.name.toUpperCase()}${priestForaneo}   (${foraniaClergy.length} ${foraniaClergy.length === 1 ? 'clérigo' : 'clérigos'})`;
 
           doc.setFillColor(241, 245, 249);
           doc.setDrawColor(203, 213, 225);
@@ -801,7 +799,7 @@ export function Diocese() {
             return [
               c.name,
               parish?.name || 'Diocese / Cúria',
-              forania ? (forania.code ? `Forania ${forania.code}` : forania.name) : '—',
+              forania ? forania.name : '—',
               contacts
             ];
           });
@@ -833,7 +831,7 @@ export function Diocese() {
             c.name,
             (c.role || 'Membro do Clero').toUpperCase(),
             parish?.name || 'Diocese / Cúria',
-            forania ? (forania.code ? `Forania ${forania.code}` : forania.name) : '—',
+            forania ? forania.name : '—',
             contacts
           ];
         });
@@ -907,7 +905,7 @@ export function Diocese() {
         return [
           p.name,
           formatCNPJ(p.cnpj),
-          forania ? (forania.code ? `Forania ${forania.code}` : forania.name) : 'Sem Forania',
+          forania ? forania.name : 'Sem Forania',
           loc,
           contact
         ];
@@ -993,7 +991,7 @@ export function Diocese() {
         currentY = margin + 22;
 
         const priestForaneo = forania.priest_name ? `   •   Padre Forâneo: Pe. ${forania.priest_name}` : '';
-        const foraniaTitle = `${forania.code ? `FORANIA ${forania.code} — ` : ''}${forania.name.toUpperCase()}${priestForaneo}   (${foraniaParishes.length} ${foraniaParishes.length === 1 ? 'paróquia' : 'paróquias'})`;
+        const foraniaTitle = `FORANIA ${forania.name.toUpperCase()}${priestForaneo}   (${foraniaParishes.length} ${foraniaParishes.length === 1 ? 'paróquia' : 'paróquias'})`;
 
         // Section header with clean light slate background (NO BLACK BACKGROUND)
         doc.setFillColor(241, 245, 249); // slate-100
