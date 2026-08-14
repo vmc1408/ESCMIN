@@ -43,7 +43,7 @@ import { fetchAll, saveData, deleteData, getInstitutionSettings } from '../lib/d
 import { cn, maskCEP, maskPhone, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Parish, Foraria, ClergyLeity, ClergyRole, InstitutionSettings } from '../types';
-import { DioceseReportType, formatCNPJ, getParishClergy } from '../types/diocese';
+import { DioceseReportType, formatCNPJ, getParishClergy, getClergyRoleRank, formatClergyRoleLabel } from '../types/diocese';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader } from '../components/PageHeader';
 import { DioceseReportsView } from '../components/diocese/DioceseReportsView';
@@ -651,7 +651,12 @@ export function Diocese() {
           const foraniaParishIds = new Set(parishes.filter(p => p.forania_id === forania.id).map(p => p.id));
           const foraniaClergy = filteredClergy
             .filter(c => c.parish_id && foraniaParishIds.has(c.parish_id))
-            .sort((a, b) => a.name.localeCompare(b.name));
+            .sort((a, b) => {
+              const rankA = getClergyRoleRank(a.role);
+              const rankB = getClergyRoleRank(b.role);
+              if (rankA !== rankB) return rankA - rankB;
+              return a.name.localeCompare(b.name);
+            });
 
           if (foraniaClergy.length === 0 && (reportSearch.trim() || reportClergyRoleFilter !== 'all')) continue;
 
@@ -704,7 +709,12 @@ export function Diocese() {
         // Unassigned or general curia clergy
         const unassignedClergy = filteredClergy
           .filter(c => !c.parish_id || !parishes.some(p => p.id === c.parish_id && p.forania_id && foraries.some(f => f.id === p.forania_id)))
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .sort((a, b) => {
+            const rankA = getClergyRoleRank(a.role);
+            const rankB = getClergyRoleRank(b.role);
+            if (rankA !== rankB) return rankA - rankB;
+            return a.name.localeCompare(b.name);
+          });
 
         if (reportForaniaFilter === 'all' && unassignedClergy.length > 0) {
           if (currentY > pageHeight - 55) {
@@ -748,12 +758,9 @@ export function Diocese() {
       } else if (reportClergyGroupBy === 'role') {
         // Group by Role / Title
         const distinctRoles = Array.from(new Set(filteredClergy.map(c => (c.role || 'outros').trim().toLowerCase()))).sort((a, b) => {
-          const priorityOrder = ['pároco', 'vigário', 'vigário paroquial', 'vigário forâneo', 'diácono'];
-          const idxA = priorityOrder.indexOf(a);
-          const idxB = priorityOrder.indexOf(b);
-          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-          if (idxA !== -1) return -1;
-          if (idxB !== -1) return 1;
+          const rankA = getClergyRoleRank(a);
+          const rankB = getClergyRoleRank(b);
+          if (rankA !== rankB) return rankA - rankB;
           return a.localeCompare(b);
         });
 

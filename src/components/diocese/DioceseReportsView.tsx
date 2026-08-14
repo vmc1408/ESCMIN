@@ -18,7 +18,7 @@ import {
 import { PageHeader } from '../PageHeader';
 import { Parish, Foraria, ClergyLeity, InstitutionSettings } from '../../types';
 import { cn } from '../../lib/utils';
-import { formatCNPJ, getParishClergy, DioceseReportType } from '../../types/diocese';
+import { formatCNPJ, getParishClergy, DioceseReportType, getClergyRoleRank, formatClergyRoleLabel } from '../../types/diocese';
 
 interface DioceseReportsViewProps {
   parishes: Parish[];
@@ -76,10 +76,15 @@ export function DioceseReportsView({
 }: DioceseReportsViewProps) {
   const stats = getFilteredReportStats();
 
-  // Extract distinct roles for the clergy role filter
+  // Extract distinct roles for the clergy role filter sorted by Canonical Hierarchy
   const distinctRoles = Array.from(
     new Set(clergy.map(c => (c.role || '').trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b));
+  ).sort((a, b) => {
+    const rankA = getClergyRoleRank(a);
+    const rankB = getClergyRoleRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return a.localeCompare(b);
+  });
 
   // Helper to filter and sort clergy for directory
   const getFilteredClergy = () => {
@@ -538,7 +543,12 @@ export function DioceseReportsView({
                       const parish = parishes.find(p => p.id === c.parish_id);
                       const fId = parish?.forania_id || c.forania_id;
                       return fId === forania.id;
-                    }).sort((a, b) => a.name.localeCompare(b.name));
+                    }).sort((a, b) => {
+                      const rankA = getClergyRoleRank(a.role);
+                      const rankB = getClergyRoleRank(b.role);
+                      if (rankA !== rankB) return rankA - rankB;
+                      return a.name.localeCompare(b.name);
+                    });
 
                     if (clergyInForania.length === 0 && reportSearch.trim()) return null;
 
@@ -622,7 +632,12 @@ export function DioceseReportsView({
 
             // 2. Group by Role / Function
             if (reportClergyGroupBy === 'role') {
-              const rolesList = Array.from(new Set(filteredClergy.map(c => c.role || 'Outros'))).sort();
+              const rolesList = Array.from(new Set(filteredClergy.map(c => c.role || 'Outros'))).sort((a, b) => {
+                const rankA = getClergyRoleRank(a);
+                const rankB = getClergyRoleRank(b);
+                if (rankA !== rankB) return rankA - rankB;
+                return a.localeCompare(b);
+              });
               return (
                 <div className="space-y-8">
                   {rolesList.map(roleName => {
