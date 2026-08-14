@@ -798,6 +798,7 @@ export function Classes() {
   useEffect(() => {
     if (!selectedClass) {
       setSelectedClassStudentCount(null);
+      setModalStudents([]);
       return;
     }
 
@@ -807,14 +808,21 @@ export function Classes() {
       fetchAll('students').catch(() => [])
     ]).then(([enrollments, studentsData]) => {
       if (!isMounted) return;
-      const sourceEnr = (enrollments || []).filter((e: any) => e.class_id === selectedClass.id && (e.status || 'Ativo') === 'Ativo');
-      const directStudents = (studentsData || []).filter((s: any) => s.class_id === selectedClass.id && (s.status || 'Ativo') === 'Ativo');
+      const classId = selectedClass.id;
+      const classEnrollments = (enrollments || []).filter((e: any) => e.class_id === classId && (e.status || 'Ativo') === 'Ativo');
+      const enrolledIds = new Set<string>();
+      classEnrollments.forEach((e: any) => { if (e.student_id) enrolledIds.add(e.student_id); });
 
-      const studentSet = new Set<string>();
-      directStudents.forEach((s: any) => studentSet.add(s.id));
-      sourceEnr.forEach((e: any) => { if (e.student_id) studentSet.add(e.student_id); });
+      const matched = (studentsData || []).filter((s: any) => {
+        const isDirect = s.class_id === classId;
+        const isEnrolled = enrolledIds.has(s.id);
+        return isDirect || isEnrolled;
+      });
 
-      setSelectedClassStudentCount(studentSet.size);
+      matched.sort((a: any, b: any) => (a.name || a.full_name || '').localeCompare(b.name || b.full_name || ''));
+
+      setModalStudents(matched);
+      setSelectedClassStudentCount(matched.length);
     });
 
     return () => { isMounted = false; };
@@ -1005,7 +1013,7 @@ export function Classes() {
       ...cls,
       course: detectedCourse,
       start_year: (cls as any).start_year || startYearFromDate,
-      start_date: cls.start_date || '',
+      start_date: cls.start_date ? formatDateForDisplay(cls.start_date) : '',
       subject_id_sem1_h1: (cls as any).subject_id_sem1_h1 || (cls as any).subject_id_sem1 || '',
       subject_id_sem1_h2: (cls as any).subject_id_sem1_h2 || '',
       subject_id_sem2_h1: (cls as any).subject_id_sem2_h1 || (cls as any).subject_id_sem2 || '',
@@ -2284,9 +2292,9 @@ export function Classes() {
                           </div>
 
                           {/* Field 2: Sala / Local das Aulas */}
-                          <div className="flex-[1.5] min-w-[180px] space-y-1.5">
+                          <div className="flex-[1.2] min-w-[150px] space-y-1.5">
                             <div className="flex items-center justify-between ml-0.5 h-[17px]">
-                              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Sala / Local das Aulas</label>
+                              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Sala / Local</label>
                             </div>
                             <input 
                               type="text"
@@ -2300,7 +2308,25 @@ export function Classes() {
                             />
                           </div>
 
-                          {/* Field 3: Alunos Ativos */}
+                          {/* Field 3: Data de Início */}
+                          <div className="flex-[1] min-w-[130px] space-y-1.5">
+                            <div className="flex items-center justify-between ml-0.5 h-[17px]">
+                              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Data Início</label>
+                            </div>
+                            <input 
+                              type="text"
+                              disabled={!isEditing}
+                              placeholder="DD/MM/AAAA"
+                              maxLength={10}
+                              value={formData.start_date || ''}
+                              onChange={(e) => setFormData({...formData, start_date: maskDate(e.target.value)})}
+                              onKeyDown={handleKeyDown}
+                              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-slate-500/10 outline-none transition-all h-[42px] font-mono"
+                              tabIndex={3}
+                            />
+                          </div>
+
+                          {/* Field 4: Alunos Ativos */}
                           <div className="w-full md:w-[180px] shrink-0 space-y-1.5">
                             <div className="flex items-center justify-between ml-0.5 h-[17px]">
                               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Alunos Ativos</label>
@@ -3448,20 +3474,52 @@ export function Classes() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="border-b border-black/10 pb-2">
                       <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Sala</p>
                       <p className="text-[11pt] font-bold uppercase">{selectedClass.room || '---'}</p>
                     </div>
                     <div className="border-b border-black/10 pb-2">
                       <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Duração</p>
-                      <p className="text-[11pt] font-bold uppercase">Início em: {selectedClass.start_date || '---'}</p>
+                      <p className="text-[11pt] font-bold uppercase">Início em: {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '---'}</p>
+                    </div>
+                    <div className="border-b border-black/10 pb-2">
+                      <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Alunos Matriculados</p>
+                      <p className="text-[11pt] font-bold uppercase text-[#00174b]">
+                        {modalStudents.length > 0 ? `${modalStudents.length} Aluno(s)` : (selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '0 Alunos')}
+                      </p>
                     </div>
                   </div>
 
                   <div className="border-b border-black/10 pb-2">
                     <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Dias da Semana</p>
                     <p className="text-[11pt] font-bold uppercase">{(selectedClass.days_of_week || []).join(', ') || 'Não definidos'}</p>
+                  </div>
+
+                  <div className="border-b border-black/10 pb-2">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[8pt] font-bold text-slate-400 uppercase">Relação de Alunos Matriculados</p>
+                      <span className="text-[8.5pt] font-bold text-[#00174b] uppercase">
+                        Total: {modalStudents.length > 0 ? modalStudents.length : (selectedClassStudentCount ?? 0)} aluno(s)
+                      </span>
+                    </div>
+                    {modalStudents.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1">
+                        {modalStudents.map((st, idx) => (
+                          <div key={st.id || idx} className="text-[9pt] flex items-center justify-between border-b border-slate-100 py-0.5">
+                            <span className="font-bold text-slate-800 truncate">
+                              <span className="text-slate-400 mr-1.5 font-mono text-[8pt]">{String(idx + 1).padStart(2, '0')}.</span>
+                              {(st.name || st.full_name || 'Aluno').toUpperCase()}
+                            </span>
+                            <span className="text-[8pt] text-slate-500 font-mono shrink-0 ml-2">
+                              Matr: {st.registration_number || st.code || '---'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[9pt] text-slate-400 italic">Nenhum aluno matriculado nesta turma até o momento.</p>
+                    )}
                   </div>
 
                   <div className="border-b border-black/10 pb-2">
