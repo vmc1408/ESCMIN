@@ -3418,15 +3418,15 @@ export function Classes() {
 
       {/* Printable Class Record */}
       {selectedClass && (
-        <div id="printable-class-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[285mm] mx-auto">
-          <div className="w-full max-w-[210mm] mx-auto bg-white p-8 flex flex-col justify-between h-full min-h-[285mm]">
+        <div id="printable-class-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full mx-auto">
+          <div className="w-full max-w-[210mm] mx-auto bg-white p-2 flex flex-col justify-between min-h-[240mm]">
             {/* TOP BLOCK: Header + Document Title + Class Data */}
             <div>
               {/* Institutional Header */}
-              <div className="flex items-center gap-6 mb-6 pb-2 border-b-2 border-black">
-                <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+              <div className="flex items-center gap-5 mb-5 pb-3 border-b-2 border-black">
+                <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
                   {inst?.logo_url ? (
-                    <img src={inst.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
+                    <img src={inst.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
                   ) : (
                     <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
                       <span className="leading-none">SEM</span>
@@ -3435,174 +3435,158 @@ export function Classes() {
                   )}
                 </div>
                 <div className="flex-1 flex flex-col">
-                  <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-                  <h1 className="text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
+                  <p className="text-[10.5pt] font-semibold tracking-widest text-slate-700 leading-tight">DIOCESE DE GUARULHOS</p>
+                  <h1 className="text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
                     {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                   </h1>
-                  <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
+                  <p className="text-[11pt] font-bold text-slate-600 tracking-wide uppercase">
                     {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                   </p>
                 </div>
               </div>
 
               {/* Document Title */}
-              <div className="bg-black text-white py-2 px-4 mb-6 flex justify-between items-center">
-                <h2 className="text-[14pt] font-bold uppercase tracking-widest">FICHA DA TURMA</h2>
+              <div className="bg-black text-white py-2 px-4 mb-5 flex justify-between items-center">
+                <h2 className="text-[13pt] font-bold uppercase tracking-widest">FICHA DA TURMA</h2>
                 <span className="text-[10pt] font-bold">Turma: {selectedClass.code}</span>
               </div>
 
               {/* Content Section */}
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 gap-3.5">
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Nome do Curso / Turma</p>
-                    <p className="text-[12pt] font-bold uppercase text-[#00174b]">{selectedClass.name}</p>
+              <div className="space-y-4">
+                {/* Nome do Curso / Turma */}
+                <div className="border-b border-black/15 pb-2.5">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Nome do Curso / Turma</p>
+                  <p className="text-[12pt] font-bold uppercase text-[#00174b]">{selectedClass.name}</p>
+                </div>
+                
+                {/* Grid 1: Ano Letivo, Semestre, Período */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="border-b border-black/15 pb-2.5">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Ano Letivo</p>
+                    <p className="text-[10.5pt] font-bold">{selectedClass.year || '---'}</p>
                   </div>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="border-b border-black/10 pb-2">
-                      <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Ano Letivo</p>
-                      <p className="text-[11pt] font-bold">{selectedClass.year || '---'}</p>
-                    </div>
-                    <div className="border-b border-black/10 pb-2">
-                      <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Semestre</p>
-                      <p className="text-[11pt] font-bold uppercase">{selectedClass.semester || '---'}</p>
-                    </div>
-                    <div className="border-b border-black/10 pb-2">
-                      <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Período</p>
-                      <p className="text-[11pt] font-bold uppercase">{selectedClass.period || '---'}</p>
-                    </div>
+                  <div className="border-b border-black/15 pb-2.5">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Semestre</p>
+                    <p className="text-[10.5pt] font-bold uppercase">{selectedClass.semester || '---'}</p>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="border-b border-black/10 pb-2">
-                      <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Sala</p>
-                      <p className="text-[11pt] font-bold uppercase">{selectedClass.room || '---'}</p>
-                    </div>
-                    <div className="border-b border-black/10 pb-2">
-                      <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Duração</p>
-                      <p className="text-[11pt] font-bold uppercase">Início em: {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '---'}</p>
-                    </div>
-                    <div className="border-b border-black/10 pb-2">
-                      <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Alunos Matriculados</p>
-                      <p className="text-[11pt] font-bold uppercase text-[#00174b]">
-                        {modalStudents.length > 0 ? `${modalStudents.length} Aluno(s)` : (selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '0 Alunos')}
-                      </p>
-                    </div>
+                  <div className="border-b border-black/15 pb-2.5">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Período</p>
+                    <p className="text-[10.5pt] font-bold uppercase">{selectedClass.period || '---'}</p>
                   </div>
+                </div>
 
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Dias da Semana</p>
-                    <p className="text-[11pt] font-bold uppercase">{(selectedClass.days_of_week || []).join(', ') || 'Não definidos'}</p>
+                {/* Grid 2: Sala, Data de Início, Alunos Matriculados */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="border-b border-black/15 pb-2.5">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Sala / Local</p>
+                    <p className="text-[10.5pt] font-bold uppercase">{selectedClass.room || '---'}</p>
                   </div>
-
-                  <div className="border-b border-black/10 pb-2">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-[8pt] font-bold text-slate-400 uppercase">Relação de Alunos Matriculados</p>
-                      <span className="text-[8.5pt] font-bold text-[#00174b] uppercase">
-                        Total: {modalStudents.length > 0 ? modalStudents.length : (selectedClassStudentCount ?? 0)} aluno(s)
-                      </span>
-                    </div>
-                    {modalStudents.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1">
-                        {modalStudents.map((st, idx) => (
-                          <div key={st.id || idx} className="text-[9pt] flex items-center justify-between border-b border-slate-100 py-0.5">
-                            <span className="font-bold text-slate-800 truncate">
-                              <span className="text-slate-400 mr-1.5 font-mono text-[8pt]">{String(idx + 1).padStart(2, '0')}.</span>
-                              {(st.name || st.full_name || 'Aluno').toUpperCase()}
-                            </span>
-                            <span className="text-[8pt] text-slate-500 font-mono shrink-0 ml-2">
-                              Matr: {st.registration_number || st.code || '---'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[9pt] text-slate-400 italic">Nenhum aluno matriculado nesta turma até o momento.</p>
-                    )}
+                  <div className="border-b border-black/15 pb-2.5">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Duração</p>
+                    <p className="text-[10.5pt] font-bold uppercase">Início em: {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '---'}</p>
                   </div>
+                  <div className="border-b border-black/15 pb-2.5">
+                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Alunos Matriculados</p>
+                    <p className="text-[10.5pt] font-bold uppercase text-[#00174b]">
+                      {modalStudents.length > 0 ? `${modalStudents.length} Aluno(s)` : (selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '0 Alunos')}
+                    </p>
+                  </div>
+                </div>
 
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Disciplinas Vinculadas (Matriz Curricular)</p>
-                    <div className="space-y-2 mt-1.5">
-                      {(() => {
-                        const classSubs = (selectedClass.subject_ids || [])
-                          .map(sid => subjects.find(s => s.id === sid))
-                          .filter(Boolean) as Subject[];
-                        const printSem1 = classSubs.filter(s => (s.semester || '').includes('1'));
-                        const printSem2 = classSubs.filter(s => (s.semester || '').includes('2'));
-                        const printOther = classSubs.filter(s => !(s.semester || '').includes('1') && !(s.semester || '').includes('2'));
+                {/* Dias da Semana */}
+                <div className="border-b border-black/15 pb-2.5">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Dias da Semana</p>
+                  <p className="text-[10.5pt] font-bold uppercase">{(selectedClass.days_of_week || []).join(', ') || 'Não definidos'}</p>
+                </div>
 
-                        if (classSubs.length === 0) {
-                          return <p className="text-[9.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>;
-                        }
+                {/* Disciplinas Vinculadas */}
+                <div className="border-b border-black/15 pb-3">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-2">Disciplinas Vinculadas (Matriz Curricular)</p>
+                  <div className="space-y-2 mt-1">
+                    {(() => {
+                      const classSubs = (selectedClass.subject_ids || [])
+                        .map(sid => subjects.find(s => s.id === sid))
+                        .filter(Boolean) as Subject[];
+                      const printSem1 = classSubs.filter(s => (s.semester || '').includes('1'));
+                      const printSem2 = classSubs.filter(s => (s.semester || '').includes('2'));
+                      const printOther = classSubs.filter(s => !(s.semester || '').includes('1') && !(s.semester || '').includes('2'));
 
-                        return (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-[8.5pt] font-bold text-blue-800 uppercase tracking-wider mb-1">1º Semestre:</p>
-                              {printSem1.length > 0 ? (
-                                printSem1.map(s => (
-                                  <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                                    [{s.code}] {s.name}
-                                  </p>
-                                ))
-                              ) : (
-                                <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-[8.5pt] font-bold text-emerald-800 uppercase tracking-wider mb-1">2º Semestre:</p>
-                              {printSem2.length > 0 ? (
-                                printSem2.map(s => (
-                                  <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                                    [{s.code}] {s.name}
-                                  </p>
-                                ))
-                              ) : (
-                                <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
-                              )}
-                            </div>
-                            {printOther.length > 0 && (
-                              <div className="col-span-2">
-                                <p className="text-[8.5pt] font-bold text-slate-700 uppercase tracking-wider mb-1">Outras Disciplinas:</p>
-                                {printOther.map(s => (
-                                  <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
-                                    [{s.code}] {s.name}
-                                  </p>
-                                ))}
-                              </div>
+                      if (classSubs.length === 0) {
+                        return <p className="text-[9.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>;
+                      }
+
+                      return (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[8.5pt] font-bold text-blue-800 uppercase tracking-wider mb-1">1º Semestre:</p>
+                            {printSem1.length > 0 ? (
+                              printSem1.map(s => (
+                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                  [{s.code}] {s.name}
+                                </p>
+                              ))
+                            ) : (
+                              <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
                             )}
                           </div>
-                        );
-                      })()}
-                    </div>
+                          <div>
+                            <p className="text-[8.5pt] font-bold text-emerald-800 uppercase tracking-wider mb-1">2º Semestre:</p>
+                            {printSem2.length > 0 ? (
+                              printSem2.map(s => (
+                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                  [{s.code}] {s.name}
+                                </p>
+                              ))
+                            ) : (
+                              <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
+                            )}
+                          </div>
+                          {printOther.length > 0 && (
+                            <div className="col-span-2 mt-1">
+                              <p className="text-[8.5pt] font-bold text-slate-700 uppercase tracking-wider mb-1">Outras Disciplinas:</p>
+                              {printOther.map(s => (
+                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                                  [{s.code}] {s.name}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
+                </div>
 
-                  <div className="border-b border-black/10 pb-2">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Observações da Turma</p>
-                    <div className="text-[10pt] leading-relaxed text-justify whitespace-pre-line min-h-[30px]">
-                      {(() => {
-                        const rawObs = selectedClass.observations || '';
-                        const cleaned = rawObs
-                          .replace(/\[METADATA:[\s\S]*?\]/gi, '')
-                          .replace(/\{[\s\S]*?\}/g, '')
-                          .replace(/is_special\s*:\s*(true|false)/gi, '')
-                          .replace(/["']?is_special["']?\s*:\s*(true|false)/gi, '')
-                          .replace(/is_special/gi, '')
-                          .replace(/["'{}\[\]]/g, '')
-                          .replace(/,+/g, '')
-                          .replace(/\n\s*\n/g, '\n')
-                          .trim();
-                        return cleaned || 'Sem observações adicionais.';
-                      })()}
-                    </div>
+                {/* Observações da Turma */}
+                <div className="border-b border-black/15 pb-3">
+                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1.5">Observações da Turma</p>
+                  <div className="text-[9.5pt] leading-relaxed text-justify whitespace-pre-line text-slate-800">
+                    {(() => {
+                      const rawObs = selectedClass.observations || '';
+                      const cleaned = rawObs
+                        .replace(/\[METADATA:[\s\S]*?\]/gi, '')
+                        .replace(/\{[\s\S]*?\}/g, '')
+                        .replace(/is_special\s*:\s*(true|false)/gi, '')
+                        .replace(/["']?is_special["']?\s*:\s*(true|false)/gi, '')
+                        .replace(/is_special/gi, '')
+                        .replace(/["'{}\[\]]/g, '')
+                        .replace(/,+/g, '')
+                        .replace(/\n\s*\n/g, '\n')
+                        .trim();
+                      return cleaned || 'Sem observações adicionais.';
+                    })()}
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* FOOTER BLOCK: Emission info */}
+            <div className="pt-4 mt-6 border-t border-black/20 flex justify-between items-center text-[8pt] text-slate-500 font-medium">
+              <span>SISTEMA ESCMIN • {inst?.name || 'Escola Diocesana de Ministérios'}</span>
+              <span>Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
         </div>
