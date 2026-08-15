@@ -134,6 +134,20 @@
       z-index: 99999 !important;
     }
 
+    #printable-student-record {
+      height: 275mm !important;
+      min-height: 275mm !important;
+      max-height: 275mm !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-after: avoid !important;
+      break-inside: avoid !important;
+      overflow: hidden !important;
+    }
+
     /* Strict alignment and border rules for crisp table elements */
     table {
       width: 100% !important;
