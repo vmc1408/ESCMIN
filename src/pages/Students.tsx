@@ -619,279 +619,285 @@ export function Students() {
     const currentClass = classes.find(c => c.id === selectedStudent.class_id);
     
     return (
-      <div id="printable-student-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[285mm] mx-auto">
-        <div className="w-full h-full flex flex-col p-8">
+      <div id="printable-student-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full h-[277mm] mx-auto">
+        <div className="w-full h-full flex flex-col justify-between p-0">
           
-          {/* HEADER SECTION */}
-          <div className="flex items-center gap-6 mb-6 pb-2 border-b-2 border-black">
-            <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
-              {institution?.logo_url ? (
-                <img src={institution.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
-              ) : (
-                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
-                  <span className="leading-none">SEM</span>
-                  <span className="leading-none">LOGO</span>
+          {/* TOP SECTION: Header + Personal Data + Rules */}
+          <div>
+            {/* HEADER SECTION */}
+            <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black">
+              <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+                {institution?.logo_url ? (
+                  <img src={institution.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
+                ) : (
+                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
+                    <span className="leading-none">SEM</span>
+                    <span className="leading-none">LOGO</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col">
+                <p className="text-[10.5pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
+                <h1 className="text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
+                  {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                </h1>
+                <p className="text-[11pt] font-bold text-slate-700 tracking-wide uppercase">
+                  {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-center mb-3">
+              <h2 className="text-[15pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b border-black/10 pb-0.5">Ficha de Inscrição</h2>
+            </div>
+
+            {/* TOP CONTROL BOXES */}
+            <div className="grid grid-cols-12 gap-3 mb-3.5">
+              <div className="col-span-3 border border-black/40 p-2 flex flex-col h-[3.6cm]">
+                <p className="text-[9.5pt] font-semibold border-b border-black/10 pb-0.5 mb-1.5">Controle da Escola</p>
+                <div className="flex-1 flex flex-col justify-center items-center">
+                  <p className="text-[8.5pt] font-semibold mb-1 uppercase opacity-40 text-center">Matrícula</p>
+                  <div className="border border-black/10 h-9 w-28 flex items-center justify-center font-bold text-[12pt] bg-white mx-auto">
+                    {selectedStudent.registration_number || ''}
+                  </div>
                 </div>
-              )}
-            </div>
-            <div className="flex-1 flex flex-col">
-              <p className="text-[11pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[19pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
-                {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-              </h1>
-              <p className="text-[12pt] font-bold text-slate-700 tracking-wide mt-1 uppercase">
-                {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
-              </p>
-            </div>
-          </div>
+              </div>
 
-          <div className="text-center mb-2">
-            <h2 className="text-[16pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b border-black/10 pb-0.5">Ficha de Inscrição</h2>
-          </div>
+              <div className="col-span-6 border border-black/40 p-2 h-[3.6cm] flex flex-col">
+                <p className="text-[8.5pt] font-bold mb-1.5 uppercase border-b border-black/10 pb-0.5">CURSO:</p>
+                <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1 content-center">
+                  {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
+                    const isInPrimaryClass = currentClass?.name?.toLowerCase().includes(course.toLowerCase());
+                    const isInExtraEnrollments = studentEnrollments.some(enrollment => {
+                      const targetClass = classes.find(c => c.id === enrollment.class_id);
+                      return targetClass?.name?.toLowerCase().includes(course.toLowerCase()) && enrollment.status === 'Ativo';
+                    });
+                    const isChecked = isInPrimaryClass || isInExtraEnrollments || selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
+                    
+                    return (
+                      <div key={course} className="flex items-center gap-2.5">
+                        <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white relative shrink-0">
+                          {isChecked && <span className="text-[9.5pt] font-bold leading-none text-black">X</span>}
+                        </div>
+                        <span className="text-[9pt] font-medium leading-none uppercase">{course === 'S. Negros' ? 'História dos Santos Negros' : course}</span>
+                      </div>
+                    );
+                  })}
 
-          {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-3 mb-4">
-            <div className="col-span-3 border border-black/40 p-2 flex flex-col h-[4cm]">
-              <p className="text-[10pt] font-semibold border-b border-black/10 pb-0.5 mb-2">Controle da Escola</p>
-              <div className="flex-1 flex flex-col justify-center items-center">
-                <p className="text-[9pt] font-semibold mb-1 uppercase opacity-40 text-center">Matrícula</p>
-                <div className="border border-black/10 h-10 w-28 flex items-center justify-center font-bold text-[13pt] bg-white mx-auto">
-                  {selectedStudent.registration_number || ''}
+                  {/* List all active enrollments explicitly if there are multiple */}
+                  {(studentEnrollments.length > 0) && (
+                    <div className="col-span-2 mt-1 pt-1 border-t border-black/10 flex items-center gap-1.5">
+                      <span className="text-[7pt] font-bold uppercase shrink-0">Turmas:</span>
+                      <p className="text-[8pt] font-bold leading-tight uppercase truncate">
+                        {[
+                          currentClass?.name,
+                          ...studentEnrollments
+                            .filter(e => e.status === 'Ativo')
+                            .map(e => classes.find(c => c.id === e.class_id)?.name)
+                        ].filter(Boolean).join(' / ')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="col-span-3 flex justify-end">
+                <div className="border border-black/40 flex items-center justify-center relative bg-white w-[2.8cm] h-[3.6cm]">
+                  {selectedStudent.photo_url ? (
+                    <img src={selectedStudent.photo_url} className="w-full h-full object-cover p-0.5" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="text-center text-black/10 uppercase">
+                      <p className="text-[7pt] font-bold leading-tight tracking-tighter">FOTO 3X4</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="col-span-6 border border-black/40 p-2 h-[4cm] flex flex-col">
-              <p className="text-[9pt] font-bold mb-2 uppercase border-b border-black/10 pb-0.5">CURSO:</p>
-              <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1 content-center">
-                {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
-                  const isInPrimaryClass = currentClass?.name?.toLowerCase().includes(course.toLowerCase());
-                  const isInExtraEnrollments = studentEnrollments.some(enrollment => {
-                    const targetClass = classes.find(c => c.id === enrollment.class_id);
-                    return targetClass?.name?.toLowerCase().includes(course.toLowerCase()) && enrollment.status === 'Ativo';
-                  });
-                  const isChecked = isInPrimaryClass || isInExtraEnrollments || selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
-                  
-                  return (
-                    <div key={course} className="flex items-center gap-3">
-                      <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white relative shrink-0">
-                        {isChecked && <span className="text-[10pt] font-bold leading-none text-black">X</span>}
+            {/* PERSONAL DATA */}
+            <div className="space-y-1.5 mb-2 text-[10pt]">
+              <div className="flex items-end gap-2">
+                <span className="font-semibold uppercase min-w-[55px] text-slate-900">Nome:</span>
+                <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[19px]">{selectedStudent.name}</span>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <span className="font-semibold uppercase min-w-[55px] text-slate-900">Endereço:</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">{selectedStudent.address_street}</span>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-[4] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">Bairro:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">
+                     {selectedStudent.address_neighborhood || (selectedStudent.address_street?.includes(' - ') ? selectedStudent.address_street.split(' - ').pop() : '')}
+                  </span>
+                </div>
+                <div className="flex-[4] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">Cidade:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">{selectedStudent.address_city}</span>
+                </div>
+                <div className="flex-[1] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">Uf:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 text-center min-h-[19px]">{selectedStudent.address_state}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-[2] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">Cep:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[19px] whitespace-nowrap">{selectedStudent.address_zip}</span>
+                </div>
+                <div className="flex-[3.5] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">Celular:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[19px] whitespace-nowrap">{selectedStudent.phone_mobile}</span>
+                </div>
+                <div className="flex-[2.5] flex items-end justify-end mb-0.5 text-[8.5pt]">
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-900 font-semibold uppercase">WhatsApp:</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
+                         {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
+                           <span className="text-[9pt] font-bold leading-none text-black">X</span>
+                         )}
                       </div>
-                      <span className="text-[9.5pt] font-medium leading-none uppercase">{course === 'S. Negros' ? 'História dos Santos Negros' : course}</span>
+                      <span className="font-bold uppercase text-[7.5pt]">Sim</span>
                     </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
+                         {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
+                           <span className="text-[9pt] font-bold leading-none text-black">X</span>
+                         )}
+                      </div>
+                      <span className="font-bold uppercase text-[7.5pt]">Não</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-[2] flex items-end gap-2">
+                  <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Nasc.:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">
+                    {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
+                  </span>
+                </div>
+                <div className="flex-[1.5] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">RG:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">{selectedStudent.rg}</span>
+                </div>
+                <div className="flex-[2] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">CPF:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">{selectedStudent.cpf}</span>
+                </div>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <span className="font-semibold uppercase min-w-[55px] text-slate-900">Email:</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 lowercase min-h-[19px]">{selectedStudent.email}</span>
+              </div>
+
+              {/* Pastoral Info Grid */}
+              <div className="space-y-1.5 pt-0.5">
+                <div className="flex items-end gap-2">
+                  <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Paróquia:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">{selectedStudent.parish}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-end gap-2">
+                    <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Forania:</span>
+                    <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px] text-center">{selectedStudent.forania}</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Pastoral:</span>
+                    <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px] text-center">{selectedStudent.pastoral_participates}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* BASIC INFORMATION SECTION */}
+            <div className="my-2 p-2.5 bg-white border border-black/20 rounded-none">
+              <h4 className="text-[9.5pt] font-bold uppercase text-center mb-2 tracking-wider">Normas Básicas para Admissão</h4>
+              <div className="text-[8pt] leading-relaxed space-y-0.5 font-normal text-slate-800">
+                {admissionNorms.map((norm, index) => {
+                  const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
+                  return (
+                    <p key={index}>
+                      {!hasIndexPrefix && <span>{index + 1}) </span>}
+                      {norm}
+                    </p>
                   );
                 })}
-
-                {/* List all active enrollments explicitly if there are multiple */}
-                {(studentEnrollments.length > 0) && (
-                  <div className="col-span-2 mt-1.5 pt-1 border-t border-black/10 flex items-center gap-1.5">
-                    <span className="text-[7pt] font-bold uppercase shrink-0">Turmas:</span>
-                    <p className="text-[8.5pt] font-bold leading-tight uppercase truncate">
-                      {[
-                        currentClass?.name,
-                        ...studentEnrollments
-                          .filter(e => e.status === 'Ativo')
-                          .map(e => classes.find(c => c.id === e.class_id)?.name)
-                      ].filter(Boolean).join(' / ')}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 
-            <div className="col-span-3 flex justify-end">
-              <div className="border border-black/40 flex items-center justify-center relative bg-white w-[3cm] h-[4cm]">
-                {selectedStudent.photo_url ? (
-                  <img src={selectedStudent.photo_url} className="w-full h-full object-cover p-0.5" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="text-center text-black/10 uppercase">
-                    <p className="text-[7pt] font-bold leading-tight tracking-tighter">FOTO 3X4</p>
-                  </div>
-                )}
+            <div className="text-[10pt] leading-normal pt-1">
+              <div className="flex items-baseline mb-1 gap-2">
+                <span className="font-bold uppercase">Eu,</span>
+                <span className="flex-1 border-b border-black font-semibold uppercase px-2">{selectedStudent.name}</span>
               </div>
-            </div>
-          </div>
-
-          {/* PERSONAL DATA */}
-          <div className="space-y-2 mb-2 text-[10.5pt]">
-            <div className="flex items-end gap-2">
-              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Nome:</span>
-              <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[20px]">{selectedStudent.name}</span>
-            </div>
-
-            <div className="flex items-end gap-2">
-              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Endereço:</span>
-              <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_street}</span>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-[4] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">Bairro:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">
-                   {selectedStudent.address_neighborhood || (selectedStudent.address_street?.includes(' - ') ? selectedStudent.address_street.split(' - ').pop() : '')}
-                </span>
-              </div>
-              <div className="flex-[4] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">Cidade:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.address_city}</span>
-              </div>
-              <div className="flex-[1] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">Uf:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.address_state}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-[2] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">Cep:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[22px] whitespace-nowrap">{selectedStudent.address_zip}</span>
-              </div>
-              <div className="flex-[3.5] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">Celular:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 min-h-[22px] whitespace-nowrap">{selectedStudent.phone_mobile}</span>
-              </div>
-              <div className="flex-[2.5] flex items-end justify-end mb-0.5 text-[9pt]">
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-900 font-semibold uppercase">WhatsApp:</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
-                       {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) === 'true' || selectedStudent.phone_mobile_is_whatsapp === true) && (
-                         <span className="text-[10pt] font-bold leading-none text-black">X</span>
-                       )}
-                    </div>
-                    <span className="font-bold uppercase text-[8pt]">Sim</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3.5 h-3.5 border border-black flex items-center justify-center bg-white shrink-0">
-                       {selectedStudent.phone_mobile?.trim() && (String(selectedStudent.phone_mobile_is_whatsapp) !== 'true' && selectedStudent.phone_mobile_is_whatsapp !== true) && (
-                         <span className="text-[10pt] font-bold leading-none text-black">X</span>
-                       )}
-                    </div>
-                    <span className="font-bold uppercase text-[8pt]">Não</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-[2] flex items-end gap-2">
-                <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Nasc.:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[22px]">
-                  {selectedStudent.birth_date ? formatDateForDisplay(selectedStudent.birth_date) : '__ / __ / ____'}
-                </span>
-              </div>
-              <div className="flex-[1.5] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">RG:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.rg}</span>
-              </div>
-              <div className="flex-[2] flex items-end gap-2">
-                <span className="font-semibold uppercase text-slate-900">CPF:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[22px]">{selectedStudent.cpf}</span>
-              </div>
-            </div>
-
-            <div className="flex items-end gap-2">
-              <span className="font-semibold uppercase min-w-[60px] text-slate-900">Email:</span>
-              <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 lowercase min-h-[22px]">{selectedStudent.email}</span>
-            </div>
-
-            {/* Pastoral Info Grid */}
-            <div className="space-y-3 pt-1">
-              <div className="flex items-end gap-2">
-                <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Paróquia:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px]">{selectedStudent.parish}</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-end gap-2">
-                  <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Forania:</span>
-                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px] text-center">{selectedStudent.forania}</span>
-                </div>
-                <div className="flex items-end gap-2">
-                  <span className="font-semibold uppercase whitespace-nowrap text-slate-900">Pastoral:</span>
-                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[22px] text-center">{selectedStudent.pastoral_participates}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* BASIC INFORMATION SECTION */}
-          <div className="mb-2 p-3 bg-white border border-black/20 rounded-none">
-            <h4 className="text-[10pt] font-bold uppercase text-center mb-3 tracking-wider">Normas Básicas para Admissão</h4>
-            <div className="text-[8.5pt] leading-relaxed space-y-1 font-normal text-slate-800">
-              {admissionNorms.map((norm, index) => {
-                const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
-                return (
-                  <p key={index}>
-                    {!hasIndexPrefix && <span>{index + 1}) </span>}
-                    {norm}
-                  </p>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="text-[10.5pt] leading-normal mb-10 pt-1">
-            <div className="flex items-baseline mb-1 gap-2">
-              <span className="font-bold uppercase">Eu,</span>
-              <span className="flex-1 border-b border-black font-semibold uppercase px-2">{selectedStudent.name}</span>
-            </div>
-            <p className="text-justify leading-relaxed font-normal text-slate-800">
-              declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição.
-            </p>
-          </div>
-
-          {/* DATE AND SIGNATURE - Adjusted to be above footer line */}
-          <div className="mt-auto mb-4 scale-[0.95] origin-bottom">
-            <div className="flex justify-between items-end px-6">
-              <div className="flex flex-col pb-2">
-                <p className="text-[11pt] font-bold text-black">
-                  Guarulhos, <span>
-                    {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
-                  </span>
-                </p>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="w-[90mm] border-t-2 border-black mb-1"></div>
-                <p className="text-[10pt] font-bold uppercase tracking-[0.2em] text-black">Assinatura do Aluno(a)</p>
-              </div>
-            </div>
-          </div>
-
-          {/* RODAPÉ */}
-          <div className="border-t-2 border-black pt-3 flex justify-between items-start text-[8.5pt] font-bold text-black uppercase tracking-tight mb-2">
-            <div className="flex-1 space-y-1">
-              <p className="leading-none text-[9pt]">
-                {institution?.address}
+              <p className="text-justify leading-relaxed font-normal text-slate-800">
+                declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição.
               </p>
-              {(institution?.cep || institution?.city_uf) && (
-                <p className="leading-none text-[9pt]">
-                  {institution?.cep ? `CEP: ${institution.cep}` : ''} {institution?.city_uf ? ` - ${institution.city_uf}` : ''}
-                </p>
-              )}
-              <div className="flex items-center gap-4 leading-none font-bold text-[9pt]">
-                {institution?.phone && (
-                  <span className="flex items-center gap-1.5">
-                    TEL: {institution.phone}
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="#25D366" className="shrink-0">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                    </svg>
-                  </span>
-                )}
-                {institution?.phone && institution?.email && <span className="opacity-30">|</span>}
-                {institution?.email && (
-                  <span className="flex items-center gap-1">
-                    EMAIL: <span className="lowercase font-bold">{institution.email}</span>
-                  </span>
-                )}
+            </div>
+          </div>
+
+          {/* BOTTOM SECTION: DATE, SIGNATURE AND RODAPÉ */}
+          <div className="mt-auto pt-3">
+            {/* DATE AND SIGNATURE */}
+            <div className="mb-3">
+              <div className="flex justify-between items-end px-4">
+                <div className="flex flex-col pb-1">
+                  <p className="text-[10pt] font-bold text-black">
+                    Guarulhos, <span>
+                      {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-[85mm] border-t-2 border-black mb-1"></div>
+                  <p className="text-[9pt] font-bold uppercase tracking-[0.2em] text-black">Assinatura do Aluno(a)</p>
+                </div>
               </div>
             </div>
-            {institution?.secretary && (
-              <div className="text-right max-w-[450px] leading-tight text-black font-bold uppercase text-[8pt]">
-                <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
-                <p className="whitespace-pre-line lowercase font-bold text-[8.5pt]">{institution.secretary}</p>
+
+            {/* RODAPÉ */}
+            <div className="border-t-2 border-black pt-2 pb-0 flex justify-between items-start text-black uppercase tracking-tight">
+              <div className="flex-1 space-y-0.5">
+                <p className="leading-snug text-[7.5pt] font-bold">
+                  {institution?.address}
+                </p>
+                {(institution?.cep || institution?.city_uf) && (
+                  <p className="leading-snug text-[7.5pt] font-bold">
+                    {institution?.cep ? `CEP: ${institution.cep}` : ''} {institution?.city_uf ? ` - ${institution.city_uf}` : ''}
+                  </p>
+                )}
+                <div className="flex items-center gap-3 leading-snug font-bold text-[7.5pt] pt-0.5">
+                  {institution?.phone && (
+                    <span className="flex items-center gap-1">
+                      TEL: {institution.phone}
+                      <svg viewBox="0 0 24 24" width="10" height="10" fill="#25D366" className="shrink-0">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                      </svg>
+                    </span>
+                  )}
+                  {institution?.phone && institution?.email && <span className="opacity-30">|</span>}
+                  {institution?.email && (
+                    <span className="flex items-center gap-1">
+                      EMAIL: <span className="lowercase font-bold">{institution.email}</span>
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
+              {institution?.secretary && (
+                <div className="text-right max-w-[380px] leading-tight text-black font-bold uppercase text-[7pt]">
+                  <p className="whitespace-pre-line underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[7.5pt]">{institution.secretary}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
