@@ -3418,175 +3418,272 @@ export function Classes() {
 
       {/* Printable Class Record */}
       {selectedClass && (
-        <div id="printable-class-record" className="hidden print:block text-black bg-white overflow-visible font-sans leading-tight relative w-full mx-auto">
-          <div className="w-full max-w-[210mm] mx-auto bg-white p-2 flex flex-col justify-between min-h-[240mm]">
-            {/* TOP BLOCK: Header + Document Title + Class Data */}
-            <div>
-              {/* Institutional Header */}
-              <div className="flex items-center gap-5 mb-5 pb-3 border-b-2 border-black">
-                <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
-                  {inst?.logo_url ? (
-                    <img src={inst.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
-                  ) : (
-                    <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
-                      <span className="leading-none">SEM</span>
-                      <span className="leading-none">LOGO</span>
-                    </div>
-                  )}
+        <div id="printable-class-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0">
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 10mm 15mm 8mm 15mm !important;
+              }
+              #printable-class-record {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+                height: 275mm !important;
+                min-height: 275mm !important;
+                max-height: 275mm !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+                break-after: avoid !important;
+                break-inside: avoid !important;
+              }
+            }
+          ` }} />
+
+          {/* TOP SECTION: Header + Control Boxes + Class Data + Curriculum */}
+          <div className="flex-1 flex flex-col justify-start">
+            {/* Institutional Header */}
+            <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black">
+              <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+                {inst?.logo_url ? (
+                  <img src={inst.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
+                ) : (
+                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
+                    <span className="leading-none">SEM</span>
+                    <span className="leading-none">LOGO</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col">
+                <p className="text-[10.5pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
+                <h1 className="text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
+                  {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                </h1>
+                <p className="text-[11pt] font-bold text-slate-700 tracking-wide uppercase">
+                  {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-center mb-3">
+              <h2 className="text-[15pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b border-black/10 pb-0.5">Ficha da Turma</h2>
+            </div>
+
+            {/* TOP CONTROL BOXES */}
+            <div className="grid grid-cols-12 gap-3 mb-3.5">
+              <div className="col-span-3 border border-black/40 p-2 flex flex-col h-[3.2cm] justify-between">
+                <p className="text-[9.5pt] font-semibold border-b border-black/10 pb-0.5 uppercase">Controle</p>
+                <div className="flex-1 flex flex-col justify-center items-center">
+                  <p className="text-[8pt] font-bold uppercase opacity-40 text-center mb-0.5">Código da Turma</p>
+                  <div className="border border-black/10 h-9 w-24 flex items-center justify-center font-bold text-[13pt] bg-white">
+                    {selectedClass.code}
+                  </div>
                 </div>
-                <div className="flex-1 flex flex-col">
-                  <p className="text-[10.5pt] font-semibold tracking-widest text-slate-700 leading-tight">DIOCESE DE GUARULHOS</p>
-                  <h1 className="text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
-                    {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
-                  </h1>
-                  <p className="text-[11pt] font-bold text-slate-600 tracking-wide uppercase">
-                    {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
+              </div>
+
+              <div className="col-span-6 border border-black/40 p-2 h-[3.2cm] flex flex-col justify-between">
+                <p className="text-[8.5pt] font-bold uppercase border-b border-black/10 pb-0.5 mb-1 tracking-tight">Informações Acadêmicas:</p>
+                <div className="grid grid-cols-3 gap-2 text-center my-auto">
+                  <div className="border border-black/10 p-1 bg-slate-50/30">
+                    <p className="text-[7.5pt] font-bold uppercase opacity-60">Ano Letivo</p>
+                    <p className="text-[9.5pt] font-bold uppercase">{selectedClass.year || selectedClass.start_year || '---'}</p>
+                  </div>
+                  <div className="border border-black/10 p-1 bg-slate-50/30">
+                    <p className="text-[7.5pt] font-bold uppercase opacity-60">Semestre</p>
+                    <p className="text-[9.5pt] font-bold uppercase">{selectedClass.semester || 'Anual'}</p>
+                  </div>
+                  <div className="border border-black/10 p-1 bg-slate-50/30">
+                    <p className="text-[7.5pt] font-bold uppercase opacity-60">Turno</p>
+                    <p className="text-[9.5pt] font-bold uppercase">{selectedClass.period || '---'}</p>
+                  </div>
+                </div>
+                <div className="text-[8pt] font-semibold flex items-center justify-between border-t border-black/10 pt-1">
+                  <span>Sala: <strong className="uppercase">{selectedClass.room || 'Principal'}</strong></span>
+                  <span>Status: <strong className="uppercase">{selectedClass.status || 'Ativo'}</strong></span>
+                </div>
+              </div>
+
+              <div className="col-span-3 border border-black/40 p-2 flex flex-col justify-between items-center bg-white h-[3.2cm]">
+                <p className="text-[8.5pt] font-bold uppercase border-b border-black/10 pb-0.5 w-full text-center">Matriculados</p>
+                <div className="flex-1 flex flex-col justify-center items-center">
+                  <p className="text-[20pt] font-black leading-none text-black">
+                    {modalStudents.length > 0 ? modalStudents.length : (selectedClassStudentCount !== null ? selectedClassStudentCount : '0')}
+                  </p>
+                  <p className="text-[7.5pt] font-bold uppercase tracking-wider text-slate-600 mt-1">Alunos Ativos</p>
+                </div>
+                <div className="text-[7pt] font-bold uppercase text-slate-500 text-center">Ano {selectedClass.year || ''}</div>
+              </div>
+            </div>
+
+            {/* DADOS DA TURMA */}
+            <div className="space-y-1.5 mb-3 text-[10pt]">
+              <div className="flex items-end gap-2">
+                <span className="font-semibold uppercase min-w-[55px] text-slate-900">Turma:</span>
+                <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[19px]">{selectedClass.name}</span>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-[3] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">Curso Base:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">{selectedClass.course || 'Teologia e Ministérios'}</span>
+                </div>
+                <div className="flex-[2] flex items-end gap-2">
+                  <span className="font-semibold uppercase text-slate-900">Início em:</span>
+                  <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">
+                    {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '---'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <span className="font-semibold uppercase min-w-[55px] text-slate-900">Dias de Aula:</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">
+                  {(selectedClass.days_of_week || []).join(', ') || 'Não especificado'}
+                </span>
+              </div>
+            </div>
+
+            {/* MATRIZ CURRICULAR */}
+            <div className="my-2 p-2 bg-white border border-black/20 rounded-none space-y-1.5">
+              <h4 className="text-[9pt] font-bold uppercase text-center border-b border-black/10 pb-1 tracking-wider">
+                Matriz Curricular Vinculada
+              </h4>
+              {(() => {
+                const classSubs = (selectedClass.subject_ids || [])
+                  .map(sid => subjects.find(s => s.id === sid))
+                  .filter(Boolean) as Subject[];
+                const printSem1 = classSubs.filter(s => (s.semester || '').includes('1'));
+                const printSem2 = classSubs.filter(s => (s.semester || '').includes('2'));
+                const printOther = classSubs.filter(s => !(s.semester || '').includes('1') && !(s.semester || '').includes('2'));
+
+                if (classSubs.length === 0) {
+                  return <p className="text-[8pt] text-slate-400 italic text-center py-2">Nenhuma disciplina vinculada a esta turma.</p>;
+                }
+
+                return (
+                  <div className="space-y-1.5">
+                    <div className="grid grid-cols-2 gap-3 text-[8.5pt]">
+                      {/* 1º Semestre */}
+                      <div className="border border-black/10 p-2 bg-slate-50/20">
+                        <p className="font-bold uppercase text-blue-900 border-b border-black/10 pb-0.5 mb-1 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
+                          1º Semestre
+                        </p>
+                        {printSem1.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[8pt]">
+                            {printSem1.map(s => (
+                              <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-[7.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                        )}
+                      </div>
+
+                      {/* 2º Semestre */}
+                      <div className="border border-black/10 p-2 bg-slate-50/20">
+                        <p className="font-bold uppercase text-emerald-900 border-b border-black/10 pb-0.5 mb-1 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
+                          2º Semestre
+                        </p>
+                        {printSem2.length > 0 ? (
+                          <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[8pt]">
+                            {printSem2.map(s => (
+                              <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-[7.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {printOther.length > 0 && (
+                      <div className="border border-black/10 p-1.5 bg-slate-50/20 text-[8pt]">
+                        <span className="font-bold uppercase text-slate-700 mr-2">Outras Disciplinas:</span>
+                        <span className="font-medium uppercase text-slate-900">
+                          {printOther.map(s => s.name).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* OBSERVAÇÕES */}
+            <div className="mt-1">
+              <span className="text-[8.5pt] font-bold uppercase text-slate-900">Observações da Turma:</span>
+              <div className="text-[8.5pt] border border-black/20 p-2 min-h-[45px] leading-relaxed whitespace-pre-wrap mt-0.5">
+                {(() => {
+                  const rawObs = selectedClass.observations || '';
+                  const cleaned = rawObs
+                    .replace(/\[METADATA:[\s\S]*?\]/gi, '')
+                    .replace(/\{[\s\S]*?\}/g, '')
+                    .replace(/is_special\s*:\s*(true|false)/gi, '')
+                    .replace(/["']?is_special["']?\s*:\s*(true|false)/gi, '')
+                    .replace(/is_special/gi, '')
+                    .replace(/["'{}\[\]]/g, '')
+                    .replace(/,+/g, '')
+                    .replace(/\n\s*\n/g, '\n')
+                    .trim();
+                  return cleaned || 'Sem observações adicionais.';
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* BOTTOM SECTION: DATE, SIGNATURE AND PINNED FOOTER */}
+          <div className="mt-auto pt-2 shrink-0">
+            {/* DATE AND SIGNATURE */}
+            <div className="mb-2">
+              <div className="flex justify-between items-end px-4">
+                <div className="flex flex-col pb-0.5">
+                  <p className="text-[9.5pt] font-bold text-black">
+                    Guarulhos, <span>{new Date().toLocaleDateString('pt-BR')}</span>
                   </p>
                 </div>
-              </div>
-
-              {/* Document Title */}
-              <div className="bg-black text-white py-2 px-4 mb-5 flex justify-between items-center">
-                <h2 className="text-[13pt] font-bold uppercase tracking-widest">FICHA DA TURMA</h2>
-                <span className="text-[10pt] font-bold">Turma: {selectedClass.code}</span>
-              </div>
-
-              {/* Content Section */}
-              <div className="space-y-4">
-                {/* Nome do Curso / Turma */}
-                <div className="border-b border-black/15 pb-2.5">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Nome do Curso / Turma</p>
-                  <p className="text-[12pt] font-bold uppercase text-[#00174b]">{selectedClass.name}</p>
-                </div>
-                
-                {/* Grid 1: Ano Letivo, Semestre, Período */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="border-b border-black/15 pb-2.5">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Ano Letivo</p>
-                    <p className="text-[10.5pt] font-bold">{selectedClass.year || '---'}</p>
-                  </div>
-                  <div className="border-b border-black/15 pb-2.5">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Semestre</p>
-                    <p className="text-[10.5pt] font-bold uppercase">{selectedClass.semester || '---'}</p>
-                  </div>
-                  <div className="border-b border-black/15 pb-2.5">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Período</p>
-                    <p className="text-[10.5pt] font-bold uppercase">{selectedClass.period || '---'}</p>
-                  </div>
-                </div>
-
-                {/* Grid 2: Sala, Data de Início, Alunos Matriculados */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="border-b border-black/15 pb-2.5">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Sala / Local</p>
-                    <p className="text-[10.5pt] font-bold uppercase">{selectedClass.room || '---'}</p>
-                  </div>
-                  <div className="border-b border-black/15 pb-2.5">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Duração</p>
-                    <p className="text-[10.5pt] font-bold uppercase">Início em: {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '---'}</p>
-                  </div>
-                  <div className="border-b border-black/15 pb-2.5">
-                    <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Alunos Matriculados</p>
-                    <p className="text-[10.5pt] font-bold uppercase text-[#00174b]">
-                      {modalStudents.length > 0 ? `${modalStudents.length} Aluno(s)` : (selectedClassStudentCount !== null ? `${selectedClassStudentCount} Aluno(s)` : '0 Alunos')}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Dias da Semana */}
-                <div className="border-b border-black/15 pb-2.5">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1">Dias da Semana</p>
-                  <p className="text-[10.5pt] font-bold uppercase">{(selectedClass.days_of_week || []).join(', ') || 'Não definidos'}</p>
-                </div>
-
-                {/* Disciplinas Vinculadas */}
-                <div className="border-b border-black/15 pb-3">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-2">Disciplinas Vinculadas (Matriz Curricular)</p>
-                  <div className="space-y-2 mt-1">
-                    {(() => {
-                      const classSubs = (selectedClass.subject_ids || [])
-                        .map(sid => subjects.find(s => s.id === sid))
-                        .filter(Boolean) as Subject[];
-                      const printSem1 = classSubs.filter(s => (s.semester || '').includes('1'));
-                      const printSem2 = classSubs.filter(s => (s.semester || '').includes('2'));
-                      const printOther = classSubs.filter(s => !(s.semester || '').includes('1') && !(s.semester || '').includes('2'));
-
-                      if (classSubs.length === 0) {
-                        return <p className="text-[9.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>;
-                      }
-
-                      return (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-[8.5pt] font-bold text-blue-800 uppercase tracking-wider mb-1">1º Semestre:</p>
-                            {printSem1.length > 0 ? (
-                              printSem1.map(s => (
-                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                                  [{s.code}] {s.name}
-                                </p>
-                              ))
-                            ) : (
-                              <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[8.5pt] font-bold text-emerald-800 uppercase tracking-wider mb-1">2º Semestre:</p>
-                            {printSem2.length > 0 ? (
-                              printSem2.map(s => (
-                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                                  [{s.code}] {s.name}
-                                </p>
-                              ))
-                            ) : (
-                              <p className="text-[8.5pt] text-slate-400 italic ml-1">Nenhuma</p>
-                            )}
-                          </div>
-                          {printOther.length > 0 && (
-                            <div className="col-span-2 mt-1">
-                              <p className="text-[8.5pt] font-bold text-slate-700 uppercase tracking-wider mb-1">Outras Disciplinas:</p>
-                              {printOther.map(s => (
-                                <p key={s.id} className="text-[9.5pt] font-bold text-[#00174b] uppercase flex items-center gap-1.5 ml-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
-                                  [{s.code}] {s.name}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Observações da Turma */}
-                <div className="border-b border-black/15 pb-3">
-                  <p className="text-[8pt] font-bold text-slate-400 uppercase mb-1.5">Observações da Turma</p>
-                  <div className="text-[9.5pt] leading-relaxed text-justify whitespace-pre-line text-slate-800">
-                    {(() => {
-                      const rawObs = selectedClass.observations || '';
-                      const cleaned = rawObs
-                        .replace(/\[METADATA:[\s\S]*?\]/gi, '')
-                        .replace(/\{[\s\S]*?\}/g, '')
-                        .replace(/is_special\s*:\s*(true|false)/gi, '')
-                        .replace(/["']?is_special["']?\s*:\s*(true|false)/gi, '')
-                        .replace(/is_special/gi, '')
-                        .replace(/["'{}\[\]]/g, '')
-                        .replace(/,+/g, '')
-                        .replace(/\n\s*\n/g, '\n')
-                        .trim();
-                      return cleaned || 'Sem observações adicionais.';
-                    })()}
-                  </div>
+                <div className="flex flex-col items-center">
+                  <div className="w-[85mm] border-t-2 border-black mb-1"></div>
+                  <p className="text-[8.5pt] font-bold uppercase tracking-[0.2em] text-black">Assinatura da Coordenação</p>
                 </div>
               </div>
             </div>
 
-            {/* FOOTER BLOCK: Emission info */}
-            <div className="pt-4 mt-6 border-t border-black/20 flex justify-between items-center text-[8pt] text-slate-500 font-medium">
-              <span>SISTEMA ESCMIN • {inst?.name || 'Escola Diocesana de Ministérios'}</span>
-              <span>Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+            {/* RODAPÉ INSTITUCIONAL */}
+            <div className="border-t-2 border-black pt-1.5 pb-0 flex justify-between items-start text-black uppercase tracking-tight">
+              <div className="flex-1 space-y-0.5">
+                <p className="leading-snug text-[7.5pt] font-bold">
+                  {inst?.address}
+                </p>
+                {(inst?.cep || inst?.city_uf) && (
+                  <p className="leading-snug text-[7.5pt] font-bold">
+                    {inst?.cep ? `CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
+                  </p>
+                )}
+                <div className="flex items-center gap-3 leading-snug font-bold text-[7.5pt] pt-0.5">
+                  {inst?.phone && (
+                    <span className="flex items-center gap-1">
+                      TEL: {inst.phone}
+                      <svg viewBox="0 0 24 24" width="10" height="10" fill="#25D366" className="shrink-0">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                      </svg>
+                    </span>
+                  )}
+                  {inst?.phone && inst?.email && <span className="opacity-30">|</span>}
+                  {inst?.email && (
+                    <span className="flex items-center gap-1">
+                      EMAIL: <span className="lowercase font-bold">{inst.email}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+              {inst?.secretary && (
+                <div className="text-right max-w-[380px] leading-tight text-black font-bold uppercase text-[7pt]">
+                  <p className="whitespace-pre-line underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[7.5pt]">{inst.secretary}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

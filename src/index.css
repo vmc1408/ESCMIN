@@ -134,7 +134,11 @@
       z-index: 99999 !important;
     }
 
-    #printable-student-record {
+    #printable-student-record,
+    #printable-teacher-record,
+    #printable-class-record,
+    #printable-subject-record,
+    .printable-standard-sheet {
       height: 275mm !important;
       min-height: 275mm !important;
       max-height: 275mm !important;
