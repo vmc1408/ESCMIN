@@ -29,6 +29,7 @@ interface Subject {
   status: 'Ativo' | 'Inativo';
   year?: string;
   semester?: string;
+  workload?: string | number;
   teacher_id?: string;
   program_content?: string;
   created_at: string;
@@ -1046,24 +1047,36 @@ export function Subjects() {
 
       {/* Printable Subject Record */}
       {selectedSubject && (
-        <div id="printable-subject-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] min-h-[275mm] max-h-[275mm] mx-auto p-0">
+        <div id="printable-subject-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[260mm] max-h-[260mm] mx-auto p-0">
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               @page {
                 size: A4 portrait;
-                margin: 10mm 15mm 8mm 15mm !important;
+                margin: 6mm 10mm 6mm 10mm !important;
+              }
+              html, body {
+                height: 100% !important;
+                max-height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
               #printable-subject-record {
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
-                height: 275mm !important;
-                min-height: 275mm !important;
-                max-height: 275mm !important;
+                height: 260mm !important;
+                max-height: 260mm !important;
+                min-height: 0 !important;
+                width: 100% !important;
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
                 break-after: avoid !important;
                 break-inside: avoid !important;
+                box-sizing: border-box !important;
+                overflow: hidden !important;
               }
             }
           ` }} />
@@ -1172,23 +1185,8 @@ export function Subjects() {
             </div>
           </div>
 
-          {/* BOTTOM SECTION: DATE, SIGNATURE AND PINNED FOOTER */}
+          {/* BOTTOM SECTION: PINNED FOOTER */}
           <div className="mt-auto pt-2 shrink-0">
-            {/* DATE AND SIGNATURE */}
-            <div className="mb-2">
-              <div className="flex justify-between items-end px-4">
-                <div className="flex flex-col pb-0.5">
-                  <p className="text-[9.5pt] font-bold text-black">
-                    Guarulhos, <span>{new Date().toLocaleDateString('pt-BR')}</span>
-                  </p>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="w-[85mm] border-t-2 border-black mb-1"></div>
-                  <p className="text-[8.5pt] font-bold uppercase tracking-[0.2em] text-black">Assinatura da Coordenação</p>
-                </div>
-              </div>
-            </div>
-
             {/* RODAPÉ INSTITUCIONAL */}
             <div className="border-t-2 border-black pt-1.5 pb-0 flex justify-between items-start text-black uppercase tracking-tight">
               <div className="flex-1 space-y-0.5">
