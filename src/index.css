@@ -72,7 +72,7 @@
     /* Reset page and body for consistent margins and high-fidelity paging */
     @page {
       size: A4 portrait;
-      margin: 6mm 10mm 6mm 10mm;
+      margin: 8mm 12mm 8mm 12mm;
     }
     
     html, body {
@@ -139,9 +139,9 @@
     #printable-class-record,
     #printable-subject-record,
     .printable-standard-sheet {
-      height: 260mm !important;
-      min-height: 0 !important;
-      max-height: 260mm !important;
+      height: 278mm !important;
+      min-height: 278mm !important;
+      max-height: 278mm !important;
       display: flex !important;
       flex-direction: column !important;
       justify-content: space-between !important;

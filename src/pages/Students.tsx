@@ -619,12 +619,12 @@ export function Students() {
     const currentClass = classes.find(c => c.id === selectedStudent.class_id);
     
     return (
-      <div id="printable-student-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[260mm] max-h-[260mm] mx-auto p-0">
+      <div id="printable-student-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[278mm] min-h-[278mm] max-h-[278mm] mx-auto p-0">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
               size: A4 portrait;
-              margin: 6mm 10mm 6mm 10mm !important;
+              margin: 8mm 12mm 8mm 12mm !important;
             }
             html, body {
               height: 100% !important;
@@ -639,9 +639,9 @@ export function Students() {
               display: flex !important;
               flex-direction: column !important;
               justify-content: space-between !important;
-              height: 260mm !important;
-              max-height: 260mm !important;
-              min-height: 0 !important;
+              height: 278mm !important;
+              min-height: 278mm !important;
+              max-height: 278mm !important;
               width: 100% !important;
               overflow: hidden !important;
               page-break-after: avoid !important;
@@ -876,26 +876,26 @@ export function Students() {
           </div>
 
         {/* BOTTOM SECTION: DATE, SIGNATURE AND RODAPÉ PINNED AT BOTTOM */}
-        <div className="mt-auto pt-1.5 shrink-0">
+        <div className="mt-auto pt-2 shrink-0">
           {/* DATE AND SIGNATURE */}
-          <div className="mb-1.5">
+          <div className="mb-7">
             <div className="flex justify-between items-end px-4">
               <div className="flex flex-col pb-0.5">
-                <p className="text-[9pt] font-bold text-black">
+                <p className="text-[9.5pt] font-bold text-black">
                   Guarulhos, <span>
                     {selectedStudent.created_at ? new Date(selectedStudent.created_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}
                   </span>
                 </p>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-[80mm] border-t-2 border-black mb-1"></div>
-                <p className="text-[8pt] font-bold uppercase tracking-[0.2em] text-black">Assinatura do Aluno(a)</p>
+                <div className="w-[85mm] border-t-2 border-black mb-1.5"></div>
+                <p className="text-[8.5pt] font-bold uppercase tracking-[0.2em] text-black">Assinatura do Aluno(a)</p>
               </div>
             </div>
           </div>
 
           {/* RODAPÉ */}
-          <div className="border-t-2 border-black pt-1 pb-0 flex justify-between items-start text-black uppercase tracking-tight">
+          <div className="border-t-2 border-black pt-1.5 pb-0 flex justify-between items-start text-black uppercase tracking-tight">
             <div className="flex-1 space-y-0.5">
               <p className="leading-snug text-[7pt] font-bold">
                 {institution?.address}

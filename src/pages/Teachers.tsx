@@ -751,12 +751,12 @@ export function Teachers() {
     const teacherSubjectsSummary = summaryParts.join(' | ');
 
     return (
-      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[260mm] max-h-[260mm] mx-auto p-0">
+      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[278mm] min-h-[278mm] max-h-[278mm] mx-auto p-0">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
               size: A4 portrait;
-              margin: 6mm 10mm 6mm 10mm !important;
+              margin: 8mm 12mm 8mm 12mm !important;
             }
             html, body {
               height: 100% !important;
@@ -771,9 +771,9 @@ export function Teachers() {
               display: flex !important;
               flex-direction: column !important;
               justify-content: space-between !important;
-              height: 260mm !important;
-              max-height: 260mm !important;
-              min-height: 0 !important;
+              height: 278mm !important;
+              max-height: 278mm !important;
+              min-height: 278mm !important;
               width: 100% !important;
               page-break-after: avoid !important;
               page-break-inside: avoid !important;
