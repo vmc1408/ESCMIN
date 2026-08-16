@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Printer,
   Filter,
-  Users
+  Users,
+  ArrowLeft
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -485,7 +486,7 @@ export function Subjects() {
 
   return (
     <div className={cn(
-      "h-[calc(100vh-8rem)] relative flex gap-4 w-full transition-all duration-300",
+      "h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
       actualListCollapsed ? "justify-center" : "justify-end"
     )}>
       {/* Green Hover Sensor / Marker */}
@@ -658,6 +659,17 @@ export function Subjects() {
         {selectedSubject || isEditing ? (
           <>
             <div className="p-4 border-b border-slate-50 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSubject(null);
+                  setIsEditing(false);
+                }}
+                className="lg:hidden mb-3 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                <ArrowLeft size={14} />
+                <span>Ver Lista Completa de Disciplinas</span>
+              </button>
               <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-none bg-white shadow-sm flex items-center justify-center text-slate-800">

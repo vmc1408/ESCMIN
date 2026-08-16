@@ -1604,7 +1604,7 @@ export function Classes() {
   const actualListCollapsed = selectedClass !== null || isEditing;
 
   return (
-    <div className="h-[calc(100vh-6rem)] relative flex flex-col lg:flex-row gap-4 w-full p-4 overflow-hidden bg-slate-100/40">
+    <div className="h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full p-2 sm:p-4 overflow-hidden bg-slate-100/40">
       {/* Sidebar / List Panel */}
       <div 
         className={cn(

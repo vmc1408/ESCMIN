@@ -19,7 +19,8 @@ import {
   Camera,
   Upload,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
@@ -1052,7 +1053,7 @@ export function Teachers() {
 
   return (
     <div className={cn(
-      "h-[calc(100vh-8rem)] relative flex gap-4 w-full transition-all duration-300",
+      "h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
       actualListCollapsed ? "justify-center" : "justify-end"
     )}>
       {/* Green Hover Sensor / Marker */}
@@ -1200,6 +1201,17 @@ export function Teachers() {
         {selectedTeacher || isEditing ? (
           <>
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTeacher(null);
+                  setIsEditing(false);
+                }}
+                className="lg:hidden mb-3 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                <ArrowLeft size={14} />
+                <span>Ver Lista Completa de Professores</span>
+              </button>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-5">
                 <div className="relative group">
