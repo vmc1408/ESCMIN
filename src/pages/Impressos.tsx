@@ -579,8 +579,8 @@ export function Impressos() {
             }
           ` : `
             @page {
-              size: A4 portrait !important;
-              margin: 10mm 14mm 8mm 14mm !important;
+              size: portrait;
+              margin: 8mm 10mm 8mm 10mm !important;
             }
           `}
 
@@ -1282,12 +1282,12 @@ export function Impressos() {
           <div 
             id="printable-impressos" 
             className={cn(
-              "print-preview-container select-text relative flex flex-col print:h-auto print:min-h-0 print:p-0 print:m-0 print:border-none print:shadow-none print:max-w-none print:w-full",
+              "print-preview-container select-text relative flex flex-col print:p-0 print:m-0 print:border-none print:shadow-none print:max-w-none print:w-full box-border",
               (selectedType === 'carteirinhas' || selectedType === 'etiquetas')
-                ? "bg-transparent border-none shadow-none p-0 max-w-none w-auto"
+                ? "bg-transparent border-none shadow-none p-0 max-w-none w-auto print:h-auto print:min-h-0"
                 : cn(
                     "bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto",
-                    isSinglePageType ? "h-[1123px] print:h-auto pb-2 md:pb-3" : "min-h-[1123px] print:min-h-0 pb-3 md:pb-4"
+                    isSinglePageType ? "h-[1123px] print:h-[275mm] print:max-h-[275mm] print:min-h-[275mm] print:overflow-hidden print:justify-between pb-2 md:pb-3" : "min-h-[1123px] print:min-h-0 pb-3 md:pb-4"
                   )
             )}
           >
@@ -1296,11 +1296,11 @@ export function Impressos() {
             {(selectedType === 'declaracao' || selectedType === 'quitacao' || selectedType === 'ficha' || selectedType === 'carta') && (
               <div className={cn(
                 "flex items-center gap-6 pb-4 border-b-2 border-black text-left",
-                selectedType === 'ficha' ? "mb-1 pb-2" : "mb-8 pb-4"
+                selectedType === 'ficha' ? "mb-1 pb-2" : "mb-6 pb-3"
               )}>
-                <div className="flex-shrink-0 w-24 h-24 flex items-center justify-center">
+                <div className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 flex items-center justify-center">
                   {institution?.logo_url ? (
-                    <img src={institution.logo_url} className="w-full h-full object-contain max-h-24" referrerPolicy="no-referrer" alt="Logo" />
+                    <img src={institution.logo_url} className="w-full h-full object-contain max-h-20 md:max-h-24" referrerPolicy="no-referrer" alt="Logo" />
                   ) : (
                     <div className="w-full h-full border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
                       <span className="leading-none">SEM</span>
@@ -1312,15 +1312,15 @@ export function Impressos() {
                   <p className="text-[10px] md:text-[10pt] font-semibold tracking-widest text-slate-800 leading-tight uppercase font-sans">
                     {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                   </p>
-                  <h1 className="text-[16px] md:text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5 font-sans">
+                  <h1 className="text-[15px] md:text-[16pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5 font-sans">
                     {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                   </h1>
                   {institution?.subtitle && (
-                    <p className="text-[10px] md:text-[10.5pt] font-bold text-slate-700 tracking-wide mt-0.5 uppercase font-sans">
+                    <p className="text-[9.5px] md:text-[10pt] font-bold text-slate-700 tracking-wide mt-0.5 uppercase font-sans">
                       {institution.subtitle}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-2 text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1 mt-1 border-t border-slate-150 font-sans">
+                  <div className="flex flex-wrap items-center gap-x-2 text-[8.5px] md:text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1 mt-1 border-t border-slate-150 font-sans">
                     {[
                       institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
                       institution?.address ? institution.address : '',
@@ -1341,79 +1341,83 @@ export function Impressos() {
 
             {/* 1. DECLARAÇÃO DE MATRÍCULA */}
             {selectedType === 'declaracao' && (
-              <div className="space-y-12">
+              <div className="flex-1 flex flex-col justify-between">
                 {activeStudent ? (
                   <>
-                    {/* Title */}
-                    <div className="text-center space-y-2 pt-6">
-                      <h2 className="text-[20px] font-extrabold uppercase tracking-[0.2em] font-serif pb-2 max-w-md mx-auto">
-                        Declaração de Matrícula
-                      </h2>
-                      <p className="text-[10px] text-slate-400 tracking-widest uppercase font-sans">Matrícula Escolar Nº {activeStudent.registration_number}</p>
-                    </div>
+                    <div className="space-y-4">
+                      {/* Title */}
+                      <div className="text-center space-y-1 pt-2">
+                        <h2 className="text-[18px] font-extrabold uppercase tracking-[0.2em] font-serif pb-1 max-w-md mx-auto">
+                          Declaração de Matrícula
+                        </h2>
+                        <p className="text-[9.5px] text-slate-400 tracking-widest uppercase font-sans">Matrícula Escolar Nº {activeStudent.registration_number}</p>
+                      </div>
 
-                    {/* Body */}
-                    <div className="text-[13px] text-slate-800 leading-[2.2] text-justify font-serif space-y-6 pt-6">
-                      <p>
-                        Declaramos, para os devidos fins de direito e a quem possa interessar, que o(a) estudante 
-                        <strong className="text-black font-extrabold text-[14px] uppercase tracking-wide"> {activeStudent.name}</strong>, 
-                        inscrito(a) sob o registro geral de matrícula acadêmica número <strong>{activeStudent.registration_number || '---'}</strong>, 
-                        portador(a) do CPF <strong>{activeStudent.cpf || 'Não Informado'}</strong> e RG <strong>{activeStudent.rg || 'Não Informado'}</strong>, 
-                        encontra-se regularmente matriculado(a) e com frequência ativa nesta instituição de ensino no curso de 
-                        <strong> {activeStudent.course || 'Teologia e Formação Ministerial'}</strong>.
-                      </p>
-
-                      <p>
-                        O referido aluno está devidamente vinculado à classe <strong>{activeClass?.name || 'Turma Ativa'}</strong> correspondente ao ano letivo em exercício, frequentando regularmente as aulas com aproveitamento e assiduidade compatíveis às exigências canônicas e acadêmicas vigentes.
-                      </p>
-
-                      {customText && (
-                        <p className="italic text-slate-700 bg-slate-50 p-4 border-l-4 border-slate-300 my-4 text-[12px] leading-relaxed">
-                          {customText}
+                      {/* Body */}
+                      <div className="text-[12px] md:text-[12.5px] text-slate-800 leading-[2] text-justify font-serif space-y-4 pt-2">
+                        <p>
+                          Declaramos, para os devidos fins de direito e a quem possa interessar, que o(a) estudante 
+                          <strong className="text-black font-extrabold text-[13px] md:text-[13.5px] uppercase tracking-wide"> {activeStudent.name}</strong>, 
+                          inscrito(a) sob o registro geral de matrícula acadêmica número <strong>{activeStudent.registration_number || '---'}</strong>, 
+                          portador(a) do CPF <strong>{activeStudent.cpf || 'Não Informado'}</strong> e RG <strong>{activeStudent.rg || 'Não Informado'}</strong>, 
+                          encontra-se regularmente matriculado(a) e com frequência ativa nesta instituição de ensino no curso de 
+                          <strong> {activeStudent.course || 'Teologia e Formação Ministerial'}</strong>.
                         </p>
-                      )}
 
-                      <p className="pt-4">
-                        Por ser a expressão da verdade, firmamos o presente documento para que produza seus devidos e legais efeitos.
-                      </p>
+                        <p>
+                          O referido aluno está devidamente vinculado à classe <strong>{activeClass?.name || 'Turma Ativa'}</strong> correspondente ao ano letivo em exercício, frequentando regularmente as aulas com aproveitamento e assiduidade compatíveis às exigências canônicas e acadêmicas vigentes.
+                        </p>
+
+                        {customText && (
+                          <p className="italic text-slate-700 bg-slate-50 p-3 border-l-4 border-slate-300 my-2 text-[11px] leading-relaxed">
+                            {customText}
+                          </p>
+                        )}
+
+                        <p className="pt-2">
+                          Por ser a expressão da verdade, firmamos o presente documento para que produza seus devidos e legais efeitos.
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Location & Date */}
-                    <div className="text-right pt-12 text-[12px] font-serif">
-                      <p className="uppercase tracking-wide font-bold">
-                        {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
-                      </p>
-                    </div>
+                    <div className="mt-auto pt-6 pb-2">
+                      {/* Location & Date */}
+                      <div className="text-right pb-8 text-[11.5px] font-serif">
+                        <p className="uppercase tracking-wide font-bold">
+                          {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
+                        </p>
+                      </div>
 
-                    {/* Signatures Footer */}
-                    <div className="pt-24 flex items-end justify-around font-sans">
-                      {signerRole !== 'diretor' && (
-                        <div className="flex flex-col items-center gap-1.5 text-center">
-                          <div className="w-56 border-b border-black" />
-                          <p className="text-[11px] font-bold text-slate-900 uppercase tracking-widest">
-                            {signerName}
-                          </p>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                            {signerTitle}
-                          </p>
-                        </div>
-                      )}
+                      {/* Signatures Footer */}
+                      <div className="flex items-end justify-around font-sans">
+                        {signerRole !== 'diretor' && (
+                          <div className="flex flex-col items-center gap-1 text-center">
+                            <div className="w-52 md:w-56 border-b border-black" />
+                            <p className="text-[10px] md:text-[11px] font-bold text-slate-900 uppercase tracking-widest">
+                              {signerName}
+                            </p>
+                            <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest">
+                              {signerTitle}
+                            </p>
+                          </div>
+                        )}
 
-                      {signerRole === 'ambos' && (
-                        <div className="w-12 h-[1px] bg-transparent" />
-                      )}
+                        {signerRole === 'ambos' && (
+                          <div className="w-8 h-[1px] bg-transparent" />
+                        )}
 
-                      {signerRole !== 'secretario' && (
-                        <div className="flex flex-col items-center gap-1.5 text-center">
-                          <div className="w-56 border-b border-black" />
-                          <p className="text-[11px] font-bold text-slate-900 uppercase tracking-widest">
-                            {signerRole === 'ambos' ? coSignerName : signerName}
-                          </p>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                            {signerRole === 'ambos' ? coSignerTitle : signerTitle}
-                          </p>
-                        </div>
-                      )}
+                        {signerRole !== 'secretario' && (
+                          <div className="flex flex-col items-center gap-1 text-center">
+                            <div className="w-52 md:w-56 border-b border-black" />
+                            <p className="text-[10px] md:text-[11px] font-bold text-slate-900 uppercase tracking-widest">
+                              {signerRole === 'ambos' ? coSignerName : signerName}
+                            </p>
+                            <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest">
+                              {signerRole === 'ambos' ? coSignerTitle : signerTitle}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -2096,55 +2100,59 @@ export function Impressos() {
 
             {/* 5. DECLARAÇÃO DE QUITAÇÃO FINANCEIRA */}
             {selectedType === 'quitacao' && (
-              <div className="space-y-12">
+              <div className="flex-1 flex flex-col justify-between">
                 {activeStudent ? (
                   <>
-                    {/* Title */}
-                    <div className="text-center space-y-2 pt-6">
-                      <h2 className="text-[18px] font-extrabold uppercase tracking-[0.2em] font-serif border-b-2 border-slate-950 pb-2 max-w-lg mx-auto">
-                        Certidão de Quitação Financeira
-                      </h2>
-                      <p className="text-[10px] text-slate-400 tracking-widest uppercase font-sans">Referente ao Ano Exercício de {new Date().getFullYear()}</p>
-                    </div>
+                    <div className="space-y-4">
+                      {/* Title */}
+                      <div className="text-center space-y-1 pt-2">
+                        <h2 className="text-[18px] font-extrabold uppercase tracking-[0.2em] font-serif border-b-2 border-slate-950 pb-1 max-w-lg mx-auto">
+                          Certidão de Quitação Financeira
+                        </h2>
+                        <p className="text-[9.5px] text-slate-400 tracking-widest uppercase font-sans">Referente ao Ano Exercício de {new Date().getFullYear()}</p>
+                      </div>
 
-                    {/* Body text */}
-                    <div className="text-[14px] text-slate-800 leading-[2.4] text-justify font-serif space-y-6 pt-6">
-                      <p>
-                        A tesouraria e diretoria administrativa da <strong className="text-black font-extrabold uppercase tracking-wide">{institution?.name || 'Escola de Formação Conciliar'}</strong>, no uso de suas competências regimentais, certifica para os devidos fins que o(a) estudante <strong className="text-black font-extrabold uppercase">{activeStudent.name}</strong>, inscrito(a) sob o Registro Geral nº <strong className="text-black font-mono">{activeStudent.registration_number || '---'}</strong>:
-                      </p>
-
-                      {pendingPayments.isPending ? (
+                      {/* Body text */}
+                      <div className="text-[12.5px] md:text-[13px] text-slate-800 leading-[2.1] text-justify font-serif space-y-4 pt-4">
                         <p>
-                          Apresenta <strong className="text-red-700 font-extrabold">pendência financeira em aberto</strong> referente ao(s) mês(es) de <strong className="text-black font-extrabold">{formatPendingMonthsText(pendingPayments.months)}</strong> do ano de <strong className="text-black font-extrabold">{pendingPayments.year}</strong>, não se encontrando plenamente em dia com o caixa desta instituição de ensino até a presente data.
+                          A tesouraria e diretoria administrativa da <strong className="text-black font-extrabold uppercase tracking-wide">{institution?.name || 'Escola de Formação Conciliar'}</strong>, no uso de suas competências regimentais, certifica para os devidos fins que o(a) estudante <strong className="text-black font-extrabold uppercase">{activeStudent.name}</strong>, inscrito(a) sob o Registro Geral nº <strong className="text-black font-mono">{activeStudent.registration_number || '---'}</strong>:
                         </p>
-                      ) : (
-                        <p>
-                          Encontra-se com todas as parcelas e contribuições de ajuda de custo acadêmicas devidamente quitadas e em dia com o caixa desta instituição de ensino, não constando nenhuma pendência financeira ou débito pendente até a presente data.
-                        </p>
-                      )}
 
-                      <p>
-                        Por ser verdade e a pedido da parte interessada para que conste e produza seus devidos fins legais, expedimos e assinamos o presente termo.
-                      </p>
+                        {pendingPayments.isPending ? (
+                          <p>
+                            Apresenta <strong className="text-red-700 font-extrabold">pendência financeira em aberto</strong> referente ao(s) mês(es) de <strong className="text-black font-extrabold">{formatPendingMonthsText(pendingPayments.months)}</strong> do ano de <strong className="text-black font-extrabold">{pendingPayments.year}</strong>, não se encontrando plenamente em dia com o caixa desta instituição de ensino até a presente data.
+                          </p>
+                        ) : (
+                          <p>
+                            Encontra-se com todas as parcelas e contribuições de ajuda de custo acadêmicas devidamente quitadas e em dia com o caixa desta instituição de ensino, não constando nenhuma pendência financeira ou débito pendente até a presente data.
+                          </p>
+                        )}
+
+                        <p className="pt-2">
+                          Por ser verdade e a pedido da parte interessada para que conste e produza seus devidos fins legais, expedimos e assinamos o presente termo.
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Location / Date */}
-                    <div className="text-right pt-12 text-[12px] font-serif">
-                      <p className="uppercase tracking-wide font-bold">
-                        {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
-                      </p>
-                    </div>
+                    <div className="mt-auto pt-6 pb-2">
+                      {/* Location / Date */}
+                      <div className="text-right pb-8 text-[11.5px] font-serif">
+                        <p className="uppercase tracking-wide font-bold">
+                          {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
+                        </p>
+                      </div>
 
-                    {/* Signature */}
-                    <div className="pt-24 flex flex-col items-center justify-center font-sans">
-                      <div className="flex flex-col items-center gap-1.5 text-center">
-                        <div className="w-64 border-b border-black" />
-                        <p className="text-[11px] font-bold text-slate-900 uppercase tracking-widest">
-                          {signerName}
-                        </p>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                          {signerTitle || 'Tesouraria / Gestão de Contas'}
-                        </p>
+                      {/* Signature */}
+                      <div className="flex flex-col items-center justify-center font-sans">
+                        <div className="flex flex-col items-center gap-1 text-center">
+                          <div className="w-64 border-b border-black" />
+                          <p className="text-[10px] md:text-[11px] font-bold text-slate-900 uppercase tracking-widest">
+                            {signerName}
+                          </p>
+                          <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest">
+                            {signerTitle || 'Tesouraria / Gestão de Contas'}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </>

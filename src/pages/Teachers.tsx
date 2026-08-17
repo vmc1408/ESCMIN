@@ -752,41 +752,7 @@ export function Teachers() {
     const teacherSubjectsSummary = summaryParts.join(' | ');
 
     return (
-      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-auto max-h-[254mm] mx-auto p-0">
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            @page {
-              size: portrait;
-              margin: 6mm 10mm 6mm 10mm !important;
-            }
-            html, body {
-              height: auto !important;
-              max-height: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              overflow: visible !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-              color-adjust: exact !important;
-            }
-            #printable-teacher-record {
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: space-between !important;
-              height: auto !important;
-              max-height: 254mm !important;
-              min-height: 0 !important;
-              width: 100% !important;
-              page-break-after: avoid !important;
-              page-break-inside: avoid !important;
-              break-after: avoid !important;
-              break-inside: avoid !important;
-              box-sizing: border-box !important;
-              overflow: hidden !important;
-            }
-          }
-        ` }} />
-        
+      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] max-h-[275mm] min-h-[275mm] mx-auto p-0 box-border">
         {/* TOP SECTION: Header + Control Boxes + Teacher Data */}
         <div className="flex-1 flex flex-col justify-start">
           {/* Institutional Header */}

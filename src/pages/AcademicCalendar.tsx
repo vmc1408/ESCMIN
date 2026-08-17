@@ -4608,23 +4608,7 @@ export function AcademicCalendar() {
       </div>
 
       {/* Relatórios para Impressão (Apenas via @media print) */}
-      <div id="printable-calendar" className="hidden print:block absolute inset-0 bg-white z-[9999] p-0 m-0 overflow-visible">
-        <style>
-          {`
-            @media print {
-              @page {
-                size: A4 portrait !important;
-                margin: 10mm 12mm !important;
-              }
-              .page-break { page-break-after: always !important; break-after: always !important; }
-              .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
-              .monthly-grid-print {
-                max-height: 100%;
-              }
-            }
-          `}
-        </style>
-        
+      <div id="printable-calendar" className="hidden print:block bg-white p-0 m-0 w-full">
         <div className="print-container font-sans text-slate-800">
           <table className="w-full">
             <thead>

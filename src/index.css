@@ -71,18 +71,19 @@
     
     /* Reset page and body for consistent margins and high-fidelity paging */
     @page {
-      size: portrait;
-      margin: 6mm 10mm 6mm 10mm;
+      size: A4 portrait;
+      margin: 8mm 10mm 8mm 10mm;
     }
     
     html, body {
       margin: 0 !important;
       padding: 0 !important;
       height: auto !important;
+      min-height: 0 !important;
       background: #ffffff !important;
       color: #000000 !important;
-      font-size: 13px; /* Slightly standard legible base font size */
-      line-height: 1.4 !important;
+      font-size: 12px;
+      line-height: 1.35 !important;
       overflow: visible !important;
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
@@ -91,14 +92,16 @@
     html, body, #root, [class*="min-h-screen"], [class*="h-screen"], main, .overflow-y-auto {
       height: auto !important;
       min-height: 0 !important;
+      max-height: none !important;
       overflow: visible !important;
       position: static !important;
       margin: 0 !important;
       padding: 0 !important;
+      background: transparent !important;
     }
 
-    /* Hide screen-only interactive visual elements globally */
-    nav, aside, header, footer, button, .print-hide, .btn, [role="button"], .no-print {
+    /* Hide screen-only interactive visual elements globally so they take 0 layout space */
+    nav, aside, header:not(.printable-header), footer:not(.printable-footer), button, .print-hide, .btn, [role="button"], .no-print, .print\:hidden {
       display: none !important;
       height: 0 !important;
       width: 0 !important;
@@ -108,49 +111,42 @@
       visibility: hidden !important;
     }
 
-    /* Visibility control to eliminate navigation sidebars/drawers while rendering specific print targets */
-    body * {
-      visibility: hidden;
-    }
-
-    /* Expose only the target printable container and its children */
-    [id^="printable-"],
-    [id^="printable-"] * {
-      visibility: visible !important;
-    }
-
-    /* Set up absolute document positioning at top 0 left 0 to eliminate layout shifts */
-    [id^="printable-"] {
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      display: block !important;
-      width: 100% !important;
-      max-width: 100% !important; /* Allow the container to natively fit the full page width based on portrait/landscape */
-      height: auto !important;
-      min-height: 0 !important;
-      margin: 0 !important;
-      background: white !important;
-      z-index: 99999 !important;
-    }
-
+    /* Standardized single-page printable documents across Firefox, Chrome, Safari */
     #printable-student-record,
     #printable-teacher-record,
     #printable-class-record,
     #printable-subject-record,
-    .printable-standard-sheet {
-      height: auto !important;
-      min-height: 0 !important;
-      max-height: 254mm !important;
+    .printable-standard-sheet,
+    .printable-single-page {
       display: flex !important;
       flex-direction: column !important;
       justify-content: space-between !important;
-      page-break-after: avoid !important;
-      page-break-inside: avoid !important;
-      break-after: avoid !important;
-      break-inside: avoid !important;
-      overflow: hidden !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 275mm !important;
+      min-height: 275mm !important;
+      max-height: 275mm !important;
       box-sizing: border-box !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      page-break-inside: avoid !important;
+      page-break-after: avoid !important;
+      page-break-before: avoid !important;
+      break-inside: avoid !important;
+      break-after: avoid !important;
+      break-before: avoid !important;
+      background: white !important;
+    }
+
+    /* Multi-page printable documents and breaks */
+    .print-page-break,
+    .forania-print-page,
+    .certificate-printable-item {
+      page-break-after: always !important;
+      break-after: always !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
 
     /* Strict alignment and border rules for crisp table elements */
@@ -158,7 +154,6 @@
       width: 100% !important;
       border-collapse: collapse !important;
       border-spacing: 0 !important;
-      page-break-inside: auto !important;
     }
     
     tr {
@@ -183,33 +178,32 @@
     }
 
     p, td, th {
-      color: #1e293b; /* Readable charcoal body color without forcing important, preserving certificates styles */
+      color: #1e293b;
     }
 
     /* Standardized printable styles to ensure cross-device consistency */
     .print-border {
-      border: 1px solid #cbd5e1 !important; /* solid slate-300 */
+      border: 1px solid #cbd5e1 !important;
     }
 
     .print-border-b {
-      border-bottom: 1px solid #e2e8f0 !important; /* solid slate-200 */
+      border-bottom: 1px solid #e2e8f0 !important;
     }
 
-    /* Consistent backgrounds across Webkit & Gecko print rendering engines */
     .print-bg-slate {
-      background-color: #f1f5f9 !important; /* slate-100 */
+      background-color: #f1f5f9 !important;
     }
 
     .print-bg-emerald {
-      background-color: #f0fdf4 !important; /* emerald-50 */
+      background-color: #f0fdf4 !important;
     }
 
     .print-bg-rose {
-      background-color: #fff1f2 !important; /* rose-50 */
+      background-color: #fff1f2 !important;
     }
 
     .print-bg-amber {
-      background-color: #fffbeb !important; /* amber-50 */
+      background-color: #fffbeb !important;
     }
   }
 }
