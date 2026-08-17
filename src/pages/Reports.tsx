@@ -3153,8 +3153,8 @@ export function Reports() {
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
-              size: A4 landscape;
-              margin: 0;
+              size: A4 landscape !important;
+              margin: 0 !important;
             }
             html, body {
               width: 297mm !important;
@@ -3166,24 +3166,8 @@ export function Reports() {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            
-            /* Hide the main #root layout so only the React Portal-rendered certificate is rendered */
-            #root, .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print {
-              display: none !important;
-              visibility: hidden !important;
-              height: 0 !important;
-              width: 0 !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            
-            body {
-              display: block !important;
-              visibility: visible !important;
-              background: white !important;
-            }
 
-            #certificate-printable, .certificate-printable-item {
+            #printable-certificate, .certificate-printable-item {
                display: flex !important;
                visibility: visible !important;
                width: 297mm !important;
@@ -3198,7 +3182,7 @@ export function Reports() {
                page-break-inside: avoid !important;
                overflow: hidden !important;
              }
-            #certificate-printable {
+            #printable-certificate {
                position: absolute !important;
                left: 0 !important;
                top: 0 !important;
@@ -3206,21 +3190,22 @@ export function Reports() {
              .certificate-printable-item {
                position: relative !important;
                page-break-after: always !important;
+               break-after: always !important;
              }
              .certificate-printable-item:last-child {
                page-break-after: avoid !important;
                break-after: avoid !important;
              }
-            #certificate-printable *, .certificate-printable-item * {
+            #printable-certificate *, .certificate-printable-item * {
               visibility: visible !important;
             }
           }
         `}} />
       )}
 
-      {/* Printable Certificate List (A4 Landscape Frame) - Rendered via React Portal directly into body to bypass index.css portrait selectors */}
+      {/* Printable Certificate List (A4 Landscape Frame) - Rendered via React Portal directly into body */}
       {printList && printList.length > 0 && typeof document !== 'undefined' && createPortal(
-        <div id="certificate-printable-list" className="hidden print:block absolute left-0 top-0 w-full z-[99999] bg-white text-black font-serif">
+        <div id="printable-certificate-list" className="hidden print:block absolute left-0 top-0 w-full z-[99999] bg-white text-black font-serif">
           {printList.map((certItem) => (
              <div 
                key={certItem.id || certItem.student_id} 
@@ -3256,7 +3241,7 @@ export function Reports() {
         document.body
       )}
 
-      {/* Printable Certificate (A4 Landscape Frame) - Rendered via React Portal directly into body to bypass index.css portrait selectors */}
+      {/* Printable Certificate (A4 Landscape Frame) - Rendered via React Portal directly into body */}
       {viewingCertificate && (!printList || printList.length === 0) && typeof document !== 'undefined' && createPortal((() => {
         const studentId = printFormStudentId === 'single' ? viewingCertificate.student_id : printFormStudentId;
         const targetStudentRes = diarioClassResults.find(r => r.student.id === studentId);
@@ -3266,7 +3251,7 @@ export function Reports() {
         const activeDate = printFormDate || viewingCertificate.issuance_date;
 
         return (
-          <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
+          <div id="printable-certificate" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border">
             <div className={getCertificateBorderClassName(activeType)}>
                {renderCertificateDecorations(activeType)}
                <div className="flex items-center justify-center gap-6 mt-2">

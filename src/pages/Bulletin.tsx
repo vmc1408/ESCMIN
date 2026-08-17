@@ -2134,28 +2134,8 @@ export function Bulletin() {
       <style>{`
         @media print {
           @page {
-            size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'};
-            margin: ${viewMode === 'class' ? '10mm 12mm' : '12mm 14mm'};
-            @bottom-right {
-              content: "Página " counter(page);
-              font-size: 8px;
-              color: rgb(148, 163, 184); /* Slate 400 */
-              font-family: "Inter", sans-serif;
-              font-weight: 800;
-              text-transform: uppercase;
-              letter-spacing: 0.12em;
-            }
-          }
-
-          /* Hide scrollbars globally on print */
-          ::-webkit-scrollbar {
-            display: none !important;
-            width: 0 !important;
-            height: 0 !important;
-          }
-          * {
-            scrollbar-width: none !important;
-            -ms-overflow-style: none !important;
+            size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'} !important;
+            margin: ${viewMode === 'class' ? '10mm 12mm' : '10mm 12mm'} !important;
           }
 
           /* General breaking helper */
@@ -2165,31 +2145,9 @@ export function Bulletin() {
             page-break-inside: avoid !important;
           }
 
-          /* === INDIVIDUAL BULLETIN PRINT STYLE OVERRIDES === */
-          #printable-boletim {
-            position: relative !important;
-            left: auto !important;
-            top: auto !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            height: auto !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            padding: 0px !important; /* Clears screen paddings so margins are strictly governed by A4 @page */
-            background: white !important;
-            z-index: 9999 !important;
-            display: block !important;
-            visibility: visible !important;
-            overflow: visible !important;
-            border: none !important;
-            box-shadow: none !important;
-          }
-          #printable-boletim * {
-            visibility: visible !important;
-          }
-
           /* Hide scrolling wrapper behaviors to prevent scrollbars printing */
-          #printable-boletim .overflow-x-auto {
+          #printable-boletim .overflow-x-auto,
+          #printable-class-bulletin .overflow-x-auto {
             overflow: visible !important;
             overflow-x: visible !important;
             border: none !important;
@@ -2325,32 +2283,7 @@ export function Bulletin() {
             font-size: 8.5px !important;
           }
 
-
           /* === CLASS BULLETIN GENERAL PRINT STYLE OVERRIDES === */
-          #printable-class-bulletin {
-            position: relative !important;
-            left: auto !important;
-            top: auto !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            height: auto !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            padding: 0px !important;
-            background: white !important;
-            z-index: 9999 !important;
-            display: block !important;
-            visibility: visible !important;
-            overflow: visible !important;
-            border: none !important;
-            box-shadow: none !important;
-          }
-          #printable-class-bulletin * {
-            visibility: visible !important;
-            overflow: visible !important;
-          }
-          
-          /* Set custom column widths and align correctly under print */
           #printable-class-bulletin thead tr.table-columns-header th,
           #printable-class-bulletin tbody td {
             padding: 1.5mm 1mm !important;
@@ -2363,14 +2296,12 @@ export function Bulletin() {
             white-space: nowrap !important;
           }
           
-          /* Column widths helper */
           #printable-class-bulletin thead tr.table-columns-header th:nth-child(1),
           #printable-class-bulletin tbody td:nth-child(1) {
             width: 30% !important;
             text-align: left !important;
           }
 
-          /* Compress final status and average grade badges under print to prevent tall cells */
           #printable-class-bulletin tbody td span {
             padding: 0.5mm 1mm !important;
             font-size: 8px !important;
@@ -2382,9 +2313,9 @@ export function Bulletin() {
             white-space: nowrap !important;
           }
 
-          /* Ensure table elements wrap and break beautifully */
           tr {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           thead {
             display: table-header-group !important;

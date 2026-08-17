@@ -492,7 +492,7 @@ export function Impressos() {
 
   return (
     <div className="relative font-sans text-slate-800 pb-12 print:pb-0 print:p-0 print:m-0">
-      {/* Dynamic print-only style sheet to format printed pages */}
+      {/* Dynamic style sheet for Pimaco sticker sheets and specialized print layouts */}
       <style dangerouslySetInnerHTML={{ __html: `
         /* Pimaco 6183 Sheet layout (2 columns, 5 rows = 10 labels) */
         .pimaco-sheet {
@@ -522,11 +522,9 @@ export function Impressos() {
           border: ${showCardCutBorders ? '1px dashed #ddd' : 'none'};
         }
         /* Ajustes precisos de alinhamento para Pimaco 8099F / 6183 */
-        /* Primeira coluna recua 0,5 cm para a esquerda */
         .pimaco-label:nth-child(odd) {
           left: -5.0mm;
         }
-        /* Segunda coluna recua 0,1 cm para a esquerda */
         .pimaco-label:nth-child(even) {
           left: -1.0mm;
         }
@@ -563,66 +561,33 @@ export function Impressos() {
           border: ${showLabelCutBorders ? '1px dashed #ddd' : 'none'};
           top: -7.0mm;
         }
-        /* Ajustes específicos de colunas para etiquetas de endereçamento (Pimaco 6180) */
-        /* Primeira coluna recua 1,3 cm para a esquerda */
         .pimaco-label-6180:nth-child(3n+1) {
           left: -13.0mm;
         }
-        /* Segunda coluna recua 0,8 cm para a esquerda */
         .pimaco-label-6180:nth-child(3n+2) {
           left: -8.0mm;
         }
-        /* Terceira coluna recua 0,1 cm para a esquerda */
         .pimaco-label-6180:nth-child(3n) {
           left: -1.0mm;
         }
 
         @media print {
-          @page {
-            size: ${selectedType === 'etiquetas' ? '217mm 279mm' : (selectedType === 'carteirinhas' ? 'letter portrait' : 'A4 portrait')} !important;
-            margin: ${(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? '0mm !important' : '10mm 15mm 4mm 15mm !important'};
-          }
-          body {
-            background-color: #fff !important;
-            color: #000 !important;
-            font-family: 'Georgia', 'Times New Roman', serif !important;
-          }
-          nav, sidebar, .print\\:hidden, header, footer, button, select, input, textarea, .PageHeader {
-            display: none !important;
-          }
-          main, .main-content-parent, #root, .App-container {
-            padding: 0 !important;
-            margin: 0 !important;
-            background: none !important;
-            border: none !important;
-          }
-          .print-preview-container {
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            background: transparent !important;
-          }
-          .print-page-break {
-            page-break-after: always !important;
-          }
-          /* Custom overrides for crisp monochrome printing */
-          .text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600 {
-            color: #000 !important;
-          }
-          .border-slate-100, .border-slate-200, .border-dashed {
-            border-color: #333 !important;
-          }
-          .bg-slate-50, .bg-slate-100 {
-            background-color: transparent !important;
-          }
+          ${(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? `
+            @page {
+              size: ${selectedType === 'etiquetas' ? '217mm 279mm' : 'letter portrait'} !important;
+              margin: 0mm !important;
+            }
+          ` : `
+            @page {
+              size: A4 portrait !important;
+              margin: 10mm 14mm 8mm 14mm !important;
+            }
+          `}
 
-          /* Print Overrides for Pimaco Sheets */
           .pimaco-sheet, .pimaco-sheet-6180 {
             display: grid !important;
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
             background-color: #fff !important;
             box-shadow: none !important;
             border: none !important;
@@ -630,7 +595,12 @@ export function Impressos() {
           }
           .pimaco-label, .pimaco-label-6180 {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
             background-color: #fff !important;
+          }
+          .print-page-break {
+            page-break-after: always !important;
+            break-after: always !important;
           }
         }
       `}} />
@@ -1312,12 +1282,12 @@ export function Impressos() {
           <div 
             id="printable-impressos" 
             className={cn(
-              "print-preview-container select-text relative flex flex-col",
+              "print-preview-container select-text relative flex flex-col print:h-auto print:min-h-0 print:p-0 print:m-0 print:border-none print:shadow-none print:max-w-none print:w-full",
               (selectedType === 'carteirinhas' || selectedType === 'etiquetas')
                 ? "bg-transparent border-none shadow-none p-0 max-w-none w-auto"
                 : cn(
                     "bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto",
-                    isSinglePageType ? "h-[1123px] pb-2 md:pb-3" : "min-h-[1123px] pb-3 md:pb-4"
+                    isSinglePageType ? "h-[1123px] print:h-auto pb-2 md:pb-3" : "min-h-[1123px] print:min-h-0 pb-3 md:pb-4"
                   )
             )}
           >

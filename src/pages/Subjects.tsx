@@ -1059,29 +1059,30 @@ export function Subjects() {
 
       {/* Printable Subject Record */}
       {selectedSubject && (
-        <div id="printable-subject-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[278mm] min-h-[278mm] max-h-[278mm] mx-auto p-0">
+        <div id="printable-subject-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-auto max-h-[254mm] mx-auto p-0">
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
               @page {
-                size: A4 portrait;
-                margin: 8mm 12mm 8mm 12mm !important;
+                size: portrait;
+                margin: 6mm 10mm 6mm 10mm !important;
               }
               html, body {
-                height: 100% !important;
+                height: auto !important;
                 max-height: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                overflow: hidden !important;
+                overflow: visible !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                color-adjust: exact !important;
               }
               #printable-subject-record {
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
-                height: 278mm !important;
-                max-height: 278mm !important;
-                min-height: 278mm !important;
+                height: auto !important;
+                max-height: 254mm !important;
+                min-height: 0 !important;
                 width: 100% !important;
                 page-break-after: avoid !important;
                 page-break-inside: avoid !important;
@@ -1096,86 +1097,86 @@ export function Subjects() {
           {/* TOP SECTION: Header + Control Boxes + Subject Data + Content */}
           <div className="flex-1 flex flex-col justify-start">
             {/* Institutional Header */}
-            <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black">
-              <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+            <div className="flex items-center gap-4 mb-2 pb-1 border-b-2 border-black">
+              <div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
                 {inst?.logo_url ? (
-                  <img src={inst.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
+                  <img src={inst.logo_url} className="w-full h-full object-contain max-h-14" referrerPolicy="no-referrer" alt="Logo" />
                 ) : (
-                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
+                  <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-300 font-bold uppercase">
                     <span className="leading-none">SEM</span>
                     <span className="leading-none">LOGO</span>
                   </div>
                 )}
               </div>
               <div className="flex-1 flex flex-col">
-                <p className="text-[10.5pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-                <h1 className="text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
+                <p className="text-[9pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
+                <h1 className="text-[13pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
                   {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                 </h1>
-                <p className="text-[11pt] font-bold text-slate-700 tracking-wide uppercase">
+                <p className="text-[9pt] font-bold text-slate-700 tracking-wide uppercase">
                   {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                 </p>
               </div>
             </div>
 
-            <div className="text-center mb-3">
-              <h2 className="text-[15pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b border-black/10 pb-0.5">Ficha da Disciplina</h2>
+            <div className="text-center mb-1.5">
+              <h2 className="text-[12pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b border-black/10 pb-0.5">Ficha da Disciplina</h2>
             </div>
 
             {/* TOP CONTROL BOXES */}
-            <div className="grid grid-cols-12 gap-3 mb-3.5">
-              <div className="col-span-3 border border-black/40 p-2 flex flex-col h-[3.2cm] justify-between">
-                <p className="text-[9.5pt] font-semibold border-b border-black/10 pb-0.5 uppercase">Controle</p>
+            <div className="grid grid-cols-12 gap-2.5 mb-2">
+              <div className="col-span-3 border border-black/40 p-1.5 flex flex-col h-[2.7cm] justify-between">
+                <p className="text-[8pt] font-semibold border-b border-black/10 pb-0.5 uppercase">Controle</p>
                 <div className="flex-1 flex flex-col justify-center items-center">
-                  <p className="text-[8pt] font-bold uppercase opacity-40 text-center mb-0.5">Código da Matéria</p>
-                  <div className="border border-black/10 h-9 w-24 flex items-center justify-center font-bold text-[13pt] bg-white">
+                  <p className="text-[7pt] font-bold uppercase opacity-40 text-center mb-0.5">Código da Matéria</p>
+                  <div className="border border-black/10 h-7 w-24 flex items-center justify-center font-bold text-[11pt] bg-white">
                     {selectedSubject.code}
                   </div>
                 </div>
               </div>
 
-              <div className="col-span-6 border border-black/40 p-2 h-[3.2cm] flex flex-col justify-between">
-                <p className="text-[8.5pt] font-bold uppercase border-b border-black/10 pb-0.5 mb-1 tracking-tight">Informações Acadêmicas:</p>
-                <div className="grid grid-cols-2 gap-2 text-center my-auto">
-                  <div className="border border-black/10 p-1.5 bg-slate-50/30">
-                    <p className="text-[7.5pt] font-bold uppercase opacity-60">Ano Curricular</p>
-                    <p className="text-[9.5pt] font-bold uppercase">{selectedSubject.year || '---'}</p>
+              <div className="col-span-6 border border-black/40 p-1.5 h-[2.7cm] flex flex-col justify-between">
+                <p className="text-[7.5pt] font-bold uppercase border-b border-black/10 pb-0.5 mb-0.5 tracking-tight">Informações Acadêmicas:</p>
+                <div className="grid grid-cols-2 gap-1.5 text-center my-auto">
+                  <div className="border border-black/10 p-1 bg-slate-50/30">
+                    <p className="text-[6.5pt] font-bold uppercase opacity-60">Ano Curricular</p>
+                    <p className="text-[8.5pt] font-bold uppercase">{selectedSubject.year || '---'}</p>
                   </div>
-                  <div className="border border-black/10 p-1.5 bg-slate-50/30">
-                    <p className="text-[7.5pt] font-bold uppercase opacity-60">Semestre</p>
-                    <p className="text-[9.5pt] font-bold uppercase">{selectedSubject.semester || '---'}</p>
+                  <div className="border border-black/10 p-1 bg-slate-50/30">
+                    <p className="text-[6.5pt] font-bold uppercase opacity-60">Semestre</p>
+                    <p className="text-[8.5pt] font-bold uppercase">{selectedSubject.semester || '---'}</p>
                   </div>
                 </div>
-                <div className="text-[8pt] font-semibold flex items-center justify-between border-t border-black/10 pt-1">
+                <div className="text-[7.5pt] font-semibold flex items-center justify-between border-t border-black/10 pt-0.5">
                   <span>Carga Horária: <strong className="uppercase">{selectedSubject.workload ? `${selectedSubject.workload}h` : '30h'}</strong></span>
                   <span>Situação: <strong className="uppercase">{selectedSubject.status || 'Ativo'}</strong></span>
                 </div>
               </div>
 
-              <div className="col-span-3 border border-black/40 p-2 flex flex-col justify-between items-center bg-white h-[3.2cm]">
-                <p className="text-[8.5pt] font-bold uppercase border-b border-black/10 pb-0.5 w-full text-center">Responsável</p>
+              <div className="col-span-3 border border-black/40 p-1.5 flex flex-col justify-between items-center bg-white h-[2.7cm]">
+                <p className="text-[7.5pt] font-bold uppercase border-b border-black/10 pb-0.5 w-full text-center">Responsável</p>
                 <div className="flex-1 flex flex-col justify-center items-center text-center px-1">
-                  <p className="text-[9pt] font-bold uppercase leading-tight text-slate-900 line-clamp-2">
+                  <p className="text-[8.5pt] font-bold uppercase leading-tight text-slate-900 line-clamp-2">
                     {teachers.find(t => t.id === selectedSubject.teacher_id)?.name || 'NÃO DEFINIDO'}
                   </p>
-                  <p className="text-[7pt] font-bold uppercase text-slate-500 mt-1">Professor Titular</p>
+                  <p className="text-[6.5pt] font-bold uppercase text-slate-500 mt-0.5">Professor Titular</p>
                 </div>
-                <div className="text-[7pt] font-bold uppercase text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded w-full text-center">
+                <div className="text-[6.5pt] font-bold uppercase text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded w-full text-center">
                   {selectedSubject.status || 'Ativo'}
                 </div>
               </div>
             </div>
 
             {/* DADOS DA DISCIPLINA */}
-            <div className="space-y-1.5 mb-3 text-[10pt]">
+            <div className="space-y-0.5 mb-1.5 text-[8.5pt]">
               <div className="flex items-end gap-2">
                 <span className="font-semibold uppercase min-w-[55px] text-slate-900">Disciplina:</span>
-                <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[19px]">{selectedSubject.name}</span>
+                <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[16px]">{selectedSubject.name}</span>
               </div>
 
               <div className="flex items-end gap-2">
                 <span className="font-semibold uppercase min-w-[55px] text-slate-900">Habilitados:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px] text-[9pt]">
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[16px] text-[8pt]">
                   {getQualifiedTeachers(selectedSubject.id).length > 0 
                     ? getQualifiedTeachers(selectedSubject.id).map(t => t.name).join(', ') 
                     : 'Nenhum outro professor habilitado no cadastro'}
@@ -1184,11 +1185,11 @@ export function Subjects() {
             </div>
 
             {/* CONTEÚDO PROGRAMÁTICO */}
-            <div className="my-2 p-2.5 bg-white border border-black/20 rounded-none space-y-1.5 flex-1 flex flex-col">
-              <h4 className="text-[9pt] font-bold uppercase text-center border-b border-black/10 pb-1 tracking-wider">
+            <div className="my-1 p-2 bg-white border border-black/20 rounded-none space-y-1 flex-1 flex flex-col">
+              <h4 className="text-[8pt] font-bold uppercase text-center border-b border-black/10 pb-0.5 tracking-wider">
                 Conteúdo Programático e Ementa
               </h4>
-              <div className="text-[9pt] leading-relaxed text-justify whitespace-pre-wrap text-slate-800 p-1 flex-1 min-h-[160px]">
+              <div className="text-[8pt] leading-relaxed text-justify whitespace-pre-wrap text-slate-800 p-0.5 flex-1 min-h-[140px]">
                 {(selectedSubject.program_content || '')
                   .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
                   .replace(/\s*\}\]\s*$/g, '')
@@ -1198,23 +1199,23 @@ export function Subjects() {
           </div>
 
           {/* BOTTOM SECTION: PINNED FOOTER */}
-          <div className="mt-auto pt-2 shrink-0">
+          <div className="mt-auto pt-1 shrink-0">
             {/* RODAPÉ INSTITUCIONAL */}
-            <div className="border-t-2 border-black pt-1.5 pb-0 flex justify-between items-start text-black uppercase tracking-tight">
+            <div className="border-t border-black pt-1 pb-0 flex justify-between items-start text-black uppercase tracking-tight text-[6.5pt]">
               <div className="flex-1 space-y-0.5">
-                <p className="leading-snug text-[7.5pt] font-bold">
+                <p className="leading-snug font-bold">
                   {inst?.address}
                 </p>
                 {(inst?.cep || inst?.city_uf) && (
-                  <p className="leading-snug text-[7.5pt] font-bold">
+                  <p className="leading-snug font-bold">
                     {inst?.cep ? `CEP: ${inst.cep}` : ''} {inst?.city_uf ? ` - ${inst.city_uf}` : ''}
                   </p>
                 )}
-                <div className="flex items-center gap-3 leading-snug font-bold text-[7.5pt] pt-0.5">
+                <div className="flex items-center gap-3 leading-snug font-bold text-[6.5pt] pt-0.5">
                   {inst?.phone && (
                     <span className="flex items-center gap-1">
                       TEL: {inst.phone}
-                      <svg viewBox="0 0 24 24" width="10" height="10" fill="#25D366" className="shrink-0">
+                      <svg viewBox="0 0 24 24" width="9" height="9" fill="#25D366" className="shrink-0">
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                       </svg>
                     </span>
@@ -1228,9 +1229,9 @@ export function Subjects() {
                 </div>
               </div>
               {inst?.secretary && (
-                <div className="text-right max-w-[380px] leading-tight text-black font-bold uppercase text-[7pt]">
+                <div className="text-right max-w-[380px] leading-tight text-black font-bold uppercase text-[6.5pt]">
                   <p className="whitespace-pre-line underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
-                  <p className="whitespace-pre-line lowercase font-bold text-[7.5pt]">{inst.secretary}</p>
+                  <p className="whitespace-pre-line lowercase font-bold text-[6.5pt]">{inst.secretary}</p>
                 </div>
               )}
             </div>

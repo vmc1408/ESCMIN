@@ -1661,7 +1661,7 @@ export function StudentFicha() {
 
       {/* PORTAL FOR PERFECT PHYSICAL OR PDF LANDSCAPE PRINTING */}
       {viewingCertificate && typeof document !== 'undefined' && createPortal(
-         <div id="certificate-printable" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border bg-white">
+         <div id="printable-certificate" className="hidden print:flex absolute left-0 top-0 bg-white text-black font-serif justify-between text-center w-[297mm] h-[210mm] max-h-[210mm] max-w-[297mm] p-[10mm] z-[99999] overflow-hidden flex-col box-border bg-white">
            <div className={getCertificateBorderClassName(viewingCertificate.type)}>
               {renderCertificateDecorations(viewingCertificate.type)}
               <div className="flex items-center justify-center gap-6 mt-2">
@@ -1695,13 +1695,13 @@ export function StudentFicha() {
          document.body
       )}
 
-      {/* DYNAMIC LANDSCAPE PRINT RULE INJECTION */}
+      {/* DYNAMIC LANDSCAPE PRINT RULE INJECTION FOR CERTIFICATE */}
       {viewingCertificate && (
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
-              size: A4 landscape;
-              margin: 0;
+              size: A4 landscape !important;
+              margin: 0 !important;
             }
             html, body {
               width: 297mm !important;
@@ -1714,22 +1714,7 @@ export function StudentFicha() {
               print-color-adjust: exact !important;
             }
             
-            #root, .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print {
-              display: none !important;
-              visibility: hidden !important;
-              height: 0 !important;
-              width: 0 !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            
-            body {
-              display: block !important;
-              visibility: visible !important;
-              background: white !important;
-            }
-
-            #certificate-printable {
+            #printable-certificate {
                display: flex !important;
                visibility: visible !important;
                width: 297mm !important;
@@ -1746,86 +1731,9 @@ export function StudentFicha() {
                position: absolute !important;
                left: 0 !important;
                top: 0 !important;
-             }
-            #certificate-printable * {
+            }
+            #printable-certificate * {
               visibility: visible !important;
-            }
-          }
-        ` }} />
-      )}
-      
-      {/* DYNAMIC PORTRAIT PRINT RULE INJECTION */}
-      {!viewingCertificate && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            @page {
-              size: A4 portrait !important;
-              margin: 12mm 15mm 12mm 15mm !important;
-            }
-            html, body {
-              width: 100% !important;
-              height: auto !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              overflow: visible !important;
-              background-color: #ffffff !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            
-            #student-ficha-module > :not(#printable-student-record) {
-              display: none !important;
-            }
-
-            .fixed, .backdrop-blur, [role="dialog"], .print-hidden, .no-print, .print\\:hidden {
-              display: none !important;
-              visibility: hidden !important;
-              height: 0 !important;
-              width: 0 !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            
-            body {
-              display: block !important;
-              visibility: visible !important;
-              background: white !important;
-            }
-
-            #student-ficha-module {
-              background-color: transparent !important;
-              padding: 0 !important;
-              margin: 0 !important;
-            }
-
-            #printable-student-record {
-              display: block !important;
-              visibility: visible !important;
-              width: 100% !important;
-              height: auto !important;
-              min-height: 0 !important;
-              box-sizing: border-box !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-              overflow: visible !important;
-              position: static !important;
-            }
-
-            #printable-student-record * {
-              visibility: visible !important;
-            }
-
-            /* Prevent page break inside table rows and containers */
-            .break-inside-avoid, 
-            .page-break-inside-avoid,
-            #printable-student-record table, 
-            #printable-student-record tr, 
-            #printable-student-record .border, 
-            #printable-student-record .border-2,
-            .signatures-container-print {
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
             }
           }
         ` }} />

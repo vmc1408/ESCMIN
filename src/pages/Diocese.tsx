@@ -2348,32 +2348,6 @@ export function Diocese() {
               size: A4 landscape !important;
               margin: 10mm 10mm 10mm 10mm !important;
             }
-            html, body {
-              width: 100% !important;
-              height: auto !important;
-              background: #ffffff !important;
-              color: #0f172a !important;
-              overflow: visible !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            #printable-diocese-report {
-              display: block !important;
-              visibility: visible !important;
-              position: static !important;
-              width: 100% !important;
-              max-width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-              z-index: 999999 !important;
-            }
-            #printable-diocese-report * {
-              visibility: visible !important;
-            }
             .forania-print-page {
               width: 100% !important;
               box-sizing: border-box !important;
@@ -2385,12 +2359,6 @@ export function Diocese() {
             .forania-print-page:not(:first-child) {
               page-break-before: always !important;
               break-before: page !important;
-            }
-            .no-print, .print\\:hidden, [role="dialog"], .backdrop-blur {
-              display: none !important;
-              visibility: hidden !important;
-              height: 0 !important;
-              width: 0 !important;
             }
           }
         `}} />

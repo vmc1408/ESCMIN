@@ -4608,69 +4608,16 @@ export function AcademicCalendar() {
       </div>
 
       {/* Relatórios para Impressão (Apenas via @media print) */}
-      <div className="hidden print:block absolute inset-0 bg-white z-[9999] p-0 m-0 overflow-visible">
+      <div id="printable-calendar" className="hidden print:block absolute inset-0 bg-white z-[9999] p-0 m-0 overflow-visible">
         <style>
           {`
             @media print {
               @page {
-                size: A4 portrait;
-                margin: 1.2cm;
+                size: A4 portrait !important;
+                margin: 10mm 12mm !important;
               }
-              html, body {
-                height: auto !important;
-                overflow: visible !important;
-                background: white !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              .no-print {
-                display: none !important;
-              }
-              .print-container {
-                display: block !important;
-                visibility: visible !important;
-                position: relative !important;
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
-                transform-origin: top center;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              /* Garante que backgrounds e textos coloridos apareçam */
-              .print-container [class*="bg-"],
-              .print-container [class*="text-"],
-              .print-container [class*="border-"] {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              .print-container * {
-                visibility: visible !important;
-              }
-              .page-break { page-break-after: always; }
-              .avoid-break { page-break-inside: avoid; }
-              
-              /* Repetição de cabeçalho em todas as páginas */
-              table { 
-                width: 100% !important; 
-                border-collapse: collapse !important;
-                background: white !important;
-              }
-              thead { 
-                display: table-header-group !important; 
-              }
-              .printable-header {
-                display: flex !important;
-                width: 100% !important;
-              }
-              tbody {
-                display: table-row-group !important;
-              }
-
-              /* Forçar ajuste em uma página se for grade mensal única */
+              .page-break { page-break-after: always !important; break-after: always !important; }
+              .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
               .monthly-grid-print {
                 max-height: 100%;
               }

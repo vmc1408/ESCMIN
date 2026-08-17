@@ -752,29 +752,30 @@ export function Teachers() {
     const teacherSubjectsSummary = summaryParts.join(' | ');
 
     return (
-      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[278mm] min-h-[278mm] max-h-[278mm] mx-auto p-0">
+      <div id="printable-teacher-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-auto max-h-[254mm] mx-auto p-0">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page {
-              size: A4 portrait;
-              margin: 8mm 12mm 8mm 12mm !important;
+              size: portrait;
+              margin: 6mm 10mm 6mm 10mm !important;
             }
             html, body {
-              height: 100% !important;
+              height: auto !important;
               max-height: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
-              overflow: hidden !important;
+              overflow: visible !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
+              color-adjust: exact !important;
             }
             #printable-teacher-record {
               display: flex !important;
               flex-direction: column !important;
               justify-content: space-between !important;
-              height: 278mm !important;
-              max-height: 278mm !important;
-              min-height: 278mm !important;
+              height: auto !important;
+              max-height: 254mm !important;
+              min-height: 0 !important;
               width: 100% !important;
               page-break-after: avoid !important;
               page-break-inside: avoid !important;
@@ -789,62 +790,62 @@ export function Teachers() {
         {/* TOP SECTION: Header + Control Boxes + Teacher Data */}
         <div className="flex-1 flex flex-col justify-start">
           {/* Institutional Header */}
-          <div className="flex items-center gap-6 mb-4 pb-2 border-b-2 border-black">
-            <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+          <div className="flex items-center gap-4 mb-2 pb-1 border-b-2 border-black">
+            <div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
               {inst?.logo_url ? (
-                <img src={inst.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
+                <img src={inst.logo_url} className="w-full h-full object-contain max-h-14" referrerPolicy="no-referrer" alt="Logo" />
               ) : (
-                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
+                <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-300 font-bold uppercase">
                   <span className="leading-none">SEM</span>
                   <span className="leading-none">LOGO</span>
                 </div>
               )}
             </div>
             <div className="flex-1 flex flex-col">
-              <p className="text-[10.5pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-              <h1 className="text-[17pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
+              <p className="text-[9pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
+              <h1 className="text-[13pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
                 {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
               </h1>
-              <p className="text-[11pt] font-bold text-slate-700 tracking-wide uppercase">
+              <p className="text-[9pt] font-bold text-slate-700 tracking-wide uppercase">
                 {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
               </p>
             </div>
           </div>
 
-          <div className="text-center mb-3">
-            <h2 className="text-[15pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b border-black/10 pb-0.5">Ficha do Professor</h2>
+          <div className="text-center mb-1.5">
+            <h2 className="text-[12pt] font-bold uppercase tracking-[0.2em] w-fit mx-auto border-b border-black/10 pb-0.5">Ficha do Professor</h2>
           </div>
 
           {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-3 mb-3.5">
-            <div className="col-span-3 border border-black/40 p-2 flex flex-col h-[3.2cm] justify-between">
-              <p className="text-[9.5pt] font-semibold border-b border-black/10 pb-0.5 uppercase">Controle</p>
+          <div className="grid grid-cols-12 gap-2.5 mb-2">
+            <div className="col-span-3 border border-black/40 p-1.5 flex flex-col h-[2.7cm] justify-between">
+              <p className="text-[8pt] font-semibold border-b border-black/10 pb-0.5 uppercase">Controle</p>
               <div className="flex-1 flex flex-col justify-center items-center">
-                <p className="text-[8pt] font-bold uppercase opacity-40 text-center mb-0.5">Código Registro</p>
-                <div className="border border-black/10 h-9 w-24 flex items-center justify-center font-bold text-[13pt] bg-white">
+                <p className="text-[7pt] font-bold uppercase opacity-40 text-center mb-0.5">Código Registro</p>
+                <div className="border border-black/10 h-7 w-24 flex items-center justify-center font-bold text-[11pt] bg-white">
                   {selectedTeacher.code}
                 </div>
               </div>
             </div>
 
-            <div className="col-span-6 border border-black/40 p-2 h-[3.2cm] flex flex-col">
-              <p className="text-[8.5pt] font-bold uppercase border-b border-black/10 pb-0.5 mb-1 tracking-tight">Disciplinas Vinculadas:</p>
+            <div className="col-span-6 border border-black/40 p-1.5 h-[2.7cm] flex flex-col">
+              <p className="text-[7.5pt] font-bold uppercase border-b border-black/10 pb-0.5 mb-0.5 tracking-tight">Disciplinas Vinculadas:</p>
               <div className="flex-1 overflow-hidden flex items-center">
-                <p className="text-[8.5pt] font-bold leading-snug uppercase text-slate-900 line-clamp-4">
+                <p className="text-[7.5pt] font-bold leading-snug uppercase text-slate-900 line-clamp-4">
                   {teacherSubjectsSummary || 'NENHUMA DISCIPLINA SELECIONADA'}
                 </p>
               </div>
             </div>
 
             <div className="col-span-3 flex justify-end">
-              <div className="border border-black/40 flex items-center justify-center relative bg-white w-[2.8cm] h-[3.2cm]">
+              <div className="border border-black/40 flex items-center justify-center relative bg-white w-[2.3cm] h-[2.7cm]">
                 {formData.photo_url || selectedTeacher.photo_url ? (
                   <img src={formData.photo_url || selectedTeacher.photo_url} className="w-full h-full object-cover p-0.5" referrerPolicy="no-referrer" alt="Foto" />
                 ) : (
                   <div className="text-center text-black/20 uppercase">
-                    <p className="text-[7pt] font-bold leading-tight tracking-tighter">FOTO 3X4</p>
+                    <p className="text-[6.5pt] font-bold leading-tight tracking-tighter">FOTO 3X4</p>
                     <span className={cn(
-                      "inline-block mt-1 px-1.5 py-0.5 text-[7pt] font-black uppercase rounded",
+                      "inline-block mt-0.5 px-1 py-0.2 text-[6pt] font-black uppercase rounded",
                       selectedTeacher.status === 'Ativo' ? "bg-emerald-100 text-emerald-900" : "bg-slate-100 text-slate-700"
                     )}>
                       {selectedTeacher.status}
@@ -856,106 +857,106 @@ export function Teachers() {
           </div>
 
           {/* DADOS PESSOAIS */}
-          <div className="space-y-1.5 mb-3 text-[10pt]">
+          <div className="space-y-0.5 mb-1.5 text-[8.5pt]">
             <div className="flex items-end gap-2">
               <span className="font-semibold uppercase min-w-[55px] text-slate-900">Nome:</span>
-              <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[19px]">{selectedTeacher.name}</span>
+              <span className="flex-1 border-b border-black/20 font-bold uppercase px-2 pb-0.5 min-h-[16px]">{selectedTeacher.name}</span>
             </div>
 
             <div className="flex gap-4">
               <div className="flex-[2] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">CPF:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">{selectedTeacher.cpf || '---'}</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[16px]">{selectedTeacher.cpf || '---'}</span>
               </div>
               <div className="flex-[2] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">RG:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">{selectedTeacher.rg || '---'}</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[16px]">{selectedTeacher.rg || '---'}</span>
               </div>
               <div className="flex-[3] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Celular:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">{selectedTeacher.phone_mobile || '---'}</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[16px]">{selectedTeacher.phone_mobile || '---'}</span>
               </div>
             </div>
 
             <div className="flex items-end gap-2">
               <span className="font-semibold uppercase min-w-[55px] text-slate-900">Email:</span>
-              <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 lowercase min-h-[19px]">{selectedTeacher.email || '---'}</span>
+              <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 lowercase min-h-[16px]">{selectedTeacher.email || '---'}</span>
             </div>
 
             <div className="flex items-end gap-2">
               <span className="font-semibold uppercase min-w-[55px] text-slate-900">Endereço:</span>
-              <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">{selectedTeacher.address_street || '---'}</span>
+              <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[16px]">{selectedTeacher.address_street || '---'}</span>
             </div>
 
             <div className="flex gap-4">
               <div className="flex-[3] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">Cidade:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[19px]">{selectedTeacher.address_city || '---'}</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 min-h-[16px]">{selectedTeacher.address_city || '---'}</span>
               </div>
               <div className="flex-[1] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">UF:</span>
-                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 text-center min-h-[19px]">{selectedTeacher.address_state || '---'}</span>
+                <span className="flex-1 border-b border-black/20 font-medium uppercase px-2 pb-0.5 text-center min-h-[16px]">{selectedTeacher.address_state || '---'}</span>
               </div>
               <div className="flex-[2] flex items-end gap-2">
                 <span className="font-semibold uppercase text-slate-900">CEP:</span>
-                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[19px]">{selectedTeacher.address_zip || '---'}</span>
+                <span className="flex-1 border-b border-black/20 font-medium px-2 pb-0.5 text-center min-h-[16px]">{selectedTeacher.address_zip || '---'}</span>
               </div>
             </div>
           </div>
 
           {/* DISCIPLINAS POR SEMESTRE */}
-          <div className="my-2 p-2 bg-white border border-black/20 rounded-none space-y-1.5">
-            <h4 className="text-[9pt] font-bold uppercase text-center border-b border-black/10 pb-1 tracking-wider">
+          <div className="my-1 p-1.5 bg-white border border-black/20 rounded-none space-y-1">
+            <h4 className="text-[8pt] font-bold uppercase text-center border-b border-black/10 pb-0.5 tracking-wider">
               Disciplinas Ministradas
             </h4>
-            <div className="grid grid-cols-2 gap-3 text-[8.5pt]">
+            <div className="grid grid-cols-2 gap-2 text-[7.5pt]">
               {/* 1º SEMESTRE */}
-              <div className="border border-black/10 p-2 bg-slate-50/20">
-                <p className="font-bold uppercase text-blue-900 border-b border-black/10 pb-0.5 mb-1 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
+              <div className="border border-black/10 p-1.5 bg-slate-50/20">
+                <p className="font-bold uppercase text-blue-900 border-b border-black/10 pb-0.5 mb-0.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
                   1º Semestre
                 </p>
                 {sem1.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[8pt]">
+                  <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[7pt]">
                     {sem1.map(s => (
                       <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[7.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                  <p className="text-[6.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
                 )}
               </div>
 
               {/* 2º SEMESTRE */}
-              <div className="border border-black/10 p-2 bg-slate-50/20">
-                <p className="font-bold uppercase text-emerald-900 border-b border-black/10 pb-0.5 mb-1 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
+              <div className="border border-black/10 p-1.5 bg-slate-50/20">
+                <p className="font-bold uppercase text-emerald-900 border-b border-black/10 pb-0.5 mb-0.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block"></span>
                   2º Semestre
                 </p>
                 {sem2.length > 0 ? (
-                  <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[8pt]">
+                  <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[7pt]">
                     {sem2.map(s => (
                       <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[7.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
+                  <p className="text-[6.5pt] text-slate-400 italic">Nenhuma disciplina vinculada.</p>
                 )}
               </div>
             </div>
 
             {others.length > 0 && (
-              <div className="border border-black/10 p-1.5 bg-slate-50/20 text-[8pt]">
-                <span className="font-bold uppercase text-slate-700 mr-2">Outras Disciplinas:</span>
+              <div className="border border-black/10 p-1 bg-slate-50/20 text-[7pt]">
+                <span className="font-bold uppercase text-slate-700 mr-1.5">Outras Disciplinas:</span>
                 <span className="font-medium uppercase text-slate-900">{others.map(s => s.name).join(', ')}</span>
               </div>
             )}
           </div>
 
           {/* OBSERVAÇÕES */}
-          <div className="mt-1">
-            <span className="text-[8.5pt] font-bold uppercase text-slate-900">Observações:</span>
-            <div className="text-[8.5pt] border border-black/20 p-2 min-h-[45px] leading-relaxed whitespace-pre-wrap mt-0.5">
+          <div className="mt-0.5">
+            <span className="text-[7.5pt] font-bold uppercase text-slate-900">Observações:</span>
+            <div className="text-[7.5pt] border border-black/20 p-1.5 min-h-[35px] leading-relaxed whitespace-pre-wrap mt-0.5">
               {(() => {
                 const cleanedObs = (selectedTeacher.observations || '')
                   .replace(/\[SUBJECTS:(\[[\s\S]*?\])\]/g, '')
@@ -970,11 +971,11 @@ export function Teachers() {
         </div>
 
         {/* BOTTOM SECTION: PINNED FOOTER */}
-        <div className="mt-auto pt-2 shrink-0">
+        <div className="mt-auto pt-1 shrink-0">
           {/* RODAPÉ INSTITUCIONAL */}
-          <div className="border-t-2 border-black pt-1.5 pb-0 flex justify-between items-start text-black uppercase tracking-tight">
+          <div className="border-t border-black pt-1 pb-0 flex justify-between items-start text-black uppercase tracking-tight text-[6.5pt]">
             <div className="flex-1 space-y-0.5">
-              <p className="leading-snug text-[7.5pt] font-bold">
+              <p className="leading-snug font-bold">
                 {inst?.address}
               </p>
               {(inst?.cep || inst?.city_uf) && (
