@@ -622,11 +622,11 @@ export function Students() {
       <div id="printable-student-record" className="hidden print:flex flex-col justify-between text-black bg-white overflow-hidden font-sans leading-tight relative w-full h-[275mm] max-h-[275mm] min-h-[275mm] mx-auto p-0 box-border">
         {/* TOP SECTION: Header + Personal Data + Rules */}
         <div className="flex-1 flex flex-col justify-start">
-            {/* HEADER SECTION */}
-            <div className="flex items-center gap-4 mb-2 pb-1 border-b-2 border-black">
-              <div className="flex-shrink-0 w-14 h-14 flex items-center justify-center">
+            {/* Institutional Header */}
+            <div className="flex items-center gap-3.5 mb-2.5 pb-2 border-b border-slate-200">
+              <div className="flex-shrink-0 w-13 h-13 flex items-center justify-center">
                 {institution?.logo_url ? (
-                  <img src={institution.logo_url} className="w-full h-full object-contain max-h-14" referrerPolicy="no-referrer" alt="Logo" />
+                  <img src={institution.logo_url} className="w-full h-full object-contain max-h-13" referrerPolicy="no-referrer" alt="Logo" />
                 ) : (
                   <div className="w-full h-full border-2 border-slate-200 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-300 font-bold uppercase">
                     <span className="leading-none">SEM</span>
@@ -635,11 +635,13 @@ export function Students() {
                 )}
               </div>
               <div className="flex-1 flex flex-col">
-                <p className="text-[9pt] font-semibold tracking-widest text-slate-800 leading-tight">DIOCESE DE GUARULHOS</p>
-                <h1 className="text-[13pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5">
-                  {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
+                <p className="text-[8.5pt] font-semibold tracking-wider text-slate-500 uppercase leading-none">
+                  {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
+                </p>
+                <h1 className="text-[13.5pt] font-bold uppercase tracking-tight text-slate-950 leading-tight my-0.5">
+                  {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIO'}
                 </h1>
-                <p className="text-[9pt] font-bold text-slate-700 tracking-wide uppercase">
+                <p className="text-[8.5pt] font-semibold text-slate-500 tracking-wide uppercase leading-none">
                   {institution?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                 </p>
               </div>
