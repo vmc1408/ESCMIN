@@ -1019,10 +1019,11 @@ export function Teachers() {
   const actualListCollapsed = selectedTeacher !== null || isEditing;
 
   return (
-    <div className={cn(
-      "h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
-      actualListCollapsed ? "justify-center" : "justify-end"
-    )}>
+    <>
+      <div className={cn(
+        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
+        actualListCollapsed ? "justify-center" : "justify-end"
+      )}>
       {/* Green Hover Sensor / Marker */}
       {actualListCollapsed && !hoverShowList && (
         <div 
@@ -1620,51 +1621,53 @@ export function Teachers() {
             <p className="text-sm font-medium">Selecione um professor para ver os detalhes</p>
           </div>
         )}
-      </div>
-      <PrintableTeacher />
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && selectedTeacher && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
-              <Trash2 size={32} />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-xl font-bold text-[#131b2e]">Excluir Professor?</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                Tem certeza que deseja excluir a ficha do professor <span className="font-bold text-slate-900">{selectedTeacher.name}</span>? 
-                Esta ação não pode ser desfeita.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
-              >
-                {loading ? 'Excluindo...' : 'Sim, Excluir'}
-              </button>
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && selectedTeacher && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-bold text-[#131b2e]">Excluir Professor?</h3>
+                <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                  Tem certeza que deseja excluir a ficha do professor <span className="font-bold text-slate-900">{selectedTeacher.name}</span>? 
+                  Esta ação não pode ser desfeita.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                >
+                  {loading ? 'Excluindo...' : 'Sim, Excluir'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {/* Notification Toast */}
-      {notification && (
-        <div className={cn(
-          "fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-none shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-[300]",
-          notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
-        )}>
-          {notification.type === 'success' ? <Loader2 className="animate-spin" size={20} /> : <X size={20} />}
-          <span className="font-bold text-sm tracking-wide">{notification.message}</span>
-        </div>
-      )}
-    </div>
+        )}
+        {/* Notification Toast */}
+        {notification && (
+          <div className={cn(
+            "fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-4 rounded-none shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 z-[300]",
+            notification.type === 'success' ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+          )}>
+            {notification.type === 'success' ? <Loader2 className="animate-spin" size={20} /> : <X size={20} />}
+            <span className="font-bold text-sm tracking-wide">{notification.message}</span>
+          </div>
+        )}
+      </div>
+      </div>
+
+      <PrintableTeacher />
+    </>
   );
 }

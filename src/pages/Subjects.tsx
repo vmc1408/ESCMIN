@@ -485,10 +485,11 @@ export function Subjects() {
   const actualListCollapsed = selectedSubject !== null || isEditing;
 
   return (
-    <div className={cn(
-      "h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
-      actualListCollapsed ? "justify-center" : "justify-end"
-    )}>
+    <>
+      <div className={cn(
+        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
+        actualListCollapsed ? "justify-center" : "justify-end"
+      )}>
       {/* Green Hover Sensor / Marker */}
       {actualListCollapsed && !hoverShowList && (
         <div 
@@ -1056,6 +1057,7 @@ export function Subjects() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Printable Subject Record */}
       {selectedSubject && (
@@ -1204,6 +1206,6 @@ export function Subjects() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
