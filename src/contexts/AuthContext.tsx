@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase, isSupabaseConfigured, fetchWithTimeout } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, fetchWithTimeout, clearCorruptedAuthTokens } from '../lib/supabase';
 import { saveData, deleteData, fetchById } from '../lib/database';
 import { UserProfile } from '../types';
 
@@ -141,9 +141,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    const isTokenError = (msg?: string) => {
+      if (!msg) return false;
+      const lower = msg.toLowerCase();
+      return (
+        lower.includes('invalid refresh token') ||
+        lower.includes('refresh token not found') ||
+        lower.includes('refresh_token_not_found') ||
+        lower.includes('already used') ||
+        lower.includes('token is expired')
+      );
+    };
+
     // 1. Pega sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
+        const errorMsg = error.message || '';
+        if (isTokenError(errorMsg)) {
+          console.warn("[AuthContext] Token de atualização inválido/expirado detectado. Limpando chaves locais do Supabase...");
+          clearCorruptedAuthTokens();
+          supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+          if (mounted) {
+            setUser(null);
+            setProfile(null);
+            setLoading(false);
+          }
+          return;
+        }
+
         const isOfflineError = 
           (typeof window !== 'undefined' && !window.navigator.onLine) || 
           error.message?.toLowerCase().includes('offline') || 
@@ -154,19 +179,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.warn("[AuthContext] Dispositivo offline ou erro de rede ao buscar sessão inicial:", error.message);
         } else {
           console.error("[AuthContext] Erro ao buscar sessão inicial:", error);
-        }
-        // Se houver erro de token inválido, limpa localStorage do Supabase
-        if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token') || error.message?.includes('Invalid Refresh Token')) {
-          console.warn("[AuthContext] Token de atualização inválido detectado. Limpando chaves locais do Supabase...");
-          const keysToRemove: string[] = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach(k => localStorage.removeItem(k));
-          supabase.auth.signOut().catch(() => {});
         }
       }
       if (!mounted) return;
@@ -184,7 +196,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     }).catch(err => {
-      console.error("[AuthContext] Falha grave ao obter sessão do Supabase:", err);
+      const errMsg = err?.message || String(err);
+      if (isTokenError(errMsg)) {
+        console.warn("[AuthContext] Capturada falha de refresh token. Limpando credenciais locais...");
+        clearCorruptedAuthTokens();
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      } else {
+        console.error("[AuthContext] Falha grave ao obter sessão do Supabase:", err);
+      }
       if (mounted) {
         setUser(null);
         setProfile(null);
@@ -195,6 +214,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 2. Escuta mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
+
+      if (event === 'SIGNED_OUT' || !session) {
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
 
       if (event === 'PASSWORD_RECOVERY') {
         localStorage.setItem('supabase_recovery_mode', 'true');

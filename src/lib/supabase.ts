@@ -118,6 +118,27 @@ if (isSupabaseConfigured) {
   console.warn('[Supabase] Configuração ausente ou incompleta. Verifique as chaves VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
 }
 
+export const clearCorruptedAuthTokens = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    const removeMatching = (storage: Storage) => {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token') || key.includes('supabase_recovery_tokens'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(k => storage.removeItem(k));
+    };
+
+    if (window.localStorage) removeMatching(window.localStorage);
+    if (window.sessionStorage) removeMatching(window.sessionStorage);
+  } catch (err) {
+    console.warn('[Supabase] Erro ao limpar tokens corrompidos:', err);
+  }
+};
+
 // Inicialização segura do cliente Supabase
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
@@ -125,7 +146,9 @@ export const supabase = createClient(
   {
     auth: {
       persistSession: true,
-      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined
     }
   }
 );

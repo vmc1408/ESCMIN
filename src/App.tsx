@@ -98,7 +98,25 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 }
 
 import { useAuth } from './contexts/AuthContext';
-import { isSupabaseConfigured } from './lib/supabase';
+import { isSupabaseConfigured, clearCorruptedAuthTokens } from './lib/supabase';
+
+// Neutraliza erros não capturados de tokens de atualização inválidos/expirados do Supabase
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const msg = (typeof reason === 'string' ? reason : reason?.message || String(reason || '')).toLowerCase();
+    if (
+      msg.includes('invalid refresh token') ||
+      msg.includes('refresh token not found') ||
+      msg.includes('refresh_token_not_found') ||
+      msg.includes('already used')
+    ) {
+      console.warn('[App] Sessão expirada/token de atualização inválido capturado globalmente. Limpando tokens...');
+      event.preventDefault();
+      clearCorruptedAuthTokens();
+    }
+  });
+}
 
 export default function App() {
   return (
