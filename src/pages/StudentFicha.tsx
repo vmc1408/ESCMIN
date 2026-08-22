@@ -762,7 +762,7 @@ export function StudentFicha() {
     const totalDays = registeredLessons || 30;
     const presencePercentage = registeredLessons > 0 
       ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) 
-      : 100;
+      : 0;
 
     // Grades and performance calculations
     const subjectRecords = classSubjects.map(sub => {
@@ -820,15 +820,26 @@ export function StudentFicha() {
     const studentDocs = certificates.filter(c => c.student_id === activeStudent.id);
 
     const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
-    let finalStatus = 'Aprovado';
-    if (presencePercentage < minPresence) {
-      finalStatus = 'Reprovado';
-    } else {
+    const hasAnyGrade = subjectRecords.some(r => r.grade !== null);
+    const hasAnyAttendance = registeredLessons > 0;
+
+    let finalStatus = 'Em Curso';
+    if (!hasAnyGrade && !hasAnyAttendance) {
+      finalStatus = 'Sem Registros';
+    } else if (hasAnyAttendance && presencePercentage < minPresence) {
+      finalStatus = 'Reprovado por Faltas';
+    } else if (hasAnyGrade) {
+      const allSubjectsHaveGrade = subjectRecords.length > 0 && subjectRecords.every(r => r.grade !== null);
       const failedGradesCount = subjectRecords.filter(rec => 
         rec.grade !== null && rec.grade < (academicParams.approval_grade || 7.0)
       ).length;
-      if (failedGradesCount > 0) {
+
+      if (failedGradesCount === 0 && allSubjectsHaveGrade && (!hasAnyAttendance || presencePercentage >= minPresence)) {
+        finalStatus = 'Aprovado';
+      } else if (failedGradesCount > 0) {
         finalStatus = failedGradesCount <= 2 ? 'Recuperação' : 'Reprovado';
+      } else {
+        finalStatus = 'Em Andamento';
       }
     }
 
@@ -1962,9 +1973,13 @@ export function StudentFicha() {
                       : `${Math.round(activeStudentMetrics.presencePercentage ?? 0)}%`}
                   </td>
                   <td className="py-2.5 px-3 text-right font-black text-[9pt] uppercase tracking-wide">
-                    {(activeStudentMetrics.presencePercentage ?? 0) >= (100 - (academicParams.absence_limit_percentage || 25))
-                      ? <span className="text-slate-900">Aprovado</span>
-                      : <span className="text-rose-700">Reprovado</span>}
+                    {activeStudentMetrics.presences === 0 && activeStudentMetrics.absences === 0 ? (
+                      <span className="text-slate-400 font-medium">---</span>
+                    ) : (activeStudentMetrics.presencePercentage ?? 0) >= (100 - (academicParams.absence_limit_percentage || 25)) ? (
+                      <span className="text-slate-900">Regular</span>
+                    ) : (
+                      <span className="text-rose-700">Excesso Faltas</span>
+                    )}
                   </td>
                 </tr>
               </tbody>
