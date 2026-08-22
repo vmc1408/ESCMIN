@@ -316,6 +316,7 @@ export function Bulletin() {
 
         const totalAbsences = subjectAttendances.filter(a => a.status === 'F').length;
         const totalPresences = subjectAttendances.filter(a => a.status === 'P').length;
+        const totalRecordedClasses = totalPresences + totalAbsences;
 
         // Accurate total class days based on the subject's semester
         const subjectTotalClassDays = subSemester === '1º Semestre' 
@@ -324,11 +325,13 @@ export function Bulletin() {
             ? (sem2Days > 0 ? sem2Days : totalClassDays)
             : totalClassDays;
 
-        const presencePct = subjectTotalClassDays > 0 
-          ? Math.max(0, Math.min(100, ((subjectTotalClassDays - totalAbsences) / subjectTotalClassDays) * 100))
-          : 100;
+        // Only compute presence % if at least one attendance has been registered
+        const presencePct: number | null = totalRecordedClasses > 0
+          ? Math.max(0, Math.min(100, Math.round((totalPresences / totalRecordedClasses) * 100)))
+          : null;
 
-        const isAttendanceApproved = presencePct >= (100 - (academicParams.absence_limit_percentage || 40));
+        const maxAbsencePct = academicParams.absence_limit_percentage || 25;
+        const isAttendanceApproved = presencePct !== null ? presencePct >= (100 - maxAbsencePct) : true;
 
         // 1b. Grades resolver: search "Resultado Final" first, else average assessments
         const finalGradeRecord = dbGrades.find(g => 
@@ -509,18 +512,22 @@ export function Bulletin() {
       let overallAbsences = 0;
       let validGradesCount = 0;
       let overallGradesSum = 0;
+      let validPresenceCount = 0;
       let overallPresenceSum = 0;
 
       subjectsPerformance.forEach(sp => {
         overallAbsences += sp.totalAbsences;
-        overallPresenceSum += sp.presencePercentage;
+        if (sp.presencePercentage !== null) {
+          validPresenceCount++;
+          overallPresenceSum += sp.presencePercentage;
+        }
         if (sp.finalGrade !== null) {
           validGradesCount++;
           overallGradesSum += sp.finalGrade;
         }
       });
 
-      const averageFrequency = classSubjects.length > 0 ? (overallPresenceSum / classSubjects.length) : 100;
+      const averageFrequency = validPresenceCount > 0 ? (overallPresenceSum / validPresenceCount) : null;
       const averageGrade = validGradesCount > 0 ? (overallGradesSum / validGradesCount) : 0;
 
       // Class status evaluation
@@ -535,8 +542,9 @@ export function Bulletin() {
       } else {
         const hasPending = subjectsPerformance.some(sp => sp.status === 'Pendente');
         const minApp = academicParams.approval_grade || 5.0;
-        const attendanceThreshold = 100 - (academicParams.absence_limit_percentage || 40);
-        const isAttendanceApprovedClass = averageFrequency >= attendanceThreshold;
+        const maxAbsencePct = academicParams.absence_limit_percentage || 25;
+        const attendanceThreshold = 100 - maxAbsencePct;
+        const isAttendanceApprovedClass = averageFrequency !== null ? averageFrequency >= attendanceThreshold : true;
 
         if (!isAttendanceApprovedClass) {
           finalStatus = 'Reprovado';
@@ -598,8 +606,8 @@ export function Bulletin() {
         valA = a.student.name || '';
         valB = b.student.name || '';
       } else if (key === 'presence') {
-        valA = a.averageFrequency || 0;
-        valB = b.averageFrequency || 0;
+        valA = a.averageFrequency !== null ? a.averageFrequency : -1;
+        valB = b.averageFrequency !== null ? b.averageFrequency : -1;
       } else if (key === 'status') {
         valA = a.finalStatus || '';
         valB = b.finalStatus || '';
@@ -671,7 +679,7 @@ export function Bulletin() {
   };
 
   const formatPresence = (val: number | null | undefined): string => {
-    if (val === null || val === undefined) return '100';
+    if (val === null || val === undefined) return '-';
     return Math.round(val).toString();
   };
 
@@ -680,7 +688,7 @@ export function Bulletin() {
     const minGrade = params.approval_grade || 5.0;
     const maxAbsencePct = params.absence_limit_percentage || 25;
     const attendanceThreshold = 100 - maxAbsencePct;
-    const isAttendanceApproved = report.averageFrequency >= attendanceThreshold;
+    const isAttendanceApproved = report.averageFrequency !== null ? report.averageFrequency >= attendanceThreshold : true;
 
     // Check if they have failed subjects (grade below minGrade)
     const failedSubjects = report.subjectsPerformance.filter((sp: any) => sp.finalGrade !== null && sp.finalGrade < minGrade);
@@ -826,7 +834,7 @@ export function Bulletin() {
           }
         });
         row.push(sp.totalAbsences.toString());
-        row.push(formatPresence(sp.presencePercentage) + '%');
+        row.push(sp.presencePercentage !== null ? formatPresence(sp.presencePercentage) + '%' : '-');
         return row;
       });
 
@@ -976,7 +984,7 @@ export function Bulletin() {
       doc.text('MÉDIA DE FREQUÊNCIA', 135, finalY + 4.5, { align: 'center' });
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
-      doc.text(`${formatPresence(reportToPdf.averageFrequency)}%`, 135, finalY + 11.5, { align: 'center' });
+      doc.text(reportToPdf.averageFrequency !== null ? `${formatPresence(reportToPdf.averageFrequency)}%` : '-', 135, finalY + 11.5, { align: 'center' });
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(6.5);
@@ -1102,7 +1110,7 @@ export function Bulletin() {
         res.student.name.toUpperCase(),
         formatGrade(res.averageGrade),
         res.totalAbsences.toString(),
-        `${formatPresence(res.averageFrequency)}%`,
+        res.averageFrequency !== null ? `${formatPresence(res.averageFrequency)}%` : '-',
         res.finalStatus.toUpperCase()
       ]);
 
@@ -1281,7 +1289,7 @@ export function Bulletin() {
             }
           });
           row.push(sp.totalAbsences.toString());
-          row.push(formatPresence(sp.presencePercentage) + '%');
+          row.push(sp.presencePercentage !== null ? formatPresence(sp.presencePercentage) + '%' : '-');
           return row;
         });
 
@@ -1429,7 +1437,7 @@ export function Bulletin() {
         doc.text('MÉDIA DE FREQUÊNCIA', 135, finalY + 4.5, { align: 'center' });
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.5);
-        doc.text(`${formatPresence(report.averageFrequency)}%`, 135, finalY + 11.5, { align: 'center' });
+        doc.text(report.averageFrequency !== null ? `${formatPresence(report.averageFrequency)}%` : '-', 135, finalY + 11.5, { align: 'center' });
 
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6.5);
@@ -1786,7 +1794,7 @@ export function Bulletin() {
                                     {sp.totalAbsences}
                                   </td>
                                   <td rowSpan={2} className="py-1.5 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle text-[8.5px] sm:text-[9.5px]">
-                                    {formatPresence(sp.presencePercentage)}%
+                                    {sp.presencePercentage !== null ? `${formatPresence(sp.presencePercentage)}%` : '-'}
                                   </td>
                                 </tr>
                                 {/* Row 2: Presenças */}
@@ -1913,7 +1921,7 @@ export function Bulletin() {
                         <div className="grid grid-cols-2 border-b border-slate-200 divide-x divide-slate-200 bg-slate-50/40">
                           <div className="px-3 py-1.5 font-bold text-slate-500">Média Geral de Frequência</div>
                           <div className="px-3 py-1.5 text-right font-black font-mono text-slate-800">
-                            {formatPresence(activeStudentReport.averageFrequency)}%
+                            {activeStudentReport.averageFrequency !== null ? `${formatPresence(activeStudentReport.averageFrequency)}%` : '-'}
                           </div>
                         </div>
                         <div className="grid grid-cols-2 border-b border-slate-200 divide-x divide-slate-200 bg-slate-50/40">
@@ -2130,11 +2138,15 @@ export function Bulletin() {
                                 <div className="inline-flex flex-col items-center">
                                   <span className={cn(
                                     "font-mono font-black",
-                                    res.averageFrequency >= minPresenceRequired ? "text-slate-800" : "text-rose-600"
+                                    res.averageFrequency !== null
+                                      ? (res.averageFrequency >= minPresenceRequired ? "text-slate-800" : "text-rose-600")
+                                      : "text-slate-400 font-normal"
                                   )}>
-                                    {formatPresence(res.averageFrequency)}%
+                                    {res.averageFrequency !== null ? `${formatPresence(res.averageFrequency)}%` : '-'}
                                   </span>
-                                  <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest">({res.totalAbsences} faltas)</span>
+                                  {res.totalAbsences > 0 && (
+                                    <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest">({res.totalAbsences} faltas)</span>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-3.5 text-center">
