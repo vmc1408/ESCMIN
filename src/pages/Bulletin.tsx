@@ -248,6 +248,37 @@ export function Bulletin() {
     return counts;
   }, [selectedClassId, classSchoolDays, attendanceData, monthsList]);
 
+  // Semester breakdown of scheduled class days
+  const sem1Days = useMemo(() => {
+    return [0, 1, 2, 3, 4, 5, 6].reduce((acc, mIdx) => acc + (scheduledDaysByMonth[mIdx] || 0), 0);
+  }, [scheduledDaysByMonth]);
+
+  const sem2Days = useMemo(() => {
+    return [7, 8, 9, 10, 11].reduce((acc, mIdx) => acc + (scheduledDaysByMonth[mIdx] || 0), 0);
+  }, [scheduledDaysByMonth]);
+
+  // Subject semester detector helper
+  const getSubjectSemester = (sub: { name?: string; semester?: string | number } | undefined): '1º Semestre' | '2º Semestre' | 'Geral' => {
+    if (!sub) return 'Geral';
+    const name = (sub.name || '').toUpperCase();
+    const sem = (sub.semester || '').toString().toUpperCase();
+    if (sem === '1' || sem.includes('1') || name.includes('1º SEM') || name.includes('1° SEM') || name.includes('1 SEM') || name.includes('1º SEMESTRE') || name.includes('1° SEMESTRE')) {
+      return '1º Semestre';
+    }
+    if (sem === '2' || sem.includes('2') || name.includes('2º SEM') || name.includes('2° SEM') || name.includes('2 SEM') || name.includes('2º SEMESTRE') || name.includes('2° SEMESTRE')) {
+      return '2º Semestre';
+    }
+    return 'Geral';
+  };
+
+  // Helper to test if a given month is blocked/outside the subject's semester
+  const isSubjectMonthBlocked = (subSemester: string, monthIndex: number) => {
+    if ((scheduledDaysByMonth[monthIndex] || 0) === 0) return true;
+    if (subSemester === '1º Semestre' && monthIndex >= 7) return true;
+    if (subSemester === '2º Semestre' && monthIndex < 7) return true;
+    return false;
+  };
+
   // Core calculations memo to map student performance structured cards
   const studentReports = useMemo(() => {
     if (!selectedClassId || classStudents.length === 0 || classSubjects.length === 0) return [];
@@ -255,6 +286,7 @@ export function Bulletin() {
     return classStudents.map(student => {
       // 1. Calculate general stats across multiple subjects
       const subjectsPerformance = classSubjects.map(sub => {
+        const subSemester = getSubjectSemester(sub);
         
         // 1a. Attendance per subject month
         const subjectAttendances = attendanceData.filter(a => 
@@ -284,8 +316,16 @@ export function Bulletin() {
 
         const totalAbsences = subjectAttendances.filter(a => a.status === 'F').length;
         const totalPresences = subjectAttendances.filter(a => a.status === 'P').length;
-        const presencePct = totalClassDays > 0 
-          ? Math.max(0, Math.min(100, ((totalClassDays - totalAbsences) / totalClassDays) * 100))
+
+        // Accurate total class days based on the subject's semester
+        const subjectTotalClassDays = subSemester === '1º Semestre' 
+          ? (sem1Days > 0 ? sem1Days : totalClassDays)
+          : subSemester === '2º Semestre'
+            ? (sem2Days > 0 ? sem2Days : totalClassDays)
+            : totalClassDays;
+
+        const presencePct = subjectTotalClassDays > 0 
+          ? Math.max(0, Math.min(100, ((subjectTotalClassDays - totalAbsences) / subjectTotalClassDays) * 100))
           : 100;
 
         const isAttendanceApproved = presencePct >= (100 - (academicParams.absence_limit_percentage || 40));
@@ -446,6 +486,8 @@ export function Bulletin() {
           subjectId: sub.id,
           subjectCode: sub.code || '000',
           subjectName: sub.name,
+          semester: subSemester,
+          subjectTotalClassDays,
           monthlyAbsences,
           monthlyPresences,
           totalAbsences,
@@ -773,8 +815,9 @@ export function Bulletin() {
         const row = [
           `${sp.subjectCode} - ${sp.subjectName}`
         ];
+        const subSem = sp.semester || getSubjectSemester(subjects.find(s => s.id === sp.subjectId));
         monthsList.forEach(m => {
-          const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
+          const isBlocked = isSubjectMonthBlocked(subSem, m.index);
           if (isBlocked) {
             row.push('-');
           } else {
@@ -947,12 +990,9 @@ export function Bulletin() {
       doc.setLineWidth(0.3);
       doc.line(margin, 282, pageWidth - margin, 282);
 
-      const todayFormatted = new Date().toLocaleDateString('pt-BR');
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(120);
-      doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 288);
-      doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 288, { align: 'center' });
       doc.text('Página 1 de 1', pageWidth - margin, 288, { align: 'right' });
 
       doc.save(`boletim_${reportToPdf.student.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().getFullYear()}.pdf`);
@@ -1102,12 +1142,9 @@ export function Bulletin() {
       doc.setLineWidth(0.3);
       doc.line(margin, finalHeight - 15, pageWidth - margin, finalHeight - 15);
 
-      const todayFormatted = new Date().toLocaleDateString('pt-BR');
       doc.setFontSize(7.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(140);
-      doc.text(`Relatório emitido em ${todayFormatted}`, margin, finalHeight - 9);
-      doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, finalHeight - 9, { align: 'center' });
       doc.text('Página 1 de 1', pageWidth - margin, finalHeight - 9, { align: 'right' });
 
       doc.save(`situacao_academica_turma_${activeClassObj?.name.toLowerCase().replace(/\s+/g, '_') || 'classe'}.pdf`);
@@ -1233,8 +1270,9 @@ export function Bulletin() {
           const row = [
             `${sp.subjectCode} - ${sp.subjectName}`
           ];
+          const subSem = sp.semester || getSubjectSemester(subjects.find(s => s.id === sp.subjectId));
           monthsList.forEach(m => {
-            const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
+            const isBlocked = isSubjectMonthBlocked(subSem, m.index);
             if (isBlocked) {
               row.push('-');
             } else {
@@ -1405,13 +1443,10 @@ export function Bulletin() {
         doc.setLineWidth(0.3);
         doc.line(margin, 282, pageWidth - margin, 282);
 
-        const todayFormatted = new Date().toLocaleDateString('pt-BR');
         doc.setFontSize(7.5);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(120);
-        doc.text(`Relatório Emitido em ${todayFormatted}`, margin, 288);
-        doc.text('ESCMIN - Sistema de Gestão de Secretaria', centerX, 288, { align: 'center' });
-        doc.text(`Alunos: ${index + 1} de ${studentReports.length}`, pageWidth - margin, 288, { align: 'right' });
+        doc.text(`Página ${index + 1} de ${studentReports.length}`, pageWidth - margin, 288, { align: 'right' });
       });
 
       doc.save(`boletins_lote_turma_${activeClassObj?.name.toLowerCase().replace(/\s+/g, '_') || 'classe'}.pdf`);
@@ -1578,7 +1613,7 @@ export function Bulletin() {
               <div className="space-y-4">
                 
                 {/* On-screen paper layout framing simulating standard print sheet */}
-                <div id="printable-boletim" className="bg-white border border-slate-200 p-6 md:p-8 text-slate-900 shadow-sm max-w-[210mm] mx-auto relative font-sans leading-relaxed animate-in fade-in duration-300">
+                <div id="printable-boletim" className="bg-white p-4 sm:p-6 text-slate-900 max-w-[210mm] mx-auto relative font-sans leading-relaxed animate-in fade-in duration-300 print:p-0 print:border-none print:shadow-none">
                   
                   {/* Inner container */}
                   <div className="space-y-6">
@@ -1669,21 +1704,30 @@ export function Bulletin() {
                             <col className="w-[8%] sm:w-[7%] md:w-[5%]" />
                           </colgroup>
                           <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
-                              <th className="px-2.5 py-2 border-r border-slate-200 text-left">
+                            {/* Semester Groupings Header Row */}
+                            <tr className="bg-slate-100/70 border-b border-slate-200 text-slate-800 text-[8px] sm:text-[8.5px] font-black tracking-wider">
+                              <th rowSpan={2} className="px-2.5 py-1.5 border-r border-slate-200 text-left align-middle">
                                 Disciplinas
                               </th>
+                              <th colSpan={7} className="py-1 text-center border-r border-slate-200 bg-slate-100/90 text-slate-800 font-extrabold text-[7.5px] sm:text-[8px] md:text-[8.5px]">
+                                1º Semestre {sem1Days > 0 ? `(${sem1Days} Aulas)` : ''}
+                              </th>
+                              <th colSpan={5} className="py-1 text-center border-r border-slate-200 bg-slate-100/90 text-slate-800 font-extrabold text-[7.5px] sm:text-[8px] md:text-[8.5px]">
+                                2º Semestre {sem2Days > 0 ? `(${sem2Days} Aulas)` : ''}
+                              </th>
+                              <th rowSpan={2} className="py-1.5 border-r border-slate-200 text-center text-[7.5px] sm:text-[8.5px] md:text-[9px] leading-tight px-0.5 align-middle">
+                                Total
+                              </th>
+                              <th rowSpan={2} className="py-1.5 text-center text-[7.5px] sm:text-[8.5px] md:text-[9px] leading-tight px-0.5 align-middle">
+                                Freq.
+                              </th>
+                            </tr>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[9px] font-bold tracking-wider">
                               {monthsList.map(month => (
-                                <th key={month.index} className="py-2 text-center border-r border-slate-200 px-0.5 text-[7.5px] sm:text-[8px] md:text-[8.5px] whitespace-nowrap">
+                                <th key={month.index} className="py-1.5 text-center border-r border-slate-200 px-0.5 text-[7.5px] sm:text-[8px] md:text-[8.5px] whitespace-nowrap">
                                   {month.label}
                                 </th>
                               ))}
-                              <th className="py-2 border-r border-slate-200 text-center text-[7.5px] sm:text-[8.5px] md:text-[9px] leading-tight px-0.5">
-                                Total
-                              </th>
-                              <th className="py-2 text-center text-[7.5px] sm:text-[8.5px] md:text-[9px] leading-tight px-0.5">
-                                Freq.
-                              </th>
                             </tr>
                             <tr className="bg-slate-100/40 border-b border-slate-200 text-slate-700 text-[8px] font-black uppercase tracking-wider">
                               <th className="px-2.5 py-1.5 border-r border-slate-200 text-left text-[7.5px] sm:text-[8px] font-black text-slate-500 bg-slate-100/25">
@@ -1705,76 +1749,79 @@ export function Bulletin() {
                               </th>
                             </tr>
                           </thead>
-                          {activeStudentReport.subjectsPerformance.map((sp, sIdx) => (
-                            <tbody key={sp.subjectId} className={cn(
-                              "text-slate-700 break-inside-avoid page-break-inside-avoid bg-white",
-                              sIdx > 0 ? "border-t border-slate-205" : ""
-                            )}>
-                              {/* Row 1: Faltas */}
-                              <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-100">
-                                <td className="px-2 py-1.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
-                                  <div className="flex items-center justify-between gap-1 min-w-0">
-                                    <span className="truncate text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
-                                      {sp.subjectCode} - {sp.subjectName}
-                                    </span>
-                                    <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-none shrink-0">FALTAS</span>
-                                  </div>
-                                </td>
-                                {monthsList.map(m => {
-                                  const absCount = sp.monthlyAbsences[m.index];
-                                  const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
-                                  return (
-                                    <td 
-                                      key={m.index} 
-                                      className={cn(
-                                        "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px]",
-                                        isBlocked && "bg-slate-50"
-                                      )}
-                                      style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
-                                    >
-                                      {isBlocked ? '-' : (absCount > 0 ? absCount : '')}
-                                    </td>
-                                  );
-                                })}
-                                <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-slate-805 bg-rose-50/20 text-[8.5px] sm:text-[9.5px]">
-                                  {sp.totalAbsences}
-                                </td>
-                                <td rowSpan={2} className="py-1.5 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle text-[8.5px] sm:text-[9.5px]">
-                                  {formatPresence(sp.presencePercentage)}%
-                                </td>
-                              </tr>
-                              {/* Row 2: Presenças */}
-                              <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-205">
-                                <td className="px-2 py-1.5 border-r border-slate-100 text-slate-500 font-normal whitespace-nowrap overflow-hidden text-ellipsis">
-                                  <div className="flex items-center justify-between gap-1 min-w-0">
-                                    <span className="truncate text-slate-450 text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
-                                      {sp.subjectCode} - {sp.subjectName}
-                                    </span>
-                                    <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-none shrink-0 font-bold">PRESENÇAS</span>
-                                  </div>
-                                </td>
-                                {monthsList.map(m => {
-                                  const presCount = sp.monthlyPresences ? sp.monthlyPresences[m.index] : 0;
-                                  const isBlocked = (scheduledDaysByMonth[m.index] || 0) === 0;
-                                  return (
-                                    <td 
-                                      key={m.index} 
-                                      className={cn(
-                                        "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px] text-slate-600",
-                                        isBlocked && "bg-slate-50"
-                                      )}
-                                      style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
-                                    >
-                                      {isBlocked ? '-' : (presCount > 0 ? presCount : '')}
-                                    </td>
-                                  );
-                                })}
-                                <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-emerald-700 bg-emerald-50/20 text-[8.5px] sm:text-[9.5px]">
-                                  {sp.totalPresences || 0}
-                                </td>
-                              </tr>
-                            </tbody>
-                          ))}
+                          {activeStudentReport.subjectsPerformance.map((sp, sIdx) => {
+                            const subSem = sp.semester || getSubjectSemester(subjects.find(s => s.id === sp.subjectId));
+                            return (
+                              <tbody key={sp.subjectId} className={cn(
+                                "text-slate-700 break-inside-avoid page-break-inside-avoid bg-white",
+                                sIdx > 0 ? "border-t border-slate-205" : ""
+                              )}>
+                                {/* Row 1: Faltas */}
+                                <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-100">
+                                  <td className="px-2 py-1.5 border-r border-slate-100 text-slate-900 font-bold whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <div className="flex items-center justify-between gap-1 min-w-0">
+                                      <span className="truncate text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
+                                        {sp.subjectCode} - {sp.subjectName}
+                                      </span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-rose-50 text-rose-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-rose-150 font-black rounded-none shrink-0">FALTAS</span>
+                                    </div>
+                                  </td>
+                                  {monthsList.map(m => {
+                                    const absCount = sp.monthlyAbsences[m.index];
+                                    const isBlocked = isSubjectMonthBlocked(subSem, m.index);
+                                    return (
+                                      <td 
+                                        key={m.index} 
+                                        className={cn(
+                                          "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px]",
+                                          isBlocked && "bg-slate-50 text-slate-400"
+                                        )}
+                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
+                                      >
+                                        {isBlocked ? '-' : (absCount > 0 ? absCount : '')}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-slate-805 bg-rose-50/20 text-[8.5px] sm:text-[9.5px]">
+                                    {sp.totalAbsences}
+                                  </td>
+                                  <td rowSpan={2} className="py-1.5 text-center font-bold font-mono text-slate-800 bg-slate-50/10 align-middle text-[8.5px] sm:text-[9.5px]">
+                                    {formatPresence(sp.presencePercentage)}%
+                                  </td>
+                                </tr>
+                                {/* Row 2: Presenças */}
+                                <tr className="hover:bg-slate-50/50 text-[9px] sm:text-[10px] font-semibold border-b border-slate-205">
+                                  <td className="px-2 py-1.5 border-r border-slate-100 text-slate-500 font-normal whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <div className="flex items-center justify-between gap-1 min-w-0">
+                                      <span className="truncate text-slate-450 text-[8px] sm:text-[9.5px]" title={`${sp.subjectCode} - ${sp.subjectName}`}>
+                                        {sp.subjectCode} - {sp.subjectName}
+                                      </span>
+                                      <span className="text-[6.5px] sm:text-[7.5px] bg-emerald-50 text-emerald-700 px-1 py-0.2 sm:px-1.5 sm:py-0.5 border border-emerald-150 font-black rounded-none shrink-0 font-bold">PRESENÇAS</span>
+                                    </div>
+                                  </td>
+                                  {monthsList.map(m => {
+                                    const presCount = sp.monthlyPresences ? sp.monthlyPresences[m.index] : 0;
+                                    const isBlocked = isSubjectMonthBlocked(subSem, m.index);
+                                    return (
+                                      <td 
+                                        key={m.index} 
+                                        className={cn(
+                                          "py-1.5 text-center border-r border-slate-100 font-mono text-[8.5px] sm:text-[9.5px] text-slate-600",
+                                          isBlocked && "bg-slate-50 text-slate-400"
+                                        )}
+                                        style={isBlocked ? { background: 'repeating-linear-gradient(-45deg, #fff7ed, #fff7ed 5px, #fed7aa 5px, #fed7aa 10px)' } : undefined}
+                                      >
+                                        {isBlocked ? '-' : (presCount > 0 ? presCount : '')}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="py-1.5 text-center border-r border-slate-100 font-bold font-mono text-emerald-700 bg-emerald-50/20 text-[8.5px] sm:text-[9.5px]">
+                                    {sp.totalPresences || 0}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            );
+                          })}
                         </table>
                       </div>
                     </div>
@@ -1902,15 +1949,9 @@ export function Bulletin() {
                       </p>
                     </div>
 
-                    {/* Base validation credentials or certificates badge warning */}
-                    <div className="pt-5 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-[9px] uppercase font-sans font-bold text-slate-400 select-none break-inside-avoid page-break-inside-avoid">
-                      <div className="flex items-center gap-4">
-                        <span>{new Date().toLocaleDateString('pt-BR')}</span>
-                        <span>ESCMIN - Sistema de Gestão</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span>Página 1 de 1</span>
-                      </div>
+                    {/* Clean Document Footer */}
+                    <div className="pt-3 border-t border-slate-200/80 flex justify-end items-center text-[8.5px] uppercase font-sans font-bold text-slate-400 select-none break-inside-avoid page-break-inside-avoid">
+                      <span>Página 1 de 1</span>
                     </div>
 
                   </div>
