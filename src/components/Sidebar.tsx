@@ -65,7 +65,7 @@ const navItems = [
           { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
           { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
           { icon: FileText, label: 'Boletim de Notas', path: '/bulletin' },
-          { icon: UserIcon, label: 'Ficha do Aluno', path: '/student-ficha' },
+          { icon: UserIcon, label: 'Controle e Histórico', path: '/student-ficha' },
           { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents' },
         ]
       },

@@ -13,11 +13,9 @@ import {
   ChevronRight,
   Info,
   Calendar,
-  Phone,
   Mail,
   MapPin,
   HelpCircle,
-  MessageCircle,
   X
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
@@ -1287,7 +1285,7 @@ export function Impressos() {
                 ? "bg-transparent border-none shadow-none p-0 max-w-none w-auto print:h-auto print:min-h-0"
                 : cn(
                     "bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto",
-                    isSinglePageType ? "h-[1123px] print:h-[275mm] print:max-h-[275mm] print:min-h-[275mm] print:overflow-hidden print:justify-between pb-2 md:pb-3" : "min-h-[1123px] print:min-h-0 pb-3 md:pb-4"
+                    isSinglePageType ? "h-[1123px] print:h-[275mm] print:max-h-[275mm] print:min-h-[275mm] print:overflow-hidden print:justify-between pb-4 md:pb-6" : "min-h-[1123px] print:min-h-0 pb-4 md:pb-6"
                   )
             )}
           >
@@ -1320,19 +1318,6 @@ export function Impressos() {
                       {institution.subtitle}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-x-2 text-[8.5px] md:text-[9px] text-slate-500 font-bold uppercase tracking-wider pt-1 mt-1 border-t border-slate-150 font-sans">
-                    {[
-                      institution?.cnpj ? `CNPJ: ${institution.cnpj}` : '',
-                      institution?.address ? institution.address : '',
-                      (institution?.city_uf && (!institution?.address || !institution.address.toLowerCase().includes(institution.city_uf.toLowerCase()))) ? institution.city_uf : '',
-                      institution?.phone ? `TEL: ${institution.phone}` : ''
-                    ].filter(Boolean).map((text, idx, arr) => (
-                      <React.Fragment key={idx}>
-                        <span>{text}</span>
-                        {idx < arr.length - 1 && <span className="text-slate-300">|</span>}
-                      </React.Fragment>
-                    ))}
-                  </div>
                 </div>
               </div>
             )}
@@ -1542,26 +1527,33 @@ export function Impressos() {
                     </div>
 
                     <div className="grid grid-cols-12 gap-x-4 gap-y-2">
-                      <div className="col-span-5 flex items-end gap-2">
-                        <Phone size={15} className="text-slate-800 shrink-0 mb-1" />
-                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5 relative">
-                          <span className="absolute left-1 bottom-0 text-[13px] text-slate-800 font-bold tracking-wide">( &nbsp; &nbsp; &nbsp; ) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; - &nbsp; &nbsp; &nbsp; &nbsp;</span>
+                      <div className="col-span-4 flex items-end gap-1.5">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Fone:</span>
+                        <div className="flex-1 border-b-2 border-dotted border-slate-500 h-5 flex items-end justify-between px-1 text-[12px] text-slate-800 font-bold tracking-wide">
+                          <span>( &nbsp; &nbsp; )</span>
+                          <span>-</span>
+                          <span className="invisible select-none">.</span>
                         </div>
                       </div>
-                      <div className="col-span-3 flex items-center gap-2 self-end h-5">
-                        <MessageCircle size={15} className="text-emerald-600 fill-emerald-100 shrink-0" />
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                      <div className="col-span-4 flex items-center justify-center gap-2 self-end h-5">
+                        <div className="flex items-center gap-1 shrink-0">
+                          <svg className="w-3.5 h-3.5 text-[#25D366] fill-current shrink-0" viewBox="0 0 24 24" aria-label="WhatsApp">
+                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                          </svg>
+                          <span className="font-bold text-slate-700 text-[10px]">WhatsApp:</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold">
                           <span>Sim</span>
                           <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm bg-white" />
                         </div>
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                        <div className="flex items-center gap-1 text-[10px] font-bold">
                           <span>Não</span>
                           <div className="w-3.5 h-3.5 border-2 border-slate-900 rounded-sm bg-white" />
                         </div>
                       </div>
-                      <div className="col-span-4 flex items-end gap-1.5">
-                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0 mb-0.5">Nasc.:</span>
-                        <div className="text-slate-500 font-mono text-[10px] pb-0.5">______ / ______ / ________</div>
+                      <div className="col-span-4 flex items-end justify-end gap-1.5 whitespace-nowrap">
+                        <span className="font-bold text-slate-700 uppercase text-[11px] tracking-wider shrink-0">Nasc.:</span>
+                        <div className="text-slate-500 font-mono text-[10.5px] pb-0.5 tracking-wider">______ / ______ / ________</div>
                       </div>
                     </div>
 
@@ -1595,17 +1587,17 @@ export function Impressos() {
                   </div>
 
                   {/* Admission Instructions */}
-                  <div className="pt-4 border-t border-slate-200">
-                    <h3 className="font-extrabold uppercase text-[9.5px] tracking-wider text-slate-800 text-center border-b border-slate-200 pb-1 mb-2">
+                  <div className="pt-3 border-t-2 border-slate-300">
+                    <h3 className="font-black uppercase text-[11px] md:text-[11.5px] tracking-wider text-black text-center border-b border-black/20 pb-1 mb-2.5">
                       Informações básicas para admissão ao curso escolhido
                     </h3>
-                    <ul className="text-[9px] text-slate-700 leading-relaxed space-y-1 font-medium list-none px-1">
+                    <ul className="text-[10px] md:text-[10.5px] text-black leading-snug space-y-1.5 font-medium list-none px-1">
                       {admissionNorms.map((norm, index) => {
                         const hasIndexPrefix = /^\s*[0-9]+[\s\)\.\-]/i.test(norm);
                         return (
-                          <li key={index}>
-                            {!hasIndexPrefix && <strong className="text-slate-900">{index + 1}) </strong>}
-                            {norm}
+                          <li key={index} className="flex items-start gap-1">
+                            {!hasIndexPrefix && <strong className="text-black font-black shrink-0">{index + 1}) </strong>}
+                            <span className="text-black">{norm}</span>
                           </li>
                         );
                       })}
@@ -1613,43 +1605,40 @@ export function Impressos() {
                   </div>
 
                   {/* Agreement and signature */}
-                  <div className="pt-4 space-y-6 font-serif">
-                    <p className="text-[12px] text-justify text-slate-800 leading-relaxed">
-                      Eu <span className="inline-block w-[380px] border-b-2 border-dotted border-slate-500 h-4 translate-y-0.5">&nbsp;</span>, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
+                  <div className="pt-3 space-y-5 font-sans">
+                    <p className="text-[12.5px] md:text-[13px] text-justify text-black font-medium leading-relaxed">
+                      Eu <span className="inline-block w-[360px] border-b-2 border-dotted border-black h-4 translate-y-0.5">&nbsp;</span>, declaro que estou ciente e de ACORDO com as normas estabelecidas para ingresso no curso Básico de Teologia, promovido pela Diocese de Guarulhos e autorizo o armazenamento de meus dados pessoais necessários para a inscrição neste curso.
                     </p>
 
-                    <div className="pt-6 pb-12 flex justify-between items-start gap-8 font-sans">
+                    <div className="pt-4 pb-8 flex justify-between items-start gap-8 font-sans">
                       <div className="w-1/2 flex flex-col">
-                        <div className="flex items-end gap-1.5 text-[11px] text-slate-800 font-medium h-6 pb-0.5">
-                          <span className="shrink-0 font-bold">Guarulhos,</span>
-                          <div className="flex-1 text-center text-slate-500 font-mono text-[10px]">______ / ______ / _________</div>
+                        <div className="flex items-end gap-1.5 text-[11.5px] text-black font-bold h-6 pb-0.5">
+                          <span className="shrink-0">Guarulhos,</span>
+                          <div className="flex-1 text-center text-black font-mono text-[11px] tracking-widest">______ / ______ / _________</div>
                         </div>
                         <div className="mt-1 text-[9px] invisible select-none">&nbsp;</div>
                       </div>
                       <div className="w-1/2 shrink-0 flex flex-col items-center">
-                        <div className="w-2/3 border-b-2 border-slate-500 h-6">&nbsp;</div>
-                        <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-widest mt-1.5 text-center">Aluno(a)</span>
+                        <div className="w-2/3 border-b-2 border-black h-6">&nbsp;</div>
+                        <span className="text-[10px] font-black text-black uppercase tracking-widest mt-1.5 text-center">Aluno(a)</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Document Footer Divider */}
-                <div className="pt-1.5 border-t border-black mt-auto flex flex-col justify-end">
+                <div className="pt-2 border-t border-black mt-auto flex flex-col justify-end">
                   <div className="grid grid-cols-12 gap-4 items-start text-left text-[8px] leading-tight text-slate-600 font-sans pt-0.5">
                     <div className="col-span-7 space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ENDEREÇO:</p>
                       <p className="font-semibold uppercase">{institution?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP'}</p>
-                      <p className="font-semibold uppercase">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
-                      <p className="font-semibold uppercase">Email: {institution?.email || 'edm@diocesedeguarulhos.org.br'}</p>
+                      <p className="font-semibold">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
                     </div>
                     <div className="col-span-5 text-right space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ATENDIMENTO SECRETARIA:</p>
-                      <p className="font-semibold uppercase">De Quarta à Sexta-feira das 14h às 18h</p>
+                      <p className="font-semibold uppercase whitespace-pre-line">{institution?.secretary || 'De Quarta à Sexta-feira das 14h às 18h'}</p>
+                      <p className="font-semibold lowercase">email: {institution?.email?.toLowerCase() || 'edm@diocesedeguarulhos.org.br'}</p>
                     </div>
-                  </div>
-                  <div className="text-center pt-1.5 border-t border-slate-100 mt-1.5 text-[7px] text-slate-400 uppercase tracking-widest font-sans font-medium">
-                    Copyright © {institution?.name || 'Escola Diocesana de Ministérios'}
                   </div>
                 </div>
               </div>
@@ -1773,21 +1762,18 @@ export function Impressos() {
                 </div>
 
                 {/* Document Footer Divider */}
-                <div className="pt-1.5 border-t border-black mt-auto flex flex-col justify-end">
+                <div className="pt-2 border-t border-black mt-auto flex flex-col justify-end">
                   <div className="grid grid-cols-12 gap-4 items-start text-left text-[8px] leading-tight text-slate-600 font-sans pt-0.5">
                     <div className="col-span-7 space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ENDEREÇO:</p>
                       <p className="font-semibold uppercase">{institution?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP'}</p>
-                      <p className="font-semibold uppercase">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
-                      <p className="font-semibold uppercase">Email: {institution?.email || 'edm@diocesedeguarulhos.org.br'}</p>
+                      <p className="font-semibold">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
                     </div>
                     <div className="col-span-5 text-right space-y-0.5">
                       <p className="font-black uppercase tracking-wider text-slate-900">ATENDIMENTO SECRETARIA:</p>
-                      <p className="font-semibold uppercase">De Quarta à Sexta-feira das 14h às 18h</p>
+                      <p className="font-semibold uppercase whitespace-pre-line">{institution?.secretary || 'De Quarta à Sexta-feira das 14h às 18h'}</p>
+                      <p className="font-semibold lowercase">email: {institution?.email?.toLowerCase() || 'edm@diocesedeguarulhos.org.br'}</p>
                     </div>
-                  </div>
-                  <div className="text-center pt-1.5 border-t border-slate-100 mt-1.5 text-[7px] text-slate-400 uppercase tracking-widest font-sans font-medium">
-                    Copyright © {institution?.name || 'Escola Diocesana de Ministérios'}
                   </div>
                 </div>
               </div>

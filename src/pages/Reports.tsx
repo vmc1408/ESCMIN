@@ -1500,17 +1500,21 @@ export function Reports() {
         
         doc.text(addressLine.toUpperCase(), margin, footerY + 5);
 
-        const contactLine = [
-          institution?.phone ? `TEL: ${institution.phone}` : '',
-          institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''
-        ].filter(Boolean).join('  |  ');
-        doc.text(contactLine.toUpperCase(), margin, footerY + 9);
+        if (institution?.phone) {
+          doc.text(`Telefone: ${institution.phone}`, margin, footerY + 9);
+        }
 
         if (institution?.secretary) {
           doc.setFontSize(7);
-          doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, footerY + 5, { align: 'right' });
+          doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, footerY + 4, { align: 'right' });
           doc.setFont('helvetica', 'normal');
-          doc.text(institution.secretary.toLowerCase(), pageWidth - margin, footerY + 9, { align: 'right' });
+          doc.text(institution.secretary.toLowerCase(), pageWidth - margin, footerY + 7.5, { align: 'right' });
+          if (institution?.email) {
+            doc.text(`email: ${institution.email.toLowerCase()}`, pageWidth - margin, footerY + 11, { align: 'right' });
+          }
+        } else if (institution?.email) {
+          doc.setFont('helvetica', 'normal');
+          doc.text(`email: ${institution.email.toLowerCase()}`, pageWidth - margin, footerY + 7, { align: 'right' });
         }
 
         doc.setFontSize(6);

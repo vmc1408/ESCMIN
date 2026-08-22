@@ -979,7 +979,7 @@ export function Dashboard() {
               hoverShadow: 'hover:-translate-y-0.5' 
             },
             { 
-              label: 'Ficha do Aluno', 
+              label: 'Controle e Histórico', 
               icon: UserCircle, 
               path: '/student-ficha', 
               bg: 'bg-white hover:bg-rose-50/60', 

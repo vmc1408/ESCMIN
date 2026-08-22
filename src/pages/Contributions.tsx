@@ -1454,28 +1454,35 @@ export function Contributions() {
         const leftLines = [
           institution?.address || '',
           institution?.cep || institution?.city_uf ? `CEP: ${institution.cep || ''}${institution.city_uf ? ' - ' + institution.city_uf : ''}` : '',
-          [institution?.phone ? `TEL: ${institution.phone}` : '', institution?.email ? `EMAIL: ${institution.email.toLowerCase()}` : ''].filter(Boolean).join('  |  ')
+          institution?.phone ? `Telefone: ${institution.phone}` : ''
         ].filter(Boolean);
         
         doc.setFont('helvetica', 'normal');
         let currentLeftY = finalY + 5;
         leftLines.forEach(line => {
-          doc.text(line.toUpperCase(), margin, currentLeftY);
+          doc.text(line, margin, currentLeftY);
           currentLeftY += 4;
         });
 
-        // Right Column: Secretary Hour
-        if (institution?.secretary) {
-          doc.setFont('helvetica', 'bold');
-          doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, finalY + 5, { align: 'right' });
-          doc.setFont('helvetica', 'normal');
-          
-          const secLines = doc.splitTextToSize(institution.secretary.toLowerCase(), 80);
-          let currentRightY = finalY + 9;
-          secLines.forEach((line: string) => {
-            doc.text(line, pageWidth - margin, currentRightY, { align: 'right' });
+        // Right Column: Secretary Hour & Email
+        if (institution?.secretary || institution?.email) {
+          let currentRightY = finalY + 5;
+          if (institution?.secretary) {
+            doc.setFont('helvetica', 'bold');
+            doc.text('ATENDIMENTO SECRETARIA:', pageWidth - margin, currentRightY, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
             currentRightY += 4;
-          });
+            
+            const secLines = doc.splitTextToSize(institution.secretary.toLowerCase(), 80);
+            secLines.forEach((line: string) => {
+              doc.text(line, pageWidth - margin, currentRightY, { align: 'right' });
+              currentRightY += 4;
+            });
+          }
+          if (institution?.email) {
+            doc.setFont('helvetica', 'normal');
+            doc.text(`email: ${institution.email.toLowerCase()}`, pageWidth - margin, currentRightY, { align: 'right' });
+          }
         }
       }
 
@@ -3360,29 +3367,25 @@ export function Contributions() {
                     {institution?.cep ? `CEP: ${institution.cep}` : ''} {institution?.city_uf ? ` - ${institution.city_uf}` : ''}
                   </p>
                 )}
-                <div className="flex items-center gap-4 leading-none font-bold text-[6.5pt]">
-                  {institution?.phone && (
-                    <span className="flex items-center gap-1.5">
-                      TEL: {institution.phone}
-                      <svg viewBox="0 0 24 24" width="9" height="9" fill="#25D366" className="shrink-0">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.43 5.623 1.43h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                      </svg>
-                    </span>
-                  )}
-                  {institution?.phone && institution?.email && <span className="opacity-30">|</span>}
-                  {institution?.email && (
-                    <span className="flex items-center gap-1">
-                      EMAIL: <span className="lowercase font-bold">{institution.email}</span>
-                    </span>
-                  )}
-                </div>
+                {institution?.phone && (
+                  <p className="leading-none font-bold text-[6.5pt] pt-0.5">
+                    <span className="normal-case">Telefone: {institution.phone}</span>
+                  </p>
+                )}
               </div>
-              {institution?.secretary && (
-                <div className="text-right max-w-[450px] leading-tight text-black font-black uppercase text-[6.5pt]">
-                  <p className="whitespace-pre-line underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
-                  <p className="whitespace-pre-line lowercase font-bold text-[6pt]">{institution.secretary}</p>
-                </div>
-              )}
+              <div className="text-right max-w-[450px] leading-tight text-black font-black text-[6.5pt] space-y-1">
+                {institution?.secretary && (
+                  <>
+                    <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-1">Atendimento Secretaria:</p>
+                    <p className="whitespace-pre-line lowercase font-bold text-[6pt]">{institution.secretary}</p>
+                  </>
+                )}
+                {institution?.email && (
+                  <p className="lowercase font-bold text-[6.5pt] pt-0.5">
+                    email: {institution.email.toLowerCase()}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

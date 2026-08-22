@@ -914,8 +914,8 @@ export function StudentFicha() {
       <div className="bg-white border-b border-slate-200 px-8 py-4 print:hidden">
         <div className="max-w-7xl mx-auto">
           <PageHeader
-            title="Ficha do Aluno"
-            description="Consulta de informações cadastrais e desempenho acadêmico para fins de registro interno da escola."
+            title="Controle e Histórico"
+            description="Controle de frequência e aproveitamento acadêmico por disciplinas para registro institucional da escola."
             icon={User}
           >
             {activeStudent && (
@@ -923,7 +923,7 @@ export function StudentFicha() {
                 onClick={triggerDossierPrint}
                 className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 cursor-pointer rounded-none"
               >
-                <Printer size={14} /> Imprimir Ficha Completa
+                <Printer size={14} /> Imprimir Documento
               </button>
             )}
           </PageHeader>
@@ -1232,7 +1232,7 @@ export function StudentFicha() {
                   {/* 2. Frequency Control card */}
                   <div className="bg-white border border-slate-200 p-5 rounded-none shadow-sm space-y-4">
                     <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-150 pb-2">
-                      Frequência e Presença
+                      Controle de Frequência
                     </h3>
 
                     <div className="grid grid-cols-2 gap-3 text-center">
@@ -1287,7 +1287,7 @@ export function StudentFicha() {
                   {/* 3. Grades and performance */}
                   <div className="bg-white border border-slate-200 p-5 rounded-none shadow-sm space-y-4">
                     <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-150 pb-2">
-                      Rendimento Escolar (Notas)
+                      Controle Acadêmico por Disciplinas
                     </h3>
 
                     <div className="divide-y divide-slate-100 max-h-[170px] overflow-y-auto pr-1">
@@ -1766,116 +1766,50 @@ export function StudentFicha() {
             </div>
           </div>
 
-          <div className="text-center mb-6">
-            <h2 className="text-[12pt] font-extrabold uppercase tracking-[0.15em] w-fit mx-auto border-b-2 border-black pb-0.5">Ficha de Frequência e Aproveitamento do Aluno</h2>
+          <div className="text-center mb-5">
+            <h2 className="text-[13pt] font-black uppercase tracking-[0.12em] w-fit mx-auto border-b-2 border-black pb-0.5">
+              Controle e Histórico do Aluno
+            </h2>
           </div>
 
-          {/* BIO INFORMATION GRID */}
-          <div className="grid grid-cols-12 gap-y-3 gap-x-6 border-2 border-black p-4 mb-6 text-[10.5pt] leading-relaxed">
-            <div className="col-span-12 font-bold uppercase text-[11pt] border-b border-black/25 pb-1 mb-1">
-              Informações Pessoais do Aluno
+          {/* RESUMO CADASTRAL DO ALUNO */}
+          <div className="border-2 border-black p-3.5 mb-5 text-[10pt] leading-relaxed">
+            <div className="grid grid-cols-12 gap-y-2 gap-x-4">
+              <div className="col-span-8 flex gap-2">
+                <span className="font-bold uppercase text-slate-700 min-w-[70px]">Aluno(a):</span>
+                <span className="font-bold uppercase flex-1 border-b border-dashed border-black/30 truncate">{activeStudent.name}</span>
+              </div>
+              <div className="col-span-4 flex gap-2">
+                <span className="font-bold uppercase text-slate-700">RA:</span>
+                <span className="font-mono font-bold flex-1 border-b border-dashed border-black/30 pl-1">{activeStudent.registration_number || 'Não Informado'}</span>
+              </div>
+              <div className="col-span-4 flex gap-2">
+                <span className="font-bold uppercase text-slate-700 min-w-[70px]">Status:</span>
+                <span className="font-bold uppercase flex-1 border-b border-dashed border-black/30">{activeStudent.status || 'ATIVO'}</span>
+              </div>
+              <div className="col-span-8 flex gap-2">
+                <span className="font-bold uppercase text-slate-700">Curso / Vínculo:</span>
+                <span className="font-bold uppercase flex-1 border-b border-dashed border-black/30 truncate">
+                  {activeStudent.course || 'TEOLOGIA'}{activeStudentMetrics?.cls?.name ? ` • TURMA: ${activeStudentMetrics.cls.name}` : ''}
+                </span>
+              </div>
             </div>
-            
-            <div className="col-span-8 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Nome Completo:</span>
-              <span className="font-bold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.name}</span>
-            </div>
-            <div className="col-span-4 flex gap-2">
-              <span className="font-bold uppercase text-slate-650">RA:</span>
-              <span className="font-mono font-bold flex-1 border-b border-dashed border-black/20 pl-1">{activeStudent.registration_number || 'Não Informado'}</span>
-            </div>
-
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Nascimento:</span>
-              <span className="font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.birth_date ? formatDateForDisplay(activeStudent.birth_date) : 'Não informado'}</span>
-            </div>
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Data de Ingressão:</span>
-              <span className="font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.start_date ? formatDateForDisplay(activeStudent.start_date) : 'Não informado'}</span>
-            </div>
-
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">CPF:</span>
-              <span className="font-mono font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.cpf || 'Não Informado'}</span>
-            </div>
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">RG:</span>
-              <span className="font-mono font-semibold flex-1 border-b border-dashed border-black/20">{activeStudent.rg || 'Não Informado'}</span>
-            </div>
-
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Status Canônico:</span>
-              <span className="font-bold flex-1 border-b border-dashed border-black/20 uppercase pl-1">{activeStudent.status || 'ATIVO'}</span>
-            </div>
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Curso Vinculado:</span>
-              <span className="font-bold flex-1 border-b border-dashed border-black/20 uppercase pl-1">{activeStudent.course || 'TEOLOGIA'}</span>
-            </div>
-
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">E-mail:</span>
-              <span className="font-semibold flex-1 border-b border-dashed border-black/20 truncate">{activeStudent.email || 'Não informado'}</span>
-            </div>
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Contatos:</span>
-              <span className="font-semibold flex-1 border-b border-dashed border-black/20 font-mono">{activeStudent.phone_mobile || activeStudent.phone_residential || 'Sem Telefone'}</span>
-            </div>
-
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Paróquia:</span>
-              <span className="font-bold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.parish || 'Não cadastrado'}</span>
-            </div>
-            <div className="col-span-6 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Forania:</span>
-              <span className="font-bold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.forania || 'Não cadastrada'}</span>
-            </div>
-
-            <div className="col-span-12 flex gap-2">
-              <span className="font-bold uppercase text-slate-650 min-w-[120px]">Endereço:</span>
-              <span className="font-semibold uppercase flex-1 border-b border-dashed border-black/20">
-                {activeStudent.address_street ? (
-                  `${activeStudent.address_street}${activeStudent.address_neighborhood ? `, ${activeStudent.address_neighborhood}` : ''}${activeStudent.address_city ? `, ${activeStudent.address_city}` : ''}${activeStudent.address_state ? ` - ${activeStudent.address_state}` : ''}${activeStudent.address_zip ? ` (CEP: ${activeStudent.address_zip})` : ''}`
-                ) : (
-                  `${activeStudent.address_city || 'Não Informado'} - ${activeStudent.address_state || 'SP'}`
-                )}
-              </span>
-            </div>
-
-            {(activeStudent.guardian_mother || activeStudent.guardian_father) && (
-              <>
-                <div className="col-span-12 font-bold uppercase text-[10pt] border-t border-black/15 pt-2 mt-1">
-                  Filiação / Responsáveis
-                </div>
-                {activeStudent.guardian_mother && (
-                  <div className="col-span-12 flex gap-2">
-                    <span className="font-bold uppercase text-slate-650 min-w-[120px]">Nome da Mãe:</span>
-                    <span className="font-semibold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.guardian_mother}</span>
-                  </div>
-                )}
-                {activeStudent.guardian_father && (
-                  <div className="col-span-12 flex gap-2">
-                    <span className="font-bold uppercase text-slate-650 min-w-[120px]">Nome do Pai:</span>
-                    <span className="font-semibold uppercase flex-1 border-b border-dashed border-black/20">{activeStudent.guardian_father}</span>
-                  </div>
-                )}
-              </>
-            )}
           </div>
 
           {/* ATTENDANCE SECTION */}
-          <div className="border border-black p-4 mb-6 text-[10.5pt] leading-relaxed">
-            <h3 className="font-bold uppercase text-[11pt] border-b border-black pb-1 mb-2">Controle de Assiduidade e Frequência</h3>
+          <div className="border border-black p-4 mb-5 text-[10.5pt] leading-relaxed">
+            <h3 className="font-bold uppercase text-[11pt] border-b border-black pb-1 mb-2">Controle de Frequência</h3>
             <div className="grid grid-cols-3 gap-4 text-center mt-2">
               <div className="border border-black/30 p-2">
-                <p className="text-[9pt] font-bold uppercase text-slate-500">Aulas Presenciais</p>
+                <p className="text-[9pt] font-bold uppercase text-slate-600">Aulas Presenciais</p>
                 <p className="text-xl font-bold font-mono text-black">{activeStudentMetrics?.presences}</p>
               </div>
               <div className="border border-black/30 p-2">
-                <p className="text-[9pt] font-bold uppercase text-slate-500">Ausências / Faltas</p>
+                <p className="text-[9pt] font-bold uppercase text-slate-600">Ausências / Faltas</p>
                 <p className="text-xl font-bold font-mono text-rose-700">{activeStudentMetrics?.absences}</p>
               </div>
               <div className="border border-black/30 p-2 bg-neutral-50">
-                <p className="text-[9pt] font-bold uppercase text-slate-500">Porcentagem Final</p>
+                <p className="text-[9pt] font-bold uppercase text-slate-600">Porcentagem Final</p>
                 <p className="text-xl font-bold font-mono text-black">
                   {activeStudentMetrics?.presences === 0 && activeStudentMetrics?.absences === 0
                     ? '-'
@@ -1886,8 +1820,8 @@ export function StudentFicha() {
           </div>
 
           {/* ACADEMIC PERFORMANCE (GRADES) TABLE */}
-          <div className="border border-black p-4 text-[10.5pt] leading-relaxed">
-            <h3 className="font-bold uppercase text-[11pt] border-b border-black pb-1 mb-3">Histórico e Controle Acadêmico por Disciplina</h3>
+          <div className="border border-black p-4 text-[10.5pt] leading-relaxed mb-6">
+            <h3 className="font-bold uppercase text-[11pt] border-b border-black pb-1 mb-3">Controle Acadêmico por Disciplinas</h3>
             
             <table className="w-full text-left border-collapse text-[10pt] border border-black/20">
               <thead>
@@ -1901,7 +1835,7 @@ export function StudentFicha() {
               <tbody className="divide-y divide-black/25">
                 {activeStudentMetrics?.subjectRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="p-4 text-center text-slate-500 font-bold uppercase">Nenhuma nota ou aproveitamento lançado.</td>
+                    <td colSpan={4} className="p-4 text-center text-slate-500 font-bold uppercase">Nenhuma disciplina ou aproveitamento lançado.</td>
                   </tr>
                 ) : (
                   activeStudentMetrics?.subjectRecords.map(rec => {
@@ -1933,7 +1867,21 @@ export function StudentFicha() {
             </table>
           </div>
 
-          {/* SIGNATURES FOOTER FOR PRINT REMOVED BY USER REQUEST */}
+          {/* STANDARD FOOTER */}
+          <div className="pt-3 border-t-2 border-black mt-8 text-[8.5pt] leading-tight text-slate-700 font-sans">
+            <div className="grid grid-cols-12 gap-4 items-start text-left">
+              <div className="col-span-7 space-y-0.5">
+                <p className="font-black uppercase tracking-wider text-black">ENDEREÇO:</p>
+                <p className="font-semibold uppercase">{institution?.address || 'Avenida Vênus, 195 - Itapegica - Guarulhos-SP'}</p>
+                <p className="font-semibold">Telefone: {institution?.phone || '(11) 2421-2935'}</p>
+              </div>
+              <div className="col-span-5 text-right space-y-0.5">
+                <p className="font-black uppercase tracking-wider text-black">ATENDIMENTO SECRETARIA:</p>
+                <p className="font-semibold uppercase whitespace-pre-line">{institution?.secretary || 'De Quarta à Sexta-feira das 14h às 18h'}</p>
+                <p className="font-semibold lowercase">email: {institution?.email?.toLowerCase() || 'edm@diocesedeguarulhos.org.br'}</p>
+              </div>
+            </div>
+          </div>
           
         </div>
       )}
