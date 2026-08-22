@@ -2042,16 +2042,6 @@ export function Classes() {
                       </button>
 
                       <button 
-                        type="button"
-                        onClick={() => handleOpenStudentsModal()}
-                        className="h-10 px-4 bg-blue-900 hover:bg-blue-950 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider cursor-pointer"
-                        title="Ver lista de alunos matriculados nesta turma"
-                      >
-                        <Users size={15} />
-                        <span>Alunos Matriculados ({selectedClassStudentCount ?? 0})</span>
-                      </button>
-
-                      <button 
                         onClick={() => setIsEditing(true)}
                         className="h-10 px-4 bg-slate-800 border border-slate-800 hover:bg-slate-900 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
                         title="Editar"
@@ -2293,7 +2283,7 @@ export function Classes() {
                                 ) : (
                                   <Unlock size={13} className="text-emerald-600" />
                                 )}
-                                Nome / Identificador da Turma
+                                ID Turma
                               </label>
                               {isNameLocked ? (
                                 <span className="text-[9px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 uppercase tracking-wider border border-slate-300 flex items-center gap-1">
