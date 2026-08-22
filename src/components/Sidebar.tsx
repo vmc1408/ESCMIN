@@ -65,7 +65,6 @@ const navItems = [
           { icon: FileText, label: 'Cadastrar Avaliação', path: '/assessments' },
           { icon: GradesIcon, label: 'Apontamento de Notas', path: '/grades' },
           { icon: FileText, label: 'Boletim de Notas', path: '/bulletin' },
-          { icon: UserIcon, label: 'Controle e Histórico', path: '/student-ficha' },
           { icon: CertificateIcon, label: 'Certificados e Diplomas', path: '/documents' },
         ]
       },
@@ -75,6 +74,7 @@ const navItems = [
         children: [
           { icon: AttendanceIcon, label: 'Chamada', path: '/attendance' },
           { icon: CalendarCheck, label: 'Lista de Chamada', path: '/monthly-attendance' },
+          { icon: UserIcon, label: 'Controle e Histórico', path: '/student-ficha' },
         ]
       },
       {

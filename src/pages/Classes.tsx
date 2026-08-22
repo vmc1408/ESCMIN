@@ -255,7 +255,7 @@ export function Classes() {
   }, [getClassAcademicYear, currentAcademicYear]);
 
   const availableAcademicYears = React.useMemo(() => {
-    const yrSet = new Set<string>(['2026']);
+    const yrSet = new Set<string>(['2026', currentAcademicYear]);
     classes.forEach(c => {
       if (c.unallocated) return;
       const yr = getClassAcademicYear(c);
@@ -263,8 +263,14 @@ export function Classes() {
         yrSet.add(yr);
       }
     });
+    const cur = parseInt(currentAcademicYear, 10);
+    if (!isNaN(cur)) {
+      yrSet.add(String(cur - 1));
+      yrSet.add(String(cur - 2));
+      yrSet.add(String(cur - 3));
+    }
     return Array.from(yrSet).sort((a, b) => Number(b) - Number(a));
-  }, [classes, getClassAcademicYear]);
+  }, [classes, getClassAcademicYear, currentAcademicYear]);
 
   // Import / Promotion Modal State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1590,7 +1596,7 @@ export function Classes() {
     });
   }, [classes, subjects, searchTerm, statusFilter, selectedYearFilter, selectedSemesterFilter, selectedPeriodFilter, selectedAcademicYearFilter, sortBy, isClassActiveInAcademicYear]);
 
-  const hasActiveFilters = searchTerm !== '' || selectedYearFilter !== 'Todos' || selectedSemesterFilter !== 'Todos' || statusFilter !== 'Todos' || selectedPeriodFilter !== 'Todos' || selectedAcademicYearFilter !== 'Todos';
+  const hasActiveFilters = searchTerm !== '' || selectedYearFilter !== 'Todos' || selectedSemesterFilter !== 'Todos' || statusFilter !== 'Todos' || selectedPeriodFilter !== 'Todos' || selectedAcademicYearFilter !== 'ATUAL';
 
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -1598,199 +1604,220 @@ export function Classes() {
     setSelectedSemesterFilter('Todos');
     setStatusFilter('Todos');
     setSelectedPeriodFilter('Todos');
-    setSelectedAcademicYearFilter('Todos');
+    setSelectedAcademicYearFilter('ATUAL');
   };
 
   const actualListCollapsed = selectedClass !== null || isEditing;
 
   return (
     <>
-      <div className="print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full p-2 sm:p-4 overflow-hidden bg-slate-100/40">
-      {/* Sidebar / List Panel */}
+      <div className={cn(
+        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
+        actualListCollapsed ? "justify-center" : "justify-end"
+      )}>
+      {/* Green Hover Sensor / Marker */}
+      {actualListCollapsed && !hoverShowList && (
+        <div 
+          onMouseEnter={() => setHoverShowList(true)}
+          onClick={() => setHoverShowList(true)}
+          className="absolute right-0 top-1/4 h-1/2 w-3 bg-emerald-500 hover:bg-emerald-600 cursor-pointer rounded-l-md shadow-md transition-all duration-200 flex flex-col justify-center items-center group z-[45]"
+          title="Aproxime o mouse para ver a Lista de Turmas"
+        >
+          {/* Subtle glowing accent */}
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          <div className="w-1 h-8 bg-white/40 rounded-full animate-pulse my-1" />
+          
+          {/* Hover instruction tooltip */}
+          <div className="absolute right-4 bg-slate-900 border border-slate-800 text-emerald-400 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded-none shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+            ➔ Lista de Turmas <span className="text-slate-300">(Passe o mouse)</span>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar/Full List */}
       <div 
+        onMouseLeave={() => {
+          if (actualListCollapsed) {
+            setHoverShowList(false);
+          }
+        }}
         className={cn(
-          "bg-white rounded-none shadow-xl flex flex-col border border-slate-200 overflow-hidden flex-shrink-0 transition-all duration-300",
-          selectedClass || isEditing ? "hidden lg:flex lg:w-[360px] xl:w-[400px]" : "w-full lg:w-[360px] xl:w-[400px]"
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          actualListCollapsed 
+            ? (hoverShowList 
+                ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
+                : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
+              )
+            : "w-full lg:w-[432px] opacity-100"
         )}
       >
         <div className="flex-[1] flex flex-col overflow-hidden w-full bg-white">
-          <div className="p-6 border-b border-slate-100 space-y-4">
-            <div className="flex items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 border-b border-slate-100 space-y-3.5">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Turmas</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5">Gestão de Grupos Acadêmicos</p>
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>Turmas</span>
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-black border border-slate-200">
+                    {filteredClasses.length}
+                  </span>
+                </h2>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mt-0.5">Catálogo e Gestão de Grupos</p>
               </div>
               <div className="flex items-center gap-1.5">
                 <button 
                   onClick={handleOpenImportModal}
-                  className="px-2.5 py-2 bg-blue-800 text-white rounded-none hover:bg-blue-900 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer text-[10px] font-bold uppercase tracking-wider"
+                  className="px-2.5 py-1.5 bg-blue-800 text-white rounded-none hover:bg-blue-900 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer text-[10px] font-bold uppercase tracking-wider"
                   title="IMPORTAR / PROMOVER TURMA DE UM ANO A OUTRO"
                 >
-                  <RefreshCw size={14} />
+                  <RefreshCw size={13} />
                   <span className="hidden sm:inline">Importar</span>
                 </button>
                 <button 
                   onClick={handleNew}
-                  className="w-9 h-9 bg-slate-800 text-white rounded-none hover:bg-slate-900 transition-all flex items-center justify-center shadow-sm cursor-pointer active:scale-95"
+                  className="px-3 py-1.5 bg-slate-800 text-white rounded-none hover:bg-slate-900 transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer active:scale-95 text-[10px] font-bold uppercase tracking-wider"
                   title="NOVA TURMA"
                 >
-                  <Plus size={18} />
+                  <Plus size={14} />
+                  <span>Nova</span>
                 </button>
               </div>
             </div>
             
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {/* Search Bar */}
               <div className="relative group">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={15} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={14} />
                 <input 
                   type="text"
                   placeholder="Buscar por nome ou código..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-8 py-2 bg-slate-50 border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-7 py-2 bg-slate-50 border border-slate-200 text-[11px] font-bold focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all placeholder:text-slate-400"
                 />
                 {searchTerm && (
                   <button 
                     type="button" 
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded cursor-pointer"
                     title="Limpar busca"
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 )}
               </div>
 
-              {/* Dynamic Select Menu for Módulo/Ano and Semestre */}
-              <div className="grid grid-cols-1 gap-2">
-                {/* Ano Letivo / Módulo Select */}
+              {/* Row 1: Ano Letivo (Base/Histórico) & Módulo / Série */}
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                      Ano Letivo / Módulo:
-                    </label>
-                    {selectedYearFilter !== 'Todos' && (
-                      <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1 border border-blue-100 uppercase">Filtro Ativo</span>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>Ano Letivo:</span>
+                    {selectedAcademicYearFilter !== 'ATUAL' && (
+                      <span className="text-[8px] font-black text-blue-700 bg-blue-50 px-1 border border-blue-200 uppercase">Filtro</span>
                     )}
-                  </div>
+                  </label>
                   <select
-                    value={selectedYearFilter}
-                    onChange={(e) => setSelectedYearFilter(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
+                    value={selectedAcademicYearFilter}
+                    onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer uppercase"
                   >
-                    <option value="Todos">Todos os Anos / Módulos ({classes.length} turmas)</option>
-                    {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((yr) => {
-                      const count = classes.filter(c => (c.year || '1º Ano') === yr).length;
-                      return (
-                        <option key={yr} value={yr}>
-                          {yr} ({count} {count === 1 ? 'turma' : 'turmas'})
-                        </option>
-                      );
-                    })}
+                    <option value="ATUAL">Ano Atual ({currentAcademicYear})</option>
+                    <option value="Todos">Todos os Anos (Histórico)</option>
+                    {availableAcademicYears.map(yr => (
+                      <option key={yr} value={yr}>Ano {yr}</option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Semestre & Status Row */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Semestre:</label>
-                    <select
-                      value={selectedSemesterFilter}
-                      onChange={(e) => setSelectedSemesterFilter(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-2 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
-                    >
-                      <option value="Todos">Todos os Semestres</option>
-                      <option value="1º Semestre">1º Semestre</option>
-                      <option value="2º Semestre">2º Semestre</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Status:</label>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as any)}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-2 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
-                    >
-                      <option value="Todos">Todos os Status</option>
-                      <option value="Ativo">Apenas Ativos</option>
-                      <option value="Encerrada">Turmas Encerradas</option>
-                      <option value="Inativo">Inativos</option>
-                    </select>
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Módulo / Série:</label>
+                  <select
+                    value={selectedYearFilter}
+                    onChange={(e) => setSelectedYearFilter(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
+                  >
+                    <option value="Todos">Todos os Módulos</option>
+                    {['1º Ano', '2º Ano', '3º Ano', '4º Ano', 'Curso Extra'].map((yr) => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* Dynamic Expandable Advanced Filter Options */}
-              <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className="text-[9.5px] font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 flex items-center gap-1.5 py-0.5 cursor-pointer"
-                >
-                  <SlidersHorizontal size={12} className="text-blue-700" />
-                  <span>{showAdvancedFilters ? 'Ocultar Filtros Extras' : 'Filtros Extras & Ordenação'}</span>
-                  <ChevronDown size={12} className={cn("transition-transform duration-200", showAdvancedFilters && "rotate-180")} />
-                </button>
-
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={handleClearFilters}
-                    className="text-[9px] font-bold uppercase tracking-wider text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
+              {/* Row 2: Semestre & Turno/Período */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Semestre:</label>
+                  <select
+                    value={selectedSemesterFilter}
+                    onChange={(e) => setSelectedSemesterFilter(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
                   >
-                    <RotateCcw size={10} />
-                    <span>Limpar</span>
-                  </button>
-                )}
+                    <option value="Todos">Todos os Semestres</option>
+                    <option value="1º Semestre">1º Semestre</option>
+                    <option value="2º Semestre">2º Semestre</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Turno / Período:</label>
+                  <select
+                    value={selectedPeriodFilter}
+                    onChange={(e) => setSelectedPeriodFilter(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none cursor-pointer"
+                  >
+                    <option value="Todos">Todos os Turnos</option>
+                    <option value="Noite">Noite</option>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Sábado">Sábado</option>
+                    <option value="Integral">Integral</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Advanced Collapsible Section (Hidden before selection) */}
-              {showAdvancedFilters && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="p-2.5 bg-slate-100/90 border border-slate-200 space-y-2"
-                >
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Turno / Período:</label>
-                      <select
-                        value={selectedPeriodFilter}
-                        onChange={(e) => setSelectedPeriodFilter(e.target.value)}
-                        className="w-full px-2 py-1 bg-white border border-slate-200 text-[10px] font-bold text-slate-800 focus:border-slate-400 outline-none cursor-pointer"
-                      >
-                        <option value="Todos">Todos os Turnos</option>
-                        <option value="Manhã">Manhã</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Noite">Noite</option>
-                        <option value="Integral">Integral</option>
-                      </select>
-                    </div>
+              {/* Row 3: Status & Ordenação */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Status:</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none transition-all cursor-pointer"
+                  >
+                    <option value="Todos">Todos os Status</option>
+                    <option value="Ativo">Apenas Ativos</option>
+                    <option value="Encerrada">Turmas Encerradas</option>
+                    <option value="Inativo">Inativos</option>
+                  </select>
+                </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Ordenar por:</label>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        className="w-full px-2 py-1 bg-white border border-slate-200 text-[10px] font-bold text-slate-800 focus:border-slate-400 outline-none cursor-pointer"
-                      >
-                        <option value="name_year">Nome e Ano (Recente)</option>
-                        <option value="name">Nome (A-Z)</option>
-                        <option value="code">Código</option>
-                        <option value="year">Ano Letivo</option>
-                        <option value="period">Período</option>
-                      </select>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Ordenar por:</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-800 focus:ring-1 focus:ring-slate-500/10 focus:border-slate-400 outline-none cursor-pointer"
+                  >
+                    <option value="name_year">Nome e Ano (Recente)</option>
+                    <option value="name">Nome (A-Z)</option>
+                    <option value="code">Código</option>
+                    <option value="year">Ano / Módulo</option>
+                    <option value="period">Turno / Período</option>
+                  </select>
+                </div>
+              </div>
 
               {/* Active Filter Badges / Chips */}
               {hasActiveFilters && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+                  {selectedAcademicYearFilter !== 'ATUAL' && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-900 text-white text-[9px] font-extrabold uppercase">
+                      Ano: {selectedAcademicYearFilter === 'Todos' ? 'Todos os Anos' : selectedAcademicYearFilter}
+                      <button type="button" onClick={() => setSelectedAcademicYearFilter('ATUAL')} className="hover:text-amber-300 cursor-pointer">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
                   {searchTerm && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 text-blue-900 border border-blue-200 text-[9px] font-extrabold uppercase">
                       Busca: "{searchTerm}"
@@ -1815,14 +1842,6 @@ export function Classes() {
                       </button>
                     </span>
                   )}
-                  {statusFilter !== 'Todos' && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-200 text-[9px] font-extrabold uppercase">
-                      Status: {statusFilter}
-                      <button type="button" onClick={() => setStatusFilter('Todos')} className="hover:text-rose-600 cursor-pointer">
-                        <X size={10} />
-                      </button>
-                    </span>
-                  )}
                   {selectedPeriodFilter !== 'Todos' && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-900 border border-purple-200 text-[9px] font-extrabold uppercase">
                       Turno: {selectedPeriodFilter}
@@ -1831,6 +1850,22 @@ export function Classes() {
                       </button>
                     </span>
                   )}
+                  {statusFilter !== 'Todos' && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-200 text-[9px] font-extrabold uppercase">
+                      Status: {statusFilter}
+                      <button type="button" onClick={() => setStatusFilter('Todos')} className="hover:text-rose-600 cursor-pointer">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleClearFilters}
+                    className="text-[9px] font-bold uppercase tracking-wider text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer ml-auto"
+                  >
+                    <RotateCcw size={10} />
+                    <span>Limpar Tudo</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1862,11 +1897,11 @@ export function Classes() {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content Area (Class Details or Registration Form) */}
       <div 
         className={cn(
-          "bg-white rounded-none shadow-xl border border-slate-200 flex-1 flex flex-col overflow-hidden relative transition-all duration-300",
-          selectedClass || isEditing ? "w-full flex" : "hidden lg:flex"
+          "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 w-full min-w-0 max-w-5xl mx-auto",
+          actualListCollapsed ? "flex-grow flex-1 opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
         )}
       >
         {selectedClass || isEditing ? (
