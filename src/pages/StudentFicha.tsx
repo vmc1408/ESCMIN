@@ -21,7 +21,7 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
@@ -1972,7 +1972,7 @@ export function StudentFicha() {
               <div className="col-span-12 flex items-baseline gap-2">
                 <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Curso:</span>
                 <span className="font-bold text-[10pt] uppercase text-slate-900 flex-1">
-                  {activeStudent.course || activeStudentMetrics?.cls?.course || 'Doutrina Social da Igreja'}
+                  {activeStudent.course || activeStudentMetrics?.cls?.course || detectCourseFromClass(activeStudentMetrics?.cls) || 'Teologia'}
                 </span>
               </div>
             </div>

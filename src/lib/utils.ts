@@ -178,3 +178,84 @@ export function parseDateToDB(dateStr: string | undefined | null): string | null
   
   return null;
 }
+
+export function detectCourseFromClass(cls: any): string {
+  if (!cls) return '';
+
+  // 1. Direct course field if present
+  const directCourse = String(cls.course || '').trim();
+  if (directCourse) {
+    const dcLower = directCourse.toLowerCase();
+    if (dcLower.includes('doutrina') || dcLower.includes('dsi')) return 'Doutrina Social da Igreja';
+    if (dcLower.includes('negros') || dcLower.includes('santos') || dcLower.includes('hsn')) return 'História dos Santos Negros';
+    if (dcLower.includes('teologia') || dcLower.includes('teo')) return 'Teologia';
+    if (dcLower.includes('latim') || dcLower.includes('lat')) return 'Latim';
+    if (dcLower.includes('outros')) return 'Outros';
+    return directCourse;
+  }
+
+  // 2. Observations metadata inspection
+  if (cls.observations) {
+    const match = String(cls.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+    if (match && match[1]) {
+      try {
+        const meta = JSON.parse(match[1]);
+        if (meta.course) {
+          const mcLower = String(meta.course).toLowerCase();
+          if (mcLower.includes('doutrina') || mcLower.includes('dsi')) return 'Doutrina Social da Igreja';
+          if (mcLower.includes('negros') || mcLower.includes('santos') || mcLower.includes('hsn')) return 'História dos Santos Negros';
+          if (mcLower.includes('teologia') || mcLower.includes('teo')) return 'Teologia';
+          if (mcLower.includes('latim') || mcLower.includes('lat')) return 'Latim';
+          if (mcLower.includes('outros')) return 'Outros';
+          return meta.course;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 3. Class name and code analysis
+  const str = `${cls.name || ''} ${cls.code || ''}`.toLowerCase();
+  
+  if (
+    str.includes('doutrina social') || 
+    str.includes('doutrina') || 
+    str.includes('dsi') || 
+    str.includes('dout.') ||
+    /\bdsi\b/i.test(str)
+  ) {
+    return 'Doutrina Social da Igreja';
+  }
+
+  if (
+    str.includes('santos negros') || 
+    str.includes('história dos santos') || 
+    str.includes('negros') || 
+    str.includes('hsn') ||
+    /\bhsn\b/i.test(str)
+  ) {
+    return 'História dos Santos Negros';
+  }
+
+  if (
+    str.includes('teologia') || 
+    str.includes('teo-') || 
+    str.includes('teo 20') || 
+    str.includes('teo-2') ||
+    /\bteo\b/i.test(str)
+  ) {
+    return 'Teologia';
+  }
+
+  if (
+    str.includes('latim') || 
+    str.includes('lat-') || 
+    str.includes('lat 20') || 
+    str.includes('lat-2') ||
+    /\blat\b/i.test(str)
+  ) {
+    return 'Latim';
+  }
+
+  return '';
+}
+

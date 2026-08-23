@@ -35,7 +35,7 @@ import {
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
@@ -697,6 +697,9 @@ export function Classes() {
               const meta = JSON.parse(match[1]);
               if (!normalized.year) normalized.year = meta.year;
               if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
+              if (meta.course && !(normalized as any).course) {
+                (normalized as any).course = meta.course;
+              }
               if (meta.start_year && (!normalized.start_year || String(normalized.start_year).trim() === '')) {
                 (normalized as any).start_year = String(meta.start_year).trim();
               }
@@ -714,6 +717,10 @@ export function Classes() {
               isSpecial = !!meta.is_special;
             } catch (e) {}
           }
+        }
+
+        if (!(normalized as any).course) {
+          (normalized as any).course = detectCourseFromClass(normalized);
         }
 
         // Infer sem1 and sem2 slots if missing
@@ -1013,7 +1020,7 @@ export function Classes() {
   const handleSelectClass = React.useCallback((cls: Class) => {
     setSelectedClass(cls);
     const startYearFromDate = cls.start_date ? cls.start_date.substring(0, 4) : String(new Date().getFullYear());
-    const detectedCourse = cls.course || (PREDEFINED_COURSES.find(c => (cls.name || '').toUpperCase().includes(c.toUpperCase())) || 'Teologia');
+    const detectedCourse = cls.course || detectCourseFromClass(cls) || (PREDEFINED_COURSES.find(c => (cls.name || '').toUpperCase().includes(c.toUpperCase())) || 'Teologia');
     
     setFormData({
       ...cls,
@@ -1236,6 +1243,7 @@ export function Classes() {
       // Always sync year, semester, subject slots, subject_ids and is_special into observations metadata 
       // before saving. This ensures data persistence even if Supabase columns are missing.
       const metadata: any = {};
+      if (formData.course) metadata.course = formData.course;
       if (formData.year) metadata.year = formData.year;
       if (formData.start_year) metadata.start_year = formData.start_year;
       if (formData.semester) metadata.semester = formData.semester;

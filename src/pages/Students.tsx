@@ -34,7 +34,7 @@ import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone } from '../lib/utils';
+import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass } from '../lib/utils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery, getInstitutionSettings } from '../lib/database';
 import { Student, Class, Enrollment } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -306,13 +306,10 @@ export function Students() {
           updates.start_date = targetClass.start_date;
         }
 
-        // Auto-detect course if not already selected
-        if (!formData.course) {
-          const className = (targetClass.name || '').toLowerCase();
-          if (className.includes('teologia')) updates.course = 'Teologia';
-          else if (className.includes('latim')) updates.course = 'Latim';
-          else if (className.includes('doutrina social')) updates.course = 'Doutrina Social da Igreja';
-          else if (className.includes('negros') || className.includes('história')) updates.course = 'História dos Santos Negros';
+        // Auto-detect course
+        const detectedCourse = detectCourseFromClass(targetClass);
+        if (detectedCourse && formData.course !== detectedCourse) {
+          updates.course = detectedCourse;
         }
 
         if (Object.keys(updates).length > 0) {
@@ -325,7 +322,27 @@ export function Students() {
   const fetchClasses = async () => {
     try {
       const data = await fetchAll('classes', '*', 'name', true);
-      const sorted = (data || []).sort((a: any, b: any) => {
+      const normalized = (data || []).map((cls: any) => {
+        let course = cls.course || '';
+        if (cls.observations) {
+          const match = String(cls.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+          if (match && match[1]) {
+            try {
+              const meta = JSON.parse(match[1]);
+              if (meta.course && !course) course = meta.course;
+            } catch (e) {}
+          }
+        }
+        if (!course) {
+          course = detectCourseFromClass(cls);
+        }
+        return {
+          ...cls,
+          course: course || detectCourseFromClass(cls)
+        };
+      });
+
+      const sorted = normalized.sort((a: any, b: any) => {
         const extract = (s: string) => {
           const match = s.match(/\d{4}/);
           const yr = match ? parseInt(match[0]) : 0;
@@ -667,12 +684,22 @@ export function Students() {
                 <p className="text-[7.5pt] font-bold mb-0.5 uppercase border-b border-black/10 pb-0.5">CURSO:</p>
                 <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-0.5 content-center">
                   {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
-                    const isInPrimaryClass = currentClass?.name?.toLowerCase().includes(course.toLowerCase());
+                    const courseFullName = course === 'S. Negros' ? 'História dos Santos Negros' : course;
+                    const primaryClassCourse = currentClass ? detectCourseFromClass(currentClass) : '';
+                    const isInPrimaryClass = primaryClassCourse.toLowerCase() === courseFullName.toLowerCase() ||
+                      (currentClass?.name?.toLowerCase() || '').includes(course.toLowerCase());
+
                     const isInExtraEnrollments = studentEnrollments.some(enrollment => {
                       const targetClass = classes.find(c => c.id === enrollment.class_id);
-                      return targetClass?.name?.toLowerCase().includes(course.toLowerCase()) && enrollment.status === 'Ativo';
+                      const enrolledCourse = targetClass ? detectCourseFromClass(targetClass) : '';
+                      return (enrolledCourse.toLowerCase() === courseFullName.toLowerCase() ||
+                        (targetClass?.name?.toLowerCase() || '').includes(course.toLowerCase())) &&
+                        enrollment.status === 'Ativo';
                     });
-                    const isChecked = isInPrimaryClass || isInExtraEnrollments || selectedStudent.course?.toLowerCase().includes(course.toLowerCase());
+
+                    const isChecked = isInPrimaryClass || isInExtraEnrollments ||
+                      (selectedStudent.course?.toLowerCase() === courseFullName.toLowerCase()) ||
+                      (selectedStudent.course?.toLowerCase() || '').includes(course.toLowerCase());
                     
                     return (
                       <div key={course} className="flex items-center gap-1.5">
@@ -1390,7 +1417,17 @@ export function Students() {
                         <select 
                           disabled={!isEditing}
                           value={formData.class_id || ''}
-                          onChange={(e) => setFormData({...formData, class_id: e.target.value})}
+                          onChange={(e) => {
+                            const newClassId = e.target.value;
+                            const targetClass = classes.find(c => c.id === newClassId);
+                            const detectedCourse = targetClass ? detectCourseFromClass(targetClass) : '';
+                            setFormData(prev => ({
+                              ...prev,
+                              class_id: newClassId,
+                              ...(detectedCourse ? { course: detectedCourse } : {}),
+                              ...(targetClass?.start_date ? { start_date: targetClass.start_date } : {})
+                            }));
+                          }}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={7}
