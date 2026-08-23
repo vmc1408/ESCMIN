@@ -115,6 +115,20 @@ export interface Class {
   created_at: string;
 }
 
+export interface Course {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  duration_years?: number;
+  duration_semesters?: number;
+  status: 'Ativo' | 'Inativo';
+  workload_hours?: number;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Subject {
   id: string;
   code: string;

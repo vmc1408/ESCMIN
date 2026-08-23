@@ -172,6 +172,7 @@ export function Students() {
   const location = useLocation();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [coursesList, setCoursesList] = useState<Course[]>([]);
   const [parishesList, setParishesList] = useState<any[]>([]);
   const [forariesList, setForariesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,9 +228,19 @@ export function Students() {
     }
   }, []);
 
+  const fetchCourses = async () => {
+    try {
+      const data = await fetchAll('courses');
+      if (data && data.length > 0) setCoursesList(data);
+    } catch (e) {
+      console.error('Error fetching courses:', e);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchClasses();
+    fetchCourses();
     fetchParishes();
     fetchForaries();
     fetchAllEnrollments();
@@ -307,7 +318,7 @@ export function Students() {
         }
 
         // Auto-detect course
-        const detectedCourse = detectCourseFromClass(targetClass);
+        const detectedCourse = detectCourseFromClass(targetClass, coursesList);
         if (detectedCourse && formData.course !== detectedCourse) {
           updates.course = detectedCourse;
         }
@@ -317,7 +328,7 @@ export function Students() {
         }
       }
     }
-  }, [formData.class_id, classes, isEditing]);
+  }, [formData.class_id, classes, coursesList, isEditing]);
 
   const fetchClasses = async () => {
     try {
@@ -1452,10 +1463,18 @@ export function Students() {
                           tabIndex={7.5}
                         >
                           <option value="">Identificar Curso...</option>
-                          <option value="Teologia">Teologia</option>
-                          <option value="Latim">Latim</option>
-                          <option value="Doutrina Social da Igreja">Doutrina Social da Igreja</option>
-                          <option value="História dos Santos Negros">História dos Santos Negros</option>
+                          {coursesList.length > 0 ? (
+                            coursesList.filter(c => c.status === 'Ativo').map(c => (
+                              <option key={c.id} value={c.name}>{c.name} ({c.code})</option>
+                            ))
+                          ) : (
+                            <>
+                              <option value="Teologia">Teologia</option>
+                              <option value="Latim">Latim</option>
+                              <option value="Doutrina Social da Igreja">Doutrina Social da Igreja</option>
+                              <option value="História dos Santos Negros">História dos Santos Negros</option>
+                            </>
+                          )}
                           <option value="Outros">Outros</option>
                         </select>
                       </div>

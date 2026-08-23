@@ -82,6 +82,24 @@
       },
       "required": ["id", "code", "name", "status", "period"]
     },
+    "Course": {
+      "title": "Course",
+      "description": "Academic course entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "duration_years": { "type": "integer" },
+        "duration_semesters": { "type": "integer" },
+        "status": { "type": "string", "enum": ["Ativo", "Inativo"] },
+        "workload_hours": { "type": "integer" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name", "status"]
+    },
     "Subject": {
       "title": "Subject",
       "description": "Course subject information",
@@ -428,6 +446,7 @@
     "receipts": { "schema": "Receipt", "description": "Payment receipts collection" },
     "users": { "schema": "UserProfile", "description": "User profile collection" },
     "students": { "schema": "Student", "description": "Student records collection" },
+    "courses": { "schema": "Course", "description": "Academic courses collection" },
     "classes": { "schema": "Class", "description": "School classes collection" },
     "subjects": { "schema": "Subject", "description": "Course subjects collection" },
     "teachers": { "schema": "Teacher", "description": "Teachers collection" },

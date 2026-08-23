@@ -85,6 +85,30 @@ CREATE TABLE IF NOT EXISTS clergy_leity (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 6.1 Cursos
+CREATE TABLE IF NOT EXISTS courses (
+    id TEXT PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    duration_years INTEGER DEFAULT 1,
+    duration_semesters INTEGER DEFAULT 2,
+    status TEXT DEFAULT 'Ativo',
+    workload_hours INTEGER DEFAULT 0,
+    user_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Inserção padrão de cursos fundamentais (se não existirem)
+INSERT INTO courses (id, code, name, description, duration_years, duration_semesters, status, workload_hours)
+VALUES 
+    ('course-teo', 'TEO', 'Teologia', 'Curso de Formação Teológica e Diaconal', 3, 6, 'Ativo', 720),
+    ('course-lat', 'LAT', 'Latim', 'Curso de Língua Latina e Textos Litúrgicos', 1, 2, 'Ativo', 120),
+    ('course-dsi', 'DSI', 'Doutrina Social da Igreja', 'Curso Fundamental da Doutrina Social da Igreja', 1, 2, 'Ativo', 160),
+    ('course-hsn', 'HSN', 'História dos Santos Negros', 'História, Vida e Espiritualidade dos Santos Negros', 1, 2, 'Ativo', 80)
+ON CONFLICT (id) DO NOTHING;
+
 -- 7. Disciplinas
 CREATE TABLE IF NOT EXISTS subjects (
     id TEXT PRIMARY KEY,

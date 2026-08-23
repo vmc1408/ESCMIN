@@ -178,6 +178,7 @@ export function Classes() {
   const navigate = useNavigate();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [coursesList, setCoursesList] = useState<Course[]>([]);
   const [inst, setInst] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -388,13 +389,22 @@ export function Classes() {
     return '';
   }, [formData.subject_id_sem2_h2, formData.subject_ids, subjects, sem2H1SubjectId]);
 
-  const PREDEFINED_COURSES = React.useMemo(() => [
-    'Teologia',
-    'Latim',
-    'Doutrina Social da Igreja',
-    'História dos Santos Negros',
-    'Outros'
-  ], []);
+  const PREDEFINED_COURSES = React.useMemo(() => {
+    const list = coursesList.filter(c => c.status === 'Ativo').map(c => c.name);
+    if (list.length === 0) {
+      return [
+        'Teologia',
+        'Latim',
+        'Doutrina Social da Igreja',
+        'História dos Santos Negros',
+        'Outros'
+      ];
+    }
+    if (!list.includes('Outros')) {
+      list.push('Outros');
+    }
+    return list;
+  }, [coursesList]);
 
   const isNameLocked = React.useMemo(() => {
     const c = (formData.course || '').trim().toLowerCase();
@@ -639,12 +649,17 @@ export function Classes() {
   const fetchClasses = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [classesData, subjectsData, instData, acadSettingsData] = await Promise.all([
+      const [classesData, subjectsData, instData, acadSettingsData, coursesData] = await Promise.all([
         fetchAll('classes', '*', 'name', true),
         fetchAll('subjects', 'id, name, code, year, semester, status, program_content', 'name', true),
         fetchAll('institution_settings'),
-        fetchAll('academic_settings').catch(() => [])
+        fetchAll('academic_settings').catch(() => []),
+        fetchAll('courses').catch(() => [])
       ]);
+
+      if (coursesData && coursesData.length > 0) {
+        setCoursesList(coursesData);
+      }
 
       if (acadSettingsData && acadSettingsData.length > 0) {
         const currentSettings = acadSettingsData.find((s: any) => s.id === 'current') || acadSettingsData[0];

@@ -179,12 +179,19 @@ export function parseDateToDB(dateStr: string | undefined | null): string | null
   return null;
 }
 
-export function detectCourseFromClass(cls: any): string {
+export function detectCourseFromClass(cls: any, availableCourses?: Array<{ code?: string; name: string }>): string {
   if (!cls) return '';
 
   // 1. Direct course field if present
   const directCourse = String(cls.course || '').trim();
   if (directCourse) {
+    if (availableCourses && availableCourses.length > 0) {
+      const match = availableCourses.find(c => 
+        c.name.toLowerCase() === directCourse.toLowerCase() || 
+        (c.code && c.code.toLowerCase() === directCourse.toLowerCase())
+      );
+      if (match) return match.name;
+    }
     const dcLower = directCourse.toLowerCase();
     if (dcLower.includes('doutrina') || dcLower.includes('dsi')) return 'Doutrina Social da Igreja';
     if (dcLower.includes('negros') || dcLower.includes('santos') || dcLower.includes('hsn')) return 'História dos Santos Negros';
@@ -201,21 +208,39 @@ export function detectCourseFromClass(cls: any): string {
       try {
         const meta = JSON.parse(match[1]);
         if (meta.course) {
-          const mcLower = String(meta.course).toLowerCase();
+          const courseStr = String(meta.course).trim();
+          if (availableCourses && availableCourses.length > 0) {
+            const matched = availableCourses.find(c => 
+              c.name.toLowerCase() === courseStr.toLowerCase() || 
+              (c.code && c.code.toLowerCase() === courseStr.toLowerCase())
+            );
+            if (matched) return matched.name;
+          }
+          const mcLower = courseStr.toLowerCase();
           if (mcLower.includes('doutrina') || mcLower.includes('dsi')) return 'Doutrina Social da Igreja';
           if (mcLower.includes('negros') || mcLower.includes('santos') || mcLower.includes('hsn')) return 'História dos Santos Negros';
           if (mcLower.includes('teologia') || mcLower.includes('teo')) return 'Teologia';
           if (mcLower.includes('latim') || mcLower.includes('lat')) return 'Latim';
           if (mcLower.includes('outros')) return 'Outros';
-          return meta.course;
+          return courseStr;
         }
       } catch (e) {}
     }
   }
 
-  // 3. Class name and code analysis
+  // 3. Dynamic course match against available courses if provided
   const str = `${cls.name || ''} ${cls.code || ''}`.toLowerCase();
-  
+  if (availableCourses && availableCourses.length > 0) {
+    for (const c of availableCourses) {
+      if (c.name && str.includes(c.name.toLowerCase())) return c.name;
+      if (c.code) {
+        const codeRegex = new RegExp(`\\b${c.code.toLowerCase()}\\b`, 'i');
+        if (codeRegex.test(str)) return c.name;
+      }
+    }
+  }
+
+  // 4. Fallback standard heuristic matching
   if (
     str.includes('doutrina social') || 
     str.includes('doutrina') || 

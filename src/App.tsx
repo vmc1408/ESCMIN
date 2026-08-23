@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Students } from './pages/Students';
 import { Teachers } from './pages/Teachers';
+import { Courses } from './pages/Courses';
 import { Classes } from './pages/Classes';
 import { Subjects } from './pages/Subjects';
 import { AcademicCalendar } from './pages/AcademicCalendar';
@@ -189,6 +190,7 @@ function AppContent() {
               <Route index element={<Dashboard />} />
               <Route path="students" element={<ProtectedRoute requiredModule="/students"><Students /></ProtectedRoute>} />
               <Route path="teachers" element={<ProtectedRoute requiredModule="/teachers"><Teachers /></ProtectedRoute>} />
+              <Route path="courses" element={<ProtectedRoute requiredModule="/courses"><Courses /></ProtectedRoute>} />
               <Route path="classes" element={<ProtectedRoute requiredModule="/classes"><Classes /></ProtectedRoute>} />
               <Route path="subjects" element={<ProtectedRoute requiredModule="/subjects"><Subjects /></ProtectedRoute>} />
               <Route path="calendar" element={<ProtectedRoute requiredModule="/calendar"><AcademicCalendar /></ProtectedRoute>} />

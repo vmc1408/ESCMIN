@@ -22,7 +22,63 @@ export const setTableUsingFallback = (tableName: string, active: boolean) => {
 export const getLocalCollection = (collectionName: string): any[] => {
   try {
     const data = localStorage.getItem(`db_fallback_${collectionName}`);
-    return data ? JSON.parse(data) : [];
+    if (data) return JSON.parse(data);
+
+    // Initial default seed for courses if local fallback is clean
+    if (collectionName === 'courses') {
+      const defaultCourses = [
+        {
+          id: 'course-teo',
+          code: 'TEO',
+          name: 'Teologia',
+          description: 'Curso de Formação Teológica e Pastoral',
+          duration_years: 3,
+          duration_semesters: 6,
+          status: 'Ativo',
+          workload_hours: 720,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'course-lat',
+          code: 'LAT',
+          name: 'Latim',
+          description: 'Curso de Língua Latina e Textos Litúrgicos',
+          duration_years: 1,
+          duration_semesters: 2,
+          status: 'Ativo',
+          workload_hours: 120,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'course-dsi',
+          code: 'DSI',
+          name: 'Doutrina Social da Igreja',
+          description: 'Curso Fundamental da Doutrina Social da Igreja',
+          duration_years: 1,
+          duration_semesters: 2,
+          status: 'Ativo',
+          workload_hours: 160,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'course-hsn',
+          code: 'HSN',
+          name: 'História dos Santos Negros',
+          description: 'História, Vida e Espiritualidade dos Santos Negros',
+          duration_years: 1,
+          duration_semesters: 2,
+          status: 'Ativo',
+          workload_hours: 80,
+          created_at: new Date().toISOString()
+        }
+      ];
+      try {
+        localStorage.setItem(`db_fallback_courses`, JSON.stringify(defaultCourses));
+      } catch (e) {}
+      return defaultCourses;
+    }
+
+    return [];
   } catch (err) {
     console.error(`Error reading local fallback for ${collectionName}:`, err);
     return [];

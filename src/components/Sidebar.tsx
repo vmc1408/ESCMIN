@@ -54,6 +54,7 @@ const navItems = [
         children: [
           { icon: StudentsIcon, label: 'Alunos', path: '/students' },
           { icon: TeachersIcon, label: 'Professores', path: '/teachers' },
+          { icon: GraduationCap, label: 'Cursos', path: '/courses' },
           { icon: ClassesIcon, label: 'Turmas', path: '/classes' },
           { icon: SubjectsIcon, label: 'Disciplinas', path: '/subjects' },
         ]
