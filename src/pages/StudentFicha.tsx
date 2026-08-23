@@ -546,6 +546,11 @@ export function StudentFicha() {
         }
 
         let isSpecial = false;
+        let metaSem1H1 = (normalized as any).subject_id_sem1_h1 || (normalized as any).subject_id_sem1 || '';
+        let metaSem1H2 = (normalized as any).subject_id_sem1_h2 || '';
+        let metaSem2H1 = (normalized as any).subject_id_sem2_h1 || (normalized as any).subject_id_sem2 || '';
+        let metaSem2H2 = (normalized as any).subject_id_sem2_h2 || '';
+
         if (normalized.observations) {
           const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
           if (match && match[1]) {
@@ -553,6 +558,15 @@ export function StudentFicha() {
               const meta = JSON.parse(match[1]);
               if (!normalized.year) normalized.year = meta.year;
               if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
+              if (meta.start_year && (!normalized.start_year || String(normalized.start_year).trim() === '')) {
+                (normalized as any).start_year = String(meta.start_year).trim();
+              }
+              if (meta.subject_id_sem1_h1 !== undefined) metaSem1H1 = meta.subject_id_sem1_h1;
+              if (meta.subject_id_sem1_h2 !== undefined) metaSem1H2 = meta.subject_id_sem1_h2;
+              if (meta.subject_id_sem2_h1 !== undefined) metaSem2H1 = meta.subject_id_sem2_h1;
+              if (meta.subject_id_sem2_h2 !== undefined) metaSem2H2 = meta.subject_id_sem2_h2;
+              if (meta.subject_id_sem1 !== undefined && !metaSem1H1) metaSem1H1 = meta.subject_id_sem1;
+              if (meta.subject_id_sem2 !== undefined && !metaSem2H1) metaSem2H1 = meta.subject_id_sem2;
               if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
                 sIds = meta.subject_ids;
               } else if (sIds.length === 0 && meta.subject_id) {
@@ -562,8 +576,46 @@ export function StudentFicha() {
             } catch (e) {}
           }
         }
+
+        // Infer sem1 and sem2 slots if missing from subjects list
+        if ((!metaSem1H1 || !metaSem1H2 || !metaSem2H1 || !metaSem2H2) && sIds.length > 0) {
+          const loadedSubs = sIds.map(sid => (subs || []).find((s: any) => s.id === sid)).filter(Boolean);
+          const isSem1Sub = (s: any) => {
+            const sem = (s?.semester || '').toLowerCase();
+            const name = (s?.name || '').toLowerCase();
+            return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
+          };
+          const isSem2Sub = (s: any) => {
+            const sem = (s?.semester || '').toLowerCase();
+            const name = (s?.name || '').toLowerCase();
+            return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
+          };
+
+          const s1List = loadedSubs.filter(s => isSem1Sub(s));
+          const s2List = loadedSubs.filter(s => isSem2Sub(s));
+
+          if (!metaSem1H1 && s1List[0]) metaSem1H1 = s1List[0].id;
+          if (!metaSem1H2 && s1List[1]) metaSem1H2 = s1List[1].id;
+          if (!metaSem2H1 && s2List[0]) metaSem2H1 = s2List[0].id;
+          if (!metaSem2H2 && s2List[1]) metaSem2H2 = s2List[1].id;
+
+          if (!metaSem1H1 && !metaSem2H1) {
+            metaSem1H1 = sIds[0] || '';
+            metaSem1H2 = sIds[1] || '';
+            metaSem2H1 = sIds[2] || '';
+            metaSem2H2 = sIds[3] || '';
+          }
+        }
+
+        const consolidatedSids = Array.from(new Set([metaSem1H1, metaSem1H2, metaSem2H1, metaSem2H2, ...sIds])).filter(Boolean);
+        (normalized as any).subject_id_sem1_h1 = metaSem1H1;
+        (normalized as any).subject_id_sem1_h2 = metaSem1H2;
+        (normalized as any).subject_id_sem2_h1 = metaSem2H1;
+        (normalized as any).subject_id_sem2_h2 = metaSem2H2;
+        (normalized as any).subject_id_sem1 = metaSem1H1 || metaSem1H2 || '';
+        (normalized as any).subject_id_sem2 = metaSem2H1 || metaSem2H2 || '';
+        normalized.subject_ids = consolidatedSids.length > 0 ? consolidatedSids : sIds;
         (normalized as any).is_special = isSpecial;
-        normalized.subject_ids = sIds;
         return normalized;
       });
 
@@ -691,7 +743,7 @@ export function StudentFicha() {
     let sIds: string[] = [];
     if (cls) {
       if (Array.isArray(cls.subject_ids)) {
-        sIds = cls.subject_ids;
+        sIds = [...cls.subject_ids];
       } else if (typeof cls.subject_ids === 'string') {
         try {
           const parsed = JSON.parse(cls.subject_ids);
@@ -700,6 +752,13 @@ export function StudentFicha() {
           sIds = cls.subject_ids ? [cls.subject_ids] : [];
         }
       }
+      const s1h1 = (cls as any).subject_id_sem1_h1;
+      const s1h2 = (cls as any).subject_id_sem1_h2;
+      const s2h1 = (cls as any).subject_id_sem2_h1;
+      const s2h2 = (cls as any).subject_id_sem2_h2;
+      [s1h1, s1h2, s2h1, s2h2].forEach(id => {
+        if (id && !sIds.includes(id)) sIds.push(id);
+      });
     }
 
     const classSubjects = subjects.filter(sub => {
@@ -707,17 +766,64 @@ export function StudentFicha() {
       return assessments.some(a => a.class_id === classId && a.subject_id === sub.id);
     });
 
-    // Semester identification helper
-    const getSubjectSemester = (sub: Subject) => {
+    // Helper to determine exact semester & slot order according to class curricular matrix
+    const getSubjectClassInfo = (sub: Subject) => {
+      if (cls) {
+        const s1h1 = (cls as any).subject_id_sem1_h1;
+        const s1h2 = (cls as any).subject_id_sem1_h2;
+        const s2h1 = (cls as any).subject_id_sem2_h1;
+        const s2h2 = (cls as any).subject_id_sem2_h2;
+
+        if (s1h1 && sub.id === s1h1) {
+          return { semester: '1º Semestre', slot: 1, slotLabel: '1º Horário (1º Semestre)' };
+        }
+        if (s1h2 && sub.id === s1h2) {
+          return { semester: '1º Semestre', slot: 2, slotLabel: '2º Horário (1º Semestre)' };
+        }
+        if (s2h1 && sub.id === s2h1) {
+          return { semester: '2º Semestre', slot: 3, slotLabel: '1º Horário (2º Semestre)' };
+        }
+        if (s2h2 && sub.id === s2h2) {
+          return { semester: '2º Semestre', slot: 4, slotLabel: '2º Horário (2º Semestre)' };
+        }
+
+        // If not in the explicit 4 slots, check position in cls.subject_ids
+        if (Array.isArray(cls.subject_ids)) {
+          const idx = cls.subject_ids.indexOf(sub.id);
+          if (idx !== -1) {
+            const sem = (sub.semester || '').toString().toLowerCase();
+            const name = (sub.name || '').toLowerCase();
+            if (sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem')) {
+              return { semester: '1º Semestre', slot: 10 + idx, slotLabel: '1º Semestre' };
+            }
+            if (sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem')) {
+              return { semester: '2º Semestre', slot: 20 + idx, slotLabel: '2º Semestre' };
+            }
+            if ((cls.semester || '').includes('1')) {
+              return { semester: '1º Semestre', slot: 10 + idx, slotLabel: '1º Semestre' };
+            }
+            if ((cls.semester || '').includes('2')) {
+              return { semester: '2º Semestre', slot: 20 + idx, slotLabel: '2º Semestre' };
+            }
+            return { semester: '1º Semestre', slot: 10 + idx, slotLabel: '1º Semestre' };
+          }
+        }
+      }
+
+      // Default fallback when no class or outside class
       const name = (sub.name || '').toUpperCase();
       const sem = (sub.semester || '').toString().toUpperCase();
       if (sem === '1' || sem.includes('1') || name.includes('1º SEM') || name.includes('1° SEM') || name.includes('1 SEM') || name.includes('1º SEMESTRE')) {
-        return '1º Semestre';
+        return { semester: '1º Semestre', slot: 100, slotLabel: '1º Semestre' };
       }
       if (sem === '2' || sem.includes('2') || name.includes('2º SEM') || name.includes('2° SEM') || name.includes('2 SEM') || name.includes('2º SEMESTRE')) {
-        return '2º Semestre';
+        return { semester: '2º Semestre', slot: 200, slotLabel: '2º Semestre' };
       }
-      return 'Geral / Anual';
+      return { semester: '1º Semestre', slot: 300, slotLabel: '1º Semestre' };
+    };
+
+    const getSubjectSemester = (sub: Subject) => {
+      return getSubjectClassInfo(sub).semester;
     };
 
     // Attendance Calculations per semester
@@ -766,7 +872,8 @@ export function StudentFicha() {
 
     // Grades and performance calculations
     const subjectRecords = classSubjects.map(sub => {
-      const semGroup = getSubjectSemester(sub);
+      const info = getSubjectClassInfo(sub);
+      const semGroup = info.semester;
       const finalGradeRecord = dbGrades.find(g => 
         g.student_id === activeStudent.id && 
         g.class_id === classId && 
@@ -804,16 +911,14 @@ export function StudentFicha() {
       return {
         subject: sub,
         semester: semGroup,
+        slot: info.slot,
         grade: gradeValue
       };
     });
 
-    // Sort subject records: 1º Semestre first, then 2º Semestre, then Geral
+    // Sort subject records strictly matching the class curricular matrix (1º Sem 1º Horário, 1º Sem 2º Horário, 2º Sem 1º Horário, 2º Sem 2º Horário)
     subjectRecords.sort((a, b) => {
-      const order: Record<string, number> = { '1º Semestre': 1, '2º Semestre': 2, 'Geral / Anual': 3 };
-      const orderA = order[a.semester] || 4;
-      const orderB = order[b.semester] || 4;
-      if (orderA !== orderB) return orderA - orderB;
+      if (a.slot !== b.slot) return a.slot - b.slot;
       return (a.subject.name || '').localeCompare(b.subject.name || '', 'pt-BR');
     });
 
