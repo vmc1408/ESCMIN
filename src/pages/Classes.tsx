@@ -37,6 +37,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
+import { Course } from '../types';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
 interface Class {
