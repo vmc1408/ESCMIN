@@ -1,22 +1,25 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-type ImportType = 'students' | 'teachers' | 'classes' | 'subjects' | 'parishes' | 'foraries' | 'clergy_leity';
+export type ImportType = 'students' | 'teachers' | 'classes' | 'subjects' | 'parishes' | 'foraries' | 'clergy_leity' | 'courses';
 
-interface ImportStatus {
+export interface ImportStatus {
   isProcessing: boolean;
   progress: number;
   type: ImportType | null;
   total: number;
   imported: number;
+  currentStepText: string;
+  currentItemName?: string;
   error: string;
+  lastBatchId?: string;
 }
 
 interface ImportContextType {
   status: ImportStatus;
   startImport: (type: ImportType, total: number) => void;
-  updateProgress: (imported: number, progress: number) => void;
+  updateProgress: (imported: number, progress: number, stepText?: string, itemName?: string) => void;
   setError: (error: string) => void;
-  finishImport: () => void;
+  finishImport: (batchId?: string) => void;
   resetImport: () => void;
 }
 
@@ -29,7 +32,10 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     type: null,
     total: 0,
     imported: 0,
+    currentStepText: '',
+    currentItemName: '',
     error: '',
+    lastBatchId: undefined,
   });
 
   const startImport = (type: ImportType, total: number) => {
@@ -39,20 +45,35 @@ export function ImportProvider({ children }: { children: ReactNode }) {
       type,
       total,
       imported: 0,
+      currentStepText: 'Iniciando validação dos registros...',
+      currentItemName: '',
       error: '',
+      lastBatchId: undefined,
     });
   };
 
-  const updateProgress = (imported: number, progress: number) => {
-    setStatus(prev => ({ ...prev, imported, progress }));
+  const updateProgress = (imported: number, progress: number, stepText?: string, itemName?: string) => {
+    setStatus(prev => ({ 
+      ...prev, 
+      imported, 
+      progress,
+      currentStepText: stepText !== undefined ? stepText : prev.currentStepText,
+      currentItemName: itemName !== undefined ? itemName : prev.currentItemName
+    }));
   };
 
   const setError = (error: string) => {
-    setStatus(prev => ({ ...prev, error }));
+    setStatus(prev => ({ ...prev, error, isProcessing: false }));
   };
 
-  const finishImport = () => {
-    setStatus(prev => ({ ...prev, progress: 100, isProcessing: false }));
+  const finishImport = (batchId?: string) => {
+    setStatus(prev => ({ 
+      ...prev, 
+      progress: 100, 
+      isProcessing: false, 
+      currentStepText: 'Importação concluída com sucesso!',
+      lastBatchId: batchId || prev.lastBatchId
+    }));
   };
 
   const resetImport = () => {
@@ -62,7 +83,10 @@ export function ImportProvider({ children }: { children: ReactNode }) {
       type: null,
       total: 0,
       imported: 0,
+      currentStepText: '',
+      currentItemName: '',
       error: '',
+      lastBatchId: undefined,
     });
   };
 

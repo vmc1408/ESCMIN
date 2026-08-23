@@ -858,6 +858,38 @@ export const deleteData = async (collectionName: string, id: string) => {
 };
 
 /**
+ * Delete multiple records from Supabase and local cache
+ */
+export const deleteBatch = async (collectionName: string, ids: string[]) => {
+  if (!ids || ids.length === 0) return;
+  
+  // Sempre remove localmente primeiro
+  ids.forEach(id => deleteLocalItem(collectionName, id));
+
+  if (isTableUsingFallback(collectionName) || !isSupabaseConfigured) {
+    return;
+  }
+
+  try {
+    const { error } = await supabase.from(collectionName).delete().in('id', ids);
+    if (error) {
+      if (isDatabaseMissingOrCacheError(error)) {
+        setTableUsingFallback(collectionName, true);
+        return;
+      }
+      throw error;
+    }
+  } catch (err: any) {
+    console.warn(`[deleteBatch] Fallback individual para "${collectionName}":`, err.message);
+    for (const id of ids) {
+      try {
+        await supabase.from(collectionName).delete().eq('id', id);
+      } catch (e) {}
+    }
+  }
+};
+
+/**
  * Utility to fetch institution settings
  */
 export const getInstitutionSettings = async () => {

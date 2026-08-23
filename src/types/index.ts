@@ -349,3 +349,19 @@ export interface Receipt {
   created_at?: string;
 }
 
+export interface ImportBatchRecord {
+  id: string;
+  type: 'classes' | 'students' | 'teachers' | 'subjects' | 'parishes' | 'foraries' | 'clergy_leity' | 'courses';
+  filename: string;
+  record_count: number;
+  inserted_ids: string[];
+  created_at: string;
+  status: 'completed' | 'reverted';
+  reverted_at?: string;
+  summary?: string;
+  details?: {
+    names?: string[];
+    codes?: string[];
+  };
+}
+

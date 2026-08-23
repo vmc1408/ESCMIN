@@ -30,7 +30,8 @@ import {
   SlidersHorizontal,
   Lock,
   Unlock,
-  Eye
+  Eye,
+  FileSpreadsheet
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
@@ -289,6 +290,8 @@ export function Classes() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importProgressText, setImportProgressText] = useState('');
   const [selectedClassStudentCount, setSelectedClassStudentCount] = useState<number | null>(null);
 
   // Automatic semester determination consulting academic calendar dates
@@ -1469,6 +1472,8 @@ export function Classes() {
 
     try {
       setIsImporting(true);
+      setImportProgress(10);
+      setImportProgressText('Criando nova estrutura da turma no banco de dados...');
 
       // Automatically link all subjects belonging to target year for both 1st and 2nd semesters
       const targetYearSubs = subjects.filter(s => s.year === importTargetYear);
@@ -1513,35 +1518,81 @@ export function Classes() {
       };
 
       const newClassId = await saveData('classes', undefined, newClassData);
+      setImportProgress(30);
+      setImportProgressText(`Turma criada com sucesso (ID: ${newClassId}). Preparando alunos...`);
 
       let migratedStudentsCount = 0;
+      const createdEnrollmentIds: string[] = [];
 
       const studentIdsToMigrate = importMigrateStudents 
         ? sourceStudentsList.map(s => s.id)
         : selectedStudentIds;
 
       if (studentIdsToMigrate.length > 0) {
-        migratedStudentsCount = studentIdsToMigrate.length;
+        const totalToMigrate = studentIdsToMigrate.length;
 
-        for (const studentId of studentIdsToMigrate) {
+        for (let idx = 0; idx < totalToMigrate; idx++) {
+          const studentId = studentIdsToMigrate[idx];
+          const currentStudent = sourceStudentsList.find(s => s.id === studentId);
+          const studentName = currentStudent?.name || `Aluno #${idx + 1}`;
+
+          const pct = Math.round(30 + ((idx + 1) / totalToMigrate) * 60);
+          setImportProgress(pct);
+          setImportProgressText(`Matriculando aluno ${idx + 1} de ${totalToMigrate}: ${studentName}...`);
+
           // Add new enrollment record linking student to the new class
-          await saveData('enrollments', undefined, {
+          const enrId = await saveData('enrollments', undefined, {
             student_id: studentId,
             class_id: newClassId,
             status: 'Ativo',
             enrollment_date: new Date().toISOString().split('T')[0],
             created_at: new Date().toISOString()
           });
+          if (enrId) createdEnrollmentIds.push(enrId);
 
           // Update current class_id for student while PRESERVING registration_number and personal data intact
           await saveData('students', studentId, { class_id: newClassId });
+          migratedStudentsCount++;
+
+          // Small yield to let React render progress bar
+          if (idx % 2 === 0) {
+            await new Promise(r => setTimeout(r, 20));
+          }
         }
       }
 
       // Mark source class as Encerrada (closed) to keep data accessible until course end
       if (importDeactivateSource) {
+        setImportProgress(95);
+        setImportProgressText('Atualizando status da turma de origem para Encerrada...');
         await saveData('classes', sourceClass.id, { ...sourceClass, status: 'Encerrada' });
       }
+
+      // Record batch in import history so user can revert if desired
+      try {
+        const batchRecord = {
+          id: `BATCH-CLASS-PROMOTION-${Date.now()}`,
+          type: 'classes',
+          filename: `Promoção: ${sourceClass.name} -> ${importNewName}`,
+          record_count: 1,
+          inserted_ids: [newClassId],
+          created_at: new Date().toISOString(),
+          status: 'completed',
+          summary: `Turma "${importNewName}" promovida de ${sourceClass.name} com ${migratedStudentsCount} aluno(s).`,
+          details: {
+            names: [importNewName],
+            codes: [importNewCode || '---']
+          }
+        };
+        const cached = localStorage.getItem('db_import_history');
+        const list = cached ? JSON.parse(cached) : [];
+        list.unshift(batchRecord);
+        localStorage.setItem('db_import_history', JSON.stringify(list));
+        saveData('import_history', batchRecord.id, batchRecord).catch(() => {});
+      } catch (e) {}
+
+      setImportProgress(100);
+      setImportProgressText('Concluído!');
 
       setShowImportModal(false);
       await fetchClasses();
@@ -1564,6 +1615,8 @@ export function Classes() {
       alert('Erro ao importar turma: ' + error.message);
     } finally {
       setIsImporting(false);
+      setImportProgress(0);
+      setImportProgressText('');
     }
   };
 
@@ -2638,6 +2691,14 @@ export function Classes() {
               </div>
               <div className="flex items-center gap-2 self-start sm:self-auto">
                 <button
+                  onClick={() => navigate('/import?type=classes')}
+                  className="px-3.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                  title="Importar turmas através de uma planilha Excel ou CSV"
+                >
+                  <FileSpreadsheet size={15} />
+                  <span>Importar Planilha (Excel)</span>
+                </button>
+                <button
                   onClick={handleOpenImportModal}
                   className="px-4 py-2.5 bg-blue-800 hover:bg-blue-900 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                   title="Importar turma de um ano para o próximo com alunos e disciplinas"
@@ -3246,12 +3307,32 @@ export function Classes() {
               )}
             </div>
 
+            {/* Real-time Progress indicator when importing */}
+            {isImporting && (
+              <div className="bg-blue-50 border border-blue-200 p-4 space-y-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between text-xs font-black text-blue-950 uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 size={13} className="animate-spin text-blue-800" />
+                    <span>{importProgressText || 'Processando importação...'}</span>
+                  </span>
+                  <span>{importProgress}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-blue-200/60 overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-900 transition-all duration-300 ease-out"
+                    style={{ width: `${importProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
               <button
                 type="button"
+                disabled={isImporting}
                 onClick={() => setShowImportModal(false)}
-                className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold uppercase text-xs tracking-wider border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer rounded-none"
+                className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold uppercase text-xs tracking-wider border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer rounded-none disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -3264,7 +3345,7 @@ export function Classes() {
                 {isImporting ? (
                   <>
                     <Loader2 size={15} className="animate-spin" />
-                    <span>Importando...</span>
+                    <span>Importando ({importProgress}%)...</span>
                   </>
                 ) : (
                   <>
