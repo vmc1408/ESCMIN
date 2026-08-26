@@ -1787,7 +1787,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                     >
                       <option value="">SELECIONAR TURMA...</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
+                      {classes.map((c, idx) => <option key={`att-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
                     </select>
                     <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                   </div>
@@ -1807,7 +1807,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
                       >
                         <option value="">SELECIONAR DISCIPLINA...</option>
-                        {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
+                        {filteredSubjects.map((s, idx) => <option key={`att-sub-${s.id}-${idx}`} value={s.id}>{s.name.toUpperCase()}</option>)}
                       </select>
                       <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                     </div>
@@ -1863,8 +1863,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none"
                         >
                           <option value="">DATA...</option>
-                          {[...availableDates].reverse().map(date => (
-                            <option key={date.dbValue} value={date.dbValue}>
+                          {[...availableDates].reverse().map((date, dIdx) => (
+                            <option key={`att-dt-${date.dbValue}-${dIdx}`} value={date.dbValue}>
                               {date.label.toUpperCase()}
                             </option>
                           ))}
@@ -2047,7 +2047,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: idx * 0.02 }}
-                          key={student.id} 
+                          key={`att-st-${student.id || idx}-${idx}`} 
                           className={cn(
                             "group flex flex-col md:flex-row md:items-center justify-between p-4 rounded-none border transition-all duration-200 relative overflow-hidden",
                             attendance[student.id]?.status === 'P' ? "bg-slate-50/50 border-slate-300 shadow-none" :

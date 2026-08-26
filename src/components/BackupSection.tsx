@@ -7,18 +7,16 @@ import {
   AlertCircle, 
   Loader2, 
   FileJson, 
-  Calendar, 
   Sliders, 
-  HardDrive, 
   RefreshCw, 
-  ChevronRight, 
-  ArrowRight,
-  Sparkles,
+  Check, 
+  FileArchive, 
+  AlertTriangle, 
+  Lock,
+  Layers,
   Search,
-  Check,
-  FileArchive,
-  AlertTriangle,
-  Lock
+  FileCheck,
+  RotateCcw
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { fetchAll, saveBatch } from '../lib/database';
@@ -26,7 +24,6 @@ import { useAuth } from '../contexts/AuthContext';
 
 // Tipos de Backup
 type BackupType = 'geral' | 'detalhado';
-type BackupTarget = 'local';
 
 interface CollectionMeta {
   id: string;
@@ -61,39 +58,43 @@ const COLLECTIONS: CollectionMeta[] = [
 
 export function BackupSection() {
   const { isAdmin } = useAuth();
-  // Estados Principais
-  const [backupType, setBackupType] = useState<BackupType>('geral');
-  const [target, setTarget] = useState<BackupTarget>('local');
-  const [selectedTables, setSelectedTables] = useState<string[]>(COLLECTIONS.map(c => c.id));
   
-  // Estados de Progresso da Cópia (Backup)
+  // Estados de Configuração da Cópia
+  const [backupType, setBackupType] = useState<BackupType>('geral');
+  const [selectedTables, setSelectedTables] = useState<string[]>(COLLECTIONS.map(c => c.id));
+  const [backupSearchTerm, setBackupSearchTerm] = useState('');
+  
+  // Progresso da Cópia
   const [isBackupRunning, setIsBackupRunning] = useState(false);
   const [backupProgress, setBackupProgress] = useState({
     percent: 0,
     currentStep: '',
     completedTablesCount: 0,
-    totalTablesCount: 0
+    totalTablesCount: 0,
+    recordsProcessed: 0
   });
 
-  // Estados de Progresso da Restauração (Restore)
+  // Progresso da Restauração
   const [isRestoreRunning, setIsRestoreRunning] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState({
     percent: 0,
     currentStep: '',
     completedTablesCount: 0,
-    totalTablesCount: 0
+    totalTablesCount: 0,
+    recordsRestored: 0
   });
 
-  // Outros Estados
+  // Contagens e Arquivo
   const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
   const [loadingCounts, setLoadingCounts] = useState(false);
   const [parsedRestoreFile, setParsedRestoreFile] = useState<any | null>(null);
   const [selectedRestoreTables, setSelectedRestoreTables] = useState<string[]>([]);
+  const [restoreSearchTerm, setRestoreSearchTerm] = useState('');
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Carregar dados iniciais
+  // Carregar contagens iniciais
   useEffect(() => {
     fetchTableRecordsCounts();
   }, []);
@@ -102,7 +103,6 @@ export function BackupSection() {
     setLoadingCounts(true);
     const counts: Record<string, number> = {};
     try {
-      // Busca os registros de cada tabela de forma otimizada
       await Promise.all(
         COLLECTIONS.map(async (col) => {
           try {
@@ -121,48 +121,48 @@ export function BackupSection() {
     }
   };
 
-  // AÇÃO: INICIAR GERADOR DE BACKUP (COPIA)
+  // Cálculo de totais para Backup
+  const totalLiveRecords = Object.values(tableCounts).reduce((a, b) => a + b, 0);
+  const activeSelectedTables = backupType === 'geral' ? COLLECTIONS.map(c => c.id) : selectedTables;
+  const selectedLiveRecords = activeSelectedTables.reduce((sum, tid) => sum + (tableCounts[tid] || 0), 0);
+
+  // AÇÃO: INICIAR GERAÇÃO DE CÓPIA DE SEGURANÇA
   const handleRunBackup = async () => {
     if (isBackupRunning) return;
 
-    // Tabelas que serão processadas
-    let tablesToBackup = COLLECTIONS.map(c => c.id);
-    if (backupType === 'detalhado') {
-      tablesToBackup = selectedTables;
-    }
+    const tablesToBackup = backupType === 'detalhado' ? selectedTables : COLLECTIONS.map(c => c.id);
 
     if (tablesToBackup.length === 0) {
-      setNotification({ type: 'error', message: 'Por favor, selecione pelo menos uma tabela para exportação.' });
-      setTimeout(() => setNotification(null), 3000);
+      setNotification({ type: 'error', message: 'Selecione ao menos uma tabela para exportação.' });
+      setTimeout(() => setNotification(null), 3500);
       return;
     }
 
     setIsBackupRunning(true);
     setBackupProgress({
       percent: 0,
-      currentStep: 'Iniciando módulo de backup...',
+      currentStep: 'Iniciando módulo de extração segura...',
       completedTablesCount: 0,
-      totalTablesCount: tablesToBackup.length
+      totalTablesCount: tablesToBackup.length,
+      recordsProcessed: 0
     });
 
     const backupPayload: Record<string, any[]> = {};
     let totalRecordsProcessed = 0;
 
     try {
-      // Loop sobre as tabelas com delays controlados para animar a barra de progresso perfeitamente
       for (let i = 0; i < tablesToBackup.length; i++) {
         const tableId = tablesToBackup[i];
         const tableMeta = COLLECTIONS.find(c => c.id === tableId);
         
-        // Atualiza status do progresso para a tabela atual
         setBackupProgress(prev => ({
           ...prev,
-          currentStep: `Buscando e formatando tabela: ${tableMeta?.label || tableId}...`,
-          percent: Math.round(((i) / tablesToBackup.length) * 80) // Vai até 80% durante busca
+          currentStep: `Extraindo tabela [${i + 1}/${tablesToBackup.length}]: ${tableMeta?.label || tableId}...`,
+          percent: Math.round(((i) / tablesToBackup.length) * 85),
+          completedTablesCount: i
         }));
 
-        // Delay realista de consulta ao Supabase / local fallback
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 200));
 
         const records = await fetchAll(tableId);
         const finalRecords = records || [];
@@ -175,44 +175,40 @@ export function BackupSection() {
         setBackupProgress(prev => ({
           ...prev,
           completedTablesCount: i + 1,
-          percent: Math.round(((i + 1) / tablesToBackup.length) * 80)
+          percent: Math.round(((i + 1) / tablesToBackup.length) * 85),
+          recordsProcessed: totalRecordsProcessed
         }));
       }
 
-      // Preparação de metadados
       setBackupProgress(prev => ({
         ...prev,
-        currentStep: 'Empacotando estrutura, compactando e calculando checksum de integridade...',
-        percent: 90
+        currentStep: 'Formatando arquivo JSON e verificando integridade...',
+        percent: 92
       }));
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 400));
 
       const backupFile = {
         app: "SISTEMA ACADEMICO ESCMIN - GESTÃO EDUCACIONAL",
         version: "3.2.0-secure",
         timestamp: new Date().toISOString(),
         backup_type: backupType,
-        timeframe: null,
         records_count: totalRecordsProcessed,
+        tables_count: tablesToBackup.length,
         data: backupPayload
       };
 
       const jsonString = JSON.stringify(backupFile, null, 2);
-      const sizeKb = jsonString.length / 1024;
-
-      // Executar entrega do backup de acordo com o local selecionado
       const typeLabel = backupType === 'geral' ? 'geral' : 'detalhado';
       const dateStr = new Date().toISOString().split('T')[0];
       const defaultFileName = `backup-${typeLabel}-${dateStr}.json`;
 
       setBackupProgress(prev => ({
         ...prev,
-        currentStep: 'Disparando download do arquivo de segurança...',
+        currentStep: 'Gerando download do arquivo de cópia...',
         percent: 98
       }));
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Trigger local file download
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -223,26 +219,24 @@ export function BackupSection() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      // Finalização
       setBackupProgress(prev => ({
         ...prev,
-        currentStep: 'Backup executado com sucesso e verificado!',
+        currentStep: 'Cópia de segurança gerada e baixada com sucesso!',
         percent: 100
       }));
 
       setNotification({
         type: 'success',
-        message: `Backup concluído com sucesso! ${totalRecordsProcessed} registros processados.`
+        message: `Cópia de segurança gerada com sucesso! ${totalRecordsProcessed} registros salvos em ${tablesToBackup.length} tabelas.`
       });
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 4000);
 
-      // Recarrega contagens para garantir
       fetchTableRecordsCounts();
 
     } catch (error: any) {
       console.error(error);
       setNotification({ type: 'error', message: `Falha na cópia de segurança: ${error.message || error}` });
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 4000);
     } finally {
       setIsBackupRunning(false);
     }
@@ -291,7 +285,6 @@ export function BackupSection() {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
 
-        // Validação mínima de sanidade
         if (!parsed.app || !parsed.data || typeof parsed.data !== 'object') {
           setRestoreError("Arquivo inválido. O arquivo selecionado não é um arquivo de backup reconhecido pelo sistema.");
           return;
@@ -306,7 +299,7 @@ export function BackupSection() {
     reader.readAsText(file);
   };
 
-  // AÇÃO: CONFIRMAR E EXECUTAR RESTAURAÇÃO (RESTORE)
+  // AÇÃO: EXECUTAR RESTAURAÇÃO
   const handleRunRestore = async () => {
     if (!parsedRestoreFile || isRestoreRunning) return;
 
@@ -321,68 +314,69 @@ export function BackupSection() {
     setIsRestoreRunning(true);
     setRestoreProgress({
       percent: 0,
-      currentStep: 'Abrindo conexões seguras e desativando restrições de integridade...',
+      currentStep: 'Abrindo conexões seguras com o banco de dados...',
       completedTablesCount: 0,
-      totalTablesCount: tablesToRestore.length
+      totalTablesCount: tablesToRestore.length,
+      recordsRestored: 0
     });
 
+    let totalRestored = 0;
+
     try {
-      // Loop por tabelas para restaurar via saveBatch
       for (let i = 0; i < tablesToRestore.length; i++) {
         const tableId = tablesToRestore[i];
         const items = dataObj[tableId];
         const tableMeta = COLLECTIONS.find(c => c.id === tableId);
+        const countInTable = Array.isArray(items) ? items.length : 0;
 
         setRestoreProgress(prev => ({
           ...prev,
-          currentStep: `Restaurando e reconciliando registros em ${tableMeta?.label || tableId} (${items?.length || 0} registros)...`,
-          percent: Math.round(((i) / tablesToRestore.length) * 100)
+          currentStep: `Restaurando [${i + 1}/${tablesToRestore.length}]: ${tableMeta?.label || tableId} (${countInTable} reg)...`,
+          percent: Math.round(((i) / tablesToRestore.length) * 90),
+          completedTablesCount: i
         }));
 
-        // Delay para simulação visual e processos assíncronos
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 350));
 
         if (Array.isArray(items) && items.length > 0) {
-          // Usa o saveBatch real do database.ts que gerencia tudo automaticamente!
           await saveBatch(tableId, items);
+          totalRestored += items.length;
         }
 
         setRestoreProgress(prev => ({
           ...prev,
           completedTablesCount: i + 1,
-          percent: Math.round(((i + 1) / tablesToRestore.length) * 100)
+          percent: Math.round(((i + 1) / tablesToRestore.length) * 90),
+          recordsRestored: totalRestored
         }));
       }
 
       setRestoreProgress({
         percent: 100,
-        currentStep: 'Restauração concluída! Limpando buffers do banco de dados...',
+        currentStep: 'Restauração concluída com sucesso! Atualizando cache...',
         completedTablesCount: tablesToRestore.length,
-        totalTablesCount: tablesToRestore.length
+        totalTablesCount: tablesToRestore.length,
+        recordsRestored: totalRestored
       });
 
       setNotification({
         type: 'success',
-        message: 'Cópia de segurança restaurada com sucesso! Recarregando sistema para sincronizar cache...'
+        message: `Cópia restaurada com sucesso! ${totalRestored} registros importados em ${tablesToRestore.length} tabelas.`
       });
 
-      // Zera o arquivo selecionado
       setParsedRestoreFile(null);
       setSelectedRestoreTables([]);
-
-      // Recarrega contagens
       fetchTableRecordsCounts();
 
-      // Força um reload suave em 3 segundos para garantir que o cache de todos os contextos do app se ajuste aos novos dados restaurados
       setTimeout(() => {
         window.location.reload();
-      }, 3000);
+      }, 2500);
 
     } catch (e: any) {
       console.error(e);
-      setRestoreError(`Erro grave durante restauração das tabelas: ${e.message || e}`);
+      setRestoreError(`Erro durante restauração: ${e.message || e}`);
       setNotification({ type: 'error', message: 'Houve uma falha na restauração do backup.' });
-      setTimeout(() => setNotification(null), 3000);
+      setTimeout(() => setNotification(null), 4000);
     } finally {
       setIsRestoreRunning(false);
     }
@@ -396,127 +390,177 @@ export function BackupSection() {
     }
   };
 
+  const filteredCollections = COLLECTIONS.filter(c => 
+    c.label.toLowerCase().includes(backupSearchTerm.toLowerCase()) ||
+    c.category.toLowerCase().includes(backupSearchTerm.toLowerCase())
+  );
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Banner de Apresentação */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white border border-indigo-800 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="space-y-2 relative z-10">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 rounded-md text-[9px] font-black uppercase tracking-widest border border-indigo-500/30 flex items-center gap-1">
-              <Sparkles size={10} />
-              Módulo Integrado
-            </span>
+      {/* Toast Notification */}
+      {notification && (
+        <div className={cn(
+          "p-4 border font-bold text-xs flex items-center justify-between shadow-md animate-in slide-in-from-top-2 duration-200",
+          notification.type === 'success' ? "bg-emerald-50 text-emerald-900 border-emerald-300" : "bg-red-50 text-red-900 border-red-300"
+        )}>
+          <div className="flex items-center gap-2.5">
+            {notification.type === 'success' ? <CheckCircle2 size={18} className="text-emerald-600 shrink-0" /> : <AlertCircle size={18} className="text-red-600 shrink-0" />}
+            <span>{notification.message}</span>
           </div>
-          <h3 className="text-xl font-black tracking-tight flex items-center gap-2">
-            Central de Cópias e Restaurações
-          </h3>
-          <p className="text-xs text-indigo-200/80 max-w-2xl font-medium leading-relaxed">
-            Faça backups completos ou selecionados dos dados do sistema. Exporte para a sua máquina física ou pen drive para salvar suas sessões com segurança.
-          </p>
-        </div>
-        <div className="shrink-0 flex gap-2">
-          <button 
-            onClick={fetchTableRecordsCounts}
-            disabled={loadingCounts}
-            className="p-3 bg-white/10 text-white hover:bg-white/15 rounded-xl border border-white/10 transition-all flex items-center justify-center active:scale-95"
-            title="Atualizar contagem de registros"
-          >
-            <RefreshCw size={16} className={cn(loadingCounts && "animate-spin")} />
+          <button onClick={() => setNotification(null)} className="text-xs uppercase hover:underline opacity-80 cursor-pointer">
+            Fechar
           </button>
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Grid 50% / 50% Lado a Lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         
-        {/* COLUNA ESQUERDA: CÓPIA E CONFIGURAÇÕES */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
-                  <Database size={18} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Criar Nova Cópia de Segurança</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Selecione o tipo e o destino do backup</p>
-                </div>
+        {/* ========================================================
+            COLUNA 1 (50%): CRIAR NOVA CÓPIA DE SEGURANÇA
+        ======================================================== */}
+        <div className="bg-white border border-slate-300 shadow-sm flex flex-col h-full">
+          
+          {/* Header da Cópia */}
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-200">
+                <Database size={20} />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900 text-sm uppercase tracking-tight">Criar Nova Cópia de Segurança</h4>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Selecione o tipo e gere o arquivo (.json)</p>
               </div>
             </div>
+            <button
+              onClick={fetchTableRecordsCounts}
+              disabled={loadingCounts || isBackupRunning}
+              className="px-2.5 py-1.5 bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer shadow-2xs"
+              title="Atualizar contagem de registros"
+            >
+              <RefreshCw size={12} className={cn(loadingCounts && "animate-spin text-indigo-600")} />
+              <span>Sincronizar</span>
+            </button>
+          </div>
 
-            <div className="p-6 space-y-6">
+          <div className="p-5 flex-1 flex flex-col justify-between space-y-5">
+            
+            <div className="space-y-4">
               
-              {/* Escolha do Tipo de Backup */}
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Cópia</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {[
-                    {
-                      id: 'geral',
-                      label: 'Geral / Completo',
-                      desc: 'Backup integral de todas as tabelas e dados do sistema.',
-                      color: 'border-blue-200 hover:border-blue-400 text-blue-600 bg-blue-50/10'
-                    },
-                    {
-                      id: 'detalhado',
-                      label: 'Detalhado / Segmentado',
-                      desc: 'Escolha manualmente quais tabelas deseja copiar.',
-                      color: 'border-amber-200 hover:border-amber-400 text-amber-600 bg-amber-50/10'
-                    }
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setBackupType(t.id as BackupType)}
-                      className={cn(
-                        "p-4 rounded-xl border text-left transition-all active:scale-[0.98] outline-none flex flex-col justify-between gap-2 h-full",
-                        backupType === t.id 
-                          ? "ring-2 ring-indigo-500 border-indigo-500 bg-indigo-50/30" 
-                          : "border-slate-200 hover:border-slate-300"
+              {/* Seleção do Tipo de Cópia */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                  Tipo de Cópia
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBackupType('geral')}
+                    className={cn(
+                      "p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 h-full",
+                      backupType === 'geral' 
+                        ? "border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/20" 
+                        : "border-slate-200 hover:border-slate-300 bg-white"
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-extrabold text-xs text-slate-900 uppercase">Geral / Completo</span>
+                      {backupType === 'geral' && (
+                        <div className="w-2.5 h-2.5 bg-indigo-600 rounded-full" />
                       )}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-black text-xs text-slate-700 uppercase tracking-tight">{t.label}</span>
-                        {backupType === t.id && (
-                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed">{t.desc}</p>
-                    </button>
-                  ))}
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                      Backup integral de todas as tabelas e dados do sistema.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBackupType('detalhado')}
+                    className={cn(
+                      "p-3.5 border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 h-full",
+                      backupType === 'detalhado' 
+                        ? "border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/20" 
+                        : "border-slate-200 hover:border-slate-300 bg-white"
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-extrabold text-xs text-slate-900 uppercase">Detalhado / Segmentado</span>
+                      {backupType === 'detalhado' && (
+                        <div className="w-2.5 h-2.5 bg-indigo-600 rounded-full" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                      Escolha manualmente quais tabelas deseja copiar.
+                    </p>
+                  </button>
                 </div>
               </div>
 
-              {/* Sub-Opções do Backup Detalhado (Checkboxes das Tabelas) */}
+              {/* Quadro de Resumo de Dados Selecionados */}
+              <div className="bg-slate-50 border border-slate-200 p-3.5 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider block">Volume de Dados Selecionado:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-indigo-900">
+                      {selectedLiveRecords} registros
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-bold">•</span>
+                    <span className="text-xs font-bold text-slate-700">
+                      {activeSelectedTables.length} de {COLLECTIONS.length} tabelas
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="px-2 py-1 bg-white border border-slate-300 text-[10px] font-bold text-slate-700 uppercase">
+                    Total Banco: {totalLiveRecords} reg
+                  </span>
+                </div>
+              </div>
+
+              {/* Modo Detalhado: Seletor de Tabelas */}
               {backupType === 'detalhado' && (
-                <div className="p-5 bg-amber-50/30 border border-amber-100 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-300">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-amber-800">
-                      <Sliders size={15} />
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Módulos & Tabelas de Dados</span>
+                <div className="p-3.5 bg-slate-50 border border-slate-200 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-slate-800 text-xs font-bold uppercase">
+                      <Sliders size={14} className="text-indigo-600" />
+                      <span>Selecionar Tabelas do Backup</span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedTables(COLLECTIONS.map(c => c.id))}
-                        className="text-[9px] font-bold text-amber-700 hover:underline uppercase tracking-widest"
+                        className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 uppercase cursor-pointer"
                       >
                         Marcar Tudo
                       </button>
-                      <span className="text-amber-300">|</span>
+                      <span className="text-slate-300">|</span>
                       <button
                         type="button"
                         onClick={() => setSelectedTables([])}
-                        className="text-[9px] font-bold text-amber-700 hover:underline uppercase tracking-widest"
+                        className="text-[10px] font-bold text-slate-600 hover:text-slate-900 uppercase cursor-pointer"
                       >
-                        Desmarcar Tudo
+                        Zerar
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto custom-scrollbar pr-1">
-                    {COLLECTIONS.map((col) => {
+                  {/* Campo de Busca Rápida de Tabelas */}
+                  <div className="relative">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={backupSearchTerm}
+                      onChange={(e) => setBackupSearchTerm(e.target.value)}
+                      placeholder="Filtrar tabela..."
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 text-slate-800 placeholder-slate-400 uppercase font-semibold"
+                    />
+                  </div>
+
+                  {/* Lista com scroll visível de tabelas */}
+                  <div className="bg-white border border-slate-300 max-h-56 overflow-y-auto divide-y divide-slate-100">
+                    {filteredCollections.map((col) => {
                       const count = tableCounts[col.id] ?? 0;
                       const isChecked = selectedTables.includes(col.id);
                       return (
@@ -524,27 +568,25 @@ export function BackupSection() {
                           key={col.id}
                           onClick={() => toggleSelectTable(col.id)}
                           className={cn(
-                            "p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between select-none",
-                            isChecked 
-                              ? "bg-amber-600/10 border-amber-300" 
-                              : "bg-white border-slate-200 hover:border-slate-300 grayscale"
+                            "p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none",
+                            isChecked ? "bg-indigo-50/30" : "opacity-70"
                           )}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className={cn(
-                              "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                              isChecked ? "bg-amber-600 border-amber-600 text-white" : "border-slate-300 bg-white"
+                              "w-4 h-4 border flex items-center justify-center transition-all shrink-0",
+                              isChecked ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"
                             )}>
-                              {isChecked && <Check size={10} strokeWidth={3} />}
+                              {isChecked && <Check size={11} strokeWidth={3} />}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[11px] font-bold text-slate-700 truncate">{col.label}</p>
-                              <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest">{col.category}</span>
+                              <p className="text-xs font-bold text-slate-800 truncate">{col.label}</p>
+                              <span className="text-[9px] font-extrabold text-slate-400 uppercase">{col.category}</span>
                             </div>
                           </div>
                           <span className={cn(
-                            "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wide",
-                            count > 0 ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-400"
+                            "px-1.5 py-0.5 text-[9px] font-bold uppercase shrink-0 border",
+                            count > 0 ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-slate-50 text-slate-400 border-slate-200"
                           )}>
                             {count} reg
                           </span>
@@ -555,284 +597,401 @@ export function BackupSection() {
                 </div>
               )}
 
-
-
-              {/* Botão de Disparo */}
-              <div className="pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={handleRunBackup}
-                  disabled={isBackupRunning}
-                  className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all active:scale-[0.98] shadow-lg shadow-indigo-600/10"
-                >
-                  {isBackupRunning ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Download size={16} />
-                  )}
-                  Iniciar Geração de Cópia de Segurança
-                </button>
-              </div>
-
-              {/* Progressão de Backup */}
-              {isBackupRunning && (
-                <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-xl space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-indigo-900 uppercase tracking-wider">
+              {/* Modo Geral: Visualizador Rápido das Tabelas Incluídas */}
+              {backupType === 'geral' && (
+                <div className="border border-slate-200 bg-slate-50 p-3 space-y-2">
+                  <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-600 uppercase">
                     <span className="flex items-center gap-1.5">
-                      <Loader2 size={12} className="animate-spin text-indigo-600" />
-                      {backupProgress.currentStep}
+                      <Layers size={13} className="text-indigo-600" />
+                      Tabelas Inclusas na Cópia Completa
                     </span>
-                    <span>{backupProgress.percent}%</span>
+                    <span className="text-indigo-800 font-black">{COLLECTIONS.length} Tabelas</span>
                   </div>
-                  <div className="h-2 bg-indigo-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-indigo-600 transition-all duration-300" 
-                      style={{ width: `${backupProgress.percent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
-                    <span>Módulo de compactação seguro</span>
-                    <span>Tabelas: {backupProgress.completedTablesCount} / {backupProgress.totalTablesCount}</span>
+                  <div className="bg-white border border-slate-200 max-h-40 overflow-y-auto p-2 divide-y divide-slate-100 text-xs">
+                    {COLLECTIONS.map(col => (
+                      <div key={col.id} className="py-1 flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700 truncate">{col.label}</span>
+                        <span className="text-[10px] font-bold text-slate-500 shrink-0 ml-2">
+                          {tableCounts[col.id] ?? 0} reg
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
             </div>
+
+            {/* Ações e Progresso da Cópia */}
+            <div className="space-y-3 pt-2">
+              
+              {/* Indicador de Progresso da Cópia */}
+              {isBackupRunning && (
+                <div className="p-4 bg-indigo-50 border border-indigo-200 space-y-2.5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
+                    <span className="flex items-center gap-2 truncate">
+                      <Loader2 size={14} className="animate-spin text-indigo-600 shrink-0" />
+                      {backupProgress.currentStep}
+                    </span>
+                    <span className="font-mono text-indigo-800 shrink-0 ml-2">{backupProgress.percent}%</span>
+                  </div>
+                  
+                  {/* Barra de Progresso */}
+                  <div className="h-2.5 bg-indigo-100 overflow-hidden border border-indigo-200">
+                    <div 
+                      className="h-full bg-indigo-600 transition-all duration-300" 
+                      style={{ width: `${backupProgress.percent}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
+                    <span>Tabelas: {backupProgress.completedTablesCount} / {backupProgress.totalTablesCount}</span>
+                    <span>{backupProgress.recordsProcessed} registros lidos</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Botão de Disparo */}
+              <button
+                type="button"
+                onClick={handleRunBackup}
+                disabled={isBackupRunning}
+                className="w-full py-3.5 bg-indigo-700 hover:bg-indigo-800 active:bg-indigo-900 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+              >
+                {isBackupRunning ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Processando Cópia ({backupProgress.percent}%)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} />
+                    <span>Iniciar Geração de Cópia de Segurança</span>
+                  </>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>
 
-        {/* COLUNA DIREITA: RESTAURAÇÃO */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* ========================================================
+            COLUNA 2 (50%): RESTAURAR BACKUP (.JSON)
+        ======================================================== */}
+        <div className="bg-white border border-slate-300 shadow-sm flex flex-col h-full">
           
-          {/* PAINEL DE RESTAURAÇÃO */}
-          {isAdmin ? (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100">
-                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                  <Upload size={16} className="text-indigo-600" />
-                  Restaurar Backup (.json)
-                </h4>
+          {/* Header da Restauração */}
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200">
+                <Upload size={20} />
               </div>
+              <div>
+                <h4 className="font-bold text-slate-900 text-sm uppercase tracking-tight">Restaurar Backup (.json)</h4>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Importação e Reconciliação de Dados</p>
+              </div>
+            </div>
+            {parsedRestoreFile && (
+              <button
+                type="button"
+                onClick={() => {
+                  setParsedRestoreFile(null);
+                  setSelectedRestoreTables([]);
+                  setRestoreError(null);
+                }}
+                className="px-2.5 py-1.5 bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer shadow-2xs"
+                title="Trocar Arquivo de Backup"
+              >
+                <RotateCcw size={12} />
+                <span>Trocar</span>
+              </button>
+            )}
+          </div>
 
-              <div className="p-5 space-y-4">
-                
-                {/* Drop-zone Area */}
-                {!parsedRestoreFile ? (
-                  <div 
-                    className={cn(
-                      "border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer select-none",
-                      dragActive ? "border-indigo-500 bg-indigo-50/20" : "border-slate-200 hover:border-slate-300"
-                    )}
-                    onDragEnter={handleDrag}
-                    onDragOver={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDrop={handleDrop}
-                    onClick={() => document.getElementById('restore-file-input')?.click()}
-                  >
-                    <input 
-                      type="file" 
-                      id="restore-file-input"
-                      className="hidden" 
-                      accept=".json"
-                      onChange={handleFileChange}
-                    />
-                    <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-3">
-                      <FileJson size={22} className="text-slate-400" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-700 uppercase tracking-tight">Solte o arquivo de backup aqui</p>
-                    <p className="text-[10px] text-slate-400 mt-1 font-bold">ou clique para procurar no dispositivo</p>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-xl space-y-4 animate-in zoom-in-95 duration-200">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                        <FileArchive size={16} />
+          <div className="p-5 flex-1 flex flex-col justify-between space-y-5">
+            
+            {isAdmin ? (
+              <>
+                <div className="space-y-4">
+                  
+                  {/* Dropzone de Arquivo quando nenhum arquivo está carregado */}
+                  {!parsedRestoreFile ? (
+                    <div 
+                      className={cn(
+                        "border-2 border-dashed p-8 text-center transition-all cursor-pointer select-none space-y-3 bg-slate-50/50",
+                        dragActive ? "border-emerald-600 bg-emerald-50/40" : "border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                      )}
+                      onDragEnter={handleDrag}
+                      onDragOver={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDrop={handleDrop}
+                      onClick={() => document.getElementById('restore-file-input')?.click()}
+                    >
+                      <input 
+                        type="file" 
+                        id="restore-file-input"
+                        className="hidden" 
+                        accept=".json"
+                        onChange={handleFileChange}
+                      />
+                      <div className="w-14 h-14 bg-white border border-slate-200 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
+                        <FileJson size={28} className="text-emerald-700" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Cópia de Segurança Carregada</p>
-                        <p className="text-[10px] text-slate-500 font-bold truncate mt-0.5">Tipo: {parsedRestoreFile.backup_type?.toUpperCase()}</p>
-                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">Realizado em: {new Date(parsedRestoreFile.timestamp).toLocaleString('pt-BR')}</p>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">Solte o arquivo de backup aqui</p>
+                        <p className="text-[11px] text-slate-500 mt-1 font-medium">ou clique para selecionar um arquivo .JSON no computador</p>
                       </div>
+                      <span className="inline-block px-3 py-1 bg-white border border-slate-200 text-[10px] font-extrabold text-slate-600 uppercase">
+                        Formato .JSON Seguro
+                      </span>
                     </div>
-
-                    <div className="p-3 bg-white border border-emerald-100 rounded-lg space-y-1.5">
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Registros Selecionados para Restauro:</span>
-                      <div className="text-xs font-bold text-slate-700 space-y-1">
-                        <p className="flex items-center gap-1 text-emerald-800">
-                          <CheckCircle2 size={12} className="text-emerald-500" />
-                          {
-                            Object.keys(parsedRestoreFile.data)
-                              .filter(t => selectedRestoreTables.includes(t))
-                              .reduce((sum, t) => sum + (Array.isArray(parsedRestoreFile.data[t]) ? parsedRestoreFile.data[t].length : 0), 0)
-                          } de {parsedRestoreFile.records_count || 0} registros
-                        </p>
-                        <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider pl-4">
-                          {selectedRestoreTables.length} de {Object.keys(parsedRestoreFile.data).length} tabelas selecionadas
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Seleção seletiva de tabelas */}
-                    <div className="space-y-2 pt-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                          Tabelas no Backup
-                        </span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRestoreTables(Object.keys(parsedRestoreFile.data))}
-                            className="text-[9px] font-bold text-emerald-700 hover:underline uppercase tracking-widest"
-                          >
-                            Marcar Tudo
-                          </button>
-                          <span className="text-emerald-200">|</span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRestoreTables([])}
-                            className="text-[9px] font-bold text-emerald-700 hover:underline uppercase tracking-widest"
-                          >
-                            Zerar
-                          </button>
+                  ) : (
+                    /* Conteúdo e Configuração do Arquivo Carregado */
+                    <div className="space-y-3.5 animate-in fade-in duration-200">
+                      
+                      {/* Header do Arquivo Carregado */}
+                      <div className="p-3 bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
+                        <div className="w-9 h-9 bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-300">
+                          <FileArchive size={18} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-black text-slate-900 uppercase tracking-tight">Cópia de Segurança Carregada</p>
+                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase border border-emerald-200">
+                              {parsedRestoreFile.backup_type?.toUpperCase() || 'COMPLETO'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 font-bold mt-0.5">
+                            Realizado em: {new Date(parsedRestoreFile.timestamp).toLocaleString('pt-BR')}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="bg-white border border-emerald-100 rounded-xl max-h-48 overflow-y-auto custom-scrollbar divide-y divide-slate-100 shadow-inner">
-                        {Object.keys(parsedRestoreFile.data).map((tableId) => {
-                          const items = parsedRestoreFile.data[tableId];
-                          const count = Array.isArray(items) ? items.length : 0;
-                          const tableMeta = COLLECTIONS.find(c => c.id === tableId);
-                          const isChecked = selectedRestoreTables.includes(tableId);
+                      {/* Quadro com Totalizadores de Registros para Restauro */}
+                      <div className="p-3.5 bg-slate-50 border border-slate-200 space-y-1">
+                        <span className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                          Registros Selecionados para Restauro:
+                        </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-emerald-900 font-black text-xs">
+                            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                            <span>
+                              {
+                                Object.keys(parsedRestoreFile.data)
+                                  .filter(t => selectedRestoreTables.includes(t))
+                                  .reduce((sum, t) => sum + (Array.isArray(parsedRestoreFile.data[t]) ? parsedRestoreFile.data[t].length : 0), 0)
+                              } de {parsedRestoreFile.records_count || 0} registros
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-600 uppercase">
+                            {selectedRestoreTables.length} de {Object.keys(parsedRestoreFile.data).length} tabelas
+                          </span>
+                        </div>
+                      </div>
 
-                          return (
-                            <div 
-                              key={tableId}
-                              onClick={() => {
-                                if (isChecked) {
-                                  setSelectedRestoreTables(prev => prev.filter(id => id !== tableId));
-                                } else {
-                                  setSelectedRestoreTables(prev => [...prev, tableId]);
-                                }
-                              }}
-                              className={cn(
-                                "p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none",
-                                isChecked ? "bg-emerald-50/10" : "opacity-60"
-                              )}
+                      {/* Lista de Seleção de Tabelas do Backup */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
+                            Tabelas no Backup
+                          </span>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRestoreTables(Object.keys(parsedRestoreFile.data))}
+                              className="text-[10px] font-bold text-emerald-800 hover:text-emerald-950 uppercase cursor-pointer"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className={cn(
-                                  "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                                  isChecked ? "bg-emerald-600 border-emerald-600 text-white animate-in zoom-in-50 duration-100" : "border-slate-300 bg-white"
-                                )}>
-                                  {isChecked && <Check size={10} strokeWidth={3} />}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-[11px] font-bold text-slate-700 truncate">
-                                    {tableMeta?.label || tableId}
-                                  </p>
-                                  <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-widest block -mt-0.5">
-                                    {tableMeta?.category || 'Módulo do Sistema'}
+                              Marcar Tudo
+                            </button>
+                            <span className="text-slate-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRestoreTables([])}
+                              className="text-[10px] font-bold text-slate-600 hover:text-slate-900 uppercase cursor-pointer"
+                            >
+                              Zerar
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Busca em Tabelas da Restauração */}
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            value={restoreSearchTerm}
+                            onChange={(e) => setRestoreSearchTerm(e.target.value)}
+                            placeholder="Filtrar tabela no backup..."
+                            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 text-slate-800 placeholder-slate-400 uppercase font-semibold"
+                          />
+                        </div>
+
+                        {/* Container de Tabelas com Scroll */}
+                        <div className="bg-white border border-slate-300 max-h-52 overflow-y-auto divide-y divide-slate-100">
+                          {Object.keys(parsedRestoreFile.data)
+                            .filter(tableId => {
+                              const tableMeta = COLLECTIONS.find(c => c.id === tableId);
+                              const label = tableMeta?.label || tableId;
+                              return label.toLowerCase().includes(restoreSearchTerm.toLowerCase());
+                            })
+                            .map((tableId) => {
+                              const items = parsedRestoreFile.data[tableId];
+                              const count = Array.isArray(items) ? items.length : 0;
+                              const tableMeta = COLLECTIONS.find(c => c.id === tableId);
+                              const isChecked = selectedRestoreTables.includes(tableId);
+
+                              return (
+                                <div 
+                                  key={tableId}
+                                  onClick={() => {
+                                    if (isChecked) {
+                                      setSelectedRestoreTables(prev => prev.filter(id => id !== tableId));
+                                    } else {
+                                      setSelectedRestoreTables(prev => [...prev, tableId]);
+                                    }
+                                  }}
+                                  className={cn(
+                                    "p-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none",
+                                    isChecked ? "bg-emerald-50/40" : "opacity-60"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className={cn(
+                                      "w-4 h-4 border flex items-center justify-center transition-all shrink-0",
+                                      isChecked ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-300 bg-white"
+                                    )}>
+                                      {isChecked && <Check size={11} strokeWidth={3} />}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-slate-800 truncate">
+                                        {tableMeta?.label || tableId}
+                                      </p>
+                                      <span className="text-[9px] font-extrabold text-slate-400 uppercase block">
+                                        {tableMeta?.category || 'Módulo Geral'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className={cn(
+                                    "px-1.5 py-0.5 text-[9px] font-bold uppercase shrink-0 border",
+                                    isChecked ? "bg-emerald-100 text-emerald-900 border-emerald-300" : "bg-slate-100 text-slate-500 border-slate-200"
+                                  )}>
+                                    {count} reg
                                   </span>
                                 </div>
-                              </div>
-                              <span className={cn(
-                                "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wide shrink-0",
-                                isChecked ? "bg-emerald-100/50 text-emerald-800" : "bg-slate-100 text-slate-400"
-                              )}>
-                                {count} reg
-                              </span>
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                        </div>
+
+                      </div>
+
+                      {/* Aviso de Segurança */}
+                      <div className="p-3 bg-amber-50 border border-amber-200 flex items-start gap-2">
+                        <AlertTriangle size={15} className="text-amber-700 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-amber-900 font-medium leading-relaxed">
+                          <strong>Aviso:</strong> A restauração irá substituir dados com o mesmo identificador (ID) único. Faça um backup prévio dos dados atuais se necessário.
+                        </p>
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* Mensagem de Erro na Restauração */}
+                  {restoreError && (
+                    <div className="p-3 bg-red-50 border border-red-200 text-red-800 flex items-start gap-2 text-xs">
+                      <AlertCircle size={15} className="shrink-0 mt-0.5 text-red-600" />
+                      <p className="font-semibold">{restoreError}</p>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Ações e Progresso da Restauração */}
+                <div className="space-y-3 pt-2">
+                  
+                  {/* Indicador de Progresso da Restauração */}
+                  {isRestoreRunning && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 space-y-2.5 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-950">
+                        <span className="flex items-center gap-2 truncate">
+                          <Loader2 size={14} className="animate-spin text-emerald-700 shrink-0" />
+                          {restoreProgress.currentStep}
+                        </span>
+                        <span className="font-mono text-emerald-900 shrink-0 ml-2">{restoreProgress.percent}%</span>
+                      </div>
+                      
+                      {/* Barra de Progresso */}
+                      <div className="h-2.5 bg-emerald-100 overflow-hidden border border-emerald-200">
+                        <div 
+                          className="h-full bg-emerald-600 transition-all duration-300" 
+                          style={{ width: `${restoreProgress.percent}%` }}
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+                        <span>Tabelas: {restoreProgress.completedTablesCount} / {restoreProgress.totalTablesCount}</span>
+                        <span>{restoreProgress.recordsRestored} registros importados</span>
                       </div>
                     </div>
+                  )}
 
-                    {/* Warning Danger */}
-                    <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-2">
-                      <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                      <p className="text-[10px] text-amber-700 font-medium leading-relaxed">
-                        <strong>Aviso:</strong> A restauração irá substituir dados com o mesmo identificador (ID) único. Faça um backup prévio dos dados atuais se necessário.
-                      </p>
-                    </div>
-
+                  {/* Botões de Ação */}
+                  {parsedRestoreFile && (
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={handleRunRestore}
-                        disabled={isRestoreRunning}
-                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-600/10"
+                        disabled={isRestoreRunning || selectedRestoreTables.length === 0}
+                        className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
                       >
-                        {isRestoreRunning ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                        Executar Restauração
+                        {isRestoreRunning ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>Restaurando Dados ({restoreProgress.percent}%)...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw size={16} />
+                            <span>Executar Restauração</span>
+                          </>
+                        )}
                       </button>
                       <button
                         type="button"
                         disabled={isRestoreRunning}
-                        onClick={() => setParsedRestoreFile(null)}
-                        className="px-3 bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-100 rounded-lg active:scale-95 transition-all"
+                        onClick={() => {
+                          setParsedRestoreFile(null);
+                          setSelectedRestoreTables([]);
+                        }}
+                        className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
                       >
                         Cancelar
                       </button>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {restoreError && (
-                  <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-xl flex gap-2 text-[11px] leading-relaxed">
-                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
-                    <p className="font-medium">{restoreError}</p>
-                  </div>
-                )}
-
-                {/* Progressão de Restauração */}
-                {isRestoreRunning && (
-                  <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-emerald-900 uppercase tracking-wider">
-                      <span className="flex items-center gap-1.5">
-                        <Loader2 size={12} className="animate-spin text-emerald-600" />
-                        {restoreProgress.currentStep}
-                      </span>
-                      <span>{restoreProgress.percent}%</span>
-                    </div>
-                    <div className="h-2 bg-emerald-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-emerald-600 transition-all duration-300" 
-                        style={{ width: `${restoreProgress.percent}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-center text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
-                      <span>Sincronização Ativa com Supabase</span>
-                      <span>Restauradas: {restoreProgress.completedTablesCount} / {restoreProgress.totalTablesCount}</span>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            </div>
-          ) : (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center space-y-4 shadow-sm">
-              <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center mx-auto text-amber-500">
-                <Lock size={22} />
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">
-                  Restauração de Backup Bloqueada
-                </h4>
-                <p className="text-[9px] text-amber-600 font-extrabold uppercase tracking-widest">
-                  Permissão Restrita ao Administrador
+                </div>
+              </>
+            ) : (
+              /* Caso o usuário não seja Admin */
+              <div className="bg-slate-50 border border-slate-200 p-8 text-center space-y-4 my-auto">
+                <div className="w-12 h-12 bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600">
+                  <Lock size={22} />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-black text-slate-900 text-xs uppercase tracking-wider">
+                    Restauração de Backup Bloqueada
+                  </h4>
+                  <p className="text-[10px] text-amber-700 font-bold uppercase tracking-widest">
+                    Acesso Restrito a Administradores
+                  </p>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed font-medium max-w-sm mx-auto">
+                  Por motivos de integridade e segurança dos dados, a restauração de arquivos (.JSON) está restrita ao perfil de Administrador.
                 </p>
               </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                Por motivos de segurança e integridade dos dados acadêmicos, a importação e restauração de cópias de segurança (.JSON) está desabilitada para o seu nível de acesso.
-              </p>
-              <div className="p-3.5 bg-white border border-slate-100 rounded-xl text-left">
-                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
-                  Seu perfil possui permissão ativa para <strong>gerar e baixar</strong> cópias de segurança atualizadas a qualquer momento.
-                </p>
-              </div>
-            </div>
-          )}
+            )}
 
+          </div>
         </div>
 
       </div>

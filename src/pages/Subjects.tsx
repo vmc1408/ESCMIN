@@ -156,6 +156,12 @@ export function Subjects() {
             }
           }
         }
+        if (normalized.year) {
+          const yrStr = String(normalized.year).toLowerCase();
+          if (yrStr.includes('5º') || yrStr.includes('5°') || yrStr.includes('5 ano') || yrStr.includes('5ª') || yrStr.includes('5a') || yrStr.includes('5th')) {
+            normalized.year = 'Curso Extra';
+          }
+        }
         return normalized;
       });
 
@@ -177,8 +183,33 @@ export function Subjects() {
         return normalized;
       });
 
-      setSubjects(normalizedSubjects);
-      setTeachers(normalizedTeachers);
+      // Deduplica disciplinas e professores por ID para garantir chaves únicas
+      const seenSubIds = new Set<string>();
+      const uniqueSubjects: Subject[] = [];
+      for (const s of normalizedSubjects) {
+        const idStr = String(s.id || s.code || '');
+        if (idStr && !seenSubIds.has(idStr)) {
+          seenSubIds.add(idStr);
+          uniqueSubjects.push(s);
+        } else if (!idStr) {
+          uniqueSubjects.push(s);
+        }
+      }
+
+      const seenTeachIds = new Set<string>();
+      const uniqueTeachers: Teacher[] = [];
+      for (const t of normalizedTeachers) {
+        const idStr = String(t.id || '');
+        if (idStr && !seenTeachIds.has(idStr)) {
+          seenTeachIds.add(idStr);
+          uniqueTeachers.push(t);
+        } else if (!idStr) {
+          uniqueTeachers.push(t);
+        }
+      }
+
+      setSubjects(uniqueSubjects);
+      setTeachers(uniqueTeachers);
       if (instData && instData.length > 0) setInst(instData[0]);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -487,8 +518,8 @@ export function Subjects() {
   return (
     <>
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
-        actualListCollapsed ? "justify-center" : "justify-end"
+        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
       {actualListCollapsed && !hoverShowList && (
@@ -517,13 +548,13 @@ export function Subjects() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-full lg:w-[432px] opacity-100"
+            : "w-full lg:w-[380px] xl:w-[432px] opacity-100 h-full"
         )}
       >
         <div className="flex-[1] flex flex-col overflow-hidden w-full">
@@ -619,12 +650,12 @@ export function Subjects() {
             <div className="flex items-center justify-center h-32">
               <Loader2 className="animate-spin text-slate-705" />
             </div>
-          ) : filteredSubjects.map((subject) => {
+          ) : filteredSubjects.map((subject, sIdx) => {
             const teacher = teachers.find(t => t.id === subject.teacher_id);
             const qualCount = getQualifiedTeachers(subject.id).length;
             return (
               <SubjectItem
-                key={subject.id}
+                key={`sub-item-${subject.id || subject.code || sIdx}-${sIdx}`}
                 subject={subject}
                 isSelected={selectedSubject?.id === subject.id}
                 onSelect={handleSelectSubject}
@@ -639,8 +670,8 @@ export function Subjects() {
 
       {/* Main Content */}
       <div className={cn(
-        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
-        actualListCollapsed ? "flex-grow flex-1 max-w-5xl w-[100%] mx-auto opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+        actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
       )}>
         {notification && (
           <div className={cn(
@@ -875,16 +906,16 @@ export function Subjects() {
                         {qualifiedTeachers.length > 0 ? (
                           <>
                             <optgroup label="⭐ Professores Habilitados (que escolheram esta disciplina)">
-                              {qualifiedTeachers.map(teacher => (
-                                <option key={teacher.id} value={teacher.id}>
+                              {qualifiedTeachers.map((teacher, idx) => (
+                                <option key={`q-teach-${teacher.id}-${idx}`} value={teacher.id}>
                                   ✓ {teacher.name}
                                 </option>
                               ))}
                             </optgroup>
                             {otherTeachers.length > 0 && (
                               <optgroup label="Outros Professores">
-                                {otherTeachers.map(teacher => (
-                                  <option key={teacher.id} value={teacher.id}>
+                                {otherTeachers.map((teacher, idx) => (
+                                  <option key={`o-teach-${teacher.id}-${idx}`} value={teacher.id}>
                                     {teacher.name}
                                   </option>
                                 ))}
@@ -892,8 +923,8 @@ export function Subjects() {
                             )}
                           </>
                         ) : (
-                          teachers.map(teacher => (
-                            <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                          teachers.map((teacher, idx) => (
+                            <option key={`teach-${teacher.id}-${idx}`} value={teacher.id}>{teacher.name}</option>
                           ))
                         )}
                       </select>
@@ -935,11 +966,11 @@ export function Subjects() {
 
                   {qualifiedTeachers.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                      {qualifiedTeachers.map(teacher => {
+                      {qualifiedTeachers.map((teacher, tIdx) => {
                         const isResponsable = formData.teacher_id === teacher.id;
                         return (
                           <div 
-                            key={teacher.id}
+                            key={`qteach-${teacher.id || tIdx}-${tIdx}`}
                             className={cn(
                               "p-3 bg-slate-50 border transition-all flex items-center gap-3 relative group",
                               isResponsable 

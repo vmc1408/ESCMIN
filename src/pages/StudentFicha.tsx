@@ -303,7 +303,7 @@ export function StudentFicha() {
   const [loading, setLoading] = useState(true);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Todos'>('Ativo');
+  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Sem Turma' | 'Todos'>('Ativo');
   const [studentContributions, setStudentContributions] = useState<any[]>([]);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
 
@@ -654,17 +654,24 @@ export function StudentFicha() {
   // Sidebar list of students filtered by search & status selection to prevent mixing inactive info by default
   const filteredStudentsList = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) {
+    const activeClassIds = new Set(classes.filter(c => c.status === 'Ativo' || !c.status).map(c => c.id));
+    
+    if (!term && statusFilter !== 'Sem Turma') {
       return [];
     }
+
     const filtered = students.filter(s => {
-      const matchSearch = (s.name || '').toLowerCase().includes(term) || 
+      const matchSearch = !term || 
+                          (s.name || '').toLowerCase().includes(term) || 
                           (s.registration_number || '').toLowerCase().includes(term) ||
                           (s.cpf || '').toLowerCase().includes(term);
       
+      const isUnallocated = !s.class_id || !activeClassIds.has(s.class_id);
+      
       const matchStatus = statusFilter === 'Todos' || 
                           (statusFilter === 'Ativo' && (s.status === 'Ativo' || !s.status)) ||
-                          (statusFilter === 'Inativo' && s.status === 'Inativo');
+                          (statusFilter === 'Inativo' && s.status === 'Inativo') ||
+                          (statusFilter === 'Sem Turma' && (s.status === 'Ativo' || !s.status) && isUnallocated);
 
       return matchSearch && matchStatus;
     });
@@ -1122,8 +1129,8 @@ export function StudentFicha() {
                 </h3>
                 
                 {/* Segregation of inactive students filter */}
-                <div className="flex gap-1">
-                  {(['Ativo', 'Inativo', 'Todos'] as const).map(tab => (
+                <div className="flex flex-wrap gap-1">
+                  {(['Ativo', 'Inativo', 'Sem Turma', 'Todos'] as const).map(tab => (
                     <button
                       key={tab}
                       onClick={() => setStatusFilter(tab)}
@@ -1163,11 +1170,11 @@ export function StudentFicha() {
                     Nenhum aluno encontrado
                   </div>
                 ) : (
-                  filteredStudentsList.map(stu => {
+                  filteredStudentsList.map((stu, sIdx) => {
                     const isSelected = stu.id === selectedStudentId;
                     return (
                       <button
-                        key={stu.id}
+                        key={`ficha-stu-${stu.id || sIdx}-${sIdx}`}
                         onClick={() => setSelectedStudentId(stu.id)}
                         className={cn(
                           "w-full p-3 flex items-center justify-between transition-colors text-left",
@@ -1471,8 +1478,8 @@ export function StudentFicha() {
                           Nenhum registro de nota encontrado
                         </div>
                       ) : (
-                        activeStudentMetrics.subjectRecords.map(rec => (
-                          <div key={rec.subject.id} className="py-2.5 flex items-center justify-between gap-4 text-xs">
+                        activeStudentMetrics.subjectRecords.map((rec, rIdx) => (
+                          <div key={`ficha-sub-${rec.subject.id || rec.subject.code || rIdx}-${rIdx}`} className="py-2.5 flex items-center justify-between gap-4 text-xs">
                             <div className="flex items-center gap-2 truncate max-w-[170px] sm:max-w-[280px] md:max-w-[360px]">
                               <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded shrink-0">
                                 {rec.semester === '1º Semestre' ? '1º Sem' : rec.semester === '2º Semestre' ? '2º Sem' : 'Geral'}
@@ -1532,8 +1539,8 @@ export function StudentFicha() {
                         Nenhum certificado emitido para este aluno no sistema.
                       </div>
                     ) : (
-                      activeStudentMetrics.studentDocs.map(doc => (
-                        <div key={doc.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
+                      activeStudentMetrics.studentDocs.map((doc, dIdx) => (
+                        <div key={`ficha-doc-${doc.id || dIdx}-${dIdx}`} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <span className={cn(
@@ -2120,7 +2127,7 @@ export function StudentFicha() {
                     </td>
                   </tr>
                 ) : (
-                  activeStudentMetrics.subjectRecords.map((rec) => {
+                  activeStudentMetrics.subjectRecords.map((rec, rIdx) => {
                     let situation = 'S/ Nota';
                     let situationClass = 'text-slate-400';
                     if (rec.grade !== null) {
@@ -2136,7 +2143,7 @@ export function StudentFicha() {
                       }
                     }
                     return (
-                      <tr key={rec.subject.id} className="hover:bg-slate-50/50">
+                      <tr key={`ficha-print-${rec.subject.id || rec.subject.code || rIdx}-${rIdx}`} className="hover:bg-slate-50/50">
                         <td className="py-2.5 px-3 font-semibold text-[8.5pt] text-slate-600 uppercase tracking-wide">
                           {rec.semester}
                         </td>

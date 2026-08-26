@@ -235,8 +235,33 @@ export function Teachers() {
         return normalized;
       });
 
-      setTeachers(normalizedTeachers);
-      setSubjects(normalizedSubjects);
+      // Deduplica professores e disciplinas por ID
+      const seenTeachIds = new Set<string>();
+      const uniqueTeachers: Teacher[] = [];
+      for (const t of normalizedTeachers) {
+        const idStr = String(t.id || '');
+        if (idStr && !seenTeachIds.has(idStr)) {
+          seenTeachIds.add(idStr);
+          uniqueTeachers.push(t);
+        } else if (!idStr) {
+          uniqueTeachers.push(t);
+        }
+      }
+
+      const seenSubIds = new Set<string>();
+      const uniqueSubjects: Subject[] = [];
+      for (const s of normalizedSubjects) {
+        const idStr = String(s.id || s.code || '');
+        if (idStr && !seenSubIds.has(idStr)) {
+          seenSubIds.add(idStr);
+          uniqueSubjects.push(s);
+        } else if (!idStr) {
+          uniqueSubjects.push(s);
+        }
+      }
+
+      setTeachers(uniqueTeachers);
+      setSubjects(uniqueSubjects);
       if (instData && instData.length > 0) setInst(instData[0]);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -884,8 +909,8 @@ export function Teachers() {
                 </p>
                 {sem1.length > 0 ? (
                   <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[7pt]">
-                    {sem1.map(s => (
-                      <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
+                    {sem1.map((s, idx) => (
+                      <li key={`tsem1-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
@@ -901,8 +926,8 @@ export function Teachers() {
                 </p>
                 {sem2.length > 0 ? (
                   <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[7pt]">
-                    {sem2.map(s => (
-                      <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
+                    {sem2.map((s, idx) => (
+                      <li key={`tsem2-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                     ))}
                   </ul>
                 ) : (
@@ -1017,8 +1042,8 @@ export function Teachers() {
   return (
     <>
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
-        actualListCollapsed ? "justify-center" : "justify-end"
+        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
       {actualListCollapsed && !hoverShowList && (
@@ -1047,13 +1072,13 @@ export function Teachers() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-full lg:w-[432px] opacity-100"
+            : "w-full lg:w-[380px] xl:w-[432px] opacity-100 h-full"
         )}
       >
         <div className="flex-[1] flex flex-col overflow-hidden w-full">
@@ -1124,8 +1149,8 @@ export function Teachers() {
                 className="px-2 py-2 bg-slate-50 border-none rounded-none text-[10px] font-bold text-slate-600 focus:ring-1 focus:ring-slate-500/10 truncate"
               >
                 <option value="all">Disciplinas (Todas)</option>
-                {subjects.filter(s => s.status === 'Ativo').map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                {subjects.filter(s => s.status === 'Ativo').map((s, sIdx) => (
+                  <option key={`teach-sub-opt-${s.id || s.code || sIdx}-${sIdx}`} value={s.id}>{s.name}</option>
                 ))}
               </select>
               <select
@@ -1145,9 +1170,9 @@ export function Teachers() {
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="animate-spin text-slate-705" />
               </div>
-            ) : filteredTeachers.map((teacher) => (
+            ) : filteredTeachers.map((teacher, tIdx) => (
               <TeacherItem
-                key={teacher.id}
+                key={`teach-item-${teacher.id || tIdx}-${tIdx}`}
                 teacher={teacher}
                 isSelected={selectedTeacher?.id === teacher.id}
                 onSelect={handleSelectTeacher}
@@ -1159,8 +1184,8 @@ export function Teachers() {
 
       {/* Main Content */}
       <div className={cn(
-        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300",
-        actualListCollapsed ? "flex-grow flex-1 max-w-5xl w-[100%] mx-auto opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+        actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
       )}>
         {selectedTeacher || isEditing ? (
           <>
@@ -1542,11 +1567,11 @@ export function Teachers() {
                                 <span className="text-[10px] text-slate-400 font-semibold">({groupList.length})</span>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                                {groupList.map((subject) => {
+                                {groupList.map((subject, sIdx) => {
                                   const isSelected = (formData.subject_ids || []).includes(subject.id);
                                   return (
                                     <label 
-                                      key={subject.id}
+                                      key={`tsub-${subject.id || subject.code || sIdx}-${sIdx}`}
                                       className={cn(
                                         "flex items-center gap-2 p-2 rounded-none cursor-pointer transition-all border",
                                         isSelected 

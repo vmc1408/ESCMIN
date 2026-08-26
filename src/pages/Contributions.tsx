@@ -28,7 +28,22 @@ export function Contributions() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [contributions, setContributions] = useState<Contribution[]>([]);
-  const [viewMode, setViewMode] = useState<'individual' | 'period' | 'unpaid'>('individual');
+  const [viewMode, setViewModeState] = useState<'individual' | 'period' | 'unpaid'>(() => {
+    try {
+      const saved = localStorage.getItem('contributions_view_mode');
+      if (saved === 'individual' || saved === 'period' || saved === 'unpaid') {
+        return saved;
+      }
+    } catch (e) {}
+    return 'individual';
+  });
+
+  const setViewMode = useCallback((mode: 'individual' | 'period' | 'unpaid') => {
+    setViewModeState(mode);
+    try {
+      localStorage.setItem('contributions_view_mode', mode);
+    } catch (e) {}
+  }, []);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 15);

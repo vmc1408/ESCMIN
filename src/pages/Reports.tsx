@@ -2121,8 +2121,8 @@ export function Reports() {
              </div>
 
              <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden p-6 space-y-8">
-               {filteredClasses.map(c => (
-                 <div key={c.id} className="space-y-6">
+               {filteredClasses.map((c, cIdx) => (
+                 <div key={`rep-c-${c.id || c.code || cIdx}-${cIdx}`} className="space-y-6">
                    <div className="flex items-center gap-4 border-l-4 border-blue-600 pl-6">
                       <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">{c.code}</div>
                       <div>
@@ -2131,8 +2131,8 @@ export function Reports() {
                       </div>
                    </div>
                    <div className="flex flex-wrap gap-2">
-                      {students.filter(s => s.class_id === c.id).map(s => (
-                        <div key={s.id} className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase">
+                      {students.filter(s => s.class_id === c.id).map((s, sIdx) => (
+                        <div key={`rep-s-${s.id || sIdx}-${sIdx}`} className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase">
                            {s.name}
                         </div>
                       ))}
@@ -2302,8 +2302,8 @@ export function Reports() {
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500/20 appearance-none"
                   >
                     <option value="all">Filtrar Disciplina</option>
-                    {subjects.map(s => (
-                      <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
+                    {subjects.map((s, idx) => (
+                      <option key={`rep-sub-${s.id}-${idx}`} value={s.id}>{s.name.toUpperCase()}</option>
                     ))}
                   </select>
                 </div>
@@ -2364,8 +2364,8 @@ export function Reports() {
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-200/50">
-                                 {subjects.filter(s => t.subject_ids?.includes(s.id)).map(s => (
-                                   <span key={s.id} className="px-2 py-0.5 bg-white border border-slate-200 text-[8px] font-black text-indigo-500 uppercase rounded-md tracking-tighter">
+                                 {subjects.filter(s => t.subject_ids?.includes(s.id)).map((s, sIdx) => (
+                                   <span key={`rep-tsub-${s.id}-${sIdx}`} className="px-2 py-0.5 bg-white border border-slate-200 text-[8px] font-black text-indigo-500 uppercase rounded-md tracking-tighter">
                                      {s.name}
                                    </span>
                                  ))}
@@ -2414,8 +2414,8 @@ export function Reports() {
                     </div>
                     </div>
                     <div className="p-6 space-y-3">
-                       {filteredSubjects.map(s => (
-                         <div key={s.id} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
+                       {filteredSubjects.map((s, sIdx) => (
+                         <div key={`rep-s2-${s.id || s.code || sIdx}-${sIdx}`} className="p-5 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-amber-600 text-xs">{s.code}</div>
                                <div>
@@ -2495,8 +2495,8 @@ export function Reports() {
                               className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                             >
                               <option value="">SELECIONAR TURMA...</option>
-                              {classes.filter(c => c.status === 'Ativo' || !c.status).map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
+                              {classes.filter(c => c.status === 'Ativo' || !c.status).map((c, cIdx) => (
+                                <option key={`rep-opt-c-${c.id || c.code || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                               ))}
                             </select>
                             <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />

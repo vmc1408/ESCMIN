@@ -172,9 +172,9 @@ export function DioceseReportsView({
             icon: LayoutGrid, 
             desc: 'Relação cadastral oficial de Paróquias com CNPJ e contatos.' 
           }
-        ].map((option) => (
+        ].map((option, optIdx) => (
           <button
-            key={option.id}
+            key={`dio-rep-opt-${option.id || optIdx}-${optIdx}`}
             onClick={() => setReportType(option.id)}
             className={cn(
               "p-4 sm:p-5 rounded-none border-2 transition-all text-left flex flex-col gap-2.5 group cursor-pointer",
@@ -215,8 +215,8 @@ export function DioceseReportsView({
               className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
             >
               <option value="all">Todas as Foranias ({foraries.length})</option>
-              {foraries.map(f => (
-                <option key={f.id} value={f.id}>
+              {foraries.map((f, fIdx) => (
+                <option key={`dio-rep-for-opt-${f.id || fIdx}-${fIdx}`} value={f.id}>
                   {f.name}
                 </option>
               ))}
@@ -254,8 +254,8 @@ export function DioceseReportsView({
                   className="w-full bg-slate-50 border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-200 cursor-pointer"
                 >
                   <option value="all">Todas as Funções ({clergy.length})</option>
-                  {distinctRoles.map(role => (
-                    <option key={role} value={role}>
+                  {distinctRoles.map((role, rIdx) => (
+                    <option key={`dio-rep-role-opt-${role || rIdx}-${rIdx}`} value={role}>
                       {role}
                     </option>
                   ))}
@@ -359,7 +359,7 @@ export function DioceseReportsView({
           {/* Model 1: parishes_by_forania */}
           {reportType === 'parishes_by_forania' && (
             <div className="space-y-8">
-              {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania) => {
+              {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania, fIdx) => {
                 const foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
                 const filteredForaniaParishes = (reportSearch.trim()
                   ? foraniaParishes.filter(p => {
@@ -382,7 +382,7 @@ export function DioceseReportsView({
                 if (filteredForaniaParishes.length === 0 && reportSearch.trim()) return null;
 
                 return (
-                  <div key={forania.id} className="border border-slate-300 rounded-none overflow-hidden">
+                  <div key={`dio-rep-for-${forania.id || fIdx}-${fIdx}`} className="border border-slate-300 rounded-none overflow-hidden">
                     <div className="bg-slate-100 text-slate-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-300">
                       <div className="flex items-center gap-3">
                         <MapIcon size={18} className="text-slate-700" />
@@ -419,10 +419,10 @@ export function DioceseReportsView({
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                           {filteredForaniaParishes.length > 0 ? (
-                            filteredForaniaParishes.map((parish) => {
+                            filteredForaniaParishes.map((parish, pIdx) => {
                               const clergyData = getParishClergy(parish, clergy);
                               return (
-                                <tr key={parish.id} className="hover:bg-slate-50 transition-colors">
+                                <tr key={`dio-rep-par-${parish.id || pIdx}-${pIdx}`} className="hover:bg-slate-50 transition-colors">
                                   <td className="py-3 px-4 align-top border-r border-slate-200">
                                     <div className="flex items-start gap-2">
                                       <Church size={15} className="text-blue-600 shrink-0 mt-0.5" />
@@ -453,7 +453,7 @@ export function DioceseReportsView({
                                     {clergyData.priests.length > 0 ? (
                                       <div className="space-y-1.5">
                                         {clergyData.priests.map((p, idx) => (
-                                          <div key={idx} className="leading-tight">
+                                          <div key={`dio-priest-${p.name}-${idx}`} className="leading-tight">
                                             <p className="font-bold text-slate-800 text-xs">{p.name}</p>
                                             <span className="inline-block text-[9px] font-semibold uppercase px-1.5 py-0.2 bg-blue-50 text-blue-700 rounded-none border border-blue-100">
                                               {p.role}
@@ -469,7 +469,7 @@ export function DioceseReportsView({
                                     {clergyData.deacons.length > 0 ? (
                                       <div className="space-y-1">
                                         {clergyData.deacons.map((d, idx) => (
-                                          <p key={idx} className="font-semibold text-slate-700 text-xs leading-tight">{d}</p>
+                                          <p key={`dio-deacon-${d}-${idx}`} className="font-semibold text-slate-700 text-xs leading-tight">{d}</p>
                                         ))}
                                       </div>
                                     ) : (
@@ -507,10 +507,10 @@ export function DioceseReportsView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania) => {
+                  {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania, fIdx) => {
                     const foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
                     return (
-                      <tr key={forania.id} className="hover:bg-slate-50">
+                      <tr key={`dio-rep-sum-for-${forania.id || fIdx}-${fIdx}`} className="hover:bg-slate-50">
                         <td className="py-3 px-4 font-bold text-slate-900 uppercase border-r border-slate-200">{forania.name}</td>
                         <td className="py-3 px-4 text-slate-800 border-r border-slate-200">
                           {forania.priest_name ? `Pe. ${forania.priest_name}` : <span className="text-slate-400 italic">Não designado</span>}
@@ -536,7 +536,7 @@ export function DioceseReportsView({
 
               return (
                 <div className="space-y-8">
-                  {foraniasToDisplay.map(forania => {
+                  {foraniasToDisplay.map((forania, fIdx) => {
                     const clergyInForania = filteredClergy.filter(c => {
                       const parish = parishes.find(p => p.id === c.parish_id);
                       const fId = parish?.forania_id || c.forania_id;
@@ -551,7 +551,7 @@ export function DioceseReportsView({
                     if (clergyInForania.length === 0 && reportSearch.trim()) return null;
 
                     return (
-                      <div key={forania.id} className="border border-slate-300 rounded-none overflow-hidden">
+                      <div key={`dio-rep-c-for-${forania.id || fIdx}-${fIdx}`} className="border border-slate-300 rounded-none overflow-hidden">
                         <div className="bg-slate-100 text-slate-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-300">
                           <div className="flex items-center gap-3">
                             <MapIcon size={18} className="text-slate-700" />
@@ -583,10 +583,10 @@ export function DioceseReportsView({
                             </thead>
                             <tbody className="divide-y divide-slate-200">
                               {clergyInForania.length > 0 ? (
-                                clergyInForania.map(c => {
+                                clergyInForania.map((c, cIdx) => {
                                   const parish = parishes.find(p => p.id === c.parish_id);
                                   return (
-                                    <tr key={c.id} className="hover:bg-slate-50">
+                                    <tr key={`dio-rep-c-row-${c.id || cIdx}-${cIdx}`} className="hover:bg-slate-50">
                                       <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{c.name}</td>
                                       <td className="py-3 px-4 font-semibold text-slate-700 uppercase text-[10px] border-r border-slate-200">
                                         <span className="inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 bg-blue-50 text-blue-800 rounded-none border border-blue-100">
@@ -638,10 +638,10 @@ export function DioceseReportsView({
               });
               return (
                 <div className="space-y-8">
-                  {rolesList.map(roleName => {
+                  {rolesList.map((roleName, rIdx) => {
                     const clergyInRole = filteredClergy.filter(c => (c.role || 'Outros') === roleName).sort((a, b) => a.name.localeCompare(b.name));
                     return (
-                      <div key={roleName} className="border border-slate-300 rounded-none overflow-hidden">
+                      <div key={`dio-rep-role-box-${roleName || rIdx}-${rIdx}`} className="border border-slate-300 rounded-none overflow-hidden">
                         <div className="bg-slate-100 text-slate-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-300">
                           <div className="flex items-center gap-3">
                             <ShieldCheck size={18} className="text-blue-700" />
@@ -665,11 +665,11 @@ export function DioceseReportsView({
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200">
-                              {clergyInRole.map(c => {
+                              {clergyInRole.map((c, cIdx) => {
                                 const parish = parishes.find(p => p.id === c.parish_id);
                                 const forania = foraries.find(f => f.id === (parish?.forania_id || c.forania_id));
                                 return (
-                                  <tr key={c.id} className="hover:bg-slate-50">
+                                  <tr key={`dio-rep-role-c-${c.id || cIdx}-${cIdx}`} className="hover:bg-slate-50">
                                     <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{c.name}</td>
                                     <td className="py-3 px-4 text-slate-800 border-r border-slate-200">
                                       {parish ? parish.name : <span className="text-slate-400 italic">Geral / Sem Paróquia</span>}
@@ -709,10 +709,10 @@ export function DioceseReportsView({
                     {filteredClergy.length > 0 ? (
                       filteredClergy
                         .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((c) => {
+                        .map((c, cIdx) => {
                           const parish = parishes.find(p => p.id === c.parish_id);
                           return (
-                            <tr key={c.id} className="hover:bg-slate-50">
+                            <tr key={`dio-rep-flat-c-${c.id || cIdx}-${cIdx}`} className="hover:bg-slate-50">
                               <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{c.name}</td>
                               <td className="py-3 px-4 font-semibold text-slate-700 uppercase text-[10px] border-r border-slate-200">{c.role || 'Membro do Clero'}</td>
                               <td className="py-3 px-4 text-slate-800 border-r border-slate-200">{parish ? parish.name : <span className="text-slate-400 italic">Geral / Sem Paróquia</span>}</td>
@@ -761,10 +761,10 @@ export function DioceseReportsView({
                       }
                       return a.name.localeCompare(b.name);
                     })
-                    .map((p) => {
+                    .map((p, pIdx) => {
                       const f = foraries.find(forania => forania.id === p.forania_id);
                       return (
-                        <tr key={p.id} className="hover:bg-slate-50">
+                        <tr key={`dio-rep-cnpj-p-${p.id || pIdx}-${pIdx}`} className="hover:bg-slate-50">
                           <td className="py-3 px-4 font-bold text-slate-900 border-r border-slate-200">{p.name}</td>
                           <td className="py-3 px-4 font-mono font-bold text-slate-800 border-r border-slate-200">{formatCNPJ(p.cnpj)}</td>
                           <td className="py-3 px-4 text-slate-700 border-r border-slate-200">{f ? f.name : 'Sem Forania'}</td>

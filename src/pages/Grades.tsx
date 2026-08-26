@@ -1052,7 +1052,7 @@ export function Grades() {
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">Selecione uma turma...</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
+                {classes.map((c, idx) => <option key={`grd-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
               </select>
             </div>
           </div>
@@ -1067,7 +1067,7 @@ export function Grades() {
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">Selecione uma disciplina...</option>
-                {filteredSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {filteredSubjects.map((s, idx) => <option key={`grd-sub-${s.id}-${idx}`} value={s.id}>{s.name}</option>)}
               </select>
             </div>
           </div>
@@ -1081,8 +1081,8 @@ export function Grades() {
                 onChange={e => setSelectedPeriod(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
-                {availablePeriods.map(p => (
-                  <option key={p.id} value={p.id}>
+                {availablePeriods.map((p, pIdx) => (
+                  <option key={`grd-per-${p.id || pIdx}-${pIdx}`} value={p.id}>
                     {p.label}
                   </option>
                 ))}
@@ -1212,7 +1212,7 @@ export function Grades() {
             <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
               {students.length > 0 ? (
                 students.map((student, idx) => (
-                  <div key={student.id} className={cn(
+                  <div key={`grd-st-${student.id || idx}-${idx}`} className={cn(
                     "flex flex-col md:flex-row md:items-center justify-between p-4 transition-all hover:bg-slate-50",
                     idx % 2 === 0 ? "bg-white" : "bg-slate-50/30"
                   )}>

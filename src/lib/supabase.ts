@@ -4,23 +4,45 @@ export let isDbConnected = true;
 export let lastLatency: number | null = null;
 export let connectionError: string | null = null;
 
+let consecutiveFailures = 0;
+
 const setDbConnected = (val: boolean, latency: number | null = null, error: string | null = null) => {
+  if (!val) {
+    consecutiveFailures++;
+    // Requer pelo menos 2 falhas consecutivas antes de notificar desconexão geral para evitar falsos positivos
+    if (consecutiveFailures < 2 && isDbConnected) {
+      return;
+    }
+  } else {
+    consecutiveFailures = 0;
+  }
+
   const changed = isDbConnected !== val || lastLatency !== latency || connectionError !== error;
   isDbConnected = val;
   lastLatency = latency;
   connectionError = error;
   
-  if (changed) {
+  if (changed && typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('supabase-status-change', { 
       detail: { connected: val, latency, error } 
     }));
   }
 };
 
+let lastWarnTimestamp = 0;
+
+const logNetworkWarnThrottled = (msg: string) => {
+  const now = Date.now();
+  if (now - lastWarnTimestamp > 15000) { // Emite no máximo 1 log a cada 15 segundos
+    lastWarnTimestamp = now;
+    console.warn(msg);
+  }
+};
+
 /**
- * Utility to fetch with timeout
+ * Utility to fetch with timeout and proper timer cleanup
  */
-export const fetchWithTimeout = async (promise: any, timeoutMs = 5000, maxRetries = 1): Promise<any> => {
+export const fetchWithTimeout = async (promiseOrFactory: any, timeoutMs = 15000, maxRetries = 1): Promise<any> => {
   if (typeof window !== 'undefined' && !window.navigator.onLine) {
     return { data: null, error: { message: 'Dispositivo Offline', isOffline: true } };
   }
@@ -29,22 +51,34 @@ export const fetchWithTimeout = async (promise: any, timeoutMs = 5000, maxRetrie
   
   const executeAttempt = async (): Promise<any> => {
     const startTime = Date.now();
-    const timeout = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
-    );
+    let timerId: any = null;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timerId = setTimeout(() => {
+        reject(new Error('TIMEOUT'));
+      }, timeoutMs);
+    });
 
     try {
-      const result = await Promise.race([promise, timeout]);
+      const activePromise = typeof promiseOrFactory === 'function' 
+        ? promiseOrFactory() 
+        : promiseOrFactory;
+
+      const result = await Promise.race([activePromise, timeoutPromise]);
+      if (timerId) clearTimeout(timerId);
+
       const latency = Date.now() - startTime;
       
-      if (result && result.status !== undefined) {
+      if (result && (result.status !== undefined || result.data !== undefined || !result.error)) {
         setDbConnected(true, latency, null);
       }
       
       return result;
     } catch (err: any) {
+      if (timerId) clearTimeout(timerId);
+
       const latency = Date.now() - startTime;
-      const errorMessage = err.message || String(err);
+      const errorMessage = err?.message || String(err || '');
       
       const isConnectivityError = 
         errorMessage === 'TIMEOUT' ||
@@ -55,25 +89,24 @@ export const fetchWithTimeout = async (promise: any, timeoutMs = 5000, maxRetrie
         errorMessage.includes('Network request failed') ||
         errorMessage.includes('Socket closed') ||
         errorMessage.includes('connection refused') ||
-        err.status === 0 || 
-        err.code === 'PGRST301' || 
-        err.code === '08001' ||    
-        err.code === '08004' ||    
-        err.code === '08006' ||    
-        err.code === '08P01';      
+        err?.status === 0 || 
+        err?.code === 'PGRST301' || 
+        err?.code === '08001' ||    
+        err?.code === '08004' ||    
+        err?.code === '08006' ||    
+        err?.code === '08P01';      
 
-      // Retry logic for transient network failures
-      if (attempt < maxRetries && isConnectivityError && errorMessage !== 'TIMEOUT') {
+      // Retry logic for transient network failures if factory is provided
+      if (attempt < maxRetries && isConnectivityError && typeof promiseOrFactory === 'function') {
         attempt++;
         const backoff = 1000 * attempt; 
-        console.warn(`[Supabase] Erro de rede (Failed to fetch). Tentativa ${attempt}/${maxRetries} em ${backoff}ms...`);
+        logNetworkWarnThrottled(`[Supabase] Erro temporário de rede. Tentativa ${attempt}/${maxRetries} em ${backoff}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoff));
         return executeAttempt();
       }
 
       if (errorMessage === 'TIMEOUT') {
-        console.warn(`[Supabase] Timeout (${timeoutMs}ms) em operação.`);
-        if (timeoutMs < 10000) setDbConnected(false, latency, 'Tempo de resposta excedido (Timeout)');
+        logNetworkWarnThrottled(`[Supabase] Timeout (${timeoutMs}ms) em operação.`);
         return { data: null, error: { message: 'Operação lenta ou sem resposta (TIMEOUT)', isTimeout: true } };
       }
 
@@ -153,31 +186,38 @@ export const supabase = createClient(
   }
 );
 
-// Teste de conexão com heartbeat ultraleve e timeout agressivo
+let isCheckingConnection = false;
+
+// Teste de conexão com heartbeat ultraleve e timeout balanceado (sem retries ruidosos)
 export const testConnection = async () => {
-  if (!isSupabaseConfigured) return;
+  if (!isSupabaseConfigured || isCheckingConnection) return;
+  isCheckingConnection = true;
 
   try {
     const startTime = Date.now();
-    // Timeout curto para pulso de status (não queremos que o app pare esperando isso)
     const response = await fetchWithTimeout(
       supabase.from('users').select('id', { count: 'exact', head: true }).limit(1),
-      3000 
+      6000,
+      0 // 0 retries no teste de conexão para não poluir o console
     );
     const latency = Date.now() - startTime;
     
     // Se o servidor respondeu com qualquer status (mesmo erro 400, 401, 403), ele está alcançável.
-    if (response && response.status !== undefined) {
+    if (response && (response.status !== undefined || response.data !== undefined || !response.error)) {
       setDbConnected(true, latency, null);
     } else if (response && response.error) {
       const msg = response.error.message || '';
-      // Se for erro de auth ou permissão, o servidor está ONLINE
-      const isAuthError = msg.includes('JWT') || msg.includes('permission') || response.status === 401 || response.status === 403;
+      // Se for erro de auth, permissão ou tabela, o servidor está ONLINE
+      const isAuthOrServerResponse = 
+        msg.includes('JWT') || 
+        msg.includes('permission') || 
+        msg.includes('relation') ||
+        response.status === 401 || 
+        response.status === 403;
       
-      if (isAuthError) {
+      if (isAuthOrServerResponse) {
         setDbConnected(true, latency, null);
       } else {
-        // Reduzimos o ruído: só marca offline se não houver resposta nenhuma, for timeout ou offline
         const isOfflineError = 
           response.error.isTimeout || 
           response.error.isOffline || 
@@ -191,22 +231,27 @@ export const testConnection = async () => {
     }
   } catch (err: any) {
     // Falha silenciosa no teste de conexão automática
+  } finally {
+    isCheckingConnection = false;
   }
 };
 
-// Monitoramento ativo e passivo
-if (isSupabaseConfigured) {
-  testConnection();
+// Monitoramento passivo e heartbeat controlado
+if (isSupabaseConfigured && typeof window !== 'undefined') {
+  // Teste inicial apenas após o carregamento inicial da página para não concorrer com os componentes
+  setTimeout(() => {
+    testConnection();
+  }, 2000);
   
   window.addEventListener('online', () => testConnection());
   window.addEventListener('offline', () => setDbConnected(false));
 
+  // Heartbeat a cada 3 minutos quando a aba está ativa
   setInterval(() => {
-    // Heartbeat mais espaçado: 5 minutos se ok, 1 minuto se erro
-    if (document.visibilityState === 'visible' || !isDbConnected) {
+    if (document.visibilityState === 'visible') {
       testConnection();
     }
-  }, isDbConnected ? 300000 : 60000); 
+  }, 180000); 
 }
 
 /**
@@ -246,12 +291,19 @@ export const syncUserWithSupabase = async (userData: { uid: string; email: strin
   }
 };
 
+const tablesWithoutColumn = new Map<string, Set<string>>();
+
 /**
  * Função utilitária para buscar todos os registros de uma tabela, contornando o limite de 1000 do Supabase/PostgREST.
  * Carrega os dados em lotes até que todos os registros sejam recuperados.
  */
 export const fetchRecursive = async (tableName: string, options: { select?: string, orderCol?: string, ascending?: boolean, timeoutMs?: number } = {}) => {
   let { select = '*', orderCol = 'created_at', ascending = false } = options;
+
+  // Se já sabemos que a coluna não existe nesta tabela, não tenta ordenar por ela
+  if (orderCol && tablesWithoutColumn.get(tableName)?.has(orderCol)) {
+    orderCol = '';
+  }
 
   let allData: any[] = [];
   let from = 0;
@@ -307,9 +359,14 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
         }
       }
 
-      // If ordering failed because column doesn't exist, retry once without order
+      // If ordering failed because column doesn't exist, register and retry once without order
       if (orderCol && (error.message.includes('column') || error.code === '42703')) {
-        console.warn(`[Supabase] Column ${orderCol} does not exist in ${tableName}, retrying without order.`);
+        if (!tablesWithoutColumn.has(tableName)) {
+          tablesWithoutColumn.set(tableName, new Set());
+        }
+        tablesWithoutColumn.get(tableName)!.add(orderCol);
+        orderCol = '';
+
         const retry = await fetchWithTimeout(
           supabase
             .from(tableName)
@@ -345,5 +402,20 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
     }
   }
 
-  return allData;
+  // Deduplica registros por ID para evitar problemas de chaves duplicadas
+  const seen = new Set<string>();
+  const uniqueData: any[] = [];
+  for (const item of allData) {
+    if (item && item.id !== undefined && item.id !== null) {
+      const idStr = String(item.id);
+      if (!seen.has(idStr)) {
+        seen.add(idStr);
+        uniqueData.push(item);
+      }
+    } else if (item) {
+      uniqueData.push(item);
+    }
+  }
+
+  return uniqueData;
 };

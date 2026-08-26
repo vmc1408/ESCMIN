@@ -74,43 +74,6 @@ export function Login() {
   const stateError = location.state?.error;
 
   const [isRetrying, setIsRetrying] = useState(false);
-  const prevIsConnectedRef = useRef(isConnected);
-
-  // Alerta sonoro / Bip de falha de conexão
-  useEffect(() => {
-    if (!isConnected && prevIsConnectedRef.current) {
-      try {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) {
-          const ctx = new AudioContextClass();
-          
-          const playTone = (freq: number, startTime: number, duration: number, type: 'sine' | 'sawtooth' | 'triangle' = 'triangle') => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, startTime);
-            gain.gain.setValueAtTime(0, startTime);
-            gain.gain.linearRampToValueAtTime(0.12, startTime + 0.03);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-            
-            osc.start(startTime);
-            osc.stop(startTime + duration);
-          };
-
-          const now = ctx.currentTime;
-          playTone(440, now, 0.12, 'sawtooth');
-          playTone(554, now + 0.15, 0.12, 'sawtooth');
-          playTone(659, now + 0.30, 0.25, 'triangle');
-        }
-      } catch (err) {
-        console.warn('Erro ao emitir alerta sonoro de conexão:', err);
-      }
-    }
-    prevIsConnectedRef.current = isConnected;
-  }, [isConnected]);
 
   const handleManualReconnect = async () => {
     setIsRetrying(true);

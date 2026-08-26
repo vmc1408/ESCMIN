@@ -483,7 +483,7 @@ export const Assessments: React.FC = () => {
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Turmas</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {classes.map((c, idx) => <option key={`ass-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
@@ -505,7 +505,7 @@ export const Assessments: React.FC = () => {
                       const selectedClass = classes.find(c => c.id === filterClass);
                       return selectedClass?.subject_ids?.includes(s.id);
                     })
-                    .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    .map((s, idx) => <option key={`ass-sub-opt-${s.id || idx}-${idx}`} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             </div>
@@ -572,9 +572,9 @@ export const Assessments: React.FC = () => {
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap justify-center pt-2">
-                {classes.slice(0, 4).map(c => (
+                {classes.slice(0, 4).map((c, idx) => (
                   <button
-                    key={c.id}
+                    key={`ass-cls-quick-${c.id || idx}-${idx}`}
                     onClick={() => setFilterClass(c.id)}
                     className="text-[11px] font-bold bg-white text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 px-3 py-1.5 rounded-lg shadow-2xs transition-all cursor-pointer"
                   >
@@ -591,7 +591,7 @@ export const Assessments: React.FC = () => {
           ) : filteredAssessments.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
-            {filteredAssessments.map((a) => {
+            {filteredAssessments.map((a, aIdx) => {
               // Calculate status values dynamically
               const classStudents = students.filter(s => s.class_id === a.class_id);
               const totalClassStudentsCount = classStudents.length;
@@ -614,7 +614,7 @@ export const Assessments: React.FC = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  key={a.id}
+                  key={`ass-card-${a.id || aIdx}-${aIdx}`}
                   className="bg-white flex flex-col justify-between rounded-xl border border-slate-200 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-100 transition-all overflow-hidden"
                 >
                   <div className="p-5 space-y-4">
@@ -798,7 +798,7 @@ export const Assessments: React.FC = () => {
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     >
                       <option value="">Selecione a turma...</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {classes.map((c, idx) => <option key={`ass-mdl-cls-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
 
@@ -819,7 +819,7 @@ export const Assessments: React.FC = () => {
                           const selectedClass = classes.find(c => c.id === formData.class_id);
                           return selectedClass?.subject_ids?.includes(s.id);
                         })
-                        .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        .map((s, idx) => <option key={`ass-mdl-sub-${s.id || idx}-${idx}`} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
 

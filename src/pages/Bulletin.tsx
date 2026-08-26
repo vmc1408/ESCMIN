@@ -1536,8 +1536,8 @@ export function Bulletin() {
                     className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-none text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                   >
                     <option value="">SELECIONAR TURMA...</option>
-                    {classes.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                    {classes.map((c, idx) => (
+                      <option key={`blt-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
@@ -1560,8 +1560,8 @@ export function Bulletin() {
                       {classStudents.length === 0 ? (
                         <option value="">Nenhum Aluno Ativo Encontrado</option>
                       ) : (
-                        classStudents.map(s => (
-                          <option key={s.id} value={s.id}>
+                        classStudents.map((s, idx) => (
+                          <option key={`blt-stu-opt-${s.id || idx}-${idx}`} value={s.id}>
                             {s.registration_number ? `${s.registration_number} - ` : ''}{s.name}
                           </option>
                         ))
@@ -1760,7 +1760,7 @@ export function Bulletin() {
                           {activeStudentReport.subjectsPerformance.map((sp, sIdx) => {
                             const subSem = sp.semester || getSubjectSemester(subjects.find(s => s.id === sp.subjectId));
                             return (
-                              <tbody key={sp.subjectId} className={cn(
+                              <tbody key={`blt-sub-perf-${sp.subjectId || sIdx}-${sIdx}`} className={cn(
                                 "text-slate-700 break-inside-avoid page-break-inside-avoid bg-white",
                                 sIdx > 0 ? "border-t border-slate-205" : ""
                               )}>
@@ -1867,7 +1867,7 @@ export function Bulletin() {
                             </tr>
                           </thead>
                           {activeStudentReport.subjectsPerformance.map((sp, sIdx) => (
-                            <tbody key={sp.subjectId} className={cn(
+                            <tbody key={`blt-sub-eval-${sp.subjectId || sIdx}-${sIdx}`} className={cn(
                               "text-slate-705 break-inside-avoid page-break-inside-avoid bg-white",
                               sIdx > 0 ? "border-t border-slate-205" : ""
                             )}>
@@ -1879,7 +1879,7 @@ export function Bulletin() {
                               </tr>
                               {/* Assessment detailed rows */}
                               {sp.detailedAssessments?.map((da: any, idx: number) => (
-                                  <tr key={da.id || idx} className="hover:bg-slate-50/50 border-b border-slate-100 text-[10px]">
+                                  <tr key={`blt-da-${da.id || idx}-${idx}`} className="hover:bg-slate-50/50 border-b border-slate-100 text-[10px]">
                                     <td className="pl-6 pr-3 py-2 border-r border-slate-100 text-slate-650 font-medium italic">
                                       ↳ {da.title}
                                     </td>
@@ -2078,8 +2078,8 @@ export function Bulletin() {
                               {renderSortIcon('student')}
                             </div>
                           </th>
-                          {classSubjects.map(sub => (
-                            <th key={sub.id} className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title={sub.name} onClick={() => handleClassSort('subject', sub.id)}>
+                          {classSubjects.map((sub, sIdx) => (
+                            <th key={`blt-cls-sub-th-${sub.id || sIdx}-${sIdx}`} className="px-6 py-4 text-center cursor-pointer hover:bg-slate-100 transition-colors select-none" title={sub.name} onClick={() => handleClassSort('subject', sub.id)}>
                               <div className="flex items-center justify-center gap-1">
                                 <span>{sub.code || sub.name.substring(0, 8).toUpperCase()}</span>
                                 {renderSortIcon('subject', sub.id)}
@@ -2101,7 +2101,7 @@ export function Bulletin() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-800 uppercase text-[11px] font-semibold">
-                        {sortedReports.map(res => {
+                        {sortedReports.map((res, rIdx) => {
                           const showFailed = res.finalStatus === 'Reprovado';
                           const showRecup = res.finalStatus === 'Recuperação';
                           const showPending = res.finalStatus === 'Pendente';
@@ -2109,18 +2109,18 @@ export function Bulletin() {
                           const minPresenceRequired = 100 - (academicParams.absence_limit_percentage || 25);
 
                           return (
-                            <tr key={res.student.id} className="hover:bg-slate-50/40 transition-colors">
+                            <tr key={`blt-cls-row-${res.student.id || rIdx}-${rIdx}`} className="hover:bg-slate-50/40 transition-colors">
                               <td className="px-6 py-3.5">
                                 <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{res.student.name}</p>
                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">RA: {res.student.registration_number || 'N/D'}</p>
                               </td>
-                              {classSubjects.map(sub => {
+                              {classSubjects.map((sub, sIdx) => {
                                 const perf = res.subjectsPerformance.find(sp => sp.subjectId === sub.id);
                                 const gradeValue = perf ? perf.finalGrade : null;
                                 const isApproved = gradeValue !== null && gradeValue >= (academicParams.approval_grade || 5.0);
 
                                 return (
-                                  <td key={sub.id} className="px-6 py-3.5 text-center">
+                                  <td key={`blt-cls-td-${res.student.id || rIdx}-${sub.id || sIdx}-${sIdx}`} className="px-6 py-3.5 text-center">
                                     {gradeValue !== null ? (
                                       <span className={cn(
                                         "px-2 py-1 text-xs font-bold font-mono inline-block min-w-10 text-center rounded-none border shadow-sm",

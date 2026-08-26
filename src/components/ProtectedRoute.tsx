@@ -67,15 +67,30 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
   if (!profile) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 font-sans">
-        <div className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-slate-100">
-           <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
+        <div className="max-w-md w-full bg-white p-10 rounded-2xl shadow-2xl text-center border border-slate-100">
+           <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
              <AlertCircle size={40} />
            </div>
-           <h2 className="text-2xl font-black text-slate-900 mb-4 uppercase tracking-tight">Perfil Bloqueado</h2>
-           <p className="text-slate-500 font-medium text-sm leading-relaxed mb-10">
-             Sua conta ({user.email}) existe, mas não possui um perfil ativo ou permissões no sistema. Entre em contato com o administrador.
+           <h2 className="text-xl font-bold text-slate-900 mb-3 uppercase tracking-tight">Carregando Perfil</h2>
+           <p className="text-slate-500 font-medium text-sm leading-relaxed mb-8">
+             Sua conta ({user.email}) está conectada. Estamos sincronizando suas permissões.
            </p>
-           <Navigate to="/login" replace />
+           <div className="flex flex-col gap-3">
+             <button
+               onClick={() => refreshProfile()}
+               className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+             >
+               Sincronizar Permissões
+             </button>
+             <button
+               onClick={() => {
+                 window.location.hash = '#/login';
+               }}
+               className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-all"
+             >
+               Voltar para Login
+             </button>
+           </div>
         </div>
       </div>
     );

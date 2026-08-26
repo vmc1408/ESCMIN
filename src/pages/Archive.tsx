@@ -185,6 +185,7 @@ export function ArchivePage() {
           if (!insErr) {
             // Suppress references
             await Promise.all([
+              supabase.from('students').update({ class_id: null }).eq('class_id', cls.id),
               supabase.from('enrollments').delete().eq('class_id', cls.id),
               supabase.from('attendances').delete().eq('class_id', cls.id),
               supabase.from('grades').delete().eq('class_id', cls.id)

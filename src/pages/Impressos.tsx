@@ -711,9 +711,9 @@ export function Impressos() {
                               Nenhum estudante encontrado
                             </div>
                           ) : (
-                            filteredStudents.slice(0, 15).map(s => (
+                            filteredStudents.slice(0, 15).map((s, idx) => (
                               <button
-                                key={s.id}
+                                key={`imp-stu-search-${s.id || idx}-${idx}`}
                                 type="button"
                                 onClick={() => {
                                   setSelectedStudentId(s.id);
@@ -761,8 +761,8 @@ export function Impressos() {
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 uppercase bg-slate-50"
                   >
                     <option value="">Selecione uma turma...</option>
-                    {classes.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                    {classes.map((c, idx) => (
+                      <option key={`imp-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>
@@ -845,13 +845,13 @@ export function Impressos() {
                           Nenhum aluno nesta turma
                         </p>
                       ) : (
-                        classStudents.map(student => {
+                        classStudents.map((student, idx) => {
                           const isChecked = selectedType === 'carteirinhas' 
                             ? selectedCardStudentIds.includes(student.id)
                             : selectedLabelStudentIds.includes(student.id);
                           return (
                             <label
-                              key={student.id}
+                              key={`imp-cls-stu-${student.id || idx}-${idx}`}
                               className="flex items-center gap-2.5 px-2 py-2 hover:bg-white cursor-pointer transition-colors"
                             >
                               <input

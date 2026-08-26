@@ -98,6 +98,7 @@ export interface Class {
   days_of_week: string[];
   year?: string;
   start_year?: string;
+  academic_year?: string;
   semester: string;
   subject_id?: string;
   subject_id_sem1?: string;
@@ -109,6 +110,7 @@ export interface Class {
   subject_ids?: string[];
   start_date?: string;
   observations?: string;
+  enabled_years?: string[];
   is_special?: boolean;
   unallocated?: boolean;
   user_id: string;

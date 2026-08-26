@@ -21,7 +21,14 @@ import {
   Calendar,
   Repeat,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  CheckCircle2,
+  CheckSquare,
+  Square,
+  Settings2,
+  ArrowRight,
+  Info
 } from 'lucide-react';
 
 const formatDateBR = (dateStr?: string) => {
@@ -111,8 +118,8 @@ const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] => {
 
   return periods;
 };
-import { fetchCount, fetchAll, fetchById, saveBatch } from '../lib/database';
-import { isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from '../lib/supabase';
+import { fetchCount, fetchAll, fetchById, saveBatch, saveData } from '../lib/database';
+import { supabase, isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
@@ -165,6 +172,7 @@ export function Dashboard() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
 
   const [acadSettings, setAcadSettings] = useState<any>(() => {
     try {
@@ -280,12 +288,13 @@ export function Dashboard() {
     try {
       setSyncError(null);
       // Run updates in parallel
-      const [studentsData, classesData, subjectsData, teachersData, acadData] = await Promise.all([
+      const [studentsData, classesData, subjectsData, teachersData, acadData, enrollmentsData] = await Promise.all([
         fetchAll('students'),
         fetchAll('classes'),
         fetchAll('subjects'),
         fetchAll('teachers'),
         fetchAll('academic_settings').catch(() => []),
+        fetchAll('enrollments').catch(() => []),
         updateCategory('students', 'students'),
         updateCategory('teachers', 'teachers'),
         updateCategory('classes', 'classes'),
@@ -303,6 +312,7 @@ export function Dashboard() {
       }
       
       if (studentsData) setStudents(studentsData);
+      if (enrollmentsData) setEnrollments(enrollmentsData);
       
       if (subjectsData) {
         const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
@@ -396,9 +406,30 @@ export function Dashboard() {
           (normalized as any).subject_id_sem1 = metaSem1H1 || metaSem1H2;
           (normalized as any).subject_id_sem2 = metaSem2H1 || metaSem2H2;
           normalized.subject_ids = consolidatedSids;
+
+          // Regra Fundamental: Não existe 5º Ano. Se a turma atingir este patamar ou estiver cadastrada como 5º Ano, converte para Curso Extra.
+          const yrStr = (normalized.year || '').toLowerCase();
+          if (yrStr.includes('5º') || yrStr.includes('5°') || yrStr.includes('5 ano') || yrStr.includes('5ª') || yrStr.includes('5a') || yrStr.includes('5th')) {
+            normalized.year = 'Curso Extra';
+          }
+
           return normalized;
         });
         setClasses(normalizedClasses);
+
+        // Keep stats.classes strictly synchronized with loaded classes
+        const totalClasses = normalizedClasses.length;
+        const activeCount = normalizedClasses.filter(c => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo').length;
+        setStats(prev => ({
+          ...prev,
+          classes: {
+            total: totalClasses,
+            active: activeCount,
+            inactive: Math.max(0, totalClasses - activeCount),
+            archived: 0,
+            current: totalClasses
+          }
+        }));
       }
       
       const now = new Date();
@@ -429,80 +460,303 @@ export function Dashboard() {
   const [selectedClassLabel, setSelectedClassLabel] = useState("");
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [isUnallocatedContext, setIsUnallocatedContext] = useState(false);
-  const [showDisciplines, setShowDisciplines] = useState(false);
-
-  // Helper to extract exact academic base year for a class (Ano Letivo field)
-  const getClassAcademicYear = useCallback((c: any): string => {
-    if (c.unallocated) return 'S/T';
-
-    // 1. Primary source: start_year field (Campo 2 Ano Letivo in class form)
-    if (c.start_year && String(c.start_year).trim().length === 4) {
-      return String(c.start_year).trim();
+  const [showDisciplines, setShowDisciplinesState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('dashboard_show_disciplines') === 'true';
+    } catch (e) {
+      return false;
     }
+  });
 
-    // 2. Secondary source: observations metadata
+  const setShowDisciplines = useCallback((val: boolean | ((prev: boolean) => boolean)) => {
+    setShowDisciplinesState(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      try {
+        localStorage.setItem('dashboard_show_disciplines', String(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  // Helper to extract exact academic start year for a class
+  const getClassStartYear = useCallback((c: any): number => {
+    if (!c || c.unallocated) return 2026;
+
+    const extractYear = (val: any): number | null => {
+      if (!val) return null;
+      const str = String(val).trim();
+      if (/^\d{4}$/.test(str)) {
+        const num = Number(str);
+        if (num >= 1990 && num <= 2100) return num;
+      }
+      const ddmmyyyy = str.match(/\b\d{1,2}\/\d{1,2}\/(\d{4})\b/);
+      if (ddmmyyyy && ddmmyyyy[1]) return Number(ddmmyyyy[1]);
+      const yyyymmdd = str.match(/\b(\d{4})-\d{1,2}-\d{1,2}\b/);
+      if (yyyymmdd && yyyymmdd[1]) return Number(yyyymmdd[1]);
+      const anyYr = str.match(/\b(20\d{2}|19\d{2})\b/);
+      if (anyYr && anyYr[1]) return Number(anyYr[1]);
+      return null;
+    };
+
+    // 1. Primary source: start_year / academic_year
+    const fromStart = extractYear(c.start_year || (c as any).academic_year);
+    if (fromStart) return fromStart;
+
+    // 2. Observations metadata
     if (c.observations) {
-      const match = c.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+      const match = c.observations.match(/\[METADATA:(\{[\s\S]*?\})\]/);
       if (match && match[1]) {
         try {
           const meta = JSON.parse(match[1]);
-          if (meta.start_year && String(meta.start_year).trim().length === 4) {
-            return String(meta.start_year).trim();
-          }
+          const fromMeta = extractYear(meta.start_year || meta.academic_year || meta.year);
+          if (fromMeta) return fromMeta;
         } catch (e) {}
       }
     }
 
-    // 3. Fallback: start_date or created_at
-    if (c.start_date && String(c.start_date).length >= 4) {
-      const yr = String(c.start_date).substring(0, 4);
-      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
-    }
-    if (c.created_at && String(c.created_at).length >= 4) {
-      const yr = String(c.created_at).substring(0, 4);
-      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
+    // 3. Name or Code (e.g., "TEO-23", "TEO-24", "TEO-25", "TEO-26", "2026", "2025")
+    const fromName = extractYear(c.name);
+    if (fromName) return fromName;
+
+    if (c.code) {
+      const codeMatch = String(c.code).match(/-(\d{2})\b/);
+      if (codeMatch && codeMatch[1]) {
+        const yr2 = Number(codeMatch[1]);
+        if (yr2 >= 0 && yr2 <= 99) return 2000 + yr2;
+      }
+      const fromCode = extractYear(c.code);
+      if (fromCode) return fromCode;
     }
 
-    return '2026';
+    // 4. Dates
+    const fromStartDate = extractYear(c.start_date);
+    if (fromStartDate) return fromStartDate;
+
+    const fromCreated = extractYear(c.created_at);
+    if (fromCreated) return fromCreated;
+
+    return 2026;
   }, []);
 
-  // Helper to determine if a class matches the selected academic year
+  const getClassAcademicYear = useCallback((c: any): string => {
+    if (c.unallocated) return 'S/T';
+    return String(getClassStartYear(c));
+  }, [getClassStartYear]);
+
+  const currentAcademicYear = useMemo(() => '2026', []);
+
+  // Persistent record of classes explicitly habilitated / promoted for future academic years (e.g. 2027)
+  const [habilitatedMap, setHabilitatedMap] = useState<Record<string, string[]>>(() => {
+    try {
+      const raw = localStorage.getItem('academic_habilitated_classes_v1');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return {};
+  });
+
+  const [showHabilitationModal, setShowHabilitationModal] = useState(false);
+  const [targetHabilitationYear, setTargetHabilitationYear] = useState('2027');
+
+  const toggleClassHabilitation = useCallback((targetYear: string, classId: string) => {
+    setHabilitatedMap(prev => {
+      const currentList = prev[targetYear] || [];
+      const exists = currentList.includes(classId);
+      const updatedList = exists ? currentList.filter(id => id !== classId) : [...currentList, classId];
+      const nextMap = { ...prev, [targetYear]: updatedList };
+      try {
+        localStorage.setItem('academic_habilitated_classes_v1', JSON.stringify(nextMap));
+      } catch (e) {}
+      return nextMap;
+    });
+  }, []);
+
+  const setAllCohortsHabilitation = useCallback((targetYear: string, classIds: string[], enable: boolean) => {
+    setHabilitatedMap(prev => {
+      const currentSet = new Set(prev[targetYear] || []);
+      classIds.forEach(id => {
+        if (enable) currentSet.add(id);
+        else currentSet.delete(id);
+      });
+      const nextMap = { ...prev, [targetYear]: Array.from(currentSet) };
+      try {
+        localStorage.setItem('academic_habilitated_classes_v1', JSON.stringify(nextMap));
+      } catch (e) {}
+      return nextMap;
+    });
+  }, []);
+
+  // Helper to determine if a class is active / habilitated in the selected academic year.
+  // Academic Lifecycle Rules:
+  // 1. Momento Vigente (2026 / 'ATUAL'):
+  //    Shows all cohorts currently active in 2026 (i.e. turmas 2026, plus active cohorts 2025, 2024, 2023).
+  // 2. Anos Anteriores (< 2026, ex: 2025, 2024, 2023):
+  //    Shows cohorts active during that historical year.
+  // 3. Anos Futuros (> 2026, ex: 2027):
+  //    Cohorts from past years (2026, 2025, 2024, 2023) are NOT yet habilitated for 2027 by default.
+  //    They only appear if:
+  //      - Created directly for 2027 (start_year === 2027 or year === '2027'), OR
+  //      - Explicitly habilitated / promoted for 2027 via the Habilitação Manager or metadata.
   const isClassActiveInAcademicYear = useCallback((c: any, selectedYear: string): boolean => {
     if (!selectedYear || selectedYear === 'Todos') return true;
-    if (c.unallocated) return false; // Do not show Sem Turma when filtering by a specific year
-    return getClassAcademicYear(c) === selectedYear;
-  }, [getClassAcademicYear]);
+    if (c.unallocated) return false;
 
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('2026');
+    const currentYearNum = parseInt(currentAcademicYear, 10); // 2026
+    const targetYearNum = selectedYear === 'ATUAL' ? currentYearNum : parseInt(selectedYear, 10);
+    if (isNaN(targetYearNum)) return true;
 
-  // Available academic years derived strictly from existing classes in database
+    const startYr = getClassStartYear(c);
+    const isCurrentlyActive = !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+
+    // 1. Momento Vigente (2026 ou 'ATUAL')
+    if (targetYearNum === currentYearNum) {
+      if (isCurrentlyActive) {
+        return startYr <= currentYearNum;
+      }
+      let endYr = startYr + 3;
+      if (c.end_date) {
+        const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
+        if (!isNaN(parsedEnd)) endYr = parsedEnd;
+      }
+      return currentYearNum >= startYr && currentYearNum <= endYr;
+    }
+
+    // 2. Anos Anteriores / Histórico (< 2026)
+    if (targetYearNum < currentYearNum) {
+      let endYr = startYr + 3;
+      if (c.end_date) {
+        const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
+        if (!isNaN(parsedEnd)) endYr = parsedEnd;
+      }
+      return targetYearNum >= startYr && targetYearNum <= endYr;
+    }
+
+    // 3. Anos Futuros (> 2026, ex: 2027)
+    // Turmas de anos anteriores (2026, 2025, 2024, 2023) não constam automaticamente até serem habilitadas
+    const isDirectlyForFutureYear = startYr === targetYearNum || c.year === String(targetYearNum);
+    if (isDirectlyForFutureYear) return true;
+
+    const yearHabilitatedList = habilitatedMap[String(targetYearNum)] || [];
+    if (yearHabilitatedList.includes(c.id)) return true;
+
+    const isMetaHabilitated = Boolean(
+      (c.observations && (c.observations.includes(`habilitada_${targetYearNum}`) || c.observations.includes(`enabled_for_${targetYearNum}`))) ||
+      (Array.isArray(c.enabled_years) && c.enabled_years.includes(String(targetYearNum)))
+    );
+
+    return isMetaHabilitated;
+  }, [getClassStartYear, currentAcademicYear, habilitatedMap]);
+
+  const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('dashboard_selected_academic_year');
+      if (saved) return saved;
+    } catch (e) {}
+    return 'ATUAL';
+  });
+
+  const setSelectedAcademicYear = useCallback((yr: string) => {
+    setSelectedAcademicYearState(yr);
+    try {
+      localStorage.setItem('dashboard_selected_academic_year', yr);
+    } catch (e) {}
+  }, []);
+
+  // Available academic years derived from standard horizon and existing classes
   const availableAcademicYears = useMemo(() => {
-    const yrSet = new Set<string>(['2026']);
+    const yrSet = new Set<string>(['2027', '2026', '2025', '2024', '2023']);
     classes.forEach(c => {
       if (c.unallocated) return;
-      const yr = getClassAcademicYear(c);
-      if (yr && yr !== 'S/T' && !isNaN(Number(yr))) {
-        yrSet.add(yr);
+      const yr = getClassStartYear(c);
+      if (yr && !isNaN(yr)) {
+        yrSet.add(String(yr));
       }
     });
     return Array.from(yrSet).sort((a, b) => Number(b) - Number(a));
-  }, [classes, getClassAcademicYear]);
+  }, [classes, getClassStartYear]);
 
   const studentsByClass = useMemo(() => {
+    const isClassActive = (c: any) => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+
     const activeClasses = classes.filter(c => {
-      if (c.status !== 'Ativo') return false;
+      if (selectedAcademicYear === 'ATUAL') {
+        if (!isClassActive(c)) return false;
+      }
       return isClassActiveInAcademicYear(c, selectedAcademicYear);
     });
-    const activeStudents = students.filter(s => s.status === 'Ativo' || !s.status);
+
+    const activeStudents = students.filter(s => s.status === 'Ativo' || !s.status || String(s.status).toLowerCase() === 'ativo');
     
+    // Active enrollments
+    const activeEnrollments = (enrollments || []).filter((e: any) => e.status === 'Ativo' || !e.status || String(e.status).toLowerCase() === 'ativo');
+    const enrolledMap = new Map<string, Set<string>>(); // classId -> Set of studentIds
+    activeEnrollments.forEach((e: any) => {
+      if (e.class_id && e.student_id) {
+        if (!enrolledMap.has(e.class_id)) enrolledMap.set(e.class_id, new Set());
+        enrolledMap.get(e.class_id)!.add(e.student_id);
+      }
+    });
+
+    // Map each class to its distinct active student IDs
+    const classStudentIdsMap = new Map<string, Set<string>>();
+    activeClasses.forEach(c => {
+      const sIds = new Set<string>();
+      
+      // 1. Direct class_id on student
+      activeStudents.forEach(s => {
+        if (s.class_id === c.id || (s as any).current_class_id === c.id) {
+          sIds.add(s.id);
+        }
+        if (Array.isArray((s as any).class_ids) && (s as any).class_ids.includes(c.id)) {
+          sIds.add(s.id);
+        }
+      });
+
+      // 2. Enrollments table
+      const fromEnrollments = enrolledMap.get(c.id);
+      if (fromEnrollments) {
+        fromEnrollments.forEach(studentId => {
+          if (activeStudents.some(s => s.id === studentId)) {
+            sIds.add(studentId);
+          }
+        });
+      }
+
+      classStudentIdsMap.set(c.id, sIds);
+    });
+
+    // Total distinct students allocated in active classes in the current view
+    const totalDistinctStudentsInView = new Set<string>();
+    activeClasses.forEach(c => {
+      classStudentIdsMap.get(c.id)?.forEach(id => totalDistinctStudentsInView.add(id));
+    });
+
+    const baseStudentCount = totalDistinctStudentsInView.size > 0 
+      ? totalDistinctStudentsInView.size 
+      : (activeStudents.length > 0 ? activeStudents.length : 1);
+
     // Create base stats from active classes
     const classStats = activeClasses.map(c => {
-      const count = activeStudents.filter(s => s.class_id === c.id).length;
+      const studentSet = classStudentIdsMap.get(c.id) || new Set();
+      const count = studentSet.size;
+      
+      // Calculate capacity / occupancy percentage
+      const capacity = (c as any).max_students || (c as any).capacity || (c as any).vagas;
+      let percentage = 0;
+      if (capacity && Number(capacity) > 0) {
+        percentage = Math.min(100, Math.round((count / Number(capacity)) * 100));
+      } else {
+        percentage = baseStudentCount > 0 ? Math.round((count / baseStudentCount) * 100) : 0;
+      }
+
       return {
         id: c.id,
         code: c.code,
         name: c.name,
         period: c.period,
+        year: c.year,
+        start_year: c.start_year,
+        status: c.status || 'Ativo',
+        isPlanned: c.status === 'Inativo' || String(c.status).toLowerCase() === 'inativo',
         subject_ids: c.subject_ids || [],
         subject_id_sem1_h1: (c as any).subject_id_sem1_h1,
         subject_id_sem1_h2: (c as any).subject_id_sem1_h2,
@@ -511,22 +765,36 @@ export function Dashboard() {
         subject_id_sem1: (c as any).subject_id_sem1,
         subject_id_sem2: (c as any).subject_id_sem2,
         count,
-        percentage: stats.students.active > 0 ? Math.round((count / stats.students.active) * 100) : 0,
+        percentage,
         unallocated: false
       };
     });
 
-    // Check for students in inactive classes or without classes
-    const activeClassIds = new Set(activeClasses.map(c => c.id));
-    const unallocated = activeStudents.filter(s => !s.class_id || !activeClassIds.has(s.class_id));
+    // Find active students not allocated in any active class
+    const allAllocatedStudentIds = new Set<string>();
+    classes.filter(isClassActive).forEach(c => {
+      const fromEnrollments = enrolledMap.get(c.id);
+      if (fromEnrollments) fromEnrollments.forEach(id => allAllocatedStudentIds.add(id));
+    });
+    activeStudents.forEach(s => {
+      if (s.class_id && classes.some(c => c.id === s.class_id && isClassActive(c))) {
+        allAllocatedStudentIds.add(s.id);
+      }
+    });
+
+    const unallocated = activeStudents.filter(s => !allAllocatedStudentIds.has(s.id));
     const unallocatedCount = unallocated.length;
 
-    if (unallocatedCount > 0 && selectedAcademicYear === 'Todos') {
+    if (unallocatedCount > 0) {
       classStats.push({
         id: 'unallocated',
         code: 'S/T',
-        name: 'Sem Turma / Turma Inativa',
+        name: 'Sem Turma / Não Alocados',
         period: '---' as any,
+        year: '---',
+        start_year: '---',
+        status: 'Ativo',
+        isPlanned: false,
         subject_ids: [],
         subject_id_sem1_h1: undefined,
         subject_id_sem1_h2: undefined,
@@ -535,7 +803,7 @@ export function Dashboard() {
         subject_id_sem1: undefined,
         subject_id_sem2: undefined,
         count: unallocatedCount,
-        percentage: stats.students.active > 0 ? Math.round((unallocatedCount / stats.students.active) * 100) : 0,
+        percentage: activeStudents.length > 0 ? Math.round((unallocatedCount / activeStudents.length) * 100) : 0,
         unallocated: true
       });
     }
@@ -545,26 +813,39 @@ export function Dashboard() {
       if (item.unallocated) return 99;
 
       const yearStr = (item.year || '').toLowerCase();
-      if (yearStr.includes('1º') || yearStr.includes('1°') || yearStr.includes('1 ano')) return 1;
-      if (yearStr.includes('2º') || yearStr.includes('2°') || yearStr.includes('2 ano')) return 2;
-      if (yearStr.includes('3º') || yearStr.includes('3°') || yearStr.includes('3 ano')) return 3;
-      if (yearStr.includes('4º') || yearStr.includes('4°') || yearStr.includes('4 ano')) return 4;
+      if (yearStr.includes('1º') || yearStr.includes('1°') || yearStr.includes('1 ano') || yearStr.includes('1ª') || yearStr.includes('1a')) return 1;
+      if (yearStr.includes('2º') || yearStr.includes('2°') || yearStr.includes('2 ano') || yearStr.includes('2ª') || yearStr.includes('2a')) return 2;
+      if (yearStr.includes('3º') || yearStr.includes('3°') || yearStr.includes('3 ano') || yearStr.includes('3ª') || yearStr.includes('3a')) return 3;
+      if (yearStr.includes('4º') || yearStr.includes('4°') || yearStr.includes('4 ano') || yearStr.includes('4ª') || yearStr.includes('4a')) return 4;
+      if (yearStr.includes('5º') || yearStr.includes('5°') || yearStr.includes('5 ano') || yearStr.includes('curso extra') || yearStr.includes('extra')) return 5;
 
       const name = (item.name || '').toLowerCase();
       const code = (item.code || '').toLowerCase();
 
       // Explicit ordinal year in name or code
-      if (name.includes('1º ano') || name.includes('1° ano') || name.includes('1 ano') || name.includes('1ºano') || name.includes('1°ano')) return 1;
-      if (name.includes('2º ano') || name.includes('2° ano') || name.includes('2 ano') || name.includes('2ºano') || name.includes('2°ano')) return 2;
-      if (name.includes('3º ano') || name.includes('3° ano') || name.includes('3 ano') || name.includes('3ºano') || name.includes('3°ano')) return 3;
-      if (name.includes('4º ano') || name.includes('4° ano') || name.includes('4 ano') || name.includes('4ºano') || name.includes('4°ano')) return 4;
+      if (name.includes('1º ano') || name.includes('1° ano') || name.includes('1 ano') || name.includes('1ºano') || name.includes('1°ano') || code.includes('1ano') || code.includes('1º')) return 1;
+      if (name.includes('2º ano') || name.includes('2° ano') || name.includes('2 ano') || name.includes('2ºano') || name.includes('2°ano') || code.includes('2ano') || code.includes('2º')) return 2;
+      if (name.includes('3º ano') || name.includes('3° ano') || name.includes('3 ano') || name.includes('3ºano') || name.includes('3°ano') || code.includes('3ano') || code.includes('3º')) return 3;
+      if (name.includes('4º ano') || name.includes('4° ano') || name.includes('4 ano') || name.includes('4ºano') || name.includes('4°ano') || code.includes('4ano') || code.includes('4º')) return 4;
+      if (name.includes('5º ano') || name.includes('5° ano') || name.includes('5 ano') || code.includes('5ano') || code.includes('5º')) return 5;
+
+      // Automatic progression calculation based on start year relative to 2026:
+      const startYr = getClassStartYear(item);
+      if (startYr && !isNaN(startYr)) {
+        const refYear = selectedAcademicYear === 'Todos' ? 2026 : (parseInt(selectedAcademicYear, 10) || 2026);
+        const diff = refYear - startYr; // E.g., 2026 - 2026 = 0 (1º Ano), 2026 - 2025 = 1 (2º Ano), 2026 - 2024 = 2 (3º Ano), 2026 - 2023 = 3 (4º Ano)
+        if (diff >= 0 && diff < 4) {
+          return diff + 1;
+        }
+        if (diff >= 4) {
+          // Não existe 5º ano: atinge patamar de Curso Extra
+          return 5;
+        }
+      }
 
       // Check if it's the core degree program (e.g. Teologia)
       const isCoreProgram = name.includes('teologia') || code.startsWith('teo');
-
-      if (isCoreProgram) {
-        return 1;
-      }
+      if (isCoreProgram) return 1;
 
       // Extra course / extension (e.g. Doutrina Social da Igreja)
       return 5;
@@ -610,7 +891,55 @@ export function Dashboard() {
         textClass: scheme.text
       };
     });
-  }, [classes, students, stats.students.active, selectedAcademicYear]);
+  }, [classes, students, enrollments, selectedAcademicYear, isClassActiveInAcademicYear]);
+
+  // Eligible active cohorts from past/current years (<= 2026) that can be habilitated for a future cycle (e.g. 2027)
+  const eligibleCohortsForHabilitation = useMemo(() => {
+    const targetYrNum = parseInt(targetHabilitationYear, 10);
+    if (isNaN(targetYrNum)) return [];
+
+    const isClassActive = (c: any) => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+
+    return classes
+      .filter(c => {
+        if (c.unallocated) return false;
+        const startYr = getClassStartYear(c);
+        return startYr <= 2026 && isClassActive(c);
+      })
+      .map(c => {
+        const startYr = getClassStartYear(c);
+        const yearDiff = targetYrNum - startYr;
+        // Regra: Não existe 5º ano. Se atingir este patamar (yearDiff >= 4), o ano acadêmico projetado é Curso Extra.
+        const projectedLevel = 
+          yearDiff <= 0 ? '1º Ano' :
+          yearDiff === 1 ? '2º Ano' :
+          yearDiff === 2 ? '3º Ano' :
+          yearDiff === 3 ? '4º Ano' :
+          'Curso Extra';
+        
+        const isHabilitated = 
+          (habilitatedMap[targetHabilitationYear] || []).includes(c.id) ||
+          Boolean(
+            (c.observations && (c.observations.includes(`habilitada_${targetYrNum}`) || c.observations.includes(`enabled_for_${targetYrNum}`))) ||
+            (Array.isArray(c.enabled_years) && c.enabled_years.includes(String(targetYrNum)))
+          );
+
+        // Calculate student count for this class
+        const count = students.filter(s => 
+          (s.status === 'Ativo' || !s.status) && 
+          (s.class_id === c.id || (s as any).current_class_id === c.id)
+        ).length;
+
+        return {
+          ...c,
+          startYr,
+          projectedLevel,
+          isHabilitated,
+          activeStudentsCount: count
+        };
+      })
+      .sort((a, b) => b.startYr - a.startYr);
+  }, [classes, students, targetHabilitationYear, habilitatedMap, getClassStartYear]);
 
   const [isDeactivating, setIsDeactivating] = useState(false);
 
@@ -666,16 +995,31 @@ export function Dashboard() {
 
   const handleViewStudents = (classId: string, className: string, isUnallocated: boolean) => {
     let filtered: Student[] = [];
-    const activeStudents = students.filter(s => s.status === 'Ativo' || !s.status);
+    const isClassActive = (c: any) => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+    const activeStudents = students.filter(s => s.status === 'Ativo' || !s.status || String(s.status).toLowerCase() === 'ativo');
+    const activeEnrollments = (enrollments || []).filter((e: any) => e.status === 'Ativo' || !e.status || String(e.status).toLowerCase() === 'ativo');
     
     if (isUnallocated) {
-      const activeClasses = classes.filter(c => c.status === 'Ativo');
+      const activeClasses = classes.filter(isClassActive);
       const activeClassIds = new Set(activeClasses.map(c => c.id));
-      filtered = activeStudents.filter(s => !s.class_id || !activeClassIds.has(s.class_id));
+      const enrolledStudentIds = new Set<string>();
+      activeEnrollments.forEach((e: any) => {
+        if (e.class_id && activeClassIds.has(e.class_id) && e.student_id) {
+          enrolledStudentIds.add(e.student_id);
+        }
+      });
+      filtered = activeStudents.filter(s => (!s.class_id || !activeClassIds.has(s.class_id)) && !enrolledStudentIds.has(s.id));
     } else {
-      filtered = activeStudents.filter(s => s.class_id === classId);
+      const enrolledInThisClass = new Set<string>();
+      activeEnrollments.forEach((e: any) => {
+        if (e.class_id === classId && e.student_id) {
+          enrolledInThisClass.add(e.student_id);
+        }
+      });
+      filtered = activeStudents.filter(s => s.class_id === classId || (s as any).current_class_id === classId || enrolledInThisClass.has(s.id));
     }
     
+    filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     setSelectedClassStudents(filtered);
     setSelectedClassLabel(className);
     setIsUnallocatedContext(isUnallocated);
@@ -1104,12 +1448,34 @@ export function Dashboard() {
             <div>
               <h3 className="text-sm font-bold text-slate-800">Ocupação Acadêmica</h3>
               <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">
-                Turmas Ativas {selectedAcademicYear === 'Todos' ? '(Todos os Anos)' : `(${selectedAcademicYear})`}
+                {studentsByClass.filter(c => !c.unallocated).length} Turmas {selectedAcademicYear === 'Todos' ? '(Todos os Anos)' : selectedAcademicYear === 'ATUAL' ? '(Ciclo Atual 2026)' : `(Ano Letivo ${selectedAcademicYear})`}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Habilitação Anual de Turmas Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const yr = selectedAcademicYear !== 'Todos' && selectedAcademicYear !== 'ATUAL' && parseInt(selectedAcademicYear, 10) > 2026 
+                  ? selectedAcademicYear 
+                  : '2027';
+                setTargetHabilitationYear(yr);
+                setShowHabilitationModal(true);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-2xs select-none active:scale-[0.98]",
+                selectedAcademicYear !== 'Todos' && parseInt(selectedAcademicYear, 10) > 2026
+                  ? "bg-amber-500 text-white border-amber-600 hover:bg-amber-600 shadow-xs"
+                  : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
+              )}
+              title="Gerenciar Habilitação de Turmas para Novos Ciclos Letivos"
+            >
+              <Sparkles size={14} className={selectedAcademicYear !== 'Todos' && parseInt(selectedAcademicYear, 10) > 2026 ? "text-amber-100" : "text-amber-600"} />
+              <span>Habilitação {selectedAcademicYear !== 'Todos' && parseInt(selectedAcademicYear, 10) > 2026 ? selectedAcademicYear : '2027'}</span>
+            </button>
+
             {/* Toggle Visibilidade das Disciplinas */}
             <button
               type="button"
@@ -1139,8 +1505,8 @@ export function Dashboard() {
             <div className="flex items-center bg-white p-1 rounded-lg gap-1 transition-all duration-200">
               {(() => {
                 const currentYrIdx = availableAcademicYears.indexOf(selectedAcademicYear);
-                const isAtOldest = selectedAcademicYear !== 'Todos' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
-                const isAtNewest = selectedAcademicYear !== 'Todos' && currentYrIdx === 0;
+                const isAtOldest = selectedAcademicYear !== 'Todos' && selectedAcademicYear !== 'ATUAL' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
+                const isAtNewest = selectedAcademicYear !== 'Todos' && selectedAcademicYear !== 'ATUAL' && currentYrIdx === 0;
 
                 return (
                   <>
@@ -1149,7 +1515,7 @@ export function Dashboard() {
                       type="button"
                       disabled={isAtOldest}
                       onClick={() => {
-                        if (selectedAcademicYear === 'Todos') {
+                        if (selectedAcademicYear === 'Todos' || selectedAcademicYear === 'ATUAL') {
                           setSelectedAcademicYear('2026');
                         } else {
                           const idx = availableAcademicYears.indexOf(selectedAcademicYear);
@@ -1167,7 +1533,7 @@ export function Dashboard() {
                       title={
                         isAtOldest
                           ? `Não há turmas cadastradas em anos anteriores a ${selectedAcademicYear}`
-                          : "Voltar para o Ano Anterior com Turmas"
+                          : "Voltar para o Ano Anterior"
                       }
                     >
                       <ChevronLeft size={16} />
@@ -1184,6 +1550,7 @@ export function Dashboard() {
                         onChange={(e) => setSelectedAcademicYear(e.target.value)}
                         className="bg-transparent text-xs font-black text-blue-950 border-none outline-none cursor-pointer hover:text-blue-700 transition-all uppercase tracking-wider py-1 pl-1 pr-0"
                       >
+                        <option value="ATUAL">CICLO ATUAL (2026)</option>
                         {availableAcademicYears.map(yr => (
                           <option key={yr} value={yr}>
                             ANO {yr}
@@ -1198,8 +1565,8 @@ export function Dashboard() {
                       type="button"
                       disabled={isAtNewest}
                       onClick={() => {
-                        if (selectedAcademicYear === 'Todos') {
-                          setSelectedAcademicYear('2026');
+                        if (selectedAcademicYear === 'Todos' || selectedAcademicYear === 'ATUAL') {
+                          setSelectedAcademicYear('2027');
                         } else {
                           const idx = availableAcademicYears.indexOf(selectedAcademicYear);
                           if (idx > 0) {
@@ -1216,7 +1583,7 @@ export function Dashboard() {
                       title={
                         isAtNewest
                           ? `Não há turmas cadastradas em anos futuros a ${selectedAcademicYear}`
-                          : "Avançar para o Próximo Ano com Turmas"
+                          : "Avançar para o Próximo Ano"
                       }
                     >
                       <ChevronRight size={16} />
@@ -1228,6 +1595,34 @@ export function Dashboard() {
           </div>
         </div>
         
+        {/* Aviso de Planejamento Futuro (ex: 2027) */}
+        {selectedAcademicYear !== 'Todos' && selectedAcademicYear !== 'ATUAL' && parseInt(selectedAcademicYear, 10) > 2026 && (
+          <div className="mx-4 sm:mx-6 mt-3 p-3 bg-amber-50/80 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <Info size={16} className="text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-amber-900 leading-tight">
+                  Planejamento do Ano Letivo {selectedAcademicYear}
+                </p>
+                <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
+                  No momento vigente (2026), as turmas ativas de anos anteriores (2026, 2025, 2024, 2023) não constam automaticamente até serem expressamente habilitadas para o ciclo de {selectedAcademicYear}.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setTargetHabilitationYear(selectedAcademicYear);
+                setShowHabilitationModal(true);
+              }}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-bold uppercase tracking-wider shrink-0 transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+            >
+              <Sparkles size={13} />
+              <span>Gerenciar Habilitações</span>
+            </button>
+          </div>
+        )}
+
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/30">
             {studentsByClass.length > 0 ? (
               studentsByClass.map((c, i) => {
@@ -1324,7 +1719,14 @@ export function Dashboard() {
                             {c.code}
                           </div>
                           <div className="min-w-0">
-                            <h5 className="text-[12px] font-bold text-slate-800 tracking-tight truncate leading-snug">{c.name}</h5>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h5 className="text-[12px] font-bold text-slate-800 tracking-tight truncate leading-snug">{c.name}</h5>
+                              {c.isPlanned && (
+                                <span className="px-1.5 py-0.2 bg-amber-50 text-amber-800 border border-amber-200 rounded text-[7.5px] font-bold uppercase tracking-wider shrink-0">
+                                  Inativa
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[8.5px] font-medium text-slate-500 uppercase tracking-wider">{c.period}</p>
                           </div>
                         </div>
@@ -1344,10 +1746,10 @@ export function Dashboard() {
                             </span>
                             <div className="min-w-0 flex-1 space-y-0.5">
                               {activeSubs.length > 0 ? (
-                                activeSubs.map(s => {
+                                activeSubs.map((s, sIdx) => {
                                   const t = getSubjectTeacher(s);
                                   return (
-                                    <div key={s.id} className="min-w-0 leading-tight py-0.5">
+                                    <div key={`dash-s-${s.id || s.code || sIdx}-${sIdx}`} className="min-w-0 leading-tight py-0.5">
                                       <p className="text-[9px] font-bold text-slate-800 truncate">{s.name}</p>
                                       <p className="text-[8px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
                                     </div>
@@ -1398,24 +1800,222 @@ export function Dashboard() {
               })
             ) : (
                <div className="col-span-full py-10 flex flex-col items-center justify-center gap-3 text-slate-500">
-                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider text-center">
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider text-center max-w-md">
                     {selectedAcademicYear === 'Todos' 
-                      ? 'Nenhuma turma ativa encontrada.' 
-                      : `Nenhuma turma ativa para o ano de ${selectedAcademicYear}.`}
+                      ? 'Nenhuma turma encontrada.' 
+                      : selectedAcademicYear === 'ATUAL'
+                        ? 'Nenhuma turma ativa encontrada para o ciclo atual.'
+                        : parseInt(selectedAcademicYear, 10) > 2026
+                          ? `Nenhuma turma habilitada ou cadastrada para o ano de ${selectedAcademicYear}.`
+                          : `Nenhuma turma cadastrada para o ano letivo de ${selectedAcademicYear}.`}
                   </p>
+                  
+                  {selectedAcademicYear !== 'Todos' && parseInt(selectedAcademicYear, 10) > 2026 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetHabilitationYear(selectedAcademicYear);
+                        setShowHabilitationModal(true);
+                      }}
+                      className="flex items-center gap-2 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer shadow-xs"
+                    >
+                      <Sparkles size={14} />
+                      <span>Habilitar Coortes para {selectedAcademicYear}</span>
+                    </button>
+                  )}
+
                   {selectedAcademicYear !== 'Todos' && (
                     <button
                       type="button"
-                      onClick={() => setSelectedAcademicYear('Todos')}
+                      onClick={() => setSelectedAcademicYear('ATUAL')}
                       className="px-3 py-1.5 bg-blue-900 text-white text-[10px] font-extrabold uppercase tracking-widest hover:bg-blue-950 transition-colors cursor-pointer rounded"
                     >
-                      Exibir Todos os Anos
+                      Retornar ao Ciclo Atual (2026)
                     </button>
                   )}
                </div>
             )}
           </div>
         </motion.div>
+
+      {/* Modal de Habilitação Anual de Turmas */}
+      {showHabilitationModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] flex items-center justify-center p-4 z-[999]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[85vh]"
+          >
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-black shrink-0">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Habilitação de Turmas para o Ano Letivo {targetHabilitationYear}
+                  </h3>
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
+                    Ciclo Vigente: 2026 • Gestão de Continuidade e Progressão de Coortes
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHabilitationModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-md transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4 bg-white">
+              {/* Painel Explicativo */}
+              <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-lg flex items-start gap-3">
+                <Info size={18} className="text-blue-700 shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-900 leading-relaxed">
+                  No momento vigente (<strong>2026</strong>), as turmas ativas de anos anteriores (<strong>2026, 2025, 2024 e 2023</strong>) 
+                  permanecem alocadas no ciclo de 2026. Para que constem em <strong>{targetHabilitationYear}</strong>, você deve habilitá-las abaixo.
+                </p>
+              </div>
+
+              {/* Seletor de Ano Alvo & Ações em Massa */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700">Ano Alvo:</span>
+                  <select
+                    value={targetHabilitationYear}
+                    onChange={(e) => setTargetHabilitationYear(e.target.value)}
+                    className="text-xs font-bold text-slate-800 bg-slate-100 border border-slate-200 rounded px-2.5 py-1 outline-none cursor-pointer hover:bg-slate-200/70 transition-all"
+                  >
+                    <option value="2027">2027 (Próximo Ciclo)</option>
+                    <option value="2028">2028</option>
+                    <option value="2029">2029</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allIds = eligibleCohortsForHabilitation.map(c => c.id);
+                      setAllCohortsHabilitation(targetHabilitationYear, allIds, true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <CheckSquare size={13} />
+                    <span>Habilitar Todas</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allIds = eligibleCohortsForHabilitation.map(c => c.id);
+                      setAllCohortsHabilitation(targetHabilitationYear, allIds, false);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <Square size={13} />
+                    <span>Desabilitar Todas</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de Coortes Ativas Elegíveis */}
+              <div className="space-y-2.5">
+                {eligibleCohortsForHabilitation.length > 0 ? (
+                  eligibleCohortsForHabilitation.map((c, cIdx) => (
+                    <div
+                      key={`hab-c-${c.id || c.code || cIdx}-${cIdx}`}
+                      className={cn(
+                        "p-3.5 rounded-lg border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3",
+                        c.isHabilitated
+                          ? "bg-emerald-50/40 border-emerald-200"
+                          : "bg-slate-50/60 border-slate-200 opacity-80 hover:opacity-100"
+                      )}
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className={cn(
+                          "w-10 h-10 rounded-lg flex items-center justify-center text-xs font-black shrink-0",
+                          c.isHabilitated ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-700"
+                        )}>
+                          {c.code || c.name.substring(0, 3)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-xs font-bold text-slate-900 leading-tight">{c.name}</h4>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider",
+                              c.isHabilitated 
+                                ? "bg-emerald-100 text-emerald-900 border border-emerald-200" 
+                                : "bg-slate-200 text-slate-600"
+                            )}>
+                              {c.isHabilitated ? `Habilitada em ${targetHabilitationYear}` : `Não Habilitada em ${targetHabilitationYear}`}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10.5px] text-slate-500 mt-1 flex-wrap font-medium">
+                            <span>Ingresso: <strong>{c.startYr}</strong></span>
+                            <span>•</span>
+                            <span className="text-indigo-700 font-bold">Progressão: {c.projectedLevel} em {targetHabilitationYear}</span>
+                            <span>•</span>
+                            <span>{c.activeStudentsCount} Alunos Ativos</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleClassHabilitation(targetHabilitationYear, c.id)}
+                          className={cn(
+                            "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs",
+                            c.isHabilitated
+                              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                              : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-300"
+                          )}
+                        >
+                          {c.isHabilitated ? (
+                            <>
+                              <CheckCircle2 size={15} />
+                              <span>Habilitada</span>
+                            </>
+                          ) : (
+                            <>
+                              <Square size={15} className="text-slate-400" />
+                              <span>Habilitar para {targetHabilitationYear}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-slate-400 text-xs font-medium">
+                    Nenhuma turma ativa encontrada para habilitação.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-medium">
+                {eligibleCohortsForHabilitation.filter(c => c.isHabilitated).length} de {eligibleCohortsForHabilitation.length} turmas habilitadas para {targetHabilitationYear}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHabilitationModal(false);
+                  if (selectedAcademicYear === targetHabilitationYear) {
+                    fetchStats();
+                  }
+                }}
+                className="px-5 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+              >
+                Concluir & Atualizar
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Students Modal */}
       {showStudentsModal && (
@@ -1443,8 +2043,8 @@ export function Dashboard() {
             <div className="p-4 max-h-[50vh] overflow-y-auto custom-scrollbar bg-white">
               <div className="grid gap-2">
                 {selectedClassStudents.length > 0 ? (
-                  selectedClassStudents.map((student) => (
-                    <div key={student.id} className="p-2 border border-slate-100 rounded-md flex items-center justify-between hover:bg-slate-50 transition-all">
+                  selectedClassStudents.map((student, stIdx) => (
+                    <div key={`dash-st-${student.id || stIdx}-${stIdx}`} className="p-2 border border-slate-100 rounded-md flex items-center justify-between hover:bg-slate-50 transition-all">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
                           {student.name.charAt(0)}
@@ -1486,11 +2086,11 @@ export function Dashboard() {
               <button 
                 onClick={() => {
                   setShowStudentsModal(false);
-                  navigate('/students');
+                  navigate('/students', isUnallocatedContext ? { state: { filterUnallocated: true } } : undefined);
                 }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-bold text-[10px] hover:bg-indigo-700 uppercase tracking-widest shadow-sm ml-auto"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md font-bold text-[10px] hover:bg-indigo-700 uppercase tracking-widest shadow-sm ml-auto cursor-pointer"
               >
-                Gerenciar Alunos
+                {isUnallocatedContext ? 'Alocar Alunos em Turma' : 'Gerenciar Alunos'}
               </button>
             </div>
           </motion.div>

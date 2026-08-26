@@ -1454,8 +1454,8 @@ export function Diocese() {
               >
                 <option value="">Selecionar Forania...</option>
                 <option value="all">Todas as Foranias</option>
-                {foraries.map(f => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
+                {foraries.map((f, fIdx) => (
+                  <option key={`dio-for-opt-f-${f.id || fIdx}-${fIdx}`} value={f.id}>{f.name}</option>
                 ))}
               </select>
             </div>
@@ -1481,8 +1481,8 @@ export function Diocese() {
                 <option value="all">Todas as Paróquias</option>
                 {parishes
                   .filter(p => !filterForania || filterForania === 'all' || p.forania_id === filterForania)
-                  .map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                  .map((p, pIdx) => (
+                    <option key={`dio-par-opt-p-${p.id || pIdx}-${pIdx}`} value={p.id}>{p.name}</option>
                   ))}
               </select>
             </div>
@@ -1515,8 +1515,8 @@ export function Diocese() {
                     const matchesParish = !filterParish || filterParish === 'all' || c.parish_id === filterParish;
                     return matchesForania && matchesParish;
                   })
-                  .map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                  .map((c, cIdx) => (
+                    <option key={`dio-cle-opt-c-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                   ))}
               </select>
             </div>
@@ -1872,8 +1872,8 @@ export function Diocese() {
                             <option value="">Selecione um Padre...</option>
                             {clergy
                               .sort((a, b) => a.name.localeCompare(b.name))
-                              .map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
+                              .map((c, cIdx) => (
+                                <option key={`dio-clergy-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                               ))
                             }
                           </select>
@@ -1918,8 +1918,8 @@ export function Diocese() {
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                           >
                             <option value="">Selecione...</option>
-                            {foraries.map(f => (
-                              <option key={f.id} value={f.id}>{f.name}</option>
+                            {foraries.map((f, fIdx) => (
+                              <option key={`dio-for-opt-${f.id || fIdx}-${fIdx}`} value={f.id}>{f.name}</option>
                             ))}
                           </select>
                         </div>
@@ -1938,8 +1938,8 @@ export function Diocese() {
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                           >
                             <option value="">Selecione no clero...</option>
-                            {clergy.map(c => (
-                              <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
+                            {clergy.map((c, cIdx) => (
+                              <option key={`dio-cl-p-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name} ({c.role})</option>
                             ))}
                           </select>
                         </div>
@@ -1983,8 +1983,8 @@ export function Diocese() {
                               const roleOrder: Record<string, number> = { 'pároco': 1, 'vigário': 2, 'diácono': 3, 'seminarista': 4, 'leigo formado': 5 };
                               const sorted = [...members].sort((a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9));
 
-                              return sorted.map(m => (
-                                <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-150 group/item hover:border-blue-400 hover:shadow-sm transition-all">
+                              return sorted.map((m, mIdx) => (
+                                <div key={`dio-cl-mbr-${m.id || mIdx}-${mIdx}`} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-150 group/item hover:border-blue-400 hover:shadow-sm transition-all">
                                   <div className="flex items-center gap-3">
                                     <div className={cn(
                                       "w-8 h-8 rounded flex items-center justify-center text-xs font-bold",
@@ -2202,8 +2202,8 @@ export function Diocese() {
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                           >
                             <option value="">Selecione a sede...</option>
-                            {parishes.map(p => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
+                            {parishes.map((p, pIdx) => (
+                              <option key={`dio-par-sede-opt-${p.id || pIdx}-${pIdx}`} value={p.id}>{p.name}</option>
                             ))}
                           </select>
                         </div>
@@ -2401,7 +2401,7 @@ export function Diocese() {
           {/* Model 1: parishes_by_forania */}
           {reportType === 'parishes_by_forania' && (
             <div>
-              {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania) => {
+              {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania, fIdx) => {
                 const foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
                 const filteredForaniaParishes = reportSearch.trim()
                   ? foraniaParishes.filter(p => {
@@ -2416,7 +2416,7 @@ export function Diocese() {
                 if (filteredForaniaParishes.length === 0 && reportSearch.trim()) return null;
 
                 return (
-                  <div key={forania.id} className="forania-print-page mb-6">
+                  <div key={`dio-prn-for-${forania.id || fIdx}-${fIdx}`} className="forania-print-page mb-6">
                     <div className="bg-slate-100 px-3 py-1.5 flex items-center justify-between border border-slate-300 text-slate-900">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-[9pt] uppercase tracking-wider">
@@ -2450,10 +2450,10 @@ export function Diocese() {
                       </thead>
                       <tbody className="divide-y divide-slate-200">
                         {filteredForaniaParishes.length > 0 ? (
-                          filteredForaniaParishes.map((parish) => {
+                          filteredForaniaParishes.map((parish, pIdx) => {
                             const clergyData = getParishClergy(parish, clergy);
                             return (
-                              <tr key={parish.id} className="border-b border-slate-200">
+                              <tr key={`dio-prn-par-${parish.id || pIdx}-${pIdx}`} className="border-b border-slate-200">
                                 <td className="py-2 px-2.5 align-top border-r border-slate-200">
                                   <p className="font-bold text-slate-900 uppercase text-[8.5pt] leading-tight">{parish.name}</p>
                                   {(parish.address_neighborhood || parish.address_city) && (
@@ -2476,7 +2476,7 @@ export function Diocese() {
                                   {clergyData.priests.length > 0 ? (
                                     <div className="space-y-1">
                                       {clergyData.priests.map((p, idx) => (
-                                        <div key={idx} className="leading-tight">
+                                        <div key={`dio-prn-pr-${p.name}-${idx}`} className="leading-tight">
                                           <p className="font-bold text-slate-800 text-[8pt]">{p.name}</p>
                                           <span className="text-[7pt] font-medium uppercase text-slate-500">({p.role})</span>
                                         </div>
@@ -2490,7 +2490,7 @@ export function Diocese() {
                                   {clergyData.deacons.length > 0 ? (
                                     <div className="space-y-1">
                                       {clergyData.deacons.map((d, idx) => (
-                                        <p key={idx} className="font-semibold text-slate-700 text-[8pt] leading-tight">{d}</p>
+                                        <p key={`dio-prn-dc-${d}-${idx}`} className="font-semibold text-slate-700 text-[8pt] leading-tight">{d}</p>
                                       ))}
                                     </div>
                                   ) : (
@@ -2527,10 +2527,10 @@ export function Diocese() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania) => {
+                {(reportForaniaFilter === 'all' ? foraries : foraries.filter(f => f.id === reportForaniaFilter)).map((forania, fIdx) => {
                   const foraniaParishes = parishes.filter(p => p.forania_id === forania.id);
                   return (
-                    <tr key={forania.id} className="border-b border-slate-200">
+                    <tr key={`dio-prn-sum-for-${forania.id || fIdx}-${fIdx}`} className="border-b border-slate-200">
                       <td className="py-2 px-3 font-mono font-bold text-slate-700 border-r border-slate-200">{forania.code || '-'}</td>
                       <td className="py-2 px-3 font-bold text-slate-900 uppercase border-r border-slate-200">{forania.name}</td>
                       <td className="py-2 px-3 text-slate-800 border-r border-slate-200">
@@ -2563,10 +2563,10 @@ export function Diocese() {
                     return c.name.toLowerCase().includes(q) || (c.role && c.role.toLowerCase().includes(q)) || (c.email && c.email.toLowerCase().includes(q));
                   })
                   .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((c) => {
+                  .map((c, cIdx) => {
                     const parish = parishes.find(p => p.id === c.parish_id);
                     return (
-                      <tr key={c.id} className="border-b border-slate-200">
+                      <tr key={`dio-prn-c-${c.id || cIdx}-${cIdx}`} className="border-b border-slate-200">
                         <td className="py-2 px-3 font-bold text-slate-900 border-r border-slate-200">{c.name}</td>
                         <td className="py-2 px-3 font-semibold text-slate-700 uppercase text-[7.5pt] border-r border-slate-200">{c.role || 'Membro do Clero'}</td>
                         <td className="py-2 px-3 text-slate-800 border-r border-slate-200">{parish ? parish.name : <span className="text-slate-400 italic">Geral / Sem Paróquia</span>}</td>
@@ -2598,10 +2598,10 @@ export function Diocese() {
                     return p.name.toLowerCase().includes(q) || (p.cnpj && p.cnpj.toLowerCase().includes(q));
                   })
                   .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((p) => {
+                  .map((p, pIdx) => {
                     const f = foraries.find(forania => forania.id === p.forania_id);
                     return (
-                      <tr key={p.id} className="border-b border-slate-200">
+                      <tr key={`dio-prn-cnpj-p-${p.id || pIdx}-${pIdx}`} className="border-b border-slate-200">
                         <td className="py-2 px-3 font-bold text-slate-900 border-r border-slate-200">{p.name}</td>
                         <td className="py-2 px-3 font-mono font-bold text-slate-800 border-r border-slate-200">{formatCNPJ(p.cnpj)}</td>
                         <td className="py-2 px-3 text-slate-700 border-r border-slate-200">{f ? (f.code ? `Forania ${f.code}` : f.name) : 'Sem Forania'}</td>
@@ -2697,8 +2697,8 @@ export function Diocese() {
                             const roleOrder: Record<string, number> = { 'pároco': 1, 'vigário': 2, 'diácono': 3, 'seminarista': 4, 'leigo formado': 5 };
                             const sorted = [...members].sort((a, b) => (roleOrder[a.role] || 9) - (roleOrder[b.role] || 9));
 
-                            return sorted.map(m => (
-                              <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200/80">
+                            return sorted.map((m, mIdx) => (
+                              <div key={`dio-par-mem-${m.id || mIdx}-${mIdx}`} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200/80">
                                 <div className="flex items-center gap-3">
                                   <div className={cn(
                                     "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",

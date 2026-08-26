@@ -1092,7 +1092,7 @@ export function Documents() {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                     >
                       <option value="">Selecione a turma...</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {classes.map((c, cIdx) => <option key={`doc-cls-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1291,12 +1291,12 @@ export function Documents() {
               {/* Grid cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredCertificates.length > 0 ? (
-                  filteredCertificates.map(cert => (
+                  filteredCertificates.map((cert, certIdx) => (
                     <motion.div 
                       layout
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      key={cert.id} 
+                      key={`doc-cert-${cert.id || certIdx}-${certIdx}`} 
                       className="bg-white border border-slate-220 rounded-none shadow-sm hover:shadow-md transition-all group p-5 relative flex flex-col justify-between"
                     >
                       <div>
@@ -1405,8 +1405,8 @@ export function Documents() {
                     className="w-full mt-2 px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                   >
                     <option value="">Selecione um aluno...</option>
-                    {students.map(s => (
-                      <option key={s.id} value={s.id}>
+                    {students.map((s, sIdx) => (
+                      <option key={`doc-ficha-st-${s.id || sIdx}-${sIdx}`} value={s.id}>
                         {s.name} ({s.registration_number ? `RA: ${s.registration_number}` : 'Sem RA'})
                       </option>
                     ))}
@@ -1533,8 +1533,8 @@ export function Documents() {
                             Nenhuma disciplina cadastrada para a turma deste aluno.
                           </div>
                         ) : (
-                          studentFichaData.subjectRecords.map(rec => (
-                            <div key={rec.subject.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                          studentFichaData.subjectRecords.map((rec, rIdx) => (
+                            <div key={`doc-subj-rec-${rec.subject.id || rIdx}-${rIdx}`} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                               <span className="text-xs font-bold text-slate-700 uppercase">{rec.subject.name}</span>
                               <div className="flex items-center gap-4">
                                 <span className={cn(
@@ -1603,8 +1603,8 @@ export function Documents() {
                             Nenhum certificado ou diploma emitido para este aluno ainda.
                           </div>
                         ) : (
-                          studentFichaData.studentDocs.map(doc => (
-                            <div key={doc.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
+                          studentFichaData.studentDocs.map((doc, docIdx) => (
+                            <div key={`doc-stdoc-${doc.id || docIdx}-${docIdx}`} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                   <span className={cn(
@@ -1771,7 +1771,7 @@ export function Documents() {
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                       >
                         <option value="">Selecione o aluno...</option>
-                        {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.registration_number})</option>)}
+                        {students.map((s, sIdx) => <option key={`doc-form-st-${s.id || sIdx}-${sIdx}`} value={s.id}>{s.name} ({s.registration_number})</option>)}
                       </select>
                     </div>
                   )}

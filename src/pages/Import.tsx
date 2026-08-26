@@ -405,6 +405,11 @@ export function Import() {
           // Academic Year
           if (!entity.year) {
             entity.year = '1º Ano';
+          } else {
+            const yrStr = String(entity.year).toLowerCase();
+            if (yrStr.includes('5º') || yrStr.includes('5°') || yrStr.includes('5 ano') || yrStr.includes('5ª') || yrStr.includes('5a') || yrStr.includes('5th')) {
+              entity.year = 'Curso Extra';
+            }
           }
           // Semester
           if (!entity.semester) {
@@ -429,17 +434,31 @@ export function Import() {
 
           // Ensure Class Name
           if (!entity.name || String(entity.name).trim() === '') {
-            if (entity.code) {
+            const cLower = (entity.course || '').toLowerCase();
+            const sYr = entity.start_year || currentYear;
+            if (cLower.includes('teologia')) {
+              const fullYr = Number(sYr) || 2023;
+              entity.name = `TEOLOGIA ${fullYr}/${fullYr + 4}`;
+            } else if (entity.code) {
               entity.name = `Turma ${entity.code} - ${entity.course || 'Formação'}`;
             } else {
-              entity.name = `Turma ${entity.year || '1º Ano'} (${entity.start_year || currentYear})`;
+              entity.name = `Turma ${entity.year || '1º Ano'} (${sYr})`;
             }
           }
 
           // Ensure Code
           if (!entity.code || String(entity.code).trim() === '') {
-            const nextCodeNum = maxNumericCode + recordIndex + 1;
-            entity.code = String(nextCodeNum).padStart(3, '0');
+            const cLower = (entity.course || '').toLowerCase();
+            const sYr = entity.start_year || currentYear;
+            if (cLower.includes('teologia')) {
+              const yr2 = String(sYr).slice(-2);
+              const fullYr = Number(sYr) || 2023;
+              const endYr2 = String(fullYr + 4).slice(-2);
+              entity.code = `TEO-${yr2}/${endYr2}`;
+            } else {
+              const nextCodeNum = maxNumericCode + recordIndex + 1;
+              entity.code = String(nextCodeNum).padStart(3, '0');
+            }
           }
         }
 

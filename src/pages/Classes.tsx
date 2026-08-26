@@ -15,6 +15,7 @@ import {
   Plus,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Printer,
   Filter,
   ChevronLeft,
@@ -31,13 +32,18 @@ import {
   Lock,
   Unlock,
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Hash,
+  CheckSquare,
+  Square,
+  UserCheck
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
+import { supabase } from '../lib/supabase';
 import { Course } from '../types';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
@@ -51,6 +57,7 @@ interface Class {
   days_of_week: string[];
   year?: string;
   start_year?: string;
+  academic_year?: string;
   semester: string;
   subject_id?: string;
   subject_id_sem1?: string;
@@ -63,6 +70,7 @@ interface Class {
   start_date?: string;
   period?: 'Manhã' | 'Tarde' | 'Noite' | string;
   observations?: string;
+  enabled_years?: string[];
   is_special?: boolean;
   unallocated?: boolean;
   created_at: string;
@@ -116,13 +124,16 @@ const ClassItem = React.memo(({
   subjects: Subject[],
   className?: string
 }) => {
+  const isInactive = cls.status === 'Inativo';
+  const isClosed = cls.status === 'Encerrada';
+
   return (
     <button
       onClick={() => onSelect(cls)}
       className={cn(
         "w-full flex items-center gap-4 p-4 rounded-none transition-all text-left relative overflow-hidden group",
         isSelected 
-          ? "bg-slate-800 text-white shadow-xl shadow-none ring-1 ring-slate-400" 
+          ? "bg-slate-800 text-white shadow-xl ring-1 ring-slate-400" 
           : "hover:bg-slate-50 text-slate-600 border border-transparent hover:border-slate-200",
         className
       )}
@@ -135,8 +146,8 @@ const ClassItem = React.memo(({
         <div className={cn(
           "absolute -top-1 -right-1 w-3 h-3 rounded-none border-2",
           isSelected ? "border-slate-500 shadow-sm" : "border-white",
-          cls.status === 'Inativo' ? "bg-slate-300" : "bg-emerald-500"
-        )} />
+          isInactive ? "bg-amber-500" : isClosed ? "bg-slate-400" : "bg-emerald-500"
+        )} title={isInactive ? "Turma Inativa (Planejamento)" : isClosed ? "Turma Encerrada" : "Turma Ativa"} />
       </div>
       <div className="flex-1 min-w-0 pr-4">
         <div className="flex items-center gap-2">
@@ -144,6 +155,16 @@ const ClassItem = React.memo(({
             "text-sm font-bold truncate tracking-tight uppercase",
             isSelected ? "text-white" : "text-slate-900"
           )}>{cls.name}</p>
+          {isInactive && (
+            <span className={cn(
+              "px-1.5 py-0.5 text-[8px] font-black uppercase rounded-none leading-none tracking-normal border flex-shrink-0",
+              isSelected 
+                ? "bg-amber-500/30 text-amber-200 border-amber-400/40" 
+                : "bg-amber-100 text-amber-900 border-amber-300"
+            )}>
+              Inativo
+            </span>
+          )}
           {(cls as any).is_special && (
             <span className={cn(
               "px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase rounded-none leading-none tracking-normal border flex-shrink-0",
@@ -164,6 +185,12 @@ const ClassItem = React.memo(({
           <span>{cls.year || '---'}</span>
           <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-slate-300" : "bg-slate-300")} />
           <span>{cls.semester || '---'}</span>
+          <span className={cn("w-1 h-1 rounded-full", isSelected ? "bg-slate-300" : "bg-slate-300")} />
+          <span className={cn(
+            isInactive ? (isSelected ? "text-amber-300 font-bold" : "text-amber-700 font-bold") : ""
+          )}>
+            {isInactive ? 'Inativo' : isClosed ? 'Encerrada' : 'Ativo'}
+          </span>
         </div>
       </div>
       
@@ -184,7 +211,21 @@ export function Classes() {
   const [inst, setInst] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Encerrada' | 'Todos'>('Todos');
+  const [statusFilter, setStatusFilterState] = useState<'Ativo' | 'Inativo' | 'Encerrada' | 'Todos'>(() => {
+    try {
+      const saved = localStorage.getItem('classes_status_filter');
+      if (saved === 'Ativo' || saved === 'Inativo' || saved === 'Encerrada' || saved === 'Todos') return saved;
+    } catch (e) {}
+    return 'Todos';
+  });
+
+  const setStatusFilter = React.useCallback((status: 'Ativo' | 'Inativo' | 'Encerrada' | 'Todos') => {
+    setStatusFilterState(status);
+    try {
+      localStorage.setItem('classes_status_filter', status);
+    } catch (e) {}
+  }, []);
+
   const [sortBy, setSortBy] = useState<'name_year' | 'name' | 'code' | 'year' | 'period'>('name_year');
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -196,6 +237,16 @@ export function Classes() {
   const [loadingModalStudents, setLoadingModalStudents] = useState(false);
   const [modalSearchTerm, setModalSearchTerm] = useState('');
   const [includeEmissionDate, setIncludeEmissionDate] = useState(false);
+  const [isCustomNameUnlocked, setIsCustomNameUnlocked] = useState(false);
+
+  // Unallocated Students Management State
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [allEnrollments, setAllEnrollments] = useState<any[]>([]);
+  const [showUnallocatedModal, setShowUnallocatedModal] = useState(false);
+  const [targetClassForUnallocated, setTargetClassForUnallocated] = useState<string>('');
+  const [unallocatedSearchTerm, setUnallocatedSearchTerm] = useState('');
+  const [selectedUnallocatedStudentIds, setSelectedUnallocatedStudentIds] = useState<string[]>([]);
+  const [isAllocatingStudents, setIsAllocatingStudents] = useState(false);
   const [formData, setFormData] = useState<Partial<Class>>({
     status: 'Ativo',
     days_of_week: [],
@@ -209,82 +260,177 @@ export function Classes() {
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>('Todos');
   const [selectedSemesterFilter, setSelectedSemesterFilter] = useState<string>('Todos');
   const [selectedPeriodFilter, setSelectedPeriodFilter] = useState<string>('Todos');
-  const [selectedAcademicYearFilter, setSelectedAcademicYearFilter] = useState<string>('ATUAL');
+  const [selectedAcademicYearFilter, setSelectedAcademicYearFilterState] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('classes_academic_year_filter');
+      if (saved) return saved;
+    } catch (e) {}
+    return 'ATUAL';
+  });
+
+  const setSelectedAcademicYearFilter = React.useCallback((val: string) => {
+    setSelectedAcademicYearFilterState(val);
+    try {
+      localStorage.setItem('classes_academic_year_filter', val);
+    } catch (e) {}
+  }, []);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
-  // Helper to extract exact academic base year for a class (Ano Letivo field)
-  const getClassAcademicYear = React.useCallback((c: any): string => {
-    if (c.unallocated) return 'S/T';
+  // Helper to extract exact academic start year for a class
+  const getClassStartYear = React.useCallback((c: any): number => {
+    if (!c || c.unallocated) return 2026;
+
+    const extractYear = (val: any): number | null => {
+      if (!val) return null;
+      const str = String(val).trim();
+      if (/^\d{4}$/.test(str)) {
+        const num = Number(str);
+        if (num >= 1990 && num <= 2100) return num;
+      }
+      const ddmmyyyy = str.match(/\b\d{1,2}\/\d{1,2}\/(\d{4})\b/);
+      if (ddmmyyyy && ddmmyyyy[1]) return Number(ddmmyyyy[1]);
+      const yyyymmdd = str.match(/\b(\d{4})-\d{1,2}-\d{1,2}\b/);
+      if (yyyymmdd && yyyymmdd[1]) return Number(yyyymmdd[1]);
+      const anyYr = str.match(/\b(20\d{2}|19\d{2})\b/);
+      if (anyYr && anyYr[1]) return Number(anyYr[1]);
+      return null;
+    };
 
     // 1. Primary source: start_year field (Campo 2 Ano Letivo in class form)
-    if (c.start_year && String(c.start_year).trim().length === 4) {
-      return String(c.start_year).trim();
-    }
+    const fromStart = extractYear(c.start_year || c.academic_year);
+    if (fromStart) return fromStart;
 
     // 2. Secondary source: observations metadata
     if (c.observations) {
-      const match = c.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
+      const match = c.observations.match(/\[METADATA:(\{[\s\S]*?\})\]/);
       if (match && match[1]) {
         try {
           const meta = JSON.parse(match[1]);
-          if (meta.start_year && String(meta.start_year).trim().length === 4) {
-            return String(meta.start_year).trim();
-          }
+          const fromMeta = extractYear(meta.start_year || meta.academic_year || meta.year);
+          if (fromMeta) return fromMeta;
         } catch (e) {}
       }
     }
 
-    // 3. Fallback: start_date or created_at
-    if (c.start_date && String(c.start_date).length >= 4) {
-      const yr = String(c.start_date).substring(0, 4);
-      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
-    }
-    if (c.created_at && String(c.created_at).length >= 4) {
-      const yr = String(c.created_at).substring(0, 4);
-      if (!isNaN(Number(yr)) && Number(yr) >= 1999 && Number(yr) <= 2100) return yr;
+    // 3. Name or Code (e.g., "TEO-23", "TEO-24", "TEO-25", "TEO-26", "2026", "2025")
+    const fromName = extractYear(c.name);
+    if (fromName) return fromName;
+
+    if (c.code) {
+      const codeMatch = String(c.code).match(/-(\d{2})\b/);
+      if (codeMatch && codeMatch[1]) {
+        const yr2 = Number(codeMatch[1]);
+        if (yr2 >= 0 && yr2 <= 99) return 2000 + yr2;
+      }
+      const fromCode = extractYear(c.code);
+      if (fromCode) return fromCode;
     }
 
-    return '2026';
+    // 4. Fallback: start_date or created_at
+    const fromStartDate = extractYear(c.start_date);
+    if (fromStartDate) return fromStartDate;
+
+    const fromCreated = extractYear(c.created_at);
+    if (fromCreated) return fromCreated;
+
+    return 2026;
   }, []);
 
-  const currentAcademicYear = React.useMemo(() => new Date().getFullYear().toString(), []);
+  const getClassAcademicYear = React.useCallback((c: any): string => {
+    if (c.unallocated) return 'S/T';
+    return String(getClassStartYear(c));
+  }, [getClassStartYear]);
 
-  // Helper to determine if a class matches the selected academic year
+  const currentAcademicYear = React.useMemo(() => '2026', []);
+
+  // Persistent record of classes explicitly habilitated / promoted for future academic years (e.g. 2027)
+  const [habilitatedMap, setHabilitatedMap] = useState<Record<string, string[]>>(() => {
+    try {
+      const raw = localStorage.getItem('academic_habilitated_classes_v1');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return {};
+  });
+
+  // Helper to determine if a class is active in the selected academic year
+  // In Classes management:
+  // - If selectedYear is 'ATUAL': shows classes active in current academic year 2026 (including cohorts starting in 2023..2026)
+  // - If selectedYear is 'Todos': shows all classes
+  // - If selectedYear is a specific past year (< 2026): shows cohorts active during that historical year
+  // - If selectedYear is a future year (> 2026, ex: 2027): cohorts from previous years (2026, 2025, 2024, 2023)
+  //   do NOT appear by default unless explicitly habilitated for that year
   const isClassActiveInAcademicYear = React.useCallback((c: any, selectedYear: string): boolean => {
     if (!selectedYear || selectedYear === 'Todos') return true;
     if (c.unallocated) return false;
-    const targetYear = selectedYear === 'ATUAL' ? currentAcademicYear : selectedYear;
-    return getClassAcademicYear(c) === targetYear;
-  }, [getClassAcademicYear, currentAcademicYear]);
+    
+    const currentYearNum = parseInt(currentAcademicYear, 10);
+    const targetYearNum = selectedYear === 'ATUAL' ? currentYearNum : parseInt(selectedYear, 10);
+    if (isNaN(targetYearNum)) return true;
+
+    const startYr = getClassStartYear(c);
+    const isCurrentlyActive = !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+
+    // 1. Momento Vigente (2026 ou 'ATUAL')
+    if (targetYearNum === currentYearNum) {
+      if (isCurrentlyActive) {
+        return startYr <= currentYearNum;
+      }
+      let endYr = startYr + 3;
+      if (c.end_date) {
+        const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
+        if (!isNaN(parsedEnd)) endYr = parsedEnd;
+      }
+      return currentYearNum >= startYr && currentYearNum <= endYr;
+    }
+
+    // 2. Anos Anteriores / Histórico (< 2026)
+    if (targetYearNum < currentYearNum) {
+      let endYr = startYr + 3;
+      if (c.end_date) {
+        const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
+        if (!isNaN(parsedEnd)) endYr = parsedEnd;
+      }
+      return targetYearNum >= startYr && targetYearNum <= endYr;
+    }
+
+    // 3. Anos Futuros (> 2026, ex: 2027)
+    // Turmas de anos anteriores (2026, 2025, 2024, 2023) não constam automaticamente até serem habilitadas
+    const isDirectlyForFutureYear = startYr === targetYearNum || c.year === String(targetYearNum);
+    if (isDirectlyForFutureYear) return true;
+
+    const yearHabilitatedList = habilitatedMap[String(targetYearNum)] || [];
+    if (yearHabilitatedList.includes(c.id)) return true;
+
+    const isMetaHabilitated = Boolean(
+      (c.observations && (c.observations.includes(`habilitada_${targetYearNum}`) || c.observations.includes(`enabled_for_${targetYearNum}`))) ||
+      (Array.isArray(c.enabled_years) && c.enabled_years.includes(String(targetYearNum)))
+    );
+
+    return isMetaHabilitated;
+  }, [getClassStartYear, currentAcademicYear, habilitatedMap]);
 
   const availableAcademicYears = React.useMemo(() => {
-    const yrSet = new Set<string>(['2026', currentAcademicYear]);
+    const yrSet = new Set<string>(['2027', '2026', '2025', '2024', '2023']);
     classes.forEach(c => {
       if (c.unallocated) return;
-      const yr = getClassAcademicYear(c);
-      if (yr && yr !== 'S/T' && !isNaN(Number(yr))) {
-        yrSet.add(yr);
+      const yr = getClassStartYear(c);
+      if (yr && !isNaN(yr)) {
+        yrSet.add(String(yr));
       }
     });
-    const cur = parseInt(currentAcademicYear, 10);
-    if (!isNaN(cur)) {
-      yrSet.add(String(cur - 1));
-      yrSet.add(String(cur - 2));
-      yrSet.add(String(cur - 3));
-    }
     return Array.from(yrSet).sort((a, b) => Number(b) - Number(a));
-  }, [classes, getClassAcademicYear, currentAcademicYear]);
+  }, [classes, getClassStartYear]);
 
   // Import / Promotion Modal State
   const [showImportModal, setShowImportModal] = useState(false);
   const [importSourceClassId, setImportSourceClassId] = useState('');
+  const [importTargetAcademicYear, setImportTargetAcademicYear] = useState('2027');
   const [importTargetYear, setImportTargetYear] = useState('2º Ano');
   const [importNewName, setImportNewName] = useState('');
   const [importNewCode, setImportNewCode] = useState('');
   const [importSem1SubjectId, setImportSem1SubjectId] = useState('');
   const [importSem2SubjectId, setImportSem2SubjectId] = useState('');
   const [importMigrateStudents, setImportMigrateStudents] = useState(true);
-  const [importDeactivateSource, setImportDeactivateSource] = useState(false);
   const [sourceStudentsCount, setSourceStudentsCount] = useState(0);
   const [sourceStudentsList, setSourceStudentsList] = useState<Array<{ id: string, name: string, registration_number?: string }>>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -411,9 +557,10 @@ export function Classes() {
   }, [coursesList]);
 
   const isNameLocked = React.useMemo(() => {
+    if (isCustomNameUnlocked) return false;
     const c = (formData.course || '').trim().toLowerCase();
     return !c.includes('outros');
-  }, [formData.course]);
+  }, [formData.course, isCustomNameUnlocked]);
 
   const generateAutoClassName = React.useCallback((course: string, startYear: string | number, academicYear: string) => {
     if (!course || !startYear) return '';
@@ -421,47 +568,15 @@ export function Classes() {
     const yrStr = String(startYear).trim();
     if (!yrStr || yrStr.length < 2) return '';
     const yr2Digits = yrStr.slice(-2);
+    const fullStartYear = yrStr.length === 4 ? parseInt(yrStr, 10) : 2000 + parseInt(yr2Digits, 10);
 
-    const STOP_WORDS = new Set([
-      'de', 'da', 'do', 'dos', 'das', 'na', 'no', 'nas', 'nos',
-      'para', 'com', 'em', 'e', 'a', 'o', 'os', 'as', 'por'
-    ]);
-
-    const cleanCourse = course.trim();
-    const lower = cleanCourse.toLowerCase();
-
-    let prefix = '';
-
-    if (lower.includes('doutrina') && lower.includes('social')) {
-      prefix = 'DSI';
-    } else if (lower.includes('santos') && lower.includes('negros')) {
-      prefix = 'HSN';
-    } else if (lower.includes('teologia')) {
-      prefix = 'TEO';
-    } else if (lower.includes('latim')) {
-      prefix = 'LAT';
-    } else {
-      const words = cleanCourse
-        .split(/\s+/)
-        .filter(w => {
-          const norm = w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          return !STOP_WORDS.has(norm);
-        });
-
-      if (words.length >= 3) {
-        prefix = words.map(w => w[0]).join('').toUpperCase();
-      } else if (words.length === 2 && (words[0].length <= 3 || words[1].length <= 3)) {
-        prefix = words.map(w => w[0]).join('').toUpperCase();
-      } else if (words.length > 0) {
-        const cleanWord = words[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        prefix = cleanWord.slice(0, 3).toUpperCase();
-      } else {
-        prefix = cleanCourse.slice(0, 3).toUpperCase();
-      }
+    const cleanCourse = course.trim().toUpperCase();
+    if (!cleanCourse || cleanCourse === 'OUTROS') {
+      return `TURMA ${fullStartYear}`;
     }
 
-    const cleanAcademicYear = academicYear ? academicYear.trim() : '';
-    return cleanAcademicYear ? `${prefix}-${yr2Digits} ${cleanAcademicYear}`.toUpperCase() : `${prefix}-${yr2Digits}`.toUpperCase();
+    // Regra: Uma nova turma terá sempre o Nome do Curso + Ano Letivo Original de Início, sem nenhum outro complemento
+    return `${cleanCourse} ${fullStartYear}`;
   }, []);
 
   const courseSuggestions = React.useMemo(() => {
@@ -566,20 +681,44 @@ export function Classes() {
 
     const autoGeneratedName = generateAutoClassName(newCourse, newStartYear, newAcademicYear);
 
-    setFormData(prev => ({
-      ...prev,
-      course: newCourse,
-      start_year: String(newStartYear),
-      year: newAcademicYear,
-      name: autoGeneratedName,
-      subject_id_sem1_h1: s1h1,
-      subject_id_sem1_h2: s1h2,
-      subject_id_sem2_h1: s2h1,
-      subject_id_sem2_h2: s2h2,
-      subject_id_sem1: s1h1 || s1h2 || '',
-      subject_id_sem2: s2h1 || s2h2 || '',
-      subject_ids: cleanSubjectIds
-    }));
+    setFormData(prev => {
+      const cLower = (newCourse || '').toLowerCase();
+      const yrStr = String(newStartYear || '').trim();
+      const yr2 = yrStr.slice(-2);
+
+      // Only generate autoCode if code is empty or 'AUTO'
+      let autoCode = prev.code;
+      if (!autoCode || autoCode === 'AUTO') {
+        if (cLower.includes('teologia') && yr2) {
+          autoCode = `TEO-${yr2}`;
+        } else if (cLower.includes('doutrina') && yr2) {
+          autoCode = `DSI-${yr2}`;
+        } else if (cLower.includes('latim') && yr2) {
+          autoCode = `LAT-${yr2}`;
+        } else if (cLower.includes('santos') && yr2) {
+          autoCode = `HSN-${yr2}`;
+        }
+      }
+
+      // Preserve existing custom name unless it was empty
+      const finalName = prev.name ? prev.name : autoGeneratedName;
+
+      return {
+        ...prev,
+        course: newCourse,
+        start_year: String(newStartYear),
+        year: newAcademicYear,
+        name: finalName,
+        code: prev.code || autoCode,
+        subject_id_sem1_h1: s1h1,
+        subject_id_sem1_h2: s1h2,
+        subject_id_sem2_h1: s2h1,
+        subject_id_sem2_h2: s2h2,
+        subject_id_sem1: s1h1 || s1h2 || '',
+        subject_id_sem2: s2h1 || s2h2 || '',
+        subject_ids: cleanSubjectIds
+      };
+    });
   }, [subjects, generateAutoClassName, getSubjectsForCourseAndYear]);
 
   const handleSelectYear = React.useCallback((newYear: string) => {
@@ -653,13 +792,18 @@ export function Classes() {
   const fetchClasses = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [classesData, subjectsData, instData, acadSettingsData, coursesData] = await Promise.all([
+      const [classesData, subjectsData, instData, acadSettingsData, coursesData, studentsData, enrollmentsData] = await Promise.all([
         fetchAll('classes', '*', 'name', true),
         fetchAll('subjects', 'id, name, code, year, semester, status, program_content', 'name', true),
         fetchAll('institution_settings'),
         fetchAll('academic_settings').catch(() => []),
-        fetchAll('courses').catch(() => [])
+        fetchAll('courses').catch(() => []),
+        fetchAll('students', '*', 'name', true).catch(() => []),
+        fetchAll('enrollments').catch(() => [])
       ]);
+
+      if (studentsData) setAllStudents(studentsData);
+      if (enrollmentsData) setAllEnrollments(enrollmentsData);
 
       if (coursesData && coursesData.length > 0) {
         setCoursesList(coursesData);
@@ -810,11 +954,42 @@ export function Classes() {
           }
         }
 
+        // Regra Fundamental: Não existe 5º Ano. Se a turma atingir este patamar ou estiver cadastrada como 5º Ano, converte para Curso Extra.
+        const yrStr = (normalized.year || '').toLowerCase();
+        if (yrStr.includes('5º') || yrStr.includes('5°') || yrStr.includes('5 ano') || yrStr.includes('5ª') || yrStr.includes('5a') || yrStr.includes('5th')) {
+          normalized.year = 'Curso Extra';
+        }
+
         return normalized;
       });
 
-      setClasses(normalizedClasses);
-      setSubjects(normalizedSubjects);
+      // Deduplica turmas e disciplinas por ID para garantir integridade de chaves
+      const seenClassIds = new Set<string>();
+      const uniqueClasses: Class[] = [];
+      for (const cls of normalizedClasses) {
+        const idStr = String(cls.id || cls.code || '');
+        if (idStr && !seenClassIds.has(idStr)) {
+          seenClassIds.add(idStr);
+          uniqueClasses.push(cls);
+        } else if (!idStr) {
+          uniqueClasses.push(cls);
+        }
+      }
+
+      const seenSubjectIds = new Set<string>();
+      const uniqueSubjects: Subject[] = [];
+      for (const s of normalizedSubjects) {
+        const idStr = String(s.id || s.code || '');
+        if (idStr && !seenSubjectIds.has(idStr)) {
+          seenSubjectIds.add(idStr);
+          uniqueSubjects.push(s);
+        } else if (!idStr) {
+          uniqueSubjects.push(s);
+        }
+      }
+
+      setClasses(uniqueClasses);
+      setSubjects(uniqueSubjects);
       if (instData && instData.length > 0) setInst(instData[0]);
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -1230,6 +1405,12 @@ export function Classes() {
       return;
     }
 
+    // Regra: Não existe 5º ano, converter para Curso Extra
+    let validatedAcademicYear = formData.year;
+    if (validatedAcademicYear.includes('5º') || validatedAcademicYear.includes('5°') || validatedAcademicYear.includes('5 ano') || validatedAcademicYear.includes('5ª') || validatedAcademicYear.includes('5a')) {
+      validatedAcademicYear = 'Curso Extra';
+    }
+
     if (!formData.name) {
       alert('Atenção: O Nome / Identificador da Turma é obrigatório!');
       return;
@@ -1247,6 +1428,7 @@ export function Classes() {
 
       const syncData = {
         ...formData,
+        year: validatedAcademicYear,
         start_date: parseDateToDB(formData.start_date),
         subject_id: s1h1 || s1h2 || s2h1 || s2h2 || null,
         subject_id_sem1: s1h1 || s1h2 || null,
@@ -1263,7 +1445,7 @@ export function Classes() {
       // before saving. This ensures data persistence even if Supabase columns are missing.
       const metadata: any = {};
       if (formData.course) metadata.course = formData.course;
-      if (formData.year) metadata.year = formData.year;
+      if (validatedAcademicYear) metadata.year = validatedAcademicYear;
       if (formData.start_year) metadata.start_year = formData.start_year;
       if (formData.semester) metadata.semester = formData.semester;
       metadata.subject_id_sem1_h1 = s1h1 || '';
@@ -1316,11 +1498,52 @@ export function Classes() {
     }
   };
 
+  const handleToggleClassStatus = React.useCallback(async (classToToggle: Class, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const currentStatus = classToToggle.status || 'Ativo';
+    const newStatus: 'Ativo' | 'Inativo' = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+
+    try {
+      setLoading(true);
+      const updatedClass = { ...classToToggle, status: newStatus };
+      await saveData('classes', classToToggle.id, updatedClass);
+
+      setClasses(prev => prev.map(c => c.id === classToToggle.id ? updatedClass : c));
+
+      if (selectedClass?.id === classToToggle.id) {
+        setSelectedClass(updatedClass);
+        setFormData(prev => ({ ...prev, status: newStatus }));
+      }
+
+      setNotification({
+        type: 'success',
+        message: newStatus === 'Ativo'
+          ? `Turma "${classToToggle.name}" ATIVADA com sucesso!`
+          : `Turma "${classToToggle.name}" definida como INATIVA com sucesso.`
+      });
+    } catch (err: any) {
+      console.error('Error toggling class status:', err);
+      setNotification({
+        type: 'error',
+        message: 'Erro ao alterar status da turma: ' + (err?.message || 'Erro desconhecido')
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedClass]);
+
   const handleDelete = React.useCallback(async () => {
     if (!selectedClass?.id) return;
 
     try {
       setLoading(true);
+      const className = selectedClass.name;
+      const classYear = selectedClass.year || '';
+      const classAcademicYear = getClassStartYear(selectedClass);
+
       await deleteData('classes', selectedClass.id);
       
       setSelectedClass(null);
@@ -1331,15 +1554,22 @@ export function Classes() {
       });
       setIsEditing(false);
       setShowDeleteConfirm(false);
-      fetchClasses();
+      setNotification({
+        type: 'success',
+        message: `Turma "${className}" (${classYear} - Ano ${classAcademicYear}) excluída com sucesso! Os dados e turmas de outros anos/períodos foram preservados.`
+      });
+      await fetchClasses();
     } catch (error: any) {
       console.error('Error deleting class:', error);
-      alert('Erro ao excluir turma: ' + error.message);
+      setNotification({
+        type: 'error',
+        message: 'Erro ao excluir turma: ' + (error?.message || 'Erro desconhecido')
+      });
       setShowDeleteConfirm(false);
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, fetchClasses]);
+  }, [selectedClass, fetchClasses, getClassStartYear]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -1360,14 +1590,65 @@ export function Classes() {
     return { yr, baseName };
   };
 
-  const computePromotedClassName = (sourceName: string, targetYear: string) => {
+  const computePromotedClassCode = (sourceCode: string, targetAcademicYear?: string, sourceCourse?: string, sourceStartYear?: string | number) => {
+    const targetYr2 = targetAcademicYear ? String(targetAcademicYear).slice(-2) : '27';
+    
+    if (sourceCode) {
+      const cleanCode = sourceCode.trim().toUpperCase();
+      // Matches TEO-23, TEO-23/26, TEO-23/27, TEO23, etc.
+      const match = cleanCode.match(/^([A-Z]+)[-_]?(\d{2})(?:[/-]\d{2})?$/);
+      if (match) {
+        const prefix = match[1];
+        const startYr2 = match[2];
+        return `${prefix}-${startYr2}/${targetYr2}`;
+      }
+      const matchGeneric = cleanCode.match(/^([A-Z0-9_-]+?)(?:[/-]\d{2})?$/);
+      if (matchGeneric && matchGeneric[1] && isNaN(Number(matchGeneric[1]))) {
+        return `${matchGeneric[1]}/${targetYr2}`;
+      }
+    }
+
+    // Fallback based on course name
+    let prefix = 'TEO';
+    const cName = (sourceCourse || '').toLowerCase();
+    if (cName.includes('doutrina') && cName.includes('social')) prefix = 'DSI';
+    else if (cName.includes('santos') && cName.includes('negros')) prefix = 'HSN';
+    else if (cName.includes('latim')) prefix = 'LAT';
+    else if (cName.includes('teologia')) prefix = 'TEO';
+    else if (sourceCourse && sourceCourse.length >= 3) prefix = sourceCourse.substring(0, 3).toUpperCase();
+
+    const startYr2 = sourceStartYear ? String(sourceStartYear).slice(-2) : '23';
+    return `${prefix}-${startYr2}/${targetYr2}`;
+  };
+
+  const computePromotedClassName = (sourceName: string, targetAcademicYear?: string) => {
     if (!sourceName) return '';
-    const baseName = sourceName
+    let baseName = sourceName
       .replace(/\s*\([\dº\s]*ano\)/i, '')
       .replace(/\s*\(curso\s*extra\)/i, '')
       .trim();
 
-    return targetYear ? `${baseName} (${targetYear.toUpperCase()})` : baseName;
+    // Se já possuir sufixo de ano de progressão anterior como " - 2026", " - 2027", "/2026", "/2027", remove para atualizar com o novo formato
+    baseName = baseName.replace(/\s*[-–—]\s*(20\d{2}|19\d{2})$/, '').trim();
+    baseName = baseName.replace(/\/(20\d{2}|19\d{2})$/, '').trim();
+    baseName = baseName.replace(/\/\d{2}$/, '').trim();
+
+    // Se o nome base contiver um ano (ex: TEOLOGIA 2023), gera no formato padrão TEOLOGIA 2023/2027
+    const startYrMatch = baseName.match(/\b(20\d{2}|19\d{2})\b/);
+    if (startYrMatch && targetAcademicYear) {
+      const startYr = startYrMatch[1];
+      const prefix = baseName.substring(0, baseName.indexOf(startYr) + startYr.length).trim();
+      if (String(targetAcademicYear) !== startYr) {
+        return `${prefix}/${targetAcademicYear}`.toUpperCase();
+      }
+      return prefix.toUpperCase();
+    }
+
+    if (targetAcademicYear) {
+      return `${baseName}/${targetAcademicYear}`.toUpperCase();
+    }
+
+    return baseName.toUpperCase();
   };
 
   const setupImportModalDefaults = async (sourceClass: Class, customCode?: string) => {
@@ -1375,16 +1656,26 @@ export function Classes() {
     if (sourceClass.year === '1º Ano') nextYr = '2º Ano';
     else if (sourceClass.year === '2º Ano') nextYr = '3º Ano';
     else if (sourceClass.year === '3º Ano') nextYr = '4º Ano';
-    else if (sourceClass.year === '4º Ano') nextYr = 'Curso Extra';
+    else if (sourceClass.year === '4º Ano') nextYr = '4º Ano';
     else nextYr = sourceClass.year || '2º Ano';
 
     setImportTargetYear(nextYr);
 
-    // Auto-generate promoted class name: base name + new year
-    const generatedName = computePromotedClassName(sourceClass.name, nextYr);
-    setImportNewName(generatedName);
+    const srcYr = getClassStartYear(sourceClass);
+    // Para turmas do 1º ao 3º ano, calcula o próximo ano letivo
+    let gradeOffset = 1;
+    if (sourceClass.year === '1º Ano') gradeOffset = 1;
+    else if (sourceClass.year === '2º Ano') gradeOffset = 2;
+    else if (sourceClass.year === '3º Ano') gradeOffset = 3;
+    else if (sourceClass.year === '4º Ano') gradeOffset = 4;
 
-    if (customCode) setImportNewCode(customCode);
+    const projectedAcademicYear = String(srcYr ? srcYr + gradeOffset : new Date().getFullYear() + 1);
+    setImportTargetAcademicYear(projectedAcademicYear);
+
+    // Formato padrão definido: preserva o nome original da turma e adiciona /xxxx (ex: TEOLOGIA 2023/2027)
+    setImportNewName(computePromotedClassName(sourceClass.name || '', projectedAcademicYear));
+    const promotedCode = computePromotedClassCode(sourceClass.code || '', projectedAcademicYear, sourceClass.course || sourceClass.name, srcYr);
+    setImportNewCode(customCode || promotedCode);
 
     setImportMigrateStudents(true);
 
@@ -1436,6 +1727,34 @@ export function Classes() {
     }
   };
 
+  const handleConclude4thYearClass = async (targetClass: Class) => {
+    if (!targetClass) return;
+    try {
+      setIsImporting(true);
+      const updatedClass = {
+        ...targetClass,
+        status: 'Encerrada' as const,
+        observations: ((targetClass.observations || '') + ' [Curso Concluído - Ciclo Acadêmico Finalizado no 4º Ano]').trim()
+      };
+      await saveData('classes', targetClass.id, updatedClass);
+      setClasses(prev => prev.map(c => c.id === targetClass.id ? updatedClass : c));
+      if (selectedClass?.id === targetClass.id) {
+        setSelectedClass(prev => prev ? updatedClass : null);
+        setFormData(prev => ({ ...prev, status: 'Encerrada' }));
+      }
+      setShowImportModal(false);
+      setNotification({
+        type: 'success',
+        message: `🎓 Turma "${targetClass.name}" encerrada com sucesso como CURSO CONCLUÍDO!`
+      });
+    } catch (err: any) {
+      console.error(err);
+      alert('Erro ao encerrar turma: ' + err.message);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const handleOpenImportModal = async () => {
     const maxCode = classes.reduce((max, c) => {
       const num = parseInt(c.code, 10);
@@ -1452,6 +1771,7 @@ export function Classes() {
       setImportSourceClassId('');
       setImportNewCode(nextCode);
       setImportNewName('');
+      setImportTargetAcademicYear('2027');
       setImportTargetYear('2º Ano');
       setSourceStudentsCount(0);
       setSourceStudentsList([]);
@@ -1487,10 +1807,14 @@ export function Classes() {
 
       const autoSubjectIds = [s1h1, s1h2, s2h1, s2h2].filter(Boolean);
 
+      const targetAcademicYr = importTargetAcademicYear || String(getClassStartYear(sourceClass) + 1);
+
       const newClassData: Partial<Class> = {
         name: importNewName,
         code: importNewCode || String(Date.now()).slice(-3),
         year: importTargetYear,
+        start_year: targetAcademicYr,
+        academic_year: targetAcademicYr,
         period: sourceClass.period || 'Tarde',
         days_of_week: sourceClass.days_of_week || [],
         room: sourceClass.room || '',
@@ -1503,9 +1827,11 @@ export function Classes() {
         subject_id_sem1: s1h1 || s1h2 || undefined,
         subject_id_sem2: s2h1 || s2h2 || undefined,
         subject_ids: autoSubjectIds,
-        start_date: new Date().toISOString().split('T')[0],
+        start_date: `${targetAcademicYr}-02-01`,
         observations: `[METADATA:${JSON.stringify({
           year: importTargetYear,
+          start_year: targetAcademicYr,
+          academic_year: targetAcademicYr,
           subject_id_sem1_h1: s1h1,
           subject_id_sem1_h2: s1h2,
           subject_id_sem2_h1: s2h1,
@@ -1514,7 +1840,7 @@ export function Classes() {
           subject_id_sem2: s2h1 || s2h2,
           subject_ids: autoSubjectIds,
           imported_from: sourceClass.id
-        })}] Turma promovida/importada de ${sourceClass.name} (${sourceClass.year || 'Ano Anterior'})`
+        })}] Turma promovida/importada de ${sourceClass.name} (${sourceClass.year || 'Ano Anterior'}) para o Ano Letivo ${targetAcademicYr}`
       };
 
       const newClassId = await saveData('classes', undefined, newClassData);
@@ -1540,18 +1866,21 @@ export function Classes() {
           setImportProgress(pct);
           setImportProgressText(`Matriculando aluno ${idx + 1} de ${totalToMigrate}: ${studentName}...`);
 
-          // Add new enrollment record linking student to the new class
+          // Add new enrollment record linking student to the new class in that academic year
           const enrId = await saveData('enrollments', undefined, {
             student_id: studentId,
             class_id: newClassId,
+            academic_year: targetAcademicYr,
             status: 'Ativo',
             enrollment_date: new Date().toISOString().split('T')[0],
             created_at: new Date().toISOString()
           });
           if (enrId) createdEnrollmentIds.push(enrId);
 
-          // Update current class_id for student while PRESERVING registration_number and personal data intact
-          await saveData('students', studentId, { class_id: newClassId });
+          // Update current class_id ONLY if promoting for the current active calendar year
+          if (targetAcademicYr === currentAcademicYear) {
+            await saveData('students', studentId, { class_id: newClassId });
+          }
           migratedStudentsCount++;
 
           // Small yield to let React render progress bar
@@ -1559,13 +1888,6 @@ export function Classes() {
             await new Promise(r => setTimeout(r, 20));
           }
         }
-      }
-
-      // Mark source class as Encerrada (closed) to keep data accessible until course end
-      if (importDeactivateSource) {
-        setImportProgress(95);
-        setImportProgressText('Atualizando status da turma de origem para Encerrada...');
-        await saveData('classes', sourceClass.id, { ...sourceClass, status: 'Encerrada' });
       }
 
       // Record batch in import history so user can revert if desired
@@ -1578,7 +1900,7 @@ export function Classes() {
           inserted_ids: [newClassId],
           created_at: new Date().toISOString(),
           status: 'completed',
-          summary: `Turma "${importNewName}" promovida de ${sourceClass.name} com ${migratedStudentsCount} aluno(s).`,
+          summary: `Turma "${importNewName}" criada a partir de ${sourceClass.name} com ${migratedStudentsCount} aluno(s). Turma de origem mantida intacta.`,
           details: {
             names: [importNewName],
             codes: [importNewCode || '---']
@@ -1592,7 +1914,7 @@ export function Classes() {
       } catch (e) {}
 
       setImportProgress(100);
-      setImportProgressText('Concluído!');
+      setImportProgressText('Concluído com sucesso!');
 
       setShowImportModal(false);
       await fetchClasses();
@@ -1605,9 +1927,10 @@ export function Classes() {
       setSelectedClass(createdClass);
       setFormData(createdClass);
 
+      const srcYear = getClassStartYear(sourceClass);
       setNotification({
         type: 'success',
-        message: `Turma "${importNewName}" importada com sucesso para o ${importTargetYear}! ${migratedStudentsCount} aluno(s) matriculado(s).`
+        message: `✅ Nova turma "${importNewName}" (${importTargetYear} - Ano Letivo ${targetAcademicYr}) criada com sucesso! ${migratedStudentsCount} aluno(s) matriculado(s). A turma de origem "${sourceClass.name}" (Ano Letivo ${srcYear}) foi 100% PRESERVADA e permanece ativa no seu ano letivo.`
       });
 
     } catch (error: any) {
@@ -1684,13 +2007,81 @@ export function Classes() {
     setSelectedAcademicYearFilter('ATUAL');
   };
 
+  // Unallocated Students calculations
+  const unallocatedStudents = React.useMemo(() => {
+    const activeClassIds = new Set(classes.filter(c => c.status === 'Ativo' || !c.status).map(c => c.id));
+    return allStudents.filter(s => {
+      if (s.status === 'Inativo') return false;
+      const hasValidPrimary = s.class_id && activeClassIds.has(s.class_id);
+      const hasValidMulti = allEnrollments.some(e => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo' && activeClassIds.has(e.class_id));
+      return !hasValidPrimary && !hasValidMulti;
+    });
+  }, [allStudents, allEnrollments, classes]);
+
+  const filteredUnallocatedStudents = React.useMemo(() => {
+    const term = unallocatedSearchTerm.trim().toLowerCase();
+    if (!term) return unallocatedStudents;
+    return unallocatedStudents.filter(s => 
+      (s.name || '').toLowerCase().includes(term) ||
+      (s.registration_number || '').includes(term) ||
+      (s.cpf || '').includes(term)
+    );
+  }, [unallocatedStudents, unallocatedSearchTerm]);
+
+  const handleBatchAllocateStudents = async () => {
+    if (!targetClassForUnallocated || selectedUnallocatedStudentIds.length === 0) return;
+    setIsAllocatingStudents(true);
+    try {
+      const targetClass = classes.find(c => c.id === targetClassForUnallocated);
+      const detectedCourse = targetClass ? detectCourseFromClass(targetClass) : '';
+      const now = new Date().toISOString().split('T')[0];
+
+      for (const studentId of selectedUnallocatedStudentIds) {
+        const student = allStudents.find(s => s.id === studentId);
+        const studentCourse = detectedCourse || student?.course;
+
+        // 1. Update student's primary class
+        await saveData('students', studentId, {
+          class_id: targetClassForUnallocated,
+          ...(studentCourse ? { course: studentCourse } : {}),
+          ...(targetClass?.start_date ? { start_date: targetClass.start_date } : {})
+        });
+
+        // 2. Add enrollment record
+        await saveData('enrollments', undefined, {
+          student_id: studentId,
+          class_id: targetClassForUnallocated,
+          status: 'Ativo',
+          enrollment_date: targetClass?.start_date || now
+        });
+      }
+
+      setNotification({
+        type: 'success',
+        message: `${selectedUnallocatedStudentIds.length} aluno(s) vinculado(s) com sucesso à turma "${targetClass?.name || ''}"!`
+      });
+
+      setSelectedUnallocatedStudentIds([]);
+      setShowUnallocatedModal(false);
+      await fetchClasses();
+    } catch (err: any) {
+      console.error('Erro na alocação em lote:', err);
+      setNotification({
+        type: 'error',
+        message: 'Erro ao alocar alunos: ' + (err.message || 'Erro desconhecido')
+      });
+    } finally {
+      setIsAllocatingStudents(false);
+    }
+  };
+
   const actualListCollapsed = selectedClass !== null || isEditing;
 
   return (
     <>
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
-        actualListCollapsed ? "justify-center" : "justify-end"
+        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
       {actualListCollapsed && !hoverShowList && (
@@ -1719,13 +2110,13 @@ export function Classes() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[432px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-full lg:w-[432px] opacity-100"
+            : "w-full lg:w-[380px] xl:w-[420px] opacity-100 h-full"
         )}
       >
         <div className="flex-[1] flex flex-col overflow-hidden w-full bg-white">
@@ -1761,6 +2152,35 @@ export function Classes() {
             </div>
             
             <div className="space-y-2">
+              {/* Unallocated Students Alert / Quick Allocation Button */}
+              {unallocatedStudents.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetClassForUnallocated(selectedClass?.id || classes.find(c => c.status === 'Ativo' || !c.status)?.id || '');
+                    setSelectedUnallocatedStudentIds([]);
+                    setUnallocatedSearchTerm('');
+                    setShowUnallocatedModal(true);
+                  }}
+                  className="w-full p-2.5 bg-amber-50 hover:bg-amber-100/90 border border-amber-300 text-amber-950 flex items-center justify-between text-left transition-all cursor-pointer shadow-2xs group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertTriangle size={15} className="text-amber-600 shrink-0 group-hover:scale-110 transition-transform" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-wider leading-tight text-amber-950">
+                        {unallocatedStudents.length} Aluno(s) Sem Turma
+                      </p>
+                      <p className="text-[9px] text-amber-700 font-semibold truncate">
+                        Clique para vincular a uma turma ativa
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-1 bg-amber-600 group-hover:bg-amber-700 text-white text-[9px] font-black uppercase tracking-wider shrink-0 transition-colors shadow-2xs">
+                    Alocar
+                  </span>
+                </button>
+              )}
+
               {/* Search Bar */}
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-800 transition-colors" size={14} />
@@ -1960,9 +2380,9 @@ export function Classes() {
                 <p className="text-[10px] font-bold uppercase tracking-widest">Nenhuma turma encontrada</p>
               </div>
             ) : (
-              filteredClasses.map((cls) => (
+              filteredClasses.map((cls, clsIdx) => (
                 <ClassItem
-                  key={cls.id}
+                  key={`cls-item-${cls.id || cls.code || clsIdx}-${clsIdx}`}
                   cls={cls}
                   subjects={subjects}
                   isSelected={selectedClass?.id === cls.id}
@@ -1974,11 +2394,11 @@ export function Classes() {
         </div>
       </div>
 
-      {/* Main Content Area (Class Details or Registration Form) */}
+      {/* Main Content Area (Class Details or Registration Form or Overview Dashboard) */}
       <div 
         className={cn(
-          "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 w-full min-w-0 max-w-5xl mx-auto",
-          actualListCollapsed ? "flex-grow flex-1 opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+          "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+          actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
         )}
       >
         {selectedClass || isEditing ? (
@@ -2022,21 +2442,48 @@ export function Classes() {
                     <div className={cn(
                       "flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest border shadow-xs",
                       formData.status === 'Inativo' 
-                        ? "bg-slate-50 text-slate-500 border-slate-200" 
+                        ? "bg-amber-50 text-amber-800 border-amber-300" 
                         : formData.status === 'Encerrada'
-                          ? "bg-amber-50 text-amber-800 border-amber-200"
+                          ? "bg-slate-100 text-slate-600 border-slate-300"
                           : "bg-emerald-50 text-emerald-700 border-emerald-200"
                     )}>
                       <div className={cn(
                         "w-1.5 h-1.5 rounded-full", 
                         formData.status === 'Inativo' 
-                          ? "bg-slate-400" 
+                          ? "bg-amber-500" 
                           : formData.status === 'Encerrada'
-                            ? "bg-amber-500"
+                            ? "bg-slate-400"
                             : "bg-emerald-500 animate-pulse"
                       )} />
-                      {formData.status || 'Ativo'}
+                      {formData.status === 'Inativo' ? 'Inativo' : (formData.status || 'Ativo')}
                     </div>
+
+                    {selectedClass && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleClassStatus(selectedClass)}
+                        className={cn(
+                          "px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border",
+                          (selectedClass.status || 'Ativo') === 'Ativo'
+                            ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700"
+                        )}
+                        title={(selectedClass.status || 'Ativo') === 'Ativo' ? "Clique para desativar esta turma" : "Clique para ativar esta turma"}
+                      >
+                        {(selectedClass.status || 'Ativo') === 'Ativo' ? (
+                          <>
+                            <Clock size={11} className="text-amber-700" />
+                            <span>Desativar Turma</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 size={11} className="text-white" />
+                            <span>Ativar Turma</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
                     {selectedClass && (
                       <button
                         type="button"
@@ -2152,23 +2599,47 @@ export function Classes() {
                       {/* Step 1, Step 2 & Turno: Course, Start Year & Shift Selection */}
                       <div className="bg-blue-50/30 p-5 border border-blue-100/80 space-y-4">
                         <div className="flex flex-wrap items-end gap-3 md:gap-5">
-                          {/* Code / ID (Auto) */}
-                          <div className="w-full sm:w-[90px] space-y-1.5 shrink-0">
+                          {/* Code / ID */}
+                          <div className="w-full sm:w-[130px] space-y-1.5 shrink-0">
                             <div className="flex items-center justify-between ml-0.5">
-                              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest">
+                              <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1">
+                                <Hash size={12} className="text-blue-900" />
                                 CÓD.
                               </label>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                AUTO
-                              </span>
+                              {isEditing && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const cLower = (formData.course || '').toLowerCase();
+                                    const yrStr = String(formData.start_year || '').trim();
+                                    const yr2 = yrStr.slice(-2);
+                                    let auto = '';
+                                    if (cLower.includes('teologia')) auto = `TEO-${yr2}`;
+                                    else if (cLower.includes('doutrina')) auto = `DSI-${yr2}`;
+                                    else if (cLower.includes('latim')) auto = `LAT-${yr2}`;
+                                    else if (cLower.includes('santos')) auto = `HSN-${yr2}`;
+                                    else auto = `TUR-${yr2}`;
+                                    if (auto) setFormData({ ...formData, code: auto });
+                                  }}
+                                  className="text-[9px] font-bold text-blue-700 hover:text-blue-950 hover:underline cursor-pointer"
+                                  title="Gerar código padrão baseado no curso e ano de início"
+                                >
+                                  🪄 Auto
+                                </button>
+                              )}
                             </div>
                             <input 
                               type="text"
-                              readOnly
-                              disabled
+                              disabled={!isEditing}
                               value={formData.code || ''}
-                              placeholder="001"
-                              className="w-full px-3 py-2.5 bg-slate-100/90 border border-slate-300 text-xs font-mono font-black text-slate-600 text-center cursor-not-allowed outline-none uppercase"
+                              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                              placeholder="EX: TEO-23"
+                              className={cn(
+                                "w-full px-3 py-2.5 border text-xs font-mono font-black text-center outline-none uppercase transition-all h-[42px]",
+                                isEditing 
+                                  ? "bg-white text-blue-950 border-blue-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600" 
+                                  : "bg-slate-100/90 border-slate-300 text-slate-600 cursor-not-allowed"
+                              )}
                             />
                           </div>
 
@@ -2199,18 +2670,18 @@ export function Classes() {
                           </div>
 
                           {/* Step 2: Start Year / Reference Academic Year */}
-                          <div className="w-full sm:w-[150px] space-y-1.5 shrink-0 relative">
+                          <div className="w-full sm:w-[130px] space-y-1.5 shrink-0 relative">
                             <div className="flex items-center justify-between ml-0.5">
                               <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
                                 <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">2</span>
-                                Ano Letivo <span className="text-rose-600 font-black">*</span>
+                                Ano Início <span className="text-rose-600 font-black">*</span>
                               </label>
                             </div>
                             <input
                               type="text"
                               disabled={!isEditing}
                               maxLength={4}
-                              placeholder="EX: 2026"
+                              placeholder="EX: 2023"
                               value={formData.start_year || ''}
                               onChange={(e) => {
                                 const val = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -2221,7 +2692,7 @@ export function Classes() {
                                   e.preventDefault();
                                   const yrNum = parseInt(formData.start_year || '', 10);
                                   if (formData.start_year && (isNaN(yrNum) || yrNum < 1999 || yrNum > 2100)) {
-                                    alert('Ano letivo inválido! O ano deve estar entre 1999 e 2100.');
+                                    alert('Ano inválido! O ano deve estar entre 1999 e 2100.');
                                     return;
                                   }
                                   document.getElementById('period-select')?.focus();
@@ -2242,11 +2713,11 @@ export function Classes() {
                           </div>
 
                           {/* Turno de Aula */}
-                          <div className="w-full sm:w-[180px] space-y-1.5 shrink-0">
+                          <div className="w-full sm:w-[150px] space-y-1.5 shrink-0">
                             <div className="flex items-center justify-between ml-0.5">
                               <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
                                 <Clock size={13} className="text-blue-900 shrink-0" />
-                                Turno de Aula
+                                Turno
                               </label>
                               <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider">
                                 PERÍODO
@@ -2259,12 +2730,39 @@ export function Classes() {
                               onChange={(e) => setFormData({ ...formData, period: e.target.value as any })}
                               className="w-full px-3.5 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase"
                             >
-                              <option value="">-- SELECIONE TURNO --</option>
+                              <option value="">-- TURNO --</option>
                               <option value="Noite">NOITE</option>
                               <option value="Manhã">MANHÃ</option>
                               <option value="Tarde">TARDE</option>
                               <option value="Sábado">SÁBADO</option>
                               <option value="Integral">INTEGRAL</option>
+                            </select>
+                          </div>
+
+                          {/* Status da Turma */}
+                          <div className="w-full sm:w-[150px] space-y-1.5 shrink-0">
+                            <div className="flex items-center justify-between ml-0.5">
+                              <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
+                                <CheckCircle2 size={13} className="text-blue-900 shrink-0" />
+                                Status da Turma
+                              </label>
+                            </div>
+                            <select
+                              disabled={!isEditing}
+                              value={formData.status || 'Ativo'}
+                              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                              className={cn(
+                                "w-full px-3 py-2.5 bg-white border text-xs font-extrabold uppercase outline-none transition-all h-[42px]",
+                                formData.status === 'Inativo' 
+                                  ? "border-amber-400 text-amber-900 bg-amber-50/50" 
+                                  : formData.status === 'Encerrada'
+                                    ? "border-slate-400 text-slate-700 bg-slate-100"
+                                    : "border-emerald-500 text-emerald-950 bg-emerald-50/30"
+                              )}
+                            >
+                              <option value="Ativo">ATIVO (NORMAL)</option>
+                              <option value="Inativo">INATIVO</option>
+                              <option value="Encerrada">ENCERRADA</option>
                             </select>
                           </div>
                         </div>
@@ -2355,42 +2853,41 @@ export function Classes() {
                           <div className="flex-[2] min-w-[220px] space-y-1.5">
                             <div className="flex items-center justify-between ml-0.5">
                               <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
-                                {isNameLocked ? (
-                                  <Lock size={13} className="text-slate-500" />
-                                ) : (
-                                  <Unlock size={13} className="text-emerald-600" />
-                                )}
-                                ID Turma
+                                <Edit2 size={13} className="text-blue-900" />
+                                ID Turma / Nome
+                                <span className="text-rose-600 font-black">*</span>
                               </label>
-                              {isNameLocked ? (
-                                <span className="text-[9px] font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 uppercase tracking-wider border border-slate-300 flex items-center gap-1">
-                                  <Lock size={10} /> BLOQUEADO
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 uppercase tracking-wider border border-emerald-300 flex items-center gap-1">
-                                  <Unlock size={10} /> LIBERADO
-                                </span>
+                              {isEditing && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const autoName = generateAutoClassName(formData.course || '', formData.start_year || '', formData.year || '');
+                                    if (autoName) setFormData({ ...formData, name: autoName });
+                                  }}
+                                  className="text-[9px] font-extrabold px-2 py-0.5 uppercase tracking-wider text-blue-900 bg-blue-100 hover:bg-blue-200 border border-blue-300 flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                                  title="Preencher com o nome padrão automático do curso e ano"
+                                >
+                                  🪄 Sugerir Nome Padrão
+                                </button>
                               )}
                             </div>
                             <input 
                               type="text"
-                              disabled={!isEditing || isNameLocked}
-                              placeholder="EX: TEO-27 1º ANO, DSI-27 1º ANO..."
+                              disabled={!isEditing}
+                              placeholder="EX: TEOLOGIA 2023, LATIM 2026..."
                               value={formData.name || ''}
-                              onChange={(e) => setFormData({...formData, name: e.target.value})}
+                              onChange={(e) => setFormData({...formData, name: e.target.value.toUpperCase()})}
                               onKeyDown={handleKeyDown}
                               className={cn(
                                 "w-full px-3.5 py-2.5 border text-xs font-black outline-none transition-all uppercase placeholder:text-slate-300 h-[42px]",
-                                isNameLocked
-                                  ? "bg-slate-100/90 text-slate-600 border-slate-300 cursor-not-allowed"
-                                  : "bg-white text-blue-950 border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600"
+                                isEditing
+                                  ? "bg-white text-blue-950 border-blue-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600"
+                                  : "bg-slate-100/90 text-slate-600 border-slate-300 cursor-not-allowed"
                               )}
                               tabIndex={1}
                             />
                             <p className="text-[9px] font-medium text-slate-500 italic ml-0.5 leading-tight">
-                              {isNameLocked 
-                                ? "Gerado automaticamente pelo Curso e Ano. Selecione 'Outros' para personalizar."
-                                : "Digite o nome personalizado para esta turma."}
+                              {isEditing ? "Campo totalmente editável. Digite o nome desejado para esta turma (ex: TEOLOGIA 2023)." : "Identificador oficial da turma."}
                             </p>
                           </div>
 
@@ -2498,9 +2995,9 @@ export function Classes() {
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 1º Horário (1º Semestre)...</option>
-                                {getSemOptions(1, sem1H1SubjectId).map(subject => (
+                                {getSemOptions(1, sem1H1SubjectId).map((subject, idx) => (
                                   <option 
-                                    key={subject.id} 
+                                    key={`s1h1-${subject.id}-${idx}`} 
                                     value={subject.id}
                                     disabled={[sem1H2SubjectId, sem2H1SubjectId, sem2H2SubjectId].includes(subject.id)}
                                   >
@@ -2526,9 +3023,9 @@ export function Classes() {
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 2º Horário (1º Semestre)...</option>
-                                {getSemOptions(1, sem1H2SubjectId).map(subject => (
+                                {getSemOptions(1, sem1H2SubjectId).map((subject, idx) => (
                                   <option 
-                                    key={subject.id} 
+                                    key={`s1h2-${subject.id}-${idx}`} 
                                     value={subject.id}
                                     disabled={[sem1H1SubjectId, sem2H1SubjectId, sem2H2SubjectId].includes(subject.id)}
                                   >
@@ -2566,9 +3063,9 @@ export function Classes() {
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 1º Horário (2º Semestre)...</option>
-                                {getSemOptions(2, sem2H1SubjectId).map(subject => (
+                                {getSemOptions(2, sem2H1SubjectId).map((subject, idx) => (
                                   <option 
-                                    key={subject.id} 
+                                    key={`s2h1-${subject.id}-${idx}`} 
                                     value={subject.id}
                                     disabled={[sem1H1SubjectId, sem1H2SubjectId, sem2H2SubjectId].includes(subject.id)}
                                   >
@@ -2594,9 +3091,9 @@ export function Classes() {
                                 className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-none text-xs font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-400 disabled:opacity-70 disabled:cursor-not-allowed outline-none transition-all shadow-xs appearance-none group-hover:border-slate-300"
                               >
                                 <option value="">Selecionar 2º Horário (2º Semestre)...</option>
-                                {getSemOptions(2, sem2H2SubjectId).map(subject => (
+                                {getSemOptions(2, sem2H2SubjectId).map((subject, idx) => (
                                   <option 
-                                    key={subject.id} 
+                                    key={`s2h2-${subject.id}-${idx}`} 
                                     value={subject.id}
                                     disabled={[sem1H1SubjectId, sem1H2SubjectId, sem2H1SubjectId].includes(subject.id)}
                                   >
@@ -2612,6 +3109,113 @@ export function Classes() {
                     </div>
 
 
+
+                    {/* Status da Turma: Ativo vs Inativo (Planejada) vs Encerrada */}
+                    <div className="col-span-12 pt-2 space-y-2">
+                      <div className="flex items-center justify-between ml-1 pb-1 border-b border-slate-100">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <SlidersHorizontal size={14} className="text-slate-400" />
+                          Status Operacional da Turma
+                        </label>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          Ativação Manual / Pré-Cadastro
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Option 1: Ativo */}
+                        <button
+                          type="button"
+                          disabled={!isEditing}
+                          onClick={() => setFormData({ ...formData, status: 'Ativo' })}
+                          className={cn(
+                            "p-3.5 border text-left flex items-start gap-3 transition-all outline-none select-none",
+                            isEditing ? "cursor-pointer" : "cursor-default",
+                            (formData.status || 'Ativo') === 'Ativo'
+                              ? "bg-emerald-50/90 border-emerald-500 text-emerald-950 shadow-sm ring-1 ring-emerald-500/30"
+                              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0",
+                            (formData.status || 'Ativo') === 'Ativo'
+                              ? "border-emerald-600 bg-emerald-600 text-white"
+                              : "border-slate-300 bg-white"
+                          )}>
+                            {(formData.status || 'Ativo') === 'Ativo' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <p className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                              <span>Ativo</span>
+                              <span className="text-[8px] font-black bg-emerald-200/80 text-emerald-950 px-1 py-0.2">Vigente</span>
+                            </p>
+                            <p className="text-[9.5px] text-slate-500 font-medium leading-tight">
+                              Turma em funcionamento ativo no período letivo (aulas e diários liberados).
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Option 2: Inativo / Pré-cadastro */}
+                        <button
+                          type="button"
+                          disabled={!isEditing}
+                          onClick={() => setFormData({ ...formData, status: 'Inativo' })}
+                          className={cn(
+                            "p-3.5 border text-left flex items-start gap-3 transition-all outline-none select-none",
+                            isEditing ? "cursor-pointer" : "cursor-default",
+                            formData.status === 'Inativo'
+                              ? "bg-amber-50/90 border-amber-500 text-amber-950 shadow-sm ring-1 ring-amber-500/30"
+                              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0",
+                            formData.status === 'Inativo'
+                              ? "border-amber-600 bg-amber-600 text-white"
+                              : "border-slate-300 bg-white"
+                          )}>
+                            {formData.status === 'Inativo' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <p className="text-xs font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                              <span>Inativo</span>
+                            </p>
+                            <p className="text-[9.5px] text-slate-500 font-medium leading-tight">
+                              Turma temporariamente inativa ou em planejamento para ciclo posterior.
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Option 3: Encerrada */}
+                        <button
+                          type="button"
+                          disabled={!isEditing}
+                          onClick={() => setFormData({ ...formData, status: 'Encerrada' })}
+                          className={cn(
+                            "p-3.5 border text-left flex items-start gap-3 transition-all outline-none select-none",
+                            isEditing ? "cursor-pointer" : "cursor-default",
+                            formData.status === 'Encerrada'
+                              ? "bg-slate-100 border-slate-500 text-slate-900 shadow-sm ring-1 ring-slate-400"
+                              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-4 h-4 rounded-full border-2 mt-0.5 flex items-center justify-center shrink-0",
+                            formData.status === 'Encerrada'
+                              ? "border-slate-600 bg-slate-600 text-white"
+                              : "border-slate-300 bg-white"
+                          )}>
+                            {formData.status === 'Encerrada' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <p className="text-xs font-black uppercase tracking-wider text-slate-800">Encerrada</p>
+                            <p className="text-[9.5px] text-slate-500 font-medium leading-tight">
+                              Ciclo letivo finalizado e arquivado para registro histórico.
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Regime do Curso / Turma Especial Option */}
                     <div className="col-span-12 pt-2">
@@ -2664,7 +3268,7 @@ export function Classes() {
                     placeholder="Informações adicionais sobre a turma..."
                     value={(formData.observations || '')
                       .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
-                      .replace(/\s*\}\]\s*$/g, '') // Robust cleaning of orphaned brackets
+                      .replace(/\s*\}\]\s*$/g, '')
                       .trim()}
                     onChange={(e) => setFormData({...formData, observations: e.target.value})}
                     onKeyDown={handleKeyDown}
@@ -2677,308 +3281,15 @@ export function Classes() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col h-full overflow-y-auto p-6 md:p-8 space-y-6 bg-slate-50/40">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-                  <School className="text-slate-800" size={26} />
-                  <span>Gestão Geral de Turmas</span>
-                </h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  Visão completa dos grupos acadêmicos organizados por ano letivo
-                </p>
-              </div>
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <button
-                  onClick={() => navigate('/import?type=classes')}
-                  className="px-3.5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                  title="Importar turmas através de uma planilha Excel ou CSV"
-                >
-                  <FileSpreadsheet size={15} />
-                  <span>Importar Planilha (Excel)</span>
-                </button>
-                <button
-                  onClick={handleOpenImportModal}
-                  className="px-4 py-2.5 bg-blue-800 hover:bg-blue-900 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                  title="Importar turma de um ano para o próximo com alunos e disciplinas"
-                >
-                  <RefreshCw size={15} />
-                  <span>Importar Turma (Próximo Ano)</span>
-                </button>
-                <button
-                  onClick={handleNew}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 cursor-pointer"
-                >
-                  <Plus size={16} />
-                  <span>Nova Turma</span>
-                </button>
-              </div>
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 p-8">
+            <div className="w-20 h-20 bg-slate-50 border border-slate-200/60 rounded-none flex items-center justify-center text-slate-300">
+              <School size={40} />
             </div>
-
-            {/* Quick Statistics Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white p-4 border border-slate-200 shadow-xs flex items-center gap-4">
-                <div className="w-11 h-11 bg-slate-100 text-slate-800 flex items-center justify-center font-bold text-base flex-shrink-0">
-                  {classes.length}
-                </div>
-                <div>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Cadastradas</p>
-                  <p className="text-xs font-bold text-slate-800 uppercase">Turmas no Sistema</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 border border-slate-200 shadow-xs flex items-center gap-4">
-                <div className="w-11 h-11 bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center font-bold text-base flex-shrink-0">
-                  {classes.filter(c => (c.status || 'Ativo') === 'Ativo').length}
-                </div>
-                <div>
-                  <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Status Ativo</p>
-                  <p className="text-xs font-bold text-slate-800 uppercase">Turmas Ativas</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-4 border border-slate-200 shadow-xs flex items-center gap-4">
-                <div className="w-11 h-11 bg-blue-50 text-blue-700 border border-blue-100 flex items-center justify-center font-bold text-base flex-shrink-0">
-                  {autoSemester.replace(' Semestre', 'º Sem')}
-                </div>
-                <div>
-                  <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest">Calendário Acadômico</p>
-                  <p className="text-xs font-bold text-slate-800 uppercase">Semestre Vigente</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Grid of All Classes */}
-            <div className="space-y-4 pt-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 border border-slate-200">
-                <div className="flex items-center gap-2">
-                  <School className="text-slate-700" size={18} />
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    Catálogo de Turmas
-                  </span>
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 font-extrabold text-[10px] border border-slate-200">
-                    {filteredClasses.length} {filteredClasses.length === 1 ? 'turma encontrada' : 'turmas encontradas'}
-                  </span>
-                </div>
-
-                {/* Quadros de navegação de Ano Letivo (posicionado à direita) */}
-                <div className="flex items-center bg-slate-50 px-2 py-1 border border-slate-300 rounded gap-1 shadow-2xs">
-                  <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1 mr-1">
-                    <Calendar size={13} className="text-blue-800" /> Ano:
-                  </span>
-                  {(() => {
-                    const activeYr = selectedAcademicYearFilter === 'ATUAL' ? currentAcademicYear : selectedAcademicYearFilter;
-                    const currentYrIdx = availableAcademicYears.indexOf(activeYr);
-                    const isAtOldest = currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1;
-                    const isAtNewest = currentYrIdx === 0;
-
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          disabled={isAtOldest}
-                          onClick={() => {
-                            const effectiveYr = selectedAcademicYearFilter === 'ATUAL' ? currentAcademicYear : selectedAcademicYearFilter;
-                            const idx = availableAcademicYears.indexOf(effectiveYr);
-                            if (idx !== -1 && idx < availableAcademicYears.length - 1) {
-                              setSelectedAcademicYearFilter(availableAcademicYears[idx + 1]);
-                            }
-                          }}
-                          className={cn(
-                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
-                            isAtOldest
-                              ? "text-slate-300 cursor-not-allowed opacity-60"
-                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-200"
-                          )}
-                          title={
-                            isAtOldest
-                              ? `Não há turmas cadastradas em anos anteriores`
-                              : "Voltar para o Ano Anterior com Turmas"
-                          }
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-
-                        <select
-                          id="classes-academic-year-select"
-                          value={selectedAcademicYearFilter}
-                          onChange={(e) => setSelectedAcademicYearFilter(e.target.value)}
-                          className="bg-transparent text-xs font-black text-blue-950 outline-none cursor-pointer hover:text-blue-700 transition-all uppercase tracking-wider py-0.5 px-1"
-                        >
-                          <option value="ATUAL">ATUAL</option>
-                          {availableAcademicYears.map(yr => (
-                            <option key={yr} value={yr}>
-                              ANO {yr}
-                            </option>
-                          ))}
-                          <option value="Todos">TODOS OS ANOS</option>
-                        </select>
-
-                        <button
-                          type="button"
-                          disabled={isAtNewest}
-                          onClick={() => {
-                            const effectiveYr = selectedAcademicYearFilter === 'ATUAL' ? currentAcademicYear : selectedAcademicYearFilter;
-                            const idx = availableAcademicYears.indexOf(effectiveYr);
-                            if (idx > 0) {
-                              setSelectedAcademicYearFilter(availableAcademicYears[idx - 1]);
-                            }
-                          }}
-                          className={cn(
-                            "p-1 rounded transition-all cursor-pointer shrink-0 select-none",
-                            isAtNewest
-                              ? "text-slate-300 cursor-not-allowed opacity-60"
-                              : "text-slate-600 hover:text-blue-900 hover:bg-slate-200"
-                          )}
-                          title={
-                            isAtNewest
-                              ? `Não há turmas cadastradas em anos futuros`
-                              : "Avançar para o Próximo Ano com Turmas"
-                          }
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-
-                        {/* Espaço reservado fixo para o botão limpar evitar movimentação ou redimensionamento do quadro */}
-                        <div className="w-[72px] shrink-0 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedAcademicYearFilter('ATUAL')}
-                            className={cn(
-                              "px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shadow-2xs uppercase tracking-wider",
-                              selectedAcademicYearFilter === 'ATUAL' ? "invisible pointer-events-none" : "visible"
-                            )}
-                            title="Limpar seleção de ano e voltar para o Ano Atual"
-                          >
-                            <X size={12} className="stroke-[2.5]" />
-                            <span>Limpar</span>
-                          </button>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {filteredClasses.length === 0 ? (
-                <div className="bg-white p-12 text-center border border-slate-200 space-y-3">
-                  <p className="text-xs font-bold text-slate-500 uppercase">Nenhuma turma encontrada com o filtro atual</p>
-                  <button
-                    onClick={() => { setSearchTerm(''); setStatusFilter('Todos'); }}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
-                  >
-                    Exibir Todas as Turmas
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {filteredClasses.map((cls) => {
-                    const s1h1 = subjects.find(s => s.id === (cls as any).subject_id_sem1_h1);
-                    const s1h2 = subjects.find(s => s.id === (cls as any).subject_id_sem1_h2);
-                    const s2h1 = subjects.find(s => s.id === (cls as any).subject_id_sem2_h1);
-                    const s2h2 = subjects.find(s => s.id === (cls as any).subject_id_sem2_h2);
-
-                    let sem1Subs = [s1h1, s1h2].filter(Boolean) as Subject[];
-                    let sem2Subs = [s2h1, s2h2].filter(Boolean) as Subject[];
-
-                    if (sem1Subs.length === 0 || sem2Subs.length === 0) {
-                      const clsSubs = (cls.subject_ids || []).map(sid => subjects.find(s => s.id === sid)).filter(Boolean) as Subject[];
-                      if (sem1Subs.length === 0) {
-                        const matched = clsSubs.filter(s => (s?.semester || '').includes('1'));
-                        if (matched.length > 0) sem1Subs = matched;
-                        else if (cls.year) sem1Subs = subjects.filter(s => s.year === cls.year && (s.semester || '').includes('1'));
-                      }
-                      if (sem2Subs.length === 0) {
-                        const matched = clsSubs.filter(s => (s?.semester || '').includes('2'));
-                        if (matched.length > 0) sem2Subs = matched;
-                        else if (cls.year) sem2Subs = subjects.filter(s => s.year === cls.year && (s.semester || '').includes('2'));
-                      }
-                    }
-
-                    return (
-                      <div 
-                        key={cls.id}
-                        onClick={() => handleSelectClass(cls)}
-                        className="bg-white border border-slate-200 hover:border-slate-400 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group space-y-4"
-                      >
-                        <div className="space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="px-2.5 py-1 bg-slate-800 text-white font-mono text-[10px] font-bold tracking-wider">
-                              {cls.code}
-                            </span>
-                            <span className={cn(
-                              "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border",
-                              (cls.status || 'Ativo') === 'Ativo' 
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                                : cls.status === 'Encerrada'
-                                  ? "bg-amber-50 text-amber-800 border-amber-200 font-extrabold"
-                                  : "bg-slate-100 text-slate-500 border-slate-200"
-                            )}>
-                              {cls.status || 'Ativo'}
-                            </span>
-                          </div>
-
-                          <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-900 transition-colors uppercase leading-snug pt-1">
-                            {cls.name}
-                          </h4>
-
-                          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                            <span>{cls.year || 'Ano N/D'}</span>
-                            <span>•</span>
-                            <span>{cls.period || 'Período N/D'}</span>
-                            {cls.room && (
-                              <>
-                                <span>•</span>
-                                <span>Sala {cls.room}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Linked Subjects Summary (All subjects per semester) */}
-                        <div className="pt-3 border-t border-slate-100 space-y-2 text-[10px]">
-                          <div className="flex items-start gap-1.5 text-blue-900 font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0 mt-1"></span>
-                            <span className="text-slate-400 uppercase text-[9px] shrink-0 font-semibold">1º Sem:</span>
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              {sem1Subs.length > 0 ? (
-                                sem1Subs.map((s, idx) => (
-                                  <span key={s.id || idx} className="uppercase leading-tight text-[10px]">
-                                    {s.name}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-slate-400 uppercase">Nenhuma</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-1.5 text-emerald-900 font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 flex-shrink-0 mt-1"></span>
-                            <span className="text-slate-400 uppercase text-[9px] shrink-0 font-semibold">2º Sem:</span>
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              {sem2Subs.length > 0 ? (
-                                sem2Subs.map((s, idx) => (
-                                  <span key={s.id || idx} className="uppercase leading-tight text-[10px]">
-                                    {s.name}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-slate-400 uppercase">Nenhuma</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 flex items-center justify-between text-[10px] font-bold text-slate-700 group-hover:text-slate-900 uppercase tracking-wider border-t border-slate-50">
-                          <span>Abrir e Editar Turma</span>
-                          <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform text-slate-400 group-hover:text-slate-800" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            <div className="text-center space-y-1">
+              <p className="text-sm font-bold text-slate-600 uppercase tracking-wider">Nenhuma Turma Selecionada</p>
+              <p className="text-xs text-slate-400 font-medium max-w-sm">
+                Selecione uma turma na lista ao lado para visualizar os detalhes, alunos matriculados, disciplinas e diário acadêmico.
+              </p>
             </div>
           </div>
         )}
@@ -2987,30 +3298,50 @@ export function Classes() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && selectedClass && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">
-              <Trash2 size={32} />
+          <div className="bg-white rounded-none shadow-2xl p-6 sm:p-8 max-w-md w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300">
+            <div className="w-14 h-14 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto border border-red-200">
+              <Trash2 size={28} />
             </div>
             <div className="text-center space-y-2">
-              <h3 className="text-xl font-bold text-[#131b2e]">Excluir Turma?</h3>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                Tem certeza que deseja excluir a turma <span className="font-bold text-slate-900">{selectedClass.name}</span>? 
-                Esta ação não pode ser desfeita.
+              <h3 className="text-lg font-bold text-[#131b2e] uppercase tracking-tight">Excluir Turma Específica?</h3>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                Você está excluindo apenas este registro da turma:
+              </p>
+              <div className="bg-slate-50 border border-slate-200 p-3 text-left space-y-1.5 font-sans">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-semibold">Turma:</span>
+                  <span className="font-bold text-slate-900">{selectedClass.name}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-semibold">Código:</span>
+                  <span className="font-mono font-bold text-slate-800">{selectedClass.code}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-semibold">Ano Letivo / Módulo:</span>
+                  <span className="font-bold text-blue-900">Ano {getClassStartYear(selectedClass)} ({selectedClass.year || '1º Ano'})</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-semibold">Turno / Período:</span>
+                  <span className="font-bold text-slate-700">{selectedClass.period}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 border border-amber-200 text-left font-medium leading-snug">
+                <strong>Proteção de Histórico:</strong> Esta exclusão afeta apenas esta turma. Se esta foi uma turma promovida/importada, os alunos serão mantidos e revinculados com segurança à sua turma anterior.
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-1">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-none font-bold text-sm hover:bg-slate-200 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-none font-bold text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-200 disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-none font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
               >
-                {loading ? 'Excluindo...' : 'Sim, Excluir'}
+                {loading ? 'Excluindo...' : 'Confirmar Exclusão'}
               </button>
             </div>
           </div>
@@ -3027,12 +3358,12 @@ export function Classes() {
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-200">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-blue-800 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 bg-blue-50 text-blue-800 flex items-center justify-center font-bold border border-blue-200">
                   <RefreshCw size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Importar / Promover Turma para Novo Ano</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Trânsito de turma de um ano letivo para o seguinte</p>
+                  <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Importar / Promover Turma para Novo Ciclo</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Trânsito seguro de alunos entre anos e períodos letivos</p>
                 </div>
               </div>
               <button
@@ -3050,7 +3381,7 @@ export function Classes() {
                 {/* Step 1: Select Source Class */}
                 <div className="space-y-2 bg-slate-50 p-4 border border-slate-200">
                   <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">
-                    1. Selecione a Turma de Origem (Ano Anterior) *
+                    1. Selecione a Turma de Origem *
                   </label>
                   <select
                     value={importSourceClassId}
@@ -3063,9 +3394,9 @@ export function Classes() {
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none font-bold text-slate-800 uppercase focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
                   >
                     <option value="">-- SELECIONE A TURMA DE ORIGEM --</option>
-                    {classes.map(c => (
-                      <option key={c.id} value={c.id}>
-                        [{c.code}] {c.name} ({c.year || 'Sem Ano'}) - {c.period}
+                    {classes.map((c, cIdx) => (
+                      <option key={`imp-c-${c.id || c.code || cIdx}-${cIdx}`} value={c.id}>
+                        [{c.code}] {c.name} (Ano {getClassStartYear(c)} - {c.year || 'Sem Ano'}) - {c.period}
                       </option>
                     ))}
                   </select>
@@ -3076,6 +3407,34 @@ export function Classes() {
                       <span>{sourceStudentsCount} aluno(s) ativo(s) detectado(s) nesta turma de origem.</span>
                     </p>
                   )}
+
+                  {(() => {
+                    const srcCls = classes.find(c => c.id === importSourceClassId);
+                    if (srcCls && srcCls.year === '4º Ano') {
+                      return (
+                        <div className="bg-amber-50 border-2 border-amber-400 p-3.5 space-y-2 text-amber-950 mt-2">
+                          <div className="flex items-center gap-2 font-black text-xs text-amber-900 uppercase tracking-wide">
+                            <AlertTriangle size={16} className="text-amber-700 shrink-0" />
+                            <span>Turma no 4º Ano — Ciclo Acadêmico Finalizado</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-amber-900 font-medium">
+                            A turma de origem <strong>{srcCls.name}</strong> já está no <strong>4º Ano</strong> (ano letivo final do curso). No 4º ano a turma não progride para novos anos letivos; a turma deve ser encerrada com o status <strong>Curso Concluído</strong>.
+                          </p>
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleConclude4thYearClass(srcCls)}
+                              className="px-3.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white font-bold uppercase text-[10px] tracking-wider flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                            >
+                              <CheckCircle2 size={13} />
+                              <span>Encerrar Turma (Curso Concluído)</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 {/* Step 2: Configure Target Class */}
@@ -3092,33 +3451,53 @@ export function Classes() {
                           Código
                         </label>
                         <span className="text-[7.5px] font-extrabold text-blue-700 bg-blue-50 px-1 py-0.2 uppercase border border-blue-100">
-                          Auto
+                          Sugestão
                         </span>
                       </div>
                       <input
                         type="text"
-                        readOnly
-                        disabled
                         value={importNewCode}
-                        placeholder="Ex: 001"
-                        className="w-full px-2.5 py-2 bg-slate-100 border border-slate-200 font-mono font-bold text-slate-600 text-xs cursor-not-allowed text-center"
-                        title="Código sequencial gerado automaticamente pelo sistema"
+                        onChange={(e) => setImportNewCode(e.target.value.toUpperCase())}
+                        placeholder="Ex: TEO-23/27"
+                        className="w-full px-2.5 py-2 bg-white border border-slate-300 font-mono font-bold text-slate-800 text-xs text-center uppercase focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        title="Código da turma (pode ser ajustado livremente)"
                       />
                     </div>
 
                     <div className="col-span-12 sm:col-span-4">
                       <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                        Ano Letivo de Destino *
+                        Ano Calendário *
+                      </label>
+                      <select
+                        value={importTargetAcademicYear}
+                        onChange={(e) => {
+                          const newYr = e.target.value;
+                          setImportTargetAcademicYear(newYr);
+                          const srcCls = classes.find(c => c.id === importSourceClassId);
+                          if (srcCls) {
+                            setImportNewName(computePromotedClassName(srcCls.name || '', newYr));
+                            setImportNewCode(computePromotedClassCode(srcCls.code || '', newYr, srcCls.course || srcCls.name, getClassStartYear(srcCls)));
+                          }
+                        }}
+                        className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-800 uppercase text-xs cursor-pointer"
+                      >
+                        {Array.from(new Set([
+                          importTargetAcademicYear,
+                          '2029', '2028', '2027', '2026', '2025', '2024'
+                        ].filter(Boolean))).sort((a, b) => Number(b) - Number(a)).map(yr => (
+                          <option key={yr} value={yr}>Ano {yr}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-5">
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                        Módulo / Série *
                       </label>
                       <select
                         value={importTargetYear}
                         onChange={(e) => {
-                          const newYr = e.target.value;
-                          setImportTargetYear(newYr);
-                          const srcCls = classes.find(c => c.id === importSourceClassId);
-                          if (srcCls) {
-                            setImportNewName(computePromotedClassName(srcCls.name, newYr));
-                          }
+                          setImportTargetYear(e.target.value);
                         }}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-800 uppercase text-xs cursor-pointer"
                       >
@@ -3126,19 +3505,35 @@ export function Classes() {
                         <option value="2º Ano">2º Ano</option>
                         <option value="3º Ano">3º Ano</option>
                         <option value="4º Ano">4º Ano</option>
-                        <option value="Curso Extra">Curso Extra</option>
                       </select>
                     </div>
 
-                    <div className="col-span-12 sm:col-span-5">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                        Nome da Nova Turma *
-                      </label>
+                    <div className="col-span-12">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                          Nome da Nova Turma *
+                        </label>
+                        {importSourceClassId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const srcCls = classes.find(c => c.id === importSourceClassId);
+                              if (srcCls) {
+                                setImportNewName(computePromotedClassName(srcCls.name || '', importTargetAcademicYear));
+                                setImportNewCode(computePromotedClassCode(srcCls.code || '', importTargetAcademicYear, srcCls.course || srcCls.name, getClassStartYear(srcCls)));
+                              }
+                            }}
+                            className="text-[9px] font-bold text-blue-700 hover:text-blue-900 underline uppercase"
+                          >
+                            Restaurar Padrão
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={importNewName}
                         onChange={(e) => setImportNewName(e.target.value)}
-                        placeholder="Ex: TEOLOGIA 2026 (2º ANO)"
+                        placeholder="Ex: TEOLOGIA 2023/2027"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-800 uppercase text-xs"
                       />
                     </div>
@@ -3179,22 +3574,21 @@ export function Classes() {
                     </div>
                   </label>
 
-                  <label className="flex items-start gap-2.5 cursor-pointer bg-slate-50 p-2.5 border border-slate-200">
-                    <input
-                      type="checkbox"
-                      checked={importDeactivateSource}
-                      onChange={(e) => setImportDeactivateSource(e.target.checked)}
-                      className="w-4 h-4 text-blue-800 rounded-none focus:ring-0 cursor-pointer mt-0.5"
-                    />
-                    <div>
-                      <span className="font-bold text-slate-800 text-xs block">
-                        Marcar turma de origem como "Turma Encerrada"
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-medium block pt-0.5">
-                        A turma anterior passa ao status "Encerrada", mantendo todos os históricos e dados estáveis e acessíveis até o encerramento do curso.
-                      </span>
+                  {/* Preservation Guarantee Banner */}
+                  <div className="bg-emerald-50/90 border border-emerald-300 p-3.5 space-y-1.5 text-emerald-950">
+                    <div className="flex items-center gap-2 font-bold text-xs text-emerald-900">
+                      <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+                      <span className="uppercase tracking-wide">Garantia de Preservação Integral da Turma de Origem</span>
                     </div>
-                  </label>
+                    <p className="text-[11px] leading-relaxed text-emerald-950 font-medium">
+                      A turma de origem <strong>{classes.find(c => c.id === importSourceClassId)?.name || 'selecionada'}</strong> (Ano Letivo {classes.find(c => c.id === importSourceClassId) ? getClassStartYear(classes.find(c => c.id === importSourceClassId)) : '---'}) <strong>NÃO</strong> será modificada, nem encerrada e nem excluída. Ela permanecerá 100% ativa e intacta no seu ano letivo.
+                    </p>
+                    <div className="flex flex-wrap gap-3 pt-1 text-[10px] font-bold text-emerald-800 border-t border-emerald-200/80">
+                      <span className="flex items-center gap-1">✓ Turma de Origem Intacta</span>
+                      <span className="flex items-center gap-1">✓ Nova Turma Criada no Ano {importTargetAcademicYear}</span>
+                      <span className="flex items-center gap-1">✓ Histórico Preservado</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -3262,11 +3656,11 @@ export function Classes() {
                           s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
                           (s.registration_number || '').includes(studentSearchTerm)
                         )
-                        .map((student) => {
+                        .map((student, sIdx) => {
                           const isSelected = selectedStudentIds.includes(student.id);
                           return (
                             <label
-                              key={student.id}
+                              key={`imp-st-${student.id || sIdx}-${sIdx}`}
                               className={cn(
                                 "flex items-center justify-between px-3 py-2 cursor-pointer transition-colors text-xs select-none",
                                 isSelected ? "bg-blue-50/70 hover:bg-blue-100/60" : "hover:bg-slate-50 text-slate-600"
@@ -3339,8 +3733,9 @@ export function Classes() {
               <button
                 type="button"
                 onClick={handleExecuteImport}
-                disabled={isImporting || !importSourceClassId || !importNewName}
+                disabled={isImporting || !importSourceClassId || !importNewName || classes.find(c => c.id === importSourceClassId)?.year === '4º Ano'}
                 className="px-6 py-2.5 bg-blue-800 text-white font-bold uppercase text-xs tracking-wider border border-blue-900 hover:bg-blue-900 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer rounded-none"
+                title={classes.find(c => c.id === importSourceClassId)?.year === '4º Ano' ? 'Turmas no 4º ano já completaram o ciclo acadêmico e não progridem mais.' : ''}
               >
                 {isImporting ? (
                   <>
@@ -3422,6 +3817,22 @@ export function Classes() {
                   <Printer size={14} />
                   <span>Imprimir</span>
                 </button>
+                {unallocatedStudents.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTargetClassForUnallocated(selectedClass?.id || formData.id || '');
+                      setSelectedUnallocatedStudentIds([]);
+                      setUnallocatedSearchTerm('');
+                      setShowUnallocatedModal(true);
+                    }}
+                    className="flex-1 sm:flex-none px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    title="Adicionar alunos sem turma diretamente a esta turma"
+                  >
+                    <Plus size={14} />
+                    <span>Adicionar Sem Turma ({unallocatedStudents.length})</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -3464,7 +3875,7 @@ export function Classes() {
                     <div className="bg-white border border-slate-200 divide-y divide-slate-100 shadow-2xs">
                       {filtered.map((s, idx) => (
                         <div
-                          key={s.id || idx}
+                          key={`cls-mdl-st-${s.id || s.registration_number || idx}-${idx}`}
                           className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
                         >
                           <div className="flex items-center gap-3 min-w-0">
@@ -3542,6 +3953,238 @@ export function Classes() {
               >
                 Fechar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gestão e Alocação de Alunos Sem Turma */}
+      {showUnallocatedModal && (
+        <div className="fixed inset-0 z-[210] bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-300 shadow-2xl w-full max-w-4xl flex flex-col max-h-[92vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-amber-600 text-white flex items-center justify-between border-b border-amber-700 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-700 text-white flex items-center justify-center shrink-0 shadow-inner">
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+                    <span>Alunos Sem Turma Ativa</span>
+                    <span className="text-[10px] bg-amber-800 text-amber-100 px-2 py-0.5 font-extrabold">
+                      {unallocatedStudents.length} ALUNO(S) ENCONTRADO(S)
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-amber-100 font-medium tracking-wide">
+                    Selecione os alunos e a turma de destino para matriculá-los em lote ou individualmente.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUnallocatedModal(false)}
+                className="p-1.5 text-amber-100 hover:text-white hover:bg-amber-700 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Target Class Selection Bar */}
+            <div className="p-4 bg-amber-50/80 border-b border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+              <div className="flex-1 w-full space-y-1">
+                <label className="text-[11px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <School size={14} className="text-amber-700" />
+                  <span>Turma de Destino para Matrícula:</span>
+                </label>
+                <select
+                  value={targetClassForUnallocated}
+                  onChange={(e) => setTargetClassForUnallocated(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border-2 border-amber-300 text-xs font-bold text-slate-800 outline-none focus:border-amber-500 shadow-2xs"
+                >
+                  <option value="">-- Escolha uma turma ativa para receber os alunos --</option>
+                  {classes.filter(c => c.status === 'Ativo' || !c.status).map(c => (
+                    <option key={`dest-cls-${c.id}`} value={c.id}>
+                      {c.name} {c.code ? `(${c.code})` : ''} - {c.period || 'Sem período'} | {c.year || '1º Ano'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Toolbar: Search & Select All */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+              <div className="relative flex-1 w-full">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="BUSCAR POR NOME, MATRÍCULA OU CPF..."
+                  value={unallocatedSearchTerm}
+                  onChange={(e) => setUnallocatedSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 text-xs font-bold text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all uppercase"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 justify-between sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedUnallocatedStudentIds.length === filteredUnallocatedStudents.length) {
+                      setSelectedUnallocatedStudentIds([]);
+                    } else {
+                      setSelectedUnallocatedStudentIds(filteredUnallocatedStudents.map(s => s.id));
+                    }
+                  }}
+                  disabled={filteredUnallocatedStudents.length === 0}
+                  className="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-[11px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
+                >
+                  {selectedUnallocatedStudentIds.length > 0 && selectedUnallocatedStudentIds.length === filteredUnallocatedStudents.length ? (
+                    <CheckSquare size={14} className="text-amber-600" />
+                  ) : (
+                    <Square size={14} className="text-slate-400" />
+                  )}
+                  <span>
+                    {selectedUnallocatedStudentIds.length === filteredUnallocatedStudents.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                  </span>
+                </button>
+
+                <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-3 py-2 border border-slate-200">
+                  <strong className="text-amber-700">{selectedUnallocatedStudentIds.length}</strong> de {unallocatedStudents.length} selecionado(s)
+                </span>
+              </div>
+            </div>
+
+            {/* List of Unallocated Students */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[250px] bg-slate-100/50">
+              {filteredUnallocatedStudents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2 bg-white border border-dashed border-slate-300 p-8">
+                  <UserCheck size={36} className="text-emerald-500" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    {unallocatedStudents.length === 0 ? 'Nenhum aluno sem turma no momento!' : 'Nenhum aluno corresponde à busca'}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {unallocatedStudents.length === 0 
+                      ? 'Todos os alunos cadastrados e ativos já estão vinculados a turmas ativas.' 
+                      : 'Tente refinar ou limpar o termo digitado na barra de busca.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {filteredUnallocatedStudents.map((s, idx) => {
+                    const isSelected = selectedUnallocatedStudentIds.includes(s.id);
+                    return (
+                      <div
+                        key={`unalloc-st-${s.id || idx}`}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedUnallocatedStudentIds(selectedUnallocatedStudentIds.filter(id => id !== s.id));
+                          } else {
+                            setSelectedUnallocatedStudentIds([...selectedUnallocatedStudentIds, s.id]);
+                          }
+                        }}
+                        className={cn(
+                          "p-3 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all cursor-pointer select-none",
+                          isSelected
+                            ? "bg-amber-50/90 border-amber-400 ring-1 ring-amber-400"
+                            : "bg-white border-slate-200 hover:border-amber-300 hover:bg-amber-50/30"
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}} // Handled by parent container click
+                            className="w-4 h-4 text-amber-600 rounded-none focus:ring-0 cursor-pointer shrink-0"
+                          />
+                          <div className="w-9 h-9 bg-slate-800 text-white font-black text-xs flex items-center justify-center shrink-0 uppercase border border-slate-700">
+                            {s.name ? s.name.substring(0, 2) : 'AL'}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-tight truncate flex items-center gap-2">
+                              <span>{s.name || 'SEM NOME'}</span>
+                              <span className="text-[9px] bg-amber-100 text-amber-900 font-extrabold px-1.5 py-0.2 border border-amber-300">
+                                SEM TURMA
+                              </span>
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-slate-500 font-medium">
+                              {s.registration_number && (
+                                <span>Matrícula: <strong className="text-slate-700">{s.registration_number}</strong></span>
+                              )}
+                              {s.cpf && (
+                                <span>CPF: <strong className="text-slate-700">{s.cpf}</strong></span>
+                              )}
+                              {s.birth_date && (
+                                <span>Nasc: {formatDateForDisplay(s.birth_date)}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowUnallocatedModal(false);
+                              navigate('/students', { state: { studentId: s.id } });
+                            }}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer border border-slate-200"
+                            title="Ver ficha completa do aluno"
+                          >
+                            <span>Ficha</span>
+                            <ArrowRight size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnallocatedModal(false);
+                  navigate('/students');
+                }}
+                className="text-xs font-bold text-amber-300 hover:text-white uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>Ir para a Página de Alunos</span>
+                <ArrowRight size={14} />
+              </button>
+
+              <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowUnallocatedModal(false)}
+                  disabled={isAllocatingStudents}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBatchAllocateStudents}
+                  disabled={!targetClassForUnallocated || selectedUnallocatedStudentIds.length === 0 || isAllocatingStudents}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                >
+                  {isAllocatingStudents ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      <span>Matriculando Alunos...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={15} />
+                      <span>
+                        Matricular {selectedUnallocatedStudentIds.length} Aluno(s)
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3682,8 +4325,8 @@ export function Classes() {
                         </p>
                         {printSem1.length > 0 ? (
                           <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[7pt]">
-                            {printSem1.map(s => (
-                              <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
+                            {printSem1.map((s, idx) => (
+                              <li key={`psem1-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                             ))}
                           </ul>
                         ) : (
@@ -3699,8 +4342,8 @@ export function Classes() {
                         </p>
                         {printSem2.length > 0 ? (
                           <ul className="list-disc list-inside space-y-0.5 font-semibold uppercase text-slate-900 text-[7pt]">
-                            {printSem2.map(s => (
-                              <li key={s.id}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
+                            {printSem2.map((s, idx) => (
+                              <li key={`psem2-${s.id || idx}-${idx}`}>{s.code ? `[${s.code}] ` : ''}{s.name}</li>
                             ))}
                           </ul>
                         ) : (

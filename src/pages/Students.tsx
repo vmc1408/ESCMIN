@@ -18,6 +18,7 @@ import {
   GraduationCap,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Camera,
   Upload,
   RotateCcw,
@@ -45,11 +46,13 @@ const StudentItem = React.memo(({
   student, 
   isSelected, 
   onSelect, 
+  isUnallocated,
   className 
 }: { 
   student: Student, 
   isSelected: boolean, 
   onSelect: (s: Student) => void,
+  isUnallocated?: boolean,
   className?: string
 }) => {
   return (
@@ -72,13 +75,18 @@ const StudentItem = React.memo(({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{student.name}</p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className={cn(
             "text-[9px] font-bold px-1.5 py-0.5 rounded-none uppercase tracking-wider",
             student.status === 'Inativo' ? "bg-red-50 text-red-700 border border-red-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
           )}>
             {student.status || 'Ativo'}
           </span>
+          {isUnallocated && (
+            <span className="text-[8.5px] font-black px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
+              Sem Turma
+            </span>
+          )}
           <span className="text-[10px] text-slate-400 font-medium">{student.registration_number}</span>
         </div>
       </div>
@@ -194,6 +202,8 @@ export function Students() {
   const [studentEnrollments, setStudentEnrollments] = useState<Enrollment[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [enrollClassId, setEnrollClassId] = useState('');
+  const [quickAssignClassId, setQuickAssignClassId] = useState('');
+  const [isAssigningClass, setIsAssigningClass] = useState(false);
   const [institution, setInstitution] = useState<any>(null);
 
   const admissionNorms = useMemo(() => {
@@ -279,7 +289,10 @@ export function Students() {
     }
 
     const classId = (location.state as any)?.classId;
-    if (classId) {
+    const filterUnallocated = (location.state as any)?.filterUnallocated;
+    if (filterUnallocated || classId === 'unallocated') {
+      setSelectedClassId('unallocated');
+    } else if (classId) {
       setSelectedClassId(classId);
     }
 
@@ -457,6 +470,57 @@ export function Students() {
       setNotification({ type: 'error', message: 'Erro ao remover matrícula: ' + error.message });
     } finally {
       setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleQuickAssignClass = async () => {
+    if (!selectedStudent?.id || !quickAssignClassId) return;
+    setIsAssigningClass(true);
+    try {
+      const targetClass = classes.find(c => c.id === quickAssignClassId);
+      const detectedCourse = targetClass ? detectCourseFromClass(targetClass) : selectedStudent.course;
+      
+      // Update student's primary class
+      await saveData('students', selectedStudent.id, {
+        class_id: quickAssignClassId,
+        ...(detectedCourse ? { course: detectedCourse } : {}),
+        ...(targetClass?.start_date ? { start_date: targetClass.start_date } : {})
+      });
+
+      // Also create enrollment record if not already enrolled
+      const alreadyEnrolled = studentEnrollments.some(e => e.class_id === quickAssignClassId);
+      if (!alreadyEnrolled) {
+        await saveData('enrollments', undefined, {
+          student_id: selectedStudent.id,
+          class_id: quickAssignClassId,
+          status: 'Ativo',
+          enrollment_date: targetClass?.start_date || new Date().toISOString().split('T')[0]
+        });
+      }
+
+      // Update local state
+      const updated: Student = {
+        ...selectedStudent,
+        class_id: quickAssignClassId,
+        course: detectedCourse || selectedStudent.course,
+        start_date: targetClass?.start_date || selectedStudent.start_date
+      };
+      setSelectedStudent(updated);
+      setFormData(prev => ({ ...prev, ...updated }));
+      setStudents(prev => prev.map(s => s.id === selectedStudent.id ? updated : s));
+      
+      // Refresh enrollments
+      fetchEnrollments(selectedStudent.id);
+      fetchAllEnrollments();
+      
+      setNotification({ type: 'success', message: `Aluno vinculado com sucesso à turma "${targetClass?.name || ''}"!` });
+      setQuickAssignClassId('');
+    } catch (err: any) {
+      console.error('Erro ao vincular aluno à turma:', err);
+      setNotification({ type: 'error', message: 'Erro ao vincular aluno: ' + (err.message || 'Erro desconhecido') });
+    } finally {
+      setIsAssigningClass(false);
+      setTimeout(() => setNotification(null), 3500);
     }
   };
 
@@ -937,6 +1001,29 @@ export function Students() {
     );
   };
 
+  const unallocatedStudentIdsSet = React.useMemo(() => {
+    const activeClassIds = new Set(classes.filter(c => c.status === 'Ativo' || !c.status).map(c => c.id));
+    const set = new Set<string>();
+    students.forEach(s => {
+      if (s.status === 'Inativo') return;
+      const isInValidPrimary = s.class_id && activeClassIds.has(s.class_id);
+      const isInValidMulti = allEnrollments.some(e => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo' && activeClassIds.has(e.class_id));
+      if (!isInValidPrimary && !isInValidMulti) {
+        set.add(s.id);
+      }
+    });
+    return set;
+  }, [students, classes, allEnrollments]);
+
+  const unallocatedStudentsCount = React.useMemo(() => {
+    return unallocatedStudentIdsSet.size;
+  }, [unallocatedStudentIdsSet]);
+
+  const isStudentUnallocated = React.useMemo(() => {
+    if (!selectedStudent?.id) return false;
+    return unallocatedStudentIdsSet.has(selectedStudent.id);
+  }, [selectedStudent, unallocatedStudentIdsSet]);
+
   const filteredStudents = React.useMemo(() => {
     return students.filter(s => {
       const matchesSearch = 
@@ -948,20 +1035,22 @@ export function Students() {
       
       // Filter logic
       let matchesYear = true;
-      if (selectedYear !== '' && selectedYear !== 'all') {
+      if (selectedYear !== '' && selectedYear !== 'all' && selectedClassId !== 'unallocated') {
         const studentYear = getYearFromRegistration(s.registration_number);
         matchesYear = studentYear === selectedYear;
       }
 
       let matchesClass = true;
-      if (selectedClassId !== '') {
+      if (selectedClassId === 'unallocated') {
+        matchesClass = unallocatedStudentIdsSet.has(s.id);
+      } else if (selectedClassId !== '') {
         const isInPrimaryClass = s.class_id === selectedClassId;
         const isEnrolledViaMultiTurma = allEnrollments.some(e => e.student_id === s.id && e.class_id === selectedClassId && e.status === 'Ativo');
         matchesClass = isInPrimaryClass || isEnrolledViaMultiTurma;
       }
 
-      // If user selected "all" for year, we still check search and status
-      if (selectedYear === 'all') matchesYear = true;
+      // If user selected "all" for year or unallocated is selected, year match is true
+      if (selectedYear === 'all' || selectedClassId === 'unallocated') matchesYear = true;
 
       return matchesSearch && matchesStatus && matchesYear && matchesClass;
     }).sort((a, b) => {
@@ -974,7 +1063,7 @@ export function Students() {
         return (b.registration_number || '').localeCompare(a.registration_number || '', undefined, { numeric: true });
       }
     });
-  }, [students, searchTerm, statusFilter, selectedYear, selectedClassId, sortBy, allEnrollments]);
+  }, [students, searchTerm, statusFilter, selectedYear, selectedClassId, sortBy, allEnrollments, unallocatedStudentIdsSet]);
 
   const availableYears = React.useMemo(() => {
     return Array.from(new Set(students.map(s => getYearFromRegistration(s.registration_number)).filter(Boolean))).sort().reverse();
@@ -985,8 +1074,8 @@ export function Students() {
   return (
     <>
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex gap-3 sm:gap-4 w-full transition-all duration-300",
-        actualListCollapsed ? "justify-center" : "justify-end"
+        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}
       {actualListCollapsed && !hoverShowList && (
@@ -1015,13 +1104,13 @@ export function Students() {
           }
         }}
         className={cn(
-          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden",
+          "bg-white rounded-none shadow-sm flex flex-col order-last transition-all duration-300 ease-in-out border border-slate-200 overflow-hidden shrink-0",
           actualListCollapsed 
             ? (hoverShowList 
                 ? "absolute right-0 top-0 bottom-0 h-full z-50 w-full sm:w-[380px] opacity-100 shadow-2xl border-l border-slate-200" 
                 : "w-0 opacity-0 border-0 pointer-events-none overflow-hidden hidden"
               )
-            : "w-full lg:w-[380px] opacity-100"
+            : "w-full lg:w-[380px] opacity-100 h-full"
         )}
       >
         <div className={cn(
@@ -1071,15 +1160,53 @@ export function Students() {
               ))}
             </div>
 
+            {/* Quick Unallocated Filter Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedClassId === 'unallocated') {
+                  setSelectedClassId('');
+                } else {
+                  setSelectedClassId('unallocated');
+                  setSelectedYear('all');
+                }
+              }}
+              className={cn(
+                "w-full py-2 px-3 text-[10px] font-extrabold uppercase tracking-wider flex items-center justify-between border transition-all cursor-pointer shadow-2xs",
+                selectedClassId === 'unallocated'
+                  ? "bg-amber-500 text-white border-amber-600 ring-2 ring-amber-400/40 font-black"
+                  : "bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100/90"
+              )}
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <AlertTriangle size={13} className={selectedClassId === 'unallocated' ? "text-white shrink-0" : "text-amber-600 shrink-0"} />
+                <span className="truncate">Filtrar Sem Turma</span>
+              </div>
+              <span className={cn(
+                "px-2 py-0.5 text-[9px] font-black shrink-0",
+                selectedClassId === 'unallocated' ? "bg-amber-700 text-white" : "bg-amber-200 text-amber-900 border border-amber-300"
+              )}>
+                {unallocatedStudentsCount}
+              </span>
+            </button>
+
             <div className="space-y-1.5">
               <select 
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-none text-[11px] font-medium text-slate-600 focus:ring-1 focus:ring-slate-500/10 outline-none"
+                className={cn(
+                  "w-full px-2.5 py-1.5 border rounded-none text-[11px] font-medium outline-none transition-all",
+                  selectedClassId === 'unallocated'
+                    ? "bg-amber-50 border-amber-300 text-amber-900 font-bold"
+                    : "bg-slate-50 border-slate-200 text-slate-600 focus:ring-1 focus:ring-slate-500/10"
+                )}
               >
                 <option value="">Todas as Turmas</option>
-                {classes.filter(c => c.status === 'Ativo').map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                <option value="unallocated">
+                  ⚠️ Sem Turma / Não Alocados ({unallocatedStudentsCount})
+                </option>
+                {classes.filter(c => c.status === 'Ativo').map((c, cIdx) => (
+                  <option key={`st-cls-flt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                 ))}
               </select>
               <div className="flex gap-1.5">
@@ -1090,7 +1217,7 @@ export function Students() {
                 >
                   <option value="">Escolha um ano</option>
                   <option value="all">Todos os Anos</option>
-                  {availableYears.map(y => <option key={y} value={y}>Matrícula {y}</option>)}
+                  {availableYears.map((y, yIdx) => <option key={`st-yr-${y}-${yIdx}`} value={y}>Matrícula {y}</option>)}
                 </select>
                 <button
                   onClick={() => setSortBy(sortBy === 'name' ? 'registration' : 'name')}
@@ -1109,22 +1236,23 @@ export function Students() {
             <div className="flex items-center justify-center h-32">
               <Loader2 className="animate-spin text-slate-705" />
             </div>
-          ) : !selectedYear ? (
+          ) : (!selectedYear && selectedClassId !== 'unallocated') ? (
             <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
               <GraduationCap size={32} className="mb-2 opacity-20" />
-              <p className="text-xs font-medium">Selecione uma turma para visualizar os alunos</p>
+              <p className="text-xs font-medium">Selecione uma turma ou ano para visualizar os alunos</p>
             </div>
           ) : filteredStudents.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
               <Search size={32} className="mb-2 opacity-20" />
               <p className="text-xs font-medium">Nenhum aluno encontrado</p>
             </div>
-          ) : filteredStudents.map((student) => (
+          ) : filteredStudents.map((student, sIdx) => (
             <StudentItem
-              key={student.id}
+              key={`st-item-${student.id || student.registration_number || sIdx}-${sIdx}`}
               student={student}
               isSelected={selectedStudent?.id === student.id}
               onSelect={handleSelectStudent}
+              isUnallocated={unallocatedStudentIdsSet.has(student.id)}
             />
           ))}
         </div>
@@ -1133,8 +1261,8 @@ export function Students() {
 
       {/* Main Content (Student Details or Registration Form) */}
       <div className={cn(
-        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 w-full min-w-0 max-w-5xl mx-auto",
-        actualListCollapsed ? "flex-grow flex-1 opacity-100" : "w-0 h-0 opacity-0 pointer-events-none hidden"
+        "bg-white rounded-none shadow-sm border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 min-w-0 h-full flex-1",
+        actualListCollapsed ? "max-w-5xl mx-auto w-full" : "w-full"
       )}>
         {selectedStudent || isEditing ? (
           <>
@@ -1338,6 +1466,46 @@ export function Students() {
                 </div>
               ) : (
                 <div className="max-w-4xl mx-auto space-y-4">
+                  {/* Unallocated Quick Action Banner */}
+                  {isStudentUnallocated && selectedStudent && !isEditing && (
+                    <div className="bg-amber-50 border-2 border-amber-300 p-3 sm:p-4 rounded-none flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-amber-950 shadow-xs animate-in fade-in duration-200">
+                      <div className="flex items-start sm:items-center gap-2.5">
+                        <AlertTriangle className="text-amber-600 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-wider text-amber-900">
+                            Aluno Sem Turma Ativa
+                          </p>
+                          <p className="text-[11px] text-amber-800 font-medium">
+                            Este aluno não está matriculado em nenhuma turma ativa. Vincule-o agora:
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        <select
+                          value={quickAssignClassId}
+                          onChange={(e) => setQuickAssignClassId(e.target.value)}
+                          className="flex-1 md:w-64 px-2.5 py-1.5 bg-white border border-amber-300 text-xs font-semibold text-slate-800 outline-none"
+                        >
+                          <option value="">Selecione uma turma ativa...</option>
+                          {classes.filter(c => c.status === 'Ativo' || !c.status).map(c => (
+                            <option key={`quick-c-${c.id}`} value={c.id}>
+                              {c.name} {c.code ? `(${c.code})` : ''} - {c.period || ''}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleQuickAssignClass}
+                          disabled={!quickAssignClassId || isAssigningClass}
+                          className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shadow-xs"
+                        >
+                          {isAssigningClass ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                          Vincular
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Basic Info */}
                   <section className="space-y-3">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -1444,8 +1612,8 @@ export function Students() {
                           tabIndex={7}
                         >
                           <option value="">Selecione uma turma</option>
-                          {classes.filter(c => c.status === 'Ativo' || c.id === formData.class_id).map(c => (
-                            <option key={c.id} value={c.id}>
+                          {classes.filter(c => c.status === 'Ativo' || c.id === formData.class_id).map((c, cIdx) => (
+                            <option key={`st-cls-form-${c.id || cIdx}-${cIdx}`} value={c.id}>
                               {c.name} ({c.code}) - {c.period}
                             </option>
                           ))}
@@ -1464,8 +1632,8 @@ export function Students() {
                         >
                           <option value="">Identificar Curso...</option>
                           {coursesList.length > 0 ? (
-                            coursesList.filter(c => c.status === 'Ativo').map(c => (
-                              <option key={c.id} value={c.name}>{c.name} ({c.code})</option>
+                            coursesList.filter(c => c.status === 'Ativo').map((c, cIdx) => (
+                              <option key={`st-crs-opt-${c.id || c.code || cIdx}-${cIdx}`} value={c.name}>{c.name} ({c.code})</option>
                             ))
                           ) : (
                             <>
@@ -1510,8 +1678,8 @@ export function Students() {
                               className="w-full sm:flex-1 px-3 py-2 bg-white border border-slate-200 rounded-none text-xs focus:ring-1 focus:ring-slate-500/10 outline-none shadow-sm disabled:opacity-50 min-w-0"
                             >
                               <option value="">Matricular em outra turma...</option>
-                              {classes.filter(c => c.status === 'Ativo' && c.id !== formData.class_id).map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
+                              {classes.filter(c => c.status === 'Ativo' && c.id !== formData.class_id).map((c, cIdx) => (
+                                <option key={`st-cls-oth-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                               ))}
                             </select>
                             <button
@@ -1533,10 +1701,10 @@ export function Students() {
                                 <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">Nenhuma matrícula adicional</p>
                               </div>
                             ) : (
-                              studentEnrollments.map(enrollment => {
+                              studentEnrollments.map((enrollment, enIdx) => {
                                 const targetClass = classes.find(c => c.id === enrollment.class_id);
                                 return (
-                                  <div key={enrollment.id} className="flex items-center justify-between p-2.5 bg-white rounded-none border border-slate-100 shadow-sm group hover:border-slate-205 transition-all">
+                                  <div key={`st-enr-${enrollment.id || enIdx}-${enIdx}`} className="flex items-center justify-between p-2.5 bg-white rounded-none border border-slate-100 shadow-sm group hover:border-slate-205 transition-all">
                                     <div className="flex items-center gap-3">
                                       <div className="w-8 h-8 rounded bg-slate-50 flex items-center justify-center text-slate-800">
                                         <GraduationCap size={14} />
@@ -1714,8 +1882,8 @@ export function Students() {
                           tabIndex={16}
                         >
                           <option value="">Selecione...</option>
-                          {parishesList.map(p => (
-                            <option key={p.id} value={p.name}>{p.name}</option>
+                          {parishesList.map((p, pIdx) => (
+                            <option key={`st-parish-opt-${p.id || pIdx}-${pIdx}`} value={p.name}>{p.name}</option>
                           ))}
                         </select>
                       </div>
@@ -1730,8 +1898,8 @@ export function Students() {
                           tabIndex={16}
                         >
                           <option value="">Selecione...</option>
-                          {forariesList.map(f => (
-                            <option key={f.id} value={f.name}>{f.name}</option>
+                          {forariesList.map((f, fIdx) => (
+                            <option key={`st-forania-opt-${f.id || fIdx}-${fIdx}`} value={f.name}>{f.name}</option>
                           ))}
                         </select>
                       </div>

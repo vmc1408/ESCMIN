@@ -263,7 +263,12 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
     };
 
     findAncestors(filteredNavItems);
-    setOpenGroups(activeAncestors);
+    setOpenGroups(prev => {
+      if (prev.length === activeAncestors.length && activeAncestors.every((item, i) => prev[i] === item)) {
+        return prev;
+      }
+      return activeAncestors;
+    });
   }, [location.pathname, location.search]);
   
   const isGroupActive = (item: any): boolean => {

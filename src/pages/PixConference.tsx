@@ -2273,9 +2273,9 @@ export function PixConference() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredTransactions.map((t) => (
+                      {filteredTransactions.map((t, idx) => (
                         <tr 
-                          key={t.transaction_id} 
+                          key={`pix-tx-${t.transaction_id || t.id || idx}-${idx}`} 
                           className={cn(
                             "group transition-all duration-200 border-b border-slate-50",
                             selectedIds.has(String(t.transaction_id)) ? "bg-indigo-50/40" : "hover:bg-slate-50/50"
@@ -2668,9 +2668,9 @@ export function PixConference() {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100">
-                                    {batch.transactions.map((t: any) => (
+                                    {batch.transactions.map((t: any, tIdx: number) => (
                                       <tr 
-                                        key={t.id} 
+                                        key={`batch-tx-${t.id || tIdx}-${tIdx}`} 
                                         className={cn(
                                           "group transition-all hover:bg-white",
                                           selectedHistoryIds.has(String(t.id)) ? "bg-slate-50" : ""
@@ -3046,7 +3046,7 @@ export function PixConference() {
                       {filteredExtratoTransactions.map((t: any, index: number) => {
                         const studentClass = t.student ? (classes.find(c => c.id === t.student.class_id)?.name || 'Sem Turma') : '—';
                         return (
-                          <tr key={t.id || index} className="hover:bg-slate-50/30 transition-colors">
+                          <tr key={`extrato-tx-${t.id || t.transaction_id || index}-${index}`} className="hover:bg-slate-50/30 transition-colors">
                             <td className="px-8 py-4">
                               <p className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{t.transaction_id || '—'}</p>
                               <p className="text-[11px] font-bold text-slate-500 mt-0.5">{formatDateForDisplay(t.date) || t.date || '—'}</p>
@@ -3585,9 +3585,9 @@ export function PixConference() {
                 {students
                   .filter(s => normalize(s.name).includes(normalize(manualSearch)))
                   .slice(0, 15)
-                  .map(student => (
+                  .map((student, sIdx) => (
                     <button 
-                      key={student.id}
+                      key={`manual-st-${student.id || sIdx}-${sIdx}`}
                       onClick={() => handleManualMatch(student.id)}
                       className="w-full p-4 hover:bg-white rounded-2xl flex items-center justify-between group transition-all border border-transparent hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-500/5 active:scale-[0.98]"
                     >
@@ -3688,7 +3688,7 @@ export function PixConference() {
               const student = students.find(s => s.id === t.matched_student_id);
               const className = student ? (classes.find(c => c.id === student.class_id)?.name || '---') : '---';
               return (
-                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                <tr key={`print-tx-${t.transaction_id || t.id || i}-${i}`} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                   <td className="border border-black p-2 font-medium">{t.date}</td>
                   <td className="border border-black p-2">
                     <p className="font-black uppercase">{t.payer_name}</p>
