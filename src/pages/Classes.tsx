@@ -4193,34 +4193,34 @@ export function Classes() {
 
       {/* Printable Class Record */}
       {selectedClass && (
-        <div id="printable-class-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-tight relative w-full h-[270mm] max-h-[270mm] min-h-[270mm] mx-auto p-0 box-border">
+        <div id="printable-class-record" className="hidden print:flex flex-col justify-between text-slate-950 bg-white overflow-hidden font-sans leading-relaxed relative w-full h-[270mm] max-h-[270mm] min-h-[270mm] mx-auto p-0 box-border">
           {/* TOP SECTION: Header + Control Boxes + Class Data + Curriculum */}
-          <div className="flex-1 flex flex-col justify-start">
-            {/* Institutional Header */}
-            <div className="flex items-center gap-4 mb-2.5 pb-2.5 border-b-2 border-slate-900">
-              <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+          <div className="flex-1 flex flex-col justify-start pr-1">
+            {/* Institutional Header with prominent doubled logo */}
+            <div className="flex items-center gap-5 mb-2.5 pb-2.5 border-b-2 border-slate-900">
+              <div className="flex-shrink-0 w-32 h-32 flex items-center justify-center">
                 {inst?.logo_url ? (
                   <img
                     src={inst.logo_url}
-                    className="w-full h-full object-contain max-h-20 max-w-20"
+                    className="w-full h-full object-contain max-h-32 max-w-32"
                     referrerPolicy="no-referrer"
                     alt="Logo da Instituição"
                   />
                 ) : (
-                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
+                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
                     <span>SEM</span>
                     <span>LOGO</span>
                   </div>
                 )}
               </div>
               <div className="flex-1 flex flex-col justify-center">
-                <p className="text-[9pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
+                <p className="text-[10pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1.5">
                   {inst?.city_uf ? `DIOCESE DE ${inst.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                 </p>
-                <h1 className="text-[15.5pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
+                <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-950 leading-tight">
                   {inst?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                 </h1>
-                <p className="text-[9.5pt] font-bold text-slate-600 tracking-wider uppercase mt-0.5">
+                <p className="text-[10pt] font-bold text-slate-600 tracking-wider uppercase mt-1">
                   {inst?.subtitle || 'PE. JOSÉ FERNANDO DE BRITO'}
                 </p>
               </div>
@@ -4233,7 +4233,7 @@ export function Classes() {
             </div>
 
             {/* TOP CONTROL BOXES */}
-            <div className="grid grid-cols-12 gap-3 mb-2.5">
+            <div className="grid grid-cols-12 gap-3.5 mb-2.5">
               <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
                 <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
                   Controle
@@ -4272,7 +4272,7 @@ export function Classes() {
                 </div>
               </div>
 
-              <div className="col-span-3 border border-slate-800 p-2 flex flex-col justify-between items-center bg-white h-[3cm]">
+              <div className="col-span-3 border border-slate-800 p-2 flex flex-col justify-between items-center bg-white h-[3cm] mr-1">
                 <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1 w-full text-center">
                   Matriculados
                 </p>
@@ -4287,10 +4287,10 @@ export function Classes() {
             </div>
 
             {/* DADOS DA TURMA */}
-            <div className="space-y-1.5 mb-2 text-[9pt]">
+            <div className="space-y-2.5 mb-2.5 text-[9pt]">
               <div className="flex items-end gap-2">
                 <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Turma:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9.5pt] text-slate-950 px-2 pb-0.5 min-h-[19px]">
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9.5pt] text-slate-950 px-2 pb-1 min-h-[22px]">
                   {selectedClass.name}
                 </span>
               </div>
@@ -4298,13 +4298,13 @@ export function Classes() {
               <div className="flex gap-4">
                 <div className="flex-[3] flex items-end gap-2">
                   <span className="font-bold uppercase text-[8.5pt] text-slate-800">Curso Base:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-0.5 min-h-[19px]">
+                  <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
                     {selectedClass.course || 'Teologia e Ministérios'}
                   </span>
                 </div>
                 <div className="flex-[2] flex items-end gap-2">
                   <span className="font-bold uppercase text-[8.5pt] text-slate-800">Início em:</span>
-                  <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-0.5 text-center min-h-[19px]">
+                  <span className="flex-1 border-b border-slate-400 font-bold text-[9pt] text-slate-950 px-2 pb-1 text-center min-h-[22px]">
                     {selectedClass.start_date ? formatDateForDisplay(selectedClass.start_date) : '---'}
                   </span>
                 </div>
@@ -4312,7 +4312,7 @@ export function Classes() {
 
               <div className="flex items-end gap-2">
                 <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Dias de Aula:</span>
-                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-0.5 min-h-[19px]">
+                <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
                   {(selectedClass.days_of_week || []).join(', ') || 'Não especificado'}
                 </span>
               </div>
@@ -4409,7 +4409,7 @@ export function Classes() {
           </div>
 
           {/* BOTTOM SECTION: PINNED FOOTER */}
-          <div className="mt-auto pt-2 shrink-0">
+          <div className="mt-auto pt-2 shrink-0 pr-1">
             {/* RODAPÉ INSTITUCIONAL */}
             <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
               <div className="flex-1 space-y-0.5">
@@ -4427,7 +4427,7 @@ export function Classes() {
                   </p>
                 )}
               </div>
-              <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5">
+              <div className="text-right max-w-[380px] leading-tight text-slate-900 font-bold text-[7pt] space-y-0.5 pr-1">
                 {inst?.secretary && (
                   <>
                     <p className="whitespace-pre-line uppercase underline underline-offset-2 mb-0.5">Atendimento Secretaria:</p>
