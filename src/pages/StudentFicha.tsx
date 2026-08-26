@@ -1928,7 +1928,7 @@ export function StudentFicha() {
 
       {/* PRINT VERSION OF THE COMPLETED DOSSIER SHEET (HIDDEN ON SCREEN) */}
       {activeStudent && activeStudentMetrics && (
-        <div id="printable-student-record" className="hidden print:block text-slate-900 bg-white overflow-visible font-sans leading-tight w-full mx-auto print:p-0">
+        <div id="printable-student-dossier" className="hidden print:block text-slate-900 bg-white overflow-visible font-sans leading-tight w-full mx-auto print:p-0">
           
           {/* HEADER SECTION */}
           <div className="flex items-center gap-6 mb-5 pb-4 border-b border-slate-800">

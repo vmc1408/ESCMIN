@@ -72,7 +72,7 @@
     /* Reset page and body for consistent margins and high-fidelity paging */
     @page {
       size: A4 portrait;
-      margin: 8mm 10mm 8mm 10mm;
+      margin: 10mm 12mm 10mm 12mm;
     }
     
     html, body {
@@ -123,9 +123,9 @@
       justify-content: space-between !important;
       width: 100% !important;
       max-width: 100% !important;
-      height: 275mm !important;
-      min-height: 275mm !important;
-      max-height: 275mm !important;
+      height: 270mm !important;
+      min-height: 270mm !important;
+      max-height: 270mm !important;
       box-sizing: border-box !important;
       margin: 0 !important;
       padding: 0 !important;
