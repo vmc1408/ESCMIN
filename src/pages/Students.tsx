@@ -229,8 +229,28 @@ export function Students() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchAll('students', '*', 'registration_number', true);
-      setStudents(data);
+      const [data, enrollmentsData] = await Promise.all([
+        fetchAll('students', '*', 'registration_number', true),
+        fetchAll('enrollments').catch(() => [])
+      ]);
+      const currentAllEnrs = enrollmentsData || [];
+      setAllEnrollments(currentAllEnrs);
+
+      // Merge & normalize students who have active enrollments but missing class_id
+      const normalizedStudents = (data || []).map((s: Student) => {
+        if (!s.class_id) {
+          const activeEnr = currentAllEnrs.find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
+          if (activeEnr) {
+            return {
+              ...s,
+              class_id: activeEnr.class_id
+            };
+          }
+        }
+        return s;
+      });
+
+      setStudents(normalizedStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
     } finally {
@@ -266,6 +286,127 @@ export function Students() {
     }
   };
 
+  const fetchAllEnrollments = async () => {
+    try {
+      const data = await fetchAll('enrollments');
+      setAllEnrollments(data || []);
+    } catch (error: any) {
+      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
+        setAllEnrollments([]);
+        return;
+      }
+      console.error('Error fetching all enrollments:', error);
+    }
+  };
+
+  const fetchEnrollments = async (studentId: string) => {
+    try {
+      const data = await fetchQuery('enrollments', 'student_id', '==', studentId);
+      const enrs = data || [];
+      setStudentEnrollments(enrs);
+      return enrs;
+    } catch (error: any) {
+      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
+        console.warn('Tabela enrollments ainda não criada no Supabase.');
+        setStudentEnrollments([]);
+        return [];
+      }
+      console.error('Error fetching enrollments:', error);
+      return [];
+    }
+  };
+
+  const handleSelectStudent = useCallback((student: Student) => {
+    // 1. Check if student already has a direct class_id
+    let effectiveClassId = student.class_id || '';
+
+    // 2. If not, check if student has an active enrollment in allEnrollments
+    if (!effectiveClassId) {
+      const activeEnr = allEnrollments.find(e => e.student_id === student.id && (e.status || 'Ativo') === 'Ativo');
+      if (activeEnr) {
+        effectiveClassId = activeEnr.class_id;
+      }
+    }
+
+    const targetClass = classes.find(c => c.id === effectiveClassId);
+    const detectedCourse = student.course || (targetClass ? detectCourseFromClass(targetClass, coursesList) : '');
+    const startDate = student.start_date || targetClass?.start_date || '';
+
+    const enrichedStudent: Student = {
+      ...student,
+      class_id: effectiveClassId,
+      course: detectedCourse,
+      start_date: startDate
+    };
+
+    setSelectedStudent(enrichedStudent);
+    setFormData({
+      ...INITIAL_STUDENT_STATE,
+      ...student,
+      // Ensure specific fields aren't null/undefined from DB
+      name: student.name || '',
+      registration_number: student.registration_number || '',
+      status: student.status || 'Ativo',
+      class_id: effectiveClassId,
+      course: detectedCourse,
+      start_date: startDate,
+      email: student.email || '',
+      phone_mobile: student.phone_mobile || '',
+      phone_residential: student.phone_residential || '',
+      cpf: student.cpf || '',
+      rg: student.rg || '',
+      birth_date: student.birth_date,
+      address_street: student.address_street || '',
+      address_neighborhood: student.address_neighborhood || '',
+      address_city: student.address_city || 'Guarulhos',
+      address_state: student.address_state || 'SP',
+      address_zip: student.address_zip || '',
+      parish: student.parish || '',
+      forania: student.forania || '',
+      pastoral_participates: student.pastoral_participates || '',
+      photo_url: student.photo_url || ''
+    });
+    setIsEditing(false);
+    setHoverShowList(false);
+
+    // Fetch individual enrollments and perform safe backfill if primary class was missing in DB
+    fetchEnrollments(student.id).then((enrs) => {
+      if (!effectiveClassId && enrs && enrs.length > 0) {
+        const found = enrs.find((e: any) => (e.status || 'Ativo') === 'Ativo') || enrs[0];
+        if (found?.class_id) {
+          const cls = classes.find(c => c.id === found.class_id);
+          const crs = student.course || (cls ? detectCourseFromClass(cls, coursesList) : '');
+          const sDate = student.start_date || cls?.start_date || '';
+          setFormData(prev => ({
+            ...prev,
+            class_id: found.class_id,
+            course: crs,
+            start_date: sDate
+          }));
+          setSelectedStudent(prev => prev ? ({
+            ...prev,
+            class_id: found.class_id,
+            course: crs,
+            start_date: sDate
+          }) : null);
+          // Safe background backfill in database
+          saveData('students', student.id, {
+            class_id: found.class_id,
+            ...(crs ? { course: crs } : {}),
+            ...(sDate ? { start_date: sDate } : {})
+          }).catch(e => console.warn('Background class_id sync error:', e));
+        }
+      } else if (effectiveClassId && !student.class_id) {
+        // Safe background backfill in database
+        saveData('students', student.id, {
+          class_id: effectiveClassId,
+          ...(detectedCourse ? { course: detectedCourse } : {}),
+          ...(startDate ? { start_date: startDate } : {})
+        }).catch(e => console.warn('Background class_id sync error:', e));
+      }
+    });
+  }, [allEnrollments, classes, coursesList]);
+
   const handleNew = useCallback(() => {
     setSelectedStudent(null);
     const nextReg = generateNextRegistrationNumber(students);
@@ -300,22 +441,12 @@ export function Students() {
     if (studentId && students.length > 0) {
       const student = students.find(s => s.id === studentId);
       if (student) {
-        // Select student and keep in view mode (isEditing = false)
-        setSelectedStudent(student);
-        setFormData({
-          ...INITIAL_STUDENT_STATE,
-          ...student,
-          birth_date: student.birth_date,
-          start_date: student.start_date
-        });
-        setIsEditing(false);
-        fetchEnrollments(student.id);
-        
+        handleSelectStudent(student);
         // Clear state to avoid re-selecting if the user navigates away and back
         window.history.replaceState({}, document.title);
       }
     }
-  }, [students, location.state, handleNew]);
+  }, [students, location.state, handleNew, handleSelectStudent]);
 
   // Auto-fill student start date and course based on selected class
   useEffect(() => {
@@ -402,39 +533,11 @@ export function Students() {
     }
   };
 
-  const fetchAllEnrollments = async () => {
-    try {
-      const data = await fetchAll('enrollments');
-      setAllEnrollments(data || []);
-    } catch (error: any) {
-      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
-        setAllEnrollments([]);
-        return;
-      }
-      console.error('Error fetching all enrollments:', error);
-    }
-  };
-
-  const fetchEnrollments = async (studentId: string) => {
-    try {
-      const data = await fetchQuery('enrollments', 'student_id', '==', studentId);
-      setStudentEnrollments(data || []);
-    } catch (error: any) {
-      // Ingore 404 (table not found) to prevent crash before migration
-      if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
-        console.warn('Tabela enrollments ainda não criada no Supabase.');
-        setStudentEnrollments([]);
-        return;
-      }
-      console.error('Error fetching enrollments:', error);
-    }
-  };
-
   const handleAddEnrollment = async (classId: string) => {
     if (!selectedStudent || !classId) return;
     
     // Check if already enrolled
-    if (studentEnrollments.some(e => e.class_id === classId)) {
+    if (studentEnrollments.some(e => e.class_id === classId && (e.status || 'Ativo') === 'Ativo')) {
       setNotification({ type: 'error', message: 'Aluno já está matriculado nesta turma' });
       setTimeout(() => setNotification(null), 3000);
       return;
@@ -450,9 +553,37 @@ export function Students() {
 
     try {
       await saveData('enrollments', undefined, newEnrollment);
+
+      // If student has no primary class, also set this as their primary class
+      if (!formData.class_id && !selectedStudent.class_id) {
+        const targetClass = classes.find(c => c.id === classId);
+        const detectedCourse = selectedStudent.course || (targetClass ? detectCourseFromClass(targetClass, coursesList) : '');
+        const startDate = selectedStudent.start_date || targetClass?.start_date || '';
+
+        await saveData('students', selectedStudent.id, {
+          class_id: classId,
+          ...(detectedCourse ? { course: detectedCourse } : {}),
+          ...(startDate ? { start_date: startDate } : {})
+        });
+
+        setFormData(prev => ({
+          ...prev,
+          class_id: classId,
+          course: detectedCourse,
+          start_date: startDate
+        }));
+        setSelectedStudent(prev => prev ? ({
+          ...prev,
+          class_id: classId,
+          course: detectedCourse,
+          start_date: startDate
+        }) : null);
+      }
+
       setNotification({ type: 'success', message: 'Matrícula realizada com sucesso!' });
       fetchEnrollments(selectedStudent.id);
       fetchAllEnrollments();
+      fetchStudents();
     } catch (error: any) {
       setNotification({ type: 'error', message: 'Erro ao matricular: ' + error.message });
     } finally {
@@ -462,10 +593,37 @@ export function Students() {
 
   const handleRemoveEnrollment = async (enrollmentId: string) => {
     try {
+      const enrToRemove = studentEnrollments.find(e => e.id === enrollmentId);
       await deleteData('enrollments', enrollmentId);
+
+      // If this removed enrollment was the student's primary class_id, re-evaluate primary class
+      if (enrToRemove && selectedStudent && selectedStudent.class_id === enrToRemove.class_id) {
+        const remaining = studentEnrollments.filter(e => e.id !== enrollmentId && (e.status || 'Ativo') === 'Ativo');
+        const nextPrimaryClassId = remaining[0]?.class_id || null;
+        const nextClass = nextPrimaryClassId ? classes.find(c => c.id === nextPrimaryClassId) : null;
+        const nextCourse = nextClass ? detectCourseFromClass(nextClass, coursesList) : '';
+
+        await saveData('students', selectedStudent.id, {
+          class_id: nextPrimaryClassId,
+          ...(nextCourse ? { course: nextCourse } : {})
+        });
+
+        setFormData(prev => ({
+          ...prev,
+          class_id: nextPrimaryClassId || '',
+          course: nextCourse || prev.course
+        }));
+        setSelectedStudent(prev => prev ? ({
+          ...prev,
+          class_id: nextPrimaryClassId || '',
+          course: nextCourse || prev.course
+        }) : null);
+      }
+
       setNotification({ type: 'success', message: 'Matrícula removida com sucesso!' });
       if (selectedStudent) fetchEnrollments(selectedStudent.id);
       fetchAllEnrollments();
+      fetchStudents();
     } catch (error: any) {
       setNotification({ type: 'error', message: 'Erro ao remover matrícula: ' + error.message });
     } finally {
@@ -478,7 +636,7 @@ export function Students() {
     setIsAssigningClass(true);
     try {
       const targetClass = classes.find(c => c.id === quickAssignClassId);
-      const detectedCourse = targetClass ? detectCourseFromClass(targetClass) : selectedStudent.course;
+      const detectedCourse = targetClass ? detectCourseFromClass(targetClass, coursesList) : selectedStudent.course;
       
       // Update student's primary class
       await saveData('students', selectedStudent.id, {
@@ -524,39 +682,6 @@ export function Students() {
     }
   };
 
-  const handleSelectStudent = useCallback((student: Student) => {
-    setSelectedStudent(student);
-    setFormData({
-      ...INITIAL_STUDENT_STATE,
-      ...student,
-      // Ensure specific fields aren't null/undefined from DB
-      name: student.name || '',
-      registration_number: student.registration_number || '',
-      status: student.status || 'Ativo',
-      class_id: student.class_id || '',
-      email: student.email || '',
-      phone_mobile: student.phone_mobile || '',
-      phone_residential: student.phone_residential || '',
-      cpf: student.cpf || '',
-      rg: student.rg || '',
-      birth_date: student.birth_date,
-      address_street: student.address_street || '',
-      address_neighborhood: student.address_neighborhood || '',
-      address_city: student.address_city || 'Guarulhos',
-      address_state: student.address_state || 'SP',
-      address_zip: student.address_zip || '',
-      parish: student.parish || '',
-      forania: student.forania || '',
-      course: student.course || '',
-      pastoral_participates: student.pastoral_participates || '',
-      start_date: student.start_date,
-      photo_url: student.photo_url || ''
-    });
-    setIsEditing(false);
-    setHoverShowList(false);
-    fetchEnrollments(student.id);
-  }, []);
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -582,7 +707,8 @@ export function Students() {
         ...formData,
         birth_date: parseDateToDB(formData.birth_date),
         start_date: parseDateToDB(formData.start_date),
-        class_id: formData.class_id || null
+        class_id: formData.class_id || null,
+        course: formData.course || null
       };
 
       // Set created_at only if it's the first time saving (no id)
@@ -606,18 +732,28 @@ export function Students() {
         }
       }
 
-      // Auto-enroll in selected class if it's new
-      if (isNew && savedId && dataToSave.class_id) {
+      const effectiveStudentId = savedId || selectedStudent?.id;
+
+      // Auto-ensure enrollment in selected primary class in the enrollments table
+      if (effectiveStudentId && dataToSave.class_id) {
         try {
-          await saveData('enrollments', undefined, {
-            student_id: savedId,
-            class_id: dataToSave.class_id,
-            status: 'Ativo',
-            enrollment_date: new Date().toISOString().split('T')[0],
-            created_at: new Date().toISOString()
-          });
+          const currentEnrs = await fetchQuery('enrollments', 'student_id', '==', effectiveStudentId).catch(() => []);
+          const existingEnr = (currentEnrs || []).find((e: any) => e.class_id === dataToSave.class_id);
+          if (!existingEnr) {
+            await saveData('enrollments', undefined, {
+              student_id: effectiveStudentId,
+              class_id: dataToSave.class_id,
+              status: 'Ativo',
+              enrollment_date: dataToSave.start_date || new Date().toISOString().split('T')[0],
+              created_at: new Date().toISOString()
+            });
+          } else if (existingEnr.status !== 'Ativo') {
+            await saveData('enrollments', existingEnr.id, {
+              status: 'Ativo'
+            });
+          }
         } catch (enrollErr) {
-          console.error('Error auto-enrolling student:', enrollErr);
+          console.error('Error ensuring primary enrollment on save:', enrollErr);
         }
       }
       
@@ -625,7 +761,8 @@ export function Students() {
       setIsEditing(false);
       setUploadingPhoto(false); // Reset upload state on save success
       setSelectedStudent(null);
-      fetchStudents();
+      await fetchStudents();
+      await fetchAllEnrollments();
     } catch (error: any) {
       console.error('Error saving student:', error);
       setNotification({ type: 'error', message: 'Erro ao salvar aluno: ' + error.message });
@@ -1727,7 +1864,7 @@ export function Students() {
                           <div className="flex items-center justify-between">
                             <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
                               <BookOpen size={14} className="shrink-0" />
-                              <span className="truncate">Matrículas em Outras Turmas</span>
+                              <span className="truncate">Matrículas em Outras Turmas (Adicionais)</span>
                             </h4>
                           </div>
 
@@ -1739,7 +1876,7 @@ export function Students() {
                               className="w-full sm:flex-1 px-3 py-2 bg-white border border-slate-200 rounded-none text-xs focus:ring-1 focus:ring-slate-500/10 outline-none shadow-sm disabled:opacity-50 min-w-0"
                             >
                               <option value="">Matricular em outra turma...</option>
-                              {classes.filter(c => c.status === 'Ativo' && c.id !== formData.class_id).map((c, cIdx) => (
+                              {classes.filter(c => c.status === 'Ativo' && c.id !== (formData.class_id || selectedStudent?.class_id) && !studentEnrollments.some(e => e.class_id === c.id && (e.status || 'Ativo') === 'Ativo')).map((c, cIdx) => (
                                 <option key={`st-cls-oth-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                               ))}
                             </select>
@@ -1756,41 +1893,50 @@ export function Students() {
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
-                            {studentEnrollments.length === 0 ? (
-                              <div className="col-span-full py-4 text-center bg-white/50 rounded-none border border-dashed border-slate-200">
-                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">Nenhuma matrícula adicional</p>
-                              </div>
-                            ) : (
-                              studentEnrollments.map((enrollment, enIdx) => {
-                                const targetClass = classes.find(c => c.id === enrollment.class_id);
-                                return (
-                                  <div key={`st-enr-${enrollment.id || enIdx}-${enIdx}`} className="flex items-center justify-between p-2.5 bg-white rounded-none border border-slate-100 shadow-sm group hover:border-slate-205 transition-all">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded bg-slate-50 flex items-center justify-center text-slate-800">
-                                        <GraduationCap size={14} />
-                                      </div>
-                                      <div className="leading-tight">
-                                        <p className="text-[11px] font-bold text-slate-700 uppercase">{targetClass?.name || 'Turma N/I'}</p>
-                                        <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
-                                          {enrollment.enrollment_date ? formatDateForDisplay(enrollment.enrollment_date) : ''}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    {isEditing && (
-                                      <button 
-                                        onClick={() => handleRemoveEnrollment(enrollment.id)}
-                                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
-                                        title="Remover Matrícula"
-                                      >
-                                        <X size={14} />
-                                      </button>
-                                    )}
+                          {(() => {
+                            const primaryClsId = formData.class_id || selectedStudent?.class_id;
+                            const secondaryEnrollments = studentEnrollments.filter(e => e.class_id !== primaryClsId && (e.status || 'Ativo') === 'Ativo');
+
+                            return (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                                {secondaryEnrollments.length === 0 ? (
+                                  <div className="col-span-full py-4 text-center bg-white/50 rounded-none border border-dashed border-slate-200">
+                                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">
+                                      {primaryClsId ? 'Nenhuma turma adicional vinculada (Aluno matriculado na turma principal acima)' : 'Nenhuma matrícula adicional'}
+                                    </p>
                                   </div>
-                                );
-                              })
-                            )}
-                          </div>
+                                ) : (
+                                  secondaryEnrollments.map((enrollment, enIdx) => {
+                                    const targetClass = classes.find(c => c.id === enrollment.class_id);
+                                    return (
+                                      <div key={`st-enr-${enrollment.id || enIdx}-${enIdx}`} className="flex items-center justify-between p-2.5 bg-white rounded-none border border-slate-100 shadow-sm group hover:border-slate-205 transition-all">
+                                        <div className="flex items-center gap-3">
+                                          <div className="w-8 h-8 rounded bg-slate-50 flex items-center justify-center text-slate-800">
+                                            <GraduationCap size={14} />
+                                          </div>
+                                          <div className="leading-tight">
+                                            <p className="text-[11px] font-bold text-slate-700 uppercase">{targetClass?.name || 'Turma N/I'}</p>
+                                            <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
+                                              {enrollment.enrollment_date ? formatDateForDisplay(enrollment.enrollment_date) : ''}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        {isEditing && (
+                                          <button 
+                                            onClick={() => handleRemoveEnrollment(enrollment.id)}
+                                            className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                                            title="Remover Matrícula"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-none mb-6 text-center">

@@ -167,14 +167,25 @@ export function Impressos() {
     async function loadData() {
       try {
         setLoading(true);
-        const [studs, clss, instSettings, conts] = await Promise.all([
+        const [studs, clss, instSettings, conts, enrollmentsData] = await Promise.all([
           fetchAll('students', '*', 'name'),
           fetchAll('classes', '*', 'name'),
           financialService.getInstitutionSettings(),
-          financialService.getContributions()
+          financialService.getContributions(),
+          fetchAll('enrollments').catch(() => [])
         ]);
         
-        setStudents(studs || []);
+        const normalizedStudents = (studs || []).map((s: Student) => {
+          if (!s.class_id) {
+            const activeEnr = (enrollmentsData || []).find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
+            if (activeEnr) {
+              return { ...s, class_id: activeEnr.class_id };
+            }
+          }
+          return s;
+        });
+
+        setStudents(normalizedStudents);
         setContributions(conts || []);
         
         // Normalize classes (subject_ids handling)

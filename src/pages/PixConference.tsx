@@ -627,10 +627,22 @@ export function PixConference() {
     setLoading(true);
     try {
       // Filter for active students as per global policy
-      const data = await fetchQuery('students', [
-        { field: 'status', operator: '==', value: 'Ativo' }
+      const [data, enrollmentsData] = await Promise.all([
+        fetchQuery('students', [
+          { field: 'status', operator: '==', value: 'Ativo' }
+        ]),
+        fetchAll('enrollments').catch(() => [])
       ]);
-      setStudents(data);
+      const normalized = (data || []).map((s: Student) => {
+        if (!s.class_id) {
+          const activeEnr = (enrollmentsData || []).find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
+          if (activeEnr) {
+            return { ...s, class_id: activeEnr.class_id };
+          }
+        }
+        return s;
+      });
+      setStudents(normalized);
     } catch (error) {
       console.error('Error fetching students:', error);
     } finally {

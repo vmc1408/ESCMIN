@@ -1073,7 +1073,8 @@ export function Reports() {
         calendarData,
         gradesData,
         assessmentsData,
-        certificatesData
+        certificatesData,
+        enrollmentsData
       ] = await Promise.all([
         fetchAll('students'),
         fetchAll('teachers'),
@@ -1086,7 +1087,8 @@ export function Reports() {
         ]),
         fetchAll('grades'),
         fetchAll('assessments'),
-        fetchAll('certificates')
+        fetchAll('certificates'),
+        fetchAll('enrollments').catch(() => [])
       ]);
 
       setDbGrades(gradesData || []);
@@ -1167,7 +1169,20 @@ export function Reports() {
         return normalized;
       });
 
-      setStudents(studentsData || []);
+      const normalizedStudents = (studentsData || []).map((s: Student) => {
+        if (!s.class_id) {
+          const activeEnr = (enrollmentsData || []).find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
+          if (activeEnr) {
+            return {
+              ...s,
+              class_id: activeEnr.class_id
+            };
+          }
+        }
+        return s;
+      });
+
+      setStudents(normalizedStudents);
       setTeachers(normalizedTeachers);
       setClasses(normalizedClasses);
       setSubjects(normalizedSubjects);
@@ -1176,7 +1191,7 @@ export function Reports() {
       setTotalClassDays(calendarData?.length || 0);
 
       // 3. Process Stats
-      const sData = studentsData || [];
+      const sData = normalizedStudents;
       const pData = pixData || [];
       const cData = classesData || [];
       const tData = normalizedTeachers;

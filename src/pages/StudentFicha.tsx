@@ -515,7 +515,7 @@ export function StudentFicha() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [studs, clss, subs, assms, grds, atts, certs, instSettings, academicParamsData] = await Promise.all([
+      const [studs, clss, subs, assms, grds, atts, certs, instSettings, academicParamsData, _acadSettings, enrollmentsData] = await Promise.all([
         fetchAll('students', '*', 'name'),
         fetchAll('classes', '*', 'name'),
         fetchAll('subjects', '*', 'name'),
@@ -525,10 +525,24 @@ export function StudentFicha() {
         fetchAll('certificates', '*', 'created_at', true),
         financialService.getInstitutionSettings(),
         fetchAll('academic_parameters', '*', ''),
-        fetchAcademicSettings()
+        fetchAcademicSettings(),
+        fetchAll('enrollments').catch(() => [])
       ]);
 
-      setStudents(studs || []);
+      const normalizedStudents = (studs || []).map((s: Student) => {
+        if (!s.class_id) {
+          const activeEnr = (enrollmentsData || []).find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
+          if (activeEnr) {
+            return {
+              ...s,
+              class_id: activeEnr.class_id
+            };
+          }
+        }
+        return s;
+      });
+
+      setStudents(normalizedStudents);
       const normalizedClasses = (clss || []).map((cls: Class) => {
         let normalized = { ...cls };
         let sIds: string[] = [];
