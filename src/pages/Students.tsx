@@ -745,7 +745,7 @@ export function Students() {
           </div>
 
           {/* Document Title */}
-          <div className="text-center mb-2.5">
+          <div className="text-center mt-1 mb-4">
             <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
               Ficha de Inscrição
             </h2>
@@ -759,12 +759,12 @@ export function Students() {
                 Controle da Escola
               </p>
               <div className="flex-1 flex flex-col justify-center items-center">
-                <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1 text-center">
+                <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 text-center">
                   Nº de Matrícula
                 </p>
-                <div className="border border-slate-400 bg-slate-50/70 h-8 w-28 flex items-center justify-center font-black text-[11.5pt] text-slate-950">
+                <p className="font-black text-[13pt] tracking-wider text-slate-950 text-center">
                   {selectedStudent.registration_number || '---'}
-                </div>
+                </p>
               </div>
             </div>
 
@@ -822,8 +822,8 @@ export function Students() {
               )}
             </div>
 
-            {/* Foto 3x4 with slight right inset */}
-            <div className="col-span-3 flex justify-end pr-1">
+            {/* Foto 3x4 positioned more to the left */}
+            <div className="col-span-3 flex justify-center">
               <div className="border border-slate-800 bg-slate-50/50 flex items-center justify-center relative w-[2.4cm] h-[3cm] overflow-hidden">
                 {selectedStudent.photo_url ? (
                   <img
@@ -1003,8 +1003,8 @@ export function Students() {
         {/* BOTTOM SECTION: DATE, SIGNATURE AND RODAPÉ PINNED AT BOTTOM */}
         <div className="mt-auto pt-2 shrink-0 pr-1">
           {/* DATE AND SIGNATURE */}
-          <div className="mb-2.5">
-            <div className="flex justify-between items-end px-2">
+          <div className="my-4">
+            <div className="flex justify-between items-end px-3 gap-6">
               <div className="flex flex-col pb-0.5">
                 <p className="text-[8.5pt] font-bold text-slate-900">
                   Guarulhos, <span>
@@ -1013,7 +1013,7 @@ export function Students() {
                 </p>
               </div>
               <div className="flex flex-col items-center">
-                <div className="w-[80mm] border-t-2 border-slate-900 mb-1"></div>
+                <div className="w-[70mm] border-t-2 border-slate-900 mb-1"></div>
                 <p className="text-[7.5pt] font-black uppercase tracking-[0.2em] text-slate-900">
                   Assinatura do(a) Aluno(a)
                 </p>
