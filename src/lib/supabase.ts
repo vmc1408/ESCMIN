@@ -151,6 +151,22 @@ if (isSupabaseConfigured) {
   console.warn('[Supabase] Configuração ausente ou incompleta. Verifique as chaves VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.');
 }
 
+export const isJwtOrTokenError = (err: any): boolean => {
+  if (!err) return false;
+  const msg = (typeof err === 'string' ? err : err.message || err.details || String(err || '')).toLowerCase();
+  const code = String(err.code || '').toLowerCase();
+  return (
+    msg.includes('jwt') ||
+    msg.includes('token') ||
+    msg.includes('pgrst301') ||
+    code === 'pgrst301' ||
+    msg.includes('issued at future') ||
+    msg.includes('issued in future') ||
+    msg.includes('invalid claim') ||
+    msg.includes('bad jwt')
+  );
+};
+
 export const clearCorruptedAuthTokens = () => {
   if (typeof window === 'undefined') return;
   try {
@@ -327,6 +343,32 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
     );
 
     if (error) {
+      // JWT / Token skew error: clean invalid local tokens, reset local auth and retry with clean anon credentials
+      if (isJwtOrTokenError(error)) {
+        console.warn(`[Supabase] Token JWT inválido ou dessincronizado detectado em ${tableName} (${error.message}). Limpando sessão local e re-executando...`);
+        clearCorruptedAuthTokens();
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+
+        const retry = await fetchWithTimeout(
+          supabase.from(tableName).select(select).range(from, from + step - 1),
+          timeoutMs
+        );
+        if (!retry.error) {
+          if (retry.data && retry.data.length > 0) {
+            allData = [...allData, ...retry.data];
+            from += step;
+            if (retry.data.length < step) hasMore = false;
+            continue;
+          } else {
+            hasMore = false;
+            continue;
+          }
+        } else {
+          console.warn(`[Supabase] Não foi possível recuperar dados de ${tableName} após limpeza de JWT. Retornando dados obtidos.`);
+          return allData;
+        }
+      }
+
       // Common transient errors: return empty array instead of throwing to prevent component crashes
       const isTransient = 
         error.code === '42P01' || 

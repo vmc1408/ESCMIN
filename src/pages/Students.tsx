@@ -769,37 +769,42 @@ export function Students() {
             </div>
 
             {/* Cursos */}
-            <div className="col-span-6 border border-slate-800 p-2 h-[3cm] flex flex-col justify-between bg-white">
+            <div className="col-span-6 border border-slate-800 p-2.5 h-[3cm] flex flex-col justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1 flex items-center justify-between">
                 <span>CURSOS:</span>
                 <span className="text-[6.5pt] text-slate-400 font-semibold lowercase">selecione o curso de ingresso</span>
               </p>
-              <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1.5 content-center py-1">
-                {['Teologia', 'Latim', 'Doutrina Social da Igreja', 'S. Negros'].map(course => {
-                  const courseFullName = course === 'S. Negros' ? 'História dos Santos Negros' : course;
+              <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2.5 content-center py-1">
+                {[
+                  { key: 'Teologia', name: 'Teologia' },
+                  { key: 'Latim', name: 'Latim' },
+                  { key: 'Doutrina Social da Igreja', name: 'Doutrina Social da Igreja' },
+                  { key: 'S. Negros', name: 'História dos Santos Negros' }
+                ].map(course => {
+                  const courseFullName = course.name;
                   const primaryClassCourse = currentClass ? detectCourseFromClass(currentClass) : '';
                   const isInPrimaryClass = primaryClassCourse.toLowerCase() === courseFullName.toLowerCase() ||
-                    (currentClass?.name?.toLowerCase() || '').includes(course.toLowerCase());
+                    (currentClass?.name?.toLowerCase() || '').includes(course.key.toLowerCase());
 
                   const isInExtraEnrollments = studentEnrollments.some(enrollment => {
                     const targetClass = classes.find(c => c.id === enrollment.class_id);
                     const enrolledCourse = targetClass ? detectCourseFromClass(targetClass) : '';
                     return (enrolledCourse.toLowerCase() === courseFullName.toLowerCase() ||
-                      (targetClass?.name?.toLowerCase() || '').includes(course.toLowerCase())) &&
+                      (targetClass?.name?.toLowerCase() || '').includes(course.key.toLowerCase())) &&
                       enrollment.status === 'Ativo';
                   });
 
                   const isChecked = isInPrimaryClass || isInExtraEnrollments ||
                     (selectedStudent.course?.toLowerCase() === courseFullName.toLowerCase()) ||
-                    (selectedStudent.course?.toLowerCase() || '').includes(course.toLowerCase());
+                    (selectedStudent.course?.toLowerCase() || '').includes(course.key.toLowerCase());
                   
                   return (
-                    <div key={course} className="flex items-center gap-1.5">
-                      <div className="w-3.5 h-3.5 border border-slate-900 flex items-center justify-center bg-white relative shrink-0">
-                        {isChecked && <span className="text-[8.5pt] font-black leading-none text-slate-950">X</span>}
+                    <div key={course.key} className="flex items-start gap-2">
+                      <div className="w-[19px] h-[19px] border-[1.8px] border-slate-900 rounded-[2px] flex items-center justify-center bg-white relative shrink-0 mt-0.5">
+                        {isChecked && <span className="text-[10pt] font-black leading-none text-slate-950">✕</span>}
                       </div>
-                      <span className="text-[8pt] font-bold leading-none uppercase text-slate-900">
-                        {course === 'S. Negros' ? 'História dos Santos Negros' : course}
+                      <span className="text-[7.5pt] font-bold leading-tight uppercase text-slate-900">
+                        {course.name}
                       </span>
                     </div>
                   );

@@ -1458,22 +1458,22 @@ export function Impressos() {
                         <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-1 mb-2">
                           CURSO:
                         </h4>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[12px] font-bold text-slate-800">
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
-                            <span>Teologia</span>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[12px] font-bold text-slate-800">
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-[18px] h-[18px] border-2 border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
+                            <span className="leading-snug">Teologia</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
-                            <span>Latim</span>
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-[18px] h-[18px] border-2 border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
+                            <span className="leading-snug">Latim</span>
                           </div>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
-                            <span>Doutrina Social da Igreja</span>
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-[18px] h-[18px] border-2 border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
+                            <span className="leading-snug">Doutrina Social da Igreja</span>
                           </div>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <div className="w-4 h-4 border-2 border-slate-900 rounded-sm shrink-0 bg-white" />
-                            <span>História dos Santos Negros</span>
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-[18px] h-[18px] border-2 border-slate-900 rounded-[2px] shrink-0 bg-white mt-0.5" />
+                            <span className="leading-snug">História dos Santos Negros</span>
                           </div>
                         </div>
                       </div>

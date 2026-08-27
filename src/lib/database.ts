@@ -1,4 +1,4 @@
-import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout, isDbConnected, connectionError } from './supabase';
+import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout, isDbConnected, connectionError, isJwtOrTokenError, clearCorruptedAuthTokens } from './supabase';
 
 // LocalStorage fallback helpers
 export const isTableUsingFallback = (tableName: string): boolean => {
@@ -267,6 +267,13 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     }
     return sbData || [];
   } catch (err: any) {
+    if (isJwtOrTokenError(err)) {
+      console.warn(`[Supabase Fetch] Token/JWT dessincronizado em ${collectionName}. Limpando credenciais locais e usando dados disponíveis.`);
+      clearCorruptedAuthTokens();
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      return returnLocalData();
+    }
+
     if (isDatabaseMissingOrCacheError(err)) {
       console.warn(`[Supabase Fetch Fallback] Tabela "${collectionName}" não encontrada. Usando fallback local.`);
       setTableUsingFallback(collectionName, true);
@@ -342,6 +349,14 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
     }
     return data;
   } catch (err: any) {
+    if (isJwtOrTokenError(err)) {
+      console.warn(`[Supabase Fetch] Token/JWT dessincronizado ao buscar ID ${id} em ${collectionName}. Limpando credenciais locais.`);
+      clearCorruptedAuthTokens();
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      const list = getLocalCollection(collectionName);
+      return list.find((x: any) => x.id === id) || null;
+    }
+
     if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
       const list = getLocalCollection(collectionName);
@@ -452,6 +467,13 @@ export const fetchQuery = async (
     if (result?.error) throw result.error;
     return result?.data || [];
   } catch (err: any) {
+    if (isJwtOrTokenError(err)) {
+      console.warn(`[Supabase Fetch] Token/JWT dessincronizado ao executar query em ${collectionName}. Limpando credenciais locais.`);
+      clearCorruptedAuthTokens();
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      return queryLocalData();
+    }
+
     if (isDatabaseMissingOrCacheError(err)) {
       setTableUsingFallback(collectionName, true);
       return queryLocalData();

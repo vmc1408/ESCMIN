@@ -144,7 +144,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lower.includes('refresh token not found') ||
         lower.includes('refresh_token_not_found') ||
         lower.includes('already used') ||
-        lower.includes('token is expired')
+        lower.includes('token is expired') ||
+        lower.includes('jwt issued at future') ||
+        lower.includes('jwt issued in future') ||
+        lower.includes('jwt') ||
+        lower.includes('pgrst301') ||
+        lower.includes('bad jwt')
       );
     };
 
