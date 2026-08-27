@@ -810,14 +810,14 @@ export function Teachers() {
             </div>
           </div>
 
-          <div className="text-center mt-1 mb-4">
+          <div className="text-center mt-3 mb-5">
             <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
               Ficha do Professor
             </h2>
           </div>
 
           {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-3.5 mb-2.5">
+          <div className="grid grid-cols-12 gap-3.5 mb-5">
             <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
                 Controle
@@ -844,7 +844,7 @@ export function Teachers() {
             </div>
 
             <div className="col-span-3 flex justify-center">
-              <div className="border border-slate-800 bg-slate-50/50 flex items-center justify-center relative w-[2.4cm] h-[3cm] overflow-hidden">
+              <div className="flex items-center justify-center relative w-[2.4cm] h-[3cm] overflow-hidden">
                 {formData.photo_url || selectedTeacher.photo_url ? (
                   <img
                     src={formData.photo_url || selectedTeacher.photo_url}
@@ -853,7 +853,7 @@ export function Teachers() {
                     alt="Foto do Professor"
                   />
                 ) : (
-                  <div className="text-center text-slate-300 uppercase">
+                  <div className="w-full h-full border border-dashed border-slate-300 flex flex-col items-center justify-center text-center text-slate-300 uppercase">
                     <p className="text-[7pt] font-black tracking-widest">FOTO 3X4</p>
                     <span className={cn(
                       "inline-block mt-1 px-1.5 py-0.5 text-[6pt] font-black uppercase",

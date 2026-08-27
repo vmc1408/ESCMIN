@@ -745,14 +745,14 @@ export function Students() {
           </div>
 
           {/* Document Title */}
-          <div className="text-center mt-1 mb-4">
+          <div className="text-center mt-3 mb-5">
             <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
               Ficha de Inscrição
             </h2>
           </div>
 
           {/* TOP CONTROL BOXES: Matrícula + Cursos + Foto 3x4 */}
-          <div className="grid grid-cols-12 gap-3.5 mb-2.5">
+          <div className="grid grid-cols-12 gap-3.5 mb-5">
             {/* Controle / Matrícula */}
             <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
@@ -822,9 +822,9 @@ export function Students() {
               )}
             </div>
 
-            {/* Foto 3x4 positioned more to the left */}
+            {/* Foto 3x4 without borders */}
             <div className="col-span-3 flex justify-center">
-              <div className="border border-slate-800 bg-slate-50/50 flex items-center justify-center relative w-[2.4cm] h-[3cm] overflow-hidden">
+              <div className="flex items-center justify-center relative w-[2.4cm] h-[3cm] overflow-hidden">
                 {selectedStudent.photo_url ? (
                   <img
                     src={selectedStudent.photo_url}
@@ -833,7 +833,7 @@ export function Students() {
                     alt="Foto do Aluno"
                   />
                 ) : (
-                  <div className="text-center text-slate-300 uppercase">
+                  <div className="w-full h-full border border-dashed border-slate-300 flex items-center justify-center text-center text-slate-300 uppercase">
                     <p className="text-[7pt] font-black tracking-widest">FOTO 3X4</p>
                   </div>
                 )}
@@ -1001,9 +1001,9 @@ export function Students() {
         </div>
 
         {/* BOTTOM SECTION: DATE, SIGNATURE AND RODAPÉ PINNED AT BOTTOM */}
-        <div className="mt-auto pt-2 shrink-0 pr-1">
+        <div className="mt-auto pt-3 shrink-0 pr-1">
           {/* DATE AND SIGNATURE */}
-          <div className="my-4">
+          <div className="mt-2 mb-6">
             <div className="flex justify-between items-end px-3 gap-6">
               <div className="flex flex-col pb-0.5">
                 <p className="text-[8.5pt] font-bold text-slate-900">
@@ -1022,7 +1022,7 @@ export function Students() {
           </div>
 
           {/* RODAPÉ */}
-          <div className="border-t-2 border-slate-900 pt-1.5 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
+          <div className="border-t-2 border-slate-900 pt-2 pb-0 flex justify-between items-start text-slate-900 uppercase tracking-tight text-[7pt]">
             <div className="flex-1 space-y-0.5">
               <p className="leading-snug font-bold">
                 {institution?.address}
