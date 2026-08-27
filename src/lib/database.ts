@@ -1129,6 +1129,59 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
 };
 
 /**
+ * Verifies relational integrity between classes, students and enrollments.
+ * Automatically purges orphan enrollments that reference non-existent classes or students,
+ * and clears invalid class_id from students referencing deleted classes.
+ */
+export const cleanOrphanEnrollments = async (): Promise<{ deletedEnrollments: number; fixedStudents: number }> => {
+  try {
+    const [allStudents, allClasses, allEnrollments] = await Promise.all([
+      fetchAll('students').catch(() => []),
+      fetchAll('classes').catch(() => []),
+      fetchAll('enrollments').catch(() => [])
+    ]);
+
+    const validClassIds = new Set((allClasses || []).map((c: any) => c.id));
+    const validStudentIds = new Set((allStudents || []).map((s: any) => s.id));
+
+    let deletedEnrollments = 0;
+    let fixedStudents = 0;
+
+    // 1. Find and purge orphan enrollments referencing deleted/non-existent classes or students
+    const orphanEnrollmentIds = (allEnrollments || [])
+      .filter((e: any) => !e.class_id || !validClassIds.has(e.class_id) || !e.student_id || !validStudentIds.has(e.student_id))
+      .map((e: any) => e.id);
+
+    if (orphanEnrollmentIds.length > 0) {
+      await deleteBatch('enrollments', orphanEnrollmentIds);
+      deletedEnrollments = orphanEnrollmentIds.length;
+      console.info(`[Integrity] Limpas ${deletedEnrollments} matrículas órfãs vinculadas a turmas inexistentes.`);
+    }
+
+    // 2. Find and fix students with invalid class_id
+    for (const student of allStudents || []) {
+      if (student.class_id && !validClassIds.has(student.class_id)) {
+        // Find if student has another valid active enrollment
+        const validEnr = (allEnrollments || []).find((e: any) => 
+          e.student_id === student.id && 
+          (e.status || 'Ativo') === 'Ativo' && 
+          e.class_id && 
+          validClassIds.has(e.class_id)
+        );
+        const newClassId = validEnr ? validEnr.class_id : null;
+        await saveData('students', student.id, { class_id: newClassId });
+        fixedStudents++;
+      }
+    }
+
+    return { deletedEnrollments, fixedStudents };
+  } catch (err: any) {
+    console.warn('[cleanOrphanEnrollments] Erro durante verificação de integridade:', err);
+    return { deletedEnrollments: 0, fixedStudents: 0 };
+  }
+};
+
+/**
  * Utility to fetch institution settings
  */
 export const getInstitutionSettings = async () => {

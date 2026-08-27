@@ -175,12 +175,20 @@ export function Impressos() {
           fetchAll('enrollments').catch(() => [])
         ]);
         
+        const validClassIds = new Set((clss || []).map((c: any) => c.id));
         const normalizedStudents = (studs || []).map((s: Student) => {
-          if (!s.class_id) {
-            const activeEnr = (enrollmentsData || []).find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
-            if (activeEnr) {
-              return { ...s, class_id: activeEnr.class_id };
-            }
+          const hasValidDirectClass = s.class_id && validClassIds.has(s.class_id);
+          if (!hasValidDirectClass) {
+            const activeEnr = (enrollmentsData || []).find((e: any) => 
+              e.student_id === s.id && 
+              (e.status || 'Ativo') === 'Ativo' && 
+              e.class_id && 
+              validClassIds.has(e.class_id)
+            );
+            return {
+              ...s,
+              class_id: activeEnr ? activeEnr.class_id : ''
+            };
           }
           return s;
         });

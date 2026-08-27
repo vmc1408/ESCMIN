@@ -28,7 +28,9 @@ import {
   Info,
   BookOpen,
   Users,
-  ArrowLeft
+  ArrowLeft,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
@@ -36,7 +38,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass } from '../lib/utils';
-import { uploadImage, fetchAll, saveData, deleteData, saveBatch, fetchQuery, getInstitutionSettings } from '../lib/database';
+import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments } from '../lib/database';
 import { Student, Class, Enrollment, Course } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,12 +49,14 @@ const StudentItem = React.memo(({
   isSelected, 
   onSelect, 
   isUnallocated,
+  parallelClassesCount,
   className 
 }: { 
   student: Student, 
   isSelected: boolean, 
   onSelect: (s: Student) => void,
   isUnallocated?: boolean,
+  parallelClassesCount?: number,
   className?: string
 }) => {
   return (
@@ -75,7 +79,7 @@ const StudentItem = React.memo(({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{student.name}</p>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
           <span className={cn(
             "text-[9px] font-bold px-1.5 py-0.5 rounded-none uppercase tracking-wider",
             student.status === 'Inativo' ? "bg-red-50 text-red-700 border border-red-100" : "bg-emerald-50 text-emerald-700 border border-emerald-100"
@@ -85,6 +89,12 @@ const StudentItem = React.memo(({
           {isUnallocated && (
             <span className="text-[8.5px] font-black px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
               Sem Turma
+            </span>
+          )}
+          {Boolean(parallelClassesCount && parallelClassesCount > 1) && (
+            <span className="text-[8.5px] font-black px-1.5 py-0.5 bg-amber-100 text-amber-950 border border-amber-400 uppercase tracking-wider flex items-center gap-1 shadow-2xs" title={`Matriculado em ${parallelClassesCount} turmas simultâneas`}>
+              <Layers size={10} className="text-amber-700 shrink-0" />
+              {parallelClassesCount} Cursos
             </span>
           )}
           <span className="text-[10px] text-slate-400 font-medium">{student.registration_number}</span>
@@ -229,23 +239,25 @@ export function Students() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, enrollmentsData] = await Promise.all([
+      const [data, enrollmentsData, classesData] = await Promise.all([
         fetchAll('students', '*', 'registration_number', true),
-        fetchAll('enrollments').catch(() => [])
+        fetchAll('enrollments').catch(() => []),
+        fetchAll('classes', '*', 'name').catch(() => [])
       ]);
-      const currentAllEnrs = enrollmentsData || [];
+      
+      const validClassIds = new Set((classesData || []).map((c: any) => c.id));
+      const currentAllEnrs = (enrollmentsData || []).filter((e: any) => e.class_id && validClassIds.has(e.class_id));
       setAllEnrollments(currentAllEnrs);
 
-      // Merge & normalize students who have active enrollments but missing class_id
+      // Merge & normalize students who have active enrollments or invalid class_id
       const normalizedStudents = (data || []).map((s: Student) => {
-        if (!s.class_id) {
+        const hasValidDirectClass = s.class_id && validClassIds.has(s.class_id);
+        if (!hasValidDirectClass) {
           const activeEnr = currentAllEnrs.find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
-          if (activeEnr) {
-            return {
-              ...s,
-              class_id: activeEnr.class_id
-            };
-          }
+          return {
+            ...s,
+            class_id: activeEnr ? activeEnr.class_id : ''
+          };
         }
         return s;
       });
@@ -275,6 +287,8 @@ export function Students() {
     fetchForaries();
     fetchAllEnrollments();
     fetchInstitution();
+    // Run background integrity check to clean historical orphan enrollments
+    cleanOrphanEnrollments().catch(() => {});
   }, [fetchStudents]);
 
   const fetchInstitution = async () => {
@@ -288,8 +302,13 @@ export function Students() {
 
   const fetchAllEnrollments = async () => {
     try {
-      const data = await fetchAll('enrollments');
-      setAllEnrollments(data || []);
+      const [data, clss] = await Promise.all([
+        fetchAll('enrollments'),
+        fetchAll('classes').catch(() => [])
+      ]);
+      const validClassIds = new Set((clss || []).map((c: any) => c.id));
+      const validEnrs = (data || []).filter((e: any) => e.class_id && validClassIds.has(e.class_id));
+      setAllEnrollments(validEnrs);
     } catch (error: any) {
       if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
         setAllEnrollments([]);
@@ -301,10 +320,23 @@ export function Students() {
 
   const fetchEnrollments = async (studentId: string) => {
     try {
-      const data = await fetchQuery('enrollments', 'student_id', '==', studentId);
-      const enrs = data || [];
-      setStudentEnrollments(enrs);
-      return enrs;
+      const [data, clss] = await Promise.all([
+        fetchQuery('enrollments', 'student_id', '==', studentId),
+        classes.length > 0 ? Promise.resolve(classes) : fetchAll('classes').catch(() => [])
+      ]);
+      const validClassIds = new Set((clss || []).map((c: any) => c.id));
+      const rawEnrs = data || [];
+      const validEnrs = rawEnrs.filter((e: any) => e.class_id && validClassIds.has(e.class_id));
+      
+      // Asynchronous background purge of orphan enrollments for this student
+      const orphanEnrs = rawEnrs.filter((e: any) => !e.class_id || !validClassIds.has(e.class_id));
+      if (orphanEnrs.length > 0) {
+        const orphanIds = orphanEnrs.map((e: any) => e.id);
+        deleteBatch('enrollments', orphanIds).catch(err => console.warn('Erro ao limpar matrículas órfãs:', err));
+      }
+
+      setStudentEnrollments(validEnrs);
+      return validEnrs;
     } catch (error: any) {
       if (error?.code === 'PGRST204' || error?.message?.includes('schema cache')) {
         console.warn('Tabela enrollments ainda não criada no Supabase.');
@@ -317,12 +349,13 @@ export function Students() {
   };
 
   const handleSelectStudent = useCallback((student: Student) => {
-    // 1. Check if student already has a direct class_id
-    let effectiveClassId = student.class_id || '';
+    const validClassIds = new Set(classes.map(c => c.id));
+    // 1. Check if student already has a direct VALID class_id
+    let effectiveClassId = (student.class_id && validClassIds.has(student.class_id)) ? student.class_id : '';
 
-    // 2. If not, check if student has an active enrollment in allEnrollments
+    // 2. If not, check if student has an active enrollment in allEnrollments for a valid class
     if (!effectiveClassId) {
-      const activeEnr = allEnrollments.find(e => e.student_id === student.id && (e.status || 'Ativo') === 'Ativo');
+      const activeEnr = allEnrollments.find(e => e.student_id === student.id && (e.status || 'Ativo') === 'Ativo' && validClassIds.has(e.class_id));
       if (activeEnr) {
         effectiveClassId = activeEnr.class_id;
       }
@@ -373,7 +406,7 @@ export function Students() {
     fetchEnrollments(student.id).then((enrs) => {
       if (!effectiveClassId && enrs && enrs.length > 0) {
         const found = enrs.find((e: any) => (e.status || 'Ativo') === 'Ativo') || enrs[0];
-        if (found?.class_id) {
+        if (found?.class_id && validClassIds.has(found.class_id)) {
           const cls = classes.find(c => c.id === found.class_id);
           const crs = student.course || (cls ? detectCourseFromClass(cls, coursesList) : '');
           const sDate = student.start_date || cls?.start_date || '';
@@ -396,7 +429,7 @@ export function Students() {
             ...(sDate ? { start_date: sDate } : {})
           }).catch(e => console.warn('Background class_id sync error:', e));
         }
-      } else if (effectiveClassId && !student.class_id) {
+      } else if (effectiveClassId && (!student.class_id || !validClassIds.has(student.class_id))) {
         // Safe background backfill in database
         saveData('students', student.id, {
           class_id: effectiveClassId,
@@ -1217,6 +1250,23 @@ export function Students() {
     return unallocatedStudentIdsSet.size;
   }, [unallocatedStudentIdsSet]);
 
+  const studentParallelEnrollmentsMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    const validClassIds = new Set(classes.map(c => c.id));
+    students.forEach(s => {
+      const studentEnrs = allEnrollments.filter(e => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo' && validClassIds.has(e.class_id));
+      const classIds = new Set<string>();
+      if (s.class_id && validClassIds.has(s.class_id)) classIds.add(s.class_id);
+      studentEnrs.forEach(e => {
+        if (e.class_id && validClassIds.has(e.class_id)) classIds.add(e.class_id);
+      });
+      if (classIds.size > 1) {
+        map.set(s.id, classIds.size);
+      }
+    });
+    return map;
+  }, [students, allEnrollments, classes]);
+
   const isStudentUnallocated = React.useMemo(() => {
     if (!selectedStudent?.id) return false;
     return unallocatedStudentIdsSet.has(selectedStudent.id);
@@ -1268,6 +1318,21 @@ export function Students() {
   }, [students]);
 
   const actualListCollapsed = selectedStudent !== null || isEditing;
+
+  const validClassIds = React.useMemo(() => new Set(classes.map(c => c.id)), [classes]);
+  const primaryClsId = (formData.class_id && validClassIds.has(formData.class_id))
+    ? formData.class_id 
+    : (selectedStudent?.class_id && validClassIds.has(selectedStudent.class_id) ? selectedStudent.class_id : '');
+
+  const secondaryEnrollments = React.useMemo(() => {
+    return studentEnrollments.filter(e => 
+      e.class_id && 
+      validClassIds.has(e.class_id) && 
+      e.class_id !== primaryClsId && 
+      (e.status || 'Ativo') === 'Ativo'
+    );
+  }, [studentEnrollments, primaryClsId, validClassIds]);
+  const hasParallelCourses = secondaryEnrollments.length > 0;
 
   return (
     <>
@@ -1451,6 +1516,7 @@ export function Students() {
               isSelected={selectedStudent?.id === student.id}
               onSelect={handleSelectStudent}
               isUnallocated={unallocatedStudentIdsSet.has(student.id)}
+              parallelClassesCount={studentParallelEnrollmentsMap.get(student.id)}
             />
           ))}
         </div>
@@ -1529,6 +1595,12 @@ export function Students() {
                     )}>
                       {formData.status}
                     </span>
+                    {hasParallelCourses && (
+                      <span className="px-2 py-0.5 rounded-none text-[9.5px] font-black uppercase tracking-wider bg-amber-100 text-amber-950 border border-amber-400 shadow-2xs flex items-center gap-1.5 shrink-0 animate-in fade-in" title={`Aluno com ${secondaryEnrollments.length + 1} matrículas ativas simultâneas`}>
+                        <Layers size={11} className="text-amber-700 shrink-0" />
+                        <span>{secondaryEnrollments.length + 1} Cursos em Paralelo</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1860,12 +1932,48 @@ export function Students() {
 
                       {/* Enrollment Management - Integrated directly */}
                       {selectedStudent?.id ? (
-                        <div className="col-span-12 p-3 sm:p-5 bg-slate-50/30 border border-slate-200 rounded-none space-y-3 sm:space-y-4 mt-2 mb-6 shadow-sm overflow-hidden">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                              <BookOpen size={14} className="shrink-0" />
-                              <span className="truncate">Matrículas em Outras Turmas (Adicionais)</span>
-                            </h4>
+                        <div className={cn(
+                          "col-span-12 p-3.5 sm:p-5 rounded-none space-y-3 sm:space-y-4 mt-2 mb-6 shadow-sm overflow-hidden transition-all",
+                          hasParallelCourses 
+                            ? "bg-gradient-to-r from-amber-50/90 via-orange-50/50 to-amber-50/90 border-2 border-amber-400 ring-2 ring-amber-400/20" 
+                            : "bg-slate-50/50 border border-slate-200"
+                        )}>
+                          <div className={cn(
+                            "flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2.5",
+                            hasParallelCourses ? "border-amber-200" : "border-slate-200/70"
+                          )}>
+                            <div className="flex items-center gap-2.5">
+                              <div className={cn(
+                                "w-7 h-7 flex items-center justify-center text-white shrink-0 shadow-xs",
+                                hasParallelCourses ? "bg-amber-600 ring-2 ring-amber-300" : "bg-slate-800"
+                              )}>
+                                <BookOpen size={14} />
+                              </div>
+                              <div>
+                                <h4 className={cn(
+                                  "text-[11px] font-black uppercase tracking-wider flex items-center gap-2",
+                                  hasParallelCourses ? "text-amber-950" : "text-slate-800"
+                                )}>
+                                  <span>Matrículas em Outras Turmas (Cursos em Paralelo)</span>
+                                </h4>
+                                {hasParallelCourses ? (
+                                  <p className="text-[10px] text-amber-800 font-bold uppercase tracking-wider">
+                                    ⚡ Aluno cursando {secondaryEnrollments.length + 1} turmas simultâneas
+                                  </p>
+                                ) : (
+                                  <p className="text-[9.5px] text-slate-400 font-medium uppercase tracking-wider">
+                                    Vincule o aluno a outras turmas simultâneas se aplicável
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {hasParallelCourses && (
+                              <span className="self-start sm:self-auto px-2.5 py-1 bg-amber-200/90 text-amber-950 text-[10px] font-black border border-amber-400 uppercase tracking-wider shadow-2xs flex items-center gap-1.5 shrink-0">
+                                <Sparkles size={12} className="text-amber-700 animate-pulse shrink-0" />
+                                {secondaryEnrollments.length} {secondaryEnrollments.length === 1 ? 'Curso Adicional Ativo' : 'Cursos Adicionais Ativos'}
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex flex-col sm:flex-row gap-2">
@@ -1873,11 +1981,16 @@ export function Students() {
                               disabled={!isEditing}
                               value={enrollClassId}
                               onChange={(e) => setEnrollClassId(e.target.value)}
-                              className="w-full sm:flex-1 px-3 py-2 bg-white border border-slate-200 rounded-none text-xs focus:ring-1 focus:ring-slate-500/10 outline-none shadow-sm disabled:opacity-50 min-w-0"
+                              className={cn(
+                                "w-full sm:flex-1 px-3 py-2 bg-white border rounded-none text-xs outline-none shadow-sm disabled:opacity-50 min-w-0 font-medium",
+                                hasParallelCourses ? "border-amber-300 focus:ring-1 focus:ring-amber-500" : "border-slate-200 focus:ring-1 focus:ring-slate-500/10"
+                              )}
                             >
                               <option value="">Matricular em outra turma...</option>
-                              {classes.filter(c => c.status === 'Ativo' && c.id !== (formData.class_id || selectedStudent?.class_id) && !studentEnrollments.some(e => e.class_id === c.id && (e.status || 'Ativo') === 'Ativo')).map((c, cIdx) => (
-                                <option key={`st-cls-oth-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
+                              {classes.filter(c => c.status === 'Ativo' && c.id !== primaryClsId && !studentEnrollments.some(e => e.class_id === c.id && (e.status || 'Ativo') === 'Ativo')).map((c, cIdx) => (
+                                <option key={`st-cls-oth-${c.id || cIdx}-${cIdx}`} value={c.id}>
+                                  {c.name} {c.code ? `(${c.code})` : ''} - {c.period || ''}
+                                </option>
                               ))}
                             </select>
                             <button
@@ -1886,57 +1999,74 @@ export function Students() {
                                 setEnrollClassId('');
                               }}
                               disabled={!enrollClassId || !isEditing}
-                              className="w-full sm:w-auto px-4 py-2 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase hover:bg-slate-900 transition-all disabled:opacity-50 flex items-center justify-center gap-1 shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+                              className={cn(
+                                "w-full sm:w-auto px-4 py-2 rounded-none text-[10px] font-bold uppercase transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap cursor-pointer",
+                                hasParallelCourses 
+                                  ? "bg-amber-600 hover:bg-amber-700 text-white" 
+                                  : "bg-slate-800 hover:bg-slate-900 text-white"
+                              )}
                             >
                               <Plus size={14} />
                               Matricular
                             </button>
                           </div>
 
-                          {(() => {
-                            const primaryClsId = formData.class_id || selectedStudent?.class_id;
-                            const secondaryEnrollments = studentEnrollments.filter(e => e.class_id !== primaryClsId && (e.status || 'Ativo') === 'Ativo');
-
-                            return (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
-                                {secondaryEnrollments.length === 0 ? (
-                                  <div className="col-span-full py-4 text-center bg-white/50 rounded-none border border-dashed border-slate-200">
-                                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">
-                                      {primaryClsId ? 'Nenhuma turma adicional vinculada (Aluno matriculado na turma principal acima)' : 'Nenhuma matrícula adicional'}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  secondaryEnrollments.map((enrollment, enIdx) => {
-                                    const targetClass = classes.find(c => c.id === enrollment.class_id);
-                                    return (
-                                      <div key={`st-enr-${enrollment.id || enIdx}-${enIdx}`} className="flex items-center justify-between p-2.5 bg-white rounded-none border border-slate-100 shadow-sm group hover:border-slate-205 transition-all">
-                                        <div className="flex items-center gap-3">
-                                          <div className="w-8 h-8 rounded bg-slate-50 flex items-center justify-center text-slate-800">
-                                            <GraduationCap size={14} />
-                                          </div>
-                                          <div className="leading-tight">
-                                            <p className="text-[11px] font-bold text-slate-700 uppercase">{targetClass?.name || 'Turma N/I'}</p>
-                                            <p className="text-[9px] text-slate-400 font-medium uppercase tracking-wider">
-                                              {enrollment.enrollment_date ? formatDateForDisplay(enrollment.enrollment_date) : ''}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        {isEditing && (
-                                          <button 
-                                            onClick={() => handleRemoveEnrollment(enrollment.id)}
-                                            className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
-                                            title="Remover Matrícula"
-                                          >
-                                            <X size={14} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    );
-                                  })
-                                )}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+                            {secondaryEnrollments.length === 0 ? (
+                              <div className="col-span-full py-4 text-center bg-white/70 rounded-none border border-dashed border-slate-200">
+                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">
+                                  {primaryClsId ? 'Nenhuma turma adicional vinculada (Aluno matriculado na turma principal acima)' : 'Nenhuma matrícula adicional'}
+                                </p>
                               </div>
-                            );
-                          })()}
+                            ) : (
+                              secondaryEnrollments.map((enrollment, enIdx) => {
+                                const targetClass = classes.find(c => c.id === enrollment.class_id);
+                                const courseName = targetClass ? detectCourseFromClass(targetClass, coursesList) : '';
+                                return (
+                                  <div 
+                                    key={`st-enr-${enrollment.id || enIdx}-${enIdx}`} 
+                                    className="flex items-center justify-between p-3 bg-white rounded-none border-2 border-amber-300 border-l-[6px] border-l-amber-500 shadow-xs group hover:border-amber-400 hover:shadow-sm transition-all"
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="w-9 h-9 rounded-none bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center shrink-0 font-bold shadow-2xs">
+                                        <GraduationCap size={16} />
+                                      </div>
+                                      <div className="leading-tight min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-amber-100 text-amber-950 border border-amber-300">
+                                            ⚡ Curso em Paralelo
+                                          </span>
+                                          {targetClass?.period && (
+                                            <span className="text-[8.5px] font-bold uppercase tracking-wider px-1 py-0.5 text-slate-600 bg-slate-100 border border-slate-200">
+                                              {targetClass.period}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs font-black text-slate-900 uppercase truncate mt-1" title={targetClass?.name}>
+                                          {targetClass?.name || 'Turma N/I'}
+                                        </p>
+                                        <div className="flex items-center gap-2 text-[9px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">
+                                          {courseName && <span className="font-bold text-amber-900">{courseName}</span>}
+                                          {enrollment.enrollment_date && (
+                                            <span>• Matrícula: {formatDateForDisplay(enrollment.enrollment_date)}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {isEditing && (
+                                      <button 
+                                        onClick={() => handleRemoveEnrollment(enrollment.id)}
+                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all shrink-0 ml-2 cursor-pointer"
+                                        title="Remover Matrícula Adicional"
+                                      >
+                                        <X size={15} />
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <div className="col-span-12 p-4 bg-slate-50 border border-dashed border-slate-200 rounded-none mb-6 text-center">

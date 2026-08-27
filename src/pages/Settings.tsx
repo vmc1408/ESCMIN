@@ -43,7 +43,7 @@ import {
   Info,
   ArrowUpRight
 } from 'lucide-react';
-import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch } from '../lib/database';
+import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, cleanOrphanEnrollments } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
@@ -251,29 +251,38 @@ export function Settings() {
     setShowConfirmModal({
       show: true,
       title: 'Inativar Alunos Sem Turma',
-      message: 'Esta ação irá alterar o status de todos os alunos que não possuem uma turma vinculada para "Inativo". Deseja continuar?',
+      message: 'Esta ação irá alterar o status de todos os alunos que não possuem uma turma vinculada (ou cuja turma não existe) para "Inativo". Deseja continuar?',
       type: 'warning',
       onConfirm: async () => {
         try {
           setIsCleaningStudents(true);
           setShowConfirmModal(prev => ({ ...prev, show: false }));
           
-          const [students, enrollments] = await Promise.all([
+          const [students, enrollments, classes] = await Promise.all([
             fetchAll('students'),
-            fetchAll('enrollments')
+            fetchAll('enrollments'),
+            fetchAll('classes')
           ]);
+
+          const validClassIds = new Set((classes || []).map((c: any) => c.id));
 
           const toUpdate = students
             .filter(s => {
-              const hasNoLegacyClass = !s.class_id || 
+              const hasNoValidDirectClass = !s.class_id || 
                                s.class_id.toString().trim() === '' || 
                                s.class_id === 'null' ||
-                               s.class_id === 'undefined';
+                               s.class_id === 'undefined' ||
+                               !validClassIds.has(s.class_id);
               
-              const hasNoEnrollments = !enrollments.some(e => e.student_id === s.id && e.status === 'Ativo');
+              const hasNoValidEnrollments = !enrollments.some(e => 
+                e.student_id === s.id && 
+                e.status === 'Ativo' && 
+                e.class_id && 
+                validClassIds.has(e.class_id)
+              );
               
               const isNotAlreadyInactive = s.status !== 'Inativo';
-              return hasNoLegacyClass && hasNoEnrollments && isNotAlreadyInactive;
+              return hasNoValidDirectClass && hasNoValidEnrollments && isNotAlreadyInactive;
             })
             .map(s => ({ ...s, status: 'Inativo' }));
 
@@ -291,6 +300,33 @@ export function Settings() {
         } finally {
           setIsCleaningStudents(false);
           setTimeout(() => setNotification(null), 3000);
+        }
+      }
+    });
+  };
+
+  const handleCleanOrphanEnrollmentsAction = async () => {
+    setShowConfirmModal({
+      show: true,
+      title: 'Corrigir Matrículas e Vínculos Órfãos',
+      message: 'Esta ação verifica e remove permanentemente matrículas vinculadas a turmas inexistentes/excluídas, além de corrigir o vínculo primário de alunos apontando para turmas que não existem mais. Deseja prosseguir?',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setIsCleaningStudents(true);
+          setShowConfirmModal(prev => ({ ...prev, show: false }));
+          const res = await cleanOrphanEnrollments();
+          setNotification({ 
+            type: 'success', 
+            message: `Integridade restaurada com sucesso! ${res.deletedEnrollments} matrícula(s) órfã(s) removida(s) e ${res.fixedStudents} aluno(s) corrigido(s).` 
+          });
+          fetchCounts();
+        } catch (error: any) {
+          console.error('Error cleaning orphan enrollments:', error);
+          setNotification({ type: 'error', message: 'Erro ao limpar matrículas órfãs: ' + error.message });
+        } finally {
+          setIsCleaningStudents(false);
+          setTimeout(() => setNotification(null), 4000);
         }
       }
     });
@@ -1842,6 +1878,7 @@ export function Settings() {
               </h4>
               <div className="space-y-2">
                 {[
+                  { label: 'Corrigir Matrículas e Vínculos Órfãos', action: handleCleanOrphanEnrollmentsAction, icon: <ShieldCheck size={14} /> },
                   { label: 'Inativar Alunos Antigos (< 2023)', action: handleInactivateOldStudents, icon: <Clock size={14} /> },
                   { label: 'Ativar Alunos Recentes (> 2023)', action: handleActivateRecentStudents, icon: <UserCheck size={14} /> },
                   { label: 'Inativar Alunos Sem Turma', action: handleInactivateStudentsWithoutClass, icon: <AlertCircle size={14} /> },

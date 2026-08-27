@@ -627,18 +627,24 @@ export function PixConference() {
     setLoading(true);
     try {
       // Filter for active students as per global policy
-      const [data, enrollmentsData] = await Promise.all([
+      const [data, enrollmentsData, classesData] = await Promise.all([
         fetchQuery('students', [
           { field: 'status', operator: '==', value: 'Ativo' }
         ]),
-        fetchAll('enrollments').catch(() => [])
+        fetchAll('enrollments').catch(() => []),
+        fetchAll('classes', '*', 'name').catch(() => [])
       ]);
+      const validClassIds = new Set((classesData || []).map((c: any) => c.id));
       const normalized = (data || []).map((s: Student) => {
-        if (!s.class_id) {
-          const activeEnr = (enrollmentsData || []).find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
-          if (activeEnr) {
-            return { ...s, class_id: activeEnr.class_id };
-          }
+        const hasValidDirectClass = s.class_id && validClassIds.has(s.class_id);
+        if (!hasValidDirectClass) {
+          const activeEnr = (enrollmentsData || []).find((e: any) => 
+            e.student_id === s.id && 
+            (e.status || 'Ativo') === 'Ativo' && 
+            e.class_id && 
+            validClassIds.has(e.class_id)
+          );
+          return { ...s, class_id: activeEnr ? activeEnr.class_id : '' };
         }
         return s;
       });
