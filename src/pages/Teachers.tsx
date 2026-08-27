@@ -810,14 +810,14 @@ export function Teachers() {
             </div>
           </div>
 
-          <div className="text-center mt-3 mb-5">
-            <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-0.5 px-6 inline-block">
+          <div className="text-center mt-3.5 mb-6">
+            <h2 className="text-[12pt] font-black uppercase tracking-[0.28em] text-slate-900 border-b-2 border-slate-900 pb-1 px-8 inline-block">
               Ficha do Professor
             </h2>
           </div>
 
           {/* TOP CONTROL BOXES */}
-          <div className="grid grid-cols-12 gap-3.5 mb-5">
+          <div className="grid grid-cols-12 gap-4 mb-6">
             <div className="col-span-3 border border-slate-800 p-2 flex flex-col h-[3cm] justify-between bg-white">
               <p className="text-[8pt] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-1">
                 Controle
@@ -826,7 +826,7 @@ export function Teachers() {
                 <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 text-center">
                   Código Registro
                 </p>
-                <p className="font-black text-[13pt] tracking-wider text-slate-950 text-center">
+                <p className="font-black text-[13.5pt] tracking-wider text-slate-950 text-center">
                   {selectedTeacher.code}
                 </p>
               </div>
