@@ -21,7 +21,7 @@ import {
   Power
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
-import { Course, Class, Student } from '../types';
+import { Course, Class, Student, Enrollment } from '../types';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { cn, detectCourseFromClass } from '../lib/utils';
@@ -33,6 +33,7 @@ export function Courses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Todos' | 'Ativo' | 'Inativo'>('Todos');
@@ -76,15 +77,17 @@ export function Courses() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [coursesData, classesData, studentsData] = await Promise.all([
+      const [coursesData, classesData, studentsData, enrollmentsData] = await Promise.all([
         fetchAll('courses'),
         fetchAll('classes'),
-        fetchAll('students')
+        fetchAll('students'),
+        fetchAll('enrollments').catch(() => [])
       ]);
 
       setCourses(coursesData || []);
       setClasses(classesData || []);
       setStudents(studentsData || []);
+      setEnrollments(enrollmentsData || []);
     } catch (err: any) {
       console.error('Erro ao carregar cursos:', err);
       showNotification('error', 'Erro ao carregar catálogo de cursos.');
@@ -98,12 +101,15 @@ export function Courses() {
   }, [loadData]);
 
   // Statistics calculation
-  const courseStats = useMemo(() => {
+  const { courseStats, totalActiveInCourses, unassignedActiveStudents } = useMemo(() => {
     const map = new Map<string, { classesCount: number; activeStudentsCount: number; totalStudentsCount: number }>();
 
     courses.forEach(c => {
       map.set(c.id, { classesCount: 0, activeStudentsCount: 0, totalStudentsCount: 0 });
     });
+
+    const validClassIds = new Set(classes.map(c => c.id));
+    const classesMap = new Map<string, Class>(classes.map(c => [c.id, c]));
 
     // Match classes with courses
     const classToCourseMap = new Map<string, string>(); // classId -> courseId
@@ -111,8 +117,10 @@ export function Courses() {
     classes.forEach(cls => {
       const detectedName = detectCourseFromClass(cls, courses);
       const matchedCourse = courses.find(c => 
-        c.name.toLowerCase() === detectedName.toLowerCase() ||
-        (c.code && c.code.toLowerCase() === (cls.code || '').toLowerCase())
+        c.name.trim().toLowerCase() === detectedName.trim().toLowerCase() ||
+        (c.code && c.code.trim().toLowerCase() === (cls.code || '').trim().toLowerCase()) ||
+        c.name.toLowerCase().includes(detectedName.toLowerCase()) ||
+        detectedName.toLowerCase().includes(c.name.toLowerCase())
       );
 
       if (matchedCourse) {
@@ -124,32 +132,74 @@ export function Courses() {
       }
     });
 
-    // Match students with courses (either via direct student.course or through enrolled class)
+    let assignedActiveCount = 0;
+    let unassignedActiveCount = 0;
+
+    // Match students with courses (either via direct student.course, direct class, or enrolled classes)
     students.forEach(st => {
-      let matchedCourseId: string | undefined;
+      let matchedCourseIds = new Set<string>();
 
       // 1. Direct course matching
       if (st.course) {
-        const directMatch = courses.find(c => c.name.toLowerCase() === st.course?.toLowerCase());
-        if (directMatch) matchedCourseId = directMatch.id;
+        const cleanCourse = st.course.trim().toLowerCase();
+        const directMatch = courses.find(c => 
+          c.name.trim().toLowerCase() === cleanCourse ||
+          (c.code && c.code.trim().toLowerCase() === cleanCourse) ||
+          c.name.toLowerCase().includes(cleanCourse) ||
+          cleanCourse.includes(c.name.toLowerCase())
+        );
+        if (directMatch) matchedCourseIds.add(directMatch.id);
       }
 
-      // 2. Class-based matching fallback
-      if (!matchedCourseId && st.class_id && classToCourseMap.has(st.class_id)) {
-        matchedCourseId = classToCourseMap.get(st.class_id);
+      // 2. Direct class matching
+      if (st.class_id && validClassIds.has(st.class_id)) {
+        if (classToCourseMap.has(st.class_id)) {
+          matchedCourseIds.add(classToCourseMap.get(st.class_id)!);
+        } else {
+          const cls = classesMap.get(st.class_id);
+          if (cls) {
+            const detected = detectCourseFromClass(cls, courses);
+            const match = courses.find(c => c.name.toLowerCase() === detected.toLowerCase());
+            if (match) matchedCourseIds.add(match.id);
+          }
+        }
       }
 
-      if (matchedCourseId && map.has(matchedCourseId)) {
-        const stats = map.get(matchedCourseId)!;
-        stats.totalStudentsCount += 1;
+      // 3. Matched enrollments (parallel / secondary courses)
+      const studentEnrs = enrollments.filter(e => e.student_id === st.id && (e.status || 'Ativo') === 'Ativo');
+      studentEnrs.forEach(enr => {
+        if (enr.class_id && validClassIds.has(enr.class_id)) {
+          const cid = classToCourseMap.get(enr.class_id);
+          if (cid) matchedCourseIds.add(cid);
+        }
+      });
+
+      if (matchedCourseIds.size > 0) {
+        matchedCourseIds.forEach(cId => {
+          if (map.has(cId)) {
+            const stats = map.get(cId)!;
+            stats.totalStudentsCount += 1;
+            if (st.status === 'Ativo') {
+              stats.activeStudentsCount += 1;
+            }
+          }
+        });
         if (st.status === 'Ativo') {
-          stats.activeStudentsCount += 1;
+          assignedActiveCount += 1;
+        }
+      } else {
+        if (st.status === 'Ativo') {
+          unassignedActiveCount += 1;
         }
       }
     });
 
-    return map;
-  }, [courses, classes, students]);
+    return { 
+      courseStats: map, 
+      totalActiveInCourses: assignedActiveCount, 
+      unassignedActiveStudents: unassignedActiveCount 
+    };
+  }, [courses, classes, students, enrollments]);
 
   // Filter and logically group active vs inactive
   const { activeCourses, inactiveCourses } = useMemo(() => {
@@ -678,9 +728,15 @@ export function Courses() {
           <p className="text-2xl font-black text-slate-900 mt-2">
             {students.filter(s => s.status === 'Ativo').length}
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Matriculados atualmente
-          </p>
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-slate-500 mt-1">
+            <span className="font-semibold text-emerald-700">{totalActiveInCourses} em cursos</span>
+            {unassignedActiveStudents > 0 && (
+              <>
+                <span>•</span>
+                <span className="text-amber-700 font-medium">{unassignedActiveStudents} sem turma</span>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="bg-white border border-slate-200 p-4 shadow-sm">
