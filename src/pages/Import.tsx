@@ -31,7 +31,7 @@ import { cn, detectCourseFromClass } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteBatch } from '../lib/database';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useImport, ImportType } from '../contexts/ImportContext';
-import { ImportBatchRecord, Course } from '../types';
+import { ImportBatchRecord, Course, Class } from '../types';
 
 type ImportStep = 'type' | 'upload' | 'mapping' | 'processing' | 'review';
 
@@ -193,6 +193,7 @@ export function Import() {
   const [showBatchDetailsModal, setShowBatchDetailsModal] = useState(false);
   const [selectedBatchDetails, setSelectedBatchDetails] = useState<ImportBatchRecord | null>(null);
   const [coursesList, setCoursesList] = useState<Course[]>([]);
+  const [classesList, setClassesList] = useState<Class[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -262,6 +263,9 @@ export function Import() {
     loadBatchHistory();
     fetchAll('courses').then(res => {
       if (res) setCoursesList(res);
+    }).catch(() => {});
+    fetchAll('classes').then(res => {
+      if (res) setClassesList(res);
     }).catch(() => {});
   }, [searchParams]);
 
@@ -495,6 +499,14 @@ export function Import() {
             rawId = `${String(nextNum).padStart(6, '0')}${currentYear}`;
           }
           entity.registration_number = rawId;
+
+          // Auto-detect course for imported student if empty
+          if (!entity.course && entity.class_id) {
+            const matchedCls = classesList?.find(c => c.id === entity.class_id || c.code === entity.class_id || c.name === entity.class_id);
+            if (matchedCls) {
+              entity.course = detectCourseFromClass(matchedCls, coursesList);
+            }
+          }
         }
 
         // Ensure unique identifier

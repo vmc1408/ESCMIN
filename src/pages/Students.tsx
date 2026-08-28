@@ -38,7 +38,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass } from '../lib/utils';
-import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments } from '../lib/database';
+import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { Student, Class, Enrollment, Course } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -239,27 +239,40 @@ export function Students() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, enrollmentsData, classesData] = await Promise.all([
+      const [data, enrollmentsData, classesData, coursesData] = await Promise.all([
         fetchAll('students', '*', 'registration_number', true),
         fetchAll('enrollments').catch(() => []),
-        fetchAll('classes', '*', 'name').catch(() => [])
+        fetchAll('classes', '*', 'name').catch(() => []),
+        fetchAll('courses').catch(() => [])
       ]);
       
       const validClassIds = new Set((classesData || []).map((c: any) => c.id));
+      const classesMap = new Map<string, any>((classesData || []).map((c: any) => [c.id, c]));
       const currentAllEnrs = (enrollmentsData || []).filter((e: any) => e.class_id && validClassIds.has(e.class_id));
       setAllEnrollments(currentAllEnrs);
+      if (coursesData && coursesData.length > 0) {
+        setCoursesList(coursesData);
+      }
 
-      // Merge & normalize students who have active enrollments or invalid class_id
+      // Merge & normalize students who have active enrollments, invalid class_id or missing course
       const normalizedStudents = (data || []).map((s: Student) => {
         const hasValidDirectClass = s.class_id && validClassIds.has(s.class_id);
-        if (!hasValidDirectClass) {
-          const activeEnr = currentAllEnrs.find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo');
-          return {
-            ...s,
-            class_id: activeEnr ? activeEnr.class_id : ''
-          };
+        const effectiveClassId = hasValidDirectClass ? s.class_id : (
+          currentAllEnrs.find((e: any) => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo')?.class_id || ''
+        );
+        const targetClass = effectiveClassId ? classesMap.get(effectiveClassId) : null;
+        
+        let effectiveCourse = (s.course || '').trim();
+        if (!effectiveCourse || effectiveCourse === 'Identificar Curso...' || effectiveCourse === 'null' || effectiveCourse === 'undefined' || effectiveCourse === 'Sem Curso Informado') {
+          effectiveCourse = targetClass ? detectCourseFromClass(targetClass, coursesData || []) : '';
         }
-        return s;
+
+        return {
+          ...s,
+          class_id: effectiveClassId,
+          course: effectiveCourse,
+          start_date: s.start_date || targetClass?.start_date || ''
+        };
       });
 
       setStudents(normalizedStudents);
@@ -287,8 +300,13 @@ export function Students() {
     fetchForaries();
     fetchAllEnrollments();
     fetchInstitution();
-    // Run background integrity check to clean historical orphan enrollments
+    // Run background integrity check to clean historical orphan enrollments and identify courses
     cleanOrphanEnrollments().catch(() => {});
+    autoIdentifyAllStudentsCourses().then(res => {
+      if (res.updatedStudents > 0) {
+        fetchStudents();
+      }
+    }).catch(() => {});
   }, [fetchStudents]);
 
   const fetchInstitution = async () => {
@@ -362,7 +380,16 @@ export function Students() {
     }
 
     const targetClass = classes.find(c => c.id === effectiveClassId);
-    const detectedCourse = student.course || (targetClass ? detectCourseFromClass(targetClass, coursesList) : '');
+    let detectedCourse = targetClass ? detectCourseFromClass(targetClass, coursesList) : (student.course || '');
+    if (!detectedCourse && student.course) {
+      const match = coursesList.find(c => 
+        c.name.toLowerCase() === student.course.toLowerCase() || 
+        (c.code && c.code.toLowerCase() === student.course.toLowerCase()) ||
+        c.name.toLowerCase().includes(student.course.toLowerCase()) ||
+        student.course.toLowerCase().includes(c.name.toLowerCase())
+      );
+      detectedCourse = match ? match.name : student.course;
+    }
     const startDate = student.start_date || targetClass?.start_date || '';
 
     const enrichedStudent: Student = {
@@ -436,6 +463,11 @@ export function Students() {
           ...(detectedCourse ? { course: detectedCourse } : {}),
           ...(startDate ? { start_date: startDate } : {})
         }).catch(e => console.warn('Background class_id sync error:', e));
+      } else if (detectedCourse && (!student.course || student.course === 'Identificar Curso...' || student.course === 'null' || student.course === 'undefined')) {
+        // Background backfill missing course
+        saveData('students', student.id, {
+          course: detectedCourse
+        }).catch(e => console.warn('Background course sync error:', e));
       }
     });
   }, [allEnrollments, classes, coursesList]);
@@ -1869,11 +1901,11 @@ export function Students() {
                           onChange={(e) => {
                             const newClassId = e.target.value;
                             const targetClass = classes.find(c => c.id === newClassId);
-                            const detectedCourse = targetClass ? detectCourseFromClass(targetClass) : '';
+                            const detectedCourse = targetClass ? detectCourseFromClass(targetClass, coursesList) : '';
                             setFormData(prev => ({
                               ...prev,
                               class_id: newClassId,
-                              ...(detectedCourse ? { course: detectedCourse } : {}),
+                              course: detectedCourse || prev.course,
                               ...(targetClass?.start_date ? { start_date: targetClass.start_date } : {})
                             }));
                           }}
@@ -1894,7 +1926,10 @@ export function Students() {
                         <label className="text-xs font-bold text-slate-700 font-bold text-slate-800">Curso / Identificação</label>
                         <select 
                           disabled={!isEditing}
-                          value={formData.course || ''}
+                          value={
+                            formData.course || 
+                            (formData.class_id ? detectCourseFromClass(classes.find(c => c.id === formData.class_id), coursesList) : '')
+                          }
                           onChange={(e) => setFormData({...formData, course: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border border-slate-205 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold text-slate-800"
@@ -1902,15 +1937,23 @@ export function Students() {
                         >
                           <option value="">Identificar Curso...</option>
                           {coursesList.length > 0 ? (
-                            coursesList.filter(c => c.status === 'Ativo').map((c, cIdx) => (
-                              <option key={`st-crs-opt-${c.id || c.code || cIdx}-${cIdx}`} value={c.name}>{c.name} ({c.code})</option>
-                            ))
+                            <>
+                              {coursesList.filter(c => c.status === 'Ativo').map((c, cIdx) => (
+                                <option key={`st-crs-opt-${c.id || c.code || cIdx}-${cIdx}`} value={c.name}>{c.name} ({c.code})</option>
+                              ))}
+                              {formData.course && !coursesList.some(c => c.name === formData.course) && (
+                                <option value={formData.course}>{formData.course}</option>
+                              )}
+                            </>
                           ) : (
                             <>
                               <option value="Teologia">Teologia</option>
                               <option value="Latim">Latim</option>
                               <option value="Doutrina Social da Igreja">Doutrina Social da Igreja</option>
                               <option value="História dos Santos Negros">História dos Santos Negros</option>
+                              {formData.course && !['Teologia', 'Latim', 'Doutrina Social da Igreja', 'História dos Santos Negros', 'Outros'].includes(formData.course) && (
+                                <option value={formData.course}>{formData.course}</option>
+                              )}
                             </>
                           )}
                           <option value="Outros">Outros</option>

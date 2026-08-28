@@ -1,4 +1,5 @@
 import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout, isDbConnected, connectionError, isJwtOrTokenError, clearCorruptedAuthTokens } from './supabase';
+import { detectCourseFromClass } from './utils';
 
 // LocalStorage fallback helpers
 export const isTableUsingFallback = (tableName: string): boolean => {
@@ -1178,6 +1179,89 @@ export const cleanOrphanEnrollments = async (): Promise<{ deletedEnrollments: nu
   } catch (err: any) {
     console.warn('[cleanOrphanEnrollments] Erro durante verificação de integridade:', err);
     return { deletedEnrollments: 0, fixedStudents: 0 };
+  }
+};
+
+/**
+ * Automatically identifies and updates the 'course' field for all students in the database
+ * based on their class, active enrollments, and available courses matrix.
+ */
+export const autoIdentifyAllStudentsCourses = async (): Promise<{ totalStudents: number; updatedStudents: number }> => {
+  try {
+    const [allStudents, allClasses, allEnrollments, allCourses] = await Promise.all([
+      fetchAll('students').catch(() => []),
+      fetchAll('classes').catch(() => []),
+      fetchAll('enrollments').catch(() => []),
+      fetchAll('courses').catch(() => [])
+    ]);
+
+    const validClassIds = new Set((allClasses || []).map((c: any) => c.id));
+    const classesMap = new Map<string, any>((allClasses || []).map((c: any) => [c.id, c]));
+
+    let updatedCount = 0;
+    const updatesToSave: Array<{ id: string; course: string; class_id?: string; start_date?: string }> = [];
+
+    for (const student of allStudents || []) {
+      const currentCourse = (student.course || '').trim();
+      
+      // Determine effective class
+      let effectiveClassId = (student.class_id && validClassIds.has(student.class_id)) ? student.class_id : '';
+      if (!effectiveClassId) {
+        const activeEnr = (allEnrollments || []).find((e: any) => 
+          e.student_id === student.id && 
+          (e.status || 'Ativo') === 'Ativo' && 
+          e.class_id && 
+          validClassIds.has(e.class_id)
+        );
+        if (activeEnr) {
+          effectiveClassId = activeEnr.class_id;
+        }
+      }
+
+      const targetClass = effectiveClassId ? classesMap.get(effectiveClassId) : null;
+      let detectedCourse = targetClass ? detectCourseFromClass(targetClass, allCourses) : '';
+
+      // Fallback heuristics if course not resolved directly
+      if (!detectedCourse && targetClass?.name) {
+        const nameLower = (targetClass.name || '').toLowerCase();
+        if (nameLower.includes('doutrina') || nameLower.includes('dsi')) detectedCourse = 'Doutrina Social da Igreja';
+        else if (nameLower.includes('santos') || nameLower.includes('negros') || nameLower.includes('hsn')) detectedCourse = 'História dos Santos Negros';
+        else if (nameLower.includes('latim') || nameLower.includes('lat')) detectedCourse = 'Latim';
+        else if (nameLower.includes('teologia') || nameLower.includes('teo')) detectedCourse = 'Teologia';
+      }
+
+      // Check if student has no course or placeholder or course doesn't match detected class course
+      const isMissingCourse = !currentCourse || 
+                              currentCourse === 'Identificar Curso...' || 
+                              currentCourse === 'null' || 
+                              currentCourse === 'undefined' || 
+                              currentCourse === 'Sem Curso Informado';
+      
+      if (detectedCourse && (isMissingCourse || (currentCourse !== detectedCourse && targetClass))) {
+        const payload: any = {
+          id: student.id,
+          course: detectedCourse
+        };
+        if (effectiveClassId && (!student.class_id || !validClassIds.has(student.class_id))) {
+          payload.class_id = effectiveClassId;
+        }
+        if (targetClass?.start_date && !student.start_date) {
+          payload.start_date = targetClass.start_date;
+        }
+        updatesToSave.push(payload);
+      }
+    }
+
+    if (updatesToSave.length > 0) {
+      await saveBatch('students', updatesToSave);
+      updatedCount = updatesToSave.length;
+      console.info(`[autoIdentifyAllStudentsCourses] Auto-identificados e persistidos cursos de ${updatedCount} alunos.`);
+    }
+
+    return { totalStudents: (allStudents || []).length, updatedStudents: updatedCount };
+  } catch (err: any) {
+    console.warn('[autoIdentifyAllStudentsCourses] Erro ao auto-identificar cursos:', err);
+    return { totalStudents: 0, updatedStudents: 0 };
   }
 };
 

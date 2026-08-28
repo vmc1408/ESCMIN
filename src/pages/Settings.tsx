@@ -41,9 +41,10 @@ import {
   Terminal,
   Key,
   Info,
-  ArrowUpRight
+  ArrowUpRight,
+  GraduationCap
 } from 'lucide-react';
-import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, cleanOrphanEnrollments } from '../lib/database';
+import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
@@ -324,6 +325,33 @@ export function Settings() {
         } catch (error: any) {
           console.error('Error cleaning orphan enrollments:', error);
           setNotification({ type: 'error', message: 'Erro ao limpar matrículas órfãs: ' + error.message });
+        } finally {
+          setIsCleaningStudents(false);
+          setTimeout(() => setNotification(null), 4000);
+        }
+      }
+    });
+  };
+
+  const handleAutoIdentifyCoursesAction = async () => {
+    setShowConfirmModal({
+      show: true,
+      title: 'Identificar Cursos de Todos os Alunos',
+      message: 'Esta ação analisa a turma principal e matrículas de todos os estudantes cadastrados para preencher ou corrigir automaticamente o campo "Curso / Identificação" (ex: Doutrina Social da Igreja, Teologia, Latim, História dos Santos Negros, etc.). Deseja continuar?',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          setIsCleaningStudents(true);
+          setShowConfirmModal(prev => ({ ...prev, show: false }));
+          const res = await autoIdentifyAllStudentsCourses();
+          setNotification({ 
+            type: 'success', 
+            message: `Identificação concluída! ${res.updatedStudents} de ${res.totalStudents} aluno(s) foram atualizados com seus cursos correspondentes.` 
+          });
+          fetchCounts();
+        } catch (error: any) {
+          console.error('Error auto-identifying courses:', error);
+          setNotification({ type: 'error', message: 'Erro ao identificar cursos: ' + error.message });
         } finally {
           setIsCleaningStudents(false);
           setTimeout(() => setNotification(null), 4000);
@@ -1878,6 +1906,7 @@ export function Settings() {
               </h4>
               <div className="space-y-2">
                 {[
+                  { label: 'Identificar Cursos de Todos os Alunos', action: handleAutoIdentifyCoursesAction, icon: <GraduationCap size={14} /> },
                   { label: 'Corrigir Matrículas e Vínculos Órfãos', action: handleCleanOrphanEnrollmentsAction, icon: <ShieldCheck size={14} /> },
                   { label: 'Inativar Alunos Antigos (< 2023)', action: handleInactivateOldStudents, icon: <Clock size={14} /> },
                   { label: 'Ativar Alunos Recentes (> 2023)', action: handleActivateRecentStudents, icon: <UserCheck size={14} /> },
