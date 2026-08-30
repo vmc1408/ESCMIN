@@ -5251,34 +5251,22 @@ export function AcademicCalendar() {
 
                 return (
                   <div key={`grid-month-${monthIndex}`} className="page-break space-y-4 print:space-y-3">
-                    <div className="text-center border-b-2 border-slate-800 pb-2 mb-4 print:mb-3">
-                      <h2 className="text-xl sm:text-2xl font-black uppercase tracking-[0.25em] text-slate-900 print:text-lg">
-                        {monthName}
-                      </h2>
-                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-center uppercase tracking-[0.3em] mb-4 text-slate-800 print:text-xl">
+                      {monthName}
+                    </h2>
                     
-                    {/* Grade Principal com Bordas Nítidas e Econômica para Impressão */}
-                    <div className="grid grid-cols-7 border-2 border-slate-700 bg-white rounded-none overflow-hidden print:border-slate-800">
-                      {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((day, dIdx) => (
-                        <div 
-                          key={day} 
-                          className={cn(
-                            "bg-slate-100 py-2.5 px-1 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-800 border-b-2 border-slate-700 print:border-slate-800 print:bg-slate-50",
-                            dIdx < 6 && "border-r border-slate-400 print:border-slate-600"
-                          )}
-                        >
-                          <span className="hidden sm:inline">{day}</span>
-                          <span className="sm:hidden">{day.substring(0, 3)}</span>
+                    {/* Grade do Calendário Mensal - Idêntica à exibição em tela com bordas bem nítidas */}
+                    <div className="grid grid-cols-7 gap-px bg-slate-300 border border-slate-300 rounded-none overflow-visible shadow-xs">
+                      {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
+                        <div key={day} className="bg-slate-50 py-3 text-center border-b border-slate-200">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">{day}</span>
                         </div>
                       ))}
                       
                       {Array.from({ length: firstDay }).map((_, i) => (
                         <div 
                           key={`grid-empty-${monthIndex}-${i}`} 
-                          className={cn(
-                            "bg-slate-50/70 min-h-[110px] print:min-h-[95px] border-b border-slate-300 print:border-slate-500",
-                            (i + 1) % 7 !== 0 && "border-r border-slate-300 print:border-slate-500"
-                          )} 
+                          className="bg-slate-50/40 min-h-[120px] print:min-h-[110px] border-r border-b border-slate-200/80" 
                         />
                       ))}
                       
@@ -5319,124 +5307,140 @@ export function AcademicCalendar() {
                           return !['servidor público', 'santo antônio', 'dia do professor'].some(nb => titleLower.includes(nb));
                         });
                         
-                        const hasClassDay = dayEvents.some(e => e.type === 'class_day');
+                        const hasClassDay = dayEvents.some(e => e.type === 'class_day' || e.type === 'excused_class');
                         const isCancelled = dayEvents.some(e => e.type === 'cancelled_class');
                         const wDay = getWeekdayIndex(dateStr);
-                        
-                        const cellColIndex = (firstDay + i) % 7;
-                        const isRightEdge = cellColIndex === 6;
+                        const classDayBg = hasClassDay
+                          ? (wDay === 3 ? "bg-sky-50/60" : wDay === 4 ? "bg-amber-50/60" : "")
+                          : "";
 
                         return (
                           <div 
                             key={`grid-day-${monthIndex}-${day}`} 
                             className={cn(
-                              "min-h-[115px] print:min-h-[100px] p-1.5 border-b border-slate-300 print:border-slate-500 overflow-visible relative flex flex-col justify-between group/day transition-all",
-                              !isRightEdge && "border-r border-slate-300 print:border-slate-500",
-                              !isVacation && !isHolidayGrid ? "bg-white" : "",
-                              isVacation && "bg-slate-50/80",
-                              isHolidayGrid && "bg-rose-50/50"
+                              "min-h-[125px] print:min-h-[115px] p-2 flex flex-col gap-1 border-r border-b border-slate-200/90 overflow-visible relative group/day transition-all",
+                              !isVacation && !isHolidayGrid && !classDayBg ? "bg-white" : "",
+                              classDayBg,
+                              isVacation && "bg-stripes-slate",
+                              isHolidayGrid && "bg-stripes-red"
                             )}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-[13px] sm:text-[14px] font-black text-slate-900 leading-none">
+                              <span className="text-[12px] font-bold text-slate-700 leading-none">
                                 {day}
                               </span>
-                              {wDay === 0 && (
-                                <span className="text-[8px] font-bold text-slate-400 uppercase">Dom</span>
-                              )}
                             </div>
                             
                             {isCancelled && (
                               <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
-                                <svg className="w-full h-full stroke-rose-600/40" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                  <line x1="15" y1="15" x2="85" y2="85" strokeWidth="4" strokeLinecap="round" />
-                                  <line x1="85" y1="15" x2="15" y2="85" strokeWidth="4" strokeLinecap="round" />
+                                <svg className="w-full h-full stroke-rose-500/40" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                  <line x1="5" y1="5" x2="95" y2="95" strokeWidth="3" strokeLinecap="round" />
+                                  <line x1="95" y1="5" x2="5" y2="95" strokeWidth="3" strokeLinecap="round" />
                                 </svg>
                               </div>
                             )}
 
-                            <div className="mt-1 space-y-1 flex-1 flex flex-col justify-start">
-                              {dayEvents.map(e => {
-                                const titleLower = e.title?.toLowerCase() || '';
-                                const isFacultative = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'].some(nb => titleLower.includes(nb));
-                                const isHoliday = !isFacultative && (e.type?.includes('holiday') || e.title?.toLowerCase().includes('férias') || e.title?.toLowerCase().includes('feriado') || e.title?.toLowerCase().includes('recesso'));
-                                const isExam = e.type === 'exam';
-                                
-                                const cleanTitle = (e.title || '')
-                                  .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
-                                  .replace(/\s*[\]\}]\]\s*$/g, '')
-                                  .replace(/^Dia de Aula - /, '')
-                                  .replace(/^Aula - /, '')
-                                  .replace(/^Aula Normal - /, '')
-                                  .split(' - ')[0]
-                                  .trim();
-                                
-                                return (
-                                  <div 
-                                    key={e.id} 
-                                    className={cn(
-                                      "text-[8.5px] font-bold px-1.5 py-0.5 rounded border leading-tight whitespace-normal break-words shadow-2xs transition-all",
-                                      isHoliday ? "bg-red-50 text-red-800 border-red-400 font-extrabold" : 
-                                      isExam ? "bg-amber-50 text-amber-900 border-amber-400 font-extrabold" :
-                                      isFacultative ? "bg-slate-100 text-slate-700 border-slate-400" :
-                                      e.type === 'cancelled_class' ? "bg-rose-50 text-rose-700 border-rose-300 line-through" :
-                                      e.type === 'excused_class' ? "bg-slate-100 text-slate-600 border-slate-300" :
-                                      wDay === 3 ? "bg-sky-50 text-sky-900 border-sky-400" :
-                                      wDay === 4 ? "bg-amber-50 text-amber-900 border-amber-400" :
-                                      "bg-slate-50 text-slate-800 border-slate-300"
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-1">
-                                      <span className={cn(
-                                        "w-1.5 h-1.5 rounded-full shrink-0",
-                                        isHoliday ? "bg-red-600" :
-                                        isExam ? "bg-amber-600" :
-                                        wDay === 3 ? "bg-sky-600" :
-                                        wDay === 4 ? "bg-amber-600" :
-                                        "bg-slate-600"
-                                      )} />
-                                      <span className="truncate">{cleanTitle}</span>
+                            {/* Resumo de Eventos com estilo idêntico ao de tela */}
+                            <div className="flex flex-col gap-1 mt-0.5 overflow-visible flex-1">
+                              {dayEvents
+                                .filter(e => e.type !== 'event')
+                                .map(event => {
+                                  const norm = (t: string) => (t || '')
+                                    .replace(/^Dia de Aula - /, '')
+                                    .replace(/^Aula - /, '')
+                                    .replace(/^Aula Normal - /, '')
+                                    .split(' - ')[0]
+                                    .trim();
+                                  
+                                  const cleanTitle = norm(event.title);
+                                  const relatedEvents = rawDayEvents.filter(re => norm(re.title) === cleanTitle && re.type === event.type);
+                                  const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
+                                  const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
+                                  const classNames = relatedClasses.map(c => c!.name).join(', ');
+
+                                  return (
+                                    <div 
+                                      key={event.id}
+                                      className={cn(
+                                        "px-1.5 py-1 rounded-none text-[8px] font-bold whitespace-normal break-words leading-[1.15] border shadow-xs",
+                                        getTypeStyle(event.type, event.start_date, event.title)
+                                      )}
+                                    >
+                                      {event.type === 'excused_class' || event.type === 'cancelled_class' ? (
+                                        <div className="flex flex-col">
+                                          <span className={cn(
+                                            "block",
+                                            event.type === 'cancelled_class' ? "line-through text-rose-400" : "text-slate-600"
+                                          )}>
+                                            {cleanTitle}
+                                          </span>
+                                          {classNames && (
+                                            <span className="text-[7px] font-medium opacity-90 block mt-0.5">
+                                              {classNames}
+                                            </span>
+                                          )}
+                                          <span className="text-[6px] font-bold opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
+                                            {event.type === 'excused_class' ? 'ABONADA' : 'CANCELADA'}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col">
+                                          <span className="block font-bold">
+                                            {cleanTitle}
+                                          </span>
+                                          {classNames && (
+                                            <span className="text-[7px] font-medium opacity-90 block mt-0.5">
+                                              {classNames}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
                             </div>
                           </div>
                         );
                       })}
                     </div>
 
-                    {/* Legenda de Marcações Econômica (Baixo consumo de toner/tinta) */}
-                    <div className="mt-4 flex flex-wrap justify-center items-center gap-x-6 gap-y-2 py-2.5 px-4 border border-slate-300 bg-slate-50/70 text-slate-800 rounded-none no-print-break print:bg-white print:border-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 rounded-xs bg-red-50 border border-red-500 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                    {/* Legenda de Referência idêntica à de tela */}
+                    <div className="mt-4 flex flex-wrap justify-center items-center gap-x-8 gap-y-2 py-3 border-t border-slate-200 no-print-break">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-red-50 text-red-700 border border-red-100/50 bg-stripes-red flex items-center justify-center text-[9px] font-extrabold shadow-sm">
+                          F
                         </div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Feriado / Recesso</span>
+                        <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Feriado / Recesso</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 rounded-xs bg-amber-50 border border-amber-500 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-orange-50 text-orange-700 border border-orange-100 flex items-center justify-center text-[9px] font-extrabold shadow-sm">
+                          P
                         </div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Avaliação</span>
+                        <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Avaliação / Prova</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 rounded-xs bg-sky-50 border border-sky-500 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-sky-600" />
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-blue-50 text-blue-700 border border-blue-100/50 flex items-center justify-center text-[9px] font-extrabold shadow-sm">
+                          Q
                         </div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Quarta-feira</span>
+                        <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Quarta-feira (Azul Claro)</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 rounded-xs bg-amber-50 border border-amber-500 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-amber-50 text-amber-700 border border-amber-100/50 flex items-center justify-center text-[9px] font-extrabold shadow-sm">
+                          Q
                         </div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Quinta-feira</span>
+                        <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Quinta-feira (Laranja Claro)</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3.5 h-3.5 rounded-xs bg-rose-50 border border-rose-300 flex items-center justify-center text-[8px] font-black text-rose-600">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-white border border-slate-200 text-slate-700 font-bold text-[9px] relative shadow-sm overflow-hidden flex items-center justify-center">
                           X
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
+                            <svg className="w-full h-full stroke-rose-500/55" viewBox="0 0 100 100" preserveAspectRatio="none">
+                              <line x1="15" y1="15" x2="85" y2="85" strokeWidth="6" strokeLinecap="round" />
+                              <line x1="85" y1="15" x2="15" y2="85" strokeWidth="6" strokeLinecap="round" />
+                            </svg>
+                          </div>
                         </div>
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Cancelada</span>
+                        <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Cancelada</span>
                       </div>
                     </div>
                   </div>
