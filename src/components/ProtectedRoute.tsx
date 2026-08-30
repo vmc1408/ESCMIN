@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, AlertCircle, Shield } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { DEFAULT_LOGO } from '../lib/default-logo';
+import { getInstitutionSettings } from '../lib/database';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,9 +13,19 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps) {
   const { user, profile, loading, canAccess, refreshProfile } = useAuth();
   const location = useLocation();
-  const [showRetry, setShowRetry] = React.useState(false);
+  const [showRetry, setShowRetry] = useState(false);
+  const [institutionLogo, setInstitutionLogo] = useState<string | null>(() => {
+    try {
+      const cached = localStorage.getItem('cached_institution_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return parsed?.logo_url || null;
+      }
+    } catch (e) {}
+    return null;
+  });
 
-  React.useEffect(() => {
+  useEffect(() => {
     let timer: any;
     if (loading) {
       timer = setTimeout(() => setShowRetry(true), 8000);
@@ -23,13 +35,34 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
     return () => clearTimeout(timer);
   }, [loading]);
 
+  useEffect(() => {
+    // Sincroniza configurações da instituição se ainda não estiver em cache
+    getInstitutionSettings()
+      .then((settings) => {
+        if (settings?.logo_url) {
+          setInstitutionLogo(settings.logo_url);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 gap-6 font-sans">
         <div 
-          className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-200 animate-pulse"
+          className="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-3xl p-3 flex items-center justify-center shadow-xl shadow-slate-200/80 border border-slate-100 animate-pulse transition-all"
         >
-          <Shield className="text-white" size={40} />
+          <img 
+            src={institutionLogo || DEFAULT_LOGO} 
+            alt="Logotipo da Instituição" 
+            className="w-full h-full object-contain drop-shadow-sm select-none"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_LOGO) {
+                (e.currentTarget as HTMLImageElement).src = DEFAULT_LOGO;
+              }
+            }}
+          />
         </div>
         
         <div className="flex flex-col items-center gap-4 text-center max-w-xs">
