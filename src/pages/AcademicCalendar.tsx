@@ -5237,9 +5237,9 @@ export function AcademicCalendar() {
                 </div>
               )}
 
-          {/* Relatório 3: Grade Mensal */}
+          {/* Relatório 3: Calendário Mensal */}
           {printType === 'monthly_grid' && (
-            <div className="space-y-4 print:space-y-2">
+            <div className="space-y-6 print:space-y-4">
               {(printFilters.month === 'all' 
                 ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] 
                 : [printFilters.month]
@@ -5250,18 +5250,38 @@ export function AcademicCalendar() {
                 const monthName = new Date(year, monthIndex).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
                 return (
-                  <div key={`grid-month-${monthIndex}`} className="page-break space-y-8 print:space-y-6">
-                    <h2 className="text-2xl font-bold text-center uppercase tracking-[0.3em] mb-6 text-slate-800 print:text-xl">
-                      {monthName}
-                    </h2>
+                  <div key={`grid-month-${monthIndex}`} className="page-break space-y-4 print:space-y-3">
+                    <div className="text-center border-b-2 border-slate-800 pb-2 mb-4 print:mb-3">
+                      <h2 className="text-xl sm:text-2xl font-black uppercase tracking-[0.25em] text-slate-900 print:text-lg">
+                        {monthName}
+                      </h2>
+                    </div>
                     
-                    <div className="grid grid-cols-7 gap-px bg-slate-300 border-2 border-slate-300 shadow-sm rounded-none overflow-hidden print:border-slate-400 print:bg-slate-400">
-                      {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                        <div key={day} className="bg-slate-100/90 py-3 text-center text-[11px] font-extrabold uppercase tracking-widest text-slate-700 border-b-2 border-slate-300 print:border-slate-400 print:bg-slate-100">{day}</div>
+                    {/* Grade Principal com Bordas Nítidas e Econômica para Impressão */}
+                    <div className="grid grid-cols-7 border-2 border-slate-700 bg-white rounded-none overflow-hidden print:border-slate-800">
+                      {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((day, dIdx) => (
+                        <div 
+                          key={day} 
+                          className={cn(
+                            "bg-slate-100 py-2.5 px-1 text-center text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-800 border-b-2 border-slate-700 print:border-slate-800 print:bg-slate-50",
+                            dIdx < 6 && "border-r border-slate-400 print:border-slate-600"
+                          )}
+                        >
+                          <span className="hidden sm:inline">{day}</span>
+                          <span className="sm:hidden">{day.substring(0, 3)}</span>
+                        </div>
                       ))}
+                      
                       {Array.from({ length: firstDay }).map((_, i) => (
-                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-slate-50/50 min-h-[120px] print:min-h-[110px] border-r border-b border-slate-200/80 print:border-slate-300" />
+                        <div 
+                          key={`grid-empty-${monthIndex}-${i}`} 
+                          className={cn(
+                            "bg-slate-50/70 min-h-[110px] print:min-h-[95px] border-b border-slate-300 print:border-slate-500",
+                            (i + 1) % 7 !== 0 && "border-r border-slate-300 print:border-slate-500"
+                          )} 
+                        />
                       ))}
+                      
                       {Array.from({ length: days }).map((_, i) => {
                         const day = i + 1;
                         const dateStr = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
@@ -5296,155 +5316,129 @@ export function AcademicCalendar() {
                           const isH = e.type?.includes('holiday');
                           if (!isH) return false;
                           const titleLower = e.title?.toLowerCase() || '';
-                          // Exclude facultative holidays from stripes if they are not blocking
                           return !['servidor público', 'santo antônio', 'dia do professor'].some(nb => titleLower.includes(nb));
                         });
                         
                         const hasClassDay = dayEvents.some(e => e.type === 'class_day');
                         const isCancelled = dayEvents.some(e => e.type === 'cancelled_class');
                         const wDay = getWeekdayIndex(dateStr);
-                        const classDayBg = hasClassDay
-                          ? (wDay === 3 ? "bg-sky-50/65" : wDay === 4 ? "bg-amber-50/65" : "")
-                          : "";
+                        
+                        const cellColIndex = (firstDay + i) % 7;
+                        const isRightEdge = cellColIndex === 6;
 
                         return (
                           <div 
                             key={`grid-day-${monthIndex}-${day}`} 
                             className={cn(
-                              "min-h-[125px] print:min-h-[115px] p-2 border-r border-b border-slate-200/90 print:border-slate-300 overflow-visible relative group/day hover:bg-slate-50/50 hover:z-50 transition-all",
-                              !isVacation && !isHolidayGrid && !classDayBg ? "bg-white" : "",
-                              classDayBg,
-                              isVacation && "bg-stripes-slate",
-                              isHolidayGrid && "bg-stripes-red"
+                              "min-h-[115px] print:min-h-[100px] p-1.5 border-b border-slate-300 print:border-slate-500 overflow-visible relative flex flex-col justify-between group/day transition-all",
+                              !isRightEdge && "border-r border-slate-300 print:border-slate-500",
+                              !isVacation && !isHolidayGrid ? "bg-white" : "",
+                              isVacation && "bg-slate-50/80",
+                              isHolidayGrid && "bg-rose-50/50"
                             )}
                           >
-                            <span className="text-[14px] font-extrabold text-slate-900 leading-none">{day}</span>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[13px] sm:text-[14px] font-black text-slate-900 leading-none">
+                                {day}
+                              </span>
+                              {wDay === 0 && (
+                                <span className="text-[8px] font-bold text-slate-400 uppercase">Dom</span>
+                              )}
+                            </div>
                             
                             {isCancelled && (
                               <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
-                                <svg className="w-full h-full stroke-rose-500/30" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                  <line x1="15" y1="15" x2="85" y2="85" strokeWidth="6" strokeLinecap="round" />
-                                  <line x1="85" y1="15" x2="15" y2="85" strokeWidth="6" strokeLinecap="round" />
+                                <svg className="w-full h-full stroke-rose-600/40" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                  <line x1="15" y1="15" x2="85" y2="85" strokeWidth="4" strokeLinecap="round" />
+                                  <line x1="85" y1="15" x2="15" y2="85" strokeWidth="4" strokeLinecap="round" />
                                 </svg>
                               </div>
                             )}
 
-                            <div className="mt-1 space-y-0.5">
-                      {dayEvents.map(e => {
-                        const titleLower = e.title?.toLowerCase() || '';
-                        const isFacultative = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'].some(nb => titleLower.includes(nb));
-                        const isHoliday = !isFacultative && (e.type?.includes('holiday') || e.title?.toLowerCase().includes('férias') || e.title?.toLowerCase().includes('feriado') || e.title?.toLowerCase().includes('recesso'));
-                        const isExam = e.type === 'exam';
-                        const cls = classes.find(c => c.id === e.class_id);
-                        const sbj = subjects.find(s => s.id === e.subject_id);
-                        
-                        return (
-                          <div 
-                            key={e.id} 
-                            className={cn(
-                              "relative group text-[8px] font-bold p-0.5 rounded border leading-[1.1] whitespace-normal break-words shadow-sm transition-all hover:scale-[1.02] hover:shadow-md hover:z-50 cursor-help",
-                              isHoliday ? "bg-red-500 text-white border-red-600" : 
-                              isExam ? "bg-orange-500 text-white border-orange-600" :
-                              isFacultative ? "bg-slate-500 text-white border-indigo-600" :
-                              e.type === 'cancelled_class' ? "bg-rose-50 text-rose-500 border-rose-300 line-through" :
-                              e.type === 'excused_class' ? "bg-slate-100 text-slate-500 border-slate-300" :
-                              wDay === 3 ? "bg-sky-600 text-white border-sky-700" :
-                              wDay === 4 ? "bg-amber-600 text-white border-amber-700" :
-                              "bg-blue-400 text-white border-slate-400"
-                            )}
-                          >
-                            {(e.title || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
-
-                            {/* Tooltip Detalhado */}
-                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[200px] z-[100] pointer-events-none hidden group-hover:block animate-in fade-in zoom-in duration-200">
-                              <div className="bg-white border border-slate-200 shadow-xl rounded-none p-3 text-[10px] font-bold text-slate-700 whitespace-normal leading-tight ring-4 ring-black/5">
-                                <div className="text-slate-800 mb-2 border-b border-blue-50 pb-1.5 flex items-center gap-2">
-                                  <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isHoliday ? "bg-red-500" : isExam ? "bg-orange-500" : "bg-slate-500")} />
-                                  <span className="truncate max-w-[160px]">
-                                    {e.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
-                                  </span>
-                                </div>
-                                <div className="space-y-1.5 text-slate-600">
-                                  {(() => {
-                                    const norm = (t: string) => t
-                                      .replace(/^Dia de Aula - /, '')
-                                      .replace(/^Aula - /, '')
-                                      .replace(/^Aula Normal - /, '')
-                                      .split(' - ')[0]
-                                      .trim();
-                                    
-                                    const normalizedTitle = norm(e.title);
-                                    const relatedEvents = rawDayEvents.filter(re => norm(re.title) === normalizedTitle && re.type === e.type);
-                                    
-                                    const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
-                                    const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
-                                    
-                                    return (
-                                      <>
-                                        {relatedClasses.length > 0 && (
-                                          <div className="flex flex-col gap-0.5 text-[9px] text-slate-500 leading-normal">
-                                            <span className="text-slate-400 font-bold uppercase tracking-wider text-[8px] flex items-center gap-1">
-                                              <School size={8} /> {relatedClasses.length > 1 ? 'Turmas' : 'Turma'}
-                                            </span>
-                                            <span className="text-slate-800 font-bold">
-                                              {relatedClasses.map(c => c!.name).join(', ')}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {sbj && (
-                                          <div className="flex items-center gap-2 border-t border-slate-50 pt-1.5">
-                                            <BookOpen size={10} className="text-slate-400" />
-                                            <span className="truncate">{sbj.name}</span>
-                                          </div>
-                                        )}
-                                        {e.description && (
-                                          <div className="text-slate-400 font-medium text-[9px] mt-1.5 border-t border-slate-50 pt-1.5 leading-snug italic">
-                                            {e.description}
-                                          </div>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </div>
-                              {/* Seta do Tooltip */}
-                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-r border-b border-slate-200 rotate-45" />
-                            </div>
-                          </div>
-                        );
-                      })}
+                            <div className="mt-1 space-y-1 flex-1 flex flex-col justify-start">
+                              {dayEvents.map(e => {
+                                const titleLower = e.title?.toLowerCase() || '';
+                                const isFacultative = ['servidor público', 'santo antônio', 'dia do professor', 'consciência negra'].some(nb => titleLower.includes(nb));
+                                const isHoliday = !isFacultative && (e.type?.includes('holiday') || e.title?.toLowerCase().includes('férias') || e.title?.toLowerCase().includes('feriado') || e.title?.toLowerCase().includes('recesso'));
+                                const isExam = e.type === 'exam';
+                                
+                                const cleanTitle = (e.title || '')
+                                  .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+                                  .replace(/\s*[\]\}]\]\s*$/g, '')
+                                  .replace(/^Dia de Aula - /, '')
+                                  .replace(/^Aula - /, '')
+                                  .replace(/^Aula Normal - /, '')
+                                  .split(' - ')[0]
+                                  .trim();
+                                
+                                return (
+                                  <div 
+                                    key={e.id} 
+                                    className={cn(
+                                      "text-[8.5px] font-bold px-1.5 py-0.5 rounded border leading-tight whitespace-normal break-words shadow-2xs transition-all",
+                                      isHoliday ? "bg-red-50 text-red-800 border-red-400 font-extrabold" : 
+                                      isExam ? "bg-amber-50 text-amber-900 border-amber-400 font-extrabold" :
+                                      isFacultative ? "bg-slate-100 text-slate-700 border-slate-400" :
+                                      e.type === 'cancelled_class' ? "bg-rose-50 text-rose-700 border-rose-300 line-through" :
+                                      e.type === 'excused_class' ? "bg-slate-100 text-slate-600 border-slate-300" :
+                                      wDay === 3 ? "bg-sky-50 text-sky-900 border-sky-400" :
+                                      wDay === 4 ? "bg-amber-50 text-amber-900 border-amber-400" :
+                                      "bg-slate-50 text-slate-800 border-slate-300"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-1">
+                                      <span className={cn(
+                                        "w-1.5 h-1.5 rounded-full shrink-0",
+                                        isHoliday ? "bg-red-600" :
+                                        isExam ? "bg-amber-600" :
+                                        wDay === 3 ? "bg-sky-600" :
+                                        wDay === 4 ? "bg-amber-600" :
+                                        "bg-slate-600"
+                                      )} />
+                                      <span className="truncate">{cleanTitle}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
                       })}
                     </div>
 
-                     {/* Legenda de Marcações Compacta - Agora no Rodapé de Cada Mês */}
-                     <div className="mt-4 flex flex-wrap justify-center gap-x-8 gap-y-2 pb-2 border-t border-slate-200 pt-3 no-print-break">
-                       <div className="flex items-center gap-2">
-                         <div className="w-4 h-4 rounded bg-red-500 border border-red-600 shadow-sm" />
-                         <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Feriado / Recesso</span>
-                       </div>
-                       <div className="flex items-center gap-2">
-                         <div className="w-4 h-4 rounded bg-amber-400 border border-amber-500 shadow-sm" />
-                         <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Avaliação</span>
-                       </div>
-                       <div className="flex items-center gap-2">
-                         <div className="w-4 h-4 rounded bg-sky-600 border border-sky-700 shadow-sm" />
-                         <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Quarta-feira (Azul)</span>
-                       </div>
-                       <div className="flex items-center gap-2">
-                         <div className="w-4 h-4 rounded bg-amber-600 border border-amber-700 shadow-sm" />
-                         <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Quinta-feira (Laranja)</span>
-                       </div>
-
-                       <div className="flex items-center gap-2">
-                         <div className="w-4 h-4 rounded bg-rose-50 border border-rose-300 relative overflow-hidden flex items-center justify-center text-[8px] font-extrabold text-rose-500 shadow-sm">
-                           X
-                         </div>
-                         <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Cancelada</span>
-                       </div>
-                     </div>
+                    {/* Legenda de Marcações Econômica (Baixo consumo de toner/tinta) */}
+                    <div className="mt-4 flex flex-wrap justify-center items-center gap-x-6 gap-y-2 py-2.5 px-4 border border-slate-300 bg-slate-50/70 text-slate-800 rounded-none no-print-break print:bg-white print:border-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3.5 h-3.5 rounded-xs bg-red-50 border border-red-500 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Feriado / Recesso</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3.5 h-3.5 rounded-xs bg-amber-50 border border-amber-500 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Avaliação</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3.5 h-3.5 rounded-xs bg-sky-50 border border-sky-500 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-sky-600" />
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Quarta-feira</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3.5 h-3.5 rounded-xs bg-amber-50 border border-amber-500 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Quinta-feira</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3.5 h-3.5 rounded-xs bg-rose-50 border border-rose-300 flex items-center justify-center text-[8px] font-black text-rose-600">
+                          X
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-800">Cancelada</span>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
