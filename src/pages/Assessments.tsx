@@ -25,6 +25,7 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject } from '../types';
+import { formatSubjectDisplayName } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Assessments: React.FC = () => {
@@ -505,7 +506,14 @@ export const Assessments: React.FC = () => {
                       const selectedClass = classes.find(c => c.id === filterClass);
                       return selectedClass?.subject_ids?.includes(s.id);
                     })
-                    .map((s, idx) => <option key={`ass-sub-opt-${s.id || idx}-${idx}`} value={s.id}>{s.name}</option>)}
+                    .map((s, idx) => {
+                      const selectedClass = classes.find(c => c.id === filterClass);
+                      return (
+                        <option key={`ass-sub-opt-${s.id || idx}-${idx}`} value={s.id}>
+                          {formatSubjectDisplayName(s, selectedClass)}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
             </div>
@@ -819,7 +827,14 @@ export const Assessments: React.FC = () => {
                           const selectedClass = classes.find(c => c.id === formData.class_id);
                           return selectedClass?.subject_ids?.includes(s.id);
                         })
-                        .map((s, idx) => <option key={`ass-mdl-sub-${s.id || idx}-${idx}`} value={s.id}>{s.name}</option>)}
+                        .map((s, idx) => {
+                          const selectedClass = classes.find(c => c.id === formData.class_id);
+                          return (
+                            <option key={`ass-mdl-sub-${s.id || idx}-${idx}`} value={s.id}>
+                              {formatSubjectDisplayName(s, selectedClass)}
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
 

@@ -63,7 +63,7 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
@@ -2323,7 +2323,7 @@ export function Reports() {
                   >
                     <option value="all">Filtrar Disciplina</option>
                     {subjects.map((s, idx) => (
-                      <option key={`rep-sub-${s.id}-${idx}`} value={s.id}>{s.name.toUpperCase()}</option>
+                      <option key={`rep-sub-${s.id}-${idx}`} value={s.id}>{formatSubjectDisplayName(s, undefined, true)}</option>
                     ))}
                   </select>
                 </div>

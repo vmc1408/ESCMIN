@@ -20,7 +20,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
-import { cn } from '../lib/utils';
+import { cn, formatSubjectDisplayName } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -1067,7 +1067,14 @@ export function Grades() {
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">Selecione uma disciplina...</option>
-                {filteredSubjects.map((s, idx) => <option key={`grd-sub-${s.id}-${idx}`} value={s.id}>{s.name}</option>)}
+                {filteredSubjects.map((s, idx) => {
+                  const currentClassObj = classes.find(c => c.id === selectedClass);
+                  return (
+                    <option key={`grd-sub-${s.id}-${idx}`} value={s.id}>
+                      {formatSubjectDisplayName(s, currentClassObj)}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>

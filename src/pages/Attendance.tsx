@@ -22,7 +22,7 @@ import {
   Unlock,
   Settings
 } from 'lucide-react';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, detectSubjectSemester } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -41,9 +41,17 @@ interface Class {
   name: string;
   code: string;
   room?: string;
+  semester?: string;
   subject_ids?: string[];
+  subject_id_sem1?: string;
+  subject_id_sem1_h1?: string;
+  subject_id_sem1_h2?: string;
+  subject_id_sem2?: string;
+  subject_id_sem2_h1?: string;
+  subject_id_sem2_h2?: string;
   days_of_week?: string[];
   start_date?: string;
+  observations?: string;
 }
 
 interface Subject {
@@ -189,6 +197,27 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           }
         } else if (!Array.isArray(normalized.days_of_week)) {
           normalized.days_of_week = [];
+        }
+
+        if (normalized.observations) {
+          try {
+            const match = String(normalized.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+            if (match && match[1]) {
+              const meta = JSON.parse(match[1]);
+              if (!normalized.semester && (meta.semester || meta.semester_id)) {
+                normalized.semester = meta.semester || meta.semester_id;
+              }
+              if (meta.subject_id_sem1_h1) normalized.subject_id_sem1_h1 = meta.subject_id_sem1_h1;
+              if (meta.subject_id_sem1_h2) normalized.subject_id_sem1_h2 = meta.subject_id_sem1_h2;
+              if (meta.subject_id_sem2_h1) normalized.subject_id_sem2_h1 = meta.subject_id_sem2_h1;
+              if (meta.subject_id_sem2_h2) normalized.subject_id_sem2_h2 = meta.subject_id_sem2_h2;
+              if (meta.subject_id_sem1) normalized.subject_id_sem1 = meta.subject_id_sem1;
+              if (meta.subject_id_sem2) normalized.subject_id_sem2 = meta.subject_id_sem2;
+              if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
+                normalized.subject_ids = meta.subject_ids;
+              }
+            }
+          } catch (e) {}
         }
 
         return normalized;
@@ -1147,7 +1176,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         };
 
         const yearStr = currentSubjectObj?.year ? formatYear(currentSubjectObj.year) : '';
-        const semesterStr = currentSubjectObj?.semester ? formatSemester(currentSubjectObj.semester) : '';
+        const detectedSem = detectSubjectSemester(currentSubjectObj, currentClassObj);
+        const semesterStr = detectedSem ? formatSemester(detectedSem) : (currentSubjectObj?.semester ? formatSemester(currentSubjectObj.semester) : '');
 
         // Header Title (centered)
         const mainTitle = (activePrintType === 'marking' ? 'LISTA DE CHAMADA' : 'LISTA DE PRESENÇA MENSAL').toUpperCase();
@@ -1687,7 +1717,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                     <BookOpen size={13} className="text-slate-500" />
                     <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Disciplina:</span>
                     <span className="font-semibold text-slate-900 truncate max-w-[150px] sm:max-w-[200px]">
-                      {filteredSubjects.find(s => s.id === selectedSubject)?.name?.toUpperCase() || 'Nenhuma'}
+                      {(() => {
+                        const sub = filteredSubjects.find(s => s.id === selectedSubject);
+                        const cls = classes.find(c => c.id === selectedClass);
+                        return sub ? formatSubjectDisplayName(sub, cls, true) : 'Nenhuma';
+                      })()}
                     </span>
                   </div>
                 )}
@@ -1807,7 +1841,15 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                         className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all disabled:bg-slate-100/50 disabled:opacity-60 outline-none"
                       >
                         <option value="">SELECIONAR DISCIPLINA...</option>
-                        {filteredSubjects.map((s, idx) => <option key={`att-sub-${s.id}-${idx}`} value={s.id}>{s.name.toUpperCase()}</option>)}
+                        {filteredSubjects.map((s, idx) => {
+                          const currentClassObj = classes.find(c => c.id === selectedClass);
+                          const displayName = formatSubjectDisplayName(s, currentClassObj, true);
+                          return (
+                            <option key={`att-sub-${s.id}-${idx}`} value={s.id}>
+                              {displayName}
+                            </option>
+                          );
+                        })}
                       </select>
                       <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                     </div>
