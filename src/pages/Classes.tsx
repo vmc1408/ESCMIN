@@ -2540,11 +2540,11 @@ export function Classes() {
                           setSelectedClass(null);
                           setIsEditing(false);
                         }}
-                        className="h-10 px-4 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
+                        className="h-10 w-10 bg-rose-50 border border-rose-200 text-rose-600 rounded-none hover:text-rose-800 hover:bg-rose-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
                         title="Fechar Ficha"
+                        aria-label="Fechar Ficha"
                       >
-                        <X size={15} />
-                        <span className="hidden sm:inline">Fechar Ficha</span>
+                        <X size={18} />
                       </button>
 
                       <button 
@@ -2560,18 +2560,19 @@ export function Classes() {
                           }
                         }}
                         className="h-10 w-10 bg-white border border-slate-200 text-slate-500 rounded-none hover:text-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                        title="Imprimir"
+                        title="Imprimir Ficha"
+                        aria-label="Imprimir Ficha"
                       >
                         <Printer size={16} />
                       </button>
 
                       <button 
                         onClick={() => setIsEditing(true)}
-                        className="h-10 px-4 bg-slate-800 border border-slate-800 hover:bg-slate-900 text-white rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wider"
-                        title="Editar"
+                        className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        title="Editar Turma"
+                        aria-label="Editar Turma"
                       >
-                        <Edit2 size={14} />
-                        <span>Editar</span>
+                        <Edit2 size={16} />
                       </button>
                     </div>
                   )
