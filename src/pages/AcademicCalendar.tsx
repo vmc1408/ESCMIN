@@ -43,14 +43,14 @@ import {
   Divide,
   Ban
 } from 'lucide-react';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useCalendarHelpers } from '../hooks/useCalendar';
 import { getTypeStyle, getTypeText, getTypeColor } from '../lib/calendar-utils';
-import { CalendarEvent, AcademicSettings, Class, Subject, InstitutionSettings } from '../types';
+import { CalendarEvent, AcademicSettings, Class, Subject, InstitutionSettings, Course } from '../types';
 import { HolidayListReport } from '../components/calendar/HolidayListReport';
 
 export function AcademicCalendar() {
@@ -61,6 +61,7 @@ export function AcademicCalendar() {
   const [institution, setInstitution] = useState<InstitutionSettings | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -552,7 +553,7 @@ export function AcademicCalendar() {
   // Memoize settings loading to prevent loops
   const [lastLoadedKey, setLastLoadedKey] = useState('');
 
-  const summarizeClassesByDiscipline = (
+  const summarizeClassesByCourse = (
     classItems: Class[], 
     subjectsList: Subject[] = [], 
     eventSubjectId?: string
@@ -560,26 +561,42 @@ export function AcademicCalendar() {
     if (!classItems || classItems.length === 0) {
       if (eventSubjectId) {
         const s = subjectsList.find(sub => sub.id === eventSubjectId);
-        if (s) return s.name;
+        if (s) {
+          const matchedCourse = courses.find(c => 
+            (c.name && s.name.toLowerCase().includes(c.name.toLowerCase())) ||
+            (c.code && s.code && s.code.toLowerCase().includes(c.code.toLowerCase()))
+          );
+          if (matchedCourse) return matchedCourse.name;
+          return s.name;
+        }
       }
       return '';
     }
 
-    const disciplines = new Set<string>();
+    const courseNames = new Set<string>();
 
     classItems.forEach(cls => {
-      let disc = (cls.course || '').trim();
-
-      if (!disc && (cls.subject_id || (cls.subject_ids && cls.subject_ids.length > 0))) {
-        const sId = cls.subject_id || (cls.subject_ids && cls.subject_ids[0]);
-        const s = subjectsList.find(sub => sub.id === sId);
-        if (s?.name) {
-          disc = s.name.trim();
-        }
+      // 1. Direct course field on class if present
+      if (cls.course && cls.course.trim()) {
+        const courseTrimmed = cls.course.trim();
+        const matched = courses.find(c => 
+          c.name.toLowerCase() === courseTrimmed.toLowerCase() || 
+          (c.code && c.code.toLowerCase() === courseTrimmed.toLowerCase())
+        );
+        courseNames.add(matched ? matched.name : courseTrimmed);
+        return;
       }
 
-      if (!disc && cls.name) {
-        disc = cls.name
+      // 2. Detect course using helper and registered courses
+      const detected = detectCourseFromClass(cls, courses);
+      if (detected) {
+        courseNames.add(detected);
+        return;
+      }
+
+      // 3. Fallback: clean class name to course title
+      if (cls.name) {
+        const cleanName = cls.name
           .replace(/\s*\b(19|20)\d{2}\b/gi, '')
           .replace(/\s*-\s*\d+.*$/i, '')
           .replace(/\s*\(.*?\)/gi, '')
@@ -587,22 +604,23 @@ export function AcademicCalendar() {
           .replace(/\s*Semestre\s*[1-2]/gi, '')
           .replace(/\s*Ano\s*[1-9]/gi, '')
           .trim();
-      }
-
-      if (disc) {
-        disciplines.add(disc);
-      } else if (cls.name) {
-        disciplines.add(cls.name.trim());
+        if (cleanName) {
+          courseNames.add(cleanName);
+        } else {
+          courseNames.add(cls.name.trim());
+        }
       }
     });
 
-    if (disciplines.size === 0 && eventSubjectId) {
+    if (courseNames.size === 0 && eventSubjectId) {
       const s = subjectsList.find(sub => sub.id === eventSubjectId);
-      if (s) disciplines.add(s.name);
+      if (s) courseNames.add(s.name);
     }
 
-    return Array.from(disciplines).join(', ');
+    return Array.from(courseNames).join(', ');
   };
+
+  const summarizeClassesByDiscipline = summarizeClassesByCourse;
 
   const getWeekdayDataForDoc = (i: number, parsedDoc: AcademicSettings, currentEventsList?: CalendarEvent[]) => {
     const activeEvents = currentEventsList || events || [];
@@ -942,7 +960,8 @@ export function AcademicCalendar() {
         fetchAll('calendar_events', '*', 'start_date'),
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchById('academic_settings', 'current')
+        fetchById('academic_settings', 'current'),
+        fetchAll('courses')
       ]);
 
       const rawEvents: CalendarEvent[] = fetchResults[0].status === 'fulfilled' ? fetchResults[0].value : [];
@@ -975,6 +994,7 @@ export function AcademicCalendar() {
       const classesData = fetchResults[1].status === 'fulfilled' ? fetchResults[1].value : [];
       const subjectsData = fetchResults[2].status === 'fulfilled' ? fetchResults[2].value : [];
       const settingsData = fetchResults[3].status === 'fulfilled' ? fetchResults[3].value : null;
+      const coursesData = fetchResults[4].status === 'fulfilled' ? fetchResults[4].value : [];
 
       const sortedClasses = (classesData || []).sort((a: any, b: any) => {
         const extract = (s: string) => {
@@ -996,6 +1016,7 @@ export function AcademicCalendar() {
       setEvents(eventsData || []);
       setClasses(sortedClasses);
       setSubjects(subjectsData || []);
+      setCourses(coursesData || []);
       
       let settingsObj = settingsData;
       
@@ -2967,11 +2988,11 @@ export function AcademicCalendar() {
                                     const relEvs = rawDayEvents.filter(re => norm(re.title) === cleanT && re.type === event.type);
                                     const uIds = Array.from(new Set(relEvs.map(re => re.class_id).filter(Boolean)));
                                     const relCls = uIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
-                                    const disc = summarizeClassesByDiscipline(relCls, subjects, event.subject_id);
-                                    return disc ? (
-                                      <span className="text-[7px] font-medium opacity-90 block mt-0.5">
-                                        {disc}
-                                      </span>
+                                    const courseSummary = summarizeClassesByCourse(relCls, subjects, event.subject_id);
+                                    return courseSummary ? (
+                                       <span className="text-[7px] font-medium opacity-90 block mt-0.5">
+                                         {courseSummary}
+                                       </span>
                                     ) : null;
                                   })()}
                                   <span className="text-[6px] font-bold opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
@@ -2989,10 +3010,10 @@ export function AcademicCalendar() {
                                     const relEvs = rawDayEvents.filter(re => norm(re.title) === cleanT && re.type === event.type);
                                     const uIds = Array.from(new Set(relEvs.map(re => re.class_id).filter(Boolean)));
                                     const relCls = uIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
-                                    const disc = summarizeClassesByDiscipline(relCls, subjects, event.subject_id);
-                                    return disc ? (
+                                    const courseSummary = summarizeClassesByCourse(relCls, subjects, event.subject_id);
+                                    return courseSummary ? (
                                       <span className="text-[7px] font-medium opacity-90 block mt-0.5">
-                                        {disc}
+                                        {courseSummary}
                                       </span>
                                     ) : null;
                                   })()}
@@ -3025,15 +3046,15 @@ export function AcademicCalendar() {
                                       
                                       const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
                                       const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
-                                      const disciplineSummary = summarizeClassesByDiscipline(relatedClasses, subjects, event.subject_id);
+                                      const courseSummary = summarizeClassesByCourse(relatedClasses, subjects, event.subject_id);
                                       const sbj = subjects.find(s => s.id === event.subject_id);
                                       
                                       return (
                                         <>
-                                          {disciplineSummary && (
+                                          {courseSummary && (
                                             <div className="flex items-center gap-1.5 text-[9px] text-slate-800 font-bold pb-1 border-b border-slate-50">
-                                              <BookOpen size={10} className="text-slate-400 shrink-0" />
-                                              <span>Disciplina: {disciplineSummary}</span>
+                                              <GraduationCap size={10} className="text-slate-400 shrink-0" />
+                                              <span>Curso: {courseSummary}</span>
                                             </div>
                                           )}
                                           {relatedClasses.length > 0 && (
@@ -3046,7 +3067,7 @@ export function AcademicCalendar() {
                                               </span>
                                             </div>
                                           )}
-                                          {sbj && sbj.name !== disciplineSummary && (
+                                          {sbj && sbj.name !== courseSummary && (
                                             <div className="flex items-center gap-2 border-t border-slate-50 pt-1.5">
                                               <BookOpen size={10} className="text-slate-400" />
                                               <span className="truncate">{sbj.name}</span>
@@ -5443,7 +5464,7 @@ export function AcademicCalendar() {
                                   const relatedEvents = rawDayEvents.filter(re => norm(re.title) === cleanTitle && re.type === event.type);
                                   const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
                                   const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
-                                  const disciplineSummary = summarizeClassesByDiscipline(relatedClasses, subjects, event.subject_id);
+                                  const courseSummary = summarizeClassesByCourse(relatedClasses, subjects, event.subject_id);
 
                                   return (
                                     <div 
@@ -5461,9 +5482,9 @@ export function AcademicCalendar() {
                                           )}>
                                             {cleanTitle}
                                           </span>
-                                          {disciplineSummary && (
+                                          {courseSummary && (
                                             <span className="text-[7.5px] font-medium opacity-90 block mt-0.5 uppercase tracking-wide">
-                                              {disciplineSummary}
+                                              {courseSummary}
                                             </span>
                                           )}
                                           <span className="text-[6px] font-bold opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
@@ -5475,9 +5496,9 @@ export function AcademicCalendar() {
                                           <span className="block font-bold">
                                             {cleanTitle}
                                           </span>
-                                          {disciplineSummary && (
+                                          {courseSummary && (
                                             <span className="text-[7.5px] font-medium opacity-90 block mt-0.5 uppercase tracking-wide">
-                                              {disciplineSummary}
+                                              {courseSummary}
                                             </span>
                                           )}
                                         </div>
