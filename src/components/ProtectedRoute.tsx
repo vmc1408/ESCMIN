@@ -48,14 +48,14 @@ export function ProtectedRoute({ children, requiredModule }: ProtectedRouteProps
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 gap-6 font-sans">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 gap-6 font-sans">
         <div 
-          className="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-3xl p-3 flex items-center justify-center shadow-xl shadow-slate-200/80 border border-slate-100 animate-pulse transition-all"
+          className="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center animate-pulse transition-all"
         >
           <img 
             src={institutionLogo || DEFAULT_LOGO} 
             alt="Logotipo da Instituição" 
-            className="w-full h-full object-contain drop-shadow-sm select-none"
+            className="w-full h-full object-contain drop-shadow-md select-none bg-transparent"
             referrerPolicy="no-referrer"
             onError={(e) => {
               if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_LOGO) {
