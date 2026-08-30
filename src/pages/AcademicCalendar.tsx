@@ -552,6 +552,58 @@ export function AcademicCalendar() {
   // Memoize settings loading to prevent loops
   const [lastLoadedKey, setLastLoadedKey] = useState('');
 
+  const summarizeClassesByDiscipline = (
+    classItems: Class[], 
+    subjectsList: Subject[] = [], 
+    eventSubjectId?: string
+  ): string => {
+    if (!classItems || classItems.length === 0) {
+      if (eventSubjectId) {
+        const s = subjectsList.find(sub => sub.id === eventSubjectId);
+        if (s) return s.name;
+      }
+      return '';
+    }
+
+    const disciplines = new Set<string>();
+
+    classItems.forEach(cls => {
+      let disc = (cls.course || '').trim();
+
+      if (!disc && (cls.subject_id || (cls.subject_ids && cls.subject_ids.length > 0))) {
+        const sId = cls.subject_id || (cls.subject_ids && cls.subject_ids[0]);
+        const s = subjectsList.find(sub => sub.id === sId);
+        if (s?.name) {
+          disc = s.name.trim();
+        }
+      }
+
+      if (!disc && cls.name) {
+        disc = cls.name
+          .replace(/\s*\b(19|20)\d{2}\b/gi, '')
+          .replace(/\s*-\s*\d+.*$/i, '')
+          .replace(/\s*\(.*?\)/gi, '')
+          .replace(/\s*Turma\s*[A-Z0-9]*/gi, '')
+          .replace(/\s*Semestre\s*[1-2]/gi, '')
+          .replace(/\s*Ano\s*[1-9]/gi, '')
+          .trim();
+      }
+
+      if (disc) {
+        disciplines.add(disc);
+      } else if (cls.name) {
+        disciplines.add(cls.name.trim());
+      }
+    });
+
+    if (disciplines.size === 0 && eventSubjectId) {
+      const s = subjectsList.find(sub => sub.id === eventSubjectId);
+      if (s) disciplines.add(s.name);
+    }
+
+    return Array.from(disciplines).join(', ');
+  };
+
   const getWeekdayDataForDoc = (i: number, parsedDoc: AcademicSettings, currentEventsList?: CalendarEvent[]) => {
     const activeEvents = currentEventsList || events || [];
     const isRegisteredInWeekdays = (parsedDoc.class_weekdays || []).includes(i) || 
@@ -2909,14 +2961,42 @@ export function AcademicCalendar() {
                                   )}>
                                     {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
                                   </span>
+                                  {(() => {
+                                    const norm = (t: string) => (t || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim();
+                                    const cleanT = norm(event.title);
+                                    const relEvs = rawDayEvents.filter(re => norm(re.title) === cleanT && re.type === event.type);
+                                    const uIds = Array.from(new Set(relEvs.map(re => re.class_id).filter(Boolean)));
+                                    const relCls = uIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
+                                    const disc = summarizeClassesByDiscipline(relCls, subjects, event.subject_id);
+                                    return disc ? (
+                                      <span className="text-[7px] font-medium opacity-90 block mt-0.5">
+                                        {disc}
+                                      </span>
+                                    ) : null;
+                                  })()}
                                   <span className="text-[6px] font-bold opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
                                     {event.type === 'excused_class' ? 'ABONADA' : 'CANCELADA'}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="block">
-                                  {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
-                                </span>
+                                <div className="flex flex-col">
+                                  <span className="block font-bold">
+                                    {event.title.replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim()}
+                                  </span>
+                                  {(() => {
+                                    const norm = (t: string) => (t || '').replace(/\[METADATA:\{[\s\S]*?\}\]/g, '').replace(/\s*[\]\}]\]\s*$/g, '').replace(/^Dia de Aula - /, '').replace(/^Aula - /, '').replace(/^Aula Normal - /, '').split(' - ')[0].trim();
+                                    const cleanT = norm(event.title);
+                                    const relEvs = rawDayEvents.filter(re => norm(re.title) === cleanT && re.type === event.type);
+                                    const uIds = Array.from(new Set(relEvs.map(re => re.class_id).filter(Boolean)));
+                                    const relCls = uIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
+                                    const disc = summarizeClassesByDiscipline(relCls, subjects, event.subject_id);
+                                    return disc ? (
+                                      <span className="text-[7px] font-medium opacity-90 block mt-0.5">
+                                        {disc}
+                                      </span>
+                                    ) : null;
+                                  })()}
+                                </div>
                               )}
 
                               {/* Tooltip Detalhado no Calendar Grid */}
@@ -2945,10 +3025,17 @@ export function AcademicCalendar() {
                                       
                                       const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
                                       const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
+                                      const disciplineSummary = summarizeClassesByDiscipline(relatedClasses, subjects, event.subject_id);
                                       const sbj = subjects.find(s => s.id === event.subject_id);
                                       
                                       return (
                                         <>
+                                          {disciplineSummary && (
+                                            <div className="flex items-center gap-1.5 text-[9px] text-slate-800 font-bold pb-1 border-b border-slate-50">
+                                              <BookOpen size={10} className="text-slate-400 shrink-0" />
+                                              <span>Disciplina: {disciplineSummary}</span>
+                                            </div>
+                                          )}
                                           {relatedClasses.length > 0 && (
                                             <div className="flex flex-col gap-0.5 text-[9px] text-slate-500 leading-normal">
                                               <span className="text-slate-400 font-bold uppercase tracking-wider text-[8px] flex items-center gap-1">
@@ -2959,7 +3046,7 @@ export function AcademicCalendar() {
                                               </span>
                                             </div>
                                           )}
-                                          {sbj && (
+                                          {sbj && sbj.name !== disciplineSummary && (
                                             <div className="flex items-center gap-2 border-t border-slate-50 pt-1.5">
                                               <BookOpen size={10} className="text-slate-400" />
                                               <span className="truncate">{sbj.name}</span>
@@ -5356,7 +5443,7 @@ export function AcademicCalendar() {
                                   const relatedEvents = rawDayEvents.filter(re => norm(re.title) === cleanTitle && re.type === event.type);
                                   const uniqueClassIds = Array.from(new Set(relatedEvents.map(re => re.class_id).filter(Boolean)));
                                   const relatedClasses = uniqueClassIds.map(id => classes.find(c => c.id === id)).filter(Boolean);
-                                  const classNames = relatedClasses.map(c => c!.name).join(', ');
+                                  const disciplineSummary = summarizeClassesByDiscipline(relatedClasses, subjects, event.subject_id);
 
                                   return (
                                     <div 
@@ -5374,9 +5461,9 @@ export function AcademicCalendar() {
                                           )}>
                                             {cleanTitle}
                                           </span>
-                                          {classNames && (
-                                            <span className="text-[7px] font-medium opacity-90 block mt-0.5">
-                                              {classNames}
+                                          {disciplineSummary && (
+                                            <span className="text-[7.5px] font-medium opacity-90 block mt-0.5 uppercase tracking-wide">
+                                              {disciplineSummary}
                                             </span>
                                           )}
                                           <span className="text-[6px] font-bold opacity-100 tracking-wider text-slate-500 mt-0.5 no-underline block leading-none">
@@ -5388,9 +5475,9 @@ export function AcademicCalendar() {
                                           <span className="block font-bold">
                                             {cleanTitle}
                                           </span>
-                                          {classNames && (
-                                            <span className="text-[7px] font-medium opacity-90 block mt-0.5">
-                                              {classNames}
+                                          {disciplineSummary && (
+                                            <span className="text-[7.5px] font-medium opacity-90 block mt-0.5 uppercase tracking-wide">
+                                              {disciplineSummary}
                                             </span>
                                           )}
                                         </div>
