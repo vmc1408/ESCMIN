@@ -124,6 +124,9 @@ export interface Course {
   description?: string;
   duration_years?: number;
   duration_semesters?: number;
+  duration_total?: string; // Ex: '1 ano', '2 anos', '6 meses'
+  meetings_per_week?: number; // Ex: 1, 2 encontros semanais
+  meeting_days?: string[]; // Ex: ['Segunda', 'Quarta'] ou ['Sábado']
   status: 'Ativo' | 'Inativo';
   workload_hours?: number;
   user_id?: string;

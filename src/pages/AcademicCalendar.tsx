@@ -24,7 +24,7 @@ import {
   Flag,
   MapPin,
   AlertCircle,
-  Map,
+  Map as MapIcon,
   ArrowUpAZ,
   ArrowDownZA,
   ListFilter,
@@ -673,6 +673,73 @@ export function AcademicCalendar() {
     return getWeekdayDataForDoc(i, academicSettings);
   };
 
+  const inferTermsForWeekday = (
+    day: number,
+    eventsList: CalendarEvent[],
+    rootTerms: { term1_start?: string; term1_end?: string; term2_start?: string; term2_end?: string } = {}
+  ) => {
+    // 1. Events on this specific weekday
+    const dayEvents = (eventsList || []).filter(e => {
+      if (!e.start_date) return false;
+      const d = new Date(e.start_date + 'T00:00:00');
+      return d.getDay() === day;
+    });
+
+    const isTerm1Start = (e: CalendarEvent) => (e.type === 'start_term' || e.title?.toLowerCase().includes('início') || e.title?.toLowerCase().includes('inicio')) && (e.title?.includes('1º') || e.title?.includes('1o') || e.title?.includes('1°'));
+    const isTerm1End = (e: CalendarEvent) => (e.type === 'end_term' || e.title?.toLowerCase().includes('término') || e.title?.toLowerCase().includes('termino')) && (e.title?.includes('1º') || e.title?.includes('1o') || e.title?.includes('1°'));
+    const isTerm2Start = (e: CalendarEvent) => (e.type === 'start_term' || e.title?.toLowerCase().includes('início') || e.title?.toLowerCase().includes('inicio')) && (e.title?.includes('2º') || e.title?.includes('2o') || e.title?.includes('2°'));
+    const isTerm2End = (e: CalendarEvent) => (e.type === 'end_term' || e.title?.toLowerCase().includes('término') || e.title?.toLowerCase().includes('termino')) && (e.title?.includes('2º') || e.title?.includes('2o') || e.title?.includes('2°') || e.title?.toLowerCase().includes('ano letivo'));
+
+    const t1s = dayEvents.find(isTerm1Start);
+    const t1e = dayEvents.find(isTerm1End);
+    const t2s = dayEvents.find(isTerm2Start);
+    const t2e = dayEvents.find(isTerm2End);
+
+    // 2. Global term boundary events across all calendar events
+    const gT1s = (eventsList || []).find(isTerm1Start);
+    const gT1e = (eventsList || []).find(isTerm1End);
+    const gT2s = (eventsList || []).find(isTerm2Start);
+    const gT2e = (eventsList || []).find(isTerm2End);
+
+    // 3. First and last class days if term events are not explicit
+    let firstClassSem1 = '';
+    let lastClassSem1 = '';
+    let firstClassSem2 = '';
+    let lastClassSem2 = '';
+
+    const classDaysThisWeekday = dayEvents
+      .filter(e => e.type === 'class_day' && e.start_date)
+      .map(e => e.start_date)
+      .sort();
+
+    if (classDaysThisWeekday.length > 0) {
+      const sem1Classes = classDaysThisWeekday.filter(d => {
+        const month = parseInt(d.split('-')[1], 10);
+        return month <= 7;
+      });
+      const sem2Classes = classDaysThisWeekday.filter(d => {
+        const month = parseInt(d.split('-')[1], 10);
+        return month >= 8;
+      });
+
+      if (sem1Classes.length > 0) {
+        firstClassSem1 = sem1Classes[0];
+        lastClassSem1 = sem1Classes[sem1Classes.length - 1];
+      }
+      if (sem2Classes.length > 0) {
+        firstClassSem2 = sem2Classes[0];
+        lastClassSem2 = sem2Classes[sem2Classes.length - 1];
+      }
+    }
+
+    return {
+      term1_start: t1s?.start_date || rootTerms.term1_start || gT1s?.start_date || firstClassSem1 || '',
+      term1_end: t1e?.start_date || rootTerms.term1_end || gT1e?.start_date || lastClassSem1 || '',
+      term2_start: t2s?.start_date || rootTerms.term2_start || gT2s?.start_date || firstClassSem2 || '',
+      term2_end: t2e?.start_date || rootTerms.term2_end || gT2e?.start_date || lastClassSem2 || '',
+    };
+  };
+
   const loadSettings = async (targetId: string = 'current') => {
     try {
       const data = await fetchById('academic_settings', targetId);
@@ -698,21 +765,51 @@ export function AcademicCalendar() {
           ...(data || {})
         };
 
+        const activeWeekdays = Array.isArray(mergedData.class_weekdays) 
+          ? mergedData.class_weekdays.map(Number) 
+          : (localData.class_weekdays 
+            ? localData.class_weekdays.map(Number) 
+            : (data?.class_weekdays ? data.class_weekdays.map(Number) : [3]));
+
+        const existingTerms = {
+          ...(localData.weekday_terms || {}),
+          ...(mergedData.weekday_terms || {})
+        };
+
+        // For all active weekdays (or weekdays with events in calendar), fill in any missing term dates from real calendar events
+        const enrichedWeekdayTerms: Record<number, any> = { ...existingTerms };
+        const allRelevantDays = new Set<number>([...activeWeekdays, 3, 4]);
+        
+        (freshEvents || []).forEach(e => {
+          if (e.start_date && e.type === 'class_day') {
+            const d = new Date(e.start_date + 'T00:00:00');
+            allRelevantDays.add(d.getDay());
+          }
+        });
+
+        allRelevantDays.forEach(day => {
+          const currentDayTerms = enrichedWeekdayTerms[day] || enrichedWeekdayTerms[String(day)] || {};
+          const inferred = inferTermsForWeekday(day, freshEvents || [], mergedData);
+          
+          enrichedWeekdayTerms[day] = {
+            term1_start: currentDayTerms.term1_start || inferred.term1_start || '',
+            term1_end: currentDayTerms.term1_end || inferred.term1_end || '',
+            term2_start: currentDayTerms.term2_start || inferred.term2_start || '',
+            term2_end: currentDayTerms.term2_end || inferred.term2_end || '',
+          };
+        });
+
         const parsed = {
           ...mergedData,
           term1_start: mergedData.term1_start || '',
           term1_end: mergedData.term1_end || '',
           term2_start: mergedData.term2_start || '',
           term2_end: mergedData.term2_end || '',
-          class_weekdays: Array.isArray(mergedData.class_weekdays) 
-            ? mergedData.class_weekdays.map(Number) 
-            : (localData.class_weekdays 
-              ? localData.class_weekdays.map(Number) 
-              : (data?.class_weekdays ? data.class_weekdays.map(Number) : [3])),
+          class_weekdays: activeWeekdays,
           weekday_titles: mergedData.weekday_titles || localData.weekday_titles || {},
           target_class_ids: Array.isArray(mergedData.target_class_ids) ? mergedData.target_class_ids : [],
           weekday_classes: mergedData.weekday_classes || localData.weekday_classes || {},
-          weekday_terms: mergedData.weekday_terms || localData.weekday_terms || {}
+          weekday_terms: enrichedWeekdayTerms
         };
         
         if (targetId === 'current') {
@@ -796,7 +893,33 @@ export function AcademicCalendar() {
         fetchById('academic_settings', 'current')
       ]);
 
-      const eventsData = fetchResults[0].status === 'fulfilled' ? fetchResults[0].value : [];
+      const rawEvents: CalendarEvent[] = fetchResults[0].status === 'fulfilled' ? fetchResults[0].value : [];
+      
+      // Strict deduplication of events in memory and background database cleanup of duplicate records
+      const seenEventKeys = new Set<string>();
+      const deduplicatedEvents: CalendarEvent[] = [];
+      const duplicateIdsToDelete: string[] = [];
+
+      (rawEvents || []).forEach(e => {
+        if (!e.start_date || !e.type) return;
+        const baseTitle = (e.title || '').split(' - ')[0].trim().toLowerCase();
+        const key = `${e.start_date}_${e.type}_${e.class_id || 'all'}_${baseTitle}`;
+        
+        if (seenEventKeys.has(key)) {
+          if (e.id) duplicateIdsToDelete.push(e.id);
+        } else {
+          seenEventKeys.add(key);
+          deduplicatedEvents.push(e);
+        }
+      });
+
+      if (duplicateIdsToDelete.length > 0) {
+        deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: duplicateIdsToDelete }]).catch(err => {
+          console.warn('Background cleanup of duplicate events:', err);
+        });
+      }
+
+      const eventsData = deduplicatedEvents;
       const classesData = fetchResults[1].status === 'fulfilled' ? fetchResults[1].value : [];
       const subjectsData = fetchResults[2].status === 'fulfilled' ? fetchResults[2].value : [];
       const settingsData = fetchResults[3].status === 'fulfilled' ? fetchResults[3].value : null;
@@ -1160,11 +1283,25 @@ export function AcademicCalendar() {
 
       setSyncProgress(25);
       setSyncMessage('Limpando registros anteriores...');
-      // --- SURGICAL CLEAR: Clear prior automatically generated events ---
-      const filters = [
-        { field: 'description', operator: 'ilike', value: '%Cronograma automático%' }
-      ];
-      await deleteQuery('calendar_events', filters);
+      // --- SURGICAL CLEAR: Clear prior automatically generated and class day events ---
+      const preData = await fetchData();
+      const allPrior = preData?.events || [];
+      const priorAutoIds = allPrior.filter(e => {
+        const desc = (e.description || '').toLowerCase();
+        const title = (e.title || '').toLowerCase();
+        const type = e.type;
+        return type === 'class_day' || 
+               type === 'start_term' || 
+               type === 'end_term' || 
+               desc.includes('cronograma automático') || 
+               title.includes('dia de aula');
+      }).map(e => e.id).filter(Boolean);
+
+      if (priorAutoIds.length > 0) {
+        await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: priorAutoIds }]);
+      } else {
+        await deleteQuery('calendar_events', [{ field: 'description', operator: 'ilike', value: '%Cronograma automático%' }]);
+      }
 
       setSyncProgress(40);
       setSyncMessage('Preparando novos eventos...');
@@ -1951,7 +2088,7 @@ export function AcademicCalendar() {
                     const progress = getClassProgress(3);
                     return (
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-extrabold text-orange-600 leading-none">-{progress.remaining}</span>
+                        <span className="text-[10px] font-extrabold text-orange-600 leading-none">{progress.remaining}</span>
                         <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Restam</span>
                       </div>
                     );
@@ -1978,7 +2115,7 @@ export function AcademicCalendar() {
                     const progress = getClassProgress(4);
                     return (
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-extrabold text-orange-600 leading-none">-{progress.remaining}</span>
+                        <span className="text-[10px] font-extrabold text-orange-600 leading-none">{progress.remaining}</span>
                         <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Restam</span>
                       </div>
                     );
@@ -2322,10 +2459,20 @@ export function AcademicCalendar() {
                               return true;
                             });
 
-                            const letivos = classEvents.filter(e => e.type === 'class_day').length;
-                            const sortedEvents = [...classEvents].sort((a,b) => a.start_date.localeCompare(b.start_date));
-                            const completed = classEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
-                            const excused = classEvents.filter(e => e.type === 'excused_class').length;
+                            // Deduplicate events for this class by date & type to ensure clean counts
+                            const uniqueClassEventsMap = new Map<string, CalendarEvent>();
+                            classEvents.forEach(e => {
+                              const key = `${e.start_date}_${e.type}`;
+                              if (!uniqueClassEventsMap.has(key)) {
+                                uniqueClassEventsMap.set(key, e);
+                              }
+                            });
+                            const uniqueClassEvents = Array.from(uniqueClassEventsMap.values());
+
+                            const letivos = uniqueClassEvents.filter(e => e.type === 'class_day').length;
+                            const sortedEvents = [...uniqueClassEvents].sort((a,b) => a.start_date.localeCompare(b.start_date));
+                            const completed = uniqueClassEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
+                            const excused = uniqueClassEvents.filter(e => e.type === 'excused_class').length;
                             
                             return (
                               <tr key={cls.id} className="hover:bg-slate-50/50 transition-colors">
@@ -2428,8 +2575,57 @@ export function AcademicCalendar() {
                           (e.type === 'event' && e.title?.toLowerCase().includes('aula'))
                         );
 
+                        // Unique calendar days with classes in the institution
                         const uniqueDatesCount = new Set(academicEvents.map(e => e.start_date)).size;
-                        const totalInstances = academicEvents.length;
+
+                        // Calculate total and completed classes strictly aligned with active classes
+                        const activeClasses = (classes || []).filter(c => c.status === 'Ativo');
+                        let totalTurmasAulas = 0;
+                        let totalTurmasAulasConcluidas = 0;
+
+                        if (activeClasses.length > 0) {
+                          activeClasses.forEach(cls => {
+                            const lowerName = (cls.name || '').toLowerCase();
+                            const targetWeekdays: number[] = [];
+                            if (lowerName.includes('quarta') || lowerName.includes('4ª') || lowerName.includes('teologia')) targetWeekdays.push(3);
+                            if (lowerName.includes('quinta') || lowerName.includes('5ª') || lowerName.includes('doutrina')) targetWeekdays.push(4);
+                            if (lowerName.includes('terça') || lowerName.includes('3ª')) targetWeekdays.push(2);
+                            if (lowerName.includes('segunda') || lowerName.includes('2ª')) targetWeekdays.push(1);
+                            if (lowerName.includes('sexta') || lowerName.includes('6ª')) targetWeekdays.push(5);
+
+                            const classEvents = events.filter(e => {
+                              const isForThisClass = String(e.class_id) === String(cls.id);
+                              if (!isForThisClass) return false;
+                              const isAcademic = e.type === 'class_day' || e.type === 'excused_class';
+                              if (!isAcademic) return true;
+                              if (targetWeekdays.length > 0) {
+                                const d = new Date(e.start_date + 'T00:00:00').getDay();
+                                return targetWeekdays.includes(d);
+                              }
+                              return true;
+                            });
+
+                            const uniqueClassEventsMap = new Map<string, CalendarEvent>();
+                            classEvents.forEach(e => {
+                              const key = `${e.start_date}_${e.type}`;
+                              if (!uniqueClassEventsMap.has(key)) {
+                                uniqueClassEventsMap.set(key, e);
+                              }
+                            });
+                            const uniqueClassEvents = Array.from(uniqueClassEventsMap.values());
+                            const letivos = uniqueClassEvents.filter(e => e.type === 'class_day').length;
+                            const completed = uniqueClassEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
+
+                            totalTurmasAulas += letivos;
+                            totalTurmasAulasConcluidas += completed;
+                          });
+                        } else {
+                          // Fallback if no classes are loaded
+                          totalTurmasAulas = uniqueDatesCount;
+                          totalTurmasAulasConcluidas = academicEvents.filter(e => e.type === 'class_day' && new Date(e.start_date + 'T00:00:00') < new Date()).length;
+                        }
+
+                        const completionRate = totalTurmasAulas > 0 ? Math.round((totalTurmasAulasConcluidas / totalTurmasAulas) * 100) : 0;
 
                         return (
                           <div className="bg-white p-6 rounded-none border border-slate-200 shadow-sm space-y-4">
@@ -2459,8 +2655,21 @@ export function AcademicCalendar() {
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Aulas</p>
-                                  <p className="text-lg font-bold text-slate-900">{totalInstances}</p>
+                                  <p className="text-lg font-bold text-slate-900">{totalTurmasAulas}</p>
                                 </div>
+                              </div>
+                            </div>
+                            <div className="h-px bg-slate-100 w-full" />
+                            <div className="space-y-1.5 pt-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aulas Concluídas</span>
+                                <span className="font-bold text-slate-800">{totalTurmasAulasConcluidas} / {totalTurmasAulas} ({completionRate}%)</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-emerald-500 transition-all duration-500" 
+                                  style={{ width: `${completionRate}%` }}
+                                />
                               </div>
                             </div>
                           </div>
@@ -3636,10 +3845,25 @@ export function AcademicCalendar() {
                                   ? savedWeekdayClasses
                                   : associatedClassIds;
 
+                                // Retrieve or infer terms for this day
+                                const existingDayTerms = settingsForm.weekday_terms?.[nextActiveDay] 
+                                  || settingsForm.weekday_terms?.[String(nextActiveDay)]
+                                  || academicSettings.weekday_terms?.[nextActiveDay]
+                                  || academicSettings.weekday_terms?.[String(nextActiveDay)];
+
+                                let nextWeekdayTerms = { ...(settingsForm.weekday_terms || {}) };
+                                if (!existingDayTerms || (!existingDayTerms.term1_start && !existingDayTerms.term1_end && !existingDayTerms.term2_start && !existingDayTerms.term2_end)) {
+                                  const inferred = inferTermsForWeekday(nextActiveDay, events, settingsForm);
+                                  if (inferred.term1_start || inferred.term1_end || inferred.term2_start || inferred.term2_end) {
+                                    nextWeekdayTerms[nextActiveDay] = inferred;
+                                  }
+                                }
+
                                 // Do NOT automatically activate when selecting - keep class_weekdays untouched
                                 setSettingsForm({
                                   ...settingsForm,
                                   target_class_ids: nextClassIds,
+                                  weekday_terms: nextWeekdayTerms
                                 });
                                 setEditingDayIndex(nextActiveDay);
                                 setSelectedWeekdayDetail(nextActiveDay);
@@ -3891,13 +4115,15 @@ export function AcademicCalendar() {
                                       delete updatedWeekdayTerms[activeDay];
                                       delete updatedWeekdayTerms[String(activeDay)];
                                     } else {
-                                      // Activating: Keep existing stored terms if they exist in the database, but do not populate with dummy dates!
+                                      // Activating: Keep existing stored terms if they exist in the database, or infer from current calendar
                                       const storedTerms = academicSettings.weekday_terms?.[activeDay] || academicSettings.weekday_terms?.[String(activeDay)];
                                       if (storedTerms && (storedTerms.term1_start || storedTerms.term1_end || storedTerms.term2_start || storedTerms.term2_end)) {
                                         updatedWeekdayTerms[activeDay] = storedTerms;
                                       } else {
-                                        delete updatedWeekdayTerms[activeDay];
-                                        delete updatedWeekdayTerms[String(activeDay)];
+                                        const inferred = inferTermsForWeekday(activeDay, events, settingsForm);
+                                        if (inferred.term1_start || inferred.term1_end || inferred.term2_start || inferred.term2_end) {
+                                          updatedWeekdayTerms[activeDay] = inferred;
+                                        }
                                       }
                                     }
 

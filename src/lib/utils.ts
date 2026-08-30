@@ -193,10 +193,10 @@ export function detectCourseFromClass(cls: any, availableCourses?: Array<{ code?
       if (match) return match.name;
     }
     const dcLower = directCourse.toLowerCase();
-    if (dcLower.includes('doutrina') || dcLower.includes('dsi')) return 'Doutrina Social da Igreja';
-    if (dcLower.includes('negros') || dcLower.includes('santos') || dcLower.includes('hsn')) return 'História dos Santos Negros';
-    if (dcLower.includes('teologia') || dcLower.includes('teo')) return 'Teologia';
-    if (dcLower.includes('latim') || dcLower.includes('lat')) return 'Latim';
+    if (dcLower.includes('doutrina') || /\bdsi\b/i.test(dcLower)) return 'Doutrina Social da Igreja';
+    if (dcLower.includes('negros') || dcLower.includes('santos') || /\bhsn\b/i.test(dcLower)) return 'História dos Santos Negros';
+    if (dcLower.includes('teologia') || /\bteo\b/i.test(dcLower)) return 'Teologia';
+    if (dcLower.includes('latim') || /\blat\b/i.test(dcLower)) return 'Latim';
     if (dcLower.includes('outros')) return 'Outros';
     return directCourse;
   }
@@ -217,10 +217,10 @@ export function detectCourseFromClass(cls: any, availableCourses?: Array<{ code?
             if (matched) return matched.name;
           }
           const mcLower = courseStr.toLowerCase();
-          if (mcLower.includes('doutrina') || mcLower.includes('dsi')) return 'Doutrina Social da Igreja';
-          if (mcLower.includes('negros') || mcLower.includes('santos') || mcLower.includes('hsn')) return 'História dos Santos Negros';
-          if (mcLower.includes('teologia') || mcLower.includes('teo')) return 'Teologia';
-          if (mcLower.includes('latim') || mcLower.includes('lat')) return 'Latim';
+          if (mcLower.includes('doutrina') || /\bdsi\b/i.test(mcLower)) return 'Doutrina Social da Igreja';
+          if (mcLower.includes('negros') || mcLower.includes('santos') || /\bhsn\b/i.test(mcLower)) return 'História dos Santos Negros';
+          if (mcLower.includes('teologia') || /\bteo\b/i.test(mcLower)) return 'Teologia';
+          if (mcLower.includes('latim') || /\blat\b/i.test(mcLower)) return 'Latim';
           if (mcLower.includes('outros')) return 'Outros';
           return courseStr;
         }

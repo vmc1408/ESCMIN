@@ -54,8 +54,10 @@ export const getLocalCollection = (collectionName: string): any[] => {
           description: 'Curso de Formação Teológica e Pastoral',
           duration_years: 3,
           duration_semesters: 6,
+          duration_total: '3 anos',
+          meetings_per_week: 2,
+          meeting_days: ['Terça', 'Quinta'],
           status: 'Ativo',
-          workload_hours: 720,
           created_at: new Date().toISOString()
         },
         {
@@ -65,8 +67,10 @@ export const getLocalCollection = (collectionName: string): any[] => {
           description: 'Curso de Língua Latina e Textos Litúrgicos',
           duration_years: 1,
           duration_semesters: 2,
+          duration_total: '1 ano',
+          meetings_per_week: 1,
+          meeting_days: ['Sábado'],
           status: 'Ativo',
-          workload_hours: 120,
           created_at: new Date().toISOString()
         },
         {
@@ -76,8 +80,10 @@ export const getLocalCollection = (collectionName: string): any[] => {
           description: 'Curso Fundamental da Doutrina Social da Igreja',
           duration_years: 1,
           duration_semesters: 2,
+          duration_total: '1 ano',
+          meetings_per_week: 1,
+          meeting_days: ['Sábado'],
           status: 'Ativo',
-          workload_hours: 160,
           created_at: new Date().toISOString()
         },
         {
@@ -87,8 +93,10 @@ export const getLocalCollection = (collectionName: string): any[] => {
           description: 'História, Vida e Espiritualidade dos Santos Negros',
           duration_years: 1,
           duration_semesters: 2,
+          duration_total: '1 ano',
+          meetings_per_week: 1,
+          meeting_days: ['Sábado'],
           status: 'Ativo',
-          workload_hours: 80,
           created_at: new Date().toISOString()
         }
       ];
@@ -247,6 +255,8 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     
     const sbData = await fetchRecursive(collectionName, { select, orderCol: effectiveOrderCol, ascending, timeoutMs: 90000 });
     if (Array.isArray(sbData)) {
+      const localList = getLocalCollection(collectionName);
+      const localMap = new Map(localList.map((x: any) => [String(x.id), x]));
       const seen = new Set<string>();
       const uniqueList: any[] = [];
       for (const item of sbData) {
@@ -254,10 +264,43 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
           const idStr = String(item.id);
           if (!seen.has(idStr)) {
             seen.add(idStr);
-            uniqueList.push(item);
+            const localObj = localMap.get(idStr);
+            // Preserva propriedades locais enriquecidas e atualizações mais recentes do usuário
+            let merged = item;
+            if (localObj) {
+              const localUpdated = localObj.updated_at ? new Date(localObj.updated_at).getTime() : 0;
+              const itemUpdated = item.updated_at ? new Date(item.updated_at).getTime() : 0;
+              const useLocal = localUpdated >= itemUpdated;
+
+              merged = {
+                ...item,
+                ...localObj,
+                status: useLocal ? (localObj.status || item.status || 'Ativo') : (item.status || localObj.status || 'Ativo'),
+                meeting_days: useLocal 
+                  ? (localObj.meeting_days ?? item.meeting_days ?? [])
+                  : ((item.meeting_days && Array.isArray(item.meeting_days) && item.meeting_days.length > 0) ? item.meeting_days : (localObj.meeting_days || [])),
+                meetings_per_week: useLocal 
+                  ? (localObj.meetings_per_week ?? item.meetings_per_week ?? 0)
+                  : (item.meetings_per_week !== undefined && item.meetings_per_week !== null ? item.meetings_per_week : (localObj.meetings_per_week ?? 0)),
+                duration_total: useLocal
+                  ? (localObj.duration_total !== undefined ? localObj.duration_total : (item.duration_total || ''))
+                  : (item.duration_total !== undefined && item.duration_total !== null ? item.duration_total : (localObj.duration_total || '')),
+                duration_years: useLocal
+                  ? localObj.duration_years
+                  : (item.duration_years !== undefined ? item.duration_years : localObj.duration_years)
+              };
+            }
+            uniqueList.push(merged);
           }
         } else if (item) {
           uniqueList.push(item);
+        }
+      }
+      // Preserva itens salvos localmente que ainda não foram sincronizados
+      for (const [locId, locItem] of localMap.entries()) {
+        if (!seen.has(locId)) {
+          seen.add(locId);
+          uniqueList.push(locItem);
         }
       }
       // Atualiza cache local silenciosamente para manter backup offline sempre atualizado
@@ -579,7 +622,35 @@ export const fetchCount = async (collectionName: string, status?: string) => {
  */
 export const deleteQuery = async (collectionName: string, filters: { field: string; operator: string; value: any }[]) => {
   try {
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
+    // 1. Always purge matching items from local cache instantly
+    try {
+      const localList = getLocalCollection(collectionName);
+      if (Array.isArray(localList) && localList.length > 0) {
+        const remainingLocal = localList.filter((item: any) => {
+          const matchesAllFilters = filters.every(filter => {
+            const op = filter.operator === '==' ? 'eq' : filter.operator;
+            const itemVal = item[filter.field];
+            if (op === 'eq') return String(itemVal) === String(filter.value);
+            if (op === '>=') return itemVal >= filter.value;
+            if (op === '<=') return itemVal <= filter.value;
+            if (op === 'in') return Array.isArray(filter.value) && filter.value.map(String).includes(String(itemVal));
+            if (op === 'like' || op === 'ilike') {
+              const cleanVal = String(filter.value || '').replace(/^%|%$/g, '').toLowerCase();
+              return String(itemVal || '').toLowerCase().includes(cleanVal);
+            }
+            if (op === 'is') return itemVal === filter.value;
+            return false;
+          });
+          // If matches all filters, it should be deleted (so exclude it)
+          return !matchesAllFilters;
+        });
+        saveLocalCollection(collectionName, remainingLocal);
+      }
+    } catch (locErr) {
+      console.warn(`[deleteQuery] Error updating local cache for "${collectionName}":`, locErr);
+    }
+
+    if (!isSupabaseConfigured) return;
     
     let queryBuilder = supabase.from(collectionName).delete();
     
