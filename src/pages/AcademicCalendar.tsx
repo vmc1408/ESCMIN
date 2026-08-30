@@ -2707,16 +2707,16 @@ export function AcademicCalendar() {
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
               <div className="bg-white p-2 sm:p-4 md:p-8 rounded-none shadow-sm overflow-visible border border-slate-100">
                 {/* Calendário Mensal Estilizado */}
-                <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-none overflow-visible shadow-inner">
+                <div className="grid grid-cols-7 gap-px bg-slate-300 border border-slate-300 rounded-none overflow-visible shadow-xs">
                   {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                    <div key={day} className="bg-slate-50 py-2 sm:py-3 text-center border-b border-slate-100">
-                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em] sm:tracking-[0.2em]">{day.substring(0, 3)}</span>
+                    <div key={day} className="bg-slate-100/90 py-2.5 sm:py-3 text-center border-b border-slate-300">
+                      <span className="text-[9px] sm:text-[10px] font-extrabold text-slate-600 uppercase tracking-[0.1em] sm:tracking-[0.2em]">{day.substring(0, 3)}</span>
                     </div>
                   ))}
                   
                   {/* Células Vazias (Início do Mês) */}
                   {Array.from({ length: firstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth()) }).map((_, i) => (
-                    <div key={`empty-month-${i}`} className="bg-white/50 min-h-[65px] sm:min-h-[90px] md:min-h-[130px]" />
+                    <div key={`empty-month-${i}`} className="bg-slate-50/40 min-h-[65px] sm:min-h-[90px] md:min-h-[130px] border-r border-b border-slate-200/80" />
                   ))}
 
                   {/* Dias do Mês */}
@@ -2785,7 +2785,7 @@ export function AcademicCalendar() {
                           }
                         }}
                         className={cn(
-                          "min-h-[65px] sm:min-h-[90px] md:min-h-[130px] p-1 sm:p-1.5 md:p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-100",
+                          "min-h-[65px] sm:min-h-[90px] md:min-h-[130px] p-1 sm:p-1.5 md:p-2 flex flex-col gap-1 transition-all group/cell overflow-visible cursor-pointer relative border-r border-b border-slate-200/90",
                           !isToday && !isVacation && !isHolidayCell && !classDayBg ? "bg-white" : "",
                           classDayBg,
                           isToday && "bg-slate-50/20",
@@ -4715,7 +4715,7 @@ export function AcademicCalendar() {
                   { id: 'class_schedule', title: 'Relatório de Aulas', icon: FileDown, desc: 'Lista mensal filtrável por turma e dia.' },
                   { id: 'holiday_list', title: 'Lista de Feriados', icon: Bookmark, desc: 'Listagem completa dos feriados nacionais e locais.' },
                   { id: 'annual_poster', title: 'Pôster Anual', icon: Target, desc: 'Grade compacta de 12 meses em página única.' },
-                  { id: 'monthly_grid', title: 'Grade Mensal', icon: LayoutGrid, desc: 'Visualização clássica do mês selecionado.' }
+                  { id: 'monthly_grid', title: 'Calendário Mensal', icon: LayoutGrid, desc: 'Visualização clássica do mês selecionado com grade estruturada.' }
                 ].map((option) => (
                   <button
                     key={option.id}
@@ -4861,7 +4861,7 @@ export function AcademicCalendar() {
                       <h2 className="text-[13px] font-bold text-slate-800 uppercase tracking-widest">
                         {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
                          printType === 'holiday_list' ? 'Listagem de Feriados' :
-                         printType === 'annual_poster' ? 'Calendário Anual' : 'Grade de Eventos'}
+                         printType === 'annual_poster' ? 'Calendário Anual' : 'Calendário Mensal'}
                       </h2>
                       <div className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">
                         Ano Letivo: {currentDate.getFullYear()} • {new Date().toLocaleDateString('pt-BR')}
@@ -5255,12 +5255,12 @@ export function AcademicCalendar() {
                       {monthName}
                     </h2>
                     
-                    <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 shadow-sm rounded-none overflow-hidden">
+                    <div className="grid grid-cols-7 gap-px bg-slate-300 border-2 border-slate-300 shadow-sm rounded-none overflow-hidden print:border-slate-400 print:bg-slate-400">
                       {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(day => (
-                        <div key={day} className="bg-slate-50 py-4 text-center text-[11px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-200">{day}</div>
+                        <div key={day} className="bg-slate-100/90 py-3 text-center text-[11px] font-extrabold uppercase tracking-widest text-slate-700 border-b-2 border-slate-300 print:border-slate-400 print:bg-slate-100">{day}</div>
                       ))}
                       {Array.from({ length: firstDay }).map((_, i) => (
-                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-white min-h-[120px] print:min-h-[110px]" />
+                        <div key={`grid-empty-${monthIndex}-${i}`} className="bg-slate-50/50 min-h-[120px] print:min-h-[110px] border-r border-b border-slate-200/80 print:border-slate-300" />
                       ))}
                       {Array.from({ length: days }).map((_, i) => {
                         const day = i + 1;
@@ -5311,14 +5311,14 @@ export function AcademicCalendar() {
                           <div 
                             key={`grid-day-${monthIndex}-${day}`} 
                             className={cn(
-                              "min-h-[125px] print:min-h-[115px] p-2 border-r border-b border-slate-100 overflow-visible relative group/day hover:bg-slate-50/50 hover:z-50 transition-all",
+                              "min-h-[125px] print:min-h-[115px] p-2 border-r border-b border-slate-200/90 print:border-slate-300 overflow-visible relative group/day hover:bg-slate-50/50 hover:z-50 transition-all",
                               !isVacation && !isHolidayGrid && !classDayBg ? "bg-white" : "",
                               classDayBg,
                               isVacation && "bg-stripes-slate",
                               isHolidayGrid && "bg-stripes-red"
                             )}
                           >
-                            <span className="text-[14px] font-bold text-slate-900">{day}</span>
+                            <span className="text-[14px] font-extrabold text-slate-900 leading-none">{day}</span>
                             
                             {isCancelled && (
                               <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 select-none">
