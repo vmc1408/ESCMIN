@@ -24,7 +24,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { cn, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStudentActive } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -357,6 +357,7 @@ export function Documents() {
   // Database States
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
@@ -414,7 +415,7 @@ export function Documents() {
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const [certs, studs, clss, subs, assms, grds, atts, calEvts, instSettings, academicParamsData] = await Promise.all([
+      const [certs, studs, clss, subs, assms, grds, atts, calEvts, instSettings, academicParamsData, enrolls] = await Promise.all([
         fetchAll('certificates', '*', 'created_at', true),
         fetchAll('students', '*', 'name'),
         fetchAll('classes', '*', 'name'),
@@ -424,10 +425,12 @@ export function Documents() {
         fetchAll('attendances'),
         fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]),
         financialService.getInstitutionSettings(),
-        fetchAll('academic_parameters', '*', '')
+        fetchAll('academic_parameters', '*', ''),
+        fetchAll('enrollments').catch(() => [])
       ]);
       
-      setStudents((studs || []).filter((s: any) => s.status === 'Ativo' || !s.status));
+      setStudents(studs || []);
+      setEnrollments(enrolls || []);
       const enrichedCerts = (certs || []).map((cert: any) => {
         const student = (studs || []).find((s: any) => s.id === cert.student_id);
         return {
@@ -588,8 +591,9 @@ export function Documents() {
       return assessments.some(a => a.class_id === selectedClassId && a.subject_id === sub.id);
     });
 
-    return students
-      .filter(student => student.class_id === selectedClassId && (student.status === 'Ativo' || !student.status))
+    const enrolledStudents = filterStudentsForClass(students, selectedClassId, enrollments, true);
+
+    return enrolledStudents
       .map(student => {
         // Attendance
         const totalDays = totalClassDays > 0 ? totalClassDays : 30;
@@ -689,7 +693,7 @@ export function Documents() {
           issuedCerts
         };
       });
-  }, [selectedClassId, classObj, classes, students, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
+  }, [selectedClassId, classObj, classes, students, enrollments, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
 
   const fichaStudent = students.find(s => s.id === selectedFichaStudentId);
 

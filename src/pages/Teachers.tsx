@@ -25,7 +25,7 @@ import {
 import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, detectSubjectSemester, formatSubjectDisplayName } from '../lib/utils';
 import { fetchAll, saveData, deleteData, uploadImage } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
@@ -68,18 +68,10 @@ const groupSubjectsBySemester = (subList: Subject[]) => {
   const others: Subject[] = [];
 
   subList.forEach(s => {
-    const sem = (s.semester || '').toLowerCase();
-    const name = (s.name || '').toLowerCase();
-
-    if (
-      sem.includes('1') || sem.includes('1º') || sem.includes('1o') ||
-      name.includes('1º sem') || name.includes('1o sem') || name.includes('1 sem')
-    ) {
+    const sem = detectSubjectSemester(s);
+    if (sem.includes('1')) {
       sem1.push(s);
-    } else if (
-      sem.includes('2') || sem.includes('2º') || sem.includes('2o') ||
-      name.includes('2º sem') || name.includes('2o sem') || name.includes('2 sem')
-    ) {
+    } else if (sem.includes('2')) {
       sem2.push(s);
     } else {
       others.push(s);
@@ -1188,7 +1180,7 @@ export function Teachers() {
               >
                 <option value="all">Disciplinas (Todas)</option>
                 {subjects.filter(s => s.status === 'Ativo').map((s, sIdx) => (
-                  <option key={`teach-sub-opt-${s.id || s.code || sIdx}-${sIdx}`} value={s.id}>{s.name}</option>
+                  <option key={`teach-sub-opt-${s.id || s.code || sIdx}-${sIdx}`} value={s.id}>{formatSubjectDisplayName(s)}</option>
                 ))}
               </select>
               <select

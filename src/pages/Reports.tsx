@@ -63,7 +63,7 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn, formatSubjectDisplayName } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
@@ -389,6 +389,7 @@ export function Reports() {
 
   // Data States
   const [students, setStudents] = useState<Student[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -532,9 +533,10 @@ export function Reports() {
       return assessments.some(a => a.class_id === selectedDiarioClass && a.subject_id === sub.id);
     });
 
+    const enrolledStudents = filterStudentsForClass(students, selectedDiarioClass, enrollments, true);
+
     // Calculations per student
-    return students
-      .filter(student => student.class_id === selectedDiarioClass && (student.status === 'Ativo' || !student.status))
+    return enrolledStudents
       .map(student => {
         // 1. Attendance percentage
         const totalDays = totalClassDays > 0 ? totalClassDays : 30; // 30 is fallback
@@ -635,7 +637,7 @@ export function Reports() {
           certificate: studentCertificate
         };
       });
-  }, [selectedDiarioClass, classes, students, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
+  }, [selectedDiarioClass, classes, students, enrollments, totalClassDays, attendanceData, dbGrades, assessments, academicParams, certificates, subjects]);
 
   const handlePrintSelectedFromForm = () => {
     if (!viewingCertificate) return;
@@ -1188,6 +1190,7 @@ export function Reports() {
       });
 
       setStudents(normalizedStudents);
+      setEnrollments(enrollmentsData || []);
       setTeachers(normalizedTeachers);
       setClasses(normalizedClasses);
       setSubjects(normalizedSubjects);

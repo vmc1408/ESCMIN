@@ -22,7 +22,7 @@ import {
   Unlock,
   Settings
 } from 'lucide-react';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, detectSubjectSemester } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, detectSubjectSemester, filterStudentsForClass } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,8 +32,10 @@ import autoTable from 'jspdf-autotable';
 interface Student {
   id: string;
   name: string;
+  full_name?: string;
   registration_number: string;
-  class_id: string;
+  class_id?: string;
+  status?: string;
 }
 
 interface Class {
@@ -306,11 +308,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     setReopenConfirm(false);
     try {
       const dbDate = parseDateToDB(selectedDate);
-      const [studentsList, attendanceList, closureData] = await Promise.all([
-        fetchQuery('students', [
-          { field: 'class_id', operator: '==', value: selectedClass },
-          { field: 'status', operator: '==', value: 'Ativo' }
-        ]),
+      const [allStudents, allEnrollments, attendanceList, closureData] = await Promise.all([
+        fetchAll('students').catch(() => []),
+        fetchAll('enrollments').catch(() => []),
         (selectedSubject && selectedDate) ? fetchQuery('attendances', [
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'subject_id', operator: '==', value: selectedSubject },
@@ -324,7 +324,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         ]) : Promise.resolve([])
       ]);
 
-      setStudents((studentsList || []).sort((a, b) => a.name.localeCompare(b.name)));
+      const classStudents = filterStudentsForClass(allStudents || [], selectedClass, allEnrollments || [], true);
+      setStudents(classStudents);
       setIsClosed(closureData && closureData.length > 0);
 
       if (attendanceList) {
@@ -337,7 +338,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         setAttendance({});
       }
 
-      if (selectedClass && selectedSubject && studentsList && studentsList.length > 0) {
+      if (selectedClass && selectedSubject && classStudents && classStudents.length > 0) {
         setIsFiltersCollapsed(true);
       } else {
         setIsFiltersCollapsed(false);

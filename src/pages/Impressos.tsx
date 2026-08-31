@@ -22,7 +22,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
 import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
-import { cn, formatDateForDisplay } from '../lib/utils';
+import { cn, formatDateForDisplay, filterStudentsForClass } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -33,6 +33,7 @@ export function Impressos() {
   const typeParam = searchParams.get('type') as PrintType | null;
 
   const [students, setStudents] = useState<Student[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [institution, setInstitution] = useState<any>(null);
@@ -194,6 +195,7 @@ export function Impressos() {
         });
 
         setStudents(normalizedStudents);
+        setEnrollments(enrollmentsData || []);
         setContributions(conts || []);
         
         // Normalize classes (subject_ids handling)
@@ -356,7 +358,7 @@ export function Impressos() {
   // Students enrolled in selected class, sorted by name or registration number
   const classStudents = useMemo(() => {
     if (!selectedClassId) return [];
-    const filtered = students.filter(s => s.class_id === selectedClassId);
+    const filtered = filterStudentsForClass(students, selectedClassId, enrollments, true);
     return filtered.sort((a, b) => {
       if (studentSortOrder === 'registration') {
         const aReg = a.registration_number || '';
@@ -368,7 +370,7 @@ export function Impressos() {
       }
       return a.name.localeCompare(b.name, 'pt-BR');
     });
-  }, [students, selectedClassId, studentSortOrder]);
+  }, [students, selectedClassId, enrollments, studentSortOrder]);
 
   // Reset student selection when class changes
   useEffect(() => {

@@ -411,3 +411,98 @@ export function formatSubjectDisplayName(subject: any, classItem?: any, uppercas
   return `${baseName} (${semLabel})`;
 }
 
+/**
+ * Checks if a student is considered active (not explicitly Inactive, Canceled, or Truncated).
+ * Blank, null, undefined, 'Ativo', 'Matriculado', 'Cursando', 'Concluído' are treated as active.
+ */
+export function isStudentActive(student: any): boolean {
+  if (!student) return false;
+  if (!student.status) return true;
+  const st = String(student.status).trim().toLowerCase();
+  if (st === 'inativo' || st === 'trancado' || st === 'cancelado' || st === 'evadido' || st === 'desistente' || st === 'arquivado') {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Checks if an enrollment record is active.
+ */
+export function isEnrollmentActive(enrollment: any): boolean {
+  if (!enrollment) return false;
+  if (!enrollment.status) return true;
+  const st = String(enrollment.status).trim().toLowerCase();
+  return st !== 'inativo' && st !== 'cancelado' && st !== 'trancado' && st !== 'evadido';
+}
+
+/**
+ * Checks if a student belongs to a specific class (either via student.class_id or via enrollments table).
+ */
+export function isStudentInClass(student: any, classId: string, enrollments?: any[]): boolean {
+  if (!student || !classId) return false;
+  
+  // 1. Direct class_id on student record
+  if (student.class_id === classId) return true;
+  
+  // 2. Lookup in enrollments collection
+  if (Array.isArray(enrollments) && enrollments.length > 0) {
+    const sId = student.id;
+    const isEnrolled = enrollments.some((e: any) => 
+      e && e.class_id === classId && 
+      (e.student_id === sId || e.student_id === student.registration_number) && 
+      isEnrollmentActive(e)
+    );
+    if (isEnrolled) return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Filters and sorts students belonging to a class.
+ * Accounts for direct class_id association AND enrollments table entries.
+ */
+export function filterStudentsForClass(
+  students: any[], 
+  classId: string, 
+  enrollments?: any[], 
+  onlyActive: boolean = true
+): any[] {
+  if (!Array.isArray(students) || !classId) return [];
+  
+  const classEnrollments = Array.isArray(enrollments) 
+    ? enrollments.filter((e: any) => e.class_id === classId && isEnrollmentActive(e))
+    : [];
+  
+  const enrolledStudentIds = new Set<string>();
+  classEnrollments.forEach((e: any) => {
+    if (e.student_id) enrolledStudentIds.add(String(e.student_id));
+  });
+
+  const matchedStudents: any[] = [];
+  const seenIds = new Set<string>();
+
+  for (const s of students) {
+    if (!s || !s.id) continue;
+    if (seenIds.has(s.id)) continue;
+
+    if (onlyActive && !isStudentActive(s)) {
+      continue;
+    }
+
+    const isDirect = s.class_id === classId;
+    const isEnrolled = enrolledStudentIds.has(String(s.id)) || (s.registration_number && enrolledStudentIds.has(String(s.registration_number)));
+
+    if (isDirect || isEnrolled) {
+      matchedStudents.push(s);
+      seenIds.add(s.id);
+    }
+  }
+
+  return matchedStudents.sort((a, b) => {
+    const nameA = a.name || a.full_name || '';
+    const nameB = b.name || b.full_name || '';
+    return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+  });
+}
+

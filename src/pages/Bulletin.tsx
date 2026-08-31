@@ -16,7 +16,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
-import { cn } from '../lib/utils';
+import { cn, filterStudentsForClass } from '../lib/utils';
 import { fetchAll, fetchQuery } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,6 +41,7 @@ export function Bulletin() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [dbGrades, setDbGrades] = useState<GradeRecord[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
@@ -71,6 +72,7 @@ export function Bulletin() {
           classesData,
           subjectsData,
           studentsData,
+          enrollmentsData,
           gradesData,
           assessmentsData,
           attendancesData,
@@ -81,6 +83,7 @@ export function Bulletin() {
           fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
           fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
           fetchAll('students'),
+          fetchAll('enrollments').catch(() => []),
           fetchAll('grades'),
           fetchAll('assessments'),
           fetchAll('attendances'),
@@ -97,6 +100,7 @@ export function Bulletin() {
         setClasses(sortedClasses);
         setSubjects(subjectsData || []);
         setStudents(studentsData || []);
+        setEnrollments(enrollmentsData || []);
         setDbGrades(gradesData || []);
         setAssessments(assessmentsData || []);
         setAttendanceData(attendancesData || []);
@@ -120,10 +124,8 @@ export function Bulletin() {
   // Filter Active Students for local class
   const classStudents = useMemo(() => {
     if (!selectedClassId) return [];
-    return students
-      .filter(s => s.class_id === selectedClassId && (s.status === 'Ativo' || s.status === 'Concluído' || !s.status))
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [selectedClassId, students]);
+    return filterStudentsForClass(students, selectedClassId, enrollments, true);
+  }, [selectedClassId, students, enrollments]);
 
   // Handle auto-selection of first student when changing class in student view mode
   useEffect(() => {

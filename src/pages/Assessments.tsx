@@ -25,7 +25,7 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject } from '../types';
-import { formatSubjectDisplayName } from '../lib/utils';
+import { formatSubjectDisplayName, filterStudentsForClass } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Assessments: React.FC = () => {
@@ -37,6 +37,7 @@ export const Assessments: React.FC = () => {
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -100,11 +101,12 @@ export const Assessments: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [assessData, classesData, subjectsData, studentsData, gradesData] = await Promise.all([
+      const [assessData, classesData, subjectsData, studentsData, enrollmentsData, gradesData] = await Promise.all([
         fetchAll('assessments'),
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchQuery('students', [{ field: 'status', operator: '==', value: 'Ativo' }]),
+        fetchAll('students'),
+        fetchAll('enrollments').catch(() => []),
         fetchAll('grades')
       ]);
 
@@ -601,7 +603,7 @@ export const Assessments: React.FC = () => {
           <AnimatePresence>
             {filteredAssessments.map((a, aIdx) => {
               // Calculate status values dynamically
-              const classStudents = students.filter(s => s.class_id === a.class_id);
+              const classStudents = filterStudentsForClass(students, a.class_id, enrollments, true);
               const totalClassStudentsCount = classStudents.length;
               
               const registeredGradesForAssessment = grades.filter(g => 

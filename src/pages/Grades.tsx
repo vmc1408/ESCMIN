@@ -20,7 +20,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
-import { cn, formatSubjectDisplayName } from '../lib/utils';
+import { cn, formatSubjectDisplayName, filterStudentsForClass } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -167,11 +167,9 @@ export function Grades() {
     setLoading(true);
     setLoadingAssessments(true);
     try {
-      const [studentsList, gradesList, assessmentsList] = await Promise.all([
-        fetchQuery('students', [
-          { field: 'class_id', operator: '==', value: selectedClass },
-          { field: 'status', operator: '==', value: 'Ativo' }
-        ]),
+      const [allStudents, allEnrollments, gradesList, assessmentsList] = await Promise.all([
+        fetchAll('students').catch(() => []),
+        fetchAll('enrollments').catch(() => []),
         fetchQuery('grades', [
           { field: 'class_id', operator: '==', value: selectedClass },
           { field: 'subject_id', operator: '==', value: selectedSubject }
@@ -182,7 +180,8 @@ export function Grades() {
         ])
       ]);
 
-      setStudents((studentsList || []).sort((a, b) => a.name.localeCompare(b.name)));
+      const classStudents = filterStudentsForClass(allStudents || [], selectedClass, allEnrollments || [], true);
+      setStudents(classStudents);
       setAssessments(assessmentsList as Assessment[] || []);
       setDbGrades(gradesList || []);
     } catch (error: any) {
