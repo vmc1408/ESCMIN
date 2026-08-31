@@ -1850,247 +1850,252 @@ export function StudentFicha() {
 
       {/* PRINT VERSION OF THE COMPLETED DOSSIER SHEET (HIDDEN ON SCREEN) */}
       {activeStudent && activeStudentMetrics && (
-        <div id="printable-student-dossier" className="hidden print:block text-slate-900 bg-white overflow-visible font-sans leading-tight w-full mx-auto print:p-0">
-          
-          {/* HEADER SECTION */}
-          <div className="flex items-center gap-6 mb-5 pb-4 border-b border-slate-800">
-            <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
-              {institution?.logo_url ? (
-                <img src={institution.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
-              ) : (
-                <div className="w-full h-full border border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
-                  <span className="leading-none">SEM</span>
-                  <span className="leading-none">LOGO</span>
+        <div 
+          id="printable-student-dossier" 
+          className="hidden print:flex flex-col justify-between text-slate-900 bg-white overflow-hidden font-sans leading-tight w-full h-[270mm] min-h-[270mm] max-h-[270mm] mx-auto p-0 box-border printable-single-page"
+        >
+          {/* TOP SECTION: Header + Cadastral + Frequency + Academic */}
+          <div className="flex-1 flex flex-col justify-start">
+            {/* HEADER SECTION */}
+            <div className="flex items-center gap-6 mb-4 pb-3 border-b border-slate-800">
+              <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+                {institution?.logo_url ? (
+                  <img src={institution.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
+                ) : (
+                  <div className="w-full h-full border border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
+                    <span className="leading-none">SEM</span>
+                    <span className="leading-none">LOGO</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 flex flex-col justify-center">
+                <p className="text-[9.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
+                  Diocese de Guarulhos
+                </p>
+                <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-900 leading-tight">
+                  {institution?.name || 'Escola Diocesana de Ministério'}
+                </h1>
+                <p className="text-[11pt] font-bold text-slate-700 tracking-wide uppercase mt-0.5">
+                  {institution?.subtitle || 'Pe. José Fernando de Brito'}
+                </p>
+              </div>
+            </div>
+
+            {/* DOCUMENT TITLE */}
+            <div className="text-center my-3">
+              <h2 className="text-[12.5pt] font-black uppercase tracking-[0.18em] text-slate-900 inline-block pb-1 border-b-2 border-slate-900">
+                Controle e Histórico do Aluno
+              </h2>
+            </div>
+
+            {/* RESUMO CADASTRAL DO ALUNO - DESIGN ELEGANTE SEM BORDAS PESADAS */}
+            <div className="bg-slate-50/70 p-3.5 mb-5 rounded-none border-t border-b border-slate-200 space-y-2 text-[9.5pt]">
+              <div className="grid grid-cols-12 gap-x-4 gap-y-1 items-baseline">
+                <div className="col-span-8 flex items-baseline gap-2">
+                  <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Aluno(a):</span>
+                  <span className="font-extrabold text-[11pt] uppercase text-slate-900 tracking-tight">{activeStudent.name}</span>
                 </div>
-              )}
-            </div>
-            <div className="flex-1 flex flex-col justify-center">
-              <p className="text-[9.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
-                Diocese de Guarulhos
-              </p>
-              <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-900 leading-tight">
-                {institution?.name || 'Escola Diocesana de Ministério'}
-              </h1>
-              <p className="text-[11pt] font-bold text-slate-700 tracking-wide uppercase mt-0.5">
-                {institution?.subtitle || 'Pe. José Fernando de Brito'}
-              </p>
-            </div>
-          </div>
-
-          {/* DOCUMENT TITLE */}
-          <div className="text-center my-4">
-            <h2 className="text-[12.5pt] font-black uppercase tracking-[0.18em] text-slate-900 inline-block pb-1 border-b-2 border-slate-900">
-              Controle e Histórico do Aluno
-            </h2>
-          </div>
-
-          {/* RESUMO CADASTRAL DO ALUNO - DESIGN ELEGANTE SEM BORDAS PESADAS */}
-          <div className="bg-slate-50/70 p-4 mb-6 rounded-none border-t border-b border-slate-200 space-y-2.5 text-[10pt]">
-            <div className="grid grid-cols-12 gap-x-4 gap-y-1 items-baseline">
-              <div className="col-span-8 flex items-baseline gap-2">
-                <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Aluno(a):</span>
-                <span className="font-extrabold text-[11pt] uppercase text-slate-900 tracking-tight">{activeStudent.name}</span>
+                <div className="col-span-4 flex items-baseline gap-2 justify-end">
+                  <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500">RA:</span>
+                  <span className="font-mono font-bold text-[10.5pt] text-slate-900">{formatRegistrationNumber(activeStudent.registration_number, 'Não Informado')}</span>
+                </div>
               </div>
-              <div className="col-span-4 flex items-baseline gap-2 justify-end">
-                <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500">RA:</span>
-                <span className="font-mono font-bold text-[10.5pt] text-slate-900">{formatRegistrationNumber(activeStudent.registration_number, 'Não Informado')}</span>
+
+              <div className="grid grid-cols-12 gap-x-4 gap-y-1 items-baseline pt-1 border-t border-slate-200/60">
+                <div className="col-span-12 flex items-baseline gap-2">
+                  <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Curso:</span>
+                  <span className="font-bold text-[10pt] uppercase text-slate-900 flex-1">
+                    {activeStudent.course || activeStudentMetrics?.cls?.course || detectCourseFromClass(activeStudentMetrics?.cls) || 'Teologia'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-x-4 gap-y-1 items-baseline pt-1 border-t border-slate-200/60">
+                <div className="col-span-8 flex items-baseline gap-2">
+                  <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Turma:</span>
+                  <span className="font-semibold text-[9.5pt] uppercase text-slate-800 flex-1">
+                    {activeStudentMetrics?.cls?.name || 'Não alocado em turma regular'}
+                  </span>
+                </div>
+                <div className="col-span-4 flex items-baseline gap-2 justify-end">
+                  <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500">Situação:</span>
+                  <span className="font-extrabold text-[9.5pt] uppercase text-slate-900 tracking-wide">
+                    {activeStudent.status || 'ATIVO'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-x-4 gap-y-1 items-baseline pt-1.5 border-t border-slate-200/60">
-              <div className="col-span-12 flex items-baseline gap-2">
-                <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Curso:</span>
-                <span className="font-bold text-[10pt] uppercase text-slate-900 flex-1">
-                  {activeStudent.course || activeStudentMetrics?.cls?.course || detectCourseFromClass(activeStudentMetrics?.cls) || 'Teologia'}
+            {/* CONTROLE DE FREQUÊNCIA COM IDENTIFICAÇÃO POR SEMESTRE */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2.5">
+                <h3 className="font-extrabold uppercase text-[10.5pt] tracking-wider text-slate-900">
+                  Controle de Frequência
+                </h3>
+                <span className="text-[8.5pt] font-semibold text-slate-500 uppercase tracking-wide">
+                  Limite de faltas: {academicParams.absence_limit_percentage || 25}%
                 </span>
               </div>
-            </div>
 
-            <div className="grid grid-cols-12 gap-x-4 gap-y-1 items-baseline pt-1.5 border-t border-slate-200/60">
-              <div className="col-span-8 flex items-baseline gap-2">
-                <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500 min-w-[72px]">Turma:</span>
-                <span className="font-semibold text-[9.5pt] uppercase text-slate-800 flex-1">
-                  {activeStudentMetrics?.cls?.name || 'Não alocado em turma regular'}
-                </span>
-              </div>
-              <div className="col-span-4 flex items-baseline gap-2 justify-end">
-                <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500">Situação:</span>
-                <span className="font-extrabold text-[9.5pt] uppercase text-slate-900 tracking-wide">
-                  {activeStudent.status || 'ATIVO'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* CONTROLE DE FREQUÊNCIA COM IDENTIFICAÇÃO POR SEMESTRE */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-3">
-              <h3 className="font-extrabold uppercase text-[10.5pt] tracking-wider text-slate-900">
-                Controle de Frequência
-              </h3>
-              <span className="text-[8.5pt] font-semibold text-slate-500 uppercase tracking-wide">
-                Limite de faltas: {academicParams.absence_limit_percentage || 25}%
-              </span>
-            </div>
-
-            <table className="w-full text-left border-collapse text-[9.5pt]">
-              <thead>
-                <tr className="bg-slate-100/80 uppercase text-[8.5pt] font-extrabold text-slate-700 border-b border-slate-300">
-                  <th className="py-2 px-3">Período / Semestre</th>
-                  <th className="py-2 px-3 text-center">Aulas Presenciais</th>
-                  <th className="py-2 px-3 text-center">Faltas Registradas</th>
-                  <th className="py-2 px-3 text-center">Assiduidade (%)</th>
-                  <th className="py-2 px-3 text-right">Situação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {/* 1º Semestre */}
-                <tr className="hover:bg-slate-50/50">
-                  <td className="py-2.5 px-3 font-bold text-slate-800">
-                    1º Semestre
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-700">
-                    {activeStudentMetrics.sem1.presences}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-700">
-                    {activeStudentMetrics.sem1.absences}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-900">
-                    {activeStudentMetrics.sem1.pct !== null ? `${activeStudentMetrics.sem1.pct}%` : '---'}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-bold text-[8.5pt] uppercase tracking-wide">
-                    {activeStudentMetrics.sem1.pct !== null
-                      ? activeStudentMetrics.sem1.pct >= (100 - (academicParams.absence_limit_percentage || 25))
-                        ? <span className="text-slate-800">Regular</span>
-                        : <span className="text-rose-700">Excesso Faltas</span>
-                      : <span className="text-slate-400">---</span>}
-                  </td>
-                </tr>
-
-                {/* 2º Semestre */}
-                <tr className="hover:bg-slate-50/50">
-                  <td className="py-2.5 px-3 font-bold text-slate-800">
-                    2º Semestre
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-700">
-                    {activeStudentMetrics.sem2.presences}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-700">
-                    {activeStudentMetrics.sem2.absences}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-900">
-                    {activeStudentMetrics.sem2.pct !== null ? `${activeStudentMetrics.sem2.pct}%` : '---'}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-bold text-[8.5pt] uppercase tracking-wide">
-                    {activeStudentMetrics.sem2.pct !== null
-                      ? activeStudentMetrics.sem2.pct >= (100 - (academicParams.absence_limit_percentage || 25))
-                        ? <span className="text-slate-800">Regular</span>
-                        : <span className="text-rose-700">Excesso Faltas</span>
-                      : <span className="text-slate-400">---</span>}
-                  </td>
-                </tr>
-
-                {/* Total Anual / Acumulado */}
-                <tr className="bg-slate-50 font-bold border-t border-slate-300">
-                  <td className="py-2.5 px-3 uppercase text-[9pt] font-black text-slate-900">
-                    Total Acumulado
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-black text-slate-900">
-                    {activeStudentMetrics.presences}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-black text-slate-900">
-                    {activeStudentMetrics.absences}
-                  </td>
-                  <td className="py-2.5 px-3 text-center font-mono font-black text-[10pt] text-slate-900">
-                    {activeStudentMetrics.presences === 0 && activeStudentMetrics.absences === 0
-                      ? '---'
-                      : `${Math.round(activeStudentMetrics.presencePercentage ?? 0)}%`}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-black text-[9pt] uppercase tracking-wide">
-                    {activeStudentMetrics.presences === 0 && activeStudentMetrics.absences === 0 ? (
-                      <span className="text-slate-400 font-medium">---</span>
-                    ) : (activeStudentMetrics.presencePercentage ?? 0) >= (100 - (academicParams.absence_limit_percentage || 25)) ? (
-                      <span className="text-slate-900">Regular</span>
-                    ) : (
-                      <span className="text-rose-700">Excesso Faltas</span>
-                    )}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* CONTROLE ACADÊMICO POR DISCIPLINAS COM SEPARAÇÃO POR SEMESTRE */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 mb-3">
-              <h3 className="font-extrabold uppercase text-[10.5pt] tracking-wider text-slate-900">
-                Controle Acadêmico por Disciplinas
-              </h3>
-              <span className="text-[8.5pt] font-semibold text-slate-500 uppercase tracking-wide">
-                Média Mínima para Aprovação: {academicParams.approval_grade?.toFixed(1) || '7.0'}
-              </span>
-            </div>
-            
-            <table className="w-full text-left border-collapse text-[9.5pt]">
-              <thead>
-                <tr className="bg-slate-100/80 uppercase text-[8.5pt] font-extrabold text-slate-700 border-b border-slate-300">
-                  <th className="py-2 px-3 w-28">Período</th>
-                  <th className="py-2 px-3 w-20">Código</th>
-                  <th className="py-2 px-3">Disciplina</th>
-                  <th className="py-2 px-3 text-center w-28">Nota Final</th>
-                  <th className="py-2 px-3 text-right w-28">Situação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {activeStudentMetrics.subjectRecords.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-6 text-center text-slate-400 font-bold uppercase text-[9pt]">
-                      Nenhuma disciplina ou aproveitamento lançado.
+              <table className="w-full text-left border-collapse text-[9pt]">
+                <thead>
+                  <tr className="bg-slate-100/80 uppercase text-[8pt] font-extrabold text-slate-700 border-b border-slate-300">
+                    <th className="py-1.5 px-3">Período / Semestre</th>
+                    <th className="py-1.5 px-3 text-center">Aulas Presenciais</th>
+                    <th className="py-1.5 px-3 text-center">Faltas Registradas</th>
+                    <th className="py-1.5 px-3 text-center">Assiduidade (%)</th>
+                    <th className="py-1.5 px-3 text-right">Situação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {/* 1º Semestre */}
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-2 px-3 font-bold text-slate-800">
+                      1º Semestre
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-semibold text-slate-700">
+                      {activeStudentMetrics.sem1.presences}
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-semibold text-slate-700">
+                      {activeStudentMetrics.sem1.absences}
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-bold text-slate-900">
+                      {activeStudentMetrics.sem1.pct !== null ? `${activeStudentMetrics.sem1.pct}%` : '---'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-[8.5pt] uppercase tracking-wide">
+                      {activeStudentMetrics.sem1.pct !== null
+                        ? activeStudentMetrics.sem1.pct >= (100 - (academicParams.absence_limit_percentage || 25))
+                          ? <span className="text-slate-800">Regular</span>
+                          : <span className="text-rose-700">Excesso Faltas</span>
+                        : <span className="text-slate-400">---</span>}
                     </td>
                   </tr>
-                ) : (
-                  activeStudentMetrics.subjectRecords.map((rec, rIdx) => {
-                    let situation = 'S/ Nota';
-                    let situationClass = 'text-slate-400';
-                    if (rec.grade !== null) {
-                      if (rec.grade >= academicParams.approval_grade) {
-                        situation = 'Aprovado';
-                        situationClass = 'text-slate-900 font-black';
-                      } else if (rec.grade >= (academicParams.recovery_grade ?? 4.9)) {
-                        situation = 'Recuperação';
-                        situationClass = 'text-amber-700 font-bold';
-                      } else {
-                        situation = 'Reprovado';
-                        situationClass = 'text-rose-700 font-black';
+
+                  {/* 2º Semestre */}
+                  <tr className="hover:bg-slate-50/50">
+                    <td className="py-2 px-3 font-bold text-slate-800">
+                      2º Semestre
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-semibold text-slate-700">
+                      {activeStudentMetrics.sem2.presences}
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-semibold text-slate-700">
+                      {activeStudentMetrics.sem2.absences}
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-bold text-slate-900">
+                      {activeStudentMetrics.sem2.pct !== null ? `${activeStudentMetrics.sem2.pct}%` : '---'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-[8.5pt] uppercase tracking-wide">
+                      {activeStudentMetrics.sem2.pct !== null
+                        ? activeStudentMetrics.sem2.pct >= (100 - (academicParams.absence_limit_percentage || 25))
+                          ? <span className="text-slate-800">Regular</span>
+                          : <span className="text-rose-700">Excesso Faltas</span>
+                        : <span className="text-slate-400">---</span>}
+                    </td>
+                  </tr>
+
+                  {/* Total Anual / Acumulado */}
+                  <tr className="bg-slate-50 font-bold border-t border-slate-300">
+                    <td className="py-2 px-3 uppercase text-[8.5pt] font-black text-slate-900">
+                      Total Acumulado
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-black text-slate-900">
+                      {activeStudentMetrics.presences}
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-black text-slate-900">
+                      {activeStudentMetrics.absences}
+                    </td>
+                    <td className="py-2 px-3 text-center font-mono font-black text-[9.5pt] text-slate-900">
+                      {activeStudentMetrics.presences === 0 && activeStudentMetrics.absences === 0
+                        ? '---'
+                        : `${Math.round(activeStudentMetrics.presencePercentage ?? 0)}%`}
+                    </td>
+                    <td className="py-2 px-3 text-right font-black text-[8.5pt] uppercase tracking-wide">
+                      {activeStudentMetrics.presences === 0 && activeStudentMetrics.absences === 0 ? (
+                        <span className="text-slate-400 font-medium">---</span>
+                      ) : (activeStudentMetrics.presencePercentage ?? 0) >= (100 - (academicParams.absence_limit_percentage || 25)) ? (
+                        <span className="text-slate-900">Regular</span>
+                      ) : (
+                        <span className="text-rose-700">Excesso Faltas</span>
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* CONTROLE ACADÊMICO POR DISCIPLINAS COM SEPARAÇÃO POR SEMESTRE */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2.5">
+                <h3 className="font-extrabold uppercase text-[10.5pt] tracking-wider text-slate-900">
+                  Controle Acadêmico por Disciplinas
+                </h3>
+                <span className="text-[8.5pt] font-semibold text-slate-500 uppercase tracking-wide">
+                  Média Mínima para Aprovação: {academicParams.approval_grade?.toFixed(1) || '7.0'}
+                </span>
+              </div>
+              
+              <table className="w-full text-left border-collapse text-[9pt]">
+                <thead>
+                  <tr className="bg-slate-100/80 uppercase text-[8pt] font-extrabold text-slate-700 border-b border-slate-300">
+                    <th className="py-1.5 px-3 w-28">Período</th>
+                    <th className="py-1.5 px-3 w-20">Código</th>
+                    <th className="py-1.5 px-3">Disciplina</th>
+                    <th className="py-1.5 px-3 text-center w-28">Nota Final</th>
+                    <th className="py-1.5 px-3 text-right w-28">Situação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {activeStudentMetrics.subjectRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400 font-bold uppercase text-[9pt]">
+                        Nenhuma disciplina ou aproveitamento lançado.
+                      </td>
+                    </tr>
+                  ) : (
+                    activeStudentMetrics.subjectRecords.map((rec, rIdx) => {
+                      let situation = 'S/ Nota';
+                      let situationClass = 'text-slate-400';
+                      if (rec.grade !== null) {
+                        if (rec.grade >= academicParams.approval_grade) {
+                          situation = 'Aprovado';
+                          situationClass = 'text-slate-900 font-black';
+                        } else if (rec.grade >= (academicParams.recovery_grade ?? 4.9)) {
+                          situation = 'Recuperação';
+                          situationClass = 'text-amber-700 font-bold';
+                        } else {
+                          situation = 'Reprovado';
+                          situationClass = 'text-rose-700 font-black';
+                        }
                       }
-                    }
-                    return (
-                      <tr key={`ficha-print-${rec.subject.id || rec.subject.code || rIdx}-${rIdx}`} className="hover:bg-slate-50/50">
-                        <td className="py-2.5 px-3 font-semibold text-[8.5pt] text-slate-600 uppercase tracking-wide">
-                          {rec.semester}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-semibold text-slate-600 text-[9pt]">
-                          {rec.subject.code || '---'}
-                        </td>
-                        <td className="py-2.5 px-3 font-bold text-slate-900 uppercase">
-                          {rec.subject.name}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-center text-[10pt] text-slate-900">
-                          {rec.grade !== null ? rec.grade.toFixed(1).replace('.', ',') : '---'}
-                        </td>
-                        <td className={`py-2.5 px-3 text-right uppercase text-[8.5pt] tracking-wider ${situationClass}`}>
-                          {situation}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                      return (
+                        <tr key={`ficha-print-${rec.subject.id || rec.subject.code || rIdx}-${rIdx}`} className="hover:bg-slate-50/50">
+                          <td className="py-2 px-3 font-semibold text-[8.5pt] text-slate-600 uppercase tracking-wide">
+                            {rec.semester}
+                          </td>
+                          <td className="py-2 px-3 font-mono font-semibold text-slate-600 text-[8.5pt]">
+                            {rec.subject.code || '---'}
+                          </td>
+                          <td className="py-2 px-3 font-bold text-slate-900 uppercase">
+                            {rec.subject.name}
+                          </td>
+                          <td className="py-2 px-3 font-mono font-bold text-center text-[9.5pt] text-slate-900">
+                            {rec.grade !== null ? rec.grade.toFixed(1).replace('.', ',') : '---'}
+                          </td>
+                          <td className={`py-2 px-3 text-right uppercase text-[8.5pt] tracking-wider ${situationClass}`}>
+                            {situation}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          {/* STANDARD FOOTER */}
-          <div className="pt-4 border-t border-slate-300 mt-10 text-[8.5pt] leading-tight text-slate-600 font-sans">
+          {/* STANDARD FOOTER POSITIONED AT THE BOTTOM OF THE PAGE */}
+          <div className="pt-3 border-t border-slate-300 mt-auto text-[8pt] leading-tight text-slate-600 font-sans">
             <div className="grid grid-cols-12 gap-4 items-start text-left">
               <div className="col-span-7 space-y-0.5">
                 <p className="font-extrabold uppercase tracking-wider text-slate-800">Endereço:</p>
