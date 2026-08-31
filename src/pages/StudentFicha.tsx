@@ -21,7 +21,7 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
@@ -303,7 +303,6 @@ export function StudentFicha() {
   const [loading, setLoading] = useState(true);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Ativo' | 'Inativo' | 'Sem Turma' | 'Todos'>('Ativo');
   const [studentContributions, setStudentContributions] = useState<any[]>([]);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
 
@@ -402,9 +401,6 @@ export function StudentFicha() {
       if (targetStudent) {
         setSearchTerm(targetStudent.name || '');
         setSelectedStudentId(targetStudent.id);
-        if (targetStudent.status === 'Inativo') {
-          setStatusFilter('Todos');
-        }
         // Clear the history state to prevent re-opening on manual refresh or back navigations
         try {
           window.history.replaceState({}, document.title);
@@ -670,32 +666,42 @@ export function StudentFicha() {
     loadData();
   }, [loadData]);
 
-  // Sidebar list of students filtered by search & status selection to prevent mixing inactive info by default
+  // Class mapping for fast lookup of student turma
+  const classMap = useMemo(() => {
+    const map = new Map<string, Class>();
+    classes.forEach(c => map.set(c.id, c));
+    return map;
+  }, [classes]);
+
+  // Sidebar list of students: searches across ALL registered students
   const filteredStudentsList = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    const activeClassIds = new Set(classes.filter(c => c.status === 'Ativo' || !c.status).map(c => c.id));
     
-    if (!term && statusFilter !== 'Sem Turma') {
-      return [];
-    }
-
     const filtered = students.filter(s => {
-      const matchSearch = !term || 
-                          (s.name || '').toLowerCase().includes(term) || 
-                          (s.registration_number || '').toLowerCase().includes(term) ||
-                          (s.cpf || '').toLowerCase().includes(term);
-      
-      const isUnallocated = !s.class_id || !activeClassIds.has(s.class_id);
-      
-      const matchStatus = statusFilter === 'Todos' || 
-                          (statusFilter === 'Ativo' && (s.status === 'Ativo' || !s.status)) ||
-                          (statusFilter === 'Inativo' && s.status === 'Inativo') ||
-                          (statusFilter === 'Sem Turma' && (s.status === 'Ativo' || !s.status) && isUnallocated);
+      if (!term) return true;
+      const name = (s.name || '').toLowerCase();
+      const reg = (s.registration_number || '').toLowerCase();
+      const regFormatted = formatRegistrationNumber(s.registration_number, '').toLowerCase();
+      const cpf = (s.cpf || '').toLowerCase();
+      const email = (s.email || '').toLowerCase();
+      const clsName = s.class_id ? (classMap.get(s.class_id)?.name || '').toLowerCase() : '';
+      const status = (s.status || 'Ativo').toLowerCase();
 
-      return matchSearch && matchStatus;
+      return name.includes(term) || 
+             reg.includes(term) || 
+             regFormatted.includes(term) ||
+             cpf.includes(term) || 
+             email.includes(term) || 
+             clsName.includes(term) ||
+             status.includes(term);
     });
 
-    // Sort to bring initial correspondence first
+    if (!term) {
+      // Sort alphabetically by name when no term is typed
+      return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    }
+
+    // Sort to bring most relevant search correspondence first
     return [...filtered].sort((a, b) => {
       const nameA = (a.name || '').toLowerCase();
       const nameB = (b.name || '').toLowerCase();
@@ -737,14 +743,7 @@ export function StudentFicha() {
       // If scores are equal, sort alphabetically by name
       return nameA.localeCompare(nameB, 'pt-BR');
     });
-  }, [students, searchTerm, statusFilter]);
-
-  // Clear selected student if search is empty to ensure everything is blank until dynamic filter starts
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setSelectedStudentId('');
-    }
-  }, [searchTerm]);
+  }, [students, searchTerm, classMap]);
 
 
 
@@ -1141,88 +1140,101 @@ export function StudentFicha() {
           
           {/* LEFT PANEL: Student Lookup sidebar */}
           <div className={cn("lg:col-span-4 space-y-4", activeStudent ? "hidden lg:block" : "block")}>
-            <div className="bg-white border border-slate-200 p-5 rounded-none shadow-sm space-y-4">
+            <div className="bg-white border border-slate-200 p-4 rounded-none shadow-sm space-y-3">
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
-                  Consultar Aluno
-                </h3>
-                
-                {/* Segregation of inactive students filter */}
-                <div className="flex flex-wrap gap-1">
-                  {(['Ativo', 'Inativo', 'Sem Turma', 'Todos'] as const).map(tab => (
-                    <button
-                      key={tab}
-                      onClick={() => setStatusFilter(tab)}
-                      className={cn(
-                        "px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider border",
-                        statusFilter === tab 
-                          ? "bg-slate-800 text-white border-slate-900" 
-                          : "text-slate-400 border-slate-100 bg-slate-50 hover:bg-slate-100 hover:text-slate-600"
-                      )}
-                    >
-                      {tab}
-                    </button>
-                  ))}
+                <div>
+                  <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest">
+                    Consultar Aluno
+                  </h3>
+                  <p className="text-[9px] text-slate-400 font-semibold mt-0.5">
+                    Busca geral no cadastro institucional
+                  </p>
                 </div>
+                <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 border border-slate-200">
+                  {filteredStudentsList.length} {filteredStudentsList.length === 1 ? 'aluno' : 'alunos'}
+                </span>
               </div>
 
               {/* Search Field */}
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-3 text-slate-400" />
+                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
                 <input 
                   type="text"
-                  placeholder="Nome, RA ou CPF..."
+                  placeholder="Nome, Matrícula, CPF ou Turma..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-none text-xs font-semibold focus:outline-none focus:border-slate-800 focus:bg-white focus:ring-1 focus:ring-slate-800/10 placeholder-slate-400 uppercase"
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-none text-xs font-semibold focus:outline-none focus:border-slate-800 focus:bg-white focus:ring-1 focus:ring-slate-800/10 placeholder-slate-400 uppercase"
                 />
+                {searchTerm && (
+                  <button 
+                    onClick={() => setSearchTerm('')} 
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-700 text-[11px] font-bold"
+                    title="Limpar busca"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
 
               {/* Students Selection List */}
-              <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 border border-slate-150 rounded-none bg-slate-50/20">
-                {!searchTerm.trim() ? (
+              <div className="max-h-[560px] overflow-y-auto divide-y divide-slate-100 border border-slate-150 rounded-none bg-white">
+                {filteredStudentsList.length === 0 ? (
                   <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-                    Digite o nome, RA ou CPF para buscar
-                  </div>
-                ) : filteredStudentsList.length === 0 ? (
-                  <div className="p-8 text-center text-xs font-bold text-slate-450 uppercase tracking-widest leading-relaxed">
                     Nenhum aluno encontrado
                   </div>
                 ) : (
                   filteredStudentsList.map((stu, sIdx) => {
                     const isSelected = stu.id === selectedStudentId;
+                    const stuClass = stu.class_id ? classMap.get(stu.class_id) : null;
+                    const stuStatus = stu.status || 'Ativo';
+
                     return (
                       <button
                         key={`ficha-stu-${stu.id || sIdx}-${sIdx}`}
                         onClick={() => setSelectedStudentId(stu.id)}
                         className={cn(
-                          "w-full p-3 flex items-center justify-between transition-colors text-left",
+                          "w-full p-2.5 flex flex-col gap-1 transition-all text-left group border-l-2",
                           isSelected 
-                            ? "bg-white border-l-4 border-indigo-600 shadow-sm" 
-                            : "hover:bg-white"
+                            ? "bg-slate-900 text-white border-indigo-500 shadow-sm" 
+                            : "hover:bg-slate-50 text-slate-700 border-transparent"
                         )}
                       >
-                        <div className="min-w-0 pr-2">
+                        <div className="flex items-start justify-between gap-2">
                           <p className={cn(
-                            "text-xs font-bold truncate",
-                            isSelected ? "text-indigo-900 font-extrabold" : "text-slate-700"
+                            "text-xs font-black uppercase truncate tracking-tight",
+                            isSelected ? "text-white" : "text-slate-850 group-hover:text-slate-950"
                           )}>
                             {stu.name}
                           </p>
-                          <p className="text-[9px] font-mono text-slate-400">
-                            RA: {stu.registration_number || 'Sem RA'}
-                          </p>
+                          <span className={cn(
+                            "px-1.5 py-0.2 text-[7.5px] font-extrabold uppercase shrink-0 border",
+                            isSelected
+                              ? "bg-slate-800 text-slate-200 border-slate-700"
+                              : (stuStatus as string) === 'Inativo' || (stuStatus as string) === 'Suspenso'
+                                ? "bg-rose-50 text-rose-700 border-rose-200" 
+                                : (stuStatus as string) === 'Concluído'
+                                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                : (stuStatus as string) === 'Trancado'
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          )}>
+                            {stuStatus}
+                          </span>
                         </div>
-                        <span className={cn(
-                          "px-1.5 py-0.5 text-[8px] font-extrabold uppercase shrink-0 border",
-                          stu.status === 'Inativo' 
-                            ? "bg-rose-50 text-rose-700 border-rose-200/50" 
-                            : stu.status === 'Concluído'
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200/50"
-                            : "bg-emerald-50 text-emerald-700 border-emerald-200/50"
-                        )}>
-                          {stu.status || 'Ativo'}
-                        </span>
+                        <div className="flex items-center justify-between text-[9px] gap-2 pt-0.5">
+                          <span className={cn(
+                            "font-mono font-bold tracking-tight shrink-0",
+                            isSelected ? "text-amber-300" : "text-slate-500"
+                          )}>
+                            RA: {formatRegistrationNumber(stu.registration_number, 'Sem RA')}
+                          </span>
+                          <span className={cn(
+                            "font-semibold uppercase truncate text-right text-[8.5px]",
+                            isSelected ? "text-slate-300" : stuClass ? "text-slate-500" : "text-slate-400 italic"
+                          )}>
+                            {stuClass ? stuClass.name : 'Sem Turma'}
+                          </span>
+                        </div>
                       </button>
                     );
                   })
@@ -1241,67 +1253,54 @@ export function StudentFicha() {
                 <div>
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Selecione um Aluno</h4>
                   <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1 leading-relaxed">
-                    Escolha um registro na barra de pesquisa à esquerda para visualizar seu histórico, frequências e notas consolidadas.
+                    Escolha um registro na lista à esquerda para visualizar seu histórico, frequências e notas consolidadas.
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-5">
 
                 {/* Back button for mobile/tablet */}
                 <button
-                  onClick={() => setSelectedStudentId(null)}
-                  className="lg:hidden w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 transition-colors rounded-none"
+                  onClick={() => setSelectedStudentId('')}
+                  className="lg:hidden w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 transition-colors rounded-none"
                 >
                   ← Voltar para a Consulta de Alunos
                 </button>
 
-                {/* Financial Alert for Unpaid Contributions */}
+                {/* Financial Alert for Unpaid Contributions - Compact & Minimalist */}
                 {unpaidMonthsAlert && (
-                  <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-none flex items-start gap-4.5 shadow-sm animate-in fade-in duration-200">
-                    <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-widest font-sans">
-                          Aviso de Tesouraria: Contribuições Pendentes
-                        </h4>
-                        <span className="text-[9px] font-black text-amber-700 bg-amber-100/50 border border-amber-200/60 px-2 py-0.5 uppercase tracking-wider rounded-none">
-                          Em Aberto
-                        </span>
-                      </div>
-                      <p className="text-xs text-amber-800 leading-relaxed font-semibold">
-                        Este estudante possui <strong className="text-amber-950 font-extrabold">{unpaidMonthsAlert.count} {unpaidMonthsAlert.count === 1 ? 'mensalidade' : 'mensalidades'} em aberto</strong> para o ano letivo de {new Date().getFullYear()}:{' '}
-                        <span className="font-extrabold text-amber-950 underline decoration-amber-500/50 underline-offset-2">
-                          {unpaidMonthsAlert.months.map(m => MONTHS[m - 1]).join(', ')}
-                        </span>.
-                      </p>
-                      <div className="flex gap-4 pt-1.5 text-[10px] text-amber-600 font-bold uppercase tracking-wider font-mono">
-                        <span>Pendente Estimado: {formatCurrency(unpaidMonthsAlert.totalEstimated)}</span>
-                        <span>•</span>
-                        <span className="text-amber-700 italic">Por favor, regularize na aba de Contribuições</span>
-                      </div>
+                  <div className="bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-none flex flex-wrap items-center justify-between gap-3 shadow-sm animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2 text-xs text-amber-900">
+                      <AlertCircle className="text-amber-600 shrink-0" size={16} />
+                      <span>
+                        <strong>Aviso de Mensalidades:</strong> {unpaidMonthsAlert.count} mensalidade(s) pendente(s) em {new Date().getFullYear()} ({unpaidMonthsAlert.months.map(m => MONTHS[m - 1]).join(', ')}).
+                      </span>
                     </div>
+                    <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 border border-amber-300">
+                      Estimado: {formatCurrency(unpaidMonthsAlert.totalEstimated)}
+                    </span>
                   </div>
                 )}
                 
-                {/* 1. Personal & Contact Dossier Tab */}
-                <div className="bg-white border border-slate-200 p-6 rounded-none space-y-6 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-105 pb-4 gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-slate-100 border border-slate-200 rounded-none flex-shrink-0 flex items-center justify-center overflow-hidden">
+                {/* 1. Personal & Contact Dossier - Clean & Minimalist */}
+                <div className="bg-white border border-slate-200 p-5 rounded-none space-y-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-slate-100 border border-slate-200 rounded-none flex-shrink-0 flex items-center justify-center overflow-hidden">
                         {activeStudent.photo_url ? (
                           <img src={activeStudent.photo_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <User size={24} className="text-slate-400" />
+                          <User size={20} className="text-slate-400" />
                         )}
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h2 className="text-base font-black text-slate-900 uppercase tracking-tight">
+                          <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">
                             {activeStudent.name}
                           </h2>
                           <span className={cn(
-                            "px-2 py-0.5 text-[8.5px] font-black uppercase tracking-wider border",
+                            "px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider border",
                             activeStudent.status === 'Inativo' 
                               ? "bg-rose-50 text-rose-700 border-rose-250" 
                               : activeStudent.status === 'Concluído'
@@ -1311,97 +1310,88 @@ export function StudentFicha() {
                             {activeStudent.status || 'Ativo'}
                           </span>
                         </div>
-                        <p className="text-xs font-bold text-slate-400 font-mono mt-0.5 uppercase">
-                          RA do Estudante: {activeStudent.registration_number || 'Não Informado'}
+                        <p className="text-xs font-bold text-slate-600 font-mono mt-0.5">
+                          RA: {formatRegistrationNumber(activeStudent.registration_number, 'Não Informado')}
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-left sm:text-right">
-                      <span className="text-[8px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-1 uppercase tracking-widest border border-indigo-200/50">
-                        Ficha Geral do Aluno
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <span className="text-[9px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-1 uppercase tracking-wider">
+                        Ingresso: {activeStudent.start_date ? formatDateForDisplay(activeStudent.start_date) : 'N/D'}
                       </span>
-                      <p className="text-[10px] text-slate-400 font-bold mt-1">
-                        Desde: {activeStudent.start_date ? formatDateForDisplay(activeStudent.start_date) : 'N/D'}
-                      </p>
+                      <button
+                        onClick={triggerDossierPrint}
+                        className="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+                      >
+                        <Printer size={12} /> Imprimir Ficha
+                      </button>
                     </div>
                   </div>
 
                   {/* Identification & Document Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-xs">
-                    <div className="space-y-3">
-                      <h4 className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 flex items-center gap-1.5">
-                        <GraduationCap size={12} className="text-slate-450" /> Identificação e Vínculos
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div className="space-y-2 bg-slate-50/50 p-3 border border-slate-100">
+                      <h4 className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest border-b border-slate-200/60 pb-1 flex items-center gap-1.5">
+                        <GraduationCap size={11} className="text-slate-500" /> Identificação e Vínculos
                       </h4>
-                      <div className="space-y-2">
+                      <div className="space-y-1 text-[11px]">
                         <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Turma Atual:</span>
-                          <span className="font-bold text-slate-700 uppercase">{activeStudentMetrics?.cls?.name || 'Sem turma vinculada'}</span>
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px]">Turma Atual:</span>
+                          <span className="font-bold text-slate-800 uppercase">{activeStudentMetrics?.cls?.name || 'Sem turma vinculada'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Curso:</span>
-                          <span className="font-bold text-slate-700 uppercase">{activeStudent.course || 'Sem Curso Informado'}</span>
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px]">Curso:</span>
+                          <span className="font-bold text-slate-800 uppercase">{activeStudent.course || 'Sem Curso Informado'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Data de Ingressão:</span>
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px]">Data de Ingresso:</span>
                           <span className="font-semibold text-slate-750">{activeStudent.start_date ? formatDateForDisplay(activeStudent.start_date) : 'Não informado'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">CPF:</span>
-                          <span className="font-mono font-bold text-slate-850">{activeStudent.cpf || 'Não Informado'}</span>
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px]">CPF:</span>
+                          <span className="font-mono font-bold text-slate-800">{activeStudent.cpf || 'Não Informado'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">RG:</span>
-                          <span className="font-mono font-semibold text-slate-850">{activeStudent.rg || 'Não Informado'}</span>
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px]">RG:</span>
+                          <span className="font-mono font-semibold text-slate-800">{activeStudent.rg || 'Não Informado'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px]">Nascimento:</span>
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px]">Nascimento:</span>
                           <span className="font-semibold text-slate-750">{activeStudent.birth_date ? formatDateForDisplay(activeStudent.birth_date) : 'Não informado'}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <h4 className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 flex items-center gap-1.5">
-                        <Mail size={12} className="text-slate-450" /> Contato e Localidade
+                    <div className="space-y-2 bg-slate-50/50 p-3 border border-slate-100">
+                      <h4 className="text-[9px] font-extrabold text-slate-500 uppercase tracking-widest border-b border-slate-200/60 pb-1 flex items-center gap-1.5">
+                        <Mail size={11} className="text-slate-500" /> Contato e Localidade
                       </h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center gap-4">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Email:</span>
-                          <span className="font-semibold text-slate-700 text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.email}>{activeStudent.email || 'Não informado'}</span>
+                      <div className="space-y-1 text-[11px]">
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px] shrink-0">Email:</span>
+                          <span className="font-semibold text-slate-800 text-right truncate max-w-[200px]" title={activeStudent.email}>{activeStudent.email || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between items-center gap-4">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Celular:</span>
-                          <span className="font-bold text-slate-700 font-mono text-right">{activeStudent.phone_mobile || 'Não informado'}</span>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px] shrink-0">Celular:</span>
+                          <span className="font-bold text-slate-800 font-mono text-right">{activeStudent.phone_mobile || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between items-center gap-4">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Paróquia:</span>
-                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.parish}>{activeStudent.parish || 'Não informado'}</span>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px] shrink-0">Paróquia:</span>
+                          <span className="font-bold text-slate-800 uppercase text-right truncate max-w-[200px]" title={activeStudent.parish}>{activeStudent.parish || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between items-center gap-4">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Forania:</span>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px] shrink-0">Forania:</span>
                           <span className="font-bold text-indigo-900 uppercase text-right">{activeStudent.forania || 'Não informado'}</span>
                         </div>
-                        <div className="flex justify-between items-center gap-4">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Cidade / UF:</span>
-                          <span className="font-semibold text-slate-750 uppercase text-right">{activeStudent.address_city || 'Não informado'} - {activeStudent.address_state || 'SP'}</span>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px] shrink-0">Cidade / UF:</span>
+                          <span className="font-semibold text-slate-800 uppercase text-right">{activeStudent.address_city || 'Não informado'} - {activeStudent.address_state || 'SP'}</span>
                         </div>
                         {activeStudent.address_street && (
-                          <div className="flex justify-between items-start gap-4 pt-1 border-t border-slate-100/50">
-                            <span className="text-slate-400 font-semibold uppercase text-[9px] shrink-0 mt-0.5">Rua:</span>
-                            <span className="font-semibold text-slate-700 uppercase text-right text-[11px] leading-tight truncate max-w-[180px] sm:max-w-[280px]">{activeStudent.address_street}</span>
-                          </div>
-                        )}
-                        {activeStudent.address_neighborhood && (
-                          <div className="flex justify-between items-center gap-4">
-                            <span className="text-slate-400 font-semibold uppercase text-[9px] shrink-0">Bairro:</span>
-                            <span className="font-semibold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]">{activeStudent.address_neighborhood}</span>
-                          </div>
-                        )}
-                        {activeStudent.address_zip && (
-                          <div className="flex justify-between items-center gap-4">
-                            <span className="text-slate-400 font-semibold uppercase text-[9px] shrink-0">CEP:</span>
-                            <span className="font-mono text-slate-700 text-right">{activeStudent.address_zip}</span>
+                          <div className="flex justify-between items-center gap-2 pt-0.5 border-t border-slate-200/50">
+                            <span className="text-slate-400 font-semibold uppercase text-[9px] shrink-0">Endereço:</span>
+                            <span className="font-semibold text-slate-800 uppercase text-right text-[10px] truncate max-w-[200px]">{activeStudent.address_street}</span>
                           </div>
                         )}
                       </div>
@@ -1410,17 +1400,17 @@ export function StudentFicha() {
 
                   {/* Filiação section if mother or father is set */}
                   {(activeStudent.guardian_mother || activeStudent.guardian_father) && (
-                    <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-xs">
+                    <div className="pt-2 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
                       {activeStudent.guardian_mother && (
-                        <div className="flex justify-between items-center gap-4">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Nome da Mãe:</span>
-                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.guardian_mother}>{activeStudent.guardian_mother}</span>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px] shrink-0">Mãe:</span>
+                          <span className="font-bold text-slate-800 uppercase text-right truncate max-w-[220px]" title={activeStudent.guardian_mother}>{activeStudent.guardian_mother}</span>
                         </div>
                       )}
                       {activeStudent.guardian_father && (
-                        <div className="flex justify-between items-center gap-4">
-                          <span className="text-slate-400 font-semibold uppercase text-[10px] shrink-0">Nome do Pai:</span>
-                          <span className="font-bold text-slate-700 uppercase text-right truncate max-w-[180px] sm:max-w-[280px]" title={activeStudent.guardian_father}>{activeStudent.guardian_father}</span>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-slate-400 font-semibold uppercase text-[9.5px] shrink-0">Pai:</span>
+                          <span className="font-bold text-slate-800 uppercase text-right truncate max-w-[220px]" title={activeStudent.guardian_father}>{activeStudent.guardian_father}</span>
                         </div>
                       )}
                     </div>
@@ -1428,28 +1418,28 @@ export function StudentFicha() {
                 </div>
 
                 {/* Grid row: Attendance & Grades */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                   {/* 2. Frequency Control card */}
-                  <div className="bg-white border border-slate-200 p-5 rounded-none shadow-sm space-y-4">
-                    <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-150 pb-2">
+                  <div className="bg-white border border-slate-200 p-4 rounded-none shadow-sm space-y-3">
+                    <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
                       Controle de Frequência
                     </h3>
 
-                    <div className="grid grid-cols-2 gap-3 text-center">
-                      <div className="bg-slate-50 p-3 border border-slate-100">
-                        <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Faltas Registradas</p>
-                        <p className="text-2xl font-black font-mono text-rose-600 mt-1">{activeStudentMetrics?.absences}</p>
+                    <div className="grid grid-cols-2 gap-2.5 text-center">
+                      <div className="bg-slate-50 p-2.5 border border-slate-100">
+                        <p className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-wider">Faltas Registradas</p>
+                        <p className="text-xl font-black font-mono text-rose-600 mt-0.5">{activeStudentMetrics?.absences}</p>
                       </div>
-                      <div className="bg-slate-50 p-3 border border-slate-100">
-                        <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Presenças</p>
-                        <p className="text-2xl font-black font-mono text-slate-700 mt-1">{activeStudentMetrics?.presences}</p>
+                      <div className="bg-slate-50 p-2.5 border border-slate-100">
+                        <p className="text-[8.5px] font-extrabold text-slate-400 uppercase tracking-wider">Presenças</p>
+                        <p className="text-xl font-black font-mono text-slate-700 mt-0.5">{activeStudentMetrics?.presences}</p>
                       </div>
                     </div>
 
                     <div className="space-y-1.5 pt-1">
-                      <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-extrabold">
-                        <span className="text-slate-400">Taxa de Assiduidade</span>
+                      <div className="flex justify-between items-center text-[9.5px] uppercase tracking-wider font-extrabold">
+                        <span className="text-slate-500">Taxa de Assiduidade</span>
                         <span className={cn(
                           "font-mono font-black text-sm",
                           (activeStudentMetrics?.presencePercentage ?? 0) >= (100 - academicParams.absence_limit_percentage) 
@@ -1462,7 +1452,7 @@ export function StudentFicha() {
                         </span>
                       </div>
                       
-                      <div className="w-full bg-slate-100 h-2.5 rounded-none overflow-hidden border border-slate-200/50">
+                      <div className="w-full bg-slate-100 h-2 rounded-none overflow-hidden border border-slate-200/50">
                         <div 
                           className={cn(
                             "h-full transition-all duration-500",
@@ -1478,16 +1468,16 @@ export function StudentFicha() {
                         />
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1 text-[9px] text-slate-450 uppercase tracking-wide">
-                        <Calendar size={13} />
+                      <div className="flex items-center gap-1.5 pt-0.5 text-[8.5px] text-slate-450 uppercase tracking-wide">
+                        <Calendar size={11} />
                         Limite Diocesano: máx {academicParams.absence_limit_percentage}% de faltas.
                       </div>
                     </div>
                   </div>
 
                   {/* 3. Grades and performance */}
-                  <div className="bg-white border border-slate-200 p-5 rounded-none shadow-sm space-y-4">
-                    <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-150 pb-2">
+                  <div className="bg-white border border-slate-200 p-4 rounded-none shadow-sm space-y-3">
+                    <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
                       Controle Acadêmico por Disciplinas
                     </h3>
 
@@ -1498,18 +1488,18 @@ export function StudentFicha() {
                         </div>
                       ) : (
                         activeStudentMetrics.subjectRecords.map((rec, rIdx) => (
-                          <div key={`ficha-sub-${rec.subject.id || rec.subject.code || rIdx}-${rIdx}`} className="py-2.5 flex items-center justify-between gap-4 text-xs">
-                            <div className="flex items-center gap-2 truncate max-w-[170px] sm:max-w-[280px] md:max-w-[360px]">
-                              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded shrink-0">
+                          <div key={`ficha-sub-${rec.subject.id || rec.subject.code || rIdx}-${rIdx}`} className="py-2 flex items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-1.5 truncate max-w-[180px] sm:max-w-[260px]">
+                              <span className="text-[8.5px] font-extrabold uppercase px-1 py-0.5 bg-slate-100 text-slate-600 rounded shrink-0">
                                 {rec.semester === '1º Semestre' ? '1º Sem' : rec.semester === '2º Semestre' ? '2º Sem' : 'Geral'}
                               </span>
-                              <span className="font-bold text-slate-700 uppercase truncate" title={rec.subject.name}>
+                              <span className="font-bold text-slate-800 uppercase truncate text-[11px]" title={rec.subject.name}>
                                 {rec.subject.name}
                               </span>
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
+                            <div className="flex items-center gap-2.5 shrink-0">
                               <span className={cn(
-                                "font-mono font-black text-[11px] px-1.5 py-0.5 border",
+                                "font-mono font-black text-[10.5px] px-1.5 py-0.2 border",
                                 rec.grade !== null 
                                   ? rec.grade >= academicParams.approval_grade
                                     ? "text-emerald-700 bg-emerald-50 border-emerald-250" 
@@ -1520,14 +1510,14 @@ export function StudentFicha() {
                               )}>
                                 {rec.grade !== null ? rec.grade.toFixed(1).replace('.', ',') : 'N/D'}
                               </span>
-                              <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider w-14 text-right">
+                              <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider w-12 text-right">
                                 {rec.grade !== null 
                                   ? rec.grade >= academicParams.approval_grade 
                                     ? 'Aprovado' 
                                     : rec.grade >= (academicParams.recovery_grade ?? 4.9)
                                       ? 'Em Rec.' 
                                       : 'Reprovado'
-                                  : 'Falta lançar'}
+                                  : 'Pendente'}
                               </span>
                             </div>
                           </div>
@@ -1539,14 +1529,14 @@ export function StudentFicha() {
 
                 {/* 4. Historic & Issued Certificates block */}
                 <div className="bg-white border border-slate-200 rounded-none shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+                  <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
                     <h3 className="text-[10px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                      <Award size={13} className="text-indigo-600" /> Registro Diocesano de Documentação e Diplomas
+                      <Award size={12} className="text-indigo-600" /> Registro de Documentação e Diplomas
                     </h3>
                     
                     <button
                       onClick={handleCreateNewCertClick}
-                      className="px-3 py-1 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white text-[8.5px] font-bold uppercase tracking-widest flex items-center gap-1 active:scale-95 transition-transform"
+                      className="px-2.5 py-1 bg-slate-900 border border-slate-905 hover:bg-slate-800 text-white text-[8px] font-bold uppercase tracking-widest flex items-center gap-1 active:scale-95 transition-transform"
                     >
                       <Plus size={10} /> Novo Certificado
                     </button>
@@ -1554,16 +1544,16 @@ export function StudentFicha() {
 
                   <div className="divide-y divide-slate-100">
                     {!activeStudentMetrics || activeStudentMetrics.studentDocs.length === 0 ? (
-                      <div className="p-10 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
-                        Nenhum certificado emitido para este aluno no sistema.
+                      <div className="p-8 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+                        Nenhum certificado emitido para este aluno.
                       </div>
                     ) : (
                       activeStudentMetrics.studentDocs.map((doc, dIdx) => (
-                        <div key={`ficha-doc-${doc.id || dIdx}-${dIdx}`} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
-                          <div className="space-y-1">
+                        <div key={`ficha-doc-${doc.id || dIdx}-${dIdx}`} className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-50/50 transition-colors">
+                          <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
                               <span className={cn(
-                                "px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wider border",
+                                "px-1.5 py-0.2 text-[7.5px] font-extrabold uppercase tracking-wider border",
                                 doc.type === 'conclusão' ? "bg-slate-50 text-slate-800 border-slate-200" :
                                 doc.type === 'honra' ? "bg-amber-50 text-amber-800 border-amber-200" :
                                 "bg-indigo-50 text-indigo-800 border-indigo-200"
@@ -1572,24 +1562,24 @@ export function StudentFicha() {
                               </span>
                               <span className="text-xs font-bold text-slate-800 uppercase">{doc.course}</span>
                             </div>
-                            <p className="text-[9.5px] font-semibold text-slate-400 font-mono uppercase">
-                              Validando Código: {doc.verification_code} | Criado: {new Date(doc.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                            <p className="text-[9px] font-semibold text-slate-500 font-mono uppercase">
+                              Cód: {doc.verification_code} | Data: {new Date(doc.issuance_date + 'T00:00:00').toLocaleDateString('pt-BR')}
                             </p>
                           </div>
 
                           <div className="flex items-center gap-2">
                             <button 
                               onClick={() => setViewingCertificate(doc)}
-                              className="px-3 py-1.5 text-slate-700 hover:text-slate-950 border border-slate-200 font-bold text-[9px] uppercase tracking-widest bg-white shadow-sm flex items-center gap-1.5 transition-colors"
+                              className="px-2.5 py-1 text-slate-700 hover:text-slate-950 border border-slate-200 font-bold text-[8.5px] uppercase tracking-widest bg-white shadow-sm flex items-center gap-1 transition-colors"
                             >
-                              <Printer size={11} /> Visualizar
+                              <Printer size={10} /> Visualizar
                             </button>
                             <button 
                               onClick={() => handleDeleteCertificate(doc.id)}
-                              className="p-1.5 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 bg-white shadow-sm flex items-center justify-center transition-colors"
+                              className="p-1 text-rose-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 bg-white shadow-sm flex items-center justify-center transition-colors"
                               title="Excluir"
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={11} />
                             </button>
                           </div>
                         </div>
@@ -1990,7 +1980,7 @@ export function StudentFicha() {
               </div>
               <div className="col-span-4 flex items-baseline gap-2 justify-end">
                 <span className="text-[9pt] font-bold uppercase tracking-wider text-slate-500">RA:</span>
-                <span className="font-mono font-bold text-[10.5pt] text-slate-900">{activeStudent.registration_number || 'Não Informado'}</span>
+                <span className="font-mono font-bold text-[10.5pt] text-slate-900">{formatRegistrationNumber(activeStudent.registration_number, 'Não Informado')}</span>
               </div>
             </div>
 
