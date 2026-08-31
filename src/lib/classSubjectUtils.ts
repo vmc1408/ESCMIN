@@ -159,17 +159,32 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
       const isSem1Sub = (s: SubjectItemType) => {
         const sem = (s?.semester || '').toLowerCase();
         const name = (s?.name || '').toLowerCase();
-        return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
+        let metaSem = '';
+        if (s?.program_content) {
+          try {
+            const match = String(s.program_content).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+            if (match && match[1]) metaSem = JSON.parse(match[1]).semester || '';
+          } catch {}
+        }
+        const metaStr = metaSem.toLowerCase();
+        return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem') || metaStr.includes('1');
       };
       const isSem2Sub = (s: SubjectItemType) => {
         const sem = (s?.semester || '').toLowerCase();
         const name = (s?.name || '').toLowerCase();
-        return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
+        let metaSem = '';
+        if (s?.program_content) {
+          try {
+            const match = String(s.program_content).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+            if (match && match[1]) metaSem = JSON.parse(match[1]).semester || '';
+          } catch {}
+        }
+        const metaStr = metaSem.toLowerCase();
+        return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem') || metaStr.includes('2');
       };
 
       const s1Candidates = loadedSubs.filter(s => isSem1Sub(s));
       const s2Candidates = loadedSubs.filter(s => isSem2Sub(s));
-      const otherCandidates = loadedSubs.filter(s => !isSem1Sub(s) && !isSem2Sub(s));
 
       if (!metaSem1H1 && s1Candidates[0]) metaSem1H1 = s1Candidates[0].id;
       if (!metaSem1H2 && s1Candidates[1]) metaSem1H2 = s1Candidates[1].id;
@@ -180,11 +195,51 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
       const currentAssigned = new Set([metaSem1H1, metaSem1H2, metaSem2H1, metaSem2H2].filter(Boolean));
       const unassigned = loadedSubs.filter(s => !currentAssigned.has(s.id));
 
-      let uIdx = 0;
-      if (!metaSem1H1 && unassigned[uIdx]) { metaSem1H1 = unassigned[uIdx].id; uIdx++; }
-      if (!metaSem1H2 && unassigned[uIdx]) { metaSem1H2 = unassigned[uIdx].id; uIdx++; }
-      if (!metaSem2H1 && unassigned[uIdx]) { metaSem2H1 = unassigned[uIdx].id; uIdx++; }
-      if (!metaSem2H2 && unassigned[uIdx]) { metaSem2H2 = unassigned[uIdx].id; uIdx++; }
+      if (unassigned.length > 0) {
+        const clsSem = String(normalized.semester || '').toLowerCase();
+        const isClassSem2 = clsSem.includes('2') && !clsSem.includes('1');
+        const isClassSem1 = clsSem.includes('1') && !clsSem.includes('2');
+        const hasSem2Assigned = Boolean(metaSem2H1 || metaSem2H2 || s2Candidates.length > 0);
+        const hasSem1Assigned = Boolean(metaSem1H1 || metaSem1H2 || s1Candidates.length > 0);
+
+        let uIdx = 0;
+
+        // If class is explicitly 2º Semestre OR already has 2º Semestre subjects assigned but missing 2º Horário
+        if ((isClassSem2 || (hasSem2Assigned && !hasSem1Assigned)) && !metaSem2H2 && unassigned[uIdx]) {
+          if (!metaSem2H1) {
+            metaSem2H1 = unassigned[uIdx].id;
+            uIdx++;
+          }
+          if (unassigned[uIdx] && !metaSem2H2) {
+            metaSem2H2 = unassigned[uIdx].id;
+            uIdx++;
+          }
+        } else if ((isClassSem1 || (hasSem1Assigned && !hasSem2Assigned)) && !metaSem1H2 && unassigned[uIdx]) {
+          if (!metaSem1H1) {
+            metaSem1H1 = unassigned[uIdx].id;
+            uIdx++;
+          }
+          if (unassigned[uIdx] && !metaSem1H2) {
+            metaSem1H2 = unassigned[uIdx].id;
+            uIdx++;
+          }
+        } else {
+          // If 2nd semester 1st slot is assigned, prioritize completing 2nd semester 2nd slot
+          if (metaSem2H1 && !metaSem2H2 && unassigned[uIdx]) {
+            metaSem2H2 = unassigned[uIdx].id;
+            uIdx++;
+          } else if (metaSem1H1 && !metaSem1H2 && unassigned[uIdx]) {
+            metaSem1H2 = unassigned[uIdx].id;
+            uIdx++;
+          }
+
+          // Then fill any remaining slots
+          if (!metaSem1H1 && unassigned[uIdx]) { metaSem1H1 = unassigned[uIdx].id; uIdx++; }
+          if (!metaSem1H2 && unassigned[uIdx]) { metaSem1H2 = unassigned[uIdx].id; uIdx++; }
+          if (!metaSem2H1 && unassigned[uIdx]) { metaSem2H1 = unassigned[uIdx].id; uIdx++; }
+          if (!metaSem2H2 && unassigned[uIdx]) { metaSem2H2 = unassigned[uIdx].id; uIdx++; }
+        }
+      }
     }
   }
 
@@ -348,6 +403,26 @@ export function getSubjectClassDetails(
         if (classItem.semester) {
           const clsSemLower = String(classItem.semester).toLowerCase();
           if (clsSemLower.includes('2') && !clsSemLower.includes('1')) {
+            return {
+              semester: '2º Semestre',
+              semesterNumber: 2,
+              slotNumber: 20 + idx,
+              slotLabel: '2º Semestre',
+              sortOrder: 110 + idx
+            };
+          }
+          if (clsSemLower.includes('1') && !clsSemLower.includes('2')) {
+            return {
+              semester: '1º Semestre',
+              semesterNumber: 1,
+              slotNumber: 10 + idx,
+              slotLabel: '1º Semestre',
+              sortOrder: 10 + idx
+            };
+          }
+        }
+        if (classItem.subject_id_sem2_h1 || classItem.subject_id_sem2_h2 || classItem.subject_id_sem2) {
+          if (!classItem.subject_id_sem1_h1 && !classItem.subject_id_sem1_h2 && !classItem.subject_id_sem1) {
             return {
               semester: '2º Semestre',
               semesterNumber: 2,
