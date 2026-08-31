@@ -63,7 +63,7 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
@@ -1097,23 +1097,7 @@ export function Reports() {
       setAssessments(assessmentsData || []);
       setCertificates(certificatesData || []);
 
-      const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
-        let normalized = { ...s };
-        if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
-          const match = normalized.program_content.match(/\[METADATA:(.+?)\]/);
-          if (match && match[1]) {
-            try {
-              const meta = JSON.parse(match[1]);
-              if (!normalized.semester) normalized.semester = meta.semester;
-              if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
-              if (!normalized.year) normalized.year = meta.year;
-            } catch (e) {
-              // ignore
-            }
-          }
-        }
-        return normalized;
-      });
+      const normalizedSubjects = (subjectsData || []).map((s: Subject) => normalizeSubject(s));
 
       const normalizedTeachers = (teachersData || []).map((t: Teacher) => {
         let normalized = { ...t };
@@ -1133,43 +1117,7 @@ export function Reports() {
         return normalized;
       });
 
-      const normalizedClasses = (classesData || []).map((cls: Class) => {
-        let normalized = { ...cls };
-        let sIds: string[] = [];
-        if (Array.isArray((normalized as any).subject_ids)) {
-          sIds = (normalized as any).subject_ids;
-        } else if (typeof (normalized as any).subject_ids === 'string') {
-          try {
-            const parsed = JSON.parse((normalized as any).subject_ids);
-            sIds = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
-          }
-        } else if ((normalized as any).subject_id) {
-          sIds = [(normalized as any).subject_id];
-        }
-
-        let isSpecial = false;
-        if (normalized.observations) {
-          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
-          if (match && match[1]) {
-            try {
-              const meta = JSON.parse(match[1]);
-              if (!normalized.year) normalized.year = meta.year;
-              if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
-              if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
-                sIds = meta.subject_ids;
-              } else if (sIds.length === 0 && meta.subject_id) {
-                sIds = [meta.subject_id];
-              }
-              isSpecial = !!meta.is_special;
-            } catch (e) {}
-          }
-        }
-        (normalized as any).is_special = isSpecial;
-        normalized.subject_ids = sIds;
-        return normalized;
-      });
+      const normalizedClasses = (classesData || []).map((cls: Class) => normalizeClass(cls, normalizedSubjects));
 
       const validClassIds = new Set((normalizedClasses || []).map((c: any) => c.id));
       const normalizedStudents = (studentsData || []).map((s: Student) => {

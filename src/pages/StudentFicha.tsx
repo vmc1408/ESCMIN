@@ -21,7 +21,7 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
@@ -544,98 +544,11 @@ export function StudentFicha() {
       });
 
       setStudents(normalizedStudents);
-      const normalizedClasses = (clss || []).map((cls: Class) => {
-        let normalized = { ...cls };
-        let sIds: string[] = [];
-        if (Array.isArray((normalized as any).subject_ids)) {
-          sIds = (normalized as any).subject_ids;
-        } else if (typeof (normalized as any).subject_ids === 'string') {
-          try {
-            const parsed = JSON.parse((normalized as any).subject_ids);
-            sIds = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
-          }
-        } else if ((normalized as any).subject_id) {
-          sIds = [(normalized as any).subject_id];
-        }
-
-        let isSpecial = false;
-        let metaSem1H1 = (normalized as any).subject_id_sem1_h1 || (normalized as any).subject_id_sem1 || '';
-        let metaSem1H2 = (normalized as any).subject_id_sem1_h2 || '';
-        let metaSem2H1 = (normalized as any).subject_id_sem2_h1 || (normalized as any).subject_id_sem2 || '';
-        let metaSem2H2 = (normalized as any).subject_id_sem2_h2 || '';
-
-        if (normalized.observations) {
-          const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
-          if (match && match[1]) {
-            try {
-              const meta = JSON.parse(match[1]);
-              if (!normalized.year) normalized.year = meta.year;
-              if (!normalized.semester) normalized.semester = meta.semester || meta.semester_id;
-              if (meta.start_year && (!normalized.start_year || String(normalized.start_year).trim() === '')) {
-                (normalized as any).start_year = String(meta.start_year).trim();
-              }
-              if (meta.subject_id_sem1_h1 !== undefined) metaSem1H1 = meta.subject_id_sem1_h1;
-              if (meta.subject_id_sem1_h2 !== undefined) metaSem1H2 = meta.subject_id_sem1_h2;
-              if (meta.subject_id_sem2_h1 !== undefined) metaSem2H1 = meta.subject_id_sem2_h1;
-              if (meta.subject_id_sem2_h2 !== undefined) metaSem2H2 = meta.subject_id_sem2_h2;
-              if (meta.subject_id_sem1 !== undefined && !metaSem1H1) metaSem1H1 = meta.subject_id_sem1;
-              if (meta.subject_id_sem2 !== undefined && !metaSem2H1) metaSem2H1 = meta.subject_id_sem2;
-              if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
-                sIds = meta.subject_ids;
-              } else if (sIds.length === 0 && meta.subject_id) {
-                sIds = [meta.subject_id];
-              }
-              isSpecial = !!meta.is_special;
-            } catch (e) {}
-          }
-        }
-
-        // Infer sem1 and sem2 slots if missing from subjects list
-        if ((!metaSem1H1 || !metaSem1H2 || !metaSem2H1 || !metaSem2H2) && sIds.length > 0) {
-          const loadedSubs = sIds.map(sid => (subs || []).find((s: any) => s.id === sid)).filter(Boolean);
-          const isSem1Sub = (s: any) => {
-            const sem = (s?.semester || '').toLowerCase();
-            const name = (s?.name || '').toLowerCase();
-            return sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
-          };
-          const isSem2Sub = (s: any) => {
-            const sem = (s?.semester || '').toLowerCase();
-            const name = (s?.name || '').toLowerCase();
-            return sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
-          };
-
-          const s1List = loadedSubs.filter(s => isSem1Sub(s));
-          const s2List = loadedSubs.filter(s => isSem2Sub(s));
-
-          if (!metaSem1H1 && s1List[0]) metaSem1H1 = s1List[0].id;
-          if (!metaSem1H2 && s1List[1]) metaSem1H2 = s1List[1].id;
-          if (!metaSem2H1 && s2List[0]) metaSem2H1 = s2List[0].id;
-          if (!metaSem2H2 && s2List[1]) metaSem2H2 = s2List[1].id;
-
-          if (!metaSem1H1 && !metaSem2H1) {
-            metaSem1H1 = sIds[0] || '';
-            metaSem1H2 = sIds[1] || '';
-            metaSem2H1 = sIds[2] || '';
-            metaSem2H2 = sIds[3] || '';
-          }
-        }
-
-        const consolidatedSids = Array.from(new Set([metaSem1H1, metaSem1H2, metaSem2H1, metaSem2H2, ...sIds])).filter(Boolean);
-        (normalized as any).subject_id_sem1_h1 = metaSem1H1;
-        (normalized as any).subject_id_sem1_h2 = metaSem1H2;
-        (normalized as any).subject_id_sem2_h1 = metaSem2H1;
-        (normalized as any).subject_id_sem2_h2 = metaSem2H2;
-        (normalized as any).subject_id_sem1 = metaSem1H1 || metaSem1H2 || '';
-        (normalized as any).subject_id_sem2 = metaSem2H1 || metaSem2H2 || '';
-        normalized.subject_ids = consolidatedSids.length > 0 ? consolidatedSids : sIds;
-        (normalized as any).is_special = isSpecial;
-        return normalized;
-      });
+      const normalizedSubjects = (subs || []).map((s: Subject) => normalizeSubject(s));
+      const normalizedClasses = (clss || []).map((cls: Class) => normalizeClass(cls, normalizedSubjects));
 
       setClasses(normalizedClasses);
-      setSubjects(subs || []);
+      setSubjects(normalizedSubjects);
       setAssessments(assms || []);
       setDbGrades(grds || []);
       setAttendanceData(atts || []);

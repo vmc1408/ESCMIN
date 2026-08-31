@@ -284,118 +284,17 @@ export function detectCourseFromClass(cls: any, availableCourses?: Array<{ code?
   return '';
 }
 
+import { getSubjectClassDetails } from './classSubjectUtils';
+export * from './classSubjectUtils';
+
 /**
  * Detects whether a subject belongs to the 1st or 2nd semester (or Anual)
  * based on its properties, metadata, class bindings (1º vs 2º semestre slots) or sequence.
  */
 export function detectSubjectSemester(subject: any, classItem?: any): string {
   if (!subject) return '';
-
-  // 1. Direct s.semester field on subject
-  if (subject.semester && typeof subject.semester === 'string' && subject.semester.trim()) {
-    const sem = subject.semester.trim();
-    const semLower = sem.toLowerCase();
-    if (semLower.includes('1') || semLower.includes('primeiro') || semLower.includes('1º') || semLower.includes('1°')) {
-      return '1º Semestre';
-    }
-    if (semLower.includes('2') || semLower.includes('segundo') || semLower.includes('2º') || semLower.includes('2°')) {
-      return '2º Semestre';
-    }
-    if (semLower.includes('anual')) {
-      return 'Anual';
-    }
-    return sem;
-  }
-
-  // 2. Class associations if classItem provided
-  if (classItem) {
-    const sId = subject.id;
-    // Check sem1 slots
-    if (
-      (classItem.subject_id_sem1 && classItem.subject_id_sem1 === sId) ||
-      (classItem.subject_id_sem1_h1 && classItem.subject_id_sem1_h1 === sId) ||
-      (classItem.subject_id_sem1_h2 && classItem.subject_id_sem1_h2 === sId)
-    ) {
-      return '1º Semestre';
-    }
-
-    // Check sem2 slots
-    if (
-      (classItem.subject_id_sem2 && classItem.subject_id_sem2 === sId) ||
-      (classItem.subject_id_sem2_h1 && classItem.subject_id_sem2_h1 === sId) ||
-      (classItem.subject_id_sem2_h2 && classItem.subject_id_sem2_h2 === sId)
-    ) {
-      return '2º Semestre';
-    }
-
-    // Check metadata inside class observations
-    if (classItem.observations) {
-      try {
-        const match = String(classItem.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
-        if (match && match[1]) {
-          const meta = JSON.parse(match[1]);
-          if (meta.subject_id_sem1_h1 === sId || meta.subject_id_sem1_h2 === sId || meta.subject_id_sem1 === sId) {
-            return '1º Semestre';
-          }
-          if (meta.subject_id_sem2_h1 === sId || meta.subject_id_sem2_h2 === sId || meta.subject_id_sem2 === sId) {
-            return '2º Semestre';
-          }
-        }
-      } catch (e) {}
-    }
-
-    // Sequence position in subject_ids array if class has 4 slots (2 in 1st sem, 2 in 2nd sem)
-    if (Array.isArray(classItem.subject_ids) && classItem.subject_ids.length > 0) {
-      const idx = classItem.subject_ids.indexOf(sId);
-      if (idx >= 0) {
-        if (classItem.subject_ids.length === 4) {
-          return idx < 2 ? '1º Semestre' : '2º Semestre';
-        }
-        if (classItem.subject_ids.length === 2 && (!classItem.semester || String(classItem.semester).toLowerCase().includes('anual'))) {
-          return idx === 0 ? '1º Semestre' : '2º Semestre';
-        }
-      }
-    }
-
-    // If class itself is strictly 1º Semestre or 2º Semestre
-    if (classItem.semester) {
-      const clsSemLower = String(classItem.semester).toLowerCase();
-      if (clsSemLower.includes('1') && !clsSemLower.includes('2')) {
-        return '1º Semestre';
-      }
-      if (clsSemLower.includes('2') && !clsSemLower.includes('1')) {
-        return '2º Semestre';
-      }
-    }
-  }
-
-  // 3. Subject program_content metadata
-  if (subject.program_content) {
-    try {
-      const match = String(subject.program_content).match(/\[METADATA:(\{[\s\S]*?\})\]/);
-      if (match && match[1]) {
-        const meta = JSON.parse(match[1]);
-        if (meta.semester) {
-          const mSem = String(meta.semester).toLowerCase();
-          if (mSem.includes('1')) return '1º Semestre';
-          if (mSem.includes('2')) return '2º Semestre';
-          if (mSem.includes('anual')) return 'Anual';
-          return meta.semester;
-        }
-      }
-    } catch (e) {}
-  }
-
-  // 4. Code / Name regex heuristics
-  const str = `${subject.code || ''} ${subject.name || ''}`.toLowerCase();
-  if (/\b(1º|1°|1o|1s|semestre 1|1º sem|1 sem|1ºsem|sem 1|1º semestre)\b/i.test(str)) {
-    return '1º Semestre';
-  }
-  if (/\b(2º|2°|2o|2s|semestre 2|2º sem|2 sem|2ºsem|sem 2|2º semestre)\b/i.test(str)) {
-    return '2º Semestre';
-  }
-
-  return '';
+  const details = getSubjectClassDetails(subject, classItem);
+  return details.semester || '';
 }
 
 /**

@@ -25,7 +25,7 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject } from '../types';
-import { formatSubjectDisplayName, filterStudentsForClass } from '../lib/utils';
+import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Assessments: React.FC = () => {
@@ -110,24 +110,8 @@ export const Assessments: React.FC = () => {
         fetchAll('grades')
       ]);
 
-      const normalizedClasses = (classesData || []).map((cls: any) => {
-        let sIds: string[] = [];
-        if (Array.isArray(cls.subject_ids)) {
-          sIds = cls.subject_ids;
-        } else if (typeof cls.subject_ids === 'string' && cls.subject_ids.startsWith('{')) {
-          sIds = cls.subject_ids.replace(/[{}]/g, '').split(',').filter(Boolean);
-        } else if (typeof cls.subject_ids === 'string') {
-          try {
-            const parsed = JSON.parse(cls.subject_ids);
-            sIds = Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            sIds = cls.subject_ids ? [cls.subject_ids] : [];
-          }
-        } else if (cls.subject_id) {
-          sIds = [cls.subject_id];
-        }
-        return { ...cls, subject_ids: sIds };
-      });
+      const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
+      const normalizedClasses = (classesData || []).map((cls: any) => normalizeClass(cls, normalizedSubjects));
 
       const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
         const extract = (s: string) => {
@@ -144,7 +128,7 @@ export const Assessments: React.FC = () => {
 
       setAssessments(assessData as Assessment[] || []);
       setClasses(sortedClasses as Class[] || []);
-      setSubjects(subjectsData as Subject[] || []);
+      setSubjects(normalizedSubjects as Subject[] || []);
       setStudents(studentsData || []);
       setGrades(gradesData || []);
     } catch (error: any) {
@@ -502,20 +486,17 @@ export const Assessments: React.FC = () => {
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Disciplinas</option>
-                  {subjects
-                    .filter(s => {
-                      if (!filterClass) return true;
-                      const selectedClass = classes.find(c => c.id === filterClass);
-                      return selectedClass?.subject_ids?.includes(s.id);
-                    })
-                    .map((s, idx) => {
-                      const selectedClass = classes.find(c => c.id === filterClass);
-                      return (
-                        <option key={`ass-sub-opt-${s.id || idx}-${idx}`} value={s.id}>
-                          {formatSubjectDisplayName(s, selectedClass)}
-                        </option>
-                      );
-                    })}
+                  {(filterClass 
+                    ? getClassSubjects(classes.find(c => c.id === filterClass), subjects)
+                    : subjects
+                  ).map((s, idx) => {
+                    const selectedClass = classes.find(c => c.id === filterClass);
+                    return (
+                      <option key={`ass-sub-opt-${s.id || idx}-${idx}`} value={s.id}>
+                        {formatSubjectDisplayName(s, selectedClass)}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -823,20 +804,17 @@ export const Assessments: React.FC = () => {
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">Selecione...</option>
-                      {subjects
-                        .filter(s => {
-                          if (!formData.class_id) return true;
-                          const selectedClass = classes.find(c => c.id === formData.class_id);
-                          return selectedClass?.subject_ids?.includes(s.id);
-                        })
-                        .map((s, idx) => {
-                          const selectedClass = classes.find(c => c.id === formData.class_id);
-                          return (
-                            <option key={`ass-mdl-sub-${s.id || idx}-${idx}`} value={s.id}>
-                              {formatSubjectDisplayName(s, selectedClass)}
-                            </option>
-                          );
-                        })}
+                      {(formData.class_id
+                        ? getClassSubjects(classes.find(c => c.id === formData.class_id), subjects)
+                        : subjects
+                      ).map((s, idx) => {
+                        const selectedClass = classes.find(c => c.id === formData.class_id);
+                        return (
+                          <option key={`ass-mdl-sub-${s.id || idx}-${idx}`} value={s.id}>
+                            {formatSubjectDisplayName(s, selectedClass)}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 

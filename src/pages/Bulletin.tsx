@@ -16,7 +16,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
-import { cn, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails } from '../lib/utils';
 import { fetchAll, fetchQuery } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
@@ -92,13 +92,17 @@ export function Bulletin() {
           financialService.getInstitutionSettings()
         ]);
 
+        // Normalize classes and subjects
+        const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
+        const normalizedClasses = (classesData || []).map((c: any) => normalizeClass(c, normalizedSubjects));
+
         // Prioritize actively listed classes
-        const sortedClasses = (classesData || []).sort((a: any, b: any) => 
+        const sortedClasses = normalizedClasses.sort((a: any, b: any) => 
           (a.name || '').localeCompare(b.name || '')
         );
 
         setClasses(sortedClasses);
-        setSubjects(subjectsData || []);
+        setSubjects(normalizedSubjects);
         setStudents(studentsData || []);
         setEnrollments(enrollmentsData || []);
         setDbGrades(gradesData || []);
@@ -145,27 +149,8 @@ export function Bulletin() {
     if (!selectedClassId) return [];
     const classObj = classes.find(c => c.id === selectedClassId);
     if (!classObj) return [];
-
-    let sIds: string[] = [];
-    if (Array.isArray(classObj.subject_ids)) {
-      sIds = classObj.subject_ids;
-    } else if (typeof classObj.subject_ids === 'string') {
-      try {
-        const parsed = JSON.parse(classObj.subject_ids);
-        sIds = Array.isArray(parsed) ? parsed : [parsed];
-      } catch {
-        sIds = classObj.subject_ids ? [classObj.subject_ids] : [];
-      }
-    }
-
-    if (sIds.length > 0) {
-      return subjects.filter(sub => sIds.includes(sub.id));
-    }
-    // Fallback: assessments subject_id linkages
-    return subjects.filter(sub => 
-      assessments.some(a => a.class_id === selectedClassId && a.subject_id === sub.id)
-    );
-  }, [selectedClassId, classes, subjects, assessments]);
+    return getClassSubjects(classObj, subjects, assessments, dbGrades);
+  }, [selectedClassId, classes, subjects, assessments, dbGrades]);
 
   // Calendar specific events
   const classSchoolDays = useMemo(() => {
@@ -260,16 +245,12 @@ export function Bulletin() {
   }, [scheduledDaysByMonth]);
 
   // Subject semester detector helper
-  const getSubjectSemester = (sub: { name?: string; semester?: string | number } | undefined): '1º Semestre' | '2º Semestre' | 'Geral' => {
+  const getSubjectSemester = (sub: any): '1º Semestre' | '2º Semestre' | 'Geral' => {
     if (!sub) return 'Geral';
-    const name = (sub.name || '').toUpperCase();
-    const sem = (sub.semester || '').toString().toUpperCase();
-    if (sem === '1' || sem.includes('1') || name.includes('1º SEM') || name.includes('1° SEM') || name.includes('1 SEM') || name.includes('1º SEMESTRE') || name.includes('1° SEMESTRE')) {
-      return '1º Semestre';
-    }
-    if (sem === '2' || sem.includes('2') || name.includes('2º SEM') || name.includes('2° SEM') || name.includes('2 SEM') || name.includes('2º SEMESTRE') || name.includes('2° SEMESTRE')) {
-      return '2º Semestre';
-    }
+    const classObj = classes.find(c => c.id === selectedClassId);
+    const details = getSubjectClassDetails(sub, classObj);
+    if (details.semester === '1º Semestre') return '1º Semestre';
+    if (details.semester === '2º Semestre') return '2º Semestre';
     return 'Geral';
   };
 

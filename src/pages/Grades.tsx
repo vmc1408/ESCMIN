@@ -20,7 +20,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
-import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -103,24 +103,8 @@ export function Grades() {
       setInstitution(instSettings);
     }
 
-    const normalizedClasses = (classesData || []).map((cls: any) => {
-      let normalized = { ...cls };
-      let sIds: string[] = [];
-      if (Array.isArray(normalized.subject_ids)) {
-        sIds = normalized.subject_ids;
-      } else if (typeof normalized.subject_ids === 'string') {
-        try {
-          const parsed = JSON.parse(normalized.subject_ids);
-          sIds = Array.isArray(parsed) ? parsed : [parsed];
-        } catch (e) {
-          sIds = normalized.subject_ids ? [normalized.subject_ids] : [];
-        }
-      } else if (normalized.subject_id) {
-        sIds = [normalized.subject_id];
-      }
-      normalized.subject_ids = sIds;
-      return normalized;
-    });
+    const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
+    const normalizedClasses = (classesData || []).map((cls: any) => normalizeClass(cls, normalizedSubjects));
 
     const sortedClasses = (normalizedClasses || []).sort((a: any, b: any) => {
       const extract = (s: string) => {
@@ -262,9 +246,9 @@ export function Grades() {
     if (!selectedClass) return [];
     const cls = classes.find(c => c.id === selectedClass);
     if (!cls) return [];
-    if (!cls.subject_ids || cls.subject_ids.length === 0) return subjects; // Fallback
-    return subjects.filter(s => cls.subject_ids?.includes(s.id));
-  }, [selectedClass, classes, subjects]);
+    const subs = getClassSubjects(cls, subjects, assessments, dbGrades);
+    return subs.length > 0 ? subs : subjects;
+  }, [selectedClass, classes, subjects, assessments, dbGrades]);
 
   const handleGradeChange = (studentId: string, value: string) => {
     if (selectedPeriod === 'Resultado Final') {

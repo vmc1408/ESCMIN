@@ -22,7 +22,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
 import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
-import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -199,22 +199,7 @@ export function Impressos() {
         setContributions(conts || []);
         
         // Normalize classes (subject_ids handling)
-        const normalizedClasses = (clss || []).map((cls: Class) => {
-          let normalized = { ...cls };
-          let sIds: string[] = [];
-          if (Array.isArray((normalized as any).subject_ids)) {
-            sIds = (normalized as any).subject_ids;
-          } else if (typeof (normalized as any).subject_ids === 'string') {
-            try {
-              const parsed = JSON.parse((normalized as any).subject_ids);
-              sIds = Array.isArray(parsed) ? parsed : [parsed];
-            } catch (e) {
-              sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
-            }
-          }
-          normalized.subject_ids = sIds;
-          return normalized;
-        });
+        const normalizedClasses = (clss || []).map((cls: Class) => normalizeClass(cls));
         
         setClasses(normalizedClasses);
         setInstitution(instSettings || null);
