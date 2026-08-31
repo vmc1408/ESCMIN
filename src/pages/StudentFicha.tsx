@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
+import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
 import { financialService } from '../services/financialService';
 
@@ -418,6 +419,8 @@ export function StudentFicha() {
     failure_grade: 4.9,
     absence_limit_percentage: 25
   });
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+  const [academicSettings, setAcademicSettings] = useState<any>(null);
 
   // Certificate Issuance Modal State
   const [isIssuing, setIsIssuing] = useState(false);
@@ -506,12 +509,13 @@ export function StudentFicha() {
     }
 
     setAcademicSettingsList(settingsList);
+    return settingsList.find(s => s.id === 'current') || (settingsList.length > 0 ? settingsList[0] : null);
   }, []);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [studs, clss, subs, assms, grds, atts, certs, instSettings, academicParamsData, _acadSettings, enrollmentsData] = await Promise.all([
+      const [studs, clss, subs, assms, grds, atts, certs, instSettings, academicParamsData, acadSettings, enrollmentsData, calendarData] = await Promise.all([
         fetchAll('students', '*', 'name'),
         fetchAll('classes', '*', 'name'),
         fetchAll('subjects', '*', 'name'),
@@ -522,7 +526,8 @@ export function StudentFicha() {
         financialService.getInstitutionSettings(),
         fetchAll('academic_parameters', '*', ''),
         fetchAcademicSettings(),
-        fetchAll('enrollments').catch(() => [])
+        fetchAll('enrollments').catch(() => []),
+        fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]).catch(() => [])
       ]);
 
       const validClassIds = new Set((clss || []).map((c: any) => c.id));
@@ -553,6 +558,8 @@ export function StudentFicha() {
       setDbGrades(grds || []);
       setAttendanceData(atts || []);
       setCertificates(certs || []);
+      setCalendarEvents(calendarData || []);
+      setAcademicSettings(acadSettings || null);
 
       if (academicParamsData && academicParamsData.length > 0) {
         setAcademicParams(academicParamsData[0] as any);
@@ -671,11 +678,12 @@ export function StudentFicha() {
     const classId = activeStudent.class_id;
     const cls = classId ? classes.find(c => c.id === classId) : null;
     
-    // Total class days registered
-    const totalClassDays = attendanceData.filter(a => a.class_id === classId).reduce((acc, curr) => {
-      // Group by date or count unique days
-      return acc;
-    }, 0);
+    // Class school days according to official calendar & class schedule
+    const classSchoolDays = getClassSchoolDays(cls, calendarEvents, academicSettings, attendanceData);
+    const scheduledDaysByMonth = getScheduledDaysByMonth(classSchoolDays);
+    
+    // Total scheduled days in this specific class
+    const totalDays = classSchoolDays.length > 0 ? classSchoolDays.length : 33;
 
     // Filter subjects linked to coordinates
     let sIds: string[] = [];
@@ -800,13 +808,17 @@ export function StudentFicha() {
 
     const studentAbsences = studentAllAttendances.filter(a => a.status === 'F').length;
     const studentPresences = studentAllAttendances.filter(a => a.status === 'P').length;
-    
-    // Theoretical total days in this specific class
     const registeredLessons = studentAbsences + studentPresences;
-    const totalDays = registeredLessons || 30;
-    const presencePercentage = registeredLessons > 0 
-      ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) 
-      : 0;
+
+    const attMetrics = calculateAttendanceMetrics({
+      presences: studentPresences,
+      absences: studentAbsences,
+      subjectTotalClassDays: totalDays,
+      absenceLimitPercentage: academicParams.absence_limit_percentage || 25
+    });
+
+    const presencePercentage = attMetrics.presencePercentage ?? (registeredLessons > 0 ? 100 : 0);
+    const isAttendanceApproved = attMetrics.isAttendanceApproved;
 
     // Grades and performance calculations
     const subjectRecords = classSubjects.map(sub => {
@@ -862,14 +874,13 @@ export function StudentFicha() {
 
     const studentDocs = certificates.filter(c => c.student_id === activeStudent.id);
 
-    const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
     const hasAnyGrade = subjectRecords.some(r => r.grade !== null);
     const hasAnyAttendance = registeredLessons > 0;
 
     let finalStatus = 'Em Curso';
     if (!hasAnyGrade && !hasAnyAttendance) {
       finalStatus = 'Sem Registros';
-    } else if (hasAnyAttendance && presencePercentage < minPresence) {
+    } else if (!isAttendanceApproved) {
       finalStatus = 'Reprovado por Faltas';
     } else if (hasAnyGrade) {
       const allSubjectsHaveGrade = subjectRecords.length > 0 && subjectRecords.every(r => r.grade !== null);
@@ -877,7 +888,7 @@ export function StudentFicha() {
         rec.grade !== null && rec.grade < (academicParams.approval_grade || 7.0)
       ).length;
 
-      if (failedGradesCount === 0 && allSubjectsHaveGrade && (!hasAnyAttendance || presencePercentage >= minPresence)) {
+      if (failedGradesCount === 0 && allSubjectsHaveGrade && isAttendanceApproved) {
         finalStatus = 'Aprovado';
       } else if (failedGradesCount > 0) {
         finalStatus = failedGradesCount <= 2 ? 'Recuperação' : 'Reprovado';
@@ -898,7 +909,7 @@ export function StudentFicha() {
       studentDocs,
       finalStatus
     };
-  }, [activeStudent, classes, subjects, assessments, dbGrades, attendanceData, certificates, academicParams]);
+  }, [activeStudent, classes, subjects, assessments, dbGrades, attendanceData, certificates, academicParams, calendarEvents, academicSettings]);
 
   const handleIssueCertificate = async (e: React.FormEvent) => {
     e.preventDefault();

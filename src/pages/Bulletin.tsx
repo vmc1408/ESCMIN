@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
 import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails } from '../lib/utils';
-import { fetchAll, fetchQuery } from '../lib/database';
+import { fetchAll, fetchQuery, fetchAcademicSettings } from '../lib/database';
+import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
@@ -47,11 +48,12 @@ export function Bulletin() {
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [institution, setInstitution] = useState<any>(null);
+  const [academicSettings, setAcademicSettings] = useState<any>(null);
   const [academicParams, setAcademicParams] = useState<AcademicParameters>({
-    approval_grade: 5.0,
+    approval_grade: 7.0,
     recovery_grade: 5.0,
     failure_grade: 4.9,
-    absence_limit_percentage: 40,
+    absence_limit_percentage: 25,
     updated_at: ''
   });
 
@@ -78,7 +80,8 @@ export function Bulletin() {
           attendancesData,
           calendarData,
           paramsData,
-          instSettings
+          instSettings,
+          acadSettings
         ] = await Promise.all([
           fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
           fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
@@ -89,7 +92,8 @@ export function Bulletin() {
           fetchAll('attendances'),
           fetchQuery('calendar_events', [{ field: 'type', operator: '==', value: 'class_day' }]),
           fetchAll('academic_parameters'),
-          financialService.getInstitutionSettings()
+          financialService.getInstitutionSettings(),
+          fetchAcademicSettings()
         ]);
 
         // Normalize classes and subjects
@@ -109,9 +113,18 @@ export function Bulletin() {
         setAssessments(assessmentsData || []);
         setAttendanceData(attendancesData || []);
         setCalendarEvents(calendarData || []);
+        setAcademicSettings(acadSettings || null);
         
         if (paramsData && paramsData.length > 0) {
           setAcademicParams(paramsData[0] as AcademicParameters);
+        } else if (instSettings) {
+          setAcademicParams({
+            approval_grade: instSettings.approval_grade || 7.0,
+            absence_limit_percentage: instSettings.absence_limit_percentage || 25,
+            recovery_grade: 5.0,
+            failure_grade: 4.9,
+            updated_at: ''
+          } as any);
         }
         if (instSettings) {
           setInstitution(instSettings);
@@ -152,11 +165,12 @@ export function Bulletin() {
     return getClassSubjects(classObj, subjects, assessments, dbGrades);
   }, [selectedClassId, classes, subjects, assessments, dbGrades]);
 
-  // Calendar specific events
+  // Calendar specific events strictly matching the class's scheduled weekdays
   const classSchoolDays = useMemo(() => {
     if (!selectedClassId) return [];
-    return calendarEvents.filter(e => !e.class_id || e.class_id === selectedClassId);
-  }, [selectedClassId, calendarEvents]);
+    const classObj = classes.find(c => c.id === selectedClassId);
+    return getClassSchoolDays(classObj, calendarEvents, academicSettings, attendanceData);
+  }, [selectedClassId, classes, calendarEvents, academicSettings, attendanceData]);
 
   // Robust total class days count calculation
   const totalClassDays = useMemo(() => {
@@ -171,7 +185,7 @@ export function Bulletin() {
     if (markedDates.size > 0) return markedDates.size;
     
     // Fallback 2: standard typical calendar value
-    return 30;
+    return 33;
   }, [selectedClassId, classSchoolDays, attendanceData]);
 
   // Date parser function for month columns (0 to 11)
@@ -206,34 +220,8 @@ export function Bulletin() {
 
   // Count of scheduled class sessions per month index (0 to 11)
   const scheduledDaysByMonth = useMemo(() => {
-    const counts: Record<number, number> = {};
-    monthsList.forEach(m => {
-      counts[m.index] = 0;
-    });
-
-    if (classSchoolDays.length > 0) {
-      classSchoolDays.forEach(e => {
-        const idx = getMonthFromDate(e.start_date);
-        if (idx >= 0 && idx < 12) {
-          counts[idx] += 1;
-        }
-      });
-    } else {
-      // Fallback: unique attendance dates marked for this class in each month
-      const markedDates = new Set(
-        attendanceData
-          .filter(a => a.class_id === selectedClassId)
-          .map(a => a.date)
-      );
-      markedDates.forEach(dateStr => {
-        const idx = getMonthFromDate(dateStr);
-        if (idx >= 0 && idx < 12) {
-          counts[idx] += 1;
-        }
-      });
-    }
-    return counts;
-  }, [selectedClassId, classSchoolDays, attendanceData, monthsList]);
+    return getScheduledDaysByMonth(classSchoolDays);
+  }, [classSchoolDays]);
 
   // Semester breakdown of scheduled class days
   const sem1Days = useMemo(() => {
@@ -299,22 +287,19 @@ export function Bulletin() {
 
         const totalAbsences = subjectAttendances.filter(a => a.status === 'F').length;
         const totalPresences = subjectAttendances.filter(a => a.status === 'P').length;
-        const totalRecordedClasses = totalPresences + totalAbsences;
 
         // Accurate total class days based on the subject's semester
-        const subjectTotalClassDays = subSemester === '1º Semestre' 
-          ? (sem1Days > 0 ? sem1Days : totalClassDays)
-          : subSemester === '2º Semestre'
-            ? (sem2Days > 0 ? sem2Days : totalClassDays)
-            : totalClassDays;
+        const subjectTotalClassDays = getSubjectTotalClassDays(subSemester, scheduledDaysByMonth, totalClassDays);
 
-        // Only compute presence % if at least one attendance has been registered
-        const presencePct: number | null = totalRecordedClasses > 0
-          ? Math.max(0, Math.min(100, Math.round((totalPresences / totalRecordedClasses) * 100)))
-          : null;
+        const attMetrics = calculateAttendanceMetrics({
+          presences: totalPresences,
+          absences: totalAbsences,
+          subjectTotalClassDays,
+          absenceLimitPercentage: academicParams.absence_limit_percentage || 25
+        });
 
-        const maxAbsencePct = academicParams.absence_limit_percentage || 25;
-        const isAttendanceApproved = presencePct !== null ? presencePct >= (100 - maxAbsencePct) : true;
+        const presencePct = attMetrics.presencePercentage;
+        const isAttendanceApproved = attMetrics.isAttendanceApproved;
 
         // 1b. Grades resolver: search "Resultado Final" first, else average assessments
         const finalGradeRecord = dbGrades.find(g => 
@@ -451,10 +436,10 @@ export function Bulletin() {
 
         // Determine Status per Subject
         let subjectStatus: 'Aprovado' | 'Reprovado' | 'Recuperação' | 'Pendente' = 'Pendente';
-        const minApp = academicParams.approval_grade || 5.0;
+        const minApp = academicParams.approval_grade || 7.0;
         const minRec = academicParams.recovery_grade !== undefined && academicParams.recovery_grade !== null
           ? academicParams.recovery_grade
-          : 4.0;
+          : 5.0;
 
         if (!isAttendanceApproved) {
           subjectStatus = 'Reprovado';

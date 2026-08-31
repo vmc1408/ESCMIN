@@ -1415,6 +1415,27 @@ export const getInstitutionSettings = async () => {
   }
 };
 
+export const fetchAcademicSettings = async (): Promise<any> => {
+  try {
+    const list = await fetchAll('academic_settings');
+    if (list && list.length > 0) {
+      return list[0];
+    }
+    const cached = localStorage.getItem('academic_settings');
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) {}
+    }
+    return null;
+  } catch (err: any) {
+    console.warn('[Supabase] Aviso ao buscar academic_settings:', err.message);
+    const cached = localStorage.getItem('academic_settings');
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) {}
+    }
+    return null;
+  }
+};
+
 export const uploadImage = async (file: File, bucketName: string, path: string): Promise<string> => {
   try {
     if (!isSupabaseConfigured) return "";
@@ -1439,6 +1460,8 @@ export const uploadImage = async (file: File, bucketName: string, path: string):
     return "";
   }
 };
+
+
 
 
 
