@@ -449,3 +449,5 @@ export function formatRegistrationNumber(reg: string | number | null | undefined
   return clean;
 }
 
+// Re-export centralized Subject & Class normalizers and helpers
+export * from './classSubjectUtils';

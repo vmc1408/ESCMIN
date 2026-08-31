@@ -121,7 +121,7 @@ const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] => {
 import { fetchCount, fetchAll, fetchById, saveBatch, saveData } from '../lib/database';
 import { supabase, isDbConnected, isSupabaseConfigured, lastLatency, testConnection } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { Student, Class, Subject, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -314,24 +314,8 @@ export function Dashboard() {
       if (studentsData) setStudents(studentsData);
       if (enrollmentsData) setEnrollments(enrollmentsData);
       
-      if (subjectsData) {
-        const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
-          let normalized = { ...s };
-          if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
-            const match = normalized.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
-            if (match && match[1]) {
-              try {
-                const meta = JSON.parse(match[1]);
-                if (!normalized.semester) normalized.semester = meta.semester;
-                if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
-                if (!normalized.year) normalized.year = meta.year;
-              } catch (e) {}
-            }
-          }
-          return normalized;
-        });
-        setSubjects(normalizedSubjects);
-      }
+      const normalizedSubjects = (subjectsData || []).map((s: Subject) => normalizeSubject(s));
+      setSubjects(normalizedSubjects);
 
       if (teachersData) {
         const normalizedTeachers = (teachersData || []).map((t: Teacher) => {
@@ -354,58 +338,7 @@ export function Dashboard() {
 
       if (classesData) {
         const normalizedClasses = (classesData || []).map((cls: Class) => {
-          let normalized = { ...cls };
-          let sIds: string[] = [];
-          if (Array.isArray((normalized as any).subject_ids)) {
-            sIds = (normalized as any).subject_ids;
-          } else if (typeof (normalized as any).subject_ids === 'string') {
-            try {
-              const parsed = JSON.parse((normalized as any).subject_ids);
-              sIds = Array.isArray(parsed) ? parsed : [parsed];
-            } catch (e) {
-              sIds = (normalized as any).subject_ids ? [(normalized as any).subject_ids] : [];
-            }
-          } else if ((normalized as any).subject_id) {
-            sIds = [(normalized as any).subject_id];
-          }
-
-          let metaSem1H1 = (normalized as any).subject_id_sem1_h1 || (normalized as any).subject_id_sem1 || '';
-          let metaSem1H2 = (normalized as any).subject_id_sem1_h2 || '';
-          let metaSem2H1 = (normalized as any).subject_id_sem2_h1 || (normalized as any).subject_id_sem2 || '';
-          let metaSem2H2 = (normalized as any).subject_id_sem2_h2 || '';
-
-          if (normalized.observations) {
-            const match = normalized.observations.match(/\[METADATA:(\{[\s\S]*\})\]/);
-            if (match && match[1]) {
-              try {
-                const meta = JSON.parse(match[1]);
-                if (meta.start_year && (!normalized.start_year || String(normalized.start_year).trim() === '')) {
-                  (normalized as any).start_year = String(meta.start_year).trim();
-                }
-                if (meta.subject_id_sem1_h1 !== undefined) metaSem1H1 = meta.subject_id_sem1_h1;
-                if (meta.subject_id_sem1_h2 !== undefined) metaSem1H2 = meta.subject_id_sem1_h2;
-                if (meta.subject_id_sem2_h1 !== undefined) metaSem2H1 = meta.subject_id_sem2_h1;
-                if (meta.subject_id_sem2_h2 !== undefined) metaSem2H2 = meta.subject_id_sem2_h2;
-                if (meta.subject_id_sem1 !== undefined && !metaSem1H1) metaSem1H1 = meta.subject_id_sem1;
-                if (meta.subject_id_sem2 !== undefined && !metaSem2H1) metaSem2H1 = meta.subject_id_sem2;
-                if (meta.subject_ids && Array.isArray(meta.subject_ids) && meta.subject_ids.length > 0) {
-                  sIds = meta.subject_ids;
-                } else if (sIds.length === 0 && meta.subject_id) {
-                  sIds = [meta.subject_id];
-                }
-              } catch (e) {}
-            }
-          }
-
-          const consolidatedSids = Array.from(new Set([metaSem1H1, metaSem1H2, metaSem2H1, metaSem2H2, ...sIds])).filter(Boolean);
-
-          (normalized as any).subject_id_sem1_h1 = metaSem1H1;
-          (normalized as any).subject_id_sem1_h2 = metaSem1H2;
-          (normalized as any).subject_id_sem2_h1 = metaSem2H1;
-          (normalized as any).subject_id_sem2_h2 = metaSem2H2;
-          (normalized as any).subject_id_sem1 = metaSem1H1 || metaSem1H2;
-          (normalized as any).subject_id_sem2 = metaSem2H1 || metaSem2H2;
-          normalized.subject_ids = consolidatedSids;
+          const normalized = normalizeClass(cls, normalizedSubjects);
 
           // Regra Fundamental: Não existe 5º Ano. Se a turma atingir este patamar ou estiver cadastrada como 5º Ano, converte para Curso Extra.
           const yrStr = (normalized.year || '').toLowerCase();
@@ -1626,76 +1559,13 @@ export function Dashboard() {
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/30">
             {studentsByClass.length > 0 ? (
               studentsByClass.map((c, i) => {
-                const classSubjectList = (c.subject_ids || [])
-                  .map(sid => subjects.find(s => s.id === sid))
-                  .filter(Boolean) as Subject[];
+                const classSubjects = getClassSubjects(c, subjects);
+                const sem1Subs = classSubjects.filter(s => getSubjectClassDetails(s, c).semesterNumber === 1);
+                const sem2Subs = classSubjects.filter(s => getSubjectClassDetails(s, c).semesterNumber === 2);
+                const activeSubs = activeSemesterNum === 1
+                  ? (sem1Subs.length > 0 ? sem1Subs : (sem2Subs.length === 0 ? classSubjects : []))
+                  : (sem2Subs.length > 0 ? sem2Subs : (sem1Subs.length === 0 ? classSubjects : []));
 
-                const sem1SlotIds = new Set([
-                  c.subject_id_sem1_h1,
-                  c.subject_id_sem1_h2,
-                  c.subject_id_sem1
-                ].filter(Boolean));
-
-                const sem2SlotIds = new Set([
-                  c.subject_id_sem2_h1,
-                  c.subject_id_sem2_h2,
-                  c.subject_id_sem2
-                ].filter(Boolean));
-
-                const sem1Subs: Subject[] = [];
-                const sem2Subs: Subject[] = [];
-                const remainingSubs: Subject[] = [];
-
-                classSubjectList.forEach(s => {
-                  if (sem1SlotIds.has(s.id)) {
-                    sem1Subs.push(s);
-                  } else if (sem2SlotIds.has(s.id)) {
-                    sem2Subs.push(s);
-                  } else {
-                    const sem = (s.semester || '').toLowerCase();
-                    const name = (s.name || '').toLowerCase();
-                    const isSem1 = sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem');
-                    const isSem2 = sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem');
-
-                    if (isSem1 && !isSem2) {
-                      sem1Subs.push(s);
-                    } else if (isSem2 && !isSem1) {
-                      sem2Subs.push(s);
-                    } else {
-                      remainingSubs.push(s);
-                    }
-                  }
-                });
-
-                if (remainingSubs.length > 0) {
-                  if (sem1Subs.length === 0 && sem2Subs.length > 0) {
-                    sem1Subs.push(...remainingSubs);
-                  } else if (sem2Subs.length === 0 && sem1Subs.length > 0) {
-                    sem2Subs.push(...remainingSubs);
-                  } else if (sem1Subs.length === 0 && sem2Subs.length === 0) {
-                    if (remainingSubs.length === 2) {
-                      sem1Subs.push(remainingSubs[0]);
-                      sem2Subs.push(remainingSubs[1]);
-                    } else if (remainingSubs.length === 4) {
-                      sem1Subs.push(remainingSubs[0], remainingSubs[1]);
-                      sem2Subs.push(remainingSubs[2], remainingSubs[3]);
-                    } else {
-                      const half = Math.ceil(remainingSubs.length / 2);
-                      sem1Subs.push(...remainingSubs.slice(0, half));
-                      sem2Subs.push(...remainingSubs.slice(half));
-                    }
-                  } else {
-                    remainingSubs.forEach(s => {
-                      if (sem1Subs.length <= sem2Subs.length) {
-                        sem1Subs.push(s);
-                      } else {
-                        sem2Subs.push(s);
-                      }
-                    });
-                  }
-                }
-
-                const activeSubs = activeSemesterNum === 1 ? sem1Subs : sem2Subs;
 
                 return (
                   <motion.div 
@@ -1747,7 +1617,7 @@ export function Dashboard() {
                             <div className="min-w-0 flex-1 space-y-0.5">
                               {activeSubs.length > 0 ? (
                                 activeSubs.map((s, sIdx) => {
-                                  const t = getSubjectTeacher(s);
+                                  const t = getSubjectTeacher(s as Subject);
                                   return (
                                     <div key={`dash-s-${s.id || s.code || sIdx}-${sIdx}`} className="min-w-0 leading-tight py-0.5">
                                       <p className="text-[9px] font-bold text-slate-800 truncate">{s.name}</p>
@@ -1757,7 +1627,7 @@ export function Dashboard() {
                                 })
                               ) : (
                                 <p className="text-[8.5px] text-slate-400 italic py-0.5">
-                                  {classSubjectList.length > 0 ? `Sem matérias no ${activeSemesterNum}º Sem` : 'Sem matérias vinculadas'}
+                                  {classSubjects.length > 0 ? `Sem matérias no ${activeSemesterNum}º Sem` : 'Sem matérias vinculadas'}
                                 </p>
                               )}
                             </div>
