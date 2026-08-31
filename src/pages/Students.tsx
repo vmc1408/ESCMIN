@@ -37,7 +37,7 @@ import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass } from '../lib/utils';
+import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber } from '../lib/utils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { Student, Class, Enrollment, Course } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -97,7 +97,7 @@ const StudentItem = React.memo(({
               {parallelClassesCount} Cursos
             </span>
           )}
-          <span className="text-[10px] text-slate-400 font-medium">{student.registration_number}</span>
+          <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{formatRegistrationNumber(student.registration_number)}</span>
         </div>
       </div>
     </button>
@@ -964,8 +964,8 @@ export function Students() {
                 <p className="text-[7pt] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 text-center">
                   Nº de Matrícula
                 </p>
-                <p className="font-black text-[13.5pt] tracking-wider text-slate-950 text-center">
-                  {selectedStudent.registration_number || '---'}
+                <p className="font-black text-[13.5pt] tracking-wider text-slate-950 text-center font-mono">
+                  {formatRegistrationNumber(selectedStudent.registration_number)}
                 </p>
               </div>
             </div>
@@ -1620,7 +1620,9 @@ export function Students() {
                     {isEditing ? (selectedStudent ? 'Editar Aluno' : 'Novo Registro') : formData.name}
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">Matrícula: {formData.registration_number || '---'}</span>
+                    <span className="text-[10.5px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 border border-slate-300 rounded uppercase tracking-wide truncate">
+                      Matrícula: {formatRegistrationNumber(formData.registration_number)}
+                    </span>
                     <span className={cn(
                       "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border tracking-wider shrink-0",
                       formData.status === 'Ativo' ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-500 border-slate-200"

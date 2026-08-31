@@ -63,7 +63,7 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
@@ -1378,11 +1378,11 @@ export function Reports() {
         const filteredClassesReport = filteredClasses;
 
         filteredClassesReport.forEach(c => {
-          const classStudents = students.filter(s => s.class_id === c.id && (s.status === 'Ativo' || !s.status));
+          const classStudents = filterStudentsForClass(students, c.id, enrollments, true);
           classStudents.forEach((s, idx) => {
             rows.push([
               idx === 0 ? `${c.name} (${c.code})` : '',
-              s.registration_number,
+              formatRegistrationNumber(s.registration_number),
               s.name.toUpperCase(),
               s.status || 'Ativo'
             ]);
@@ -2203,7 +2203,7 @@ export function Reports() {
                         <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
                             <p className="text-sm font-black text-[#00174b] uppercase">{student.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400">RA: {student.registration_number}</p>
+                            <p className="text-[10px] font-mono font-bold text-slate-700 mt-0.5">Matrícula: {formatRegistrationNumber(student.registration_number)}</p>
                           </td>
                           <td className="px-6 py-4 text-sm font-bold text-slate-500">
                              {studentClass?.name || 'Sem turma'}
@@ -2712,7 +2712,7 @@ export function Reports() {
                                          <tr key={res.student.id} className="hover:bg-slate-50/40 transition-colors group">
                                             <td className="px-6 py-4">
                                                <p className="text-xs font-bold text-slate-800 uppercase tracking-tight">{res.student.name}</p>
-                                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">RA: {res.student.registration_number || 'N/D'}</p>
+                                               <p className="text-[9.5px] font-mono font-bold text-slate-600 uppercase tracking-wide mt-0.5">Matrícula: {formatRegistrationNumber(res.student.registration_number)}</p>
                                             </td>
                                             {res.subjectGrades.map((sg, i) => (
                                               <td key={i} className="px-6 py-4 text-center">

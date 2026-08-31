@@ -22,7 +22,7 @@ import {
   Unlock,
   Settings
 } from 'lucide-react';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, detectSubjectSemester, filterStudentsForClass } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, detectSubjectSemester, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1302,7 +1302,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         const head: any[] = [
           [
             { content: 'Nº', styles: { halign: 'center', valign: 'middle' } },
-            { content: 'MATRÍCULA', styles: { valign: 'middle' } },
+            { content: 'MATRÍCULA', styles: { halign: 'center', valign: 'middle' } },
             { content: 'NOME COMPLETO DO ALUNO', styles: { valign: 'middle' } },
             ...(noClassDays
               ? [{ content: 'OBSERVAÇÃO', styles: { halign: 'center', valign: 'middle' } }]
@@ -1322,7 +1322,16 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           const overallIndex = pageIdx * itemsPerPage + idx;
           return [
             { content: String(overallIndex + 1), styles: { halign: 'center' } },
-            { content: student.registration_number, styles: { font: 'courier' } },
+            { 
+              content: formatRegistrationNumber(student.registration_number), 
+              styles: { 
+                font: 'helvetica', 
+                fontStyle: 'bold', 
+                textColor: [15, 23, 42], 
+                halign: 'center',
+                fontSize: 7.5
+              } 
+            },
             student.name.toUpperCase(),
             ...(noClassDays
               ? ['']
@@ -1343,8 +1352,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         });
 
         const colStyles: any = {
-          0: { cellWidth: 8 },
-          1: { cellWidth: 28 }
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 28, halign: 'center', fontStyle: 'bold', textColor: [15, 23, 42] }
         };
         const extraColCount = monthlyClassDays.length;
         if (extraColCount > 0) {
@@ -2112,7 +2121,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             <div>
                               <p className="text-sm font-semibold text-slate-900 tracking-tight uppercase leading-none">{student.name}</p>
                               <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-none">RA: {student.registration_number}</span>
+                                <span className="text-[10px] font-mono font-bold text-slate-800 uppercase tracking-wider px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-none shadow-2xs">
+                                  Matrícula: {formatRegistrationNumber(student.registration_number)}
+                                </span>
                                 {attendance[student.id]?.status === 'J' ? (
                                   <button
                                     type="button"

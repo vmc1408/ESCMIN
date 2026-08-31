@@ -43,7 +43,7 @@ import fuzzysort from 'fuzzysort';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { cn, safeFormat, parseSafeDate, formatDate, formatDateForDisplay } from '../lib/utils';
+import { cn, safeFormat, parseSafeDate, formatDate, formatDateForDisplay, formatRegistrationNumber } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { PageHeader } from '../components/PageHeader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -1070,7 +1070,7 @@ export function PixConference() {
           'Banco Origem': item.origin_bank || 'Não informado',
           'Valor': Number(item.amount) || 0,
           'Aluno Vinculado': item.student?.name || 'Não identificado',
-          'Matrícula Aluno': item.student?.registration_number || '',
+          'Matrícula Aluno': formatRegistrationNumber(item.student?.registration_number, ''),
           'Turma': studentClass,
           'Tipo': item.is_manual ? 'Manual' : 'Automático'
         };
@@ -1147,7 +1147,7 @@ export function PixConference() {
           (item.payer_name || '').toUpperCase(),
           item.batch_file_name || 'Importação Manual',
           item.origin_bank || 'N/I',
-          student ? `${student.name} (${student.registration_number})` : '-',
+          student ? `${student.name} (${formatRegistrationNumber(student.registration_number)})` : '-',
           className,
           new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0),
           '' // empty column for manual handwriting annotations
@@ -1260,7 +1260,7 @@ export function PixConference() {
           (item.payer_name || '').toUpperCase(),
           item.batch_file_name || 'Importação Manual',
           item.origin_bank || 'N/I',
-          student ? `${student.name} (${student.registration_number})` : '-',
+          student ? `${student.name} (${formatRegistrationNumber(student.registration_number)})` : '-',
           className,
           new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.amount) || 0),
           '' // empty column for manual handwriting annotations
@@ -1525,7 +1525,7 @@ export function PixConference() {
           t.payer_name.toUpperCase(),
           new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(t.amount),
           statusSymbol,
-          student ? `${student.name} (${student.registration_number})` : '-',
+          student ? `${student.name} (${formatRegistrationNumber(student.registration_number)})` : '-',
           className
         ];
       });
@@ -1632,7 +1632,7 @@ export function PixConference() {
         doc.setFontSize(9);
         doc.text('Aluno', margin, startY + 40);
         doc.setFont('helvetica', 'bold');
-        doc.text(`${student.registration_number || ''}  ${student.name}`, margin + 12, startY + 40);
+        doc.text(`${formatRegistrationNumber(student.registration_number, '')}  ${student.name}`, margin + 12, startY + 40);
         doc.setFont('helvetica', 'normal');
         doc.text('Turma', pageWidth - margin - 40, startY + 40);
         doc.setFont('helvetica', 'bold');
@@ -2336,7 +2336,7 @@ export function PixConference() {
                                       const student = students.find(s => s.id === t.matched_student_id);
                                       if (!student) return 'Não identificado';
                                       const className = classes.find(c => c.id === student.class_id)?.name || 'Sem Turma';
-                                      return `${student.name} (${student.registration_number})`;
+                                      return `${student.name} (${formatRegistrationNumber(student.registration_number)})`;
                                     })()}
                                   </p>
                                   <div className="flex items-center gap-2 mt-0.5">
@@ -3101,7 +3101,7 @@ export function PixConference() {
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Nº Matrícula: {t.student.registration_number}</p>
+                                    <p className="text-[10px] font-mono font-bold text-slate-600 mt-0.5">Matrícula: {formatRegistrationNumber(t.student.registration_number)}</p>
                                   </div>
                                 </div>
                               ) : (
@@ -3617,8 +3617,8 @@ export function PixConference() {
                         <div className="text-left">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{student.name}</p>
-                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md group-hover:bg-indigo-50 group-hover:text-indigo-400 transition-colors">
-                              {student.registration_number || 'N/I'}
+                            <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
+                              {formatRegistrationNumber(student.registration_number, 'N/I')}
                             </span>
                           </div>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
@@ -3719,7 +3719,7 @@ export function PixConference() {
                     {student ? (
                       <div className="font-bold">
                         <p className="uppercase">{student.name}</p>
-                        <p className="text-[9px] text-slate-500">Mat: {student.registration_number}</p>
+                        <p className="text-[9px] text-slate-700 font-mono font-bold">Matrícula: {formatRegistrationNumber(student.registration_number)}</p>
                       </div>
                     ) : (
                       <span className="text-red-500 font-black italic">NÃO IDENTIFICADO</span>

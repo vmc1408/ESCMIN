@@ -24,7 +24,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStudentActive } from '../lib/utils';
+import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStudentActive, formatRegistrationNumber } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -1152,7 +1152,9 @@ export function Documents() {
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-xs font-bold text-slate-850 uppercase">{cs.student.name}</span>
-                                <span className="text-[8px] font-bold text-slate-400 font-mono tracking-wider">RA: {cs.student.registration_number || 'N/D'}</span>
+                                <span className="text-[9.5px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 border border-slate-200">
+                                  Matrícula: {formatRegistrationNumber(cs.student.registration_number, 'N/D')}
+                                </span>
                               </div>
                               <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                 <span>Média: <span className={cn("font-mono font-bold", cs.averageGrade >= (academicParams.approval_grade || 7.0) ? "text-slate-700" : "text-rose-500")}>{cs.averageGrade.toFixed(1).replace('.', ',')}</span></span>
@@ -1411,7 +1413,7 @@ export function Documents() {
                     <option value="">Selecione um aluno...</option>
                     {students.map((s, sIdx) => (
                       <option key={`doc-ficha-st-${s.id || sIdx}-${sIdx}`} value={s.id}>
-                        {s.name} ({s.registration_number ? `RA: ${s.registration_number}` : 'Sem RA'})
+                        {s.name} ({s.registration_number ? `Matrícula: ${formatRegistrationNumber(s.registration_number)}` : 'Sem Matrícula'})
                       </option>
                     ))}
                   </select>
@@ -1443,8 +1445,8 @@ export function Documents() {
                         <h3 className="text-sm font-black text-slate-850 uppercase tracking-tight mt-1">
                           {studentFichaData.fichaStudent.name}
                         </h3>
-                        <p className="text-[10px] font-bold text-slate-400 font-mono tracking-wider mt-0.5">
-                          RA: {studentFichaData.fichaStudent.registration_number || 'Não cadastrado'}
+                        <p className="text-[10.5px] font-bold text-slate-600 font-mono tracking-wider mt-0.5">
+                          Matrícula: {formatRegistrationNumber(studentFichaData.fichaStudent.registration_number, 'Não cadastrado')}
                         </p>
                       </div>
 
@@ -1775,7 +1777,7 @@ export function Documents() {
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase focus:outline-none focus:border-slate-800"
                       >
                         <option value="">Selecione o aluno...</option>
-                        {students.map((s, sIdx) => <option key={`doc-form-st-${s.id || sIdx}-${sIdx}`} value={s.id}>{s.name} ({s.registration_number})</option>)}
+                        {students.map((s, sIdx) => <option key={`doc-form-st-${s.id || sIdx}-${sIdx}`} value={s.id}>{s.name} ({formatRegistrationNumber(s.registration_number)})</option>)}
                       </select>
                     </div>
                   )}

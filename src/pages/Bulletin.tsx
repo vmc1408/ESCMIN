@@ -16,7 +16,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
-import { cn, filterStudentsForClass } from '../lib/utils';
+import { cn, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { fetchAll, fetchQuery } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
@@ -784,7 +784,7 @@ export function Bulletin() {
       doc.text('ALUNO:', 15, y + 10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(30);
-      doc.text(`${reportToPdf.student.registration_number || 'S/M'} - ${reportToPdf.student.name.toUpperCase()}`, 32, y + 10);
+      doc.text(`${formatRegistrationNumber(reportToPdf.student.registration_number, 'S/M')} - ${reportToPdf.student.name.toUpperCase()}`, 32, y + 10);
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(60);
@@ -1106,9 +1106,9 @@ export function Bulletin() {
       y += 20;
 
       // Student rows Table
-      const headers = [['Matrícula (RA)', 'Aluno', 'Média Notas', 'Total Faltas', 'Freq. %', 'Situação Geral']];
+      const headers = [['Matrícula', 'Aluno', 'Média Notas', 'Total Faltas', 'Freq. %', 'Situação Geral']];
       const rows = filteredReports.map(res => [
-        res.student.registration_number || 'N/D',
+        formatRegistrationNumber(res.student.registration_number, 'N/D'),
         res.student.name.toUpperCase(),
         formatGrade(res.averageGrade),
         res.totalAbsences.toString(),
@@ -1239,7 +1239,7 @@ export function Bulletin() {
         doc.text('ALUNO:', 15, y + 10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(30);
-        doc.text(`${report.student.registration_number || 'S/M'} - ${report.student.name.toUpperCase()}`, 32, y + 10);
+        doc.text(`${formatRegistrationNumber(report.student.registration_number, 'S/M')} - ${report.student.name.toUpperCase()}`, 32, y + 10);
 
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(60);
@@ -1564,7 +1564,7 @@ export function Bulletin() {
                       ) : (
                         classStudents.map((s, idx) => (
                           <option key={`blt-stu-opt-${s.id || idx}-${idx}`} value={s.id}>
-                            {s.registration_number ? `${s.registration_number} - ` : ''}{s.name}
+                            {s.registration_number ? `${formatRegistrationNumber(s.registration_number)} - ` : ''}{s.name}
                           </option>
                         ))
                       )}
@@ -1668,7 +1668,7 @@ export function Bulletin() {
                       <div className="flex flex-col gap-1">
                         <span className="text-[8px] font-bold text-slate-400">Aluno</span>
                         <span className="text-slate-800 font-extrabold">
-                          <strong className="text-slate-950 font-mono mr-1.5">{activeStudentReport.student.registration_number || '000000/0000'}</strong> 
+                          <strong className="text-slate-950 font-mono mr-1.5">{formatRegistrationNumber(activeStudentReport.student.registration_number, '000000/0000')}</strong> 
                           {activeStudentReport.student.name}
                         </span>
                       </div>
@@ -2114,7 +2114,7 @@ export function Bulletin() {
                             <tr key={`blt-cls-row-${res.student.id || rIdx}-${rIdx}`} className="hover:bg-slate-50/40 transition-colors">
                               <td className="px-6 py-3.5">
                                 <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{res.student.name}</p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">RA: {res.student.registration_number || 'N/D'}</p>
+                                <p className="text-[10px] font-mono font-bold text-slate-700 uppercase tracking-wide mt-0.5">Matrícula: {formatRegistrationNumber(res.student.registration_number)}</p>
                               </td>
                               {classSubjects.map((sub, sIdx) => {
                                 const perf = res.subjectsPerformance.find(sp => sp.subjectId === sub.id);

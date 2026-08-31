@@ -506,3 +506,47 @@ export function filterStudentsForClass(
   });
 }
 
+/**
+ * Formats a student registration number (Matrícula / RA) for optimal visual presentation on screen and print.
+ * Converts raw continuous 10-digit formats (e.g. '0020202017' -> '002020/2017')
+ * and normalizes unpadded slashed codes (e.g. '2530/2026' -> '002530/2026').
+ */
+export function formatRegistrationNumber(reg: string | number | null | undefined, fallback: string = '---'): string {
+  if (reg === null || reg === undefined) return fallback;
+  const clean = String(reg).trim();
+  if (!clean) return fallback;
+
+  // Already has slash: e.g. "2530/2026" or "002530/2026"
+  if (clean.includes('/')) {
+    const parts = clean.split('/');
+    if (parts.length === 2) {
+      const numPart = parts[0].trim();
+      const yearPart = parts[1].trim();
+      if (/^\d+$/.test(numPart) && /^\d{4}$/.test(yearPart)) {
+        return `${numPart.padStart(6, '0')}/${yearPart}`;
+      }
+      return `${numPart}/${yearPart}`;
+    }
+    return clean;
+  }
+
+  // 10 digits continuous (e.g. "0020202017" -> 6 digits sequential + 4 digits year "002020/2017")
+  if (/^\d{10}$/.test(clean)) {
+    const numPart = clean.substring(0, 6);
+    const yearPart = clean.substring(6);
+    return `${numPart}/${yearPart}`;
+  }
+
+  // Pure digits: 7 to 9 digits where the last 4 represent a valid 4-digit year (1970 - 2099)
+  if (/^\d+$/.test(clean) && clean.length >= 7 && clean.length <= 10) {
+    const yearPart = clean.slice(-4);
+    const yearNum = parseInt(yearPart, 10);
+    if (yearNum >= 1970 && yearNum <= 2099) {
+      const numPart = clean.slice(0, -4);
+      return `${numPart.padStart(6, '0')}/${yearPart}`;
+    }
+  }
+
+  return clean;
+}
+

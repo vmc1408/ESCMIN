@@ -22,7 +22,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
 import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
-import { cn, formatDateForDisplay, filterStudentsForClass } from '../lib/utils';
+import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -678,8 +678,8 @@ export function Impressos() {
                         <p className="text-[11px] font-black text-blue-900 uppercase tracking-wide truncate">
                           {activeStudent?.name}
                         </p>
-                        <p className="text-[9px] font-mono text-blue-600/80 uppercase">
-                          Matrícula: {activeStudent?.registration_number || 'Sem Registro'}
+                        <p className="text-[9.5px] font-mono font-bold text-blue-700 uppercase">
+                          Matrícula: {formatRegistrationNumber(activeStudent?.registration_number, 'Sem Registro')}
                         </p>
                       </div>
                     </div>
@@ -744,7 +744,7 @@ export function Impressos() {
                                 className="w-full px-4 py-2.5 text-left hover:bg-blue-50/50 transition-all flex flex-col gap-0.5 group"
                               >
                                 <span className="text-[11px] font-black text-slate-700 uppercase group-hover:text-blue-700 transition-colors">{s.name}</span>
-                                <span className="text-[9px] font-mono text-slate-450 uppercase">Matrícula: {s.registration_number || 'Sem Registro'}</span>
+                                <span className="text-[9.5px] font-mono font-bold text-slate-500 uppercase">Matrícula: {formatRegistrationNumber(s.registration_number, 'Sem Registro')}</span>
                               </button>
                             ))
                           )}
@@ -892,8 +892,8 @@ export function Impressos() {
                                 <p className="text-[10px] font-black uppercase text-slate-800 leading-none truncate mb-0.5">
                                   {student.name}
                                 </p>
-                                <p className="text-[8px] font-mono text-slate-450 uppercase leading-none">
-                                  RA: {student.registration_number || 'Sem RA'}
+                                <p className="text-[8.5px] font-mono font-bold text-slate-600 uppercase leading-none">
+                                  RA: {formatRegistrationNumber(student.registration_number, 'Sem RA')}
                                 </p>
                               </div>
                             </label>
@@ -1356,7 +1356,7 @@ export function Impressos() {
                         <h2 className="text-[18px] font-extrabold uppercase tracking-[0.2em] font-serif pb-1 max-w-md mx-auto">
                           Declaração de Matrícula
                         </h2>
-                        <p className="text-[9.5px] text-slate-400 tracking-widest uppercase font-sans">Matrícula Escolar Nº {activeStudent.registration_number}</p>
+                        <p className="text-[9.5px] text-slate-500 tracking-widest uppercase font-mono font-bold">Matrícula Escolar Nº {formatRegistrationNumber(activeStudent.registration_number)}</p>
                       </div>
 
                       {/* Body */}
@@ -1364,7 +1364,7 @@ export function Impressos() {
                         <p>
                           Declaramos, para os devidos fins de direito e a quem possa interessar, que o(a) estudante 
                           <strong className="text-black font-extrabold text-[13px] md:text-[13.5px] uppercase tracking-wide"> {activeStudent.name}</strong>, 
-                          inscrito(a) sob o registro geral de matrícula acadêmica número <strong>{activeStudent.registration_number || '---'}</strong>, 
+                          inscrito(a) sob o registro geral de matrícula acadêmica número <strong className="font-mono">{formatRegistrationNumber(activeStudent.registration_number)}</strong>, 
                           portador(a) do CPF <strong>{activeStudent.cpf || 'Não Informado'}</strong> e RG <strong>{activeStudent.rg || 'Não Informado'}</strong>, 
                           encontra-se regularmente matriculado(a) e com frequência ativa nesta instituição de ensino no curso de 
                           <strong> {activeStudent.course || 'Teologia e Formação Ministerial'}</strong>.
@@ -1928,7 +1928,7 @@ export function Impressos() {
                                         <div className="flex flex-col justify-start">
                                           <span className="text-[5.5px] font-black text-slate-400 uppercase block tracking-wider leading-none">MATRÍCULA / RA</span>
                                           <span className="text-[8.5px] font-bold font-mono text-slate-900 leading-none block mt-1">
-                                            {isFormFilled ? (student.registration_number || 'S/ RA') : '\u00A0'}
+                                            {isFormFilled ? formatRegistrationNumber(student.registration_number, 'S/ RA') : '\u00A0'}
                                           </span>
                                         </div>
                                         <div className="flex flex-col justify-start text-right">
@@ -2043,7 +2043,7 @@ export function Impressos() {
                                   <div className="flex flex-col">
                                     {labelShowMatricula && (
                                       <div className="text-[7.5px] font-mono font-bold text-slate-500 uppercase tracking-wider leading-none mb-0.5">
-                                        Matrícula (RA): <span className="text-slate-800 font-extrabold">{student.registration_number || 'S/ RA'}</span>
+                                        Matrícula: <span className="text-slate-900 font-bold font-mono">{formatRegistrationNumber(student.registration_number, 'S/ RA')}</span>
                                       </div>
                                     )}
                                     {/* Student Name is always shown */}
@@ -2122,7 +2122,7 @@ export function Impressos() {
                       {/* Body text */}
                       <div className="text-[12.5px] md:text-[13px] text-slate-800 leading-[2.1] text-justify font-serif space-y-4 pt-4">
                         <p>
-                          A tesouraria e diretoria administrativa da <strong className="text-black font-extrabold uppercase tracking-wide">{institution?.name || 'Escola de Formação Conciliar'}</strong>, no uso de suas competências regimentais, certifica para os devidos fins que o(a) estudante <strong className="text-black font-extrabold uppercase">{activeStudent.name}</strong>, inscrito(a) sob o Registro Geral nº <strong className="text-black font-mono">{activeStudent.registration_number || '---'}</strong>:
+                          A tesouraria e diretoria administrativa da <strong className="text-black font-extrabold uppercase tracking-wide">{institution?.name || 'Escola de Formação Conciliar'}</strong>, no uso de suas competências regimentais, certifica para os devidos fins que o(a) estudante <strong className="text-black font-extrabold uppercase">{activeStudent.name}</strong>, inscrito(a) sob o Registro Geral nº <strong className="text-black font-mono">{formatRegistrationNumber(activeStudent.registration_number)}</strong>:
                         </p>
 
                         {pendingPayments.isPending ? (
