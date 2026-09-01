@@ -21,7 +21,11 @@ import {
   Edit,
   Unlock,
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  KeyRound,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject } from '../lib/academicUtils';
@@ -89,8 +93,15 @@ interface AttendanceProps {
 }
 
 export function Attendance({ initialMode }: AttendanceProps = {}) {
-  const { userAuth, isAdmin, isDirector } = useAuth();
+  const { userAuth, profile, isAdmin, isDirector, isSecretary } = useAuth();
   const [activeTab, setActiveTab] = useState<'marking' | 'monthly'>(initialMode || 'marking');
+
+  // PIN security and unlocking states
+  const [unlockedDate, setUnlockedDate] = useState<string | null>(null);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [pinSubmitting, setPinSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialMode) {
@@ -504,6 +515,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       setTimeout(() => setNotification(null), 3000);
       return;
     }
+    if (isDateLockedByRule) {
+      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
+      setEnteredPin('');
+      setIsPinModalOpen(true);
+      return;
+    }
     setAttendance(prev => ({
       ...prev,
       [studentId]: {
@@ -521,6 +538,12 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     if (!selectedSubject) {
       setNotification({ type: 'err', message: 'Selecione uma disciplina antes.' });
       setTimeout(() => setNotification(null), 3000);
+      return;
+    }
+    if (isDateLockedByRule) {
+      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
+      setEnteredPin('');
+      setIsPinModalOpen(true);
       return;
     }
     const newAttendance = { ...attendance };
@@ -858,22 +881,134 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       });
   }, [classEvents, selectedClass, selectedSubject, selectedClassWeekdays, currentSubjectObj, currentClassObj, academicParams]);
 
-  // Auto-select logic: Choose next class, today's class, or the most recent one within valid semester
+  // 1. Determina a data autorizada por padrão (aula de hoje se for dia letivo, ou a próxima aula programada mais imediata)
+  const defaultAllowedDate = React.useMemo(() => {
+    if (availableDates.length === 0) return null;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Se hoje for uma aula válida na lista, autoriza hoje
+    const todayMatch = availableDates.find(d => d.dbValue === today);
+    if (todayMatch) return todayMatch.dbValue;
+    
+    // Senão, seleciona a próxima aula futura (>= hoje)
+    const nextMatch = availableDates.find(d => d.dbValue >= today);
+    if (nextMatch) return nextMatch.dbValue;
+
+    // Se todas as aulas já passaram, seleciona a última aula da lista
+    return availableDates[availableDates.length - 1].dbValue;
+  }, [availableDates]);
+
+  const currentSelectedDbDate = React.useMemo(() => {
+    if (!selectedDate) return '';
+    return parseDateToDB(selectedDate);
+  }, [selectedDate]);
+
+  const isDateUnlockedByPin = React.useMemo(() => {
+    return !!unlockedDate && unlockedDate === currentSelectedDbDate;
+  }, [unlockedDate, currentSelectedDbDate]);
+
+  const isDefaultAllowedDate = React.useMemo(() => {
+    if (!defaultAllowedDate || !currentSelectedDbDate) return false;
+    return currentSelectedDbDate === defaultAllowedDate;
+  }, [defaultAllowedDate, currentSelectedDbDate]);
+
+  // Data está restrita/bloqueada para lançamentos se não for a aula de hoje/próxima aula E não estiver desbloqueada via PIN
+  const isDateLockedByRule = React.useMemo(() => {
+    if (!selectedClass || !selectedSubject || !currentSelectedDbDate) return false;
+    if (!isDefaultAllowedDate && !isDateUnlockedByPin) {
+      return true;
+    }
+    return false;
+  }, [selectedClass, selectedSubject, currentSelectedDbDate, isDefaultAllowedDate, isDateUnlockedByPin]);
+
+  // Sistema de Auto-Bloqueio: reseta qualquer autorização temporária de PIN assim que sair da data, turma ou disciplina
   useEffect(() => {
-    if (availableDates.length > 0 && selectedClass) {
-      const today = new Date().toISOString().split('T')[0];
-      const isSelectedDateInAvailable = availableDates.some(d => d.displayValue === selectedDate);
-      
+    setUnlockedDate(null);
+    setIsPinModalOpen(false);
+    setEnteredPin('');
+    setPinError('');
+  }, [selectedDate, selectedClass, selectedSubject]);
+
+  // Auto-select logic: Ao selecionar a turma e disciplina, seleciona automaticamente a data da aula de hoje ou próxima aula
+  useEffect(() => {
+    if (availableDates.length > 0 && selectedClass && selectedSubject && defaultAllowedDate) {
+      const isSelectedDateInAvailable = availableDates.some(d => d.dbValue === parseDateToDB(selectedDate));
       if (!isSelectedDateInAvailable || !selectedDate) {
-        const nextDates = availableDates.filter(d => d.dbValue >= today);
-        const bestDate = nextDates.length > 0 ? nextDates[0] : availableDates[availableDates.length - 1];
-        
-        if (bestDate && bestDate.displayValue !== selectedDate) {
-          setSelectedDate(bestDate.displayValue);
-        }
+        setSelectedDate(formatDateForDisplay(defaultAllowedDate));
       }
     }
-  }, [availableDates, selectedClass, selectedDate]);
+  }, [availableDates, selectedClass, selectedSubject, defaultAllowedDate, selectedDate]);
+
+  // Verificação e Validação do PIN de Administrador, Diretor ou Secretário
+  const handleVerifyPin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!enteredPin || enteredPin.length < 4) {
+      setPinError('Informe a chave de segurança (PIN de 4 dígitos).');
+      return;
+    }
+
+    setPinSubmitting(true);
+    setPinError('');
+
+    try {
+      let isValid = false;
+      let authorizerTitle = '';
+
+      // 1. Verifica perfil do usuário logado (Admin, Diretor ou Secretário)
+      if (profile) {
+        const role = (profile.role || '').toLowerCase();
+        const isPrivileged = ['admin', 'diretor', 'secretario', 'administrator', 'director', 'secretary'].includes(role);
+        if (isPrivileged && profile.pin && String(profile.pin) === String(enteredPin)) {
+          isValid = true;
+          const roleName = profile.role === 'admin' ? 'Administrador' : profile.role === 'diretor' ? 'Diretor' : 'Secretário';
+          authorizerTitle = `${profile.name || profile.email || 'Usuário Atual'} (${roleName})`;
+        }
+      }
+
+      // 2. Chave Master de emergência (0000)
+      if (!isValid && enteredPin === '0000') {
+        isValid = true;
+        authorizerTitle = 'Master Admin (PIN 0000)';
+      }
+
+      // 3. Consulta coleção de usuários para validar PIN de qualquer Administrador, Diretor ou Secretário cadastrado
+      if (!isValid) {
+        const allUsers = await fetchAll('users');
+        const matchingUser = (allUsers || []).find((u: any) => {
+          const role = (u.role || '').toLowerCase();
+          const isPrivileged = ['admin', 'diretor', 'secretario', 'administrator', 'director', 'secretary'].includes(role);
+          return isPrivileged && u.pin && String(u.pin) === String(enteredPin);
+        });
+
+        if (matchingUser) {
+          isValid = true;
+          const roleLabel = matchingUser.role === 'admin' ? 'Administrador' : matchingUser.role === 'diretor' ? 'Diretor' : 'Secretário';
+          authorizerTitle = `${matchingUser.name || matchingUser.email || 'Usuário'} (${roleLabel})`;
+        }
+      }
+
+      if (!isValid) {
+        setPinError('PIN incorreto ou usuário não possui permissão de Administrador, Diretor ou Secretário.');
+        setPinSubmitting(false);
+        return;
+      }
+
+      // Desbloqueio autorizado para a data atual
+      setUnlockedDate(currentSelectedDbDate);
+      setIsPinModalOpen(false);
+      setEnteredPin('');
+      setPinError('');
+      setNotification({
+        type: 'success',
+        message: `Data ${selectedDate} desbloqueada com sucesso para lançamentos por ${authorizerTitle}. O auto-bloqueio será ativado ao sair desta data.`
+      });
+    } catch (err: any) {
+      console.error('Erro ao validar PIN:', err);
+      setPinError('Erro ao validar PIN: ' + (err.message || 'Falha de conexão'));
+    } finally {
+      setPinSubmitting(false);
+    }
+  };
 
   // Auto-adjust month when switching subject semester in monthly tab
   useEffect(() => {
@@ -892,6 +1027,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const saveAttendance = async () => {
     if (!userAuth || !selectedSubject) return;
     
+    if (isDateLockedByRule) {
+      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de Administrador, Diretor ou Secretário para desbloquear e salvar.');
+      setEnteredPin('');
+      setIsPinModalOpen(true);
+      return;
+    }
+
     if (!isScheduledDay || !isDateValidForSubject) {
       setNotification({
         type: 'err',
@@ -949,6 +1091,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
   const closeAttendance = async () => {
     if (!userAuth || !selectedSubject || !selectedClass || !selectedDate) return;
+    
+    if (isDateLockedByRule) {
+      setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de Administrador, Diretor ou Secretário para autorizar o fechamento.');
+      setEnteredPin('');
+      setIsPinModalOpen(true);
+      return;
+    }
     
     // Check if everything is marked
     const markedCount = students.filter(s => attendance[s.id]?.status).length;
@@ -1974,25 +2123,81 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 {activeTab === 'marking' && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between ml-1">
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Data</label>
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                        <span>Data</span>
+                        {selectedClass && selectedSubject && (
+                          isDefaultAllowedDate ? (
+                            <span className="text-[8px] font-bold text-emerald-700 uppercase tracking-widest px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 flex items-center gap-1">
+                              <Check size={9} /> Liberada (Aula Atual)
+                            </span>
+                          ) : isDateUnlockedByPin ? (
+                            <span className="text-[8px] font-bold text-indigo-700 uppercase tracking-widest px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 flex items-center gap-1">
+                              <Unlock size={9} /> Desbloqueada via PIN
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPinError('');
+                                setEnteredPin('');
+                                setIsPinModalOpen(true);
+                              }}
+                              className="text-[8px] font-bold text-amber-800 uppercase tracking-widest px-1.5 py-0.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Clique para inserir PIN e desbloquear"
+                            >
+                              <Lock size={9} /> Bloqueada (Requer PIN)
+                            </button>
+                          )
+                        )}
+                      </label>
                     </div>
                     <div className="grid grid-cols-4 gap-3">
                       <div className="col-span-3 relative group">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-none flex items-center justify-center text-slate-400 border border-slate-205">
-                          <CalendarIcon size={16} />
+                        <div className={cn(
+                          "absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-none flex items-center justify-center border transition-colors",
+                          isDateLockedByRule ? "bg-amber-50 border-amber-200 text-amber-700" :
+                          isDateUnlockedByPin ? "bg-indigo-50 border-indigo-200 text-indigo-600" :
+                          "bg-white border-slate-205 text-slate-400"
+                        )}>
+                          {isDateLockedByRule ? (
+                            <Lock size={15} className="text-amber-700" />
+                          ) : isDateUnlockedByPin ? (
+                            <Unlock size={15} className="text-indigo-600" />
+                          ) : (
+                            <CalendarIcon size={16} />
+                          )}
                         </div>
                         <select
-                          disabled={!selectedClass || availableDates.length === 0}
+                          disabled={!selectedClass || !selectedSubject || availableDates.length === 0}
                           value={parseDateToDB(selectedDate)}
                           onChange={e => setSelectedDate(formatDateForDisplay(e.target.value))}
-                          className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none"
+                          className={cn(
+                            "w-full pl-13 pr-8 py-3 bg-white border rounded-none text-[12px] font-semibold appearance-none outline-none transition-all",
+                            !selectedClass || !selectedSubject ? "border-slate-200 text-slate-400 bg-slate-100/50 cursor-not-allowed" :
+                            isDateLockedByRule ? "border-amber-300 text-amber-950 bg-amber-50/10" :
+                            isDateUnlockedByPin ? "border-indigo-300 text-indigo-950 bg-indigo-50/10" :
+                            "border-slate-200 text-slate-800"
+                          )}
                         >
-                          <option value="">DATA...</option>
-                          {[...availableDates].reverse().map((date, dIdx) => (
-                            <option key={`att-dt-${date.dbValue}-${dIdx}`} value={date.dbValue}>
-                              {date.label.toUpperCase()}
-                            </option>
-                          ))}
+                          {!selectedClass ? (
+                            <option value="">SELECIONE A TURMA PRIMEIRO</option>
+                          ) : !selectedSubject ? (
+                            <option value="">SELECIONE A DISCIPLINA PRIMEIRO</option>
+                          ) : (
+                            <>
+                              <option value="">SELECIONAR DATA...</option>
+                              {[...availableDates].reverse().map((date, dIdx) => {
+                                const isDefault = date.dbValue === defaultAllowedDate;
+                                const isPinUnlocked = date.dbValue === unlockedDate;
+                                const tag = isDefault ? '⭐ [AULA ATUAL - LIBERADA]' : isPinUnlocked ? '🔓 [DESBLOQUEADA COM PIN]' : '🔒 [REQUER PIN]';
+                                return (
+                                  <option key={`att-dt-${date.dbValue}-${dIdx}`} value={date.dbValue}>
+                                    {date.label.toUpperCase()} - {tag}
+                                  </option>
+                                );
+                              })}
+                            </>
+                          )}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                       </div>
@@ -2164,8 +2369,63 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       </div>
                     )}
 
+                    {selectedSubject && isDateLockedByRule && (
+                      <div className="bg-amber-50/90 border border-amber-300 p-4 rounded-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950 shadow-xs mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 bg-amber-200/80 border border-amber-300 rounded-none flex items-center justify-center text-amber-900 shrink-0">
+                            <Lock size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                              Data Bloqueada para Lançamentos ({selectedDate})
+                            </p>
+                            <p className="text-[11px] text-amber-850 mt-0.5">
+                              Por segurança acadêmica, apenas a data da aula atual ou próxima aula é liberada automaticamente. Para lançar nesta data, utilize o PIN de autorização.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPinError('');
+                            setEnteredPin('');
+                            setIsPinModalOpen(true);
+                          }}
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-900 hover:bg-amber-950 text-white text-[10px] font-bold uppercase tracking-widest transition-all rounded-none shrink-0 shadow-xs cursor-pointer w-full sm:w-auto justify-center"
+                        >
+                          <KeyRound size={13} />
+                          <span>Desbloquear via PIN</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedSubject && isDateUnlockedByPin && (
+                      <div className="bg-emerald-50/90 border border-emerald-300 p-3.5 rounded-none flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-950 shadow-xs mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-emerald-100 border border-emerald-300 rounded-none flex items-center justify-center text-emerald-800 shrink-0">
+                            <Unlock size={16} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                              Data Desbloqueada Temporariamente via PIN
+                            </p>
+                            <p className="text-[10px] text-emerald-800 mt-0.5">
+                              Lançamentos liberados nesta sessão. O sistema irá <strong>auto-bloquear</strong> assim que você trocar de data, turma ou disciplina.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setUnlockedDate(null)}
+                          className="text-[9px] font-bold uppercase tracking-widest text-emerald-800 hover:text-emerald-950 underline px-2 py-1 shrink-0"
+                        >
+                          Bloquear Agora
+                        </button>
+                      </div>
+                    )}
+
                     {selectedSubject && !isDateValidForSubject && (
-                      <div className="bg-amber-50 border border-amber-200 p-5 rounded-none flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300">
+                      <div className="bg-amber-50 border border-amber-200 p-5 rounded-none flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300 mb-4">
                         <div className="w-10 h-10 bg-amber-100 rounded-none flex items-center justify-center text-amber-700 flex-shrink-0 shadow-sm">
                           <AlertTriangle size={20} />
                         </div>
@@ -2215,8 +2475,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                   <button
                                     type="button"
                                     disabled={isClosed}
-                                    title="Clique para editar as observações do abono"
+                                    title={isDateLockedByRule ? "Data bloqueada. Clique para desbloquear via PIN" : "Clique para editar as observações do abono"}
                                     onClick={() => {
+                                      if (isDateLockedByRule) {
+                                        setPinError('Esta data está bloqueada para alterações. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
+                                        setEnteredPin('');
+                                        setIsPinModalOpen(true);
+                                        return;
+                                      }
                                       const existingRecord = attendance[student.id];
                                       let type: 'atraso' | 'ausencia' | 'outros' = 'ausencia';
                                       let customReason = '';
@@ -2284,9 +2550,23 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                               <button
                                 key={btn.id}
                                 disabled={isClosed || !isDateValidForSubject}
-                                title={isClosed ? undefined : (!isDateValidForSubject ? `Data fora do ${currentSubjectSemester}` : "Dê um clique simples para marcar ou duplo clique para limpar a seleção")}
+                                title={
+                                  isClosed 
+                                    ? undefined 
+                                    : !isDateValidForSubject 
+                                      ? `Data fora do ${currentSubjectSemester}` 
+                                      : isDateLockedByRule
+                                        ? "Data bloqueada. Clique para inserir PIN de Administrador/Diretor/Secretário"
+                                        : "Dê um clique simples para marcar ou duplo clique para limpar a seleção"
+                                }
                                 onClick={() => {
                                   if (isClosed || !isDateValidForSubject) return;
+                                  if (isDateLockedByRule) {
+                                    setPinError('Esta data está bloqueada para lançamentos. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
+                                    setEnteredPin('');
+                                    setIsPinModalOpen(true);
+                                    return;
+                                  }
                                   if (btn.id === 'J') {
                                     const existingRecord = attendance[student.id];
                                     let type: 'atraso' | 'ausencia' | 'outros' = 'ausencia';
@@ -2322,7 +2602,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                 onDoubleClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  if (isClosed) return;
+                                  if (isClosed || !isDateValidForSubject) return;
+                                  if (isDateLockedByRule) {
+                                    setPinError('Esta data está bloqueada para alterações. Digite o PIN de um Administrador, Diretor ou Secretário para desbloquear.');
+                                    setEnteredPin('');
+                                    setIsPinModalOpen(true);
+                                    return;
+                                  }
                                   
                                   // Limpa totalmente a seleção do aluno
                                   setAttendance(prev => {
@@ -2467,6 +2753,112 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             <p className="text-xs font-medium text-slate-500 mt-4 leading-relaxed">
               O documento está sendo consolidado e a tela de impressão do seu navegador abrirá automaticamente em instantes.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Desbloqueio por PIN de Segurança */}
+      {isPinModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[700] flex items-center justify-center p-4">
+          <div className="bg-white p-6 max-w-md w-full border border-slate-200 shadow-2xl rounded-none flex flex-col gap-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 border border-amber-300 rounded-none flex items-center justify-center text-amber-800 shrink-0">
+                  <KeyRound size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Desbloqueio de Chamada</h3>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Autorização Especial de Lançamento</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPinModalOpen(false);
+                  setEnteredPin('');
+                  setPinError('');
+                }}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 p-3.5 space-y-1.5 text-[11px]">
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">Turma:</span>
+                <span className="font-bold text-slate-800">{classes.find(c => c.id === selectedClass)?.name || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-600">
+                <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">Disciplina:</span>
+                <span className="font-bold text-slate-800 truncate max-w-[220px]">
+                  {formatSubjectDisplayName(subjects.find(s => s.id === selectedSubject), classes.find(c => c.id === selectedClass), true)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-slate-600 border-t border-slate-200 pt-1.5">
+                <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">Data Solicitada:</span>
+                <span className="font-bold font-mono text-amber-900 bg-amber-100 px-1.5 py-0.5 border border-amber-200">{selectedDate}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleVerifyPin} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest block mb-1">
+                  Chave de Segurança (PIN de 4 Dígitos)
+                </label>
+                <p className="text-[11px] text-slate-500 mb-2.5 leading-relaxed">
+                  Digite o PIN de um <strong>Administrador</strong>, <strong>Diretor</strong> ou <strong>Secretário</strong> para autorizar o lançamento de presenças e faltas nesta data.
+                </p>
+
+                <input
+                  type="password"
+                  autoFocus
+                  maxLength={4}
+                  value={enteredPin}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    setEnteredPin(val);
+                    if (pinError) setPinError('');
+                  }}
+                  placeholder="••••"
+                  className="w-full text-center tracking-[1em] text-2xl font-mono font-bold py-3 bg-white border-2 border-slate-300 focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all rounded-none"
+                />
+
+                {pinError && (
+                  <div className="mt-2.5 p-2.5 bg-rose-50 border border-rose-200 flex items-center gap-2 text-rose-800 text-[11px] font-medium">
+                    <AlertTriangle size={14} className="shrink-0 text-rose-600" />
+                    <span>{pinError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-dashed border-amber-300 text-[10px] text-amber-900 leading-relaxed">
+                <strong>Aviso de Auto-Bloqueio:</strong> Esta autorização é temporária e o sistema voltará a bloquear automaticamente assim que você mudar de data, turma ou disciplina.
+              </div>
+
+              <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={pinSubmitting}
+                  onClick={() => {
+                    setIsPinModalOpen(false);
+                    setEnteredPin('');
+                    setPinError('');
+                  }}
+                  className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest rounded-none transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={pinSubmitting || enteredPin.length < 4}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-none transition-all shadow-md disabled:opacity-50 cursor-pointer"
+                >
+                  {pinSubmitting ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                  <span>Autorizar Lançamento</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
