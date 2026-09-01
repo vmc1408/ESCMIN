@@ -1041,6 +1041,224 @@ export function Dashboard() {
     return <span className="text-slate-400 font-medium italic">A definir no Cronograma</span>;
   };
 
+  // ==========================================
+  // TELA DEDICADA EXCLUSIVA PARA PROFESSOR / DOCENTE
+  // 4 botões ao centro (2 em cima e 2 em baixo formando um quadrado)
+  // Sem estatísticas gerais, sem cronogramas no topo e sem ocupação acadêmica
+  // ==========================================
+  if (isTeacher) {
+    const teacherCards = [
+      {
+        title: 'Lançar Chamada',
+        category: 'Presença Diária',
+        description: 'Registro de frequência e faltas dos alunos aula a aula em tempo real.',
+        icon: UserCheck,
+        path: '/attendance',
+        accentColor: 'emerald',
+        bg: 'bg-white hover:bg-emerald-50/40',
+        borderColor: 'border-slate-200 hover:border-emerald-300',
+        iconBg: 'bg-emerald-500/10 text-emerald-600',
+        badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        buttonText: 'Acessar Chamada'
+      },
+      {
+        title: 'Lista de Frequência',
+        category: 'Mapa Mensal',
+        description: 'Consulta e impressão da lista de presença consolidada por mês e turma.',
+        icon: Calendar,
+        path: '/monthly-attendance',
+        accentColor: 'blue',
+        bg: 'bg-white hover:bg-blue-50/40',
+        borderColor: 'border-slate-200 hover:border-blue-300',
+        iconBg: 'bg-blue-500/10 text-blue-600',
+        badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
+        buttonText: 'Ver Lista de Frequência'
+      },
+      {
+        title: 'Apontamento de Notas',
+        category: 'Boletim & Rendimento',
+        description: 'Digitação das notas das avaliações, trabalhos e cálculo das médias semestrais.',
+        icon: BookOpen,
+        path: '/grades',
+        accentColor: 'indigo',
+        bg: 'bg-white hover:bg-indigo-50/40',
+        borderColor: 'border-slate-200 hover:border-indigo-300',
+        iconBg: 'bg-indigo-500/10 text-indigo-600',
+        badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        buttonText: 'Lançar Notas'
+      },
+      {
+        title: 'Cadastrar Avaliações',
+        category: 'Critérios Avaliativos',
+        description: 'Configuração dos instrumentos avaliativos, pesos, provas e trabalhos.',
+        icon: GraduationCap,
+        path: '/assessments',
+        accentColor: 'amber',
+        bg: 'bg-white hover:bg-amber-50/40',
+        borderColor: 'border-slate-200 hover:border-amber-300',
+        iconBg: 'bg-amber-500/10 text-amber-600',
+        badgeBg: 'bg-amber-50 text-amber-700 border-amber-200',
+        buttonText: 'Gerenciar Avaliações'
+      }
+    ];
+
+    return (
+      <div className="space-y-8 p-1">
+        {/* Cabeçalho do Professor */}
+        <PageHeader
+          title="Portal do Professor"
+          description="Painel pedagógico exclusivo para lançamento de frequência e notas escolares."
+          icon={GraduationCap}
+        >
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-200/80 rounded-xl shadow-xs">
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+              {profile?.name ? profile.name.charAt(0).toUpperCase() : 'P'}
+            </div>
+            <div className="text-left">
+              <span className="font-extrabold text-slate-900 uppercase text-[11px] tracking-wide block leading-tight">
+                {profile?.name || 'Professor(a)'}
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">
+                  Professor / Docente
+                </span>
+              </div>
+            </div>
+          </div>
+        </PageHeader>
+
+        {/* Modal de Alerta de Conexão */}
+        {(syncError || !isConnected) && (
+          <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="relative overflow-hidden bg-slate-900 border-2 border-red-500 rounded-2xl shadow-2xl max-w-md w-full p-8 text-white flex flex-col items-center text-center"
+            >
+              <div className="relative mb-6">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-20 animate-ping" />
+                <div className="relative p-5 bg-red-600 text-white rounded-full border border-red-400 shadow-lg shadow-red-600/30 flex items-center justify-center">
+                  <AlertTriangle size={36} className="animate-bounce" />
+                </div>
+              </div>
+              
+              <span className="px-3 py-1 bg-red-600/20 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+                Alerta de Conectividade
+              </span>
+              
+              <h5 className="text-lg font-black uppercase tracking-wider text-white leading-tight">
+                Falha de Conexão com o Servidor
+              </h5>
+              
+              <p className="text-xs font-medium text-slate-300 mt-3 leading-relaxed">
+                Ocorreu um erro de rede ou instabilidade ao comunicar-se com a base de dados central.
+              </p>
+              
+              <div className="my-4 px-4 py-3 bg-red-950/50 border border-red-900/50 rounded-lg w-full text-left">
+                <span className="text-[8px] font-bold text-red-400 uppercase tracking-widest block mb-0.5">Detalhes da conexão:</span>
+                <p className="text-[11px] font-mono text-red-200 break-words">{syncError || connError || 'Dispositivo offline ou rede instável.'}</p>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full mt-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      await testConnection();
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                  disabled={isRefreshing}
+                  className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 text-white font-black text-xs rounded-xl transition-all shadow-lg uppercase tracking-widest cursor-pointer"
+                >
+                  Tentar Reconectar Agora
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* 4 Botões ao Centro da Tela em Formato de Quadrado (2 em cima e 2 em baixo) */}
+        <div className="max-w-4xl mx-auto pt-2 pb-8 space-y-6">
+          <div className="text-center space-y-1">
+            <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">
+              Atividades Pedagógicas
+            </h3>
+            <p className="text-xs text-slate-400 font-medium">
+              Selecione o módulo que deseja acessar para realizar seus registros:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {teacherCards.map((card, idx) => (
+              <motion.div
+                key={card.path}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: idx * 0.08 }}
+              >
+                <button
+                  onClick={() => navigate(card.path)}
+                  className={cn(
+                    "w-full text-left p-6 sm:p-7 rounded-2xl border transition-all duration-300 group cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between min-h-[190px]",
+                    card.bg,
+                    card.borderColor
+                  )}
+                >
+                  <div>
+                    {/* Top Row: Icon + Badge + Arrow */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={cn("p-3 rounded-xl transition-transform duration-300 group-hover:scale-110", card.iconBg)}>
+                        <card.icon size={26} strokeWidth={2.2} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border", card.badgeBg)}>
+                          {card.category}
+                        </span>
+                        <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-[#131b2e] text-slate-400 group-hover:text-white flex items-center justify-center transition-all duration-300">
+                          <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Title and Description */}
+                    <h4 className="text-lg font-black text-slate-800 tracking-tight group-hover:text-slate-950 transition-colors uppercase">
+                      {card.title}
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+                      {card.description}
+                    </p>
+                  </div>
+
+                  {/* Bottom Action Footer */}
+                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600 group-hover:text-slate-900">
+                    <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                      {card.buttonText}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-400 group-hover:text-slate-600">
+                      Entrar →
+                    </span>
+                  </div>
+                </button>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Rodapé Informativo */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-center gap-3 text-slate-500 text-xs">
+            <div className="p-2 bg-slate-200/80 rounded-lg text-slate-600 shrink-0">
+              <Info size={16} />
+            </div>
+            <p className="text-[11px] leading-relaxed font-medium">
+              Todos os lançamentos de notas e chamadas são sincronizados em tempo real com a base de dados da instituição.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 p-1">
       <PageHeader
