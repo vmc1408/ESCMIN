@@ -20,9 +20,11 @@ import {
   Download,
   Edit,
   Unlock,
-  Settings
+  Settings,
+  AlertTriangle
 } from 'lucide-react';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, detectSubjectSemester, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
+import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -607,10 +609,40 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     return targetDayIndices;
   }, [classes, selectedClass, classEvents]);
 
+  const currentSubjectObj = React.useMemo(() => {
+    return subjects.find(s => s.id === selectedSubject);
+  }, [subjects, selectedSubject]);
+
+  const currentClassObj = React.useMemo(() => {
+    return classes.find(c => c.id === selectedClass);
+  }, [classes, selectedClass]);
+
+  const currentSubjectSemester = React.useMemo(() => {
+    return detectSubjectSemester(currentSubjectObj, currentClassObj);
+  }, [currentSubjectObj, currentClassObj]);
+
+  const isDateValidForSubject = React.useMemo(() => {
+    if (!selectedSubject || !selectedDate) return true;
+    const dbDate = parseDateToDB(selectedDate);
+    return isDateInSubjectSemester(dbDate, currentSubjectObj, currentClassObj, academicParams);
+  }, [selectedSubject, selectedDate, currentSubjectObj, currentClassObj, academicParams]);
+
+  const isMonthValidForSubject = React.useMemo(() => {
+    if (!selectedSubject) return true;
+    return isMonthInSubjectSemester(selectedMonth, currentSubjectObj, currentClassObj);
+  }, [selectedSubject, selectedMonth, currentSubjectObj, currentClassObj]);
+
   const isScheduledDay = React.useMemo(() => {
     if (!selectedClass || !selectedDate || classEvents.length === 0) return false;
     const dbDate = parseDateToDB(selectedDate);
     
+    // SEMESTER FILTER: If a subject is selected, date MUST be within the subject's semester
+    if (selectedSubject && currentSubjectObj) {
+      if (!isDateInSubjectSemester(dbDate, currentSubjectObj, currentClassObj, academicParams)) {
+        return false;
+      }
+    }
+
     return classEvents.some(event => {
       const isCorrectDate = event.start_date === dbDate;
       const isForThisClass = String(event.class_id) === String(selectedClass);
@@ -628,7 +660,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       }
       return false;
     });
-  }, [selectedDate, classEvents, selectedClass, selectedClassWeekdays]);
+  }, [selectedDate, classEvents, selectedClass, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, academicParams]);
 
   const attendanceStats = React.useMemo(() => {
     let present = 0;
@@ -691,6 +723,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
         }
 
+        // SEMESTER FILTER: If a subject is selected, only consider days in the subject's semester
+        if (selectedSubject && currentSubjectObj) {
+          if (!isDateInSubjectSemester(e.start_date, currentSubjectObj, currentClassObj, academicParams)) {
+            return;
+          }
+        }
+
         const existing = lessonMap.get(e.start_date);
         if (!existing) {
           lessonMap.set(e.start_date, e);
@@ -717,6 +756,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         if (selectedClassWeekdays.length > 0) {
           const dateObj = new Date(e.start_date + 'T12:00:00');
           if (!selectedClassWeekdays.includes(dateObj.getDay())) return;
+        }
+
+        // SEMESTER FILTER: If a subject is selected, only consider days in the subject's semester
+        if (selectedSubject && currentSubjectObj) {
+          if (!isDateInSubjectSemester(e.start_date, currentSubjectObj, currentClassObj, academicParams)) {
+            return;
+          }
         }
 
         const existing = displayMap.get(e.start_date);
@@ -751,7 +797,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         };
       })
       .sort((a, b) => a.dbValue.localeCompare(b.dbValue));
-  }, [selectedClass, selectedMonth, selectedYear, classEvents, selectedClassWeekdays]);
+  }, [selectedClass, selectedMonth, selectedYear, classEvents, selectedClassWeekdays, selectedSubject, currentSubjectObj, currentClassObj, academicParams]);
 
   const availableDates = React.useMemo(() => {
     // 3. Process events into display dates
@@ -785,6 +831,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         // Filter by subject if specified on the event
         if (selectedSubject && event.subject_id && String(event.subject_id) !== String(selectedSubject)) return;
 
+        // SEMESTER FILTER: When a subject is selected, strictly filter out dates of the other semester!
+        if (selectedSubject && currentSubjectObj) {
+          if (!isDateInSubjectSemester(dateKey, currentSubjectObj, currentClassObj, academicParams)) {
+            return;
+          }
+        }
+
         // Skip cancelled classes or holidays for markings
         if (event.type === 'cancelled_class' || event.type?.includes('holiday')) return;
 
@@ -803,28 +856,48 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
           label: `${event.start_date.split('-').reverse().join('/')} (${weekdayName.split('-')[0]})`
         };
       });
-  }, [classEvents, selectedClass, selectedSubject, selectedClassWeekdays]);
+  }, [classEvents, selectedClass, selectedSubject, selectedClassWeekdays, currentSubjectObj, currentClassObj, academicParams]);
 
-  // Auto-select logic: Choose next class, today's class, or the most recent one
+  // Auto-select logic: Choose next class, today's class, or the most recent one within valid semester
   useEffect(() => {
     if (availableDates.length > 0 && selectedClass) {
       const today = new Date().toISOString().split('T')[0];
-      const nextDates = availableDates.filter(d => d.dbValue >= today);
-      const bestDate = nextDates.length > 0 ? nextDates[0] : availableDates[availableDates.length - 1];
+      const isSelectedDateInAvailable = availableDates.some(d => d.displayValue === selectedDate);
       
-      if (bestDate && bestDate.displayValue !== selectedDate) {
-        setSelectedDate(bestDate.displayValue);
+      if (!isSelectedDateInAvailable || !selectedDate) {
+        const nextDates = availableDates.filter(d => d.dbValue >= today);
+        const bestDate = nextDates.length > 0 ? nextDates[0] : availableDates[availableDates.length - 1];
+        
+        if (bestDate && bestDate.displayValue !== selectedDate) {
+          setSelectedDate(bestDate.displayValue);
+        }
       }
     }
-  }, [availableDates, selectedClass]);
+  }, [availableDates, selectedClass, selectedDate]);
+
+  // Auto-adjust month when switching subject semester in monthly tab
+  useEffect(() => {
+    if (selectedSubject && currentSubjectObj) {
+      const sem = detectSubjectSemester(currentSubjectObj, currentClassObj);
+      if (sem === '1º Semestre' && selectedMonth > 6) {
+        // Auto-switch to March (1º Semestre)
+        setSelectedMonth(2);
+      } else if (sem === '2º Semestre' && selectedMonth < 7) {
+        // Auto-switch to August (2º Semestre)
+        setSelectedMonth(7);
+      }
+    }
+  }, [selectedSubject, currentSubjectObj, currentClassObj]);
 
   const saveAttendance = async () => {
     if (!userAuth || !selectedSubject) return;
     
-    if (!isScheduledDay) {
+    if (!isScheduledDay || !isDateValidForSubject) {
       setNotification({
         type: 'err',
-        message: 'Data de aula não agendada no calendário acadêmico para esta turma.'
+        message: !isDateValidForSubject
+          ? `Esta disciplina pertence ao ${currentSubjectSemester}. A data (${selectedDate}) pertence a outro semestre e está desabilitada para lançamentos.`
+          : 'Data de aula não agendada no calendário acadêmico para esta turma.'
       });
       return;
     }
@@ -1641,7 +1714,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                 {!isClosed ? (
                   <>
                     <button 
-                      disabled={saving || closing || !selectedSubject}
+                      disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
                       onClick={saveAttendance}
                       className="group relative flex items-center gap-2 h-10 px-4 bg-slate-100 text-slate-700 border border-slate-350 rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50"
                     >
@@ -1649,7 +1722,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       <span>Salvar Rascunho</span>
                     </button>
                     <button 
-                      disabled={saving || closing || !selectedSubject}
+                      disabled={saving || closing || !selectedSubject || !isDateValidForSubject}
                       onClick={closeAttendance}
                       className="group relative flex items-center gap-2 h-10 px-5 bg-slate-800 text-white rounded-none text-[10px] font-bold uppercase tracking-widest hover:bg-slate-900 border border-slate-800 transition-all active:scale-95 disabled:opacity-50"
                     >
@@ -2091,6 +2164,20 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       </div>
                     )}
 
+                    {selectedSubject && !isDateValidForSubject && (
+                      <div className="bg-amber-50 border border-amber-200 p-5 rounded-none flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300">
+                        <div className="w-10 h-10 bg-amber-100 rounded-none flex items-center justify-center text-amber-700 flex-shrink-0 shadow-sm">
+                          <AlertTriangle size={20} />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold uppercase tracking-wider text-amber-950">Data Bloqueada para esta Disciplina ({currentSubjectSemester})</p>
+                          <p className="text-[11px] font-medium text-amber-800 uppercase tracking-widest leading-relaxed">
+                            A data selecionada ({selectedDate}) pertence a outro semestre. Os botões e apontamentos estão desabilitados para evitar inconsistências.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
 
 
                     <div className="grid grid-cols-1 gap-2 mt-4">
@@ -2196,9 +2283,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                             ].map((btn) => (
                               <button
                                 key={btn.id}
-                                disabled={isClosed}
-                                title={isClosed ? undefined : "Dê um clique simples para marcar ou duplo clique para limpar a seleção"}
+                                disabled={isClosed || !isDateValidForSubject}
+                                title={isClosed ? undefined : (!isDateValidForSubject ? `Data fora do ${currentSubjectSemester}` : "Dê um clique simples para marcar ou duplo clique para limpar a seleção")}
                                 onClick={() => {
+                                  if (isClosed || !isDateValidForSubject) return;
                                   if (btn.id === 'J') {
                                     const existingRecord = attendance[student.id];
                                     let type: 'atraso' | 'ausencia' | 'outros' = 'ausencia';
@@ -2248,7 +2336,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                                   attendance[student.id]?.status === btn.id
                                     ? `bg-slate-800 text-white border-slate-800 shadow-sm`
                                     : `bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-800`,
-                                  isClosed && attendance[student.id]?.status !== btn.id && "opacity-20 grayscale cursor-not-allowed"
+                                  isClosed && attendance[student.id]?.status !== btn.id && "opacity-20 grayscale cursor-not-allowed",
+                                  !isDateValidForSubject && "opacity-20 grayscale cursor-not-allowed"
                                 )}
                               >
                                 <btn.icon size={12} />
@@ -2274,6 +2363,20 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       </div>
                     ) : (
                       <>
+                        {!isMonthValidForSubject && (
+                          <div className="bg-amber-50 border border-amber-200 p-5 rounded-none flex items-center gap-4 text-amber-900 shadow-sm transition-all duration-300">
+                            <div className="w-10 h-10 bg-amber-100 rounded-none flex items-center justify-center text-amber-700 flex-shrink-0 shadow-sm">
+                              <AlertTriangle size={20} />
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="text-xs font-bold uppercase tracking-wider text-amber-950">Mês Fora do Período Letivo ({currentSubjectSemester})</p>
+                              <p className="text-[11px] font-medium text-amber-800 uppercase tracking-widest leading-relaxed">
+                                O mês selecionado não faz parte do período de aulas desta disciplina. Selecione um mês correspondente ao {currentSubjectSemester} para visualizar e emitir as pautas.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Card 1: Relatório de Lançamentos */}
                           <div className="bg-white border border-slate-200 p-6 rounded-none flex flex-col justify-between hover:border-slate-400 group transition-all duration-300 shadow-none relative overflow-hidden">

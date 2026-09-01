@@ -512,7 +512,7 @@ export function Bulletin() {
         const minApp = academicParams.approval_grade || 5.0;
         const maxAbsencePct = academicParams.absence_limit_percentage || 25;
         const attendanceThreshold = 100 - maxAbsencePct;
-        const isAttendanceApprovedClass = averageFrequency !== null ? averageFrequency >= attendanceThreshold : true;
+        const isAttendanceApprovedClass = subjectsPerformance.every(sp => sp.isAttendanceApproved);
 
         if (!isAttendanceApprovedClass) {
           finalStatus = 'Reprovado';

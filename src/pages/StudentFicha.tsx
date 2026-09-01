@@ -796,15 +796,21 @@ export function StudentFicha() {
     const sem1Atts = studentAllAttendances.filter(a => isAttSem1(a));
     const sem2Atts = studentAllAttendances.filter(a => !isAttSem1(a));
 
+    const sem1DaysCount = [0, 1, 2, 3, 4, 5, 6].reduce((acc, m) => acc + (scheduledDaysByMonth[m] || 0), 0) || Math.round(totalDays / 2);
     const sem1Presences = sem1Atts.filter(a => a.status === 'P').length;
     const sem1Absences = sem1Atts.filter(a => a.status === 'F').length;
     const sem1Total = sem1Presences + sem1Absences;
-    const sem1Pct = sem1Total > 0 ? Math.round(((sem1Total - sem1Absences) / sem1Total) * 100) : null;
+    const sem1Pct = sem1DaysCount > 0 ? Math.round((sem1Presences / sem1DaysCount) * 100) : null;
+    const sem1MaxAllowed = Math.floor(sem1DaysCount * ((academicParams.absence_limit_percentage || 25) / 100));
+    const sem1Approved = sem1Absences <= sem1MaxAllowed;
 
+    const sem2DaysCount = [7, 8, 9, 10, 11].reduce((acc, m) => acc + (scheduledDaysByMonth[m] || 0), 0) || Math.round(totalDays / 2);
     const sem2Presences = sem2Atts.filter(a => a.status === 'P').length;
     const sem2Absences = sem2Atts.filter(a => a.status === 'F').length;
     const sem2Total = sem2Presences + sem2Absences;
-    const sem2Pct = sem2Total > 0 ? Math.round(((sem2Total - sem2Absences) / sem2Total) * 100) : null;
+    const sem2Pct = sem2DaysCount > 0 ? Math.round((sem2Presences / sem2DaysCount) * 100) : null;
+    const sem2MaxAllowed = Math.floor(sem2DaysCount * ((academicParams.absence_limit_percentage || 25) / 100));
+    const sem2Approved = sem2Absences <= sem2MaxAllowed;
 
     const studentAbsences = studentAllAttendances.filter(a => a.status === 'F').length;
     const studentPresences = studentAllAttendances.filter(a => a.status === 'P').length;
@@ -817,7 +823,7 @@ export function StudentFicha() {
       absenceLimitPercentage: academicParams.absence_limit_percentage || 25
     });
 
-    const presencePercentage = attMetrics.presencePercentage ?? (registeredLessons > 0 ? 100 : 0);
+    const presencePercentage = attMetrics.presencePercentage ?? (registeredLessons > 0 ? 0 : 0);
     const isAttendanceApproved = attMetrics.isAttendanceApproved;
 
     // Grades and performance calculations
@@ -903,8 +909,9 @@ export function StudentFicha() {
       presences: studentPresences,
       totalDays,
       presencePercentage,
-      sem1: { presences: sem1Presences, absences: sem1Absences, total: sem1Total, pct: sem1Pct },
-      sem2: { presences: sem2Presences, absences: sem2Absences, total: sem2Total, pct: sem2Pct },
+      isAttendanceApproved,
+      sem1: { presences: sem1Presences, absences: sem1Absences, total: sem1Total, pct: sem1Pct, isApproved: sem1Approved },
+      sem2: { presences: sem2Presences, absences: sem2Absences, total: sem2Total, pct: sem2Pct, isApproved: sem2Approved },
       subjectRecords,
       studentDocs,
       finalStatus
@@ -1366,7 +1373,7 @@ export function StudentFicha() {
                         <span className="text-slate-500">Taxa de Assiduidade</span>
                         <span className={cn(
                           "font-mono font-black text-sm",
-                          (activeStudentMetrics?.presencePercentage ?? 0) >= (100 - academicParams.absence_limit_percentage) 
+                          activeStudentMetrics?.isAttendanceApproved 
                             ? "text-emerald-700" 
                             : "text-rose-600"
                         )}>
@@ -1380,7 +1387,7 @@ export function StudentFicha() {
                         <div 
                           className={cn(
                             "h-full transition-all duration-500",
-                            (activeStudentMetrics?.presencePercentage ?? 0) >= (100 - academicParams.absence_limit_percentage)
+                            activeStudentMetrics?.isAttendanceApproved
                               ? "bg-emerald-600" 
                               : "bg-rose-600"
                           )} 
@@ -1974,8 +1981,8 @@ export function StudentFicha() {
                       {activeStudentMetrics.sem1.pct !== null ? `${activeStudentMetrics.sem1.pct}%` : '---'}
                     </td>
                     <td className="py-2 px-3 text-right font-bold text-[8.5pt] uppercase tracking-wide">
-                      {activeStudentMetrics.sem1.pct !== null
-                        ? activeStudentMetrics.sem1.pct >= (100 - (academicParams.absence_limit_percentage || 25))
+                      {activeStudentMetrics.sem1.total > 0
+                        ? activeStudentMetrics.sem1.isApproved
                           ? <span className="text-slate-800">Regular</span>
                           : <span className="text-rose-700">Excesso Faltas</span>
                         : <span className="text-slate-400">---</span>}
@@ -1997,8 +2004,8 @@ export function StudentFicha() {
                       {activeStudentMetrics.sem2.pct !== null ? `${activeStudentMetrics.sem2.pct}%` : '---'}
                     </td>
                     <td className="py-2 px-3 text-right font-bold text-[8.5pt] uppercase tracking-wide">
-                      {activeStudentMetrics.sem2.pct !== null
-                        ? activeStudentMetrics.sem2.pct >= (100 - (academicParams.absence_limit_percentage || 25))
+                      {activeStudentMetrics.sem2.total > 0
+                        ? activeStudentMetrics.sem2.isApproved
                           ? <span className="text-slate-800">Regular</span>
                           : <span className="text-rose-700">Excesso Faltas</span>
                         : <span className="text-slate-400">---</span>}
@@ -2024,7 +2031,7 @@ export function StudentFicha() {
                     <td className="py-2 px-3 text-right font-black text-[8.5pt] uppercase tracking-wide">
                       {activeStudentMetrics.presences === 0 && activeStudentMetrics.absences === 0 ? (
                         <span className="text-slate-400 font-medium">---</span>
-                      ) : (activeStudentMetrics.presencePercentage ?? 0) >= (100 - (academicParams.absence_limit_percentage || 25)) ? (
+                      ) : activeStudentMetrics.isAttendanceApproved ? (
                         <span className="text-slate-900">Regular</span>
                       ) : (
                         <span className="text-rose-700">Excesso Faltas</span>

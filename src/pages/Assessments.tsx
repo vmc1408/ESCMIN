@@ -26,6 +26,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
 import { Assessment, Class, Subject } from '../types';
 import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
+import { detectSubjectSemester, getAvailablePeriodsForSubject } from '../lib/academicUtils';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Assessments: React.FC = () => {
@@ -314,7 +315,12 @@ export const Assessments: React.FC = () => {
   });
 
   const getClassName = (id: string) => classes.find(c => c.id === id)?.name || 'N/A';
-  const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || 'N/A';
+  const getSubjectName = (subjectId: string, classId?: string) => {
+    const sub = subjects.find(s => s.id === subjectId);
+    if (!sub) return 'N/A';
+    const cls = classId ? classes.find(c => c.id === classId) : undefined;
+    return formatSubjectDisplayName(sub, cls);
+  };
 
   // Styles utility for bimester and assessment tags
   const getBimesterBadgeStyles = (period: string) => {
@@ -512,10 +518,24 @@ export const Assessments: React.FC = () => {
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Avaliações</option>
-                  <option value="1ª Avaliação">1ª Avaliação</option>
-                  <option value="2ª Avaliação">2ª Avaliação</option>
-                  <option value="3ª Avaliação">3ª Avaliação</option>
-                  <option value="4ª Avaliação">4ª Avaliação</option>
+                  {(() => {
+                    const selClass = classes.find(c => c.id === filterClass);
+                    const selSub = subjects.find(s => s.id === filterSubject);
+                    const available = getAvailablePeriodsForSubject(selSub, selClass);
+                    if (available.length > 0) {
+                      return available.map(p => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ));
+                    }
+                    return (
+                      <>
+                        <option value="1ª Avaliação">1ª Avaliação</option>
+                        <option value="2ª Avaliação">2ª Avaliação</option>
+                        <option value="3ª Avaliação">3ª Avaliação</option>
+                        <option value="4ª Avaliação">4ª Avaliação</option>
+                      </>
+                    );
+                  })()}
                 </select>
               </div>
             </div>
@@ -653,7 +673,7 @@ export const Assessments: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2.5">
                         <BookOpen size={14} className="text-slate-400 shrink-0" />
-                        <span className="font-semibold truncate">{getSubjectName(a.subject_id)}</span>
+                        <span className="font-semibold truncate">{getSubjectName(a.subject_id, a.class_id)}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-50">
                         <div className="flex items-center gap-1.5 text-slate-500">
@@ -800,7 +820,18 @@ export const Assessments: React.FC = () => {
                       required
                       value={formData.subject_id}
                       disabled={!formData.class_id}
-                      onChange={e => setFormData({...formData, subject_id: e.target.value})}
+                      onChange={e => {
+                        const newSubId = e.target.value;
+                        const selClass = classes.find(c => c.id === formData.class_id);
+                        const selSub = subjects.find(s => s.id === newSubId);
+                        const periods = getAvailablePeriodsForSubject(selSub, selClass);
+                        const firstPeriod = periods.length > 0 ? periods[0].name : '1ª Avaliação';
+                        setFormData({
+                          ...formData, 
+                          subject_id: newSubId,
+                          period: periods.some(p => p.name === formData.period) ? formData.period : firstPeriod
+                        });
+                      }}
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">Selecione...</option>
@@ -827,10 +858,24 @@ export const Assessments: React.FC = () => {
                       onChange={e => setFormData({...formData, period: e.target.value})}
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     >
-                      <option value="1ª Avaliação">1ª Avaliação</option>
-                      <option value="2ª Avaliação">2ª Avaliação</option>
-                      <option value="3ª Avaliação">3ª Avaliação</option>
-                      <option value="4ª Avaliação">4ª Avaliação</option>
+                      {(() => {
+                        const formClass = classes.find(c => c.id === formData.class_id);
+                        const formSub = subjects.find(s => s.id === formData.subject_id);
+                        const available = getAvailablePeriodsForSubject(formSub, formClass);
+                        if (available.length > 0) {
+                          return available.map((p) => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                          ));
+                        }
+                        return (
+                          <>
+                            <option value="1ª Avaliação">1ª Avaliação</option>
+                            <option value="2ª Avaliação">2ª Avaliação</option>
+                            <option value="3ª Avaliação">3ª Avaliação</option>
+                            <option value="4ª Avaliação">4ª Avaliação</option>
+                          </>
+                        );
+                      })()}
                     </select>
                   </div>
 

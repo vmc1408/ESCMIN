@@ -183,6 +183,197 @@ export function getScheduledDaysByMonth(classSchoolDays: any[]): Record<number, 
 }
 
 /**
+ * Detects the semester for a given subject or within the context of a class.
+ */
+export function detectSubjectSemester(subject: any, classObj?: any): '1º Semestre' | '2º Semestre' | 'Anual' {
+  if (!subject && !classObj) return 'Anual';
+
+  const subId = subject?.id || subject;
+  
+  // 1. Check direct subject semester property
+  const rawSem = String(subject?.semester || '').trim().toLowerCase();
+  if (rawSem.includes('1') || rawSem.includes('1º') || rawSem.includes('1o') || rawSem.includes('primeiro')) {
+    return '1º Semestre';
+  }
+  if (rawSem.includes('2') || rawSem.includes('2º') || rawSem.includes('2o') || rawSem.includes('segundo')) {
+    return '2º Semestre';
+  }
+
+  // 2. Check class assignment fields if classObj is provided
+  if (classObj && subId) {
+    const sem1Fields = [classObj.subject_id_sem1, classObj.subject_id_sem1_h1, classObj.subject_id_sem1_h2];
+    if (sem1Fields.some(id => String(id) === String(subId))) {
+      return '1º Semestre';
+    }
+    const sem2Fields = [classObj.subject_id_sem2, classObj.subject_id_sem2_h1, classObj.subject_id_sem2_h2];
+    if (sem2Fields.some(id => String(id) === String(subId))) {
+      return '2º Semestre';
+    }
+  }
+
+  if (rawSem.includes('anual') || rawSem.includes('ano')) {
+    return 'Anual';
+  }
+
+  return 'Anual';
+}
+
+/**
+ * Returns the effective date boundaries (YYYY-MM-DD) for a given semester.
+ */
+export function getSemesterDateRange(
+  semester: string,
+  academicSettings?: any,
+  referenceYear = new Date().getFullYear()
+): { start: string; end: string } {
+  const normSem = detectSubjectSemester({ semester });
+  const yr = referenceYear || new Date().getFullYear();
+
+  if (normSem === '1º Semestre') {
+    const start = academicSettings?.term1_start ? String(academicSettings.term1_start).split('T')[0] : `${yr}-01-01`;
+    const end = academicSettings?.term1_end ? String(academicSettings.term1_end).split('T')[0] : `${yr}-07-31`;
+    return { start, end };
+  }
+
+  if (normSem === '2º Semestre') {
+    const start = academicSettings?.term2_start ? String(academicSettings.term2_start).split('T')[0] : `${yr}-08-01`;
+    const end = academicSettings?.term2_end ? String(academicSettings.term2_end).split('T')[0] : `${yr}-12-31`;
+    return { start, end };
+  }
+
+  return {
+    start: `${yr}-01-01`,
+    end: `${yr}-12-31`
+  };
+}
+
+/**
+ * Returns the relevant evaluation periods (bimesters or assessments) for a subject according to its semester.
+ */
+export function getAvailablePeriodsForSubject(
+  subject: any,
+  classObj?: any
+): { id: string; name: string; semester: '1º Semestre' | '2º Semestre' | 'Anual' }[] {
+  const semester = detectSubjectSemester(subject, classObj);
+
+  if (semester === '1º Semestre') {
+    return [
+      { id: '1ª Avaliação', name: '1ª Avaliação', semester: '1º Semestre' },
+      { id: '2ª Avaliação', name: '2ª Avaliação', semester: '1º Semestre' }
+    ];
+  }
+
+  if (semester === '2º Semestre') {
+    return [
+      { id: '1ª Avaliação', name: '1ª Avaliação', semester: '2º Semestre' },
+      { id: '2ª Avaliação', name: '2ª Avaliação', semester: '2º Semestre' },
+      { id: '3ª Avaliação', name: '3ª Avaliação', semester: '2º Semestre' },
+      { id: '4ª Avaliação', name: '4ª Avaliação', semester: '2º Semestre' }
+    ];
+  }
+
+  return [
+    { id: '1ª Avaliação', name: '1ª Avaliação', semester: 'Anual' },
+    { id: '2ª Avaliação', name: '2ª Avaliação', semester: 'Anual' },
+    { id: '3ª Avaliação', name: '3ª Avaliação', semester: 'Anual' },
+    { id: '4ª Avaliação', name: '4ª Avaliação', semester: 'Anual' }
+  ];
+}
+
+/**
+ * Checks if a given date (YYYY-MM-DD or DD/MM/YYYY) is valid for the subject's semester.
+ */
+export function isDateInSubjectSemester(
+  dateStr: string,
+  subject: any,
+  classObj?: any,
+  academicSettings?: any
+): boolean {
+  if (!dateStr || !subject) return true;
+
+  const semester = detectSubjectSemester(subject, classObj);
+  if (semester === 'Anual') return true;
+
+  let isoDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  if (isoDate.includes('/')) {
+    const parts = isoDate.split('/');
+    if (parts.length === 3) {
+      isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+  }
+
+  let monthIndex = -1;
+  if (isoDate.includes('-')) {
+    const parts = isoDate.split('-');
+    if (parts.length >= 2) {
+      monthIndex = parseInt(parts[1], 10) - 1;
+    }
+  }
+
+  if (monthIndex < 0 || monthIndex > 11) return true;
+
+  // If specific term dates exist in settings, also respect them
+  const yr = parseInt(isoDate.split('-')[0], 10) || new Date().getFullYear();
+  const range = getSemesterDateRange(semester, academicSettings, yr);
+
+  if (semester === '1º Semestre') {
+    // 1st semester is standard Jan-Jul (months 0..6)
+    if (academicSettings?.term1_start && academicSettings?.term1_end) {
+      return isoDate >= range.start && isoDate <= range.end;
+    }
+    return monthIndex <= 6;
+  }
+
+  if (semester === '2º Semestre') {
+    // 2nd semester is standard Aug-Dec (months 7..11)
+    if (academicSettings?.term2_start && academicSettings?.term2_end) {
+      return isoDate >= range.start && isoDate <= range.end;
+    }
+    return monthIndex >= 7;
+  }
+
+  return true;
+}
+
+/**
+ * Checks if a 0-indexed month (0 = Jan, 11 = Dec) belongs to the subject's semester.
+ */
+export function isMonthInSubjectSemester(
+  monthIndex: number,
+  subject: any,
+  classObj?: any
+): boolean {
+  if (monthIndex < 0 || monthIndex > 11 || !subject) return true;
+  const semester = detectSubjectSemester(subject, classObj);
+  if (semester === '1º Semestre') {
+    return monthIndex <= 6; // Jan to Jul
+  }
+  if (semester === '2º Semestre') {
+    return monthIndex >= 7; // Aug to Dec
+  }
+  return true;
+}
+
+/**
+ * Filters a list of class school days to only include those belonging to the subject's semester.
+ */
+export function filterSchoolDaysForSubject(
+  classSchoolDays: any[],
+  subject: any,
+  classObj?: any,
+  academicSettings?: any
+): any[] {
+  if (!classSchoolDays || classSchoolDays.length === 0) return [];
+  if (!subject) return classSchoolDays;
+
+  return classSchoolDays.filter(day => {
+    const dStr = day.start_date || day.dbValue || day.date;
+    if (!dStr) return true;
+    return isDateInSubjectSemester(dStr, subject, classObj, academicSettings);
+  });
+}
+
+/**
  * Calculates total scheduled class days for a subject depending on its semester.
  */
 export function getSubjectTotalClassDays(
@@ -215,17 +406,22 @@ export function calculateAttendanceMetrics(params: {
   const { presences, absences, subjectTotalClassDays, absenceLimitPercentage = 25 } = params;
   const totalRecorded = presences + absences;
 
-  // Maximum tolerated absences for the entire discipline/period
+  // Maximum tolerated absences for the entire discipline/period based on planned school days
   const maxAllowedAbsences = Math.floor(subjectTotalClassDays * (absenceLimitPercentage / 100));
 
-  // Percentage of presence based on classes recorded so far
-  const presencePercentage = totalRecorded > 0
-    ? Math.max(0, Math.min(100, Math.round((presences / totalRecorded) * 100)))
-    : null;
+  // Percentage of presence based on the total planned class days for the subject/course
+  // e.g., 5 presences in a 33-class curriculum = (5 / 33) * 100 = 15.15% (15%)
+  const presencePercentage = subjectTotalClassDays > 0
+    ? Math.max(0, Math.min(100, Math.round((presences / subjectTotalClassDays) * 100)))
+    : (totalRecorded > 0 ? Math.max(0, Math.min(100, Math.round((presences / totalRecorded) * 100))) : null);
+
+  // Percentage of absences based on the total planned class days
+  const absencePercentage = subjectTotalClassDays > 0
+    ? Math.max(0, Math.min(100, Math.round((absences / subjectTotalClassDays) * 100)))
+    : 0;
 
   // Attendance Approval:
-  // A student fails by absences ONLY if their absences EXCEED the maximum allowed absences for the subject/period.
-  // When classes are in progress, having a single absence when 4 are allowed is strictly APPROVED/REGULAR.
+  // A student fails by absences ONLY if their total absences EXCEED the maximum allowed absences for the subject/period.
   const isAttendanceApproved = absences <= maxAllowedAbsences;
 
   let attendanceStatus: 'Regular' | 'Atenção' | 'Excesso de Faltas' | 'Sem Registros' = 'Sem Registros';
@@ -246,6 +442,7 @@ export function calculateAttendanceMetrics(params: {
     subjectTotalClassDays,
     maxAllowedAbsences,
     presencePercentage,
+    absencePercentage,
     isAttendanceApproved,
     attendanceStatus
   };

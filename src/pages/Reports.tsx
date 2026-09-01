@@ -539,11 +539,12 @@ export function Reports() {
     return enrolledStudents
       .map(student => {
         // 1. Attendance percentage
-        const totalDays = totalClassDays > 0 ? totalClassDays : 30; // 30 is fallback
+        const totalDays = totalClassDays > 0 ? totalClassDays : 33; // 33 is standard school days
         const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedDiarioClass && a.status === 'F').length;
-        const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
-        const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
-        const isAttendanceApproved = presencePercentage >= minPresence;
+        const studentPresences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedDiarioClass && a.status === 'P').length;
+        const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, Math.round((studentPresences / totalDays) * 100))) : 0;
+        const maxAbsencesAllowed = Math.floor(totalDays * ((academicParams.absence_limit_percentage || 25) / 100));
+        const isAttendanceApproved = studentAbsences <= maxAbsencesAllowed;
 
         // 2. Grades per subject
         const subjectGradesArray = classSubjects.map(sub => {
@@ -1357,15 +1358,18 @@ export function Reports() {
         
         const attendanceRows = students.filter(s => s.status === 'Ativo' || !s.status).map(student => {
           const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
-          const studentPresence = totalClassDays > 0 ? ((totalClassDays - studentAbsences) / totalClassDays) * 100 : 100;
+          const studentPresences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'P')).length;
+          const studentPresence = totalClassDays > 0 ? (studentPresences / totalClassDays) * 100 : 0;
           const studentClass = classes.find(c => c.id === student.class_id);
+          const maxAllowed = Math.floor((totalClassDays || 33) * ((academicParams.absence_limit_percentage || 25) / 100));
+          const isApproved = studentAbsences <= maxAllowed;
           
           return [
             student.name.toUpperCase(),
             studentClass?.name || 'SEM TURMA',
             studentAbsences,
             `${studentPresence.toFixed(1)}%`,
-            studentPresence < (100 - (academicParams.absence_limit_percentage || 25)) ? 'RISCO' : 'REGULAR'
+            isApproved ? 'REGULAR' : 'RISCO'
           ];
         });
 
@@ -2142,9 +2146,11 @@ export function Reports() {
                   <tbody className="divide-y divide-slate-100">
                     {students.filter(s => s.status === 'Ativo' || !s.status).map((student, i) => {
                       const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
-                      const studentPresence = totalClassDays > 0 ? ((totalClassDays - studentAbsences) / totalClassDays) * 100 : 100;
+                      const studentPresences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'P')).length;
+                      const studentPresence = totalClassDays > 0 ? (studentPresences / totalClassDays) * 100 : 0;
                       const absencePercentage = totalClassDays > 0 ? (studentAbsences / totalClassDays) * 100 : 0;
-                      const isOverLimit = absencePercentage > (academicParams.absence_limit_percentage || 25);
+                      const maxAllowed = Math.floor((totalClassDays || 33) * ((academicParams.absence_limit_percentage || 25) / 100));
+                      const isOverLimit = studentAbsences > maxAllowed;
                       const studentClass = classes.find(c => c.id === student.class_id);
 
                       return (

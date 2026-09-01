@@ -385,10 +385,12 @@ export function Grades() {
           avg = sum / numAssessments;
         }
 
-        // Attendance Calculation: Present days >= 60% of school days
-        const absences = (attendances || []).filter(a => a.student_id === student.id).length;
-        const presencePercentage = totalEffectiveDays > 0 ? ((totalEffectiveDays - absences) / totalEffectiveDays) * 100 : 100;
-        const isAttendanceApproved = presencePercentage >= (100 - (academicParams.absence_limit_percentage || 40));
+        // Attendance Calculation: Present days based on school days
+        const absences = (attendances || []).filter(a => a.student_id === student.id && a.status === 'F').length;
+        const presences = (attendances || []).filter(a => a.student_id === student.id && a.status === 'P').length;
+        const presencePercentage = totalEffectiveDays > 0 ? (presences / totalEffectiveDays) * 100 : 0;
+        const maxAbsencesAllowed = Math.floor(totalEffectiveDays * ((academicParams.absence_limit_percentage || 25) / 100));
+        const isAttendanceApproved = absences <= maxAbsencesAllowed;
         
         // Status Determination
         let status: GradeRecord['status'] = 'Pendente';

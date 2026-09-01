@@ -510,11 +510,12 @@ export function Documents() {
     return enrolledStudents
       .map(student => {
         // Attendance
-        const totalDays = totalClassDays > 0 ? totalClassDays : 30;
+        const totalDays = totalClassDays > 0 ? totalClassDays : 33;
         const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedClassId && a.status === 'F').length;
-        const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
-        const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
-        const isAttendanceApproved = presencePercentage >= minPresence;
+        const studentPresences = attendanceData.filter(a => a.student_id === student.id && a.class_id === selectedClassId && a.status === 'P').length;
+        const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, Math.round((studentPresences / totalDays) * 100))) : 0;
+        const maxAbsencesAllowed = Math.floor(totalDays * ((academicParams.absence_limit_percentage || 25) / 100));
+        const isAttendanceApproved = studentAbsences <= maxAbsencesAllowed;
 
         // Grades
         let sumGrades = 0;
@@ -712,8 +713,8 @@ export function Documents() {
     const studentAbsences = attendanceData.filter(a => a.student_id === fichaStudent.id && a.class_id === classId && a.status === 'F').length;
     const studentPresences = attendanceData.filter(a => a.student_id === fichaStudent.id && a.class_id === classId && a.status === 'P').length;
     
-    const totalDays = totalClassDays > 0 ? totalClassDays : 30;
-    const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
+    const totalDays = totalClassDays > 0 ? totalClassDays : 33;
+    const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, Math.round((studentPresences / totalDays) * 100))) : 0;
 
     // Calculate grades per subject
     const subjectRecords = classSubjects.map(sub => {
@@ -797,10 +798,12 @@ export function Documents() {
     // fallback computation in case student is not in the active class list
     if (!foundCs && student.class_id) {
       const studentAbsences = attendanceData.filter(a => a.student_id === student.id && a.class_id === student.class_id && a.status === 'F').length;
-      const totalDays = totalClassDays > 0 ? totalClassDays : 30;
-      const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - studentAbsences) / totalDays) * 100)) : 100;
-      const minPresence = 100 - (academicParams.absence_limit_percentage || 25);
-      if (presencePercentage < minPresence) {
+      const studentPresences = attendanceData.filter(a => a.student_id === student.id && a.class_id === student.class_id && a.status === 'P').length;
+      const totalDays = totalClassDays > 0 ? totalClassDays : 33;
+      const presencePercentage = totalDays > 0 ? Math.max(0, Math.min(100, Math.round((studentPresences / totalDays) * 100))) : 0;
+      const maxAllowed = Math.floor(totalDays * ((academicParams.absence_limit_percentage || 25) / 100));
+      const isApproved = studentAbsences <= maxAllowed;
+      if (!isApproved) {
         finalStatus = 'Reprovado';
       } else {
         const failedGradesCount = dbGrades.filter(g => 
