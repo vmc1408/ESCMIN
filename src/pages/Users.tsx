@@ -156,10 +156,10 @@ export function Users() {
   }, [isAdmin, isDirector, isSecretary, currentProfile]);
 
   const handleEdit = (user: UserProfile) => {
-    // RBAC check: only admin can edit anyone. Director can edit secretaries and self. Secretary only self.
+    // RBAC check: only admin can edit anyone. Director can edit secretaries, assistants, teachers and self. User can edit self.
     const canEdit = isAdmin || 
-                  (isDirector && (user.role === 'secretario' || user.id === userAuth?.uid)) ||
-                  (isSecretary && user.id === userAuth?.uid);
+                  (isDirector && (user.role === 'secretario' || user.role === 'assistente' || user.role === 'professor' || user.role === 'docente' || user.id === userAuth?.uid)) ||
+                  (user.id === userAuth?.uid);
     
     if (!canEdit) {
       setNotification({ type: 'err', message: 'Você não tem permissão para editar este perfil.' });
@@ -518,6 +518,9 @@ export function Users() {
         return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'assistente':
         return 'bg-blue-50 text-blue-600 border-blue-100';
+      case 'professor':
+      case 'docente':
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
       default:
         return 'bg-slate-50 text-slate-500 border-slate-100';
     }
@@ -536,6 +539,9 @@ export function Users() {
         return 'bg-amber-50 text-amber-500';
       case 'assistente':
         return 'bg-blue-50 text-blue-500';
+      case 'professor':
+      case 'docente':
+        return 'bg-indigo-50 text-indigo-600';
       default:
         return 'bg-slate-50 text-slate-400';
     }
@@ -556,11 +562,11 @@ export function Users() {
     if (isAdmin) return true; // Admin sees everyone
     
     if (isDirector) {
-      // Director sees all secretaries and assistants
-      return u.role === 'secretario' || u.role === 'assistente';
+      // Director sees all secretaries, assistants and teachers
+      return u.role === 'secretario' || u.role === 'assistente' || u.role === 'professor' || u.role === 'docente';
     }
     
-    // Secretary only sees themselves (already handled by isSelf above)
+    // Secretary / Assistant / Teacher only see themselves (already handled by isSelf above)
     return false;
   });
 
@@ -572,7 +578,7 @@ export function Users() {
     return filteredUsers.reduce((acc, user) => {
       const key = groupBy === 'role' ? user.role : user.status;
       const groupName = groupBy === 'role' 
-        ? (key === 'admin' ? 'Administradores' : key === 'diretor' ? 'Diretoria' : key === 'secretario' ? 'Secretários Acadêmicos' : 'Assistentes de Secretaria')
+        ? (key === 'admin' ? 'Administradores' : key === 'diretor' ? 'Diretoria' : key === 'secretario' ? 'Secretários Acadêmicos' : key === 'assistente' ? 'Assistentes de Secretaria' : 'Professores e Docentes')
         : (key === 'active' ? 'Ativos' : 'Inativos');
         
       if (!acc[groupName]) acc[groupName] = [];
@@ -887,7 +893,7 @@ export function Users() {
                             "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
                             getRoleColor(user.role || '', user.status)
                           )}>
-                            {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : 'Assistente de Secretaria'}
+                            {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : user.role === 'assistente' ? 'Assistente de Secretaria' : 'Professor / Docente'}
                           </span>
                         </td>
                         <td className="px-8 py-4">
@@ -921,7 +927,7 @@ export function Users() {
                             >
                               <Edit2 size={16} />
                             </button>
-                            {(isAdmin || (isDirector && (user.role === 'secretario' || user.role === 'assistente'))) && user.id !== userAuth?.uid && (
+                            {(isAdmin || (isDirector && (user.role === 'secretario' || user.role === 'assistente' || user.role === 'professor' || user.role === 'docente'))) && user.id !== userAuth?.uid && (
                               <button 
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -982,7 +988,7 @@ export function Users() {
                   "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border",
                   getRoleColor(user.role || '', user.status)
                 )}>
-                  {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : 'Assistente de Secretaria'}
+                  {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : user.role === 'assistente' ? 'Assistente de Secretaria' : 'Professor / Docente'}
                 </span>
               </div>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-50">
@@ -999,7 +1005,7 @@ export function Users() {
                   <Edit2 size={12} />
                   EDITAR
                 </button>
-                {(isAdmin || (isDirector && (user.role === 'secretario' || user.role === 'assistente'))) && user.id !== userAuth?.uid && (
+                {(isAdmin || (isDirector && (user.role === 'secretario' || user.role === 'assistente' || user.role === 'professor' || user.role === 'docente'))) && user.id !== userAuth?.uid && (
                   <button 
                     onClick={(e) => {
                       e.preventDefault();
@@ -1039,7 +1045,7 @@ export function Users() {
           </div>
 
           {/* Cards for each Profile */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {/* Admin */}
             <div className="p-5 bg-violet-50/50 rounded-2xl border border-violet-100 flex flex-col justify-between">
               <div className="space-y-3">
@@ -1131,6 +1137,29 @@ export function Users() {
                 <span className="px-1.5 py-0.5 bg-blue-100/50 text-blue-700 rounded text-[8px] font-black uppercase tracking-wider">Faltas</span>
               </div>
             </div>
+
+            {/* Professor / Docente */}
+            <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
+                    PF
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-indigo-800 uppercase tracking-wider leading-tight">Professor / Docente</h4>
+                    <p className="text-[8px] text-indigo-600/70 font-bold uppercase tracking-wider">Foco Pedagógico</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
+                  Acesso restrito exclusivamente ao lançamento de presença (chamadas) e apontamento de notas das disciplinas.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-indigo-100/50 flex flex-wrap gap-1">
+                <span className="px-1.5 py-0.5 bg-indigo-100/50 text-indigo-700 rounded text-[8px] font-black uppercase tracking-wider">Presença</span>
+                <span className="px-1.5 py-0.5 bg-indigo-100/50 text-indigo-700 rounded text-[8px] font-black uppercase tracking-wider">Chamadas</span>
+                <span className="px-1.5 py-0.5 bg-indigo-100/50 text-indigo-700 rounded text-[8px] font-black uppercase tracking-wider">Notas</span>
+              </div>
+            </div>
           </div>
 
           {/* Interactive Matrix Grid */}
@@ -1148,22 +1177,23 @@ export function Users() {
                     <th className="px-6 py-3">Diretoria</th>
                     <th className="px-6 py-3">Secretário Acadêmico</th>
                     <th className="px-6 py-3">Assistente Secretaria</th>
+                    <th className="px-6 py-3">Professor / Docente</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {[
-                    { name: "Gestão de Alunos & Fichas Individualizadas", path: "/students", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Total (L/E)" },
-                    { name: "Lançamento de Notas, Chamadas & Boletins", path: "/attendance", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Total (L/E)" },
-                    { name: "Calendário Acadêmico & Turmas", path: "/calendar", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
-                    { name: "Controle Financeiro (Pix, Recibos, Contribuições)", path: "/contributions", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
-                    { name: "Gestão de Professores & Escala Docente", path: "/teachers", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
-                    { name: "Emissão de Relatórios Consolidados", path: "/reports", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
-                    { name: "Guia da Diocese", path: "/parishes", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true },
-                    { name: "Controle de Usuários & Logins", path: "/users", admin: "Total (L/E)", director: "Apenas Secretaria", secretary: "Bloqueado", assistant: "Bloqueado", blockSec: true, blockAsst: true },
-                    { name: "Configurações Gerais do Sistema & Segurança", path: "/settings", admin: "Total (L/E)", director: "Abas Inst. e Acadêmico", secretary: "Abas Inst. e Acadêmico", assistant: "Bloqueado", blockAsst: true },
-                    { name: "Cópias de Segurança (Backups) & Recuperação", path: "/backup", admin: "Total (L/E)", director: "Apenas Gerar/Baixar", secretary: "Apenas Gerar/Baixar", assistant: "Bloqueado", blockAsst: true },
-                    { name: "Importações em Massa de Planilhas", path: "/import", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
-                    { name: "Arquivo Morto", path: "/archive", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true },
+                    { name: "Gestão de Alunos & Fichas Individualizadas", path: "/students", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Total (L/E)", teacher: "Bloqueado", blockTeach: true },
+                    { name: "Lançamento de Notas, Chamadas & Boletins", path: "/attendance", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Total (L/E)", teacher: "Total (L/E)", blockTeach: false },
+                    { name: "Calendário Acadêmico & Turmas", path: "/calendar", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Controle Financeiro (Pix, Recibos, Contribuições)", path: "/contributions", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Gestão de Professores & Escala Docente", path: "/teachers", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Emissão de Relatórios Consolidados", path: "/reports", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Guia da Diocese", path: "/parishes", admin: "Total (L/E)", director: "Total (L/E)", secretary: "Total (L/E)", assistant: "Bloqueado", blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Controle de Usuários & Logins", path: "/users", admin: "Total (L/E)", director: "Apenas Secretaria", secretary: "Bloqueado", assistant: "Bloqueado", blockSec: true, blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Configurações Gerais do Sistema & Segurança", path: "/settings", admin: "Total (L/E)", director: "Abas Inst. e Acadêmico", secretary: "Abas Inst. e Acadêmico", assistant: "Bloqueado", blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Cópias de Segurança (Backups) & Recuperação", path: "/backup", admin: "Total (L/E)", director: "Apenas Gerar/Baixar", secretary: "Apenas Gerar/Baixar", assistant: "Bloqueado", blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Importações em Massa de Planilhas", path: "/import", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true, teacher: "Bloqueado", blockTeach: true },
+                    { name: "Arquivo Morto", path: "/archive", admin: "Total (L/E)", director: "Bloqueado", secretary: "Bloqueado", assistant: "Bloqueado", blockDir: true, blockSec: true, blockAsst: true, teacher: "Bloqueado", blockTeach: true },
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-all">
                       <td className="px-6 py-4">
@@ -1212,6 +1242,19 @@ export function Users() {
                           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
                             <CheckCircle2 size={12} className="text-blue-500" />
                             {row.assistant}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {row.blockTeach ? (
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <XCircle size={12} className="text-slate-400" />
+                            {row.teacher}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full font-bold text-[10px] uppercase flex items-center gap-1.5 w-max">
+                            <CheckCircle2 size={12} className="text-indigo-500" />
+                            {row.teacher}
                           </span>
                         )}
                       </td>
@@ -1372,7 +1415,7 @@ export function Users() {
                             <Shield size={16} />
                          </div>
                          <span className="font-black text-[11px] text-[#131b2e] uppercase tracking-tight">
-                            {formData.role === 'admin' ? 'Administrador' : formData.role === 'diretor' ? 'Diretoria' : formData.role === 'secretario' ? 'Secretário Acadêmico' : 'Assistente de Secretaria'}
+                            {formData.role === 'admin' ? 'Administrador' : formData.role === 'diretor' ? 'Diretoria' : formData.role === 'secretario' ? 'Secretário Acadêmico' : formData.role === 'assistente' ? 'Assistente de Secretaria' : 'Professor / Docente'}
                          </span>
                        </div>
                     </div>
@@ -1471,6 +1514,7 @@ export function Users() {
                                   <option value="diretor">Diretoria Escola</option>
                                   <option value="secretario">Secretário Acadêmico</option>
                                   <option value="assistente">Assistente de Secretaria</option>
+                                  <option value="professor">Professor / Docente</option>
                                 </select>
                                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                               </div>

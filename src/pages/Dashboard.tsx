@@ -128,7 +128,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { logout, isConnected, connError } = useAuth();
+  const { logout, isConnected, connError, profile, canAccess, isTeacher } = useAuth();
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'disconnected' | 'checking'>(
     isSupabaseConfigured ? (isDbConnected ? 'connected' : 'checking') : 'disconnected'
   );
@@ -1244,7 +1244,44 @@ export function Dashboard() {
           <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Acesso Rápido</h4>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
+          {(isTeacher ? [
+            { 
+              label: 'Lançar Chamada', 
+              icon: UserCheck, 
+              path: '/attendance', 
+              bg: 'bg-white hover:bg-emerald-50/60', 
+              iconColor: 'text-emerald-600', 
+              iconBg: 'bg-emerald-50/80',
+              hoverShadow: 'hover:-translate-y-0.5' 
+            },
+            { 
+              label: 'Lista de Frequência', 
+              icon: Calendar, 
+              path: '/monthly-attendance', 
+              bg: 'bg-white hover:bg-blue-50/60', 
+              iconColor: 'text-blue-600', 
+              iconBg: 'bg-blue-50/80',
+              hoverShadow: 'hover:-translate-y-0.5' 
+            },
+            { 
+              label: 'Apontamento de Notas', 
+              icon: BookOpen, 
+              path: '/grades', 
+              bg: 'bg-white hover:bg-indigo-50/60', 
+              iconColor: 'text-indigo-600', 
+              iconBg: 'bg-indigo-50/80',
+              hoverShadow: 'hover:-translate-y-0.5' 
+            },
+            { 
+              label: 'Cadastrar Avaliações', 
+              icon: GraduationCap, 
+              path: '/assessments', 
+              bg: 'bg-white hover:bg-amber-50/60', 
+              iconColor: 'text-amber-600', 
+              iconBg: 'bg-amber-50/80',
+              hoverShadow: 'hover:-translate-y-0.5' 
+            }
+          ] : [
             { 
               label: 'Matricular', 
               icon: UserPlus, 
@@ -1300,7 +1337,7 @@ export function Dashboard() {
               iconBg: 'bg-violet-50/80',
               hoverShadow: 'hover:-translate-y-0.5' 
             }
-          ].map((item, i) => (
+          ].filter(item => canAccess(item.path))).map((item, i) => (
             <button 
               key={i}
               onClick={() => {

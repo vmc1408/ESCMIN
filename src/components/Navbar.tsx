@@ -109,7 +109,8 @@ export function Navbar() {
   const userRole = profile?.role === 'admin' ? 'Administrador' : 
                    profile?.role === 'diretor' ? 'Diretor' : 
                    profile?.role === 'secretario' ? 'Secretário Acadêmico' : 
-                   profile?.role === 'assistente' ? 'Assistente de Secretaria' : 'Usuário';
+                   profile?.role === 'assistente' ? 'Assistente de Secretaria' : 
+                   (profile?.role === 'professor' || profile?.role === 'docente') ? 'Professor / Docente' : 'Usuário';
   const avatarUrl = profile?.avatar_url || '';
 
   return (

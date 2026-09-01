@@ -18,6 +18,7 @@ interface AuthContextType {
   isDirector: boolean;
   isSecretary: boolean;
   isAssistant: boolean;
+  isTeacher: boolean;
   isMaster: boolean;
   isLocked: boolean;
   lockTimer: number;
@@ -463,6 +464,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isDirector = profile?.role === 'diretor' || isAdmin;
   const isSecretary = profile?.role === 'secretario' || isDirector;
   const isAssistant = profile?.role === 'assistente' || isSecretary;
+  const isTeacher = profile?.role === 'professor' || profile?.role === 'docente';
 
   const canAccess = useCallback((path: string): boolean => {
     if (!profile) return false;
@@ -474,6 +476,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanPath = path.split('?')[0];
     const urlParams = new URLSearchParams(path.split('?')[1] || '');
     const viewParam = urlParams.get('view');
+
+    // PERFIL PROFESSOR / DOCENTE:
+    // Acesso ESTRITAMENTE para Lançar Presença (Chamada), Lista de Chamada e Apontamento de Notas (+ Dashboard / Início)
+    if (profile.role === 'professor' || profile.role === 'docente') {
+      const allowedTeacherRoutes = [
+        '/',
+        '/attendance',
+        '/monthly-attendance',
+        '/grades',
+        '/assessments'
+      ];
+      return allowedTeacherRoutes.some(allowed => cleanPath === allowed || cleanPath === allowed + '/');
+    }
 
     // 2. Módulos de controle administrativo supremo (Restritos EXCLUSIVAMENTE ao Admin)
     const adminOnlyModules = [
@@ -509,7 +524,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return profile.role === 'diretor' || profile.role === 'secretario';
     }
 
-    // 5. Módulos de operação básica de secretaria (Acessíveis por todos: Admin, Diretoria, Secretário Acadêmico e Assistente)
+    // 5. Módulos de operação básica de secretaria (Acessíveis por: Admin, Diretoria, Secretário Acadêmico e Assistente)
     // Alunos, Ficha, Chamada, Notas, Turmas, Disciplinas, Impressos e Documentos Oficiais.
     return true;
   }, [profile]);
@@ -523,6 +538,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isDirector,
     isSecretary,
     isAssistant,
+    isTeacher,
     isMaster: profile?.id === 'master-admin' || profile?.email === 'admin@sistema.com',
     isLocked,
     lockTimer,
@@ -539,7 +555,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     switchUser,
     resetToMaster
-  }), [user, profile, isAdmin, isDirector, isSecretary, isAssistant, isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
+  }), [user, profile, isAdmin, isDirector, isSecretary, isAssistant, isTeacher, isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
 
   return (
     <AuthContext.Provider value={contextValue}>
