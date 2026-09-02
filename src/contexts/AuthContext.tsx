@@ -478,14 +478,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const viewParam = urlParams.get('view');
 
     // PERFIL PROFESSOR / DOCENTE:
-    // Acesso ESTRITAMENTE para Lançar Presença (Chamada), Lista de Chamada e Apontamento de Notas (+ Dashboard / Início)
+    // Acesso ESTRITAMENTE para Lançar Presença (Chamada) e Apontamento de Notas (+ Dashboard / Início)
     if (profile.role === 'professor' || profile.role === 'docente') {
       const allowedTeacherRoutes = [
         '/',
         '/attendance',
-        '/monthly-attendance',
-        '/grades',
-        '/assessments'
+        '/grades'
       ];
       return allowedTeacherRoutes.some(allowed => cleanPath === allowed || cleanPath === allowed + '/');
     }

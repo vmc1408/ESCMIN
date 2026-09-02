@@ -1043,7 +1043,7 @@ export function Dashboard() {
 
   // ==========================================
   // TELA DEDICADA EXCLUSIVA PARA PROFESSOR / DOCENTE
-  // 4 botões ao centro (2 em cima e 2 em baixo formando um quadrado)
+  // 2 botões grandes e elegantes ao centro
   // Sem estatísticas gerais, sem cronogramas no topo e sem ocupação acadêmica
   // ==========================================
   if (isTeacher) {
@@ -1062,19 +1062,6 @@ export function Dashboard() {
         buttonText: 'Acessar Chamada'
       },
       {
-        title: 'Lista de Frequência',
-        category: 'Mapa Mensal',
-        description: 'Consulta e impressão da lista de presença consolidada por mês e turma.',
-        icon: Calendar,
-        path: '/monthly-attendance',
-        accentColor: 'blue',
-        bg: 'bg-white hover:bg-blue-50/40',
-        borderColor: 'border-slate-200 hover:border-blue-300',
-        iconBg: 'bg-blue-500/10 text-blue-600',
-        badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
-        buttonText: 'Ver Lista de Frequência'
-      },
-      {
         title: 'Apontamento de Notas',
         category: 'Boletim & Rendimento',
         description: 'Digitação das notas das avaliações, trabalhos e cálculo das médias semestrais.',
@@ -1086,19 +1073,6 @@ export function Dashboard() {
         iconBg: 'bg-indigo-500/10 text-indigo-600',
         badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
         buttonText: 'Lançar Notas'
-      },
-      {
-        title: 'Cadastrar Avaliações',
-        category: 'Critérios Avaliativos',
-        description: 'Configuração dos instrumentos avaliativos, pesos, provas e trabalhos.',
-        icon: GraduationCap,
-        path: '/assessments',
-        accentColor: 'amber',
-        bg: 'bg-white hover:bg-amber-50/40',
-        borderColor: 'border-slate-200 hover:border-amber-300',
-        iconBg: 'bg-amber-500/10 text-amber-600',
-        badgeBg: 'bg-amber-50 text-amber-700 border-amber-200',
-        buttonText: 'Gerenciar Avaliações'
       }
     ];
 
@@ -1179,8 +1153,8 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* 4 Botões ao Centro da Tela em Formato de Quadrado (2 em cima e 2 em baixo) */}
-        <div className="max-w-4xl mx-auto pt-2 pb-8 space-y-6">
+        {/* 2 Botões ao Centro da Tela */}
+        <div className="max-w-3xl mx-auto pt-4 pb-8 space-y-6">
           <div className="text-center space-y-1">
             <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest">
               Atividades Pedagógicas
@@ -1190,7 +1164,7 @@ export function Dashboard() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {teacherCards.map((card, idx) => (
               <motion.div
                 key={card.path}
@@ -1201,42 +1175,42 @@ export function Dashboard() {
                 <button
                   onClick={() => navigate(card.path)}
                   className={cn(
-                    "w-full text-left p-6 sm:p-7 rounded-2xl border transition-all duration-300 group cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-1 flex flex-col justify-between min-h-[190px]",
+                    "w-full text-left p-7 sm:p-8 rounded-2xl border transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between min-h-[220px]",
                     card.bg,
                     card.borderColor
                   )}
                 >
                   <div>
                     {/* Top Row: Icon + Badge + Arrow */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={cn("p-3 rounded-xl transition-transform duration-300 group-hover:scale-110", card.iconBg)}>
-                        <card.icon size={26} strokeWidth={2.2} />
+                    <div className="flex items-center justify-between mb-5">
+                      <div className={cn("p-3.5 rounded-xl transition-transform duration-300 group-hover:scale-110", card.iconBg)}>
+                        <card.icon size={28} strokeWidth={2.2} />
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={cn("px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border", card.badgeBg)}>
+                        <span className={cn("px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border", card.badgeBg)}>
                           {card.category}
                         </span>
-                        <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-[#131b2e] text-slate-400 group-hover:text-white flex items-center justify-center transition-all duration-300">
-                          <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                        <div className="w-9 h-9 rounded-full bg-slate-100 group-hover:bg-[#131b2e] text-slate-400 group-hover:text-white flex items-center justify-center transition-all duration-300">
+                          <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                         </div>
                       </div>
                     </div>
 
                     {/* Title and Description */}
-                    <h4 className="text-lg font-black text-slate-800 tracking-tight group-hover:text-slate-950 transition-colors uppercase">
+                    <h4 className="text-xl font-black text-slate-800 tracking-tight group-hover:text-slate-950 transition-colors uppercase">
                       {card.title}
                     </h4>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed mt-1.5">
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed mt-2">
                       {card.description}
                     </p>
                   </div>
 
                   {/* Bottom Action Footer */}
-                  <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600 group-hover:text-slate-900">
-                    <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <div className="pt-5 mt-5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600 group-hover:text-slate-900">
+                    <span className="text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5">
                       {card.buttonText}
                     </span>
-                    <span className="text-[11px] font-semibold text-slate-400 group-hover:text-slate-600">
+                    <span className="text-xs font-bold text-slate-400 group-hover:text-slate-700">
                       Entrar →
                     </span>
                   </div>
