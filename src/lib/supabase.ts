@@ -153,11 +153,19 @@ if (isSupabaseConfigured) {
 
 export const isJwtOrTokenError = (err: any): boolean => {
   if (!err) return false;
-  const msg = (typeof err === 'string' ? err : err.message || err.details || String(err || '')).toLowerCase();
+  const msg = (typeof err === 'string' ? err : err.message || err.error_description || err.details || String(err || '')).toLowerCase();
   const code = String(err.code || '').toLowerCase();
   return (
     msg.includes('jwt') ||
     msg.includes('token') ||
+    msg.includes('invalid refresh token') ||
+    msg.includes('refresh token not found') ||
+    msg.includes('refresh_token_not_found') ||
+    msg.includes('invalid_grant') ||
+    msg.includes('already used') ||
+    msg.includes('token is expired') ||
+    msg.includes('session expired') ||
+    msg.includes('authsessionmissingerror') ||
     msg.includes('pgrst301') ||
     code === 'pgrst301' ||
     msg.includes('issued at future') ||
@@ -188,6 +196,60 @@ export const clearCorruptedAuthTokens = () => {
   }
 };
 
+// Storage seguro com validação preventiva de integridade para evitar 'Invalid Refresh Token'
+const safeAuthStorage = typeof window !== 'undefined' ? {
+  getItem: (key: string): string | null => {
+    try {
+      const item = window.localStorage.getItem(key);
+      if (!item) return null;
+      if (item.startsWith('{') || item.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(item);
+          if (parsed && typeof parsed === 'object' && parsed.error && isJwtOrTokenError(parsed.error)) {
+            window.localStorage.removeItem(key);
+            return null;
+          }
+        } catch {
+          window.localStorage.removeItem(key);
+          return null;
+        }
+      }
+      return item;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('[Supabase Auth Storage] setItem error:', e);
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('[Supabase Auth Storage] removeItem error:', e);
+    }
+  }
+} : undefined;
+
+// Interceptor global para capturar erros silenciosos de refresh token sem propagar exceção
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    if (isJwtOrTokenError(reason)) {
+      event.preventDefault();
+      console.warn('[Supabase] Token de atualização expirado/inválido interceptado globalmente. Limpando credenciais locais...');
+      clearCorruptedAuthTokens();
+      try {
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      } catch (_) {}
+    }
+  });
+}
+
 // Inicialização segura do cliente Supabase
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
@@ -197,7 +259,7 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined
+      storage: safeAuthStorage
     }
   }
 );

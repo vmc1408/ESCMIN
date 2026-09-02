@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap, LogIn, Upload } from 'lucide-react';
+import { Camera, RefreshCw, ChevronDown, CheckCircle2, XCircle, Shield, Plus, Search, Edit2, Trash2, Save, X, Loader2, Mail, User, MoreVertical, Key, Zap, LogIn, Upload, GraduationCap, BookOpen } from 'lucide-react';
 import { fetchAll, saveData, deleteData, uploadImage, fetchById, fetchQuery } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, UserRole } from '../types';
+import { UserProfile, UserRole, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { findTeacherForUser } from '../lib/teacherScope';
 import Webcam from 'react-webcam';
 
 export function Users() {
   const { user: userAuth, profile: currentProfile, refreshProfile, isAdmin, isDirector, isSecretary, switchUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -31,7 +33,8 @@ export function Users() {
     role: 'secretario' as UserRole,
     status: 'active' as 'active' | 'inactive',
     avatar_url: '',
-    pin: ''
+    pin: '',
+    teacher_id: ''
   });
 
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' });
@@ -82,19 +85,25 @@ export function Users() {
       setLoading(true);
       let managers: UserProfile[] = [];
       let registered: any[] = [];
+      let teachersData: Teacher[] = [];
 
       if (isAdmin || isDirector) {
         // Admins and Directors can see everyone
-        const [usersData, registryData] = await Promise.all([
+        const [usersData, registryData, loadedTeachers] = await Promise.all([
           fetchAll('users', '*', 'name'),
-          fetchAll('email_registry', '*', 'email')
+          fetchAll('email_registry', '*', 'email'),
+          fetchAll('teachers', '*', 'name')
         ]);
         managers = usersData as UserProfile[];
         registered = registryData as any[];
+        teachersData = (loadedTeachers as Teacher[]) || [];
       } else if (currentProfile) {
         // Secretaries (or others) only see themselves
         managers = [currentProfile];
+        const loadedTeachers = await fetchAll('teachers', '*', 'name');
+        teachersData = (loadedTeachers as Teacher[]) || [];
       }
+      setTeachers(teachersData);
       
       // deduplication Logic: Prioritize profiles with UID over pre-registered ones (Email ID)
       const uniqueUsersMap = new Map<string, UserProfile>();
@@ -137,6 +146,7 @@ export function Users() {
               role: (reg.role as any) || 'secretario',
               status: 'inactive', // Default to inactive if profile not created
               is_pre_registered: true,
+              teacher_id: reg.teacher_id || undefined,
               created_at: reg.registered_at || reg.created_at || new Date().toISOString()
             } as UserProfile);
           }
@@ -166,6 +176,10 @@ export function Users() {
       return;
     }
 
+    const matchedTeacher = (user.role === 'professor' || user.role === 'docente') 
+      ? findTeacherForUser(user, teachers) 
+      : null;
+
     setSelectedUser(user);
     setFormData({
       email: user.email,
@@ -173,7 +187,8 @@ export function Users() {
       role: user.role,
       status: user.status,
       avatar_url: user.avatar_url || '',
-      pin: user.pin || ''
+      pin: user.pin || '',
+      teacher_id: user.teacher_id || matchedTeacher?.id || ''
     });
     setNewEmail(user.email);
     setPasswordData({ newPassword: '', confirmPassword: '' });
@@ -189,7 +204,8 @@ export function Users() {
       role: 'secretario',
       status: 'active',
       avatar_url: '',
-      pin: ''
+      pin: '',
+      teacher_id: ''
     });
     setNewEmail('');
     setPasswordData({ newPassword: '', confirmPassword: '' });
@@ -334,7 +350,8 @@ export function Users() {
             if (registryCheck) {
               await saveData('email_registry', emailId, {
                 ...registryCheck,
-                role: formData.role
+                role: formData.role,
+                teacher_id: formData.teacher_id || null
               });
               console.log("[Segurança] Registro central em email_registry atualizado para o cargo:", formData.role);
             }
@@ -401,6 +418,7 @@ export function Users() {
             id: emailId,
             email: emailId, 
             role: formData.role,
+            teacher_id: formData.teacher_id || null,
             registered_at: new Date().toISOString(),
             status: 'blocked'
           });
@@ -417,6 +435,7 @@ export function Users() {
           role: formData.role,
           status: formData.status,
           pin: formData.pin,
+          teacher_id: formData.teacher_id || null,
           created_at: new Date().toISOString(),
           is_pre_registered: true
         });
@@ -889,12 +908,27 @@ export function Users() {
                           </div>
                         </td>
                         <td className="px-8 py-4">
-                          <span className={cn(
-                            "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                            getRoleColor(user.role || '', user.status)
-                          )}>
-                            {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : user.role === 'assistente' ? 'Assistente de Secretaria' : 'Professor / Docente'}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className={cn(
+                              "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                              getRoleColor(user.role || '', user.status)
+                            )}>
+                              {user.role === 'admin' ? 'Administrador' : user.role === 'diretor' ? 'Diretoria' : user.role === 'secretario' ? 'Secretário Acadêmico' : user.role === 'assistente' ? 'Assistente de Secretaria' : 'Professor / Docente'}
+                            </span>
+                            {(user.role === 'professor' || user.role === 'docente') && (() => {
+                              const linked = teachers.find(t => t.id === user.teacher_id) || findTeacherForUser(user, teachers);
+                              return linked ? (
+                                <span className="inline-flex items-center gap-1 text-[8px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 max-w-[180px] truncate" title={`Docente vinculado: ${linked.name}`}>
+                                  <GraduationCap size={10} className="shrink-0" />
+                                  <span className="truncate">{linked.name}</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[7px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                  Sem docente vinculado
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </td>
                         <td className="px-8 py-4">
                           <div className="flex items-center justify-center gap-2">
@@ -1534,6 +1568,61 @@ export function Users() {
                               </div>
                             </div>
                          </div>
+
+                         {/* Docente Vinculado para Perfil de Professor */}
+                         {(formData.role === 'professor' || formData.role === 'docente') && (
+                           <div className="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-100 space-y-3">
+                             <div className="flex items-center gap-2">
+                               <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                                 <GraduationCap size={16} />
+                               </div>
+                               <div>
+                                 <p className="text-[9px] font-black text-[#131b2e] uppercase tracking-tight">Docente Vinculado</p>
+                                 <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                                   Define quais turmas e disciplinas o professor pode visualizar e lançar notas/frequência
+                                 </p>
+                               </div>
+                             </div>
+                             <div className="space-y-1">
+                               <label className="text-[8px] font-black text-indigo-950 uppercase tracking-widest ml-1">
+                                 Selecione o Professor da Escala
+                               </label>
+                               <div className="relative">
+                                 <select
+                                   value={formData.teacher_id}
+                                   onChange={e => {
+                                     const tId = e.target.value;
+                                     const foundTeacher = teachers.find(t => t.id === tId);
+                                     setFormData(prev => ({
+                                       ...prev,
+                                       teacher_id: tId,
+                                       name: (!prev.name || prev.name === prev.email?.split('@')[0]) && foundTeacher ? foundTeacher.name : prev.name
+                                     }));
+                                   }}
+                                   className="w-full px-4 py-2 bg-white border border-indigo-200 rounded-xl text-[11px] font-bold text-[#131b2e] appearance-none focus:bg-white focus:border-indigo-400 transition-all outline-none cursor-pointer"
+                                 >
+                                   <option value="">-- Detectar automaticamente por e-mail ou nome --</option>
+                                   {teachers.map(t => (
+                                     <option key={t.id} value={t.id}>
+                                       {t.name} {t.email ? `(${t.email})` : ''}
+                                     </option>
+                                   ))}
+                                 </select>
+                                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-500 pointer-events-none" />
+                               </div>
+                               {formData.teacher_id ? (
+                                 <p className="text-[8px] font-bold text-emerald-700 mt-1 ml-1 flex items-center gap-1">
+                                   <CheckCircle2 size={10} />
+                                   Docente vinculado: {teachers.find(t => t.id === formData.teacher_id)?.name}
+                                 </p>
+                               ) : (
+                                 <p className="text-[8px] font-medium text-slate-500 mt-1 ml-1">
+                                   💡 Se não selecionar manualmente, o sistema fará a associação automática pelo e-mail ou nome compatível.
+                                 </p>
+                               )}
+                             </div>
+                           </div>
+                         )}
 
                          {/* PIN Configuration Field */}
                          <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">

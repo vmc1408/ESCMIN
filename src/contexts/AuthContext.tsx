@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase, isSupabaseConfigured, fetchWithTimeout, clearCorruptedAuthTokens } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, fetchWithTimeout, clearCorruptedAuthTokens, isJwtOrTokenError } from '../lib/supabase';
 import { saveData, deleteData, fetchById } from '../lib/database';
 import { UserProfile } from '../types';
 
@@ -137,28 +137,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    const isTokenError = (msg?: string) => {
-      if (!msg) return false;
-      const lower = msg.toLowerCase();
-      return (
-        lower.includes('invalid refresh token') ||
-        lower.includes('refresh token not found') ||
-        lower.includes('refresh_token_not_found') ||
-        lower.includes('already used') ||
-        lower.includes('token is expired') ||
-        lower.includes('jwt issued at future') ||
-        lower.includes('jwt issued in future') ||
-        lower.includes('jwt') ||
-        lower.includes('pgrst301') ||
-        lower.includes('bad jwt')
-      );
-    };
-
     // 1. Pega sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        const errorMsg = error.message || '';
-        if (isTokenError(errorMsg)) {
+        if (isJwtOrTokenError(error)) {
           console.warn("[AuthContext] Token de atualização inválido/expirado detectado. Limpando chaves locais do Supabase...");
           clearCorruptedAuthTokens();
           supabase.auth.signOut({ scope: 'local' }).catch(() => {});
@@ -202,8 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     }).catch(err => {
-      const errMsg = err?.message || String(err);
-      if (isTokenError(errMsg)) {
+      if (isJwtOrTokenError(err)) {
         console.warn("[AuthContext] Capturada falha de refresh token. Limpando credenciais locais...");
         clearCorruptedAuthTokens();
         supabase.auth.signOut({ scope: 'local' }).catch(() => {});
@@ -478,12 +459,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const viewParam = urlParams.get('view');
 
     // PERFIL PROFESSOR / DOCENTE:
-    // Acesso ESTRITAMENTE para Lançar Presença (Chamada) e Apontamento de Notas (+ Dashboard / Início)
+    // Acesso ESTRITAMENTE para Lançar Presença (Chamada e Mensal), Apontamento de Notas e Avaliações (+ Dashboard / Início)
     if (profile.role === 'professor' || profile.role === 'docente') {
       const allowedTeacherRoutes = [
         '/',
         '/attendance',
-        '/grades'
+        '/monthly-attendance',
+        '/grades',
+        '/assessments'
       ];
       return allowedTeacherRoutes.some(allowed => cleanPath === allowed || cleanPath === allowed + '/');
     }

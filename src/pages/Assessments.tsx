@@ -20,23 +20,27 @@ import {
   HelpCircle,
   Search,
   Archive,
-  History
+  History,
+  GraduationCap,
+  Check
 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, saveData as saveRecord, deleteData as deleteRecord } from '../lib/database';
-import { Assessment, Class, Subject } from '../types';
+import { Assessment, Class, Subject, Teacher } from '../types';
 import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { detectSubjectSemester, getAvailablePeriodsForSubject } from '../lib/academicUtils';
 import { useAuth } from '../contexts/AuthContext';
+import { getTeacherScope } from '../lib/teacherScope';
 
 export const Assessments: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
 
   // State Management
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
@@ -102,13 +106,14 @@ export const Assessments: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [assessData, classesData, subjectsData, studentsData, enrollmentsData, gradesData] = await Promise.all([
+      const [assessData, classesData, subjectsData, studentsData, enrollmentsData, gradesData, teachersData] = await Promise.all([
         fetchAll('assessments'),
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchAll('students'),
         fetchAll('enrollments').catch(() => []),
-        fetchAll('grades')
+        fetchAll('grades'),
+        fetchAll('teachers', '*', 'name')
       ]);
 
       const normalizedSubjects = (subjectsData || []).map((s: any) => normalizeSubject(s));
@@ -132,6 +137,7 @@ export const Assessments: React.FC = () => {
       setSubjects(normalizedSubjects as Subject[] || []);
       setStudents(studentsData || []);
       setGrades(gradesData || []);
+      setTeachers(teachersData || []);
     } catch (error: any) {
       console.error('Erro ao carregar dados:', error);
       const errorMsg = error.message || '';
@@ -172,6 +178,14 @@ export const Assessments: React.FC = () => {
       setNotification({
         type: 'error',
         message: 'Por favor, preencha todos os campos obrigatórios (*).'
+      });
+      return;
+    }
+
+    if (teacherScope.isTeacherRole && !teacherScope.allowedSubjectIds.has(formData.subject_id)) {
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para cadastrar ou editar avaliações para esta disciplina.'
       });
       return;
     }
@@ -288,8 +302,60 @@ export const Assessments: React.FC = () => {
     navigate('/grades');
   };
 
+  // Escopo de acesso para perfil de professor
+  const teacherScope = React.useMemo(() => {
+    return getTeacherScope(profile, teachers, subjects, classes, assessments);
+  }, [profile, teachers, subjects, classes, assessments]);
+
+  // Turmas permitidas para o usuário atual
+  const availableClasses = React.useMemo(() => {
+    if (!teacherScope.isTeacherRole) return classes;
+    return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
+  }, [classes, teacherScope]);
+
+  // Se o professor tiver apenas 1 turma disponível, pré-seleciona nos filtros e no formulário
+  useEffect(() => {
+    if (teacherScope.isTeacherRole && availableClasses.length === 1) {
+      if (!filterClass) setFilterClass(availableClasses[0].id);
+      setFormData(prev => ({ ...prev, class_id: prev.class_id || availableClasses[0].id }));
+    }
+  }, [teacherScope.isTeacherRole, availableClasses, filterClass]);
+
+  // Se a turma filtrada não for mais permitida, reseta
+  useEffect(() => {
+    if (teacherScope.isTeacherRole && filterClass && !teacherScope.allowedClassIds.has(filterClass)) {
+      setFilterClass('');
+      setFilterSubject('');
+    }
+  }, [teacherScope.isTeacherRole, teacherScope.allowedClassIds, filterClass]);
+
+  // Disciplinas disponíveis para os filtros
+  const availableSubjectsForFilter = React.useMemo(() => {
+    const base = filterClass 
+      ? getClassSubjects(classes.find(c => c.id === filterClass), subjects)
+      : subjects;
+    if (teacherScope.isTeacherRole) {
+      return base.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+    }
+    return base;
+  }, [filterClass, classes, subjects, teacherScope]);
+
+  // Disciplinas disponíveis para o formulário de cadastro/edição
+  const availableSubjectsForForm = React.useMemo(() => {
+    const base = formData.class_id
+      ? getClassSubjects(classes.find(c => c.id === formData.class_id), subjects)
+      : subjects;
+    if (teacherScope.isTeacherRole) {
+      return base.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+    }
+    return base;
+  }, [formData.class_id, classes, subjects, teacherScope]);
+
   // Compute filtered items
   const filteredAssessments = assessments.filter(a => {
+    if (teacherScope.isTeacherRole && !teacherScope.allowedSubjectIds.has(a.subject_id)) {
+      return false;
+    }
     const matchesClass = !filterClass || a.class_id === filterClass;
     const matchesSubject = !filterSubject || a.subject_id === filterSubject;
     
@@ -433,6 +499,46 @@ export const Assessments: React.FC = () => {
         </div>
       </PageHeader>
 
+      {/* Teacher Scope Notification / Indicator */}
+      {teacherScope.isTeacherRole && (
+        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded">
+                  Modo Docente
+                </span>
+                {teacherScope.teacher ? (
+                  <span className="text-[11px] font-black text-indigo-950">
+                    {teacherScope.teacher.name}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-800">
+                    Docente não vinculado
+                  </span>
+                )}
+              </div>
+              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
+                {teacherScope.hasAccess 
+                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
+                  : teacherScope.emptyReason}
+              </p>
+            </div>
+          </div>
+          {teacherScope.hasAccess && (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded border border-emerald-200 flex items-center gap-1">
+                <Check size={11} />
+                Acesso Restrito & Seguro
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'consult' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
@@ -476,7 +582,7 @@ export const Assessments: React.FC = () => {
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Turmas</option>
-                  {classes.map((c, idx) => <option key={`ass-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)}
+                  {availableClasses.map((c, idx) => <option key={`ass-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
@@ -492,10 +598,7 @@ export const Assessments: React.FC = () => {
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-slate-700 font-medium outline-none"
                 >
                   <option value="">Todas as Disciplinas</option>
-                  {(filterClass 
-                    ? getClassSubjects(classes.find(c => c.id === filterClass), subjects)
-                    : subjects
-                  ).map((s, idx) => {
+                  {availableSubjectsForFilter.map((s, idx) => {
                     const selectedClass = classes.find(c => c.id === filterClass);
                     return (
                       <option key={`ass-sub-opt-${s.id || idx}-${idx}`} value={s.id}>
@@ -583,7 +686,7 @@ export const Assessments: React.FC = () => {
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap justify-center pt-2">
-                {classes.slice(0, 4).map((c, idx) => (
+                {availableClasses.slice(0, 4).map((c, idx) => (
                   <button
                     key={`ass-cls-quick-${c.id || idx}-${idx}`}
                     onClick={() => setFilterClass(c.id)}
@@ -592,9 +695,9 @@ export const Assessments: React.FC = () => {
                     {c.name}
                   </button>
                 ))}
-                {classes.length > 4 && (
+                {availableClasses.length > 4 && (
                   <span className="text-[10px] text-slate-400 flex items-center font-bold px-1.5">
-                    +{classes.length - 4} mais
+                    +{availableClasses.length - 4} mais
                   </span>
                 )}
               </div>
@@ -809,7 +912,7 @@ export const Assessments: React.FC = () => {
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                     >
                       <option value="">Selecione a turma...</option>
-                      {classes.map((c, idx) => <option key={`ass-mdl-cls-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)}
+                      {availableClasses.map((c, idx) => <option key={`ass-mdl-cls-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
 
@@ -835,10 +938,7 @@ export const Assessments: React.FC = () => {
                       className="w-full px-3 py-2 bg-slate-50 focus:bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">Selecione...</option>
-                      {(formData.class_id
-                        ? getClassSubjects(classes.find(c => c.id === formData.class_id), subjects)
-                        : subjects
-                      ).map((s, idx) => {
+                      {availableSubjectsForForm.map((s, idx) => {
                         const selectedClass = classes.find(c => c.id === formData.class_id);
                         return (
                           <option key={`ass-mdl-sub-${s.id || idx}-${idx}`} value={s.id}>

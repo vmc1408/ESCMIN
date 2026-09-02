@@ -17,13 +17,15 @@ import {
   RefreshCw,
   Printer,
   Eraser,
-  Trash2
+  Trash2,
+  GraduationCap
 } from 'lucide-react';
-import { Student, Class, Subject, AcademicParameters, Assessment } from '../types';
+import { Student, Class, Subject, AcademicParameters, Assessment, Teacher } from '../types';
 import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
+import { getTeacherScope } from '../lib/teacherScope';
 import { financialService } from '../services/financialService';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -41,9 +43,10 @@ interface GradeRecord {
 
 export function Grades() {
   const navigate = useNavigate();
-  const { userAuth, isAdmin, isDirector } = useAuth();
+  const { userAuth, isAdmin, isDirector, profile } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [grades, setGrades] = useState<Record<string, GradeRecord>>({});
@@ -88,11 +91,12 @@ export function Grades() {
   const periods = ['Avaliação 1', 'Avaliação 2', 'Avaliação 3', 'Avaliação 4', 'Resultado Final'];
 
   const fetchData = React.useCallback(async () => {
-    const [params, classesData, subjectsData, instSettings] = await Promise.all([
+    const [params, classesData, subjectsData, instSettings, teachersData] = await Promise.all([
       fetchAll('academic_parameters', '*', ''), // Passing empty string to avoid ordering by created_at
       fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
       fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-      financialService.getInstitutionSettings()
+      financialService.getInstitutionSettings(),
+      fetchAll('teachers', '*', 'name')
     ]);
 
     if (params && params.length > 0) {
@@ -123,6 +127,7 @@ export function Grades() {
 
     setClasses(sortedClasses);
     setSubjects(subjectsData || []);
+    setTeachers(teachersData || []);
   }, []);
 
   useEffect(() => {
@@ -183,15 +188,34 @@ export function Grades() {
     }
   }, [selectedClass, selectedSubject]);
 
+  // Escopo de acesso para perfil de professor
+  const teacherScope = React.useMemo(() => {
+    return getTeacherScope(profile, teachers, subjects, classes, assessments);
+  }, [profile, teachers, subjects, classes, assessments]);
+
+  // Turmas permitidas para o usuário atual
+  const availableClasses = React.useMemo(() => {
+    if (!teacherScope.isTeacherRole) return classes;
+    return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
+  }, [classes, teacherScope]);
+
+  // Se o professor tiver apenas 1 turma disponível, pré-seleciona automaticamente
+  useEffect(() => {
+    if (teacherScope.isTeacherRole && availableClasses.length === 1 && !selectedClass) {
+      setSelectedClass(availableClasses[0].id);
+    }
+  }, [teacherScope.isTeacherRole, availableClasses, selectedClass]);
+
+  // Se a turma selecionada não for mais permitida para o professor, limpa a seleção
+  useEffect(() => {
+    if (teacherScope.isTeacherRole && selectedClass && !teacherScope.allowedClassIds.has(selectedClass)) {
+      setSelectedClass('');
+      setSelectedSubject('');
+    }
+  }, [teacherScope.isTeacherRole, teacherScope.allowedClassIds, selectedClass]);
+
   useEffect(() => {
     fetchStudentsAndGrades();
-    // Reset selected subject if it's not in the filtered list
-    if (selectedClass && selectedSubject) {
-      const cls = classes.find(c => c.id === selectedClass);
-      if (cls && cls.subject_ids && !cls.subject_ids.includes(selectedSubject)) {
-        setSelectedSubject('');
-      }
-    }
   }, [fetchStudentsAndGrades]);
 
   useEffect(() => {
@@ -247,8 +271,29 @@ export function Grades() {
     const cls = classes.find(c => c.id === selectedClass);
     if (!cls) return [];
     const subs = getClassSubjects(cls, subjects, assessments, dbGrades);
-    return subs.length > 0 ? subs : subjects;
-  }, [selectedClass, classes, subjects, assessments, dbGrades]);
+    const baseList = subs.length > 0 ? subs : subjects;
+    if (teacherScope.isTeacherRole) {
+      return baseList.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+    }
+    return baseList;
+  }, [selectedClass, classes, subjects, assessments, dbGrades, teacherScope]);
+
+  // Se o professor tiver apenas 1 disciplina disponível para a turma, pré-seleciona automaticamente
+  useEffect(() => {
+    if (teacherScope.isTeacherRole && selectedClass && filteredSubjects.length === 1 && !selectedSubject) {
+      setSelectedSubject(filteredSubjects[0].id);
+    }
+  }, [teacherScope.isTeacherRole, selectedClass, filteredSubjects, selectedSubject]);
+
+  // Se a disciplina selecionada não for mais permitida, reseta
+  useEffect(() => {
+    if (selectedClass && selectedSubject) {
+      const isAllowed = filteredSubjects.some(s => s.id === selectedSubject);
+      if (!isAllowed) {
+        setSelectedSubject('');
+      }
+    }
+  }, [filteredSubjects, selectedClass, selectedSubject]);
 
   const handleGradeChange = (studentId: string, value: string) => {
     if (selectedPeriod === 'Resultado Final') {
@@ -1025,6 +1070,46 @@ export function Grades() {
         )}
       </PageHeader>
 
+      {/* Teacher Scope Notification / Indicator */}
+      {teacherScope.isTeacherRole && (
+        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded">
+                  Modo Docente
+                </span>
+                {teacherScope.teacher ? (
+                  <span className="text-[11px] font-black text-indigo-950">
+                    {teacherScope.teacher.name}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-800">
+                    Docente não vinculado
+                  </span>
+                )}
+              </div>
+              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
+                {teacherScope.hasAccess 
+                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
+                  : teacherScope.emptyReason}
+              </p>
+            </div>
+          </div>
+          {teacherScope.hasAccess && (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded border border-emerald-200 flex items-center gap-1">
+                <Check size={11} />
+                Acesso Restrito & Seguro
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-1.5">
@@ -1037,7 +1122,7 @@ export function Grades() {
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
                 <option value="">Selecione uma turma...</option>
-                {classes.map((c, idx) => <option key={`grd-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
+                {availableClasses.map((c, idx) => <option key={`grd-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
               </select>
             </div>
           </div>

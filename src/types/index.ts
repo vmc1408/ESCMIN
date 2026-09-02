@@ -16,6 +16,7 @@ export interface UserProfile {
   pin?: string;
   app_lock_enabled?: boolean;
   app_lock_timeout?: number;
+  teacher_id?: string;
 }
 
 export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Suspenso';

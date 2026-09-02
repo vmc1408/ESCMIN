@@ -25,12 +25,15 @@ import {
   Lock,
   KeyRound,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  GraduationCap
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
+import { getTeacherScope } from '../lib/teacherScope';
+import { Teacher } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -70,12 +73,6 @@ interface Subject {
   program_content?: string;
   semester?: string;
   year?: number | string;
-}
-
-interface Teacher {
-  id: string;
-  name: string;
-  subject_ids?: string[];
 }
 
 interface AttendanceRecord {
@@ -273,6 +270,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
       setClasses(sortedClasses);
       setSubjects(normalizedSubjects);
+      setTeachers(normalizedTeachers);
       if (paramsData && paramsData.length > 0) {
         setAcademicParams(paramsData[0]);
       }
@@ -363,24 +361,73 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
   }, [selectedClass, selectedSubject, selectedDate]);
 
+  // Calcula o escopo de acesso específico para o perfil do professor logado
+  const teacherScope = React.useMemo(() => {
+    return getTeacherScope(profile, teachers, subjects, classes);
+  }, [profile, teachers, subjects, classes]);
+
+  // Turmas permitidas: para professor, apenas as associadas às suas disciplinas
+  const availableClasses = React.useMemo(() => {
+    if (!teacherScope.isTeacherRole) return classes;
+    return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
+  }, [classes, teacherScope]);
+
+  // Se o professor tiver apenas 1 turma disponível, pré-seleciona automaticamente
   useEffect(() => {
-    fetchStudentsAndAttendance();
-    // Reset selected subject if it's not in the filtered list
-    if (selectedClass && selectedSubject) {
-      const cls = classes.find(c => c.id === selectedClass);
-      if (cls && cls.subject_ids && !cls.subject_ids.includes(selectedSubject)) {
-        setSelectedSubject('');
-      }
+    if (teacherScope.isTeacherRole && availableClasses.length === 1 && !selectedClass) {
+      setSelectedClass(availableClasses[0].id);
     }
-  }, [fetchStudentsAndAttendance]);
+  }, [teacherScope.isTeacherRole, availableClasses, selectedClass]);
+
+  // Se a turma selecionada não for mais permitida para o professor, limpa a seleção
+  useEffect(() => {
+    if (teacherScope.isTeacherRole && selectedClass && !teacherScope.allowedClassIds.has(selectedClass)) {
+      setSelectedClass('');
+      setSelectedSubject('');
+    }
+  }, [teacherScope.isTeacherRole, teacherScope.allowedClassIds, selectedClass]);
 
   const filteredSubjects = React.useMemo(() => {
     if (!selectedClass) return [];
     const cls = classes.find(c => c.id === selectedClass);
     if (!cls) return [];
-    if (!cls.subject_ids || cls.subject_ids.length === 0) return subjects; // Fallback
-    return subjects.filter(s => cls.subject_ids?.includes(s.id));
-  }, [selectedClass, classes, subjects]);
+    
+    // Disciplinas associadas a esta turma
+    let classSubjects: Subject[] = [];
+    if (!cls.subject_ids || cls.subject_ids.length === 0) {
+      classSubjects = subjects;
+    } else {
+      classSubjects = subjects.filter(s => cls.subject_ids?.includes(s.id));
+    }
+
+    // Se for perfil de professor, filtra estritamente pelas disciplinas atribuídas a ele
+    if (teacherScope.isTeacherRole) {
+      return classSubjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+    }
+
+    return classSubjects;
+  }, [selectedClass, classes, subjects, teacherScope]);
+
+  // Se o professor tiver apenas 1 disciplina disponível para a turma, pré-seleciona automaticamente
+  useEffect(() => {
+    if (teacherScope.isTeacherRole && selectedClass && filteredSubjects.length === 1 && !selectedSubject) {
+      setSelectedSubject(filteredSubjects[0].id);
+    }
+  }, [teacherScope.isTeacherRole, selectedClass, filteredSubjects, selectedSubject]);
+
+  // Se a disciplina selecionada não estiver na lista permitida, limpa a seleção
+  useEffect(() => {
+    if (selectedClass && selectedSubject) {
+      const isAllowed = filteredSubjects.some(s => s.id === selectedSubject);
+      if (!isAllowed) {
+        setSelectedSubject('');
+      }
+    }
+  }, [filteredSubjects, selectedClass, selectedSubject]);
+
+  useEffect(() => {
+    fetchStudentsAndAttendance();
+  }, [fetchStudentsAndAttendance]);
 
   const fetchMonthlyData = React.useCallback(async () => {
     if (!selectedClass || activeTab !== 'monthly') return;
@@ -1789,6 +1836,46 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       `}</style>
 
       <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-6 space-y-6 no-print">
+      {/* Teacher Scope Notification / Indicator */}
+      {teacherScope.isTeacherRole && (
+        <div className="bg-indigo-50/80 border border-indigo-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded">
+                  Modo Docente
+                </span>
+                {teacherScope.teacher ? (
+                  <span className="text-[11px] font-black text-indigo-950">
+                    {teacherScope.teacher.name}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-800">
+                    Docente não vinculado
+                  </span>
+                )}
+              </div>
+              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
+                {teacherScope.hasAccess 
+                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
+                  : teacherScope.emptyReason}
+              </p>
+            </div>
+          </div>
+          {teacherScope.hasAccess && (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded border border-emerald-200 flex items-center gap-1">
+                <Check size={11} />
+                Acesso Restrito & Seguro
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -1928,6 +2015,46 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         </div>
       </div>
 
+      {/* Teacher Scope Notification / Indicator */}
+      {teacherScope.isTeacherRole && (
+        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-none flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-none bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded-none">
+                  Modo Docente
+                </span>
+                {teacherScope.teacher ? (
+                  <span className="text-[11px] font-black text-indigo-950">
+                    {teacherScope.teacher.name}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-800">
+                    Docente não vinculado
+                  </span>
+                )}
+              </div>
+              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
+                {teacherScope.hasAccess 
+                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
+                  : teacherScope.emptyReason}
+              </p>
+            </div>
+          </div>
+          {teacherScope.hasAccess && (
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-none border border-emerald-200 flex items-center gap-1">
+                <Check size={11} />
+                Acesso Restrito & Seguro
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="bg-white rounded-none border border-slate-200 shadow-sm text-slate-900">
         {/* Filter Bar */}
@@ -2053,7 +2180,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                     >
                       <option value="">SELECIONAR TURMA...</option>
-                      {classes.map((c, idx) => <option key={`att-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
+                      {availableClasses.map((c, idx) => <option key={`att-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
                     </select>
                     <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                   </div>
