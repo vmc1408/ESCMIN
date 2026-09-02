@@ -22,7 +22,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll } from '../lib/database';
 import { Student, Class, Contribution } from '../types';
 import { financialService } from '../services/financialService';
-import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass } from '../lib/utils';
+import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -231,41 +231,17 @@ export function Impressos() {
 
   // Derived filtered students list for dropdowns/search
   const filteredStudents = useMemo(() => {
-    if (!studentSearch) return students;
-    const query = studentSearch.toLowerCase().trim();
-    if (!query) return students;
+    const term = studentSearch.trim();
+    if (!term) return students;
 
-    const matched = students.filter(s => 
-      s.name.toLowerCase().includes(query) ||
-      (s.registration_number && s.registration_number.toLowerCase().includes(query))
-    );
+    const matched = students.filter(s => matchesStudentSearch(s, term));
 
     return matched.sort((a, b) => {
-      const aName = a.name.toLowerCase();
-      const bName = b.name.toLowerCase();
-      const aReg = a.registration_number ? a.registration_number.toLowerCase() : '';
-      const bReg = b.registration_number ? b.registration_number.toLowerCase() : '';
+      const rankA = calculateStudentSearchRank(a, term);
+      const rankB = calculateStudentSearchRank(b, term);
+      if (rankA !== rankB) return rankA - rankB;
 
-      // 1. Exact name starts-with
-      const aStartsName = aName.startsWith(query);
-      const bStartsName = bName.startsWith(query);
-      if (aStartsName && !bStartsName) return -1;
-      if (!aStartsName && bStartsName) return 1;
-
-      // 2. Registration number starts-with
-      const aStartsReg = aReg.startsWith(query);
-      const bStartsReg = bReg.startsWith(query);
-      if (aStartsReg && !bStartsReg) return -1;
-      if (!aStartsReg && bStartsReg) return 1;
-
-      // 3. Any word in the name starts-with (e.g. "Da Silva")
-      const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(query));
-      const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(query));
-      if (aWordStarts && !bWordStarts) return -1;
-      if (!aWordStarts && bWordStarts) return 1;
-
-      // 4. Alphabetical by name as fallback
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
     });
   }, [students, studentSearch]);
 

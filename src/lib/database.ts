@@ -1,5 +1,5 @@
 import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout, isDbConnected, connectionError, isJwtOrTokenError, clearCorruptedAuthTokens } from './supabase';
-import { detectCourseFromClass } from './utils';
+import { detectCourseFromClass, normalizeSearchString } from './utils';
 
 // LocalStorage fallback helpers
 export const isTableUsingFallback = (tableName: string): boolean => {
@@ -449,6 +449,12 @@ export const fetchQuery = async (
           if (op === 'gte' || op === '>=') return itemVal >= filter.value;
           if (op === '<=') return itemVal <= filter.value;
           if (op === 'in') return Array.isArray(filter.value) && filter.value.includes(itemVal);
+          if (op === 'ilike' || op === 'like') {
+            const rawFilter = String(filter.value || '').replace(/^%|%$/g, '');
+            const normFilter = normalizeSearchString(rawFilter);
+            const normVal = normalizeSearchString(String(itemVal || ''));
+            return normVal.includes(normFilter);
+          }
           return true;
         });
       } else if (typeof fieldOrFilters === 'string' && operator) {
@@ -458,6 +464,12 @@ export const fetchQuery = async (
         if (op === 'gte' || op === '>=') return itemVal >= value;
         if (op === '<=') return itemVal <= value;
         if (op === 'in') return Array.isArray(value) && value.includes(itemVal);
+        if (op === 'ilike' || op === 'like') {
+          const rawFilter = String(value || '').replace(/^%|%$/g, '');
+          const normFilter = normalizeSearchString(rawFilter);
+          const normVal = normalizeSearchString(String(itemVal || ''));
+          return normVal.includes(normFilter);
+        }
       }
       return true;
     });

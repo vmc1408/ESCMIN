@@ -41,7 +41,7 @@ import {
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { Course } from '../types';
@@ -2019,13 +2019,16 @@ export function Classes() {
   }, [allStudents, allEnrollments, classes]);
 
   const filteredUnallocatedStudents = React.useMemo(() => {
-    const term = unallocatedSearchTerm.trim().toLowerCase();
+    const term = unallocatedSearchTerm.trim();
     if (!term) return unallocatedStudents;
-    return unallocatedStudents.filter(s => 
-      (s.name || '').toLowerCase().includes(term) ||
-      (s.registration_number || '').includes(term) ||
-      (s.cpf || '').includes(term)
-    );
+    return unallocatedStudents
+      .filter(s => matchesStudentSearch(s, term))
+      .sort((a, b) => {
+        const rankA = calculateStudentSearchRank(a, term);
+        const rankB = calculateStudentSearchRank(b, term);
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+      });
   }, [unallocatedStudents, unallocatedSearchTerm]);
 
   const handleBatchAllocateStudents = async () => {
@@ -3653,9 +3656,8 @@ export function Classes() {
                     ) : (
                       sourceStudentsList
                         .filter(s => 
-                          !studentSearchTerm || 
-                          s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
-                          (s.registration_number || '').includes(studentSearchTerm)
+                          !studentSearchTerm.trim() || 
+                          matchesStudentSearch(s, studentSearchTerm.trim())
                         )
                         .map((student, sIdx) => {
                           const isSelected = selectedStudentIds.includes(student.id);
@@ -3851,14 +3853,19 @@ export function Classes() {
                   <p className="text-[10px] text-slate-400">Você pode matricular ou vincular alunos através do menu de Gestão de Alunos.</p>
                 </div>
               ) : (() => {
-                const filtered = modalStudents.filter(s => {
-                  if (!modalSearchTerm) return true;
-                  const term = modalSearchTerm.toLowerCase();
-                  const name = (s.name || s.full_name || '').toLowerCase();
-                  const reg = (s.registration_number || s.code || '').toLowerCase();
-                  const cpf = (s.cpf || '').toLowerCase();
-                  return name.includes(term) || reg.includes(term) || cpf.includes(term);
-                });
+                const term = modalSearchTerm.trim();
+                const filtered = modalStudents
+                  .filter(s => !term || matchesStudentSearch(s, term))
+                  .sort((a, b) => {
+                    if (term) {
+                      const rankA = calculateStudentSearchRank(a, term);
+                      const rankB = calculateStudentSearchRank(b, term);
+                      if (rankA !== rankB) return rankA - rankB;
+                    }
+                    const nameA = a.name || (a as any).full_name || '';
+                    const nameB = b.name || (b as any).full_name || '';
+                    return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
+                  });
 
                 if (filtered.length === 0) {
                   return (

@@ -21,7 +21,7 @@ import {
   Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
+import { cn, formatDateForDisplay, formatCurrency, detectCourseFromClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch, calculateStudentSearchRank, matchesSearchText } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
@@ -595,73 +595,37 @@ export function StudentFicha() {
 
   // Sidebar list of students: searches across ALL registered students
   const filteredStudentsList = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = searchTerm.trim();
     
     const filtered = students.filter(s => {
       if (!term) return true;
-      const name = (s.name || '').toLowerCase();
-      const reg = (s.registration_number || '').toLowerCase();
-      const regFormatted = formatRegistrationNumber(s.registration_number, '').toLowerCase();
-      const cpf = (s.cpf || '').toLowerCase();
-      const email = (s.email || '').toLowerCase();
-      const clsName = s.class_id ? (classMap.get(s.class_id)?.name || '').toLowerCase() : '';
-      const status = (s.status || 'Ativo').toLowerCase();
+      if (matchesStudentSearch(s, term)) return true;
 
-      return name.includes(term) || 
-             reg.includes(term) || 
-             regFormatted.includes(term) ||
-             cpf.includes(term) || 
-             email.includes(term) || 
-             clsName.includes(term) ||
-             status.includes(term);
+      const clsName = s.class_id ? (classMap.get(s.class_id)?.name || '') : '';
+      if (clsName && matchesSearchText(clsName, term)) return true;
+
+      const status = s.status || 'Ativo';
+      if (matchesSearchText(status, term)) return true;
+
+      return false;
     });
 
     if (!term) {
       // Sort alphabetically by name when no term is typed
-      return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+      return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     }
 
     // Sort to bring most relevant search correspondence first
     return [...filtered].sort((a, b) => {
-      const nameA = (a.name || '').toLowerCase();
-      const nameB = (b.name || '').toLowerCase();
-      const regA = (a.registration_number || '').toLowerCase();
-      const regB = (b.registration_number || '').toLowerCase();
-      const cpfA = (a.cpf || '').toLowerCase();
-      const cpfB = (b.cpf || '').toLowerCase();
-
-      const getScore = (name: string, reg: string, cpf: string) => {
-        // Rank 1: Full name starts with the search term
-        if (name.startsWith(term)) return 1;
-        
-        // Rank 2: A word in the name starts with the search term
-        const words = name.split(/\s+/);
-        if (words.some(w => w.startsWith(term))) return 2;
-        
-        // Rank 3: Registration number starts with the search term
-        if (reg.startsWith(term)) return 3;
-
-        // Rank 4: CPF starts with the search term
-        if (cpf.startsWith(term)) return 4;
-
-        // Rank 5: Name contains the search term (any part)
-        if (name.includes(term)) return 5;
-
-        // Rank 6: Registration or CPF contains the search term
-        if (reg.includes(term) || cpf.includes(term)) return 6;
-
-        return 7;
-      };
-
-      const scoreA = getScore(nameA, regA, cpfA);
-      const scoreB = getScore(nameB, regB, cpfB);
+      const scoreA = calculateStudentSearchRank(a, term);
+      const scoreB = calculateStudentSearchRank(b, term);
 
       if (scoreA !== scoreB) {
         return scoreA - scoreB;
       }
 
       // If scores are equal, sort alphabetically by name
-      return nameA.localeCompare(nameB, 'pt-BR');
+      return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
     });
   }, [students, searchTerm, classMap]);
 

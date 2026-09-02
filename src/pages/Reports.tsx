@@ -63,7 +63,7 @@ import {
   Legend,
   TooltipProps
 } from 'recharts';
-import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
+import { formatCurrency, cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesStudentSearch } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, fetchQuery, fetchById, saveData, deleteData } from '../lib/database';
 import { financialService } from '../services/financialService';
@@ -2545,9 +2545,9 @@ export function Reports() {
                     const results = diarioClassResults;
 
                     // Filtering results for display
-                    const filteredResults = diarioSearch ? results.filter(r => 
-                      r.student.name.toLowerCase().includes(diarioSearch.toLowerCase()) ||
-                      (r.student.registration_number && r.student.registration_number.toLowerCase().includes(diarioSearch.toLowerCase()))
+                    const term = diarioSearch.trim();
+                    const filteredResults = term ? results.filter(r => 
+                      matchesStudentSearch(r.student, term)
                     ) : results;
 
                     const handleDiarioSort = (key: string, subId?: string) => {

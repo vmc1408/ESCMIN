@@ -37,7 +37,7 @@ import Webcam from 'react-webcam';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber } from '../lib/utils';
+import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { Student, Class, Enrollment, Course } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1305,11 +1305,9 @@ export function Students() {
   }, [selectedStudent, unallocatedStudentIdsSet]);
 
   const filteredStudents = React.useMemo(() => {
+    const trimmedSearch = searchTerm.trim();
     return students.filter(s => {
-      const matchesSearch = 
-        (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (s.registration_number || '').includes(searchTerm) ||
-        (s.cpf || '').includes(searchTerm);
+      const matchesSearch = !trimmedSearch || matchesStudentSearch(s, trimmedSearch);
       
       const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
       
@@ -1334,8 +1332,17 @@ export function Students() {
 
       return matchesSearch && matchesStatus && matchesYear && matchesClass;
     }).sort((a, b) => {
+      // If user typed a search term, prioritize highest relevance matches first
+      if (trimmedSearch) {
+        const rankA = calculateStudentSearchRank(a, trimmedSearch);
+        const rankB = calculateStudentSearchRank(b, trimmedSearch);
+        if (rankA !== rankB) return rankA - rankB;
+      }
+
       if (sortBy === 'name') {
-        return a.name.localeCompare(b.name);
+        const nameA = a.name || '';
+        const nameB = b.name || '';
+        return nameA.localeCompare(nameB, 'pt-BR', { sensitivity: 'base' });
       } else {
         const yearA = getYearFromRegistration(a.registration_number) || '0000';
         const yearB = getYearFromRegistration(b.registration_number) || '0000';

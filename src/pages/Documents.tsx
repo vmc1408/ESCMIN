@@ -24,7 +24,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStudentActive, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
+import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStudentActive, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, matchesSearchText } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
@@ -921,10 +921,15 @@ export function Documents() {
 
   // Filtering list
   const filteredCertificates = certificates.filter(cert => {
+    const term = searchQuery.trim();
+    if (!term) return true;
     const studentName = cert.student_name || '';
     const courseName = cert.course || '';
-    const query = searchQuery.toLowerCase();
-    return studentName.toLowerCase().includes(query) || courseName.toLowerCase().includes(query) || cert.verification_code.toLowerCase().includes(query);
+    return (
+      matchesSearchText(studentName, term) || 
+      matchesSearchText(courseName, term) || 
+      matchesSearchText(cert.verification_code, term)
+    );
   });
 
   return (

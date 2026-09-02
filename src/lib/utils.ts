@@ -449,5 +449,179 @@ export function formatRegistrationNumber(reg: string | number | null | undefined
   return clean;
 }
 
+/**
+ * Normalizes a string for search matching by stripping diacritics/accents,
+ * converting to lowercase, and trimming whitespace.
+ * e.g., "João Müller" -> "joao muller", "Conceição" -> "conceicao"
+ */
+export function normalizeSearchString(str: string | null | undefined): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Checks whether a candidate text matches a search query, handling:
+ * 1. Accented vs non-accented characters interchangeably ("João" <-> "joao", "José" <-> "jose")
+ * 2. Case-insensitivity ("MARIA" <-> "maria")
+ * 3. Multi-word search matching (e.g. "joao silva" matches "João Pedro da Silva")
+ * 4. Extra whitespace tolerance
+ */
+export function matchesSearchText(
+  target: string | null | undefined,
+  query: string | null | undefined
+): boolean {
+  if (!query || !query.trim()) return true;
+  if (!target) return false;
+
+  const normTarget = normalizeSearchString(target);
+  const normQuery = normalizeSearchString(query);
+
+  if (!normQuery) return true;
+
+  // Direct substring match first (fastest)
+  if (normTarget.includes(normQuery)) return true;
+
+  // Multi-word search: all query terms must appear in the target string
+  const queryTokens = normQuery.split(/\s+/).filter(Boolean);
+  if (queryTokens.length > 1) {
+    return queryTokens.every(token => normTarget.includes(token));
+  }
+
+  return false;
+}
+
+/**
+ * Specialized helper to check if a student matches a search term across:
+ * - Full name (accent-insensitive, multi-word matching)
+ * - Registration number (both raw continuous and formatted e.g. "002020/2017")
+ * - CPF (digits and formatted)
+ * - Email (if provided)
+ */
+export function matchesStudentSearch(
+  student: {
+    name?: string | null;
+    full_name?: string | null;
+    registration_number?: string | number | null;
+    code?: string | number | null;
+    cpf?: string | null;
+    email?: string | null;
+  } | null | undefined,
+  searchTerm: string | null | undefined
+): boolean {
+  if (!searchTerm || !searchTerm.trim()) return true;
+  if (!student) return false;
+
+  const rawTerm = searchTerm.trim();
+  const normTerm = normalizeSearchString(rawTerm);
+  if (!normTerm) return true;
+
+  // 1. Match student name (accent and case insensitive, with multi-word support)
+  const studentName = student.name || student.full_name || '';
+  if (studentName && matchesSearchText(studentName, normTerm)) {
+    return true;
+  }
+
+  // 2. Match registration number (both raw continuous and formatted e.g. "002020/2017")
+  const regRaw = String(student.registration_number || student.code || '').trim();
+  if (regRaw) {
+    const normReg = normalizeSearchString(regRaw);
+    if (normReg.includes(normTerm)) return true;
+
+    const regFormatted = formatRegistrationNumber(regRaw, '');
+    if (regFormatted && normalizeSearchString(regFormatted).includes(normTerm)) {
+      return true;
+    }
+  }
+
+  // 3. Match CPF (by pure digits or masked string)
+  if (student.cpf) {
+    const rawCpf = String(student.cpf).replace(/\D/g, '');
+    const cleanTermDigits = rawTerm.replace(/\D/g, '');
+    if (cleanTermDigits && rawCpf.includes(cleanTermDigits)) {
+      return true;
+    }
+    if (student.cpf.toLowerCase().includes(rawTerm.toLowerCase())) {
+      return true;
+    }
+  }
+
+  // 4. Match email
+  if (student.email) {
+    if (student.email.toLowerCase().includes(rawTerm.toLowerCase())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculates a search relevance rank for a student (lower number = higher relevance):
+ * 1: Exact name match
+ * 2: Name starts with search query
+ * 3: A word in the name starts with search query (e.g. "Silva" -> "Pedro da Silva")
+ * 4: Exact registration match
+ * 5: Registration starts with query
+ * 6: CPF starts with query digits
+ * 7: Name contains query as substring
+ * 8: Multi-token match across name
+ * 9: Registration or CPF contains query
+ * 10: Other
+ */
+export function calculateStudentSearchRank(
+  student: {
+    name?: string | null;
+    full_name?: string | null;
+    registration_number?: string | number | null;
+    code?: string | number | null;
+    cpf?: string | null;
+  } | null | undefined,
+  searchTerm: string | null | undefined
+): number {
+  if (!searchTerm || !searchTerm.trim() || !student) return 99;
+
+  const normTerm = normalizeSearchString(searchTerm);
+  if (!normTerm) return 99;
+
+  const name = normalizeSearchString(student.name || student.full_name || '');
+  const reg = normalizeSearchString(String(student.registration_number || student.code || ''));
+  const regFormatted = normalizeSearchString(formatRegistrationNumber(student.registration_number || student.code, ''));
+  const cpfDigits = String(student.cpf || '').replace(/\D/g, '');
+  const termDigits = searchTerm.replace(/\D/g, '');
+
+  // Exact name match
+  if (name === normTerm) return 1;
+
+  // Full name starts with search term
+  if (name.startsWith(normTerm)) return 2;
+
+  // A word inside name starts with search term (e.g. "Pedro Silva" -> typing "silva")
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.some(w => w.startsWith(normTerm))) return 3;
+
+  // Registration number match
+  if (reg === normTerm || regFormatted === normTerm) return 4;
+  if (reg.startsWith(normTerm) || regFormatted.startsWith(normTerm)) return 5;
+
+  // CPF match
+  if (termDigits && cpfDigits.startsWith(termDigits)) return 6;
+
+  // Name contains search term anywhere
+  if (name.includes(normTerm)) return 7;
+
+  // Multi-term match
+  const tokens = normTerm.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1 && tokens.every(t => name.includes(t))) return 8;
+
+  // Registration or CPF contains search term
+  if (reg.includes(normTerm) || regFormatted.includes(normTerm) || (termDigits && cpfDigits.includes(termDigits))) return 9;
+
+  return 10;
+}
+
 // Re-export centralized Subject & Class normalizers and helpers
 export * from './classSubjectUtils';

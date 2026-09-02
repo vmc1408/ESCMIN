@@ -16,7 +16,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { Student, Class, Subject, AcademicParameters } from '../types';
-import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails } from '../lib/utils';
+import { cn, filterStudentsForClass, formatRegistrationNumber, normalizeClass, normalizeSubject, getClassSubjects, getSubjectClassDetails, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
 import { fetchAll, fetchQuery, fetchAcademicSettings } from '../lib/database';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
 import { financialService } from '../services/financialService';
@@ -553,11 +553,9 @@ export function Bulletin() {
 
   // General filter for class table
   const filteredReports = useMemo(() => {
-    if (!searchQuery) return studentReports;
-    return studentReports.filter(r => 
-      r.student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (r.student.registration_number && r.student.registration_number.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const term = searchQuery.trim();
+    if (!term) return studentReports;
+    return studentReports.filter(r => matchesStudentSearch(r.student, term));
   }, [searchQuery, studentReports]);
 
   // Dynamic sorting based on classSort
@@ -571,6 +569,12 @@ export function Bulletin() {
       let valB: any = '';
 
       if (key === 'student') {
+        const term = searchQuery.trim();
+        if (term) {
+          const rankA = calculateStudentSearchRank(a.student, term);
+          const rankB = calculateStudentSearchRank(b.student, term);
+          if (rankA !== rankB) return rankA - rankB;
+        }
         valA = a.student.name || '';
         valB = b.student.name || '';
       } else if (key === 'presence') {

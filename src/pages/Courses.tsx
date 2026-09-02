@@ -33,7 +33,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Course, Class, Student, Enrollment } from '../types';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
-import { cn, detectCourseFromClass } from '../lib/utils';
+import { cn, detectCourseFromClass, matchesStudentSearch, matchesSearchText, calculateStudentSearchRank } from '../lib/utils';
 
 const WEEK_DAYS = [
   'Segunda-feira',
@@ -1644,7 +1644,7 @@ export function Courses() {
             <div className="overflow-y-auto flex-1 p-0">
               {(() => {
                 const list = courseStudentsMap.get(viewingStudentsCourse.id) || [];
-                const term = studentSearchTerm.toLowerCase().trim();
+                const term = studentSearchTerm.trim();
                 
                 // Filter by search term and class filter
                 const filtered = list.filter(item => {
@@ -1653,11 +1653,16 @@ export function Courses() {
                   }
                   if (!term) return true;
                   return (
-                    (item.student.name || '').toLowerCase().includes(term) ||
-                    (item.student.registration_number || '').toLowerCase().includes(term) ||
-                    (item.student.cpf || '').toLowerCase().includes(term) ||
-                    (item.className || '').toLowerCase().includes(term)
+                    matchesStudentSearch(item.student, term) ||
+                    matchesSearchText(item.className, term)
                   );
+                }).sort((a, b) => {
+                  if (term) {
+                    const rankA = calculateStudentSearchRank(a.student, term);
+                    const rankB = calculateStudentSearchRank(b.student, term);
+                    if (rankA !== rankB) return rankA - rankB;
+                  }
+                  return (a.student.name || '').localeCompare(b.student.name || '', 'pt-BR', { sensitivity: 'base' });
                 });
 
                 if (filtered.length === 0) {

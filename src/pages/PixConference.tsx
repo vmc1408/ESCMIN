@@ -43,7 +43,7 @@ import fuzzysort from 'fuzzysort';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
-import { cn, safeFormat, parseSafeDate, formatDate, formatDateForDisplay, formatRegistrationNumber } from '../lib/utils';
+import { cn, safeFormat, parseSafeDate, formatDate, formatDateForDisplay, formatRegistrationNumber, matchesStudentSearch, matchesSearchText, calculateStudentSearchRank } from '../lib/utils';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { PageHeader } from '../components/PageHeader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -879,11 +879,11 @@ export function PixConference() {
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
       const student = students.find(s => s.id === t.matched_student_id);
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch = t.payer_name.toLowerCase().includes(searchLower) || 
-                           t.origin_bank?.toLowerCase().includes(searchLower) ||
-                           (student && student.name.toLowerCase().includes(searchLower)) ||
-                           (student && student.registration_number?.toLowerCase().includes(searchLower));
+      const term = searchQuery.trim();
+      const matchesSearch = !term || 
+                           matchesSearchText(t.payer_name, term) || 
+                           matchesSearchText(t.origin_bank, term) ||
+                           (student && matchesStudentSearch(student, term));
       const matchesFilter = filter === 'all' || t.status === filter;
       return matchesSearch && matchesFilter;
     });
@@ -891,17 +891,17 @@ export function PixConference() {
 
   const historyByMonth = useMemo(() => {
     const months: { [key: string]: any[] } = {};
-    const hSearch = historySearchQuery.toLowerCase();
+    const term = historySearchQuery.trim();
     
     history.forEach(batch => {
       // Filter transactions inside the batch based on history search and filter
       const filteredTransactions = batch.transactions.filter((t: any) => {
         const student = t.student;
-        const matchesSearch = t.payer_name.toLowerCase().includes(hSearch) || 
-                             t.origin_bank?.toLowerCase().includes(hSearch) ||
-                             (student && student.name.toLowerCase().includes(hSearch)) ||
-                             (student && student.registration_number?.toLowerCase().includes(hSearch)) ||
-                             batch.file_name.toLowerCase().includes(hSearch);
+        const matchesSearch = !term ||
+                             matchesSearchText(t.payer_name, term) || 
+                             matchesSearchText(t.origin_bank, term) ||
+                             (student && matchesStudentSearch(student, term)) ||
+                             matchesSearchText(batch.file_name, term);
         
         const matchesFilter = historyFilter === 'all' || t.status === historyFilter;
         return matchesSearch && matchesFilter;
@@ -3601,7 +3601,16 @@ export function PixConference() {
 
               <div className="max-h-[380px] overflow-y-auto p-4 space-y-2 bg-slate-50/30 custom-scrollbar">
                 {students
-                  .filter(s => normalize(s.name).includes(normalize(manualSearch)))
+                  .filter(s => !manualSearch.trim() || matchesStudentSearch(s, manualSearch.trim()))
+                  .sort((a, b) => {
+                    const term = manualSearch.trim();
+                    if (term) {
+                      const rankA = calculateStudentSearchRank(a, term);
+                      const rankB = calculateStudentSearchRank(b, term);
+                      if (rankA !== rankB) return rankA - rankB;
+                    }
+                    return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+                  })
                   .slice(0, 15)
                   .map((student, sIdx) => (
                     <button 
@@ -3631,7 +3640,7 @@ export function PixConference() {
                       </div>
                     </button>
                   ))}
-                {manualSearch && students.filter(s => normalize(s.name).includes(normalize(manualSearch))).length === 0 && (
+                {manualSearch.trim() && students.filter(s => matchesStudentSearch(s, manualSearch.trim())).length === 0 && (
                   <div className="py-20 px-10 text-center animate-in fade-in slide-in-from-bottom-2">
                     <div className="w-20 h-20 rounded-3xl bg-slate-50 text-slate-200 flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200">
                       <UserX size={40} />

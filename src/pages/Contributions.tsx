@@ -3,7 +3,7 @@ import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckC
 import { financialService } from '../services/financialService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
 import { Student, Contribution, Class } from '../types';
-import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -316,9 +316,12 @@ export function Contributions() {
     }
   };
 
+  const allStudentsCacheRef = React.useRef<Student[] | null>(null);
+
   const handleSearchStudents = async (val: string) => {
     setSearchTerm(val);
-    if (val.length < 3) {
+    const trimmed = val.trim();
+    if (trimmed.length < 2) {
       setStudents([]);
       return;
     }
@@ -326,22 +329,19 @@ export function Contributions() {
     setIsResultsCollapsed(false);
     setIsSearching(true);
     try {
-      const [nameData, regData] = await Promise.all([
-        fetchQuery('students', [
-          { field: 'name', operator: 'ilike', value: `%${val}%` }
-        ]),
-        fetchQuery('students', [
-          { field: 'registration_number', operator: 'ilike', value: `%${val}%` }
-        ])
-      ]);
+      if (!allStudentsCacheRef.current || allStudentsCacheRef.current.length === 0) {
+        const all = await fetchAll('students');
+        allStudentsCacheRef.current = (all || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
+      }
 
-      const combined = [...(nameData || []), ...(regData || [])];
-      // Filter active status locally (handles implicit active status where status field is omitted/null)
-      const activeCombined = combined.filter((s: any) => (s.status || 'Ativo') === 'Ativo');
-      // Deduplicate by ID
-      const unique = Array.from(new Map(activeCombined.map(item => [item.id, item])).values());
-      // Sort alphabetically by name
-      const sorted = (unique as Student[]).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      const pool = allStudentsCacheRef.current || [];
+      const matched = pool.filter(s => matchesStudentSearch(s, trimmed));
+      const sorted = matched.sort((a, b) => {
+        const rankA = calculateStudentSearchRank(a, trimmed);
+        const rankB = calculateStudentSearchRank(b, trimmed);
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+      });
       setStudents(sorted);
     } catch (error) {
       console.error('Search error:', error);
@@ -394,11 +394,8 @@ export function Contributions() {
         .filter(c => c.student !== null);
 
       if (searchByName.trim()) {
-        const term = searchByName.toLowerCase();
-        data = data.filter(c => 
-          c.student?.name?.toLowerCase().includes(term) || 
-          c.student?.registration_number?.toLowerCase().includes(term)
-        );
+        const term = searchByName.trim();
+        data = data.filter(c => matchesStudentSearch(c.student, term));
       }
 
       setPeriodData(data as any);
@@ -486,11 +483,7 @@ export function Contributions() {
     .filter(item => {
       // Search term filter
       if (!unpaidSearchTerm.trim()) return true;
-      const term = unpaidSearchTerm.toLowerCase();
-      return (
-        item.student.name?.toLowerCase().includes(term) ||
-        item.student.registration_number?.toLowerCase().includes(term)
-      );
+      return matchesStudentSearch(item.student, unpaidSearchTerm.trim());
     })
     .filter(item => {
       // Class filter
