@@ -331,9 +331,27 @@ export const Assessments: React.FC = () => {
 
   // Disciplinas disponíveis para os filtros
   const availableSubjectsForFilter = React.useMemo(() => {
-    const base = filterClass 
-      ? getClassSubjects(classes.find(c => c.id === filterClass), subjects)
-      : subjects;
+    const cls = filterClass ? classes.find(c => c.id === filterClass) : null;
+    const base = cls ? getClassSubjects(cls, subjects) : subjects;
+    
+    if (teacherScope.isTeacherRole && cls) {
+      const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+      const classYear = String(cls.year || cls.name || '');
+      
+      const teacherSubsForThisClass = teacherAllowed.filter(s => {
+        if (base.find(cs => cs.id === s.id)) return true;
+        if (s.year && classYear.includes(String(s.year))) return true;
+        return false;
+      });
+
+      const combined = [...base];
+      teacherSubsForThisClass.forEach(ts => {
+        if (!combined.find(c => c.id === ts.id)) combined.push(ts);
+      });
+
+      return combined.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+    }
+    
     if (teacherScope.isTeacherRole) {
       return base.filter(s => teacherScope.allowedSubjectIds.has(s.id));
     }
@@ -342,9 +360,27 @@ export const Assessments: React.FC = () => {
 
   // Disciplinas disponíveis para o formulário de cadastro/edição
   const availableSubjectsForForm = React.useMemo(() => {
-    const base = formData.class_id
-      ? getClassSubjects(classes.find(c => c.id === formData.class_id), subjects)
-      : subjects;
+    const cls = formData.class_id ? classes.find(c => c.id === formData.class_id) : null;
+    const base = cls ? getClassSubjects(cls, subjects) : subjects;
+
+    if (teacherScope.isTeacherRole && cls) {
+      const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+      const classYear = String(cls.year || cls.name || '');
+      
+      const teacherSubsForThisClass = teacherAllowed.filter(s => {
+        if (base.find(cs => cs.id === s.id)) return true;
+        if (s.year && classYear.includes(String(s.year))) return true;
+        return false;
+      });
+
+      const combined = [...base];
+      teacherSubsForThisClass.forEach(ts => {
+        if (!combined.find(c => c.id === ts.id)) combined.push(ts);
+      });
+
+      return combined.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+    }
+
     if (teacherScope.isTeacherRole) {
       return base.filter(s => teacherScope.allowedSubjectIds.has(s.id));
     }

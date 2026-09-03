@@ -1,5 +1,5 @@
 import { Teacher, Subject, Class, UserProfile, Assessment } from '../types';
-import { normalizeSubject } from './utils';
+import { normalizeSubject, getClassSubjects } from './utils';
 
 export interface TeacherScope {
   isTeacherRole: boolean;
@@ -22,7 +22,7 @@ export function findTeacherForUser(
 
   // 1. Vínculo direto por teacher_id no perfil
   if (profile.teacher_id) {
-    const matched = teachers.find(t => t.id === profile.teacher_id);
+    const matched = teachers.find(t => String(t.id) === String(profile.teacher_id));
     if (matched) return matched;
   }
 
@@ -118,8 +118,28 @@ export function getTeacherScope(
         const parsed = JSON.parse(raw);
         teacherSubIds = Array.isArray(parsed) ? parsed : [parsed];
       } catch {
-        teacherSubIds = raw ? [raw] : [];
+        // Fallback para lista separada por vírgula (ex: "001,012")
+        if (raw.includes(',')) {
+          teacherSubIds = raw.split(',').map(s => s.trim()).filter(Boolean);
+        } else {
+          teacherSubIds = raw ? [raw] : [];
+        }
       }
+    }
+  }
+
+  // Fallback: Checa metadados na observação do professor [SUBJECTS:[...]]
+  if (teacher.observations) {
+    const match = teacher.observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
+    if (match && match[1]) {
+      try {
+        const metaIds = JSON.parse(match[1]);
+        if (Array.isArray(metaIds)) {
+          metaIds.forEach(id => {
+            if (id && !teacherSubIds.includes(id)) teacherSubIds.push(id);
+          });
+        }
+      } catch {}
     }
   }
 
@@ -127,10 +147,57 @@ export function getTeacherScope(
     if (id) allowedSubjectIds.add(id);
   });
 
-  // Também verificar nas disciplinas se teacher_id bate
+  // Também verificar nas disciplinas se teacher_id bate (direto ou via metadados de program_content)
   subjects.forEach(sub => {
-    if (sub.teacher_id === teacher.id) {
+    const subTeacherId = sub.teacher_id;
+    const teacherId = teacher.id;
+    const teacherNameClean = (teacher.name || '').toLowerCase().trim();
+    
+    // 1. Match direto por ID
+    if (subTeacherId === teacherId) {
       allowedSubjectIds.add(sub.id);
+      return;
+    }
+
+    // 2. Match por Nome (caso o teacher_id na disciplina seja o nome do professor)
+    if (subTeacherId && typeof subTeacherId === 'string' && subTeacherId.length > 2) {
+      const cleanSubTeacherId = subTeacherId.toLowerCase().trim();
+      
+      // Helper para remover títulos e comparar
+      const stripTitles = (s: string) => s.toLowerCase()
+        .replace(/^(prof\.|prof|professor|professora|pe\.|pe|padre|dom|mons\.|frei)\s+/gi, '')
+        .trim();
+
+      const s1 = stripTitles(cleanSubTeacherId);
+      const s2 = stripTitles(teacherNameClean);
+
+      if (s1 === s2 || (s1.length > 3 && s2.includes(s1)) || (s2.length > 3 && s1.includes(s2))) {
+        allowedSubjectIds.add(sub.id);
+        return;
+      }
+    }
+
+    // 3. Match via metadados de program_content
+    if (sub.program_content) {
+      try {
+        const match = String(sub.program_content).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+        if (match && match[1]) {
+          const meta = JSON.parse(match[1]);
+          if (meta.teacher_id === teacherId) {
+            allowedSubjectIds.add(sub.id);
+          } else if (meta.teacher_id && typeof meta.teacher_id === 'string') {
+            // Repetir lógica de nome para metadados
+            const stripTitles = (s: string) => s.toLowerCase()
+              .replace(/^(prof\.|prof|professor|professora|pe\.|pe|padre|dom|mons\.|frei)\s+/gi, '')
+              .trim();
+            const s1 = stripTitles(meta.teacher_id);
+            const s2 = stripTitles(teacherNameClean);
+            if (s1 === s2 && s1.length > 2) {
+              allowedSubjectIds.add(sub.id);
+            }
+          }
+        }
+      } catch {}
     }
   });
 
@@ -138,7 +205,7 @@ export function getTeacherScope(
   if (assessments && assessments.length > 0) {
     assessments.forEach(ass => {
       // Se houver algum assessment com o subject do professor
-      if (ass.subject_id && teacherSubIds.includes(ass.subject_id)) {
+      if (ass.subject_id && (teacherSubIds.includes(ass.subject_id) || allowedSubjectIds.has(ass.subject_id))) {
         allowedSubjectIds.add(ass.subject_id);
       }
     });
@@ -148,29 +215,12 @@ export function getTeacherScope(
   const allowedClassIds = new Set<string>();
 
   classes.forEach(cls => {
-    // Coleta todos os IDs de disciplinas associados a essa turma
-    const classSubjectIds: string[] = [];
-    if (Array.isArray(cls.subject_ids)) {
-      classSubjectIds.push(...cls.subject_ids);
-    } else if (typeof cls.subject_ids === 'string') {
-      try {
-        const parsed = JSON.parse(cls.subject_ids);
-        if (Array.isArray(parsed)) classSubjectIds.push(...parsed);
-        else if (parsed) classSubjectIds.push(parsed);
-      } catch {
-        if (cls.subject_ids) classSubjectIds.push(cls.subject_ids);
-      }
-    }
-    if (cls.subject_id) classSubjectIds.push(cls.subject_id);
-    if (cls.subject_id_sem1) classSubjectIds.push(cls.subject_id_sem1);
-    if (cls.subject_id_sem1_h1) classSubjectIds.push(cls.subject_id_sem1_h1);
-    if (cls.subject_id_sem1_h2) classSubjectIds.push(cls.subject_id_sem1_h2);
-    if (cls.subject_id_sem2) classSubjectIds.push(cls.subject_id_sem2);
-    if (cls.subject_id_sem2_h1) classSubjectIds.push(cls.subject_id_sem2_h1);
-    if (cls.subject_id_sem2_h2) classSubjectIds.push(cls.subject_id_sem2_h2);
-
+    // Coleta todas as disciplinas associadas a essa turma (usando a mesma lógica do Dashboard)
+    const classSubjects = getClassSubjects(cls, subjects);
+    
     // Verifica se alguma disciplina da turma pertence ao professor
-    const hasAllowedSubject = classSubjectIds.some(sId => allowedSubjectIds.has(sId));
+    const hasAllowedSubject = classSubjects.some(s => allowedSubjectIds.has(s.id));
+    
     if (hasAllowedSubject) {
       allowedClassIds.add(cls.id);
     }

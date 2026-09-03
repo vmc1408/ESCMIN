@@ -10,7 +10,7 @@ export interface SubjectItemType {
   code?: string;
   name: string;
   status?: string;
-  year?: string;
+  year?: string | number;
   semester?: string;
   workload?: string | number;
   teacher_id?: string;
@@ -275,15 +275,15 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
  */
 export function getSubjectClassDetails(
   subject: SubjectItemType,
-  classItem?: ClassItemType | null
+  classItem?: ClassItemType | ClassItemType[] | null
 ): SubjectClassDetails {
   if (!subject) {
     return {
-      semester: '1º Semestre',
-      semesterNumber: 1,
-      slotNumber: 1,
-      slotLabel: '1º Semestre',
-      sortOrder: 1
+      semester: 'Anual',
+      semesterNumber: 3,
+      slotNumber: 99,
+      slotLabel: 'Anual',
+      sortOrder: 250
     };
   }
 
@@ -291,127 +291,100 @@ export function getSubjectClassDetails(
 
   // 1. Check explicit class slot configuration FIRST (gives class-level authoritative schedule)
   if (classItem) {
-    const s1h1 = classItem.subject_id_sem1_h1;
-    const s1h2 = classItem.subject_id_sem1_h2;
-    const s2h1 = classItem.subject_id_sem2_h1;
-    const s2h2 = classItem.subject_id_sem2_h2;
-    const s1 = classItem.subject_id_sem1;
-    const s2 = classItem.subject_id_sem2;
+    const classList = Array.isArray(classItem) ? classItem : [classItem];
+    for (const c of classList) {
+      if (!c) continue;
+      const s1h1 = c.subject_id_sem1_h1;
+      const s1h2 = c.subject_id_sem1_h2;
+      const s2h1 = c.subject_id_sem2_h1;
+      const s2h2 = c.subject_id_sem2_h2;
+      const s1 = c.subject_id_sem1;
+      const s2 = c.subject_id_sem2;
 
-    if (s1h1 && subId === s1h1) {
-      return {
-        semester: '1º Semestre',
-        semesterNumber: 1,
-        slotNumber: 1,
-        slotLabel: '1º Horário (1º Semestre)',
-        sortOrder: 1
-      };
-    }
-    if (s1h2 && subId === s1h2) {
-      return {
-        semester: '1º Semestre',
-        semesterNumber: 1,
-        slotNumber: 2,
-        slotLabel: '2º Horário (1º Semestre)',
-        sortOrder: 2
-      };
-    }
-    if (s2h1 && subId === s2h1) {
-      return {
-        semester: '2º Semestre',
-        semesterNumber: 2,
-        slotNumber: 3,
-        slotLabel: '1º Horário (2º Semestre)',
-        sortOrder: 101
-      };
-    }
-    if (s2h2 && subId === s2h2) {
-      return {
-        semester: '2º Semestre',
-        semesterNumber: 2,
-        slotNumber: 4,
-        slotLabel: '2º Horário (2º Semestre)',
-        sortOrder: 102
-      };
-    }
-    if (s1 && subId === s1) {
-      return {
-        semester: '1º Semestre',
-        semesterNumber: 1,
-        slotNumber: 1,
-        slotLabel: '1º Semestre',
-        sortOrder: 3
-      };
-    }
-    if (s2 && subId === s2) {
-      return {
-        semester: '2º Semestre',
-        semesterNumber: 2,
-        slotNumber: 3,
-        slotLabel: '2º Semestre',
-        sortOrder: 103
-      };
-    }
+      if (s1h1 && subId === s1h1) {
+        return {
+          semester: '1º Semestre',
+          semesterNumber: 1,
+          slotNumber: 1,
+          slotLabel: '1º Horário (1º Semestre)',
+          sortOrder: 1
+        };
+      }
+      if (s1h2 && subId === s1h2) {
+        return {
+          semester: '1º Semestre',
+          semesterNumber: 1,
+          slotNumber: 2,
+          slotLabel: '2º Horário (1º Semestre)',
+          sortOrder: 2
+        };
+      }
+      if (s2h1 && subId === s2h1) {
+        return {
+          semester: '2º Semestre',
+          semesterNumber: 2,
+          slotNumber: 3,
+          slotLabel: '1º Horário (2º Semestre)',
+          sortOrder: 101
+        };
+      }
+      if (s2h2 && subId === s2h2) {
+        return {
+          semester: '2º Semestre',
+          semesterNumber: 2,
+          slotNumber: 4,
+          slotLabel: '2º Horário (2º Semestre)',
+          sortOrder: 102
+        };
+      }
+      if (s1 && subId === s1) {
+        return {
+          semester: '1º Semestre',
+          semesterNumber: 1,
+          slotNumber: 1,
+          slotLabel: '1º Semestre',
+          sortOrder: 3
+        };
+      }
+      if (s2 && subId === s2) {
+        return {
+          semester: '2º Semestre',
+          semesterNumber: 2,
+          slotNumber: 3,
+          slotLabel: '2º Semestre',
+          sortOrder: 103
+        };
+      }
 
-    // Check observations metadata in class
-    if (classItem.observations) {
-      try {
-        const match = String(classItem.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
-        if (match && match[1]) {
-          const meta = JSON.parse(match[1]);
-          if (meta.subject_id_sem1_h1 === subId) {
-            return { semester: '1º Semestre', semesterNumber: 1, slotNumber: 1, slotLabel: '1º Horário (1º Semestre)', sortOrder: 1 };
+      // Check observations metadata in class
+      if (c.observations) {
+        try {
+          const match = String(c.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+          if (match && match[1]) {
+            const meta = JSON.parse(match[1]);
+            if (meta.subject_id_sem1_h1 === subId) {
+              return { semester: '1º Semestre', semesterNumber: 1, slotNumber: 1, slotLabel: '1º Horário (1º Semestre)', sortOrder: 1 };
+            }
+            if (meta.subject_id_sem1_h2 === subId) {
+              return { semester: '1º Semestre', semesterNumber: 1, slotNumber: 2, slotLabel: '2º Horário (1º Semestre)', sortOrder: 2 };
+            }
+            if (meta.subject_id_sem2_h1 === subId) {
+              return { semester: '2º Semestre', semesterNumber: 2, slotNumber: 3, slotLabel: '1º Horário (2º Semestre)', sortOrder: 101 };
+            }
+            if (meta.subject_id_sem2_h2 === subId) {
+              return { semester: '2º Semestre', semesterNumber: 2, slotNumber: 4, slotLabel: '2º Horário (2º Semestre)', sortOrder: 102 };
+            }
           }
-          if (meta.subject_id_sem1_h2 === subId) {
-            return { semester: '1º Semestre', semesterNumber: 1, slotNumber: 2, slotLabel: '2º Horário (1º Semestre)', sortOrder: 2 };
-          }
-          if (meta.subject_id_sem2_h1 === subId) {
-            return { semester: '2º Semestre', semesterNumber: 2, slotNumber: 3, slotLabel: '1º Horário (2º Semestre)', sortOrder: 101 };
-          }
-          if (meta.subject_id_sem2_h2 === subId) {
-            return { semester: '2º Semestre', semesterNumber: 2, slotNumber: 4, slotLabel: '2º Horário (2º Semestre)', sortOrder: 102 };
-          }
-        }
-      } catch {}
-    }
+        } catch {}
+      }
 
-    // If subject is in classItem.subject_ids list
-    if (Array.isArray(classItem.subject_ids)) {
-      const idx = classItem.subject_ids.indexOf(subId);
-      if (idx >= 0) {
-        const sem = (subject.semester || '').toLowerCase();
-        const name = (subject.name || '').toLowerCase();
-        if (sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem')) {
-          return {
-            semester: '1º Semestre',
-            semesterNumber: 1,
-            slotNumber: 10 + idx,
-            slotLabel: '1º Semestre',
-            sortOrder: 10 + idx
-          };
-        }
-        if (sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem')) {
-          return {
-            semester: '2º Semestre',
-            semesterNumber: 2,
-            slotNumber: 20 + idx,
-            slotLabel: '2º Semestre',
-            sortOrder: 110 + idx
-          };
-        }
-        // If class itself is strictly 1º Semestre or 2º Semestre
-        if (classItem.semester) {
-          const clsSemLower = String(classItem.semester).toLowerCase();
-          if (clsSemLower.includes('2') && !clsSemLower.includes('1')) {
-            return {
-              semester: '2º Semestre',
-              semesterNumber: 2,
-              slotNumber: 20 + idx,
-              slotLabel: '2º Semestre',
-              sortOrder: 110 + idx
-            };
-          }
-          if (clsSemLower.includes('1') && !clsSemLower.includes('2')) {
+      // If subject is in c.subject_ids list
+      if (Array.isArray(c.subject_ids)) {
+        const idx = c.subject_ids.indexOf(subId);
+        if (idx >= 0) {
+          const sem = (subject.semester || '').toLowerCase();
+          const name = (subject.name || '').toLowerCase();
+          if (sem.includes('1') || name.includes('1º') || name.includes('1°') || name.includes('1 sem')) {
             return {
               semester: '1º Semestre',
               semesterNumber: 1,
@@ -420,9 +393,7 @@ export function getSubjectClassDetails(
               sortOrder: 10 + idx
             };
           }
-        }
-        if (classItem.subject_id_sem2_h1 || classItem.subject_id_sem2_h2 || classItem.subject_id_sem2) {
-          if (!classItem.subject_id_sem1_h1 && !classItem.subject_id_sem1_h2 && !classItem.subject_id_sem1) {
+          if (sem.includes('2') || name.includes('2º') || name.includes('2°') || name.includes('2 sem')) {
             return {
               semester: '2º Semestre',
               semesterNumber: 2,
@@ -431,14 +402,40 @@ export function getSubjectClassDetails(
               sortOrder: 110 + idx
             };
           }
+          // If class itself is strictly 1º Semestre or 2º Semestre
+          if (c.semester) {
+            const clsSemLower = String(c.semester).toLowerCase();
+            if (clsSemLower.includes('2') && !clsSemLower.includes('1')) {
+              return {
+                semester: '2º Semestre',
+                semesterNumber: 2,
+                slotNumber: 20 + idx,
+                slotLabel: '2º Semestre',
+                sortOrder: 110 + idx
+              };
+            }
+            if (clsSemLower.includes('1') && !clsSemLower.includes('2')) {
+              return {
+                semester: '1º Semestre',
+                semesterNumber: 1,
+                slotNumber: 10 + idx,
+                slotLabel: '1º Semestre',
+                sortOrder: 10 + idx
+              };
+            }
+          }
+          if (c.subject_id_sem2_h1 || c.subject_id_sem2_h2 || c.subject_id_sem2) {
+            if (!c.subject_id_sem1_h1 && !c.subject_id_sem1_h2 && !c.subject_id_sem1) {
+              return {
+                semester: '2º Semestre',
+                semesterNumber: 2,
+                slotNumber: 20 + idx,
+                slotLabel: '2º Semestre',
+                sortOrder: 110 + idx
+              };
+            }
+          }
         }
-        return {
-          semester: '1º Semestre',
-          semesterNumber: 1,
-          slotNumber: 10 + idx,
-          slotLabel: '1º Semestre',
-          sortOrder: 10 + idx
-        };
       }
     }
   }
@@ -515,13 +512,13 @@ export function getSubjectClassDetails(
     };
   }
 
-  // Default fallback: 1º Semestre
+  // Default fallback: Anual / Geral
   return {
-    semester: '1º Semestre',
-    semesterNumber: 1,
-    slotNumber: 80,
-    slotLabel: '1º Semestre',
-    sortOrder: 80
+    semester: 'Anual',
+    semesterNumber: 3,
+    slotNumber: 99,
+    slotLabel: 'Anual / Geral',
+    sortOrder: 250
   };
 }
 
@@ -556,11 +553,30 @@ export function getClassSubjects(
   });
 
   // Add from subject_ids
+  let classSubIds: string[] = [];
   if (Array.isArray(classItem.subject_ids)) {
-    classItem.subject_ids.forEach(id => {
-      if (id) sIds.add(id);
-    });
+    classSubIds = classItem.subject_ids;
+  } else if (typeof classItem.subject_ids === 'string') {
+    const raw = classItem.subject_ids;
+    if (raw.startsWith('{')) {
+      classSubIds = raw.replace(/[{}]/g, '').split(',').filter(Boolean);
+    } else {
+      try {
+        const parsed = JSON.parse(raw);
+        classSubIds = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        if (raw.includes(',')) {
+          classSubIds = raw.split(',').map(s => s.trim()).filter(Boolean);
+        } else {
+          classSubIds = raw ? [raw] : [];
+        }
+      }
+    }
   }
+  
+  classSubIds.forEach(id => {
+    if (id) sIds.add(id);
+  });
 
   // Add from observations metadata
   if (classItem.observations) {
@@ -599,7 +615,17 @@ export function getClassSubjects(
     });
   }
 
-  const matchedSubjects = allSubjects.filter(sub => sIds.has(sub.id));
+  const matchedSubjects = allSubjects.filter(sub => {
+    // 1. Explicit ID match (slots or subject_ids array)
+    if (sIds.has(sub.id)) return true;
+    
+    // 2. Heuristic: Subject year matches Class name or year
+    if (sub.year && (classItem.year === sub.year || (classItem.name && String(classItem.name).includes(String(sub.year))))) {
+      return true;
+    }
+    
+    return false;
+  });
 
   // Sort strictly by semester and slot
   matchedSubjects.sort((a, b) => {

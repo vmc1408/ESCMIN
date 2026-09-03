@@ -188,30 +188,79 @@ export function getScheduledDaysByMonth(classSchoolDays: any[]): Record<number, 
 export function detectSubjectSemester(subject: any, classObj?: any): '1º Semestre' | '2º Semestre' | 'Anual' {
   if (!subject && !classObj) return 'Anual';
 
-  const subId = subject?.id || subject;
+  const subId = subject?.id || (typeof subject === 'string' ? subject : null);
   
   // 1. Check direct subject semester property
   const rawSem = String(subject?.semester || '').trim().toLowerCase();
-  if (rawSem.includes('1') || rawSem.includes('1º') || rawSem.includes('1o') || rawSem.includes('primeiro')) {
+  if (rawSem.includes('1') || rawSem.includes('1º') || rawSem.includes('1°') || rawSem.includes('1o') || rawSem.includes('primeiro')) {
     return '1º Semestre';
   }
-  if (rawSem.includes('2') || rawSem.includes('2º') || rawSem.includes('2o') || rawSem.includes('segundo')) {
+  if (rawSem.includes('2') || rawSem.includes('2º') || rawSem.includes('2°') || rawSem.includes('2o') || rawSem.includes('segundo')) {
     return '2º Semestre';
   }
 
-  // 2. Check class assignment fields if classObj is provided
+  // 2. Check program_content metadata if present on subject
+  if (subject?.program_content) {
+    try {
+      const match = String(subject.program_content).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+      if (match && match[1]) {
+        const meta = JSON.parse(match[1]);
+        const mSem = String(meta.semester || '').trim().toLowerCase();
+        if (mSem.includes('1') || mSem.includes('1º') || mSem.includes('1°') || mSem.includes('1o') || mSem.includes('primeiro')) {
+          return '1º Semestre';
+        }
+        if (mSem.includes('2') || mSem.includes('2º') || mSem.includes('2°') || mSem.includes('2o') || mSem.includes('segundo')) {
+          return '2º Semestre';
+        }
+        if (mSem.includes('anual') || mSem.includes('ambos')) {
+          return 'Anual';
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Check class assignment fields if classObj is provided (supports single class or array of classes)
   if (classObj && subId) {
-    const sem1Fields = [classObj.subject_id_sem1, classObj.subject_id_sem1_h1, classObj.subject_id_sem1_h2];
-    if (sem1Fields.some(id => String(id) === String(subId))) {
-      return '1º Semestre';
-    }
-    const sem2Fields = [classObj.subject_id_sem2, classObj.subject_id_sem2_h1, classObj.subject_id_sem2_h2];
-    if (sem2Fields.some(id => String(id) === String(subId))) {
-      return '2º Semestre';
+    const classList = Array.isArray(classObj) ? classObj : [classObj];
+    for (const c of classList) {
+      if (!c) continue;
+      const sem1Fields: string[] = [c.subject_id_sem1, c.subject_id_sem1_h1, c.subject_id_sem1_h2].filter(Boolean);
+      const sem2Fields: string[] = [c.subject_id_sem2, c.subject_id_sem2_h1, c.subject_id_sem2_h2].filter(Boolean);
+
+      if (c.observations) {
+        try {
+          const match = String(c.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+          if (match && match[1]) {
+            const meta = JSON.parse(match[1]);
+            if (meta.subject_id_sem1_h1) sem1Fields.push(meta.subject_id_sem1_h1);
+            if (meta.subject_id_sem1_h2) sem1Fields.push(meta.subject_id_sem1_h2);
+            if (meta.subject_id_sem1) sem1Fields.push(meta.subject_id_sem1);
+            if (meta.subject_id_sem2_h1) sem2Fields.push(meta.subject_id_sem2_h1);
+            if (meta.subject_id_sem2_h2) sem2Fields.push(meta.subject_id_sem2_h2);
+            if (meta.subject_id_sem2) sem2Fields.push(meta.subject_id_sem2);
+          }
+        } catch {}
+      }
+
+      if (sem1Fields.some(id => String(id) === String(subId))) {
+        return '1º Semestre';
+      }
+      if (sem2Fields.some(id => String(id) === String(subId))) {
+        return '2º Semestre';
+      }
     }
   }
 
-  if (rawSem.includes('anual') || rawSem.includes('ano')) {
+  // 4. Name and code regex heuristics
+  const str = `${subject?.code || ''} ${subject?.name || ''}`.toLowerCase();
+  if (/\b(1º|1°|1o|1s|semestre 1|1º sem|1 sem|1ºsem|sem 1|1º semestre)\b/i.test(str)) {
+    return '1º Semestre';
+  }
+  if (/\b(2º|2°|2o|2s|semestre 2|2º sem|2 sem|2ºsem|sem 2|2º semestre)\b/i.test(str)) {
+    return '2º Semestre';
+  }
+
+  if (rawSem.includes('anual') || rawSem.includes('ano') || rawSem.includes('ambos')) {
     return 'Anual';
   }
 

@@ -271,11 +271,27 @@ export function Grades() {
     const cls = classes.find(c => c.id === selectedClass);
     if (!cls) return [];
     const subs = getClassSubjects(cls, subjects, assessments, dbGrades);
-    const baseList = subs.length > 0 ? subs : subjects;
+    
+    // Se for perfil de professor, garante que todas as disciplinas atribuídas a ele na escala sejam mostradas se pertencerem ao mesmo "Ano/Série" da turma
     if (teacherScope.isTeacherRole) {
-      return baseList.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+      const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+      const classYear = String(cls.year || cls.name || '');
+      
+      const teacherSubsForThisClass = teacherAllowed.filter(s => {
+        if (subs.find(cs => cs.id === s.id)) return true;
+        if (s.year && classYear.includes(String(s.year))) return true;
+        return false;
+      });
+
+      const combined = [...subs];
+      teacherSubsForThisClass.forEach(ts => {
+        if (!combined.find(c => c.id === ts.id)) combined.push(ts);
+      });
+
+      return combined.filter(s => teacherScope.allowedSubjectIds.has(s.id));
     }
-    return baseList;
+
+    return subs.length > 0 ? subs : subjects;
   }, [selectedClass, classes, subjects, assessments, dbGrades, teacherScope]);
 
   // Se o professor tiver apenas 1 disciplina disponível para a turma, pré-seleciona automaticamente

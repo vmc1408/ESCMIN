@@ -20,6 +20,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from '../lib/utils';
+import { detectSubjectSemester } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
@@ -497,7 +498,16 @@ export function Subjects() {
         s.code.includes(searchTerm);
       
       const matchesStatus = !statusFilter || statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
-      const matchesSemester = semesterFilter === 'Todos' || (s.semester && s.semester === semesterFilter);
+      
+      let matchesSemester = semesterFilter === 'Todos';
+      if (!matchesSemester) {
+        const detected = detectSubjectSemester(s);
+        if (semesterFilter === '1º Sem.' && detected === '1º Semestre') matchesSemester = true;
+        else if (semesterFilter === '2º Sem.' && detected === '2º Semestre') matchesSemester = true;
+        else if (semesterFilter === 'Anual' && detected === 'Anual') matchesSemester = true;
+        // Fallback for strict database matching if heuristics fail
+        else if (s.semester === semesterFilter) matchesSemester = true;
+      }
       
       return matchesSearch && matchesStatus && matchesSemester;
     });
@@ -607,6 +617,7 @@ export function Subjects() {
                 <option value="Todos">Todos Semestres</option>
                 <option value="1º Sem.">1º Semestre</option>
                 <option value="2º Sem.">2º Semestre</option>
+                <option value="Anual">Anual / Geral</option>
               </select>
             </div>
 
@@ -874,7 +885,7 @@ export function Subjects() {
                       <div className="col-span-12 md:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Semestre</label>
                         <div className="flex bg-slate-50 p-1 rounded-none gap-1">
-                          {['1º Sem.', '2º Sem.'].map((sem) => (
+                          {['1º Sem.', '2º Sem.', 'Anual'].map((sem) => (
                             <button
                               key={sem}
                               type="button"

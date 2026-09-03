@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, formatSubjectDisplayName, filterStudentsForClass, formatRegistrationNumber } from '../lib/utils';
 import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemester, getSemesterDateRange, filterSchoolDaysForSubject } from '../lib/academicUtils';
+import { getClassSubjects } from '../lib/classSubjectUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { getTeacherScope } from '../lib/teacherScope';
@@ -52,6 +53,7 @@ interface Class {
   name: string;
   code: string;
   room?: string;
+  year?: string;
   semester?: string;
   subject_ids?: string[];
   subject_id_sem1?: string;
@@ -392,20 +394,37 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     const cls = classes.find(c => c.id === selectedClass);
     if (!cls) return [];
     
-    // Disciplinas associadas a esta turma
-    let classSubjects: Subject[] = [];
-    if (!cls.subject_ids || cls.subject_ids.length === 0) {
-      classSubjects = subjects;
-    } else {
-      classSubjects = subjects.filter(s => cls.subject_ids?.includes(s.id));
-    }
+    // Disciplinas associadas a esta turma em ambos os semestres (1º e 2º Semestres)
+    const classSubjects = getClassSubjects(cls, subjects);
+    const baseList = classSubjects.length > 0
+      ? classSubjects
+      : (cls.subject_ids && cls.subject_ids.length > 0 ? subjects.filter(s => cls.subject_ids?.includes(s.id)) : subjects);
 
-    // Se for perfil de professor, filtra estritamente pelas disciplinas atribuídas a ele
+    // Se for perfil de professor, garante que todas as disciplinas atribuídas a ele na escala sejam mostradas se pertencerem ao mesmo "Ano/Série" da turma
     if (teacherScope.isTeacherRole) {
-      return classSubjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+      const teacherAllowed = subjects.filter(s => teacherScope.allowedSubjectIds.has(s.id));
+      const classYear = String(cls.year || cls.name || '');
+      
+      const teacherSubsForThisClass = teacherAllowed.filter(s => {
+        // Já está explicitamente na turma (via slots ou heurística do getClassSubjects)
+        if (classSubjects.find(cs => cs.id === s.id)) return true;
+        
+        // Ou o ano da disciplina bate com o ano/nome da turma
+        if (s.year && classYear.includes(String(s.year))) return true;
+        
+        return false;
+      });
+
+      // Combina a lista da turma com a do professor
+      const combined = [...classSubjects];
+      teacherSubsForThisClass.forEach(ts => {
+        if (!combined.find(c => c.id === ts.id)) combined.push(ts);
+      });
+
+      return combined.filter(s => teacherScope.allowedSubjectIds.has(s.id));
     }
 
-    return classSubjects;
+    return baseList;
   }, [selectedClass, classes, subjects, teacherScope]);
 
   // Se o professor tiver apenas 1 disciplina disponível para a turma, pré-seleciona automaticamente

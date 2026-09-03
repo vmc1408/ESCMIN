@@ -1791,10 +1791,17 @@ export function Dashboard() {
                 const classSubjects = getClassSubjects(c, subjects);
                 const sem1Subs = classSubjects.filter(s => getSubjectClassDetails(s, c).semesterNumber === 1);
                 const sem2Subs = classSubjects.filter(s => getSubjectClassDetails(s, c).semesterNumber === 2);
-                const activeSubs = activeSemesterNum === 1
-                  ? (sem1Subs.length > 0 ? sem1Subs : (sem2Subs.length === 0 ? classSubjects : []))
-                  : (sem2Subs.length > 0 ? sem2Subs : (sem1Subs.length === 0 ? classSubjects : []));
-
+                const annualSubs = classSubjects.filter(s => {
+                  const details = getSubjectClassDetails(s, c);
+                  return details.semesterNumber !== 1 && details.semesterNumber !== 2;
+                });
+                
+                // Grouping subjects for display with clear semester distinction
+                const groupedBySem = [
+                  { label: '1º SEM', subs: sem1Subs, color: 'text-blue-700 bg-blue-50 border-blue-200' },
+                  { label: '2º SEM', subs: sem2Subs, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+                  { label: 'ANUAL', subs: annualSubs, color: 'text-slate-600 bg-slate-100 border-slate-200' }
+                ].filter(group => group.subs.length > 0);
 
                 return (
                   <motion.div 
@@ -1831,36 +1838,40 @@ export function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Informações das Matérias Apenas do Semestre Ativo */}
+                      {/* Informações das Matérias Agrupadas por Semestre */}
                       {!c.unallocated && showDisciplines && (
                         <div className="my-1.5 py-1 px-1.5 bg-slate-50/90 border border-slate-100/90 rounded text-[9.5px] leading-tight overflow-hidden">
-                          <div className="flex items-start gap-1.5 min-w-0">
-                            <span className={cn(
-                              "font-bold text-[7.5px] px-1 py-0.5 rounded shrink-0 border uppercase tracking-tight mt-0.5",
-                              activeSemesterNum === 1 
-                                ? "text-blue-700 bg-blue-50 border-blue-100" 
-                                : "text-emerald-700 bg-emerald-50 border-emerald-100"
-                            )}>
-                              {activeSemesterNum}º Sem
-                            </span>
-                            <div className="min-w-0 flex-1 space-y-0.5">
-                              {activeSubs.length > 0 ? (
-                                activeSubs.map((s, sIdx) => {
-                                  const t = getSubjectTeacher(s as Subject);
-                                  return (
-                                    <div key={`dash-s-${s.id || s.code || sIdx}-${sIdx}`} className="min-w-0 leading-tight py-0.5">
-                                      <p className="text-[9px] font-bold text-slate-800 truncate">{s.name}</p>
-                                      <p className="text-[8px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
-                                    </div>
-                                  );
-                                })
-                              ) : (
-                                <p className="text-[8.5px] text-slate-400 italic py-0.5">
-                                  {classSubjects.length > 0 ? `Sem matérias no ${activeSemesterNum}º Sem` : 'Sem matérias vinculadas'}
-                                </p>
-                              )}
+                          {groupedBySem.length > 0 ? (
+                            <div className="space-y-2">
+                              {groupedBySem.map((group, gIdx) => (
+                                <div key={gIdx} className="flex items-start gap-1.5 min-w-0">
+                                  <span className={cn(
+                                    "font-bold text-[7.5px] px-1 py-0.5 rounded shrink-0 border uppercase tracking-tight mt-0.5",
+                                    group.color
+                                  )}>
+                                    {group.label}
+                                  </span>
+                                  <div className="min-w-0 flex-1 space-y-0.5">
+                                    {group.subs.map((s, sIdx) => {
+                                      const t = getSubjectTeacher(s as Subject);
+                                      return (
+                                        <div key={`dash-s-${s.id || s.code || sIdx}-${sIdx}`} className="min-w-0 leading-tight py-0.5">
+                                          <p className="text-[9px] font-bold text-slate-800 truncate">{s.name}</p>
+                                          <p className="text-[8px] text-slate-500 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          </div>
+                          ) : (
+                            <p className="text-[8.5px] text-slate-400 italic py-0.5 px-1">
+                              {classSubjects.length > 0 
+                                ? 'Matérias em análise / sem divisão semestral' 
+                                : 'Sem matérias vinculadas'}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

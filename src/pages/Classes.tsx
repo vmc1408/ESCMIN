@@ -42,6 +42,7 @@ import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
+import { detectSubjectSemester } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { Course } from '../types';
@@ -759,23 +760,11 @@ export function Classes() {
       const isCursoExtraClass = formData.year === 'Curso Extra';
       const matchesYear = isCursoExtraClass || !formData.year || !s.year || s.year === formData.year;
 
-      const semField = (s.semester || '').toLowerCase();
-      const nameField = (s.name || '').toLowerCase();
-      const textToTest = `${semField} ${nameField}`;
-
+      const semType = detectSubjectSemester(s);
       let matchesSem = true;
 
-      const has1 = textToTest.includes('1º') || textToTest.includes('1°') || textToTest.includes('1º sem') || textToTest.includes('1 sem') || textToTest.includes('1º semestre') || semField === '1';
-      const has2 = textToTest.includes('2º') || textToTest.includes('2°') || textToTest.includes('2º sem') || textToTest.includes('2 sem') || textToTest.includes('2º semestre') || semField === '2';
-      const isBoth = semField.includes('ambos') || semField.includes('anual') || nameField.includes('ambos') || nameField.includes('anual');
-
-      if (!isBoth) {
-        if (semesterNum === 1) {
-          if (has2 && !has1) matchesSem = false;
-        } else if (semesterNum === 2) {
-          if (has1 && !has2) matchesSem = false;
-        }
-      }
+      if (semType === '1º Semestre' && semesterNum === 2) matchesSem = false;
+      if (semType === '2º Semestre' && semesterNum === 1) matchesSem = false;
 
       const isActiveOrSelected = s.status === 'Ativo' || (formData.subject_ids || []).includes(s.id) || s.id === currentSlotValue;
       return matchesYear && matchesSem && isActiveOrSelected;
