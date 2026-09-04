@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle, ShieldCheck, Clock, Lock, Unlock } from 'lucide-react';
-import { getInstitutionSettings } from '../lib/database';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle, ShieldCheck, Clock, Lock, Unlock, Calendar, Repeat } from 'lucide-react';
+import { getInstitutionSettings, fetchAcademicSettings } from '../lib/database';
+import { getAllAcademicSchedulePeriods, formatDateBR } from '../lib/academicUtils';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, isDbConnected, testConnection } from '../lib/supabase';
@@ -11,6 +12,15 @@ export function Navbar() {
   const { profile, logout, lockTimer, lock, isLocked, isLockEnabled } = useAuth();
   const location = useLocation();
   const [institution, setInstitution] = useState<any>(null);
+  const [acadSettings, setAcadSettings] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem('academic_settings_current') || localStorage.getItem('academic_settings');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [avatarError, setAvatarError] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'disconnected' | 'checking'>(
@@ -29,6 +39,15 @@ export function Navbar() {
     }
   };
 
+  const fetchAcad = async () => {
+    try {
+      const settings = await fetchAcademicSettings();
+      if (settings) {
+        setAcadSettings(settings);
+      }
+    } catch (e) {}
+  };
+
   const handleRetry = async () => {
     if (isRetrying || !isSupabaseConfigured) return;
     setIsRetrying(true);
@@ -39,20 +58,65 @@ export function Navbar() {
 
   useEffect(() => {
     fetchInstitution();
+    fetchAcad();
 
     const handleStatusChange = (e: any) => {
       setDbStatus(e.detail.connected ? 'connected' : 'error');
       setLatency(e.detail.latency);
     };
 
+    const handleSettingsUpdate = () => {
+      try {
+        const stored = localStorage.getItem('academic_settings_current');
+        if (stored) setAcadSettings(JSON.parse(stored));
+      } catch (e) {}
+      fetchAcad();
+    };
+
     window.addEventListener('institution-updated', fetchInstitution);
+    window.addEventListener('academic-settings-updated', handleSettingsUpdate);
     window.addEventListener('supabase-status-change', handleStatusChange);
     
     return () => {
       window.removeEventListener('institution-updated', fetchInstitution);
+      window.removeEventListener('academic-settings-updated', handleSettingsUpdate);
       window.removeEventListener('supabase-status-change', handleStatusChange);
     };
   }, []);
+
+  // Cronograma letivo
+  const periods = useMemo(() => getAllAcademicSchedulePeriods(acadSettings), [acadSettings]);
+  const [activePeriodIndex, setActivePeriodIndex] = useState(0);
+  const [isPeriodPaused, setIsPeriodPaused] = useState(false);
+
+  useEffect(() => {
+    if (periods.length <= 1 || isPeriodPaused) return;
+    const interval = setInterval(() => {
+      setActivePeriodIndex((prev) => (prev + 1) % periods.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [periods.length, isPeriodPaused]);
+
+  const currentPeriod = periods[activePeriodIndex % Math.max(1, periods.length)] || {
+    label: 'Geral',
+    t1Start: '',
+    t1End: '',
+    t2Start: '',
+    t2End: ''
+  };
+
+  const formatPeriodDisplay = (startStr: string, endStr: string) => {
+    if (startStr && endStr) {
+      return (
+        <>
+          {formatDateBR(startStr)} <span className="text-slate-400 font-normal mx-0.5">até</span> {formatDateBR(endStr)}
+        </>
+      );
+    }
+    if (startStr) return <>A partir de {formatDateBR(startStr)}</>;
+    if (endStr) return <>Até {formatDateBR(endStr)}</>;
+    return <span className="text-slate-400 font-medium italic">A definir</span>;
+  };
 
   const hasPlayedAlarm = useRef(false);
 
@@ -116,17 +180,13 @@ export function Navbar() {
   return (
     <>
       <header className="h-16 bg-white border-b border-slate-200 z-30 print:hidden shrink-0">
-        <div className="h-full max-w-[1440px] w-full mx-auto px-4 md:px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="h-full max-w-[1440px] w-full mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 md:gap-4">
+          {/* Lado Esquerdo: Logo e Instituição (Sem efeito de link) */}
+          <div className="flex items-center gap-3 min-w-0 shrink-0">
             <div className="lg:hidden w-8" />
-          
-          <div className="flex items-center gap-3 min-w-0">
-            <Link 
-              to="/" 
-              className="flex items-center gap-3 min-w-0 group cursor-pointer transition-opacity hover:opacity-90"
-              title="Ir para a Página Principal"
-            >
-              <div className="flex-shrink-0 w-12 h-12 md:w-13 md:h-13 flex items-center justify-center bg-transparent transition-transform duration-200 group-hover:scale-105">
+            
+            <div className="flex items-center gap-3 select-none">
+              <div className="flex-shrink-0 w-11 h-11 md:w-12 md:h-12 flex items-center justify-center bg-transparent">
                 {institution?.logo_url ? (
                   <img 
                     src={institution.logo_url} 
@@ -136,14 +196,14 @@ export function Navbar() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-blue-600">
-                    <Database size={26} />
+                    <Database size={24} />
                   </div>
                 )}
               </div>
               
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm md:text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors truncate tracking-tight leading-tight">
+                  <h2 className="text-sm md:text-base font-bold text-slate-900 truncate tracking-tight leading-tight">
                     {institution?.name || 'Gestão Escolar'}
                   </h2>
                 </div>
@@ -153,13 +213,13 @@ export function Navbar() {
                   </p>
                 )}
               </div>
-            </Link>
+            </div>
 
             <button 
               onClick={handleRetry}
               disabled={isRetrying || dbStatus === 'connected'}
               className={cn(
-                "hidden xs:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all uppercase tracking-widest ml-0.5",
+                "hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all uppercase tracking-widest ml-1 shrink-0",
                 dbStatus === 'connected' ? "bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-default" :
                 dbStatus === 'error' ? "bg-red-50 text-red-700 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer shadow-sm" :
                 dbStatus === 'checking' ? "bg-amber-50 text-amber-700 border border-amber-100 animate-pulse cursor-wait" :
@@ -180,9 +240,94 @@ export function Navbar() {
               </span>
             </button>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 md:gap-5">
+          {/* Centro: Informações do Cronograma no Cabeçalho */}
+          {periods.length > 0 && (
+            <div 
+              className="hidden lg:flex items-center gap-2 xl:gap-3 py-1 px-1 min-w-0"
+              onMouseEnter={() => setIsPeriodPaused(true)}
+              onMouseLeave={() => setIsPeriodPaused(false)}
+            >
+              {periods.length > 1 && (
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 shrink-0">
+                  <span className="flex items-center gap-1 text-[8.5px] font-bold uppercase text-slate-500 tracking-wider px-1.5 py-0.5">
+                    <Repeat size={10} className="text-slate-400" />
+                    <span className="hidden xl:inline">Cronogramas:</span>
+                  </span>
+                  {periods.map((p, idx) => {
+                    const isActive = idx === (activePeriodIndex % periods.length);
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setActivePeriodIndex(idx);
+                          setIsPeriodPaused(true);
+                        }}
+                        className={cn(
+                          "px-2 py-0.5 rounded text-[9.5px] font-bold tracking-wide transition-all cursor-pointer",
+                          isActive 
+                            ? "bg-blue-900 text-white shadow-2xs" 
+                            : "text-slate-600 hover:bg-slate-200/80 hover:text-slate-900"
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                {/* 1º Semestre */}
+                <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-lg text-slate-800 shadow-2xs">
+                  <div className="p-1 bg-blue-50 text-blue-700 border border-blue-100 rounded shrink-0">
+                    <Calendar size={12} />
+                  </div>
+                  <div className="text-[10px] leading-tight font-sans">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="font-bold text-slate-900 uppercase text-[8.5px] tracking-wider">
+                        1º Semestre
+                      </span>
+                      {periods.length > 1 && (
+                        <span className="text-[7.5px] font-bold bg-slate-200 text-slate-700 px-1 py-0.2 rounded uppercase">
+                          {currentPeriod.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-semibold text-slate-700 mt-0.5 whitespace-nowrap">
+                      {formatPeriodDisplay(currentPeriod.t1Start, currentPeriod.t1End)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2º Semestre */}
+                <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-lg text-slate-800 shadow-2xs">
+                  <div className="p-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded shrink-0">
+                    <Calendar size={12} />
+                  </div>
+                  <div className="text-[10px] leading-tight font-sans">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="font-bold text-slate-900 uppercase text-[8.5px] tracking-wider">
+                        2º Semestre
+                      </span>
+                      {periods.length > 1 && (
+                        <span className="text-[7.5px] font-bold bg-slate-200 text-slate-700 px-1 py-0.2 rounded uppercase">
+                          {currentPeriod.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-semibold text-slate-700 mt-0.5 whitespace-nowrap">
+                      {formatPeriodDisplay(currentPeriod.t2Start, currentPeriod.t2End)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Lado Direito: Ações, Bloqueio e Perfil */}
+          <div className="flex items-center gap-2 md:gap-5 shrink-0">
           {!isLocked && (
             <div className="flex items-center gap-1.5">
               {isLockEnabled && lockTimer <= 60 && (

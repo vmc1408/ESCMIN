@@ -689,3 +689,93 @@ export function getClassStartDateFromSchedule(
   return '';
 }
 
+export const formatDateBR = (dateStr?: string) => {
+  if (!dateStr) return '';
+  if (dateStr.includes('/')) return dateStr;
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+export interface SchedulePeriod {
+  label: string;
+  dayNum?: number;
+  t1Start: string;
+  t1End: string;
+  t2Start: string;
+  t2End: string;
+}
+
+const WEEKDAY_NAMES: Record<number, string> = {
+  0: 'Domingo',
+  1: 'Segunda-feira',
+  2: 'Terça-feira',
+  3: 'Quarta-feira',
+  4: 'Quinta-feira',
+  5: 'Sexta-feira',
+  6: 'Sábado'
+};
+
+export const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] => {
+  const periods: SchedulePeriod[] = [];
+  const seenLabels = new Set<string>();
+
+  let combined = { ...(settings || {}) };
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('academic_settings_current');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        combined = { ...parsed, ...combined };
+        if (parsed.weekday_terms) {
+          combined.weekday_terms = { ...(parsed.weekday_terms || {}), ...(combined.weekday_terms || {}) };
+        }
+      }
+    }
+  } catch (e) {}
+
+  if (combined.weekday_terms) {
+    const dayKeys = Object.keys(combined.weekday_terms)
+      .map(k => Number(k))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+
+    for (const d of dayKeys) {
+      const termObj = combined.weekday_terms[d] || combined.weekday_terms[String(d)];
+      if (termObj && (termObj.term1_start || termObj.term1_end || termObj.term2_start || termObj.term2_end)) {
+        const labelName = WEEKDAY_NAMES[d] || `Dia ${d}`;
+        if (!seenLabels.has(labelName)) {
+          seenLabels.add(labelName);
+          periods.push({
+            label: labelName,
+            dayNum: d,
+            t1Start: termObj.term1_start || '',
+            t1End: termObj.term1_end || '',
+            t2Start: termObj.term2_start || '',
+            t2End: termObj.term2_end || ''
+          });
+        }
+      }
+    }
+  }
+
+  const rootT1Start = combined.term1_start || '';
+  const rootT1End = combined.term1_end || '';
+  const rootT2Start = combined.term2_start || '';
+  const rootT2End = combined.term2_end || '';
+
+  if (periods.length === 0 && (rootT1Start || rootT1End || rootT2Start || rootT2End)) {
+    periods.push({
+      label: 'Geral',
+      t1Start: rootT1Start,
+      t1End: rootT1End,
+      t2Start: rootT2Start,
+      t2End: rootT2End
+    });
+  }
+
+  return periods;
+};
+
