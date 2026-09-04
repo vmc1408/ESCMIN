@@ -53,8 +53,8 @@ export function Layout() {
         <div className="print:hidden sticky top-0 z-30 bg-white">
           <Navbar />
         </div>
-        <main className="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-6 custom-scrollbar print:overflow-visible print:p-0">
-          <div className="max-w-[1440px] w-full mx-auto print:max-w-none">
+        <main className="flex-1 overflow-y-auto p-2 md:p-4 lg:p-4 custom-scrollbar print:overflow-visible print:p-0">
+          <div className="max-w-[2400px] mx-auto print:max-w-none">
             <Outlet />
           </div>
         </main>

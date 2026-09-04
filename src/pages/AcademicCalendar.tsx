@@ -52,6 +52,7 @@ import { useCalendarHelpers } from '../hooks/useCalendar';
 import { getTypeStyle, getTypeText, getTypeColor } from '../lib/calendar-utils';
 import { CalendarEvent, AcademicSettings, Class, Subject, InstitutionSettings, Course } from '../types';
 import { HolidayListReport } from '../components/calendar/HolidayListReport';
+import { HabilitationModal } from '../components/HabilitationModal';
 
 export function AcademicCalendar() {
   const { userAuth, isAdmin, isDirector } = useAuth();
@@ -458,6 +459,10 @@ export function AcademicCalendar() {
       setViewMode('month');
       setActiveTab('calendar');
       setShowSettings(true);
+    } else if (viewParam === 'habilitation') {
+      setViewMode('month');
+      setActiveTab('calendar');
+      setShowHabilitation(true);
     } else {
       setViewMode('month');
       setActiveTab('calendar');
@@ -465,6 +470,7 @@ export function AcademicCalendar() {
   }, [viewParam]);
   const [inspectingClassId, setInspectingClassId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHabilitation, setShowHabilitation] = useState(false);
   const [editingDayIndex, setEditingDayIndex] = useState<number>(1);
   const [selectedWeekdayDetail, setSelectedWeekdayDetail] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -4681,6 +4687,19 @@ export function AcademicCalendar() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Modal de Habilitação de Turmas para Novos Ciclos Letivos */}
+      <HabilitationModal
+        isOpen={showHabilitation}
+        onClose={() => {
+          setShowHabilitation(false);
+          if (searchParams.get('view') === 'habilitation') {
+            setSearchParams({ view: 'month' });
+          }
+        }}
+        classes={classes}
+      />
+
       <AnimatePresence>
         {showConfirmModal && confirmModalConfig && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[300] flex items-center justify-center p-4">

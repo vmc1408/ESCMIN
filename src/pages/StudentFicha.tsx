@@ -596,9 +596,9 @@ export function StudentFicha() {
   // Sidebar list of students: searches across ALL registered students
   const filteredStudentsList = useMemo(() => {
     const term = searchTerm.trim();
+    if (!term) return [];
     
     const filtered = students.filter(s => {
-      if (!term) return true;
       if (matchesStudentSearch(s, term)) return true;
 
       const clsName = s.class_id ? (classMap.get(s.class_id)?.name || '') : '';
@@ -609,11 +609,6 @@ export function StudentFicha() {
 
       return false;
     });
-
-    if (!term) {
-      // Sort alphabetically by name when no term is typed
-      return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
-    }
 
     // Sort to bring most relevant search correspondence first
     return [...filtered].sort((a, b) => {
@@ -1045,9 +1040,15 @@ export function StudentFicha() {
                     Busca geral no cadastro institucional
                   </p>
                 </div>
-                <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 border border-slate-200">
-                  {filteredStudentsList.length} {filteredStudentsList.length === 1 ? 'aluno' : 'alunos'}
-                </span>
+                {searchTerm.trim() ? (
+                  <span className="text-[9px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 border border-slate-200">
+                    {filteredStudentsList.length} {filteredStudentsList.length === 1 ? 'aluno' : 'alunos'}
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 border border-slate-200 uppercase tracking-wider">
+                    Aguardando busca
+                  </span>
+                )}
               </div>
 
               {/* Search Field */}
@@ -1073,7 +1074,19 @@ export function StudentFicha() {
 
               {/* Students Selection List */}
               <div className="max-h-[560px] overflow-y-auto divide-y divide-slate-100 border border-slate-150 rounded-none bg-white">
-                {filteredStudentsList.length === 0 ? (
+                {!searchTerm.trim() ? (
+                  <div className="p-8 text-center space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center mx-auto">
+                      <Search size={16} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Digite para consultar
+                    </p>
+                    <p className="text-[11px] text-slate-400 max-w-[220px] mx-auto leading-relaxed">
+                      Informe o nome, matrícula, CPF ou turma no campo acima para listar os alunos.
+                    </p>
+                  </div>
+                ) : filteredStudentsList.length === 0 ? (
                   <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
                     Nenhum aluno encontrado
                   </div>
@@ -1148,7 +1161,7 @@ export function StudentFicha() {
                 <div>
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Selecione um Aluno</h4>
                   <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1 leading-relaxed">
-                    Escolha um registro na lista à esquerda para visualizar seu histórico, frequências e notas consolidadas.
+                    Pesquise e selecione um aluno no campo à esquerda para visualizar seu histórico, frequências e notas consolidadas.
                   </p>
                 </div>
               </div>

@@ -69,34 +69,29 @@ export function Navbar() {
             // First beep
             const osc1 = ctx.createOscillator();
             const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(880, ctx.currentTime); // A5 note
+            gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
             osc1.connect(gain1);
             gain1.connect(ctx.destination);
-            
-            osc1.type = 'sine';
-            osc1.frequency.setValueAtTime(880, ctx.currentTime); // Note A5
-            gain1.gain.setValueAtTime(0.12, ctx.currentTime);
-            gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-            
             osc1.start(ctx.currentTime);
-            osc1.stop(ctx.currentTime + 0.2);
-            
-            // Second higher-pitch beep shortly after
+            osc1.stop(ctx.currentTime + 0.15);
+
+            // Second higher beep right after
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.18); // D6 note
+            gain2.gain.setValueAtTime(0.15, ctx.currentTime + 0.18);
+            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.38);
             osc2.connect(gain2);
             gain2.connect(ctx.destination);
-            
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(1200, ctx.currentTime + 0.15);
-            gain2.gain.setValueAtTime(0, ctx.currentTime);
-            gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.15);
-            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-            
-            osc2.start(ctx.currentTime + 0.15);
-            osc2.stop(ctx.currentTime + 0.45);
+            osc2.start(ctx.currentTime + 0.18);
+            osc2.stop(ctx.currentTime + 0.38);
           }
-        } catch (error) {
-          console.warn('Audio warning failed to play:', error);
+        } catch (err) {
+          console.warn('AudioContext alert warning error:', err);
         }
       }
     } else {
@@ -115,10 +110,9 @@ export function Navbar() {
 
   return (
     <>
-      <header className="h-16 bg-white border-b border-slate-200 z-30 print:hidden shrink-0">
-        <div className="h-full max-w-[1440px] w-full mx-auto px-4 md:px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className="lg:hidden w-8" />
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 z-30 print:hidden shrink-0">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="lg:hidden w-8" />
           
           <div className="flex items-center gap-3 min-w-0">
             <Link 
@@ -140,54 +134,24 @@ export function Navbar() {
                   </div>
                 )}
               </div>
-              
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm md:text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors truncate tracking-tight leading-tight">
-                    {institution?.name || 'Gestão Escolar'}
-                  </h2>
-                </div>
-                {institution?.city && (
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest truncate leading-tight mt-0.5">
-                    {institution.city}
-                  </p>
-                )}
+              <div className="min-w-0">
+                <h1 className="text-sm md:text-base font-bold text-slate-800 tracking-tight truncate leading-tight">
+                  {institution?.name || 'Escola Diocesana de Ministério'}
+                </h1>
               </div>
             </Link>
-
-            <button 
-              onClick={handleRetry}
-              disabled={isRetrying || dbStatus === 'connected'}
-              className={cn(
-                "hidden xs:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all uppercase tracking-widest ml-0.5",
-                dbStatus === 'connected' ? "bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-default" :
-                dbStatus === 'error' ? "bg-red-50 text-red-700 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer shadow-sm" :
-                dbStatus === 'checking' ? "bg-amber-50 text-amber-700 border border-amber-100 animate-pulse cursor-wait" :
-                "bg-slate-50 text-slate-500 border border-slate-200"
-              )}
-              title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
-            >
-              {dbStatus === 'connected' && <CheckCircle2 size={10} />}
-              {dbStatus === 'error' && <WifiOff size={10} />}
-              {dbStatus === 'checking' && <Database size={10} />}
-              {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
-              <span>
-                {dbStatus === 'connected' ? (
-                  <>Online {latency ? `(${latency}ms)` : ''}</>
-                ) :
-                 dbStatus === 'error' ? (isRetrying ? '...' : 'Reconc.') :
-                 dbStatus === 'checking' ? '...' : 'Off'}
-              </span>
-            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-5">
-          {!isLocked && (
-            <div className="flex items-center gap-1.5">
-              {isLockEnabled && lockTimer <= 60 && (
+        {/* Right side icons and profile */}
+        <div className="flex items-center gap-3 md:gap-5">
+          {/* Quick Lock Button */}
+          {profile?.pin && (
+            <div className="flex items-center gap-2">
+              {/* Contagem regressiva caso o timer esteja em menos de 60 segundos */}
+              {isLockEnabled && lockTimer <= 60 && !isLocked && (
                 <div 
-                  className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg animate-pulse cursor-pointer hover:bg-red-100 transition-colors" 
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-lg animate-pulse cursor-pointer shadow-xs"
                   onClick={lock}
                   title="Sua sessão expirará por inatividade. Clique para bloquear."
                 >
@@ -245,7 +209,6 @@ export function Navbar() {
               </button>
             </div>
           </div>
-        </div>
         </div>
       </header>
 
