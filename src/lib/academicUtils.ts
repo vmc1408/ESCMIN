@@ -496,3 +496,196 @@ export function calculateAttendanceMetrics(params: {
     attendanceStatus
   };
 }
+
+/**
+ * Normalizes a date into standard YYYY-MM-DD format for database and input[type="date"] binding.
+ */
+export function normalizeScheduleDate(dateStr: any): string {
+  if (!dateStr) return '';
+  const str = String(dateStr).trim();
+  if (str.includes('T')) return str.split('T')[0];
+  if (str.includes('-') && !str.includes('/')) {
+    const parts = str.split('-');
+    if (parts[0].length === 4) return str;
+  }
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      if (d.length <= 2 && m.length <= 2 && y.length === 4) {
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+    }
+  }
+  return str;
+}
+
+/**
+ * Resolves the start date for a class based on the academic schedule / cronograma.
+ * Prioritizes class/weekday terms in academic settings, class_day events,
+ * and academic calendar term bounds.
+ */
+export function getClassStartDateFromSchedule(
+  targetClass: any,
+  academicSettingsList?: any[],
+  calendarEvents?: any[]
+): string {
+  if (!targetClass) return '';
+
+  // 1. Resolve combined academic settings
+  let settings: any = null;
+  if (Array.isArray(academicSettingsList) && academicSettingsList.length > 0) {
+    settings = academicSettingsList.find(s => s && s.id === targetClass.id)
+      || academicSettingsList.find(s => s && s.id === 'current')
+      || academicSettingsList[0];
+  }
+
+  // Also check localStorage if settings not found or missing fields
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      if (targetClass.id) {
+        const storedClass = localStorage.getItem(`academic_settings_${targetClass.id}`);
+        if (storedClass) {
+          const parsed = JSON.parse(storedClass);
+          settings = { ...parsed, ...(settings || {}) };
+        }
+      }
+      const storedCurrent = localStorage.getItem('academic_settings_current');
+      if (storedCurrent) {
+        const parsed = JSON.parse(storedCurrent);
+        settings = { ...parsed, ...(settings || {}) };
+      }
+    } catch (e) {}
+  }
+
+  // 2. Identify if this class is for the 2º Semestre
+  const semStr = String(targetClass.semester || targetClass.name || '').toLowerCase();
+  const isSem2 = semStr.includes('2º') || semStr.includes('2o') || semStr.includes('2°') || 
+                 semStr.includes('segundo semestre') || semStr.includes('2 sem');
+
+  // 3. Resolve class weekdays
+  const weekdays = getClassWeekdays(targetClass, settings, calendarEvents);
+
+  // 4. Check specific start_term calendar events for this class
+  if (Array.isArray(calendarEvents) && calendarEvents.length > 0) {
+    const classEvents = calendarEvents.filter(e => e && e.start_date);
+    
+    // Class-specific start_term
+    const specificTermStarts = classEvents.filter(e => 
+      e.type === 'start_term' && e.class_id && String(e.class_id) === String(targetClass.id)
+    );
+    if (specificTermStarts.length > 0) {
+      if (isSem2) {
+        const sem2Term = specificTermStarts.find(e => 
+          e.title?.includes('2º') || e.title?.includes('2o') || e.title?.includes('2°') || 
+          parseInt(e.start_date.split('-')[1] || '0', 10) >= 7
+        );
+        if (sem2Term?.start_date) {
+          return normalizeScheduleDate(sem2Term.start_date);
+        }
+      } else {
+        const sem1Term = specificTermStarts.find(e => 
+          e.title?.includes('1º') || e.title?.includes('1o') || e.title?.includes('1°') || 
+          parseInt(e.start_date.split('-')[1] || '0', 10) <= 7
+        );
+        if (sem1Term?.start_date) {
+          return normalizeScheduleDate(sem1Term.start_date);
+        }
+      }
+      if (specificTermStarts[0]?.start_date) {
+        return normalizeScheduleDate(specificTermStarts[0].start_date);
+      }
+    }
+  }
+
+  // 5. Check weekday-specific terms in academic settings (e.g. weekday_terms[w].term1_start)
+  if (settings?.weekday_terms) {
+    for (const w of weekdays) {
+      const termObj = settings.weekday_terms[w] || settings.weekday_terms[String(w)];
+      if (termObj) {
+        if (isSem2 && termObj.term2_start) {
+          return normalizeScheduleDate(termObj.term2_start);
+        }
+        if (!isSem2 && termObj.term1_start) {
+          return normalizeScheduleDate(termObj.term1_start);
+        }
+      }
+    }
+    // Check any weekday_terms where targetClass is mapped in weekday_classes
+    if (settings.weekday_classes && targetClass.id) {
+      for (const [wStr, cIds] of Object.entries(settings.weekday_classes)) {
+        if (Array.isArray(cIds) && cIds.includes(targetClass.id)) {
+          const termObj = settings.weekday_terms[wStr] || settings.weekday_terms[Number(wStr)];
+          if (termObj) {
+            if (isSem2 && termObj.term2_start) return normalizeScheduleDate(termObj.term2_start);
+            if (!isSem2 && termObj.term1_start) return normalizeScheduleDate(termObj.term1_start);
+          }
+        }
+      }
+    }
+  }
+
+  // 6. Check school days (class_day events) from cronograma
+  if (Array.isArray(calendarEvents) && calendarEvents.length > 0) {
+    const schoolDays = getClassSchoolDays(targetClass, calendarEvents, settings);
+    if (schoolDays.length > 0) {
+      if (isSem2) {
+        const sem2Days = schoolDays.filter(d => {
+          const m = parseInt(d.start_date.split('-')[1] || '0', 10);
+          return m >= 7;
+        });
+        if (sem2Days.length > 0) {
+          return normalizeScheduleDate(sem2Days[0].start_date);
+        }
+      } else {
+        const sem1Days = schoolDays.filter(d => {
+          const m = parseInt(d.start_date.split('-')[1] || '0', 10);
+          return m <= 7;
+        });
+        if (sem1Days.length > 0) {
+          return normalizeScheduleDate(sem1Days[0].start_date);
+        }
+        return normalizeScheduleDate(schoolDays[0].start_date);
+      }
+    }
+
+    // Check global start_term events
+    const globalTermStarts = calendarEvents.filter(e => e && e.type === 'start_term' && e.start_date);
+    if (globalTermStarts.length > 0) {
+      if (isSem2) {
+        const sem2 = globalTermStarts.find(e => 
+          e.title?.includes('2º') || e.title?.includes('2o') || e.title?.includes('2°') || 
+          parseInt(e.start_date.split('-')[1] || '0', 10) >= 7
+        );
+        if (sem2?.start_date) return normalizeScheduleDate(sem2.start_date);
+      } else {
+        const sem1 = globalTermStarts.find(e => 
+          e.title?.includes('1º') || e.title?.includes('1o') || e.title?.includes('1°') || 
+          parseInt(e.start_date.split('-')[1] || '0', 10) <= 7
+        );
+        if (sem1?.start_date) return normalizeScheduleDate(sem1.start_date);
+      }
+    }
+  }
+
+  // 7. Check global academic_settings term starts
+  if (settings) {
+    if (isSem2 && settings.term2_start) {
+      return normalizeScheduleDate(settings.term2_start);
+    }
+    if (!isSem2 && settings.term1_start) {
+      return normalizeScheduleDate(settings.term1_start);
+    }
+    if (settings.term1_start) {
+      return normalizeScheduleDate(settings.term1_start);
+    }
+  }
+
+  // 8. Fallback to targetClass.start_date
+  if (targetClass.start_date) {
+    return normalizeScheduleDate(targetClass.start_date);
+  }
+
+  return '';
+}
+

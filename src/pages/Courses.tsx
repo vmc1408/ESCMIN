@@ -28,7 +28,7 @@ import {
   Download,
   Filter
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { Course, Class, Student, Enrollment } from '../types';
 import { fetchAll, saveData, deleteData } from '../lib/database';
@@ -47,6 +47,7 @@ const WEEK_DAYS = [
 
 export function Courses() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAdmin, isSecretary, isDirector } = useAuth();
   const canEdit = isAdmin || isDirector || isSecretary;
 
@@ -123,6 +124,18 @@ export function Courses() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Reabre a lista de alunos do curso ao retornar da ficha do aluno
+  useEffect(() => {
+    const courseId = (location.state as any)?.courseId;
+    if (courseId && courses.length > 0) {
+      const c = courses.find(item => item.id === courseId);
+      if (c) {
+        setViewingStudentsCourse(c);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, courses]);
 
   // Statistics calculation
   const { courseStats, courseStudentsMap, totalActiveInCourses, unassignedActiveStudents } = useMemo(() => {
@@ -1783,8 +1796,19 @@ export function Courses() {
                                     <td className="py-2.5 px-4 text-right">
                                       <button
                                         onClick={() => {
+                                          const courseId = viewingStudentsCourse?.id;
+                                          const courseName = viewingStudentsCourse?.name;
                                           setViewingStudentsCourse(null);
-                                          navigate(`/students?search=${encodeURIComponent(item.student.registration_number || item.student.name)}`);
+                                          navigate('/students', {
+                                            state: {
+                                              studentId: item.student.id,
+                                              returnTo: {
+                                                path: '/courses',
+                                                courseId,
+                                                sourceTitle: courseName ? `Curso ${courseName}` : 'Cursos'
+                                              }
+                                            }
+                                          });
                                         }}
                                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-[11px] font-bold transition-all shadow-2xs cursor-pointer"
                                         title="Abrir ficha do aluno"
@@ -1879,8 +1903,19 @@ export function Courses() {
                             <td className="py-2.5 px-4 text-right">
                               <button
                                 onClick={() => {
+                                  const courseId = viewingStudentsCourse?.id;
+                                  const courseName = viewingStudentsCourse?.name;
                                   setViewingStudentsCourse(null);
-                                  navigate(`/students?search=${encodeURIComponent(item.student.registration_number || item.student.name)}`);
+                                  navigate('/students', {
+                                    state: {
+                                      studentId: item.student.id,
+                                      returnTo: {
+                                        path: '/courses',
+                                        courseId,
+                                        sourceTitle: courseName ? `Curso ${courseName}` : 'Cursos'
+                                      }
+                                    }
+                                  });
                                 }}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 hover:text-slate-900 text-[11px] font-bold transition-all shadow-2xs cursor-pointer"
                                 title="Abrir ficha do aluno"

@@ -133,14 +133,23 @@ const navItems = [
   },
 ];
 
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, lastLatency, testConnection, isDbConnected } from '../lib/supabase';
 import { financialService } from '../services/financialService';
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const location = useLocation();
-  const { profile, logout, canAccess, isAdmin, lock } = useAuth();
+  const { profile, logout, canAccess, isAdmin, lock, latency: authLatency, isConnected } = useAuth();
 
-  const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>(
+    isDbConnected || isConnected ? 'online' : 'checking'
+  );
+  const [latency, setLatency] = useState<number | null>(() => authLatency ?? lastLatency ?? null);
+
+  useEffect(() => {
+    if (authLatency !== null && authLatency !== undefined) {
+      setLatency(authLatency);
+    }
+  }, [authLatency]);
 
   // Filter items based on access without modifying original objects
   const filterByAccess = (items: any[]): any[] => {
@@ -167,35 +176,27 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
   const filteredNavItems = filterByAccess(navItems);
 
-  const checkConnection = async () => {
-    try {
-      // Prioritize Supabase for status check if configured
-      if (isSupabaseConfigured) {
-        const { data, error } = await supabase.from('institution_settings').select('id').limit(1);
-        
-        if (!error) {
-          setDbStatus('online');
-          return;
+  useEffect(() => {
+    testConnection();
+
+    const handleStatusChange = (e: any) => {
+      if (e?.detail) {
+        setDbStatus(e.detail.connected ? 'online' : 'offline');
+        if (e.detail.latency !== undefined && e.detail.latency !== null) {
+          setLatency(e.detail.latency);
         }
       }
+    };
 
-      setDbStatus('online');
-    } catch (e: any) {
-      console.error('DB Status Check Error:', e);
-      setDbStatus('offline');
-    }
-  };
+    window.addEventListener('supabase-status-change', handleStatusChange);
 
-  useEffect(() => {
-    checkConnection();
-
-    // Regular status check - increased interval to preserve quota
+    // Regular status check - every 60 seconds
     const interval = setInterval(() => {
-      console.log('Performing background connection check...');
-      checkConnection();
-    }, 300000); // 5 minutes instead of 30 seconds
+      testConnection();
+    }, 60000);
 
     return () => {
+      window.removeEventListener('supabase-status-change', handleStatusChange);
       clearInterval(interval);
     };
   }, []);
@@ -562,20 +563,32 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col items-center">
         {/* Database Connection Indicator */}
-        <div className="w-full px-3 py-2 bg-slate-900/50 border border-slate-800/80 flex items-center justify-start gap-2">
-          {dbStatus === 'online' ? (
-            <div className="w-2 h-2 bg-emerald-500 shrink-0"></div>
-          ) : dbStatus === 'offline' ? (
-            <div className="w-2 h-2 bg-red-500 shrink-0"></div>
-          ) : (
-            <div className="w-2 h-2 bg-yellow-500 shrink-0 animate-pulse"></div>
-          )}
-          <span className={cn(
-            "text-[9px] font-black uppercase tracking-widest leading-none",
-            dbStatus === 'online' ? "text-emerald-500" : dbStatus === 'offline' ? "text-red-500" : "text-yellow-500"
-          )}>
-            {dbStatus === 'online' ? 'ONLINE' : dbStatus === 'offline' ? 'OFFLINE' : 'CONECTANDO'}
-          </span>
+        <div className="w-full px-3 py-2 bg-slate-900/50 border border-slate-800/80 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {dbStatus === 'online' ? (
+              <div className="w-2 h-2 bg-emerald-500 shrink-0"></div>
+            ) : dbStatus === 'offline' ? (
+              <div className="w-2 h-2 bg-red-500 shrink-0"></div>
+            ) : (
+              <div className="w-2 h-2 bg-yellow-500 shrink-0 animate-pulse"></div>
+            )}
+            <span className={cn(
+              "text-[9px] font-black uppercase tracking-widest leading-none",
+              dbStatus === 'online' ? "text-emerald-500" : dbStatus === 'offline' ? "text-red-500" : "text-yellow-500"
+            )}>
+              {dbStatus === 'online' ? 'ONLINE' : dbStatus === 'offline' ? 'OFFLINE' : 'CONECTANDO'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5" title={latency !== null ? `Latência do banco: ${latency} ms` : 'Verificando latência'}>
+            <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest leading-none">LATÊNCIA:</span>
+            <span className={cn(
+              "text-[8.5px] font-bold font-mono tabular-nums leading-none",
+              latency === null ? "text-slate-500" : latency < 600 ? "text-emerald-400" : latency < 1500 ? "text-amber-400" : "text-rose-400"
+            )}>
+              {latency !== null ? `${latency} ms` : '...'}
+            </span>
+          </div>
         </div>
 
         {/* Copyright Text */}

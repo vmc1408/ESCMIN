@@ -267,7 +267,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const unlock = useCallback((pin: string): boolean => {
-    if (profile?.pin && pin !== profile.pin && pin !== '0000') {
+    const validPin = profile?.pin || '1234';
+    if (pin !== validPin && pin !== '0000') {
       return false;
     }
     setIsLocked(false);
@@ -277,11 +278,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [profile]);
 
   const lock = useCallback(() => {
-    if (profile?.pin) {
-      setIsLocked(true);
-      localStorage.setItem('app_locked', 'true');
-    }
-  }, [profile]);
+    setIsLocked(true);
+    localStorage.setItem('app_locked', 'true');
+  }, []);
 
   const updateLockSettings = useCallback(async (enabled: boolean, timeoutMinutes: number) => {
     const timeoutSeconds = timeoutMinutes * 60;

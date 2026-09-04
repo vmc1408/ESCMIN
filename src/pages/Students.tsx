@@ -30,7 +30,8 @@ import {
   Users,
   ArrowLeft,
   Layers,
-  Sparkles
+  Sparkles,
+  School
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
@@ -38,6 +39,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { formatCurrency, cn, maskDate, formatDateForDisplay, parseDateToDB, maskPhone, detectCourseFromClass, formatRegistrationNumber, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
+import { getClassStartDateFromSchedule } from '../lib/academicUtils';
 import { uploadImage, fetchAll, saveData, deleteData, saveBatch, deleteBatch, fetchQuery, getInstitutionSettings, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { Student, Class, Enrollment, Course } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -188,6 +190,16 @@ const INITIAL_STUDENT_STATE: Partial<Student> = {
 export function Students() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [returnOrigin, setReturnOrigin] = useState<{
+    path: string;
+    classId?: string;
+    reopenModal?: boolean;
+    reopenUnallocatedModal?: boolean;
+    sourceTitle?: string;
+    courseId?: string;
+  } | null>(() => {
+    return (location.state as any)?.returnTo || null;
+  });
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [coursesList, setCoursesList] = useState<Course[]>([]);
@@ -215,6 +227,12 @@ export function Students() {
   const [quickAssignClassId, setQuickAssignClassId] = useState('');
   const [isAssigningClass, setIsAssigningClass] = useState(false);
   const [institution, setInstitution] = useState<any>(null);
+  const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+
+  const getScheduleStartDateForClass = useCallback((targetClass: any) => {
+    return getClassStartDateFromSchedule(targetClass, academicSettingsList, calendarEvents);
+  }, [academicSettingsList, calendarEvents]);
 
   const admissionNorms = useMemo(() => {
     if (institution?.admission_norms && institution.admission_norms.trim()) {
@@ -239,11 +257,13 @@ export function Students() {
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, enrollmentsData, classesData, coursesData] = await Promise.all([
+      const [data, enrollmentsData, classesData, coursesData, dbSettings, calendarEventsData] = await Promise.all([
         fetchAll('students', '*', 'registration_number', true),
         fetchAll('enrollments').catch(() => []),
         fetchAll('classes', '*', 'name').catch(() => []),
-        fetchAll('courses').catch(() => [])
+        fetchAll('courses').catch(() => []),
+        fetchAll('academic_settings').catch(() => []),
+        fetchAll('calendar_events').catch(() => [])
       ]);
       
       const validClassIds = new Set((classesData || []).map((c: any) => c.id));
@@ -253,6 +273,40 @@ export function Students() {
       if (coursesData && coursesData.length > 0) {
         setCoursesList(coursesData);
       }
+
+      // Combine academic settings with local storage fallbacks
+      let settingsList: any[] = [];
+      if (dbSettings && dbSettings.length > 0) {
+        settingsList = [...dbSettings];
+      }
+      try {
+        const currentStored = localStorage.getItem('academic_settings_current');
+        if (currentStored) {
+          const parsed = JSON.parse(currentStored);
+          if (!settingsList.some(s => s.id === 'current')) {
+            settingsList.push({ id: 'current', ...parsed });
+          } else {
+            settingsList = settingsList.map(s => s.id === 'current' ? { ...parsed, ...s } : s);
+          }
+        }
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('academic_settings_') && key !== 'academic_settings_current') {
+            const classId = key.replace('academic_settings_', '');
+            const val = localStorage.getItem(key);
+            if (val) {
+              const parsed = JSON.parse(val);
+              if (!settingsList.some(s => s.id === classId)) {
+                settingsList.push({ id: classId, ...parsed });
+              } else {
+                settingsList = settingsList.map(s => s.id === classId ? { ...parsed, ...s } : s);
+              }
+            }
+          }
+        }
+      } catch (e) {}
+      setAcademicSettingsList(settingsList);
+      setCalendarEvents(calendarEventsData || []);
 
       // Merge & normalize students who have active enrollments, invalid class_id or missing course
       const normalizedStudents = (data || []).map((s: Student) => {
@@ -267,11 +321,14 @@ export function Students() {
           effectiveCourse = targetClass ? detectCourseFromClass(targetClass, coursesData || []) : '';
         }
 
+        const schedDate = targetClass ? getClassStartDateFromSchedule(targetClass, settingsList, calendarEventsData || []) : '';
+        const startDate = s.start_date || schedDate || targetClass?.start_date || '';
+
         return {
           ...s,
           class_id: effectiveClassId,
           course: effectiveCourse,
-          start_date: s.start_date || targetClass?.start_date || ''
+          start_date: startDate
         };
       });
 
@@ -390,7 +447,8 @@ export function Students() {
       );
       detectedCourse = match ? match.name : student.course;
     }
-    const startDate = student.start_date || targetClass?.start_date || '';
+    const cronoStartDate = targetClass ? getScheduleStartDateForClass(targetClass) : '';
+    const startDate = student.start_date || cronoStartDate || targetClass?.start_date || '';
 
     const enrichedStudent: Student = {
       ...student,
@@ -485,6 +543,23 @@ export function Students() {
     setHoverShowList(false);
   }, [students]);
 
+  // Fecha a ficha e retorna para a tela / modal de origem se veio de outro módulo
+  const handleCloseFicha = useCallback(() => {
+    if (returnOrigin) {
+      navigate(returnOrigin.path, {
+        state: {
+          classId: returnOrigin.classId,
+          reopenModal: returnOrigin.reopenModal,
+          reopenUnallocatedModal: returnOrigin.reopenUnallocatedModal,
+          courseId: returnOrigin.courseId
+        }
+      });
+      return;
+    }
+    setSelectedStudent(null);
+    setIsEditing(false);
+  }, [returnOrigin, navigate]);
+
   // Handle auto-selection from Dashboard deep links
   useEffect(() => {
     const isNew = (location.state as any)?.action === 'new' || (location.state as any)?.isNew;
@@ -492,6 +567,11 @@ export function Students() {
       handleNew();
       window.history.replaceState({}, document.title);
       return;
+    }
+
+    const returnTo = (location.state as any)?.returnTo;
+    if (returnTo) {
+      setReturnOrigin(returnTo);
     }
 
     const classId = (location.state as any)?.classId;
@@ -521,9 +601,11 @@ export function Students() {
       if (targetClass) {
         const updates: any = {};
         
-        // Auto-fill date
-        if (targetClass.start_date && formData.start_date !== targetClass.start_date) {
-          updates.start_date = targetClass.start_date;
+        // Auto-fill date from cronograma
+        const cronoStartDate = getScheduleStartDateForClass(targetClass);
+        const resolvedStartDate = cronoStartDate || targetClass.start_date || '';
+        if (resolvedStartDate && formData.start_date !== resolvedStartDate) {
+          updates.start_date = resolvedStartDate;
         }
 
         // Auto-detect course
@@ -535,9 +617,18 @@ export function Students() {
         if (Object.keys(updates).length > 0) {
           setFormData(prev => ({ ...prev, ...updates }));
         }
+
+        // Auto-sync class start_date if missing or divergent from cronograma
+        if (cronoStartDate && targetClass.start_date !== cronoStartDate) {
+          saveData('classes', targetClass.id, { start_date: cronoStartDate })
+            .then(() => {
+              setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
+            })
+            .catch(e => console.warn('Could not sync class start_date:', e));
+        }
       }
     }
-  }, [formData.class_id, classes, coursesList, isEditing]);
+  }, [formData.class_id, classes, coursesList, isEditing, getScheduleStartDateForClass]);
 
   const fetchClasses = async () => {
     try {
@@ -623,13 +714,22 @@ export function Students() {
       if (!formData.class_id && !selectedStudent.class_id) {
         const targetClass = classes.find(c => c.id === classId);
         const detectedCourse = selectedStudent.course || (targetClass ? detectCourseFromClass(targetClass, coursesList) : '');
-        const startDate = selectedStudent.start_date || targetClass?.start_date || '';
+        const cronoStartDate = targetClass ? getScheduleStartDateForClass(targetClass) : '';
+        const startDate = selectedStudent.start_date || cronoStartDate || targetClass?.start_date || '';
 
         await saveData('students', selectedStudent.id, {
           class_id: classId,
           ...(detectedCourse ? { course: detectedCourse } : {}),
           ...(startDate ? { start_date: startDate } : {})
         });
+
+        if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
+          saveData('classes', targetClass.id, { start_date: cronoStartDate })
+            .then(() => {
+              setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
+            })
+            .catch(e => console.warn('Could not sync class start_date:', e));
+        }
 
         setFormData(prev => ({
           ...prev,
@@ -702,12 +802,14 @@ export function Students() {
     try {
       const targetClass = classes.find(c => c.id === quickAssignClassId);
       const detectedCourse = targetClass ? detectCourseFromClass(targetClass, coursesList) : selectedStudent.course;
+      const cronoStartDate = targetClass ? getScheduleStartDateForClass(targetClass) : '';
+      const startDate = cronoStartDate || targetClass?.start_date || selectedStudent.start_date;
       
       // Update student's primary class
       await saveData('students', selectedStudent.id, {
         class_id: quickAssignClassId,
         ...(detectedCourse ? { course: detectedCourse } : {}),
-        ...(targetClass?.start_date ? { start_date: targetClass.start_date } : {})
+        ...(startDate ? { start_date: startDate } : {})
       });
 
       // Also create enrollment record if not already enrolled
@@ -717,8 +819,16 @@ export function Students() {
           student_id: selectedStudent.id,
           class_id: quickAssignClassId,
           status: 'Ativo',
-          enrollment_date: targetClass?.start_date || new Date().toISOString().split('T')[0]
+          enrollment_date: startDate || new Date().toISOString().split('T')[0]
         });
+      }
+
+      if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
+        saveData('classes', targetClass.id, { start_date: cronoStartDate })
+          .then(() => {
+            setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
+          })
+          .catch(e => console.warn('Could not sync class start_date:', e));
       }
 
       // Update local state
@@ -726,7 +836,7 @@ export function Students() {
         ...selectedStudent,
         class_id: quickAssignClassId,
         course: detectedCourse || selectedStudent.course,
-        start_date: targetClass?.start_date || selectedStudent.start_date
+        start_date: startDate
       };
       setSelectedStudent(updated);
       setFormData(prev => ({ ...prev, ...updated }));
@@ -767,11 +877,18 @@ export function Students() {
     
     try {
       setLoading(true);
+
+      const targetClass = classes.find(c => c.id === formData.class_id);
+      const cronoStartDate = targetClass ? getScheduleStartDateForClass(targetClass) : '';
+      let finalStartDate = parseDateToDB(formData.start_date);
+      if (!finalStartDate && cronoStartDate) {
+        finalStartDate = cronoStartDate;
+      }
       
       const dataToSave: any = { 
         ...formData,
         birth_date: parseDateToDB(formData.birth_date),
-        start_date: parseDateToDB(formData.start_date),
+        start_date: finalStartDate,
         class_id: formData.class_id || null,
         course: formData.course || null
       };
@@ -780,6 +897,15 @@ export function Students() {
       const isNew = !selectedStudent?.id;
       if (isNew && !dataToSave.created_at) {
         dataToSave.created_at = new Date().toISOString();
+      }
+
+      // Keep class start_date synchronized with schedule if needed
+      if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
+        saveData('classes', targetClass.id, { start_date: cronoStartDate })
+          .then(() => {
+            setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
+          })
+          .catch(e => console.warn('Could not sync class start_date:', e));
       }
 
       // Try saving with all fields, fallback if column missing
@@ -828,6 +954,16 @@ export function Students() {
       setSelectedStudent(null);
       await fetchStudents();
       await fetchAllEnrollments();
+      if (returnOrigin) {
+        navigate(returnOrigin.path, {
+          state: {
+            classId: returnOrigin.classId,
+            reopenModal: returnOrigin.reopenModal,
+            reopenUnallocatedModal: returnOrigin.reopenUnallocatedModal,
+            courseId: returnOrigin.courseId
+          }
+        });
+      }
     } catch (error: any) {
       console.error('Error saving student:', error);
       setNotification({ type: 'error', message: 'Erro ao salvar aluno: ' + error.message });
@@ -850,6 +986,16 @@ export function Students() {
       setIsEditing(false);
       setShowDeleteConfirm(false);
       fetchStudents();
+      if (returnOrigin) {
+        navigate(returnOrigin.path, {
+          state: {
+            classId: returnOrigin.classId,
+            reopenModal: returnOrigin.reopenModal,
+            reopenUnallocatedModal: returnOrigin.reopenUnallocatedModal,
+            courseId: returnOrigin.courseId
+          }
+        });
+      }
     } catch (error: any) {
       console.error('Error deleting student:', error);
       setNotification({ type: 'error', message: 'Erro ao excluir aluno: ' + error.message });
@@ -1579,16 +1725,34 @@ export function Students() {
               </div>
             )}
             <div className="p-3 sm:px-6 sm:py-4 border-b border-slate-100 bg-slate-50/30">
+              {/* Banner de navegação de retorno quando a ficha foi aberta a partir de outro módulo */}
+              {returnOrigin && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5 bg-blue-50/90 border border-blue-200 px-3.5 py-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-900 min-w-0">
+                    <School size={16} className="text-blue-700 shrink-0" />
+                    <span className="truncate">
+                      Origem: <strong className="text-blue-950 font-extrabold">{returnOrigin.sourceTitle || 'Turmas'}</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCloseFicha}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-900 hover:bg-blue-950 text-white text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
+                    title={`Retornar para ${returnOrigin.sourceTitle || 'Origem'}`}
+                  >
+                    <ArrowLeft size={13} />
+                    <span>Voltar para {returnOrigin.sourceTitle || 'Origem'}</span>
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedStudent(null);
-                  setIsEditing(false);
-                }}
+                onClick={handleCloseFicha}
                 className="lg:hidden mb-3 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-xs"
               >
                 <ArrowLeft size={14} />
-                <span>Ver Lista Completa de Alunos</span>
+                <span>{returnOrigin ? `Voltar para ${returnOrigin.sourceTitle || 'Origem'}` : 'Ver Lista Completa de Alunos'}</span>
               </button>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 sm:gap-5 min-w-0">
@@ -1649,15 +1813,12 @@ export function Students() {
                 {!isEditing && selectedStudent && (
                   <>
                     <button 
-                      onClick={() => {
-                        setSelectedStudent(null);
-                        setIsEditing(false);
-                      }}
-                      className="h-10 w-10 bg-rose-50 border border-rose-200 text-rose-600 rounded-none hover:text-rose-800 hover:bg-rose-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                      title="Fechar Ficha"
-                      aria-label="Fechar Ficha"
+                      onClick={handleCloseFicha}
+                      className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-none hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                      title={returnOrigin ? `Fechar e voltar para ${returnOrigin.sourceTitle || 'origem'}` : "Fechar Ficha (Voltar à lista)"}
+                      aria-label={returnOrigin ? `Fechar e voltar para ${returnOrigin.sourceTitle || 'origem'}` : "Fechar Ficha"}
                     >
-                      <X size={18} />
+                      <ArrowLeft size={18} />
                     </button>
 
                     <button 
@@ -1709,13 +1870,20 @@ export function Students() {
                       onClick={() => {
                         setIsEditing(false);
                         setUploadingPhoto(false);
-                        setSelectedStudent(null);
-                        setFormData(INITIAL_STUDENT_STATE);
+                        if (selectedStudent) {
+                          setFormData(selectedStudent);
+                        } else {
+                          setSelectedStudent(null);
+                          setFormData(INITIAL_STUDENT_STATE);
+                          if (returnOrigin) {
+                            handleCloseFicha();
+                          }
+                        }
                       }}
                       className="h-10 px-4 bg-rose-50 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 text-rose-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                       <X size={15} />
-                      <span className="uppercase tracking-wider text-[10px] hidden sm:inline">Cancelar Inscrição</span>
+                      <span className="uppercase tracking-wider text-[10px] hidden sm:inline">Cancelar Edição</span>
                       <span className="uppercase tracking-wider text-[10px] sm:hidden">Cancelar</span>
                     </button>
                     <button 
@@ -1904,7 +2072,7 @@ export function Students() {
                           tabIndex={6}
                         />
                       </div>
-                      <div className="col-span-12 md:col-span-8 space-y-1">
+                      <div className="col-span-12 md:col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Turma Principal (Vínculo Direto)</label>
                         <select 
                           disabled={!isEditing}
@@ -1913,12 +2081,24 @@ export function Students() {
                             const newClassId = e.target.value;
                             const targetClass = classes.find(c => c.id === newClassId);
                             const detectedCourse = targetClass ? detectCourseFromClass(targetClass, coursesList) : '';
+                            const cronoStartDate = targetClass ? getScheduleStartDateForClass(targetClass) : '';
+                            const resolvedStartDate = cronoStartDate || targetClass?.start_date || '';
+
                             setFormData(prev => ({
                               ...prev,
                               class_id: newClassId,
                               course: detectedCourse || prev.course,
-                              ...(targetClass?.start_date ? { start_date: targetClass.start_date } : {})
+                              ...(resolvedStartDate ? { start_date: resolvedStartDate } : {})
                             }));
+
+                            // Sincroniza a data de início da turma caso ainda não esteja definida ou diferente do cronograma
+                            if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
+                              saveData('classes', targetClass.id, { start_date: cronoStartDate })
+                                .then(() => {
+                                  setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
+                                })
+                                .catch(e => console.warn('Could not sync class start_date:', e));
+                            }
                           }}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
@@ -1933,8 +2113,8 @@ export function Students() {
                         </select>
                       </div>
 
-                      <div className="col-span-12 md:col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700 font-bold text-slate-800">Curso / Identificação</label>
+                      <div className="col-span-12 md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Curso / Identificação</label>
                         <select 
                           disabled={!isEditing}
                           value={
@@ -1972,14 +2152,32 @@ export function Students() {
                       </div>
 
                       <div className="col-span-12 md:col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Data de inicio da TURMA</label>
+                        <div className="flex items-center justify-between gap-1">
+                          <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Data Início da Turma</label>
+                          {formData.class_id && (() => {
+                            const targetCls = classes.find(c => c.id === formData.class_id);
+                            const schedDate = targetCls ? getScheduleStartDateForClass(targetCls) : '';
+                            if (schedDate) {
+                              return (
+                                <span 
+                                  className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors whitespace-nowrap shrink-0"
+                                  title="Clique para aplicar a data definida no cronograma"
+                                  onClick={() => isEditing && setFormData(prev => ({ ...prev, start_date: schedDate }))}
+                                >
+                                  <Calendar size={10} /> Cronograma: {formatDateForDisplay(schedDate)}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                         <input 
                           type="date"
                           disabled={!isEditing}
                           value={formData.start_date || ''}
                           onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
                           tabIndex={8}
                         />
                       </div>
@@ -2336,11 +2534,21 @@ export function Students() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 p-6 text-center">
             <div className="w-20 h-20 bg-slate-50 rounded-none flex items-center justify-center">
               <GraduationCap size={40} />
             </div>
             <p className="text-sm font-medium">Selecione um aluno para ver os detalhes</p>
+            {returnOrigin && (
+              <button
+                type="button"
+                onClick={handleCloseFicha}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+              >
+                <ArrowLeft size={14} />
+                <span>Voltar para {returnOrigin.sourceTitle || 'Origem'}</span>
+              </button>
+            )}
           </div>
         )}
 

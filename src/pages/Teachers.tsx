@@ -1320,11 +1320,11 @@ export function Teachers() {
                           setSelectedTeacher(null);
                           setIsEditing(false);
                         }}
-                        className="h-10 w-10 bg-rose-50 border border-rose-200 text-rose-600 rounded-none hover:text-rose-800 hover:bg-rose-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                        title="Fechar Ficha"
+                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-none hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        title="Fechar Ficha (Voltar à lista)"
                         aria-label="Fechar Ficha"
                       >
-                        <X size={18} />
+                        <ArrowLeft size={18} />
                       </button>
 
                       <button 

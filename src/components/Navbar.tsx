@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle, ShieldCheck, Clock, Lock } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Search, Bell, Wallet, User, LogOut, Database, WifiOff, CheckCircle2, AlertTriangle, ShieldCheck, Clock, Lock, Unlock } from 'lucide-react';
 import { getInstitutionSettings } from '../lib/database';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
@@ -120,64 +120,70 @@ export function Navbar() {
           <div className="lg:hidden w-8" />
           
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-200 shadow-sm transition-all hover:shadow-md">
-              {institution?.logo_url ? (
-                <img 
-                  src={institution.logo_url} 
-                  alt="Logo"
-                  className="w-full h-full object-contain p-1"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-300">
-                  <Database size={20} />
-                </div>
-              )}
-            </div>
-            
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm md:text-base font-bold text-slate-900 truncate tracking-tight leading-tight">
-                  {institution?.name || 'Gestão Escolar'}
-                </h2>
-                
-                <button 
-                  onClick={handleRetry}
-                  disabled={isRetrying || dbStatus === 'connected'}
-                  className={cn(
-                    "hidden xs:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all uppercase tracking-widest",
-                    dbStatus === 'connected' ? "bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-default" :
-                    dbStatus === 'error' ? "bg-red-50 text-red-700 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer shadow-sm" :
-                    dbStatus === 'checking' ? "bg-amber-50 text-amber-700 border border-amber-100 animate-pulse cursor-wait" :
-                    "bg-slate-50 text-slate-500 border border-slate-200"
-                  )}
-                  title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
-                >
-                  {dbStatus === 'connected' && <CheckCircle2 size={10} />}
-                  {dbStatus === 'error' && <WifiOff size={10} />}
-                  {dbStatus === 'checking' && <Database size={10} />}
-                  {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
-                  <span>
-                    {dbStatus === 'connected' ? (
-                      <>Online {latency ? `(${latency}ms)` : ''}</>
-                    ) :
-                     dbStatus === 'error' ? (isRetrying ? '...' : 'Reconc.') :
-                     dbStatus === 'checking' ? '...' : 'Off'}
-                  </span>
-                </button>
+            <Link 
+              to="/" 
+              className="flex items-center gap-3 min-w-0 group cursor-pointer transition-opacity hover:opacity-90"
+              title="Ir para a Página Principal"
+            >
+              <div className="flex-shrink-0 w-12 h-12 md:w-13 md:h-13 flex items-center justify-center bg-transparent transition-transform duration-200 group-hover:scale-105">
+                {institution?.logo_url ? (
+                  <img 
+                    src={institution.logo_url} 
+                    alt={institution?.name || "Logo"}
+                    className="w-full h-full object-contain filter drop-shadow-xs"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-blue-600">
+                    <Database size={26} />
+                  </div>
+                )}
               </div>
-              {institution?.city && (
-                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest truncate leading-tight mt-0.5">
-                  {institution.city}
-                </p>
+              
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm md:text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors truncate tracking-tight leading-tight">
+                    {institution?.name || 'Gestão Escolar'}
+                  </h2>
+                </div>
+                {institution?.city && (
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest truncate leading-tight mt-0.5">
+                    {institution.city}
+                  </p>
+                )}
+              </div>
+            </Link>
+
+            <button 
+              onClick={handleRetry}
+              disabled={isRetrying || dbStatus === 'connected'}
+              className={cn(
+                "hidden xs:flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all uppercase tracking-widest ml-0.5",
+                dbStatus === 'connected' ? "bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-default" :
+                dbStatus === 'error' ? "bg-red-50 text-red-700 border border-red-100 hover:bg-red-100 animate-pulse cursor-pointer shadow-sm" :
+                dbStatus === 'checking' ? "bg-amber-50 text-amber-700 border border-amber-100 animate-pulse cursor-wait" :
+                "bg-slate-50 text-slate-500 border border-slate-200"
               )}
-            </div>
+              title={dbStatus === 'error' ? 'Clique para tentar reconectar' : ''}
+            >
+              {dbStatus === 'connected' && <CheckCircle2 size={10} />}
+              {dbStatus === 'error' && <WifiOff size={10} />}
+              {dbStatus === 'checking' && <Database size={10} />}
+              {dbStatus === 'disconnected' && <AlertTriangle size={10} />}
+              <span>
+                {dbStatus === 'connected' ? (
+                  <>Online {latency ? `(${latency}ms)` : ''}</>
+                ) :
+                 dbStatus === 'error' ? (isRetrying ? '...' : 'Reconc.') :
+                 dbStatus === 'checking' ? '...' : 'Off'}
+              </span>
+            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-2 md:gap-5">
-          {profile?.pin && !isLocked && (
-            <div className="hidden md:flex items-center gap-1">
+          {!isLocked && (
+            <div className="flex items-center gap-1.5">
               {isLockEnabled && lockTimer <= 60 && (
                 <div 
                   className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg animate-pulse cursor-pointer hover:bg-red-100 transition-colors" 
@@ -192,10 +198,13 @@ export function Navbar() {
               )}
               <button
                 onClick={lock}
-                className="p-1.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg hover:bg-amber-100 transition-all active:scale-90"
-                title="Bloquear Agora"
+                className="group relative flex items-center justify-center p-2 bg-slate-100/90 hover:bg-amber-50 text-slate-500 hover:text-amber-700 border border-slate-200/80 hover:border-amber-300 rounded-lg transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs"
+                title="Clique para bloquear"
               >
-                <Lock size={14} />
+                {/* Cadeado aberto quando o sistema está desbloqueado */}
+                <Unlock size={16} className="transition-all duration-200 group-hover:hidden text-emerald-600" />
+                {/* Cadeado fecha ao passar o mouse por cima para bloquear o sistema */}
+                <Lock size={16} className="hidden transition-all duration-200 group-hover:block text-amber-600 animate-in zoom-in-75" />
               </button>
             </div>
           )}

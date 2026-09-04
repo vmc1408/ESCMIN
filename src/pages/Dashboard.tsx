@@ -998,10 +998,10 @@ export function Dashboard() {
   }, [fetchStats]);
 
   const statCards = [
-    { label: 'Alunos', stats: stats.students, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-    { label: 'Turmas', stats: stats.classes, icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-    { label: 'Disciplinas', stats: stats.subjects, icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-100/50', border: 'border-blue-200/50' },
-    { label: 'Professores', stats: stats.teachers, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-100/50', border: 'border-emerald-200/50' },
+    { label: 'Alunos', stats: stats.students, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', path: '/students' },
+    { label: 'Turmas', stats: stats.classes, icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/classes' },
+    { label: 'Disciplinas', stats: stats.subjects, icon: BookOpen, color: 'text-blue-700', bg: 'bg-blue-100/50', path: '/subjects' },
+    { label: 'Professores', stats: stats.teachers, icon: UserCheck, color: 'text-emerald-700', bg: 'bg-emerald-100/50', path: '/teachers' },
   ];
 
   const periods = useMemo(() => getAllAcademicSchedulePeriods(acadSettings), [acadSettings]);
@@ -1426,14 +1426,18 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Acesso Rápido - Botões Flutuantes sem Quadro */}
+      {/* Acesso Rápido - Botões com Destaque Harmonizado com Síntese da Escola */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2.5"
       >
         <div className="flex items-center justify-between px-1">
-          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Acesso Rápido</h4>
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-3.5 bg-blue-600 rounded-full inline-block" />
+            <h4 className="text-[10.5px] font-black text-slate-700 uppercase tracking-widest">Acesso Rápido</h4>
+          </div>
+          <span className="text-[8.5px] font-semibold text-slate-400 uppercase tracking-wider">Ações Principais</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {(isTeacher ? [
@@ -1441,37 +1445,33 @@ export function Dashboard() {
               label: 'Lançar Chamada', 
               icon: UserCheck, 
               path: '/attendance', 
-              bg: 'bg-white hover:bg-emerald-50/60', 
-              iconColor: 'text-emerald-600', 
-              iconBg: 'bg-emerald-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-emerald-500/70',
+              iconColor: 'text-emerald-400', 
+              iconBg: 'bg-emerald-950/90 border border-emerald-500/40',
             },
             { 
               label: 'Lista de Frequência', 
               icon: Calendar, 
               path: '/monthly-attendance', 
-              bg: 'bg-white hover:bg-blue-50/60', 
-              iconColor: 'text-blue-600', 
-              iconBg: 'bg-blue-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-blue-500/70',
+              iconColor: 'text-blue-400', 
+              iconBg: 'bg-blue-950/90 border border-blue-500/40',
             },
             { 
               label: 'Apontamento de Notas', 
               icon: BookOpen, 
               path: '/grades', 
-              bg: 'bg-white hover:bg-indigo-50/60', 
-              iconColor: 'text-indigo-600', 
-              iconBg: 'bg-indigo-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-indigo-500/70',
+              iconColor: 'text-indigo-400', 
+              iconBg: 'bg-indigo-950/90 border border-indigo-500/40',
             },
             { 
               label: 'Cadastrar Avaliações', 
               icon: GraduationCap, 
               path: '/assessments', 
-              bg: 'bg-white hover:bg-amber-50/60', 
-              iconColor: 'text-amber-600', 
-              iconBg: 'bg-amber-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-amber-500/70',
+              iconColor: 'text-amber-400', 
+              iconBg: 'bg-amber-950/90 border border-amber-500/40',
             }
           ] : [
             { 
@@ -1479,55 +1479,49 @@ export function Dashboard() {
               icon: UserPlus, 
               path: '/students', 
               state: { action: 'new' },
-              bg: 'bg-white hover:bg-indigo-50/60', 
-              iconColor: 'text-indigo-600', 
-              iconBg: 'bg-indigo-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-blue-500/70',
+              iconColor: 'text-blue-400', 
+              iconBg: 'bg-blue-950/90 border border-blue-500/40',
             },
             { 
               label: 'Controle e Histórico', 
               icon: UserCircle, 
               path: '/student-ficha', 
-              bg: 'bg-white hover:bg-rose-50/60', 
-              iconColor: 'text-rose-600', 
-              iconBg: 'bg-rose-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-rose-500/70',
+              iconColor: 'text-rose-400', 
+              iconBg: 'bg-rose-950/90 border border-rose-500/40',
             },
             { 
               label: 'Gerar Impressos', 
               icon: Printer, 
               path: '/impressos', 
-              bg: 'bg-white hover:bg-sky-50/60', 
-              iconColor: 'text-sky-600', 
-              iconBg: 'bg-sky-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-sky-500/70',
+              iconColor: 'text-sky-400', 
+              iconBg: 'bg-sky-950/90 border border-sky-500/40',
             },
             { 
               label: 'Turmas / Classes', 
               icon: GraduationCap, 
               path: '/classes', 
-              bg: 'bg-white hover:bg-emerald-50/60', 
-              iconColor: 'text-emerald-600', 
-              iconBg: 'bg-emerald-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-emerald-500/70',
+              iconColor: 'text-emerald-400', 
+              iconBg: 'bg-emerald-950/90 border border-emerald-500/40',
             },
             { 
               label: 'Calendário', 
               icon: Calendar, 
               path: '/calendar', 
-              bg: 'bg-white hover:bg-amber-50/60', 
-              iconColor: 'text-amber-600', 
-              iconBg: 'bg-amber-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-amber-500/70',
+              iconColor: 'text-amber-400', 
+              iconBg: 'bg-amber-950/90 border border-amber-500/40',
             },
             { 
               label: 'Contribuições', 
               icon: Wallet, 
               path: '/contributions', 
-              bg: 'bg-white hover:bg-violet-50/60', 
-              iconColor: 'text-violet-600', 
-              iconBg: 'bg-violet-50/80',
-              hoverShadow: 'hover:-translate-y-0.5' 
+              borderGlow: 'hover:border-violet-500/70',
+              iconColor: 'text-violet-400', 
+              iconBg: 'bg-violet-950/90 border border-violet-500/40',
             }
           ].filter(item => canAccess(item.path))).map((item, i) => (
             <button 
@@ -1538,62 +1532,22 @@ export function Dashboard() {
                 }
               }}
               className={cn(
-                "flex flex-row items-center gap-2.5 px-3.5 py-2.5 rounded-lg transition-all duration-300 text-left group cursor-pointer w-full min-h-[44px]",
-                item.bg,
-                item.hoverShadow
+                "flex flex-row items-center gap-2.5 px-3.5 py-2.5 rounded-lg transition-all duration-300 text-left group cursor-pointer w-full min-h-[46px] relative overflow-hidden shadow-sm",
+                "bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 border border-blue-900/60 hover:-translate-y-0.5 hover:shadow-md",
+                item.borderGlow
               )}
             >
-              <div className={cn("p-1.5 rounded-md transition-all duration-300 shrink-0", item.iconBg)}>
+              <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              <div className={cn("p-1.5 rounded-md transition-all duration-300 shrink-0 relative z-10 shadow-xs", item.iconBg)}>
                 <item.icon size={16} className={cn("transition-transform duration-300 group-hover:scale-110 shrink-0", item.iconColor)} />
               </div>
-              <span className="text-[9.5px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors tracking-tight leading-tight uppercase truncate">
+              <span className="text-[9.5px] font-bold text-white group-hover:text-blue-200 transition-colors tracking-tight leading-tight uppercase truncate relative z-10">
                 {item.label}
               </span>
             </button>
           ))}
         </div>
       </motion.div>
-
-      {/* Informative Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, idx) => (
-          <motion.div 
-            key={stat.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            className="group relative bg-white p-6 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-all duration-300"
-          >
-            <div className="flex items-start justify-between mb-6">
-              <div className={`${stat.bg} ${stat.color} w-10 h-10 rounded-md flex items-center justify-center transition-transform group-hover:scale-105`}>
-                <stat.icon size={20} />
-              </div>
-              <div className="text-right">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                <h3 className="text-2xl font-bold text-slate-800 tracking-tight mt-1 tabular-nums">
-                  {isRefreshing ? "..." : stat.stats.active}
-                </h3>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-               <div className="flex flex-col">
-                  <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Latência</span>
-                  <div className="flex items-center gap-1.5">
-                    <div className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      dbStatus === 'connected' ? "bg-emerald-500" : "bg-amber-400"
-                    )}></div>
-                    <span className="text-[9px] font-medium text-slate-400">{dbInfo.latency || '?'} ms</span>
-                  </div>
-               </div>
-               <div className="px-2 py-0.5 bg-slate-50 border border-slate-100 rounded text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-                  Ativos
-               </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
 
       {/* Ocupação Acadêmica - Ajustada em 3 por linha */}
       <motion.div
@@ -1787,7 +1741,90 @@ export function Dashboard() {
 
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/30">
             {studentsByClass.length > 0 ? (
-              studentsByClass.map((c, i) => {
+              <>
+                {/* Card Único Consolidado - Síntese da Escola (Posicionado em primeiro com cor e fundo em destaque) */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.02 }}
+                  className="p-2.5 sm:p-3 rounded-md border-2 border-blue-600/70 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white shadow-md flex flex-col justify-between h-full relative overflow-hidden group"
+                >
+                  <div className="absolute -top-12 -right-12 w-28 h-28 bg-blue-500/15 rounded-full blur-xl pointer-events-none" />
+
+                  <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0 pr-1">
+                        <div className="h-6 px-1.5 flex items-center justify-center text-white font-black text-[9px] uppercase tracking-wider rounded shrink-0 bg-blue-600 shadow-xs">
+                          GERAL
+                        </div>
+                        <div className="min-w-0">
+                          <h5 className="text-[12.5px] font-black text-white tracking-tight truncate leading-snug">
+                            Síntese da Escola
+                          </h5>
+                          <p className="text-[8.5px] font-medium text-blue-200/80 uppercase tracking-wider">
+                            Quadro Geral de Cadastros
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-1.5 py-0.5 bg-blue-900/90 text-blue-200 border border-blue-400/30 rounded text-[7.5px] font-bold uppercase tracking-wider shrink-0">
+                        Consolidado
+                      </span>
+                    </div>
+
+                    {/* 4 Stats Grid */}
+                    <div className="my-1.5 py-1 px-1.5 bg-slate-950/60 border border-blue-900/40 rounded text-[9.5px] leading-tight overflow-hidden">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {statCards.map((st) => (
+                          <div
+                            key={st.label}
+                            onClick={() => navigate(st.path)}
+                            className="p-1.5 bg-slate-900/90 hover:bg-blue-900/50 rounded border border-slate-800/80 hover:border-blue-500/50 flex items-center gap-2 cursor-pointer transition-all shadow-xs group/item"
+                            title={`Acessar gestão de ${st.label}`}
+                          >
+                            <div className={cn("w-6 h-6 rounded flex items-center justify-center shrink-0 transition-transform group-hover/item:scale-110", st.bg, st.color)}>
+                              <st.icon size={13} />
+                            </div>
+                            <div className="min-w-0 flex-1 leading-tight">
+                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider truncate">{st.label}</p>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-[12.5px] font-black text-white tabular-nums">
+                                  {isRefreshing ? "..." : st.stats.active}
+                                </span>
+                                <span className="text-[7.5px] font-semibold text-emerald-400">ativos</span>
+                              </div>
+                              <p className="text-[7.5px] text-slate-400 truncate">Total: {st.stats.total || st.stats.active}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-1.5 pt-1.5 border-t border-blue-900/60 space-y-1 relative z-10">
+                    <div className="flex justify-between items-center px-0.5">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[10.5px] font-bold text-white">
+                          {stats.students.total > 0 ? Math.round((stats.students.active / stats.students.total) * 100) : 100}%
+                        </span>
+                        <span className="text-[8px] font-semibold text-blue-200/70 uppercase tracking-wider">
+                          Taxa de Alunos Ativos
+                        </span>
+                      </div>
+
+                      <span className="px-1.5 py-0.5 bg-blue-900/80 text-blue-200 rounded border border-blue-700/60 text-[8.5px] font-bold">
+                        {stats.students.active} de {stats.students.total}
+                      </span>
+                    </div>
+                    <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-400 rounded-full transition-all duration-500" 
+                        style={{ width: `${stats.students.total > 0 ? Math.min(100, Math.round((stats.students.active / stats.students.total) * 100)) : 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+
+                {studentsByClass.map((c, i) => {
                 const classSubjects = getClassSubjects(c, subjects);
                 const sem1Subs = classSubjects.filter(s => getSubjectClassDetails(s, c).semesterNumber === 1);
                 const sem2Subs = classSubjects.filter(s => getSubjectClassDetails(s, c).semesterNumber === 2);
@@ -1907,7 +1944,8 @@ export function Dashboard() {
                     </div>
                   </motion.div>
                 );
-              })
+              })}
+            </>
             ) : (
                <div className="col-span-full py-10 flex flex-col items-center justify-center gap-3 text-slate-500">
                   <p className="text-xs font-bold text-slate-700 uppercase tracking-wider text-center max-w-md">
@@ -2167,7 +2205,15 @@ export function Dashboard() {
                       <button 
                         onClick={() => {
                           setShowStudentsModal(false);
-                          navigate('/students', { state: { studentId: student.id } });
+                          navigate('/students', {
+                            state: {
+                              studentId: student.id,
+                              returnTo: {
+                                path: '/dashboard',
+                                sourceTitle: 'Dashboard'
+                              }
+                            }
+                          });
                         }}
                         className="text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider"
                       >

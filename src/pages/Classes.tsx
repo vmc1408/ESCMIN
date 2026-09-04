@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Search, 
   Edit2, 
@@ -42,7 +42,7 @@ import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
-import { detectSubjectSemester } from '../lib/academicUtils';
+import { detectSubjectSemester, getClassStartDateFromSchedule } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { Course } from '../types';
@@ -206,6 +206,7 @@ const ClassItem = React.memo(({
 
 export function Classes() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [coursesList, setCoursesList] = useState<Course[]>([]);
@@ -1222,6 +1223,33 @@ export function Classes() {
     setHoverShowList(false);
   }, [PREDEFINED_COURSES]);
 
+  // Restaura a turma e reabre o modal de alunos ao retornar da ficha do aluno
+  useEffect(() => {
+    const state = location.state as any;
+    if (!state) return;
+
+    const classId = state.classId;
+    const reopenModal = state.reopenModal;
+    const reopenUnallocatedModal = state.reopenUnallocatedModal;
+
+    if (reopenUnallocatedModal) {
+      setShowUnallocatedModal(true);
+      window.history.replaceState({}, document.title);
+      return;
+    }
+
+    if (classId && classes.length > 0) {
+      const targetCls = classes.find(c => c.id === classId);
+      if (targetCls) {
+        handleSelectClass(targetCls);
+        if (reopenModal) {
+          handleOpenStudentsModal(targetCls);
+        }
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, classes, handleSelectClass, handleOpenStudentsModal]);
+
   const generateClassListPDF = async () => {
     try {
       const doc = new jsPDF();
@@ -2027,6 +2055,8 @@ export function Classes() {
       const targetClass = classes.find(c => c.id === targetClassForUnallocated);
       const detectedCourse = targetClass ? detectCourseFromClass(targetClass) : '';
       const now = new Date().toISOString().split('T')[0];
+      const cronoStartDate = targetClass ? getClassStartDateFromSchedule(targetClass, acadSettings ? [acadSettings] : []) : '';
+      const effectiveStartDate = cronoStartDate || targetClass?.start_date || now;
 
       for (const studentId of selectedUnallocatedStudentIds) {
         const student = allStudents.find(s => s.id === studentId);
@@ -2036,7 +2066,7 @@ export function Classes() {
         await saveData('students', studentId, {
           class_id: targetClassForUnallocated,
           ...(studentCourse ? { course: studentCourse } : {}),
-          ...(targetClass?.start_date ? { start_date: targetClass.start_date } : {})
+          ...(effectiveStartDate ? { start_date: effectiveStartDate } : {})
         });
 
         // 2. Add enrollment record
@@ -2044,8 +2074,16 @@ export function Classes() {
           student_id: studentId,
           class_id: targetClassForUnallocated,
           status: 'Ativo',
-          enrollment_date: targetClass?.start_date || now
+          enrollment_date: effectiveStartDate
         });
+      }
+
+      if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
+        saveData('classes', targetClass.id, { start_date: cronoStartDate })
+          .then(() => {
+            setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
+          })
+          .catch(e => console.warn('Could not sync class start_date:', e));
       }
 
       setNotification({
@@ -2532,11 +2570,11 @@ export function Classes() {
                           setSelectedClass(null);
                           setIsEditing(false);
                         }}
-                        className="h-10 w-10 bg-rose-50 border border-rose-200 text-rose-600 rounded-none hover:text-rose-800 hover:bg-rose-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                        title="Fechar Ficha"
+                        className="h-10 w-10 bg-slate-100 border border-slate-300 text-slate-700 rounded-none hover:text-slate-900 hover:bg-slate-200 hover:border-slate-400 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                        title="Fechar Ficha (Voltar à lista)"
                         aria-label="Fechar Ficha"
                       >
-                        <X size={18} />
+                        <ArrowLeft size={18} />
                       </button>
 
                       <button 
@@ -2905,6 +2943,23 @@ export function Classes() {
                           <div className="flex-[1] min-w-[130px] space-y-1.5">
                             <div className="flex items-center justify-between ml-0.5 h-[17px]">
                               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Data Início</label>
+                              {formData && (() => {
+                                const schedDate = getClassStartDateFromSchedule(formData, acadSettings ? [acadSettings] : []);
+                                if (schedDate) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled={!isEditing}
+                                      onClick={() => isEditing && setFormData(prev => ({ ...prev, start_date: formatDateForDisplay(schedDate) }))}
+                                      className="text-[10px] text-emerald-700 font-semibold hover:underline cursor-pointer flex items-center gap-0.5"
+                                      title="Clique para preencher com a data do cronograma"
+                                    >
+                                      Cronograma: {formatDateForDisplay(schedDate)}
+                                    </button>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                             <input 
                               type="text"
@@ -3908,7 +3963,17 @@ export function Classes() {
                               type="button"
                               onClick={() => {
                                 setShowStudentsModal(false);
-                                navigate('/students', { state: { studentId: s.id } });
+                                navigate('/students', {
+                                  state: {
+                                    studentId: s.id,
+                                    returnTo: {
+                                      path: '/classes',
+                                      classId: (selectedClass || formData)?.id,
+                                      reopenModal: true,
+                                      sourceTitle: `Turma ${(selectedClass || formData)?.name || 'Turma'}`
+                                    }
+                                  }
+                                });
                               }}
                               className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white text-[10px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
                               title="Ver ficha completa do aluno"
@@ -4122,7 +4187,16 @@ export function Classes() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setShowUnallocatedModal(false);
-                              navigate('/students', { state: { studentId: s.id } });
+                              navigate('/students', {
+                                state: {
+                                  studentId: s.id,
+                                  returnTo: {
+                                    path: '/classes',
+                                    reopenUnallocatedModal: true,
+                                    sourceTitle: 'Alunos Sem Turma'
+                                  }
+                                }
+                              });
                             }}
                             className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer border border-slate-200"
                             title="Ver ficha completa do aluno"
