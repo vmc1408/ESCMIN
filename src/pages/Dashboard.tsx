@@ -5,6 +5,7 @@ import {
   UserPlus,
   GraduationCap, 
   BookOpen, 
+  Book,
   UserCheck, 
   ArrowUpRight, 
   RefreshCw, 
@@ -22,6 +23,8 @@ import {
   Repeat,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Check,
   Sparkles,
   CheckCircle2,
   CheckSquare,
@@ -508,6 +511,21 @@ export function Dashboard() {
       localStorage.setItem('dashboard_selected_academic_year', yr);
     } catch (e) {}
   }, []);
+
+  const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
+  const yearDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (yearDropdownRef.current && !yearDropdownRef.current.contains(event.target as Node)) {
+        setIsYearDropdownOpen(false);
+      }
+    }
+    if (isYearDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isYearDropdownOpen]);
 
   // Available academic years derived from standard horizon and existing classes
   const availableAcademicYears = useMemo(() => {
@@ -1714,9 +1732,9 @@ export function Dashboard() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden"
+        className="bg-white rounded-xl border border-slate-200 shadow-2xs relative"
       >
-        <div className="px-5 py-3.5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white relative z-20">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0">
               <Activity size={16} />
@@ -1729,117 +1747,236 @@ export function Dashboard() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Toggle Visibilidade das Disciplinas */}
-            <button
-              type="button"
-              onClick={() => setShowDisciplines(!showDisciplines)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-2xs select-none active:scale-[0.98]",
-                showDisciplines
-                  ? "bg-blue-50 border-blue-200 text-blue-900 hover:bg-blue-100/80"
-                  : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200/80"
-              )}
-              title={showDisciplines ? "Ocultar Disciplinas nas Turmas" : "Exibir Disciplinas nas Turmas"}
-            >
-              {showDisciplines ? (
-                <>
-                  <EyeOff size={14} className="text-blue-700" />
-                  <span>Ocultar Matérias</span>
-                </>
-              ) : (
-                <>
-                  <Eye size={14} className="text-slate-600" />
-                  <span>Exibir Matérias</span>
-                </>
-              )}
-            </button>
+          {/* Barra de Controles Unificada, Moderna e sem Bordas Marcantes */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="inline-flex items-center p-1 bg-slate-100/80 rounded-xl">
+              {/* Toggle Visibilidade das Matérias */}
+              <button
+                type="button"
+                onClick={() => setShowDisciplines(!showDisciplines)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none",
+                  showDisciplines
+                    ? "bg-white text-blue-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                )}
+                title={showDisciplines ? "Ocultar lista de matérias das turmas" : "Exibir lista de matérias das turmas"}
+              >
+                {showDisciplines ? (
+                  <BookOpen size={14} className="text-blue-600 shrink-0" />
+                ) : (
+                  <Book size={14} className="text-slate-400 shrink-0" />
+                )}
+                <span>Matérias</span>
+                <span 
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full transition-all",
+                    showDisciplines ? "bg-blue-600 scale-100" : "bg-slate-300 scale-75"
+                  )} 
+                />
+              </button>
 
-            {/* Seleção de Ano - Flutuante e Limpo */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2 py-1 rounded-lg select-none">
-              {(() => {
-                const currentYrIdx = availableAcademicYears.indexOf(selectedAcademicYear);
-                const isAtOldest = selectedAcademicYear !== 'Todos' && selectedAcademicYear !== 'ATUAL' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
-                const isAtNewest = selectedAcademicYear !== 'Todos' && selectedAcademicYear !== 'ATUAL' && currentYrIdx === 0;
+              {/* Divisor sutil sem borda marcante */}
+              <div className="w-px h-3.5 bg-slate-200 mx-1 shrink-0" />
 
-                return (
-                  <>
-                    {/* Botão Ano Anterior */}
-                    <button
-                      type="button"
-                      disabled={isAtOldest}
-                      onClick={() => {
-                        if (selectedAcademicYear === 'Todos' || selectedAcademicYear === 'ATUAL') {
-                          setSelectedAcademicYear('2026');
-                        } else {
-                          const idx = availableAcademicYears.indexOf(selectedAcademicYear);
-                          if (idx !== -1 && idx < availableAcademicYears.length - 1) {
-                            setSelectedAcademicYear(availableAcademicYears[idx + 1]);
-                          }
+              {/* Navegador de Ano Letivo com Popover Flutuante */}
+              <div className="relative" ref={yearDropdownRef}>
+                {(() => {
+                  const activeYr = selectedAcademicYear === 'ATUAL' ? '2026' : selectedAcademicYear;
+                  const currentYrIdx = availableAcademicYears.indexOf(activeYr);
+                  const isAtOldest = selectedAcademicYear !== 'Todos' && (currentYrIdx === availableAcademicYears.length - 1 || currentYrIdx === -1);
+                  const isAtNewest = selectedAcademicYear !== 'Todos' && currentYrIdx === 0;
+
+                  const handlePrevYear = () => {
+                    if (selectedAcademicYear === 'Todos') {
+                      setSelectedAcademicYear('2026');
+                      return;
+                    }
+                    if (currentYrIdx !== -1 && currentYrIdx < availableAcademicYears.length - 1) {
+                      setSelectedAcademicYear(availableAcademicYears[currentYrIdx + 1]);
+                    }
+                  };
+
+                  const handleNextYear = () => {
+                    if (selectedAcademicYear === 'Todos') {
+                      setSelectedAcademicYear('2026');
+                      return;
+                    }
+                    if (currentYrIdx > 0) {
+                      setSelectedAcademicYear(availableAcademicYears[currentYrIdx - 1]);
+                    }
+                  };
+
+                  return (
+                    <div className="flex items-center gap-0.5">
+                      {/* Botão Ano Anterior */}
+                      <button
+                        type="button"
+                        disabled={isAtOldest}
+                        onClick={handlePrevYear}
+                        className={cn(
+                          "p-1.5 rounded-lg transition-all cursor-pointer select-none",
+                          isAtOldest
+                            ? "text-slate-300 cursor-not-allowed opacity-30"
+                            : "text-slate-500 hover:text-slate-900 hover:bg-white/70 active:scale-95"
+                        )}
+                        title={
+                          isAtOldest
+                            ? `Primeiro ano cadastrado: ${activeYr}`
+                            : "Voltar para o ano letivo anterior"
                         }
-                      }}
-                      className={cn(
-                        "p-1 rounded transition-colors cursor-pointer shrink-0 select-none",
-                        isAtOldest
-                          ? "text-slate-300 cursor-not-allowed opacity-40"
-                          : "text-slate-500 hover:text-blue-800 hover:bg-slate-200/50"
-                      )}
-                      title={
-                        isAtOldest
-                          ? `Não há turmas cadastradas em anos anteriores a ${selectedAcademicYear}`
-                          : "Voltar para o Ano Anterior"
-                      }
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
 
-                    <select
-                      id="dash-academic-year"
-                      value={selectedAcademicYear}
-                      onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                      className="bg-transparent text-xs font-bold text-slate-800 hover:text-blue-700 border-none outline-none cursor-pointer py-0.5 px-1 tracking-wider uppercase transition-colors"
-                      title="Selecionar Ano Letivo"
-                    >
-                      <option value="ATUAL">2026 (Atual)</option>
-                      {availableAcademicYears.map(yr => (
-                        <option key={yr} value={yr}>
-                          {yr}
-                        </option>
-                      ))}
-                      <option value="Todos">Todos os Anos</option>
-                    </select>
+                      {/* Botão Seletor com Rótulo e Dropdown Moderno */}
+                      <button
+                        type="button"
+                        onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none",
+                          isYearDropdownOpen
+                            ? "bg-white text-blue-900 shadow-xs"
+                            : "text-slate-700 hover:text-slate-900 hover:bg-white/60"
+                        )}
+                        title="Clique para selecionar outro ano letivo"
+                      >
+                        <Calendar size={12} className="text-slate-400" />
+                        <span>
+                          {selectedAcademicYear === 'Todos' 
+                            ? 'Todos os Anos' 
+                            : selectedAcademicYear === 'ATUAL' 
+                            ? '2026' 
+                            : selectedAcademicYear}
+                        </span>
+                        <ChevronDown 
+                          size={12} 
+                          className={cn(
+                            "text-slate-400 transition-transform duration-200", 
+                            isYearDropdownOpen && "rotate-180 text-blue-600"
+                          )} 
+                        />
+                      </button>
 
-                    {/* Botão Próximo Ano */}
-                    <button
-                      type="button"
-                      disabled={isAtNewest}
-                      onClick={() => {
-                        if (selectedAcademicYear === 'Todos' || selectedAcademicYear === 'ATUAL') {
-                          setSelectedAcademicYear('2027');
-                        } else {
-                          const idx = availableAcademicYears.indexOf(selectedAcademicYear);
-                          if (idx > 0) {
-                            setSelectedAcademicYear(availableAcademicYears[idx - 1]);
-                          }
+                      {/* Botão Próximo Ano */}
+                      <button
+                        type="button"
+                        disabled={isAtNewest}
+                        onClick={handleNextYear}
+                        className={cn(
+                          "p-1.5 rounded-lg transition-all cursor-pointer select-none",
+                          isAtNewest
+                            ? "text-slate-300 cursor-not-allowed opacity-30"
+                            : "text-slate-500 hover:text-slate-900 hover:bg-white/70 active:scale-95"
+                        )}
+                        title={
+                          isAtNewest
+                            ? `Último ano cadastrado: ${activeYr}`
+                            : "Avançar para o próximo ano letivo"
                         }
-                      }}
-                      className={cn(
-                        "p-1 rounded transition-colors cursor-pointer shrink-0 select-none",
-                        isAtNewest
-                          ? "text-slate-300 cursor-not-allowed opacity-40"
-                          : "text-slate-500 hover:text-blue-800 hover:bg-slate-200/50"
-                      )}
-                      title={
-                        isAtNewest
-                          ? `Não há turmas cadastradas em anos futuros a ${selectedAcademicYear}`
-                          : "Avançar para o Próximo Ano"
-                      }
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {/* Dropdown Flutuante Moderno e Limpo */}
+                <AnimatePresence>
+                  {isYearDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-100 p-1.5 z-50 overflow-hidden"
                     >
-                      <ChevronRight size={16} />
-                    </button>
-                  </>
-                );
-              })()}
+                      <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Ano Letivo
+                      </div>
+                      
+                      {/* Opção Ano Atual 2026 */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAcademicYear('ATUAL');
+                          setIsYearDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
+                          selectedAcademicYear === 'ATUAL' || selectedAcademicYear === '2026'
+                            ? "bg-blue-50/80 text-blue-900"
+                            : "text-slate-700 hover:bg-slate-50"
+                        )}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>2026</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-800">
+                            Atual
+                          </span>
+                        </span>
+                        {(selectedAcademicYear === 'ATUAL' || selectedAcademicYear === '2026') && (
+                          <Check size={13} className="text-blue-600" />
+                        )}
+                      </button>
+
+                      {/* Demais Anos Disponíveis */}
+                      {availableAcademicYears
+                        .filter(yr => yr !== '2026')
+                        .map(yr => {
+                          const isFuture = parseInt(yr, 10) > 2026;
+                          const isSelected = selectedAcademicYear === yr;
+                          return (
+                            <button
+                              key={yr}
+                              type="button"
+                              onClick={() => {
+                                setSelectedAcademicYear(yr);
+                                setIsYearDropdownOpen(false);
+                              }}
+                              className={cn(
+                                "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
+                                isSelected
+                                  ? "bg-blue-50/80 text-blue-900"
+                                  : "text-slate-700 hover:bg-slate-50"
+                              )}
+                            >
+                              <span className="flex items-center gap-2">
+                                <span>{yr}</span>
+                                {isFuture && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                                    Planejamento
+                                  </span>
+                                )}
+                              </span>
+                              {isSelected && <Check size={13} className="text-blue-600" />}
+                            </button>
+                          );
+                        })}
+
+                      <div className="h-px bg-slate-100 my-1" />
+
+                      {/* Opção Todos os Anos */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAcademicYear('Todos');
+                          setIsYearDropdownOpen(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
+                          selectedAcademicYear === 'Todos'
+                            ? "bg-blue-50/80 text-blue-900"
+                            : "text-slate-700 hover:bg-slate-50"
+                        )}
+                      >
+                        <span>Todos os Anos</span>
+                        {selectedAcademicYear === 'Todos' && <Check size={13} className="text-blue-600" />}
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
