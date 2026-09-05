@@ -39,6 +39,7 @@ import { PageHeader } from '../components/PageHeader';
 import { HabilitationModal } from '../components/HabilitationModal';
 import { Student, Class, Subject, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { getAllAcademicSchedulePeriods, formatDateBR } from '../lib/academicUtils';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -918,6 +919,63 @@ export function Dashboard() {
     { label: 'Professores', stats: stats.teachers, icon: UserCheck, color: 'text-emerald-700', bg: 'bg-emerald-100/50', path: '/teachers' },
   ];
 
+  // Controle de Visualização do Cronograma (Ocultar / Visualizar)
+  const [showSchedule, setShowSchedule] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('dashboard_show_schedule');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleShowSchedule = () => {
+    setShowSchedule(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('dashboard_show_schedule', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const periods = useMemo(() => getAllAcademicSchedulePeriods(acadSettings), [acadSettings]);
+  const [activePeriodIndex, setActivePeriodIndex] = useState(0);
+  const [isPeriodPaused, setIsPeriodPaused] = useState(false);
+
+  useEffect(() => {
+    if (periods.length <= 1 || isPeriodPaused) return;
+    const interval = setInterval(() => {
+      setActivePeriodIndex((prev) => (prev + 1) % periods.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [periods.length, isPeriodPaused]);
+
+  const currentPeriod = periods[activePeriodIndex % Math.max(1, periods.length)] || {
+    label: 'Geral',
+    t1Start: '',
+    t1End: '',
+    t2Start: '',
+    t2End: ''
+  };
+
+  const formatPeriodDisplay = (startStr: string, endStr: string) => {
+    if (startStr && endStr) {
+      return (
+        <>
+          {formatDateBR(startStr)} <span className="text-slate-400 font-normal mx-0.5">até</span> {formatDateBR(endStr)}
+        </>
+      );
+    }
+    if (startStr) {
+      return <>A partir de {formatDateBR(startStr)}</>;
+    }
+    if (endStr) {
+      return <>Até {formatDateBR(endStr)}</>;
+    }
+    return <span className="text-slate-400 font-medium italic">A definir</span>;
+  };
+
   // ==========================================
   // TELA DEDICADA EXCLUSIVA PARA PROFESSOR / DOCENTE
   // 2 botões grandes e elegantes ao centro
@@ -1117,12 +1175,148 @@ export function Dashboard() {
         description="Painel de monitoramento e controle de informações internas da instituição."
         icon={Activity}
       >
-        {isRefreshing && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
-            <RefreshCw size={11} className="animate-spin text-slate-500" />
-            <span>Sincronizando...</span>
+        <div 
+          className="flex flex-col gap-2 items-stretch sm:items-end"
+          onMouseEnter={() => setIsPeriodPaused(true)}
+          onMouseLeave={() => setIsPeriodPaused(false)}
+        >
+          {/* Barra superior do cabeçalho: botão Ocultar/Visualizar + Seletor de Cronogramas */}
+          <div className="flex items-center gap-2 self-center sm:self-end">
+            {periods.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleShowSchedule}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200/80 rounded-lg text-[10px] font-bold tracking-wide transition-all shadow-2xs cursor-pointer"
+                title={showSchedule ? "Ocultar datas do cronograma letivo" : "Visualizar datas do cronograma letivo"}
+              >
+                {showSchedule ? (
+                  <>
+                    <EyeOff size={12} className="text-slate-500" />
+                    <span>Ocultar Cronograma</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye size={12} className="text-blue-600" />
+                    <span>Visualizar Cronograma</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {showSchedule && periods.length > 1 && (
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200/70">
+                <span className="flex items-center gap-1.5 text-[9.5px] font-semibold uppercase text-slate-500 tracking-wider px-2 py-0.5">
+                  <Repeat size={11} className="text-slate-500" />
+                  <span className="hidden sm:inline">Cronogramas:</span>
+                </span>
+                {periods.map((p, idx) => {
+                  const isActive = idx === (activePeriodIndex % periods.length);
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => setActivePeriodIndex(idx)}
+                      className={`px-3 py-1 rounded-md text-[10px] font-bold tracking-wide transition-all duration-200 cursor-pointer ${
+                        isActive 
+                          ? 'bg-blue-900 text-white shadow-xs' 
+                          : 'text-slate-600 hover:bg-slate-200/80 hover:text-slate-900'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {!showSchedule && isRefreshing && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
+                <RefreshCw size={11} className="animate-spin text-slate-500" />
+                <span>Sincronizando...</span>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Cards dos Semestres quando visível */}
+          <AnimatePresence>
+            {showSchedule && periods.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: -6, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 overflow-hidden"
+              >
+                <div className="flex items-center gap-3 px-3.5 py-2 bg-white border border-slate-200/90 rounded-xl text-slate-800 shadow-2xs min-w-[210px] transition-all duration-300">
+                  <div className="p-2 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg shrink-0">
+                    <Calendar size={15} />
+                  </div>
+                  <div className="text-[11px] leading-tight font-sans flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-bold text-slate-900 uppercase text-[9.5px] tracking-wider">
+                        1º Semestre
+                      </p>
+                      {periods.length > 1 && (
+                        <span className="text-[8.5px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 uppercase">
+                          {currentPeriod.label}
+                        </span>
+                      )}
+                    </div>
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={`t1-${currentPeriod.label}-${currentPeriod.t1Start}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="font-semibold text-slate-700 mt-0.5"
+                      >
+                        {formatPeriodDisplay(currentPeriod.t1Start, currentPeriod.t1End)}
+                      </motion.p>
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 px-3.5 py-2 bg-white border border-slate-200/90 rounded-xl text-slate-800 shadow-2xs min-w-[210px] transition-all duration-300">
+                  <div className="p-2 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg shrink-0">
+                    <Calendar size={15} />
+                  </div>
+                  <div className="text-[11px] leading-tight font-sans flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-bold text-slate-900 uppercase text-[9.5px] tracking-wider">
+                        2º Semestre
+                      </p>
+                      {periods.length > 1 && (
+                        <span className="text-[8.5px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 uppercase">
+                          {currentPeriod.label}
+                        </span>
+                      )}
+                    </div>
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={`t2-${currentPeriod.label}-${currentPeriod.t2Start}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="font-semibold text-slate-700 mt-0.5"
+                      >
+                        {formatPeriodDisplay(currentPeriod.t2Start, currentPeriod.t2End)}
+                      </motion.p>
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {isRefreshing && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
+                    <RefreshCw size={11} className="animate-spin text-slate-500" />
+                    <span>Sincronizando...</span>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </PageHeader>
 
       {(syncError || !isConnected) && (
@@ -1376,7 +1570,7 @@ export function Dashboard() {
                   <span className="text-[11px] font-bold text-slate-700 group-hover:text-blue-900 transition-colors uppercase tracking-wider block">
                     Alunos
                   </span>
-                  <span className="text-[9.5px] text-slate-400 font-medium">Corpo discente</span>
+                  <span className="text-[9.5px] text-slate-400 font-medium">Alunos matriculados</span>
                 </div>
               </div>
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[9px] font-bold">
