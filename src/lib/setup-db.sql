@@ -137,6 +137,34 @@ CREATE TABLE IF NOT EXISTS receipts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 10. Tabela de Unidades / Filiais (Polos Educacionais)
+CREATE TABLE IF NOT EXISTS units (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    is_main BOOLEAN DEFAULT false,
+    address TEXT,
+    city TEXT,
+    state TEXT,
+    phone TEXT,
+    email TEXT,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Garantir existência da Unidade Matriz Padrão
+INSERT INTO units (id, code, name, is_main, active)
+VALUES ('matriz', 'MAT', 'Sede / Matriz', true, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Adicionar coluna unit_id nas tabelas operacionais
+ALTER TABLE users ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
+ALTER TABLE email_registry ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
+ALTER TABLE students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE subjects ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
 -- 6. Recriar políticas de acesso (RLS) - Permite leitura/escrita para todos no modo dev
 DO $$ 
 DECLARE 

@@ -340,10 +340,36 @@ CREATE TABLE IF NOT EXISTS public.receipts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 22. Unidades e Polos Educacionais
+CREATE TABLE IF NOT EXISTS public.units (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    is_main BOOLEAN DEFAULT false,
+    address TEXT,
+    city TEXT,
+    state TEXT,
+    phone TEXT,
+    email TEXT,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+INSERT INTO public.units (id, code, name, is_main, active)
+VALUES ('matriz', 'MAT', 'Sede / Matriz', true, true)
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
+ALTER TABLE public.email_registry ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.subjects ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
 -- Habilitar RLS e criar políticas de acesso público para todas as tabelas
 DO $$
 DECLARE
-    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments', 'archived_students', 'archived_teachers', 'archived_classes', 'archived_subjects', 'academic_settings', 'assessments', 'receipts'];
+    tables text[] := ARRAY['email_registry', 'users', 'students', 'classes', 'subjects', 'teachers', 'pix_reconciliations', 'contributions', 'foraries', 'parishes', 'institution_settings', 'attendances', 'grades', 'calendar_events', 'certificates', 'clergy_leity', 'enrollments', 'archived_students', 'archived_teachers', 'archived_classes', 'archived_subjects', 'academic_settings', 'assessments', 'receipts', 'units'];
     t text;
 BEGIN
     FOREACH t IN ARRAY tables LOOP
