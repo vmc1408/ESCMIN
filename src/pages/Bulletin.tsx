@@ -21,6 +21,9 @@ import { fetchAll, fetchQuery, fetchAcademicSettings } from '../lib/database';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
 import { financialService } from '../services/financialService';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -37,6 +40,7 @@ interface GradeRecord {
 
 export function Bulletin() {
   const { userAuth } = useAuth();
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   
   // Database States
   const [classes, setClasses] = useState<Class[]>([]);
@@ -138,11 +142,38 @@ export function Bulletin() {
     loadInitialData();
   }, []);
 
+  // Scoped Classes to active unit
+  const scopedClasses = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
+  }, [classes, selectedUnitId, activeUnits]);
+
+  // Scoped Students to active unit
+  const scopedStudents = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return students;
+    return students.filter(s => {
+      const studentClass = classes.find(c => c.id === s.class_id);
+      const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+      return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+    });
+  }, [students, classes, selectedUnitId, activeUnits]);
+
+  // If active class does not belong to active unit, clear it
+  useEffect(() => {
+    if (selectedClassId && scopedClasses.length > 0) {
+      const exists = scopedClasses.some(c => c.id === selectedClassId);
+      if (!exists) {
+        setSelectedClassId('');
+        setSelectedStudentId('');
+      }
+    }
+  }, [selectedClassId, scopedClasses]);
+
   // Filter Active Students for local class
   const classStudents = useMemo(() => {
     if (!selectedClassId) return [];
-    return filterStudentsForClass(students, selectedClassId, enrollments, true);
-  }, [selectedClassId, students, enrollments]);
+    return filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
+  }, [selectedClassId, scopedStudents, enrollments]);
 
   // Handle auto-selection of first student when changing class in student view mode
   useEffect(() => {
@@ -1488,6 +1519,19 @@ export function Bulletin() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Unit Conflict Banner */}
+          <div className="print:hidden">
+            <UnitConflictBanner
+              moduleName="Boletim Escolar"
+              entityNameSingular="turma"
+              entityNamePlural="turmas"
+              totalRecordsAllUnits={classes.length}
+              recordsInActiveUnit={scopedClasses.length}
+              selectedItemUnit={selectedClassId ? getItemUnitId(classes.find(c => c.id === selectedClassId)) : undefined}
+              selectedItemName={classes.find(c => c.id === selectedClassId)?.name}
+            />
+          </div>
+
           {/* Filtering parameters section */}
           <div className="bg-white rounded-none border border-slate-200 shadow-sm p-4 md:p-5 print:hidden">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
@@ -1508,7 +1552,7 @@ export function Bulletin() {
                     className="w-full pl-12 pr-8 py-2.5 bg-white border border-slate-200 rounded-none text-[11px] font-semibold text-slate-800 appearance-none outline-none focus:border-slate-400 transition-colors"
                   >
                     <option value="">SELECIONAR TURMA...</option>
-                    {classes.map((c, idx) => (
+                    {scopedClasses.map((c, idx) => (
                       <option key={`blt-cls-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
                     ))}
                   </select>

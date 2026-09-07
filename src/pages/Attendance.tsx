@@ -33,7 +33,9 @@ import { detectSubjectSemester, isDateInSubjectSemester, isMonthInSubjectSemeste
 import { getClassSubjects } from '../lib/classSubjectUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
 import { getTeacherScope } from '../lib/teacherScope';
+import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 import { Teacher } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
@@ -65,6 +67,8 @@ interface Class {
   days_of_week?: string[];
   start_date?: string;
   observations?: string;
+  unit_id?: string;
+  polo?: string;
 }
 
 interface Subject {
@@ -93,6 +97,7 @@ interface AttendanceProps {
 
 export function Attendance({ initialMode }: AttendanceProps = {}) {
   const { userAuth, profile, isAdmin, isDirector, isSecretary } = useAuth();
+  const { selectedUnitId, selectedUnit, units, isItemInActiveUnit, filterByActiveUnit } = useUnits();
   const [activeTab, setActiveTab] = useState<'marking' | 'monthly'>(initialMode || 'marking');
 
   // PIN security and unlocking states
@@ -363,16 +368,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
   }, [selectedClass, selectedSubject, selectedDate]);
 
-  // Calcula o escopo de acesso específico para o perfil do professor logado
+  // Calcula o escopo de acesso específico para o perfil do professor logado respeitando a unidade ativa
   const teacherScope = React.useMemo(() => {
-    return getTeacherScope(profile, teachers, subjects, classes);
-  }, [profile, teachers, subjects, classes]);
+    return getTeacherScope(profile, teachers, subjects, classes, undefined, selectedUnitId, units);
+  }, [profile, teachers, subjects, classes, selectedUnitId, units]);
 
-  // Turmas permitidas: para professor, apenas as associadas às suas disciplinas
+  // Turmas permitidas: para professor, apenas as associadas às suas disciplinas E à unidade ativa. Para outros perfis, filtradas pelo polo ativo.
   const availableClasses = React.useMemo(() => {
-    if (!teacherScope.isTeacherRole) return classes;
-    return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
-  }, [classes, teacherScope]);
+    if (teacherScope.isTeacherRole) {
+      return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
+    }
+    if (selectedUnitId && selectedUnitId !== 'all' && selectedUnitId.toLowerCase() !== 'todas') {
+      return filterByActiveUnit(classes, c => c.unit_id || (c as any).polo);
+    }
+    return classes;
+  }, [classes, teacherScope, selectedUnitId, filterByActiveUnit]);
 
   // Se o professor tiver apenas 1 turma disponível, pré-seleciona automaticamente
   useEffect(() => {
@@ -381,13 +391,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
     }
   }, [teacherScope.isTeacherRole, availableClasses, selectedClass]);
 
-  // Se a turma selecionada não for mais permitida para o professor, limpa a seleção
+  // Se a turma selecionada não for permitida, limpa a seleção e os alunos para não vazar turmas de outros polos
   useEffect(() => {
-    if (teacherScope.isTeacherRole && selectedClass && !teacherScope.allowedClassIds.has(selectedClass)) {
+    if (selectedClass && !availableClasses.some(c => c.id === selectedClass)) {
       setSelectedClass('');
       setSelectedSubject('');
+      setStudents([]);
     }
-  }, [teacherScope.isTeacherRole, teacherScope.allowedClassIds, selectedClass]);
+  }, [availableClasses, selectedClass]);
 
   const filteredSubjects = React.useMemo(() => {
     if (!selectedClass) return [];
@@ -1855,45 +1866,8 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       `}</style>
 
       <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-6 space-y-6 no-print">
-      {/* Teacher Scope Notification / Indicator */}
-      {teacherScope.isTeacherRole && (
-        <div className="bg-indigo-50/80 border border-indigo-100 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <GraduationCap size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded">
-                  Modo Docente
-                </span>
-                {teacherScope.teacher ? (
-                  <span className="text-[11px] font-black text-indigo-950">
-                    {teacherScope.teacher.name}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-800">
-                    Docente não vinculado
-                  </span>
-                )}
-              </div>
-              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
-                {teacherScope.hasAccess 
-                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
-                  : teacherScope.emptyReason}
-              </p>
-            </div>
-          </div>
-          {teacherScope.hasAccess && (
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded border border-emerald-200 flex items-center gap-1">
-                <Check size={11} />
-                Acesso Restrito & Seguro
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Teacher Scope Notification / Indicator & Unit Conflict Alert */}
+      <TeacherScopeBanner scope={teacherScope} availableClassesCount={availableClasses.length} />
 
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -2034,46 +2008,6 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         </div>
       </div>
 
-      {/* Teacher Scope Notification / Indicator */}
-      {teacherScope.isTeacherRole && (
-        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-none flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-none bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <GraduationCap size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded-none">
-                  Modo Docente
-                </span>
-                {teacherScope.teacher ? (
-                  <span className="text-[11px] font-black text-indigo-950">
-                    {teacherScope.teacher.name}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-800">
-                    Docente não vinculado
-                  </span>
-                )}
-              </div>
-              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
-                {teacherScope.hasAccess 
-                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
-                  : teacherScope.emptyReason}
-              </p>
-            </div>
-          </div>
-          {teacherScope.hasAccess && (
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-none border border-emerald-200 flex items-center gap-1">
-                <Check size={11} />
-                Acesso Restrito & Seguro
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Main Content Area */}
       <div className="bg-white rounded-none border border-slate-200 shadow-sm text-slate-900">
         {/* Filter Bar */}
@@ -2198,7 +2132,11 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                       }}
                       className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                     >
-                      <option value="">SELECIONAR TURMA...</option>
+                      <option value="">
+                        {availableClasses.length === 0
+                          ? (teacherScope.hasUnitConflict ? 'NENHUMA TURMA NESTA UNIDADE (CONFLITO DE POLO)' : 'NENHUMA TURMA DISPONÍVEL...')
+                          : 'SELECIONAR TURMA...'}
+                      </option>
                       {availableClasses.map((c, idx) => <option key={`att-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
                     </select>
                     <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
@@ -2444,13 +2382,21 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
               >
                 <div className="relative">
                   <div className="relative w-20 h-20 bg-white text-slate-300 rounded-none flex items-center justify-center border border-slate-200 group hover:border-slate-300 transition-colors duration-500">
-                    <ClipboardCheck size={32} className="relative group-hover:text-slate-500 transition-all duration-500" />
+                    {teacherScope.hasUnitConflict ? (
+                      <AlertTriangle size={32} className="text-amber-500" />
+                    ) : (
+                      <ClipboardCheck size={32} className="relative group-hover:text-slate-500 transition-all duration-500" />
+                    )}
                   </div>
                 </div>
                 <div className="max-w-md space-y-2">
-                  <h3 className="text-base font-bold text-slate-800 uppercase tracking-wider">Painel de Assiduidade</h3>
+                  <h3 className="text-base font-bold text-slate-800 uppercase tracking-wider">
+                    {teacherScope.hasUnitConflict ? 'Nenhuma Turma Nesta Unidade' : 'Painel de Assiduidade'}
+                  </h3>
                   <p className="text-[11px] font-medium text-slate-500 uppercase tracking-widest leading-relaxed">
-                    Selecione o grupo acadêmico no seletor principal para carregar o quadro de frequências dinâmico.
+                    {teacherScope.hasUnitConflict
+                      ? teacherScope.conflictMessage
+                      : 'Selecione o grupo acadêmico no seletor principal para carregar o quadro de frequências dinâmico.'}
                   </p>
                 </div>
               </motion.div>

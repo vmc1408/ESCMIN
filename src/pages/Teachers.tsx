@@ -30,6 +30,7 @@ import { fetchAll, saveData, deleteData, uploadImage } from '../lib/database';
 import { RotateCcw, FileText as FileIcon, Building2 } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 
 interface Teacher {
   id: string;
@@ -1113,10 +1114,28 @@ export function Teachers() {
     });
   }, [teachers, searchTerm, statusFilter, subjectFilter, semesterFilter, sortBy, subjects, hasMultipleUnits, globalUnitId]);
 
+  const teachersInActiveUnitCount = React.useMemo(() => {
+    if (!globalUnitId || globalUnitId === 'all') return teachers.length;
+    return teachers.filter(t => isItemInUnit(getItemUnitId(t), globalUnitId, activeUnits)).length;
+  }, [teachers, globalUnitId, activeUnits]);
+
   const actualListCollapsed = selectedTeacher !== null || isEditing;
 
   return (
     <>
+      <div className="mb-3 print:hidden">
+        <UnitConflictBanner
+          moduleName="Professores"
+          entityNameSingular="professor"
+          entityNamePlural="professores"
+          totalRecordsAllUnits={teachers.length}
+          recordsInActiveUnit={teachersInActiveUnitCount}
+          selectedItemUnit={selectedTeacher ? getItemUnitId(selectedTeacher) : undefined}
+          selectedItemName={selectedTeacher?.name}
+          onAddNewInActiveUnit={handleNew}
+        />
+      </div>
+
       <div className={cn(
         "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"

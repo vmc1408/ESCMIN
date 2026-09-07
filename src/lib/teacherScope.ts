@@ -1,5 +1,6 @@
 import { Teacher, Subject, Class, UserProfile, Assessment } from '../types';
 import { normalizeSubject, getClassSubjects } from './utils';
+import { getItemUnitId, isItemInUnit, getUnitName, getUserRestrictedUnit } from './unitService';
 
 export interface TeacherScope {
   isTeacherRole: boolean;
@@ -9,6 +10,13 @@ export interface TeacherScope {
   allowedClassIds: Set<string>;
   hasAccess: boolean;
   emptyReason?: string;
+  // Gestão e diagnóstico de regras de unidade (polo)
+  hasUnitConflict?: boolean;
+  conflictType?: 'none' | 'no_classes_in_unit' | 'classes_in_other_unit';
+  conflictMessage?: string;
+  activeUnitName?: string;
+  teacherUnitName?: string;
+  otherUnitClasses?: Array<{ id: string; name: string; unitName: string }>;
 }
 
 /**
@@ -59,34 +67,51 @@ export function findTeacherForUser(
 }
 
 /**
- * Calcula o escopo de turmas e disciplinas permitidas para o usuário logado.
- * Se o usuário não for professor (for admin, diretor, secretario, etc.), retorna escopo irrestrito.
+ * Calcula o escopo de turmas e disciplinas permitidas para o usuário logado,
+ * priorizando estritamente as regras de unidade (polo).
+ * Se o usuário não for professor (for admin, diretor, secretario, etc.), retorna escopo por unidade.
  */
 export function getTeacherScope(
   profile: UserProfile | null | undefined,
   teachers: Array<Teacher | any>,
   subjects: Array<Subject | any>,
   classes: Array<Class | any>,
-  assessments?: Array<Assessment | any>
+  assessments?: Array<Assessment | any>,
+  activeUnitId?: string,
+  units: Array<any> = []
 ): TeacherScope {
   const isTeacherRole = profile?.role === 'professor' || profile?.role === 'docente';
 
+  // Prioridade máxima de unidade: se o usuário tiver restrição no perfil, essa é a unidade mandatória
+  const restrictedUnitId = getUserRestrictedUnit(profile);
+  const effectiveUnitId = restrictedUnitId || activeUnitId;
+  const isFilteringByUnit = effectiveUnitId && effectiveUnitId !== 'all' && effectiveUnitId.toLowerCase() !== 'todas';
+  const activeUnitName = getUnitName(units, effectiveUnitId);
+
   if (!isTeacherRole) {
-    // Escopo total (administradores, diretores, secretários, assistentes)
+    // Escopo para administradores, secretários, diretores:
+    // Se houver unidade ativa selecionada, restringe as turmas para essa unidade
+    const scopedClasses = isFilteringByUnit 
+      ? classes.filter(c => isItemInUnit(getItemUnitId(c), effectiveUnitId, units))
+      : classes;
+
     const allSubjectIds = new Set(subjects.map(s => s.id));
-    const allClassIds = new Set(classes.map(c => c.id));
+    const allClassIds = new Set(scopedClasses.map(c => c.id));
     return {
       isTeacherRole: false,
       teacher: null,
       teacherName: profile?.name || 'Administrador',
       allowedSubjectIds: allSubjectIds,
       allowedClassIds: allClassIds,
-      hasAccess: true
+      hasAccess: true,
+      activeUnitName
     };
   }
 
   const teacher = findTeacherForUser(profile, teachers);
   const teacherName = teacher?.name || profile?.name || 'Professor(a)';
+  const teacherAssignedUnitId = profile?.unit_id || teacher?.unit_id;
+  const teacherUnitName = getUnitName(units, teacherAssignedUnitId);
 
   if (!teacher) {
     return {
@@ -96,16 +121,15 @@ export function getTeacherScope(
       allowedSubjectIds: new Set<string>(),
       allowedClassIds: new Set<string>(),
       hasAccess: false,
-      emptyReason: `Não foi encontrado nenhum cadastro de docente vinculado ao seu usuário (${profile?.email || profile?.name}). Solicite à Secretaria ou Direção que vincule o seu usuário ao cadastro de Docente correspondente na aba Usuários.`
+      emptyReason: `Não foi encontrado nenhum cadastro de docente vinculado ao seu usuário (${profile?.email || profile?.name}). Solicite à Secretaria ou Direção que vincule o seu usuário ao cadastro de Docente correspondente na aba Usuários.`,
+      activeUnitName,
+      teacherUnitName
     };
   }
 
-  // Coleta todas as disciplinas do professor:
-  // 1. Disciplinas listadas no array subject_ids do professor
-  // 2. Disciplinas cujo subject.teacher_id === teacher.id
+  // Coleta todas as disciplinas do professor na instituição
   const allowedSubjectIds = new Set<string>();
 
-  // Helper para normalizar subject_ids do professor
   let teacherSubIds: string[] = [];
   if (Array.isArray(teacher.subject_ids)) {
     teacherSubIds = teacher.subject_ids;
@@ -118,7 +142,6 @@ export function getTeacherScope(
         const parsed = JSON.parse(raw);
         teacherSubIds = Array.isArray(parsed) ? parsed : [parsed];
       } catch {
-        // Fallback para lista separada por vírgula (ex: "001,012")
         if (raw.includes(',')) {
           teacherSubIds = raw.split(',').map(s => s.trim()).filter(Boolean);
         } else {
@@ -128,7 +151,6 @@ export function getTeacherScope(
     }
   }
 
-  // Fallback: Checa metadados na observação do professor [SUBJECTS:[...]]
   if (teacher.observations) {
     const match = teacher.observations.match(/\[SUBJECTS:(\[[\s\S]*?\])\]/);
     if (match && match[1]) {
@@ -147,23 +169,18 @@ export function getTeacherScope(
     if (id) allowedSubjectIds.add(id);
   });
 
-  // Também verificar nas disciplinas se teacher_id bate (direto ou via metadados de program_content)
   subjects.forEach(sub => {
     const subTeacherId = sub.teacher_id;
     const teacherId = teacher.id;
     const teacherNameClean = (teacher.name || '').toLowerCase().trim();
     
-    // 1. Match direto por ID
     if (subTeacherId === teacherId) {
       allowedSubjectIds.add(sub.id);
       return;
     }
 
-    // 2. Match por Nome (caso o teacher_id na disciplina seja o nome do professor)
     if (subTeacherId && typeof subTeacherId === 'string' && subTeacherId.length > 2) {
       const cleanSubTeacherId = subTeacherId.toLowerCase().trim();
-      
-      // Helper para remover títulos e comparar
       const stripTitles = (s: string) => s.toLowerCase()
         .replace(/^(prof\.|prof|professor|professora|pe\.|pe|padre|dom|mons\.|frei)\s+/gi, '')
         .trim();
@@ -177,7 +194,6 @@ export function getTeacherScope(
       }
     }
 
-    // 3. Match via metadados de program_content
     if (sub.program_content) {
       try {
         const match = String(sub.program_content).match(/\[METADATA:(\{[\s\S]*?\})\]/);
@@ -186,7 +202,6 @@ export function getTeacherScope(
           if (meta.teacher_id === teacherId) {
             allowedSubjectIds.add(sub.id);
           } else if (meta.teacher_id && typeof meta.teacher_id === 'string') {
-            // Repetir lógica de nome para metadados
             const stripTitles = (s: string) => s.toLowerCase()
               .replace(/^(prof\.|prof|professor|professora|pe\.|pe|padre|dom|mons\.|frei)\s+/gi, '')
               .trim();
@@ -201,30 +216,84 @@ export function getTeacherScope(
     }
   });
 
-  // Também verificar em avaliações se houver
   if (assessments && assessments.length > 0) {
     assessments.forEach(ass => {
-      // Se houver algum assessment com o subject do professor
       if (ass.subject_id && (teacherSubIds.includes(ass.subject_id) || allowedSubjectIds.has(ass.subject_id))) {
         allowedSubjectIds.add(ass.subject_id);
       }
     });
   }
 
-  // Agora, coleta as turmas que possuem pelo menos uma dessas disciplinas
-  const allowedClassIds = new Set<string>();
-
+  // 1. Coleta todas as turmas que possuem disciplinas do professor
+  const globalClassesWithTeacherSubjects: any[] = [];
   classes.forEach(cls => {
-    // Coleta todas as disciplinas associadas a essa turma (usando a mesma lógica do Dashboard)
     const classSubjects = getClassSubjects(cls, subjects);
-    
-    // Verifica se alguma disciplina da turma pertence ao professor
     const hasAllowedSubject = classSubjects.some(s => allowedSubjectIds.has(s.id));
-    
     if (hasAllowedSubject) {
-      allowedClassIds.add(cls.id);
+      globalClassesWithTeacherSubjects.push(cls);
     }
   });
+
+  // 2. Aplica RIGOROSAMENTE as regras da unidade ativa
+  let scopedClasses: any[] = [];
+  let otherUnitClasses: Array<{ id: string; name: string; unitName: string }> = [];
+
+  if (isFilteringByUnit) {
+    scopedClasses = globalClassesWithTeacherSubjects.filter(cls => 
+      isItemInUnit(getItemUnitId(cls), effectiveUnitId, units)
+    );
+    const excludedClasses = globalClassesWithTeacherSubjects.filter(cls => 
+      !isItemInUnit(getItemUnitId(cls), effectiveUnitId, units)
+    );
+    otherUnitClasses = excludedClasses.map(cls => ({
+      id: cls.id,
+      name: cls.name || 'Turma',
+      unitName: getUnitName(units, getItemUnitId(cls))
+    }));
+  } else {
+    scopedClasses = globalClassesWithTeacherSubjects;
+  }
+
+  const allowedClassIds = new Set<string>(scopedClasses.map(c => c.id));
+
+  // 3. Detecção e diagnóstico de conflitos de unidade
+  let hasUnitConflict = false;
+  let conflictType: 'none' | 'no_classes_in_unit' | 'classes_in_other_unit' = 'none';
+  let conflictMessage: string | undefined = undefined;
+
+  if (isFilteringByUnit && otherUnitClasses.length > 0 && scopedClasses.length === 0) {
+    // CONFLITO TOTAL: Professor tem turmas em outra unidade (ex: Matriz), mas nenhuma na unidade em que está conectado!
+    hasUnitConflict = true;
+    conflictType = 'classes_in_other_unit';
+    const distinctOtherUnits = Array.from(new Set(otherUnitClasses.map(o => o.unitName))).join(', ');
+    const classesListStr = otherUnitClasses.map(o => `"${o.name}"`).join(', ');
+
+    conflictMessage = `Conflito de Unidade: O perfil de ${teacherName} está restrito à "${activeUnitName}", porém suas turmas ativas (${classesListStr}) pertencem à "${distinctOtherUnits}". Não há turmas desta unidade vinculadas à sua escala de aulas no momento.`;
+  } else if (isFilteringByUnit && otherUnitClasses.length > 0 && scopedClasses.length > 0) {
+    // CONFLITO PARCIAL / AVISO: Professor leciona nesta unidade e também possui turmas em outra unidade
+    hasUnitConflict = true;
+    conflictType = 'classes_in_other_unit';
+    const distinctOtherUnits = Array.from(new Set(otherUnitClasses.map(o => o.unitName))).join(', ');
+    const classesListStr = otherUnitClasses.map(o => `"${o.name}"`).join(', ');
+
+    conflictMessage = `Exibindo apenas as ${scopedClasses.length} turma(s) da unidade "${activeUnitName}". As turmas ${classesListStr} pertencem à "${distinctOtherUnits}" e estão ocultadas nesta unidade.`;
+  }
+
+  // 4. Definição de permissão de acesso e mensagem de motivo vazio
+  const hasAccess = allowedSubjectIds.size > 0 && allowedClassIds.size > 0;
+  let emptyReason: string | undefined = undefined;
+
+  if (allowedSubjectIds.size === 0) {
+    emptyReason = `O docente ${teacherName} ainda não possui nenhuma disciplina vinculada na Escala de Professores.`;
+  } else if (allowedClassIds.size === 0) {
+    if (hasUnitConflict && conflictMessage) {
+      emptyReason = conflictMessage;
+    } else if (isFilteringByUnit) {
+      emptyReason = `Não há turmas ativas na unidade "${activeUnitName}" alocadas para as disciplinas do docente ${teacherName}.`;
+    } else {
+      emptyReason = `As disciplinas do docente ${teacherName} ainda não foram alocadas em nenhuma turma ativa.`;
+    }
+  }
 
   return {
     isTeacherRole: true,
@@ -232,11 +301,13 @@ export function getTeacherScope(
     teacherName,
     allowedSubjectIds,
     allowedClassIds,
-    hasAccess: allowedSubjectIds.size > 0 && allowedClassIds.size > 0,
-    emptyReason: allowedSubjectIds.size === 0
-      ? `O docente ${teacher.name} ainda não possui nenhuma disciplina vinculada na Escala de Professores.`
-      : allowedClassIds.size === 0
-      ? `As disciplinas do docente ${teacher.name} ainda não foram alocadas em nenhuma turma ativa.`
-      : undefined
+    hasAccess,
+    emptyReason,
+    hasUnitConflict,
+    conflictType,
+    conflictMessage,
+    activeUnitName,
+    teacherUnitName,
+    otherUnitClasses
   };
 }

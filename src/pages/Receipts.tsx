@@ -23,6 +23,9 @@ import { cn, formatCurrency, safeFormat, parseSafeDate, formatDateForDisplay, pa
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { PinInput } from '../components/PinInput';
 import { financialService } from '../services/financialService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -105,11 +108,18 @@ function numberToPortugueseWords(value: number): string {
 
 export function Receipts() {
   const { user, profile } = useAuth();
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [institution, setInstitution] = useState<any>(null);
+
+  // Scoped receipts to active unit
+  const scopedReceipts = React.useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return receipts;
+    return receipts.filter(r => isItemInUnit(getItemUnitId(r), selectedUnitId, activeUnits));
+  }, [receipts, selectedUnitId, activeUnits]);
   
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
@@ -338,7 +348,8 @@ export function Receipts() {
         payment_date: paymentDate,
         signature_label: signatureLabel.trim() || undefined,
         issue_date: issueDate,
-        user_id: user?.uid
+        user_id: user?.uid,
+        unit_id: (editingReceipt as any)?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz')
       };
 
       let fullReceipt: Receipt;
@@ -662,7 +673,7 @@ export function Receipts() {
     return dateString;
   };
 
-  const filteredReceipts = receipts.filter(r => 
+  const filteredReceipts = scopedReceipts.filter(r => 
     r.payee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.receipt_number.includes(searchTerm) ||
     r.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -675,6 +686,19 @@ export function Receipts() {
         description="Gerenciamento e emissão de recibos padrão para professores e prestadores de serviços."
         icon={FileText}
       />
+
+      {/* Unit Conflict Banner */}
+      <div className="print:hidden">
+        <UnitConflictBanner
+          moduleName="Recibos de Pagamento"
+          entityNameSingular="recibo"
+          entityNamePlural="recibos"
+          totalRecordsAllUnits={receipts.length}
+          recordsInActiveUnit={scopedReceipts.length}
+          selectedItemUnit={editingReceipt ? getItemUnitId(editingReceipt) : undefined}
+          selectedItemName={editingReceipt ? `Recibo Nº ${editingReceipt.receipt_number} (${editingReceipt.payee_name})` : undefined}
+        />
+      </div>
 
       {notification && (
         <div className={cn(

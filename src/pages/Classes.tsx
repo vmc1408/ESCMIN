@@ -49,6 +49,7 @@ import { supabase } from '../lib/supabase';
 import { Course } from '../types';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
 
 interface Class {
@@ -2023,11 +2024,12 @@ export function Classes() {
 
       const matchesUnit = (() => {
         const classUnitId = getItemUnitId(c);
-        if (selectedUnitFilter !== 'Todos') {
-          return isItemInUnit(classUnitId, selectedUnitFilter, activeUnits);
-        }
+        // Regra de autoridade: unidade ativa selecionada prevalece sobre filtros secundários
         if (globalUnitId && globalUnitId !== 'all') {
           return isItemInUnit(classUnitId, globalUnitId, activeUnits);
+        }
+        if (selectedUnitFilter !== 'Todos') {
+          return isItemInUnit(classUnitId, selectedUnitFilter, activeUnits);
         }
         return true;
       })();
@@ -2049,6 +2051,11 @@ export function Classes() {
     });
   }, [classes, subjects, searchTerm, statusFilter, selectedYearFilter, selectedSemesterFilter, selectedPeriodFilter, selectedAcademicYearFilter, selectedUnitFilter, globalUnitId, sortBy, isClassActiveInAcademicYear]);
 
+  const classesInActiveUnitCount = React.useMemo(() => {
+    if (!globalUnitId || globalUnitId === 'all') return classes.length;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), globalUnitId, activeUnits)).length;
+  }, [classes, globalUnitId, activeUnits]);
+
   const hasActiveFilters = searchTerm !== '' || selectedYearFilter !== 'Todos' || selectedSemesterFilter !== 'Todos' || statusFilter !== 'Todos' || selectedPeriodFilter !== 'Todos' || selectedAcademicYearFilter !== 'ATUAL' || selectedUnitFilter !== 'Todos';
 
   const handleClearFilters = () => {
@@ -2061,16 +2068,20 @@ export function Classes() {
     setSelectedUnitFilter('Todos');
   };
 
-  // Unallocated Students calculations
+  // Unallocated Students calculations - restrito aos alunos do polo ativo
   const unallocatedStudents = React.useMemo(() => {
     const activeClassIds = new Set(classes.filter(c => c.status === 'Ativo' || !c.status).map(c => c.id));
     return allStudents.filter(s => {
       if (s.status === 'Inativo') return false;
+      if (globalUnitId && globalUnitId !== 'all') {
+        const studentUnitId = getItemUnitId(s);
+        if (!isItemInUnit(studentUnitId, globalUnitId, activeUnits)) return false;
+      }
       const hasValidPrimary = s.class_id && activeClassIds.has(s.class_id);
       const hasValidMulti = allEnrollments.some(e => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo' && activeClassIds.has(e.class_id));
       return !hasValidPrimary && !hasValidMulti;
     });
-  }, [allStudents, allEnrollments, classes]);
+  }, [allStudents, allEnrollments, classes, globalUnitId, activeUnits]);
 
   const filteredUnallocatedStudents = React.useMemo(() => {
     const term = unallocatedSearchTerm.trim();
@@ -2146,6 +2157,19 @@ export function Classes() {
 
   return (
     <>
+      <div className="mb-3 print:hidden">
+        <UnitConflictBanner
+          moduleName="Turmas"
+          entityNameSingular="turma"
+          entityNamePlural="turmas"
+          totalRecordsAllUnits={classes.length}
+          recordsInActiveUnit={classesInActiveUnitCount}
+          selectedItemUnit={selectedClass ? getItemUnitId(selectedClass) : undefined}
+          selectedItemName={selectedClass?.name}
+          onAddNewInActiveUnit={handleNew}
+        />
+      </div>
+
       <div className={cn(
         "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"

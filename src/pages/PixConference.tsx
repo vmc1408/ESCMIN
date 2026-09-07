@@ -49,16 +49,30 @@ import { PageHeader } from '../components/PageHeader';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, PixTransaction, Class } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { PinInput } from '../components/PinInput';
 
 export function PixConference() {
   const { user: userAuth, profile } = useAuth();
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   const [file, setFile] = useState<File | null>(null);
   const [customFileName, setCustomFileName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState<PixTransaction[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+
+  // Scoped students to active unit
+  const scopedStudents = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return students;
+    return students.filter(s => {
+      const studentClass = classes.find(c => c.id === s.class_id);
+      const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+      return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+    });
+  }, [students, classes, selectedUnitId, activeUnits]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -706,8 +720,8 @@ export function PixConference() {
         
         console.log('Dados brutos do Excel:', jsonData);
 
-        // Use mock data if in simulation mode
-        const targetStudents = isSimulationMode ? MOCK_STUDENTS : students;
+        // Use mock data if in simulation mode, otherwise use scoped students
+        const targetStudents = isSimulationMode ? MOCK_STUDENTS : scopedStudents;
 
         // Prepare searchable students with normalized names for better matching
         const searchableStudents = targetStudents.map(s => ({
@@ -1774,6 +1788,9 @@ export function PixConference() {
         return;
       }
 
+      const studentObj = registeringContribution.student || students.find(s => s.id === studentId);
+      const studentUnitId = getItemUnitId(studentObj) || (classes.find(c => c.id === studentObj?.class_id)?.unit_id) || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
       const newContribs = selectedPeriods.map(period => ({
         student_id: studentId,
         amount: amountPerMonth,
@@ -1784,6 +1801,7 @@ export function PixConference() {
         origin: registeringContribution.origin_bank || null,
         pix_id: currentPixId,
         user_id: user?.uid || null,
+        unit_id: studentUnitId,
         created_at: new Date().toISOString()
       }));
 
@@ -1995,6 +2013,17 @@ export function PixConference() {
             )}
           </div>
         </PageHeader>
+
+        {/* Unit Conflict Banner */}
+        <div className="print:hidden">
+          <UnitConflictBanner
+            moduleName="Conferência de Pix"
+            entityNameSingular="aluno conciliável"
+            entityNamePlural="alunos conciliáveis"
+            totalRecordsAllUnits={students.length}
+            recordsInActiveUnit={scopedStudents.length}
+          />
+        </div>
 
         {activeTab === 'new' && (
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-6">
@@ -3600,7 +3629,7 @@ export function PixConference() {
               </div>
 
               <div className="max-h-[380px] overflow-y-auto p-4 space-y-2 bg-slate-50/30 custom-scrollbar">
-                {students
+                {scopedStudents
                   .filter(s => !manualSearch.trim() || matchesStudentSearch(s, manualSearch.trim()))
                   .sort((a, b) => {
                     const term = manualSearch.trim();
@@ -3640,7 +3669,7 @@ export function PixConference() {
                       </div>
                     </button>
                   ))}
-                {manualSearch.trim() && students.filter(s => matchesStudentSearch(s, manualSearch.trim())).length === 0 && (
+                {manualSearch.trim() && scopedStudents.filter(s => matchesStudentSearch(s, manualSearch.trim())).length === 0 && (
                   <div className="py-20 px-10 text-center animate-in fade-in slide-in-from-bottom-2">
                     <div className="w-20 h-20 rounded-3xl bg-slate-50 text-slate-200 flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200">
                       <UserX size={40} />
@@ -3649,7 +3678,7 @@ export function PixConference() {
                     <p className="text-slate-300 text-xs mt-1">Refine sua busca ou verifique se o aluno está cadastrado</p>
                   </div>
                 )}
-                {!manualSearch && students.length > 0 && students.filter(s => normalize(s.name).includes(normalize(manualSearch))).length > 15 && (
+                {!manualSearch && scopedStudents.length > 0 && scopedStudents.filter(s => normalize(s.name).includes(normalize(manualSearch))).length > 15 && (
                   <div className="p-4 text-center border-t border-slate-50">
                     <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Digite para filtrar mais resultados</p>
                   </div>

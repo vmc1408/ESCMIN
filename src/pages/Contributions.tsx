@@ -11,6 +11,9 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { PinInput } from '../components/PinInput';
 
 const MONTHS = [
@@ -21,6 +24,7 @@ const MONTHS = [
 export function Contributions() {
   const location = useLocation();
   const initialStudentId = (location.state as any)?.studentId;
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,12 @@ export function Contributions() {
   const [searchByName, setSearchByName] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
+  
+  // Scoped Classes to active unit
+  const scopedClasses = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
+  }, [classes, selectedUnitId, activeUnits]);
   const [institution, setInstitution] = useState<any>(null);
   const [selectedForPrint, setSelectedForPrint] = useState<Contribution[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -334,7 +344,15 @@ export function Contributions() {
         allStudentsCacheRef.current = (all || []).filter((s: any) => (s.status || 'Ativo') === 'Ativo');
       }
 
-      const pool = allStudentsCacheRef.current || [];
+      let pool = allStudentsCacheRef.current || [];
+      if (selectedUnitId && selectedUnitId !== 'all') {
+        pool = pool.filter(s => {
+          const studentClass = classes.find(c => c.id === s.class_id);
+          const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+          return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+        });
+      }
+
       const matched = pool.filter(s => matchesStudentSearch(s, trimmed));
       const sorted = matched.sort((a, b) => {
         const rankA = calculateStudentSearchRank(a, trimmed);
@@ -392,6 +410,15 @@ export function Contributions() {
           student: studentMap.get(c.student_id) || null
         }))
         .filter(c => c.student !== null);
+
+      if (selectedUnitId && selectedUnitId !== 'all') {
+        data = data.filter(c => {
+          const student = c.student;
+          const studentClass = student ? classes.find(cls => cls.id === student.class_id) : undefined;
+          const itemUnit = (c as any).unit_id || (student ? getItemUnitId(student) : undefined) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+          return isItemInUnit(itemUnit, selectedUnitId, activeUnits);
+        });
+      }
 
       if (searchByName.trim()) {
         const term = searchByName.trim();
@@ -458,7 +485,15 @@ export function Contributions() {
   const unpaidReportList = useMemo(() => {
     if (!unpaidClassFilter) return [];
 
-    return allActiveStudents.map(student => {
+    const scopedPool = (!selectedUnitId || selectedUnitId === 'all')
+      ? allActiveStudents
+      : allActiveStudents.filter(student => {
+          const studentClass = classes.find(c => c.id === student.class_id);
+          const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+          return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+        });
+
+    return scopedPool.map(student => {
       // Paid months this year
       const paidMonths = unpaidContributions
         .filter(c => c.student_id === student.id)
@@ -490,7 +525,7 @@ export function Contributions() {
       if (unpaidClassFilter === 'all') return true;
       return item.student.class_id === unpaidClassFilter;
     });
-  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter]);
+  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter, selectedUnitId, activeUnits, classes]);
 
   // Calculate stats breakdown for top overview cards (overdue vs future/to-be-due)
   const unpaidStats = useMemo(() => {
@@ -1534,6 +1569,19 @@ export function Contributions() {
         badge="Tesouraria & Conferência"
       />
 
+      {/* Unit Conflict Banner */}
+      <div className="print:hidden">
+        <UnitConflictBanner
+          moduleName="Gestão de Contribuições"
+          entityNameSingular="contribuinte"
+          entityNamePlural="contribuintes"
+          totalRecordsAllUnits={allStudentsCacheRef.current?.length || 0}
+          recordsInActiveUnit={students.length}
+          selectedItemUnit={selectedStudent ? (getItemUnitId(selectedStudent) || classes.find(c => c.id === selectedStudent.class_id)?.unit_id) : undefined}
+          selectedItemName={selectedStudent?.name}
+        />
+      </div>
+
       <div className="bg-white p-3 sm:p-5 rounded-none shadow-sm border border-slate-200/80 flex flex-col gap-3 shrink-0">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-slate-50/50 p-3 rounded-none border border-slate-200/50">
           {/* Busca por Nome / Matrícula (Comprimento reduzido) */}
@@ -1819,7 +1867,7 @@ export function Contributions() {
                   >
                     <option value="">SELECIONE UMA TURMA...</option>
                     <option value="all">TODAS AS TURMAS</option>
-                    {classes.map(c => (
+                    {scopedClasses.map(c => (
                       <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
                     ))}
                   </select>

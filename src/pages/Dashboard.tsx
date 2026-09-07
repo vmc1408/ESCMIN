@@ -47,6 +47,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { getItemUnitId, isItemInUnit } from '../lib/unitService';
 import { getAllAcademicSchedulePeriods, formatDateBR } from '../lib/academicUtils';
+import { getTeacherScope } from '../lib/teacherScope';
+import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -60,7 +62,8 @@ export function Dashboard() {
     getUnitName, 
     filterByActiveUnit,
     activeUnits,
-    hasMultipleUnits 
+    hasMultipleUnits,
+    units
   } = useUnits();
 
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'disconnected' | 'checking'>(
@@ -107,6 +110,11 @@ export function Dashboard() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
+
+  const teacherScope = useMemo(() => {
+    if (!isTeacher) return null;
+    return getTeacherScope(profile, teachers, subjects, classes, undefined, selectedUnitId, units);
+  }, [isTeacher, profile, teachers, subjects, classes, selectedUnitId, units]);
 
   // Itens escopados pela unidade ativa (ou unidade restrita do usuário)
   const scopedStudents = useMemo(() => {
@@ -1143,6 +1151,11 @@ export function Dashboard() {
             </div>
           </div>
         </PageHeader>
+
+        {/* Alerta de Escopo do Professor e Conflito de Unidade */}
+        {teacherScope && (
+          <TeacherScopeBanner scope={teacherScope} availableClassesCount={teacherScope.allowedClassIds.size} />
+        )}
 
         {/* Modal de Alerta de Conexão */}
         {(syncError || !isConnected) && (

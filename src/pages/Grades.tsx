@@ -25,7 +25,9 @@ import { cn, formatSubjectDisplayName, filterStudentsForClass, formatRegistratio
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
 import { getTeacherScope } from '../lib/teacherScope';
+import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 import { financialService } from '../services/financialService';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
@@ -44,6 +46,7 @@ interface GradeRecord {
 export function Grades() {
   const navigate = useNavigate();
   const { userAuth, isAdmin, isDirector, profile } = useAuth();
+  const { selectedUnitId, units, filterByActiveUnit } = useUnits();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -190,14 +193,19 @@ export function Grades() {
 
   // Escopo de acesso para perfil de professor
   const teacherScope = React.useMemo(() => {
-    return getTeacherScope(profile, teachers, subjects, classes, assessments);
-  }, [profile, teachers, subjects, classes, assessments]);
+    return getTeacherScope(profile, teachers, subjects, classes, assessments, selectedUnitId, units);
+  }, [profile, teachers, subjects, classes, assessments, selectedUnitId, units]);
 
   // Turmas permitidas para o usuário atual
   const availableClasses = React.useMemo(() => {
-    if (!teacherScope.isTeacherRole) return classes;
-    return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
-  }, [classes, teacherScope]);
+    if (teacherScope.isTeacherRole) {
+      return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
+    }
+    if (selectedUnitId && selectedUnitId !== 'all' && selectedUnitId.toLowerCase() !== 'todas') {
+      return filterByActiveUnit(classes, c => c.unit_id || (c as any).polo);
+    }
+    return classes;
+  }, [classes, teacherScope, selectedUnitId, filterByActiveUnit]);
 
   // Se o professor tiver apenas 1 turma disponível, pré-seleciona automaticamente
   useEffect(() => {
@@ -206,13 +214,14 @@ export function Grades() {
     }
   }, [teacherScope.isTeacherRole, availableClasses, selectedClass]);
 
-  // Se a turma selecionada não for mais permitida para o professor, limpa a seleção
+  // Se a turma selecionada não for mais permitida, limpa a seleção e os alunos para evitar vazamento
   useEffect(() => {
-    if (teacherScope.isTeacherRole && selectedClass && !teacherScope.allowedClassIds.has(selectedClass)) {
+    if (selectedClass && !availableClasses.some(c => c.id === selectedClass)) {
       setSelectedClass('');
       setSelectedSubject('');
+      setStudents([]);
     }
-  }, [teacherScope.isTeacherRole, teacherScope.allowedClassIds, selectedClass]);
+  }, [availableClasses, selectedClass]);
 
   useEffect(() => {
     fetchStudentsAndGrades();
@@ -1086,45 +1095,8 @@ export function Grades() {
         )}
       </PageHeader>
 
-      {/* Teacher Scope Notification / Indicator */}
-      {teacherScope.isTeacherRole && (
-        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <GraduationCap size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded">
-                  Modo Docente
-                </span>
-                {teacherScope.teacher ? (
-                  <span className="text-[11px] font-black text-indigo-950">
-                    {teacherScope.teacher.name}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-800">
-                    Docente não vinculado
-                  </span>
-                )}
-              </div>
-              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
-                {teacherScope.hasAccess 
-                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
-                  : teacherScope.emptyReason}
-              </p>
-            </div>
-          </div>
-          {teacherScope.hasAccess && (
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded border border-emerald-200 flex items-center gap-1">
-                <Check size={11} />
-                Acesso Restrito & Seguro
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Teacher Scope Notification / Indicator & Unit Conflict Alert */}
+      <TeacherScopeBanner scope={teacherScope} availableClassesCount={availableClasses.length} className="mb-6" />
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1137,7 +1109,11 @@ export function Grades() {
                 onChange={e => setSelectedClass(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none transition-all"
               >
-                <option value="">Selecione uma turma...</option>
+                <option value="">
+                  {availableClasses.length === 0
+                    ? (teacherScope.hasUnitConflict ? 'Nenhuma turma nesta unidade (Conflito de Polo)' : 'Nenhuma turma disponível...')
+                    : 'Selecione uma turma...'}
+                </option>
                 {availableClasses.map((c, idx) => <option key={`grd-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
               </select>
             </div>

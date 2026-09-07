@@ -26,6 +26,9 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { getClassSchoolDays, getScheduledDaysByMonth, getSubjectTotalClassDays, calculateAttendanceMetrics } from '../lib/academicUtils';
 import { Student, Class, Subject, Assessment, Grade, Certificate } from '../types';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { financialService } from '../services/financialService';
 
 const MONTHS = [
@@ -292,6 +295,7 @@ const renderCertificateInnerContent = (
 
 export function StudentFicha() {
   const location = useLocation();
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -593,12 +597,22 @@ export function StudentFicha() {
     return map;
   }, [classes]);
 
-  // Sidebar list of students: searches across ALL registered students
+  // Scoped students to active unit
+  const scopedStudents = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return students;
+    return students.filter(s => {
+      const studentClass = classes.find(c => c.id === s.class_id);
+      const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+      return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+    });
+  }, [students, classes, selectedUnitId, activeUnits]);
+
+  // Sidebar list of students: searches across active unit students
   const filteredStudentsList = useMemo(() => {
     const term = searchTerm.trim();
     if (!term) return [];
     
-    const filtered = students.filter(s => {
+    const filtered = scopedStudents.filter(s => {
       if (matchesStudentSearch(s, term)) return true;
 
       const clsName = s.class_id ? (classMap.get(s.class_id)?.name || '') : '';
@@ -622,7 +636,7 @@ export function StudentFicha() {
       // If scores are equal, sort alphabetically by name
       return (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
     });
-  }, [students, searchTerm, classMap]);
+  }, [scopedStudents, searchTerm, classMap]);
 
 
 
@@ -1018,6 +1032,19 @@ export function StudentFicha() {
             )}
           </PageHeader>
         </div>
+      </div>
+
+      {/* Unit Conflict Banner */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-4 print:hidden">
+        <UnitConflictBanner
+          moduleName="Ficha do Aluno"
+          entityNameSingular="aluno"
+          entityNamePlural="alunos"
+          totalRecordsAllUnits={students.length}
+          recordsInActiveUnit={scopedStudents.length}
+          selectedItemUnit={activeStudent ? (getItemUnitId(activeStudent) || (classes.find(c => c.id === activeStudent.class_id)?.unit_id)) : undefined}
+          selectedItemName={activeStudent?.name}
+        />
       </div>
 
       {loading ? (

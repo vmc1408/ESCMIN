@@ -47,6 +47,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 
 // Memoized List Item to prevent lag
 const StudentItem = React.memo(({ 
@@ -1433,11 +1434,30 @@ export function Students() {
     );
   };
 
+  const scopedClasses = React.useMemo(() => {
+    if (!globalUnitId || globalUnitId === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), globalUnitId, activeUnits));
+  }, [classes, globalUnitId, activeUnits]);
+
+  const studentsInActiveUnitCount = React.useMemo(() => {
+    if (!globalUnitId || globalUnitId === 'all') return students.length;
+    return students.filter(s => {
+      const studentClass = classes.find(c => c.id === s.class_id);
+      const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+      return isItemInUnit(studentUnit, globalUnitId, activeUnits);
+    }).length;
+  }, [students, classes, globalUnitId, activeUnits]);
+
   const unallocatedStudentIdsSet = React.useMemo(() => {
-    const activeClassIds = new Set(classes.filter(c => c.status === 'Ativo' || !c.status).map(c => c.id));
+    const activeClassIds = new Set(scopedClasses.filter(c => c.status === 'Ativo' || !c.status).map(c => c.id));
     const set = new Set<string>();
     students.forEach(s => {
       if (s.status === 'Inativo') return;
+      if (globalUnitId && globalUnitId !== 'all') {
+        const studentClass = classes.find(c => c.id === s.class_id);
+        const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+        if (!isItemInUnit(studentUnit, globalUnitId, activeUnits)) return;
+      }
       const isInValidPrimary = s.class_id && activeClassIds.has(s.class_id);
       const isInValidMulti = allEnrollments.some(e => e.student_id === s.id && (e.status || 'Ativo') === 'Ativo' && activeClassIds.has(e.class_id));
       if (!isInValidPrimary && !isInValidMulti) {
@@ -1445,7 +1465,7 @@ export function Students() {
       }
     });
     return set;
-  }, [students, classes, allEnrollments]);
+  }, [students, scopedClasses, allEnrollments, globalUnitId, activeUnits, classes]);
 
   const unallocatedStudentsCount = React.useMemo(() => {
     return unallocatedStudentIdsSet.size;
@@ -1551,6 +1571,19 @@ export function Students() {
 
   return (
     <>
+      <div className="mb-3 print:hidden">
+        <UnitConflictBanner
+          moduleName="Alunos"
+          entityNameSingular="aluno"
+          entityNamePlural="alunos"
+          totalRecordsAllUnits={students.length}
+          recordsInActiveUnit={studentsInActiveUnitCount}
+          selectedItemUnit={selectedStudent ? (getItemUnitId(selectedStudent) || classes.find(c => c.id === selectedStudent.class_id)?.unit_id) : undefined}
+          selectedItemName={selectedStudent?.name}
+          onAddNewInActiveUnit={handleNew}
+        />
+      </div>
+
       <div className={cn(
         "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"
@@ -1683,7 +1716,7 @@ export function Students() {
                 <option value="unallocated">
                   ⚠️ Sem Turma / Não Alocados ({unallocatedStudentsCount})
                 </option>
-                {classes.filter(c => c.status === 'Ativo').map((c, cIdx) => (
+                {scopedClasses.filter(c => c.status === 'Ativo').map((c, cIdx) => (
                   <option key={`st-cls-flt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -2138,7 +2171,7 @@ export function Students() {
                           tabIndex={7}
                         >
                           <option value="">Selecione uma turma</option>
-                          {classes.filter(c => c.status === 'Ativo' || c.id === formData.class_id).map((c, cIdx) => (
+                          {scopedClasses.filter(c => c.status === 'Ativo' || c.id === formData.class_id).map((c, cIdx) => (
                             <option key={`st-cls-form-${c.id || cIdx}-${cIdx}`} value={c.id}>
                               {c.name} ({c.code}) - {c.period}
                             </option>

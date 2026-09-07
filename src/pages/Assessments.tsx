@@ -30,10 +30,13 @@ import { Assessment, Class, Subject, Teacher } from '../types';
 import { formatSubjectDisplayName, filterStudentsForClass, normalizeClass, normalizeSubject, getClassSubjects } from '../lib/utils';
 import { detectSubjectSemester, getAvailablePeriodsForSubject } from '../lib/academicUtils';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
 import { getTeacherScope } from '../lib/teacherScope';
+import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 
 export const Assessments: React.FC = () => {
   const { user, profile } = useAuth();
+  const { selectedUnitId, units, filterByActiveUnit } = useUnits();
   const navigate = useNavigate();
 
   // State Management
@@ -302,16 +305,21 @@ export const Assessments: React.FC = () => {
     navigate('/grades');
   };
 
-  // Escopo de acesso para perfil de professor
+  // Escopo de acesso para perfil de professor com prioridade para as regras da unidade ativa
   const teacherScope = React.useMemo(() => {
-    return getTeacherScope(profile, teachers, subjects, classes, assessments);
-  }, [profile, teachers, subjects, classes, assessments]);
+    return getTeacherScope(profile, teachers, subjects, classes, assessments, selectedUnitId, units);
+  }, [profile, teachers, subjects, classes, assessments, selectedUnitId, units]);
 
   // Turmas permitidas para o usuário atual
   const availableClasses = React.useMemo(() => {
-    if (!teacherScope.isTeacherRole) return classes;
-    return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
-  }, [classes, teacherScope]);
+    if (teacherScope.isTeacherRole) {
+      return classes.filter(c => teacherScope.allowedClassIds.has(c.id));
+    }
+    if (selectedUnitId && selectedUnitId !== 'all' && selectedUnitId.toLowerCase() !== 'todas') {
+      return filterByActiveUnit(classes, c => c.unit_id || (c as any).polo);
+    }
+    return classes;
+  }, [classes, teacherScope, selectedUnitId, filterByActiveUnit]);
 
   // Se o professor tiver apenas 1 turma disponível, pré-seleciona nos filtros e no formulário
   useEffect(() => {
@@ -321,13 +329,13 @@ export const Assessments: React.FC = () => {
     }
   }, [teacherScope.isTeacherRole, availableClasses, filterClass]);
 
-  // Se a turma filtrada não for mais permitida, reseta
+  // Se a turma filtrada não for permitida, reseta
   useEffect(() => {
-    if (teacherScope.isTeacherRole && filterClass && !teacherScope.allowedClassIds.has(filterClass)) {
+    if (filterClass && !availableClasses.some(c => c.id === filterClass)) {
       setFilterClass('');
       setFilterSubject('');
     }
-  }, [teacherScope.isTeacherRole, teacherScope.allowedClassIds, filterClass]);
+  }, [availableClasses, filterClass]);
 
   // Disciplinas disponíveis para os filtros
   const availableSubjectsForFilter = React.useMemo(() => {
@@ -535,45 +543,8 @@ export const Assessments: React.FC = () => {
         </div>
       </PageHeader>
 
-      {/* Teacher Scope Notification / Indicator */}
-      {teacherScope.isTeacherRole && (
-        <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-              <GraduationCap size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded">
-                  Modo Docente
-                </span>
-                {teacherScope.teacher ? (
-                  <span className="text-[11px] font-black text-indigo-950">
-                    {teacherScope.teacher.name}
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-amber-800">
-                    Docente não vinculado
-                  </span>
-                )}
-              </div>
-              <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
-                {teacherScope.hasAccess 
-                  ? `Exibindo apenas as ${availableClasses.length} turma(s) e ${teacherScope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas.`
-                  : teacherScope.emptyReason}
-              </p>
-            </div>
-          </div>
-          {teacherScope.hasAccess && (
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded border border-emerald-200 flex items-center gap-1">
-                <Check size={11} />
-                Acesso Restrito & Seguro
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Teacher Scope Notification / Indicator & Unit Conflict Alert */}
+      <TeacherScopeBanner scope={teacherScope} availableClassesCount={availableClasses.length} className="mb-6" />
 
       {activeTab === 'consult' && (
         <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">

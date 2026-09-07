@@ -28,6 +28,9 @@ import { cn, formatDateForDisplay, parseDateToDB, filterStudentsForClass, isStud
 import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { financialService } from '../services/financialService';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -347,6 +350,7 @@ const renderCertificateInnerContent = (
 
 export function Documents() {
   const { userAuth, isAdmin, isDirector } = useAuth();
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   
   // Tabs & Filters
   const [activeTab, setActiveTab] = useState<'issue' | 'list' | 'student_file'>('issue');
@@ -372,6 +376,43 @@ export function Documents() {
   });
 
   const [loading, setLoading] = useState(true);
+
+  // Scoped Classes to active unit
+  const scopedClasses = React.useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
+  }, [classes, selectedUnitId, activeUnits]);
+
+  // Scoped Students to active unit
+  const scopedStudents = React.useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return students;
+    return students.filter(s => {
+      const studentClass = classes.find(c => c.id === s.class_id);
+      const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+      return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+    });
+  }, [students, classes, selectedUnitId, activeUnits]);
+
+  // Scoped Certificates to active unit
+  const scopedCertificates = React.useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return certificates;
+    return certificates.filter(c => {
+      const student = students.find(s => s.id === c.student_id);
+      const studentClass = student ? classes.find(cls => cls.id === student.class_id) : undefined;
+      const certUnit = (c as any).unit_id || (student ? getItemUnitId(student) : undefined) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+      return isItemInUnit(certUnit, selectedUnitId, activeUnits);
+    });
+  }, [certificates, students, classes, selectedUnitId, activeUnits]);
+
+  // Auto clear selected class if not in scopedClasses
+  useEffect(() => {
+    if (selectedClassId && scopedClasses.length > 0) {
+      const exists = scopedClasses.some(c => c.id === selectedClassId);
+      if (!exists) {
+        setSelectedClassId('');
+      }
+    }
+  }, [selectedClassId, scopedClasses]);
   
   // Modals / Issue Action State
   const [isIssuing, setIsIssuing] = useState(false);
@@ -505,7 +546,7 @@ export function Documents() {
       return assessments.some(a => a.class_id === selectedClassId && a.subject_id === sub.id);
     });
 
-    const enrolledStudents = filterStudentsForClass(students, selectedClassId, enrollments, true);
+    const enrolledStudents = filterStudentsForClass(scopedStudents, selectedClassId, enrollments, true);
 
     return enrolledStudents
       .map(student => {
@@ -920,7 +961,7 @@ export function Documents() {
   };
 
   // Filtering list
-  const filteredCertificates = certificates.filter(cert => {
+  const filteredCertificates = scopedCertificates.filter(cert => {
     const term = searchQuery.trim();
     if (!term) return true;
     const studentName = cert.student_name || '';
@@ -986,10 +1027,23 @@ export function Documents() {
                 : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
             )}
           >
-            Emitidos ({certificates.length})
+            Emitidos ({scopedCertificates.length})
           </button>
         </div>
       </PageHeader>
+
+      {/* Unit Conflict Banner */}
+      <div className="print:hidden">
+        <UnitConflictBanner
+          moduleName="Certificados & Documentos"
+          entityNameSingular="documento"
+          entityNamePlural="documentos"
+          totalRecordsAllUnits={certificates.length}
+          recordsInActiveUnit={scopedCertificates.length}
+          selectedItemUnit={selectedClassId ? getItemUnitId(classes.find(c => c.id === selectedClassId)) : undefined}
+          selectedItemName={classes.find(c => c.id === selectedClassId)?.name}
+        />
+      </div>
 
       {loading ? (
         <div className="py-20 flex justify-center print:hidden">
@@ -1018,7 +1072,7 @@ export function Documents() {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-none text-xs font-bold uppercase tracking-wider focus:outline-none focus:border-slate-800 focus:bg-white"
                     >
                       <option value="">Selecione a turma...</option>
-                      {classes.map((c, cIdx) => <option key={`doc-cls-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>)}
+                      {scopedClasses.map((c, cIdx) => <option key={`doc-cls-opt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                 </div>

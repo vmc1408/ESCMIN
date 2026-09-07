@@ -74,6 +74,9 @@ import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO
 import { ptBR } from 'date-fns/locale';
 import { Student, Class, PixTransaction, Teacher, Subject, AcademicParameters } from '../types';
 import { useSearchParams } from 'react-router-dom';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId, isTeacherAssignedToUnit } from '../lib/unitService';
+import { UnitConflictBanner } from '../components/UnitConflictBanner';
 
 const formatLongDate = (dateString: string) => {
   if (!dateString) return '';
