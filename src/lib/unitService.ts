@@ -418,3 +418,29 @@ export const getUserRestrictedUnit = (profile: any): string | null => {
   }
   return unitId.trim();
 };
+
+export const isTeacherAssignedToUnit = (
+  teacher: any,
+  selectedUnitId: string,
+  units: Unit[] = [],
+  classes: any[] = []
+): boolean => {
+  if (!selectedUnitId || selectedUnitId === 'all') return true;
+  const teacherDirectUnit = getItemUnitId(teacher);
+  if (teacherDirectUnit && isItemInUnit(teacherDirectUnit, selectedUnitId, units)) {
+    return true;
+  }
+  // Check if teacher has any class in selected unit
+  if (classes && classes.length > 0) {
+    const teacherHasClassInUnit = classes.some(c => {
+      const isTeacherClass = c.teacher_id === teacher.id || 
+        (Array.isArray(c.teacher_ids) && c.teacher_ids.includes(teacher.id)) ||
+        (Array.isArray(teacher.class_ids) && teacher.class_ids.includes(c.id));
+      if (!isTeacherClass) return false;
+      const classUnit = getItemUnitId(c);
+      return isItemInUnit(classUnit, selectedUnitId, units);
+    });
+    if (teacherHasClassInUnit) return true;
+  }
+  return isItemInUnit(teacherDirectUnit || 'matriz', selectedUnitId, units);
+};

@@ -200,6 +200,7 @@ export interface PixTransaction {
   status: 'matched' | 'unmatched' | 'multiple';
   matched_student_id?: string;
   batch_id?: string;
+  unit_id?: string;
   is_manual?: boolean;
   created_at: string;
 }
@@ -370,6 +371,7 @@ export interface Receipt {
   payment_date: string;
   signature_label?: string;
   issue_date: string;
+  unit_id?: string;
   user_id?: string;
   created_at?: string;
 }

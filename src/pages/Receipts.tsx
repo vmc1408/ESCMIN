@@ -41,6 +41,7 @@ interface Receipt {
   payment_date: string;
   signature_label?: string;
   issue_date: string;
+  unit_id?: string;
   user_id?: string;
   created_at?: string;
 }

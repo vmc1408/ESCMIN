@@ -390,6 +390,9 @@ export function Reports() {
   });
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+  // Unit Context
+  const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
+
   // Data States
   const [students, setStudents] = useState<Student[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
@@ -400,6 +403,40 @@ export function Reports() {
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [totalClassDays, setTotalClassDays] = useState(0);
+
+  // Scoped lists based on active unit
+  const scopedClasses = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), selectedUnitId, activeUnits));
+  }, [classes, selectedUnitId, activeUnits]);
+
+  const scopedStudents = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return students;
+    return students.filter(s => {
+      const studentClass = classes.find(c => c.id === s.class_id);
+      const studentUnit = getItemUnitId(s) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
+      return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
+    });
+  }, [students, classes, selectedUnitId, activeUnits]);
+
+  const scopedTeachers = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return teachers;
+    return teachers.filter(t => isTeacherAssignedToUnit(t, selectedUnitId, activeUnits, classes));
+  }, [teachers, selectedUnitId, activeUnits, classes]);
+
+  const scopedPixTransactions = useMemo(() => {
+    if (!selectedUnitId || selectedUnitId === 'all') return pixTransactions;
+    const scopedStudentIds = new Set(scopedStudents.map(s => s.id));
+    return pixTransactions.filter(p => {
+      if (p.unit_id) {
+        return isItemInUnit(p.unit_id, selectedUnitId, activeUnits);
+      }
+      if (p.matched_student_id) {
+        return scopedStudentIds.has(p.matched_student_id);
+      }
+      return false;
+    });
+  }, [pixTransactions, scopedStudents, selectedUnitId, activeUnits]);
 
   // New states for Diário de Classe & Certificados
   const [selectedDiarioClass, setSelectedDiarioClass] = useState<string>('');
@@ -470,6 +507,53 @@ export function Reports() {
     occupancyRate: 0,
     pixCount: 0
   });
+
+  // Clear selectedDiarioClass if not present in scopedClasses
+  useEffect(() => {
+    if (selectedDiarioClass && scopedClasses.length > 0) {
+      const exists = scopedClasses.some(c => c.id === selectedDiarioClass);
+      if (!exists) {
+        setSelectedDiarioClass('');
+      }
+    }
+  }, [selectedUnitId, scopedClasses, selectedDiarioClass]);
+
+  // Dynamically update stats based on scoped data
+  useEffect(() => {
+    const sData = scopedStudents;
+    const pData = scopedPixTransactions;
+    const cData = scopedClasses;
+    const tData = scopedTeachers;
+
+    const activeTotal = sData.filter(s => s.status === 'Ativo' || !s.status).length;
+    const totalAmount = pData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    const matchedCount = pData.filter(p => p.status === 'matched').length;
+
+    const activeClasses = cData.filter(c => c.status === 'Ativo');
+    const studentsInActiveClasses = sData.filter(s => 
+      (s.status === 'Ativo' || !s.status) && 
+      s.class_id && 
+      activeClasses.some(ac => ac.id === s.class_id)
+    ).length;
+
+    const occupancyRate = activeClasses.length > 0 ? Math.round((studentsInActiveClasses / (activeClasses.length * 30)) * 100) : 0;
+
+    setStats(prev => ({
+      ...prev,
+      totalStudents: sData.length,
+      activeStudents: activeTotal,
+      inactiveStudents: sData.filter(s => s.status === 'Inativo').length,
+      concludedStudents: sData.filter(s => s.status === 'Concluído').length,
+      totalTeachers: tData.length,
+      activeTeachers: tData.filter(t => t.status !== 'Inativo').length,
+      totalClasses: activeClasses.length,
+      totalPixAmount: totalAmount,
+      matchedPix: matchedCount,
+      occupancyRate: Math.min(occupancyRate, 100),
+      pixCount: pData.length,
+      efficiency: pData.length > 0 ? Math.round((matchedCount / pData.length) * 100) : 0
+    }));
+  }, [scopedStudents, scopedClasses, scopedTeachers, scopedPixTransactions]);
 
   useEffect(() => {
     fetchInitialData();
@@ -1568,7 +1652,7 @@ export function Reports() {
 
   // Filtered Data Memos for Operational Report
   const filteredTeachers = useMemo(() => {
-    return teachers.filter(t => {
+    return scopedTeachers.filter(t => {
       const statusMatch = teacherStatusFilter === 'Todos' || (t as any).status === teacherStatusFilter || (teacherStatusFilter === 'Ativo' && !(t as any).status);
       const subjectMatch = teacherSubjectFilter === 'all' || (t.subject_ids || []).includes(teacherSubjectFilter);
       return statusMatch && subjectMatch;
@@ -1581,7 +1665,7 @@ export function Reports() {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [teachers, teacherStatusFilter, teacherSubjectFilter, teacherSortBy, subjects]);
+  }, [scopedTeachers, teacherStatusFilter, teacherSubjectFilter, teacherSortBy, subjects]);
 
   const filteredSubjects = useMemo(() => {
     return subjects.filter(s => {
@@ -1602,7 +1686,7 @@ export function Reports() {
   }, [subjects, subjectStatusFilter, subjectSemesterFilter]);
 
   const filteredClasses = useMemo(() => {
-    const result = classes.filter(c => {
+    const result = scopedClasses.filter(c => {
       const statusMatch = classStatusFilter === 'Todos' || (c.status || 'Ativo') === classStatusFilter;
       const yearMatch = academicYearFilter === 'Todos' || c.year === academicYearFilter;
       return statusMatch && yearMatch;
@@ -1622,7 +1706,7 @@ export function Reports() {
       if (infoA.name !== infoB.name) return infoA.name.localeCompare(infoB.name);
       return infoB.yr - infoA.yr;
     });
-  }, [classes, classStatusFilter, academicYearFilter]);
+  }, [scopedClasses, classStatusFilter, academicYearFilter]);
 
   const statusData = useMemo(() => [
     { name: 'Ativos', value: stats.activeStudents, color: '#10b981' },
@@ -1631,8 +1715,8 @@ export function Reports() {
   ], [stats]);
 
   const studentsByClass = useMemo(() => {
-    const activeClasses = classes.filter(c => c.status === 'Ativo');
-    const activeStudents = students.filter(s => s.status === 'Ativo' || !s.status);
+    const activeClasses = scopedClasses.filter(c => c.status === 'Ativo');
+    const activeStudents = scopedStudents.filter(s => s.status === 'Ativo' || !s.status);
     
     const classStats = activeClasses.map(c => {
       const count = activeStudents.filter(s => s.class_id === c.id).length;
@@ -1767,6 +1851,17 @@ export function Reports() {
       </div>
 
       <div className="max-w-[1920px] mx-auto px-8 space-y-4 print:hidden">
+        {/* Unit Conflict Banner */}
+        <UnitConflictBanner
+          moduleName="Relatórios Estratégicos"
+          entityNameSingular="registro"
+          entityNamePlural="registros"
+          totalRecordsAllUnits={students.length + classes.length + teachers.length}
+          recordsInActiveUnit={scopedStudents.length + scopedClasses.length + scopedTeachers.length}
+          selectedItemUnit={selectedDiarioClass ? getItemUnitId(classes.find(c => c.id === selectedDiarioClass)) : undefined}
+          selectedItemName={selectedDiarioClass ? classes.find(c => c.id === selectedDiarioClass)?.name : undefined}
+        />
+
         {activeCategory === 'dashboard' && (
           <>
         {/* KPI Grid */}
@@ -2105,11 +2200,11 @@ export function Reports() {
                       <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">{c.code}</div>
                       <div>
                         <h4 className="font-black text-[#00174b] uppercase tracking-tight">{c.name}</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">{c.period} • {students.filter(s => s.class_id === c.id).length} ALUNOS</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">{c.period} • {scopedStudents.filter(s => s.class_id === c.id).length} ALUNOS</p>
                       </div>
                    </div>
                    <div className="flex flex-wrap gap-2">
-                      {students.filter(s => s.class_id === c.id).map((s, sIdx) => (
+                      {scopedStudents.filter(s => s.class_id === c.id).map((s, sIdx) => (
                         <div key={`rep-s-${s.id || sIdx}-${sIdx}`} className="px-4 py-2 bg-slate-50 rounded-xl border border-slate-100 text-[10px] font-black text-slate-500 uppercase">
                            {s.name}
                         </div>
@@ -2147,14 +2242,14 @@ export function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {students.filter(s => s.status === 'Ativo' || !s.status).map((student, i) => {
+                    {scopedStudents.filter(s => s.status === 'Ativo' || !s.status).map((student, i) => {
                       const studentAbsences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'F')).length;
                       const studentPresences = attendanceData.filter(a => a.student_id === student.id && (a.status === 'P')).length;
                       const studentPresence = totalClassDays > 0 ? (studentPresences / totalClassDays) * 100 : 0;
                       const absencePercentage = totalClassDays > 0 ? (studentAbsences / totalClassDays) * 100 : 0;
                       const maxAllowed = Math.floor((totalClassDays || 33) * ((academicParams.absence_limit_percentage || 25) / 100));
                       const isOverLimit = studentAbsences > maxAllowed;
-                      const studentClass = classes.find(c => c.id === student.class_id);
+                      const studentClass = scopedClasses.find(c => c.id === student.class_id);
 
                       return (
                         <tr key={i} className="hover:bg-slate-50/50 transition-colors">
@@ -2475,7 +2570,7 @@ export function Reports() {
                               className="w-full pl-13 pr-8 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none transition-all outline-none"
                             >
                               <option value="">SELECIONAR TURMA...</option>
-                              {classes.filter(c => c.status === 'Ativo' || !c.status).map((c, cIdx) => (
+                              {scopedClasses.filter(c => c.status === 'Ativo' || !c.status).map((c, cIdx) => (
                                 <option key={`rep-opt-c-${c.id || c.code || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                               ))}
                             </select>
