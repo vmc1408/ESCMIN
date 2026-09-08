@@ -75,8 +75,10 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener('units-updated', handleUpdate);
+    window.addEventListener('institution-updated', handleUpdate);
     return () => {
       window.removeEventListener('units-updated', handleUpdate);
+      window.removeEventListener('institution-updated', handleUpdate);
     };
   }, [refreshUnits]);
 

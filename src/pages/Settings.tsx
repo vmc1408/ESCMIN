@@ -52,6 +52,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
 import { UnitsSettingsTab } from '../components/UnitsSettingsTab';
+import { syncMatrizWithInstitution } from '../lib/unitService';
 import { financialService } from '../services/financialService';
 import { schemaService } from '../services/schemaService';
 import { useAuth } from '../contexts/AuthContext';
@@ -713,6 +714,14 @@ export function Settings() {
       const finalId = await saveData('institution_settings', instId, dataToSave);
       
       setInstitution({ ...institution, id: finalId as string, ...dataToSave });
+      
+      // Sincroniza a unidade matriz automaticamente com as informações da instituição
+      try {
+        await syncMatrizWithInstitution(dataToSave);
+      } catch (matrizErr) {
+        console.warn('Aviso ao sincronizar unidade matriz com instituição:', matrizErr);
+      }
+
       setNotification({ type: 'success', message: 'Configurações sincronizadas com sucesso!' });
       window.dispatchEvent(new Event('institution-updated'));
     } catch (error: any) {

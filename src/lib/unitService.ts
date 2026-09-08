@@ -1,15 +1,47 @@
-import { Unit } from '../types';
+import { Unit, InstitutionSettings } from '../types';
 import { fetchAll, saveData, deleteData, fetchById } from './database';
 import { supabase, isSupabaseConfigured, fetchWithTimeout } from './supabase';
 
-export const DEFAULT_MAIN_UNIT: Unit = {
-  id: 'matriz',
-  code: 'MAT',
-  name: 'Sede / Matriz',
-  is_main: true,
-  active: true,
-  created_at: '2026-01-01T00:00:00.000Z'
+/**
+ * Constrói o objeto da unidade Matriz a partir das configurações da Instituição.
+ * Garante que a Sede / Matriz sempre herde endereço, telefone, CNPJ, CEP e cidade da Instituição.
+ */
+export const getMatrizUnitFromInstitution = (institution?: Partial<InstitutionSettings> | any): Unit => {
+  let city = '';
+  let state = '';
+  if (institution?.city_uf) {
+    const parts = institution.city_uf.split(/[-/]/);
+    if (parts.length >= 2) {
+      city = parts[0].trim();
+      state = parts[1].trim().substring(0, 2).toUpperCase();
+    } else {
+      city = institution.city_uf.trim();
+    }
+  } else {
+    city = institution?.city || '';
+    state = institution?.state || '';
+  }
+
+  const name = institution?.name?.trim() || 'Sede / Matriz';
+
+  return {
+    id: 'matriz',
+    code: 'MAT',
+    name,
+    is_main: true,
+    active: true,
+    address: institution?.address?.trim() || '',
+    city: city || '',
+    state: state || '',
+    cep: institution?.cep?.trim() || '',
+    cnpj: institution?.cnpj?.trim() || '',
+    phone: institution?.phone?.trim() || institution?.whatsapp?.trim() || '',
+    email: institution?.email?.trim() || '',
+    created_at: '2026-01-01T00:00:00.000Z'
+  };
 };
+
+export const DEFAULT_MAIN_UNIT: Unit = getMatrizUnitFromInstitution();
 
 export const LOCAL_STORAGE_UNITS_KEY = 'db_fallback_units';
 export const CLOUD_UNITS_REGISTRY_ID = 'system_units_registry';
@@ -28,11 +60,17 @@ CREATE TABLE IF NOT EXISTS public.units (
     address TEXT,
     city TEXT,
     state TEXT,
+    cep TEXT,
+    cnpj TEXT,
     phone TEXT,
     email TEXT,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Garantir novas colunas se a tabela já existia
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS cep TEXT;
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS cnpj TEXT;
 
 -- 2. Inserir a Matriz como polo padrão da instituição
 INSERT INTO public.units (id, code, name, is_main, active)
@@ -86,13 +124,54 @@ export const pushUnitsToCloudRegistry = async (unitsList: Unit[]): Promise<void>
 };
 
 /**
+ * Sincroniza a unidade Matriz com os dados cadastrados na Instituição.
+ * Salva no cache local, na tabela units e no registro central em nuvem.
+ */
+export const syncMatrizWithInstitution = async (institutionData: any): Promise<Unit> => {
+  const matriz = getMatrizUnitFromInstitution(institutionData);
+
+  let currentList: Unit[] = [];
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
+    if (raw) currentList = JSON.parse(raw);
+  } catch {}
+
+  const index = currentList.findIndex(u => u.id === 'matriz' || u.is_main);
+  if (index >= 0) {
+    currentList[index] = { ...currentList[index], ...matriz, id: 'matriz', is_main: true, active: true };
+  } else {
+    currentList.unshift(matriz);
+  }
+
+  try {
+    localStorage.setItem(LOCAL_STORAGE_UNITS_KEY, JSON.stringify(currentList));
+  } catch {}
+
+  // Sincroniza em nuvem
+  await pushUnitsToCloudRegistry(currentList).catch(() => {});
+
+  window.dispatchEvent(new CustomEvent('units-updated'));
+  return matriz;
+};
+
+/**
  * Carrega a lista de unidades reconciliando todas as fontes:
+ * - Dados da Instituição para a Matriz
  * - Cache local
  * - Tabela nativa 'units' (Supabase)
  * - Registro central em nuvem 'email_registry' (Supabase)
  */
 export const getUnits = async (): Promise<Unit[]> => {
-  // 1. Carrega do cache local
+  // 1. Obtém dados mais recentes da instituição para compor a Matriz
+  let cachedInst: any = null;
+  try {
+    const rawInst = localStorage.getItem('cached_institution_settings');
+    if (rawInst) cachedInst = JSON.parse(rawInst);
+  } catch {}
+
+  const dynamicMatriz = getMatrizUnitFromInstitution(cachedInst);
+
+  // 2. Carrega do cache local
   let localUnits: Unit[] = [];
   try {
     const rawLocal = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
@@ -106,23 +185,46 @@ export const getUnits = async (): Promise<Unit[]> => {
 
   const mergedMap = new Map<string, Unit>();
 
-  // Semeia com a Matriz
-  mergedMap.set(DEFAULT_MAIN_UNIT.id, DEFAULT_MAIN_UNIT);
+  // Semeia com a Matriz dinâmica (alimentada pela Instituição)
+  mergedMap.set(dynamicMatriz.id, dynamicMatriz);
 
   // Insere unidades locais conhecidas
   localUnits.forEach(u => {
     if (u && u.id) {
-      mergedMap.set(u.id, { ...u, is_main: u.id === 'matriz' || Boolean(u.is_main) });
+      if (u.id === 'matriz' || u.is_main) {
+        // Matriz sempre preserva as informações mais recentes da Instituição
+        mergedMap.set('matriz', {
+          ...u,
+          ...dynamicMatriz,
+          id: 'matriz',
+          code: 'MAT',
+          is_main: true,
+          active: true
+        });
+      } else {
+        mergedMap.set(u.id, { ...u, is_main: false });
+      }
     }
   });
 
-  // 2. Tenta carregar da tabela nativa 'units' no Supabase
+  // 3. Tenta carregar da tabela nativa 'units' no Supabase
   try {
     const tableData = await fetchAll('units', '*', 'name', true).catch(() => []);
     if (Array.isArray(tableData) && tableData.length > 0) {
       tableData.forEach((u: any) => {
         if (u && u.id) {
-          mergedMap.set(u.id, { ...u, is_main: u.id === 'matriz' || Boolean(u.is_main) });
+          if (u.id === 'matriz' || u.is_main) {
+            mergedMap.set('matriz', {
+              ...u,
+              ...dynamicMatriz,
+              id: 'matriz',
+              code: 'MAT',
+              is_main: true,
+              active: true
+            });
+          } else {
+            mergedMap.set(u.id, { ...u, is_main: false });
+          }
         }
       });
     }
@@ -130,14 +232,25 @@ export const getUnits = async (): Promise<Unit[]> => {
     // Tabela nativa pode não existir ainda
   }
 
-  // 3. Tenta carregar do registro redundante em nuvem (email_registry)
+  // 4. Tenta carregar do registro redundante em nuvem (email_registry)
   try {
     const regData: any = await fetchById('email_registry', CLOUD_UNITS_REGISTRY_ID, 6000).catch(() => null);
     const cloudUnits = regData?.metadata?.units;
     if (Array.isArray(cloudUnits) && cloudUnits.length > 0) {
       cloudUnits.forEach((u: any) => {
         if (u && u.id) {
-          mergedMap.set(u.id, { ...u, is_main: u.id === 'matriz' || Boolean(u.is_main) });
+          if (u.id === 'matriz' || u.is_main) {
+            mergedMap.set('matriz', {
+              ...u,
+              ...dynamicMatriz,
+              id: 'matriz',
+              code: 'MAT',
+              is_main: true,
+              active: true
+            });
+          } else {
+            mergedMap.set(u.id, { ...u, is_main: false });
+          }
         }
       });
     }
@@ -166,23 +279,59 @@ export const getUnits = async (): Promise<Unit[]> => {
 };
 
 /**
- * Salva uma unidade garantindo replicação instantânea local e remota
+ * Salva uma unidade garantindo replicação instantânea local e remota.
+ * Se for a Matriz, sincroniza bidirecionalmente com a Instituição.
  */
 export const saveUnit = async (unit: Partial<Unit>): Promise<Unit> => {
-  const id = unit.id || `unit_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const isMatriz = unit.id === 'matriz' || unit.is_main;
+  const id = isMatriz ? 'matriz' : (unit.id || `unit_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`);
+
   const completeUnit: Unit = {
     id,
-    code: unit.code?.trim().toUpperCase() || 'FIL',
-    name: unit.name?.trim() || 'Nova Filial',
-    is_main: unit.is_main || id === 'matriz',
+    code: isMatriz ? 'MAT' : (unit.code?.trim().toUpperCase() || 'FIL'),
+    name: unit.name?.trim() || (isMatriz ? 'Sede / Matriz' : 'Nova Filial'),
+    is_main: Boolean(isMatriz),
     address: unit.address?.trim() || '',
     city: unit.city?.trim() || '',
     state: unit.state?.trim() || '',
+    cep: unit.cep?.trim() || '',
+    cnpj: unit.cnpj?.trim() || '',
     phone: unit.phone?.trim() || '',
     email: unit.email?.trim() || '',
-    active: unit.active !== undefined ? unit.active : true,
+    active: isMatriz ? true : (unit.active !== undefined ? unit.active : true),
     created_at: unit.created_at || new Date().toISOString()
   };
+
+  // Se for a Matriz, atualiza também a Instituição para manter sincronia perfeita
+  if (isMatriz) {
+    try {
+      let cachedInst: any = {};
+      const raw = localStorage.getItem('cached_institution_settings');
+      if (raw) cachedInst = JSON.parse(raw);
+
+      const cityUf = completeUnit.city 
+        ? `${completeUnit.city}${completeUnit.state ? ` - ${completeUnit.state}` : ''}`
+        : (cachedInst.city_uf || '');
+
+      const updatedInst = {
+        ...cachedInst,
+        name: completeUnit.name,
+        address: completeUnit.address,
+        cep: completeUnit.cep,
+        cnpj: completeUnit.cnpj,
+        phone: completeUnit.phone,
+        email: completeUnit.email,
+        city_uf: cityUf,
+        updated_at: new Date().toISOString()
+      };
+
+      localStorage.setItem('cached_institution_settings', JSON.stringify(updatedInst));
+      saveData('institution_settings', cachedInst.id || '1', updatedInst).catch(() => {});
+      window.dispatchEvent(new Event('institution-updated'));
+    } catch (e) {
+      console.warn('[unitService] Falha ao sincronizar Matriz com Instituição:', e);
+    }
+  }
 
   // 1. Atualiza lista local
   let currentList: Unit[] = [];
@@ -209,12 +358,123 @@ export const saveUnit = async (unit: Partial<Unit>): Promise<Unit> => {
   return completeUnit;
 };
 
+export interface UnitLinkedRecordsInfo {
+  canDelete: boolean;
+  totalCount: number;
+  studentsCount: number;
+  classesCount: number;
+  teachersCount: number;
+  usersCount: number;
+  contributionsCount: number;
+  summary: string;
+  reasons: string[];
+}
+
 /**
- * Exclui uma unidade
+ * Analisa e contabiliza todos os registros acadêmicos e operacionais vinculados a uma unidade.
+ * Se houver qualquer registro vinculado, impede a exclusão física e orienta a desativação.
+ */
+export const checkUnitLinkedRecords = async (unitId: string): Promise<UnitLinkedRecordsInfo> => {
+  if (!unitId || unitId === 'matriz') {
+    return {
+      canDelete: false,
+      totalCount: 1,
+      studentsCount: 0,
+      classesCount: 0,
+      teachersCount: 0,
+      usersCount: 0,
+      contributionsCount: 0,
+      summary: 'A unidade Sede / Matriz é o polo principal da instituição e não pode ser excluída.',
+      reasons: ['Unidade Sede / Matriz da Instituição']
+    };
+  }
+
+  const norm = unitId.trim().toLowerCase();
+
+  // Carrega todas as coleções que possuem relacionamento com unidade
+  const [students, classes, teachers, users, contributions] = await Promise.all([
+    fetchAll('students', 'id,name,registration_number,unit_id,status').catch(() => []),
+    fetchAll('classes', 'id,name,code,unit_id,status').catch(() => []),
+    fetchAll('teachers', 'id,name,unit_id').catch(() => []),
+    fetchAll('users', 'id,email,full_name,unit_id').catch(() => []),
+    fetchAll('contributions', 'id,student_id,unit_id,status').catch(() => [])
+  ]);
+
+  // Carrega unidades para bater por ID, código ou nome
+  let units: Unit[] = [];
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
+    if (raw) units = JSON.parse(raw);
+  } catch {}
+
+  const targetUnit = units.find(u => u.id.toLowerCase() === norm);
+  const codeNorm = targetUnit?.code?.toLowerCase();
+  const nameNorm = targetUnit?.name?.toLowerCase();
+
+  const isMatching = (itemUnitId?: string) => {
+    if (!itemUnitId) return false;
+    const itemNorm = itemUnitId.trim().toLowerCase();
+    return (
+      itemNorm === norm || 
+      (Boolean(codeNorm) && itemNorm === codeNorm) || 
+      (Boolean(nameNorm) && itemNorm === nameNorm)
+    );
+  };
+
+  const matchedStudents = (students || []).filter((s: any) => isMatching(getItemUnitId(s)));
+  const matchedClasses = (classes || []).filter((c: any) => isMatching(getItemUnitId(c)));
+  const matchedTeachers = (teachers || []).filter((t: any) => isMatching(getItemUnitId(t)));
+  const matchedUsers = (users || []).filter((u: any) => isMatching(u.unit_id));
+  const matchedContributions = (contributions || []).filter((cb: any) => isMatching(cb.unit_id));
+
+  const studentsCount = matchedStudents.length;
+  const classesCount = matchedClasses.length;
+  const teachersCount = matchedTeachers.length;
+  const usersCount = matchedUsers.length;
+  const contributionsCount = matchedContributions.length;
+
+  const totalCount = studentsCount + classesCount + teachersCount + usersCount + contributionsCount;
+
+  const reasons: string[] = [];
+  if (studentsCount > 0) reasons.push(`${studentsCount} aluno(s)`);
+  if (classesCount > 0) reasons.push(`${classesCount} turma(s)`);
+  if (teachersCount > 0) reasons.push(`${teachersCount} professor(es)`);
+  if (usersCount > 0) reasons.push(`${usersCount} usuário(s) do sistema`);
+  if (contributionsCount > 0) reasons.push(`${contributionsCount} registro(s) financeiro(s)`);
+
+  const canDelete = totalCount === 0;
+  const summary = canDelete 
+    ? 'Nenhum registro vinculado. A unidade pode ser excluída com segurança.'
+    : reasons.join(', ');
+
+  return {
+    canDelete,
+    totalCount,
+    studentsCount,
+    classesCount,
+    teachersCount,
+    usersCount,
+    contributionsCount,
+    summary,
+    reasons
+  };
+};
+
+/**
+ * Exclui uma unidade APENAS SE ela não contiver dados vinculados.
+ * Se contiver registros vinculados (alunos, turmas, etc.), lança exceção exigindo desativação.
  */
 export const deleteUnit = async (unitId: string): Promise<boolean> => {
   if (unitId === 'matriz') {
-    throw new Error('A unidade Matriz não pode ser excluída.');
+    throw new Error('A unidade Sede / Matriz não pode ser excluída.');
+  }
+
+  // Verificação estrita de registros vinculados
+  const check = await checkUnitLinkedRecords(unitId);
+  if (!check.canDelete) {
+    throw new Error(
+      `Esta unidade possui registros vinculados (${check.summary}) e não pode ser excluída para preservar o histórico acadêmico. Você pode apenas desativá-la.`
+    );
   }
 
   // 1. Atualiza lista local
@@ -238,6 +498,28 @@ export const deleteUnit = async (unitId: string): Promise<boolean> => {
 
   window.dispatchEvent(new CustomEvent('units-updated'));
   return true;
+};
+
+/**
+ * Alterna o status de ativação de uma unidade (Ativa <-> Desativada).
+ * A unidade Sede / Matriz é protegida e nunca pode ser desativada.
+ */
+export const toggleUnitActive = async (unitId: string, activeState?: boolean): Promise<Unit> => {
+  if (unitId === 'matriz') {
+    throw new Error('A unidade Sede / Matriz não pode ser desativada.');
+  }
+
+  const units = await getUnits();
+  const existing = units.find(u => u.id === unitId);
+  if (!existing) {
+    throw new Error('Unidade não encontrada.');
+  }
+
+  const nextActive = activeState !== undefined ? activeState : !existing.active;
+  return await saveUnit({
+    ...existing,
+    active: nextActive
+  });
 };
 
 /**

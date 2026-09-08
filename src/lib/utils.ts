@@ -113,11 +113,23 @@ export function maskCEP(value: string) {
 }
 
 export function maskPhone(value: string) {
-  return value
-    .replace(/\D/g, '')
-    .replace(/^(\d{2})(\d)/g, '($1) $2')
-    .replace(/(\d)(\d{4})$/, '$1-$2')
-    .substring(0, 15);
+  const digits = value.replace(/\D/g, '').substring(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.substring(0, 2)}) ${digits.substring(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.substring(0, 2)}) ${digits.substring(2, 6)}-${digits.substring(6)}`;
+  }
+  return `(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7, 11)}`;
+}
+
+export function maskCNPJ(value: string) {
+  const digits = value.replace(/\D/g, '').substring(0, 14);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.substring(0, 2)}.${digits.substring(2)}`;
+  if (digits.length <= 8) return `${digits.substring(0, 2)}.${digits.substring(2, 5)}.${digits.substring(5)}`;
+  if (digits.length <= 12) return `${digits.substring(0, 2)}.${digits.substring(2, 5)}.${digits.substring(5, 8)}/${digits.substring(8)}`;
+  return `${digits.substring(0, 2)}.${digits.substring(2, 5)}.${digits.substring(5, 8)}/${digits.substring(8, 12)}-${digits.substring(12, 14)}`;
 }
 
 export function maskDate(value: string) {

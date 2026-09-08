@@ -29,6 +29,8 @@ export interface Unit {
   address?: string;
   city?: string;
   state?: string;
+  cep?: string;
+  cnpj?: string;
   phone?: string;
   email?: string;
   active: boolean;
