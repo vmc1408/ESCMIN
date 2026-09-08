@@ -1,5 +1,5 @@
 import { Unit, InstitutionSettings } from '../types';
-import { fetchAll, saveData, deleteData, fetchById } from './database';
+import { fetchAll, saveData, deleteData, fetchById, deleteLocalItem } from './database';
 import { supabase, isSupabaseConfigured, fetchWithTimeout } from './supabase';
 
 /**
@@ -44,8 +44,46 @@ export const getMatrizUnitFromInstitution = (institution?: Partial<InstitutionSe
 export const DEFAULT_MAIN_UNIT: Unit = getMatrizUnitFromInstitution();
 
 export const LOCAL_STORAGE_UNITS_KEY = 'db_fallback_units';
+export const LOCAL_STORAGE_DELETED_UNITS_KEY = 'db_fallback_deleted_unit_ids';
 export const CLOUD_UNITS_REGISTRY_ID = 'system_units_registry';
 export const CLOUD_UNITS_EMAIL = 'system_units@escmin.internal';
+
+/**
+ * Tombstone / Blacklist de unidades excluídas:
+ * Impede que unidades removidas sejam ressuscitadas por fontes concorrentes
+ * (cache de outros navegadores, tabela nativa sem purge ou email_registry defasado).
+ */
+export const getDeletedUnitIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_DELETED_UNITS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.map(s => String(s).toLowerCase().trim()));
+      }
+    }
+  } catch {}
+  return new Set<string>();
+};
+
+export const markUnitAsDeleted = (unitId: string, code?: string): Set<string> => {
+  const set = getDeletedUnitIds();
+  if (unitId) set.add(unitId.toLowerCase().trim());
+  if (code) set.add(code.toLowerCase().trim());
+  try {
+    localStorage.setItem(LOCAL_STORAGE_DELETED_UNITS_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+  return set;
+};
+
+export const unmarkUnitAsDeleted = (unitId?: string, code?: string) => {
+  const set = getDeletedUnitIds();
+  if (unitId) set.delete(unitId.toLowerCase().trim());
+  if (code) set.delete(code.toLowerCase().trim());
+  try {
+    localStorage.setItem(LOCAL_STORAGE_DELETED_UNITS_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+};
 
 // Script SQL completo e seguro para execução no Supabase SQL Editor
 export const SUPABASE_UNITS_MIGRATION_SQL = `-- SCRIPT DE MIGRAÇÃO: UNIDADES E POLOS EDUCACIONAIS (ESCMIN)
@@ -85,10 +123,13 @@ ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz
 ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE public.subjects ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 
--- 4. Habilitar RLS e Permissão Pública para leitura e escrita
+-- 4. Habilitar RLS e Permissão Pública para leitura, inserção, atualização e exclusão
 ALTER TABLE public.units ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public Access units" ON public.units;
 CREATE POLICY "Public Access units" ON public.units FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. Concessão explícita de permissões totais para anon, authenticated e service_role
+GRANT ALL ON TABLE public.units TO anon, authenticated, service_role;
 `;
 
 /**
@@ -99,6 +140,9 @@ export const pushUnitsToCloudRegistry = async (unitsList: Unit[]): Promise<void>
   if (!isSupabaseConfigured || !Array.isArray(unitsList) || unitsList.length === 0) return;
 
   try {
+    const deletedSet = getDeletedUnitIds();
+    const deletedIdsList = Array.from(deletedSet);
+
     // 1. Registro redundante em email_registry (tabela garantida em qualquer banco Supabase)
     await saveData('email_registry', CLOUD_UNITS_REGISTRY_ID, {
       id: CLOUD_UNITS_REGISTRY_ID,
@@ -107,16 +151,19 @@ export const pushUnitsToCloudRegistry = async (unitsList: Unit[]): Promise<void>
       status: 'active',
       metadata: {
         units: unitsList,
+        deleted_ids: deletedIdsList,
         updated_at: new Date().toISOString()
       },
-      registered_at: new Date().toISOString()
+      created_at: new Date().toISOString()
     }, 10000).catch(err => {
       console.warn('[unitService] Aviso ao sincronizar registro central em email_registry:', err?.message || err);
     });
 
     // 2. Salva em paralelo na tabela nativa 'units' caso já tenha sido criada no Supabase
     for (const u of unitsList) {
-      await saveData('units', u.id, u, 5000).catch(() => {});
+      if (u.id && !deletedSet.has(u.id.toLowerCase())) {
+        await saveData('units', u.id, u, 5000).catch(() => {});
+      }
     }
   } catch (err: any) {
     console.warn('[unitService] Falha secundária na sincronização em nuvem:', err?.message || err);
@@ -160,6 +207,7 @@ export const syncMatrizWithInstitution = async (institutionData: any): Promise<U
  * - Cache local
  * - Tabela nativa 'units' (Supabase)
  * - Registro central em nuvem 'email_registry' (Supabase)
+ * Respeita estritamente o tombstone de unidades excluídas para evitar qualquer ressurreição.
  */
 export const getUnits = async (): Promise<Unit[]> => {
   // 1. Obtém dados mais recentes da instituição para compor a Matriz
@@ -171,14 +219,25 @@ export const getUnits = async (): Promise<Unit[]> => {
 
   const dynamicMatriz = getMatrizUnitFromInstitution(cachedInst);
 
-  // 2. Carrega do cache local
+  // 2. Carrega conjunto de IDs e códigos excluídos (tombstone)
+  const deletedIds = getDeletedUnitIds();
+
+  const isDiscarded = (u: any): boolean => {
+    if (!u || !u.id) return true;
+    if (u.id === 'matriz' || u.is_main) return false;
+    const idLower = String(u.id).toLowerCase().trim();
+    const codeLower = u.code ? String(u.code).toLowerCase().trim() : '';
+    return deletedIds.has(idLower) || (Boolean(codeLower) && deletedIds.has(codeLower));
+  };
+
+  // 3. Carrega do cache local
   let localUnits: Unit[] = [];
   try {
     const rawLocal = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
     if (rawLocal) {
       const parsed = JSON.parse(rawLocal);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        localUnits = parsed;
+        localUnits = parsed.filter(u => !isDiscarded(u));
       }
     }
   } catch {}
@@ -188,7 +247,7 @@ export const getUnits = async (): Promise<Unit[]> => {
   // Semeia com a Matriz dinâmica (alimentada pela Instituição)
   mergedMap.set(dynamicMatriz.id, dynamicMatriz);
 
-  // Insere unidades locais conhecidas
+  // Insere unidades locais conhecidas não excluídas
   localUnits.forEach(u => {
     if (u && u.id) {
       if (u.id === 'matriz' || u.is_main) {
@@ -201,13 +260,13 @@ export const getUnits = async (): Promise<Unit[]> => {
           is_main: true,
           active: true
         });
-      } else {
+      } else if (!isDiscarded(u)) {
         mergedMap.set(u.id, { ...u, is_main: false });
       }
     }
   });
 
-  // 3. Tenta carregar da tabela nativa 'units' no Supabase
+  // 4. Tenta carregar da tabela nativa 'units' no Supabase
   try {
     const tableData = await fetchAll('units', '*', 'name', true).catch(() => []);
     if (Array.isArray(tableData) && tableData.length > 0) {
@@ -222,6 +281,11 @@ export const getUnits = async (): Promise<Unit[]> => {
               is_main: true,
               active: true
             });
+          } else if (isDiscarded(u)) {
+            // Se veio do Supabase mas está na blacklist de excluídos, dispara remoção definitiva em background
+            if (isSupabaseConfigured) {
+              Promise.resolve(supabase.from('units').delete().eq('id', u.id)).catch(() => {});
+            }
           } else {
             mergedMap.set(u.id, { ...u, is_main: false });
           }
@@ -232,9 +296,29 @@ export const getUnits = async (): Promise<Unit[]> => {
     // Tabela nativa pode não existir ainda
   }
 
-  // 4. Tenta carregar do registro redundante em nuvem (email_registry)
+  // 5. Tenta carregar do registro redundante em nuvem (email_registry)
   try {
     const regData: any = await fetchById('email_registry', CLOUD_UNITS_REGISTRY_ID, 6000).catch(() => null);
+    
+    // Incorpora novos IDs excluídos sincronizados da nuvem
+    if (Array.isArray(regData?.metadata?.deleted_ids)) {
+      let changed = false;
+      regData.metadata.deleted_ids.forEach((delId: string) => {
+        if (delId) {
+          const norm = String(delId).toLowerCase().trim();
+          if (!deletedIds.has(norm)) {
+            deletedIds.add(norm);
+            changed = true;
+          }
+        }
+      });
+      if (changed) {
+        try {
+          localStorage.setItem(LOCAL_STORAGE_DELETED_UNITS_KEY, JSON.stringify(Array.from(deletedIds)));
+        } catch {}
+      }
+    }
+
     const cloudUnits = regData?.metadata?.units;
     if (Array.isArray(cloudUnits) && cloudUnits.length > 0) {
       cloudUnits.forEach((u: any) => {
@@ -248,7 +332,7 @@ export const getUnits = async (): Promise<Unit[]> => {
               is_main: true,
               active: true
             });
-          } else {
+          } else if (!isDiscarded(u)) {
             mergedMap.set(u.id, { ...u, is_main: false });
           }
         }
@@ -259,21 +343,18 @@ export const getUnits = async (): Promise<Unit[]> => {
   }
 
   // Garante ordenação (Matriz primeiro, depois ordem alfabética)
-  const consolidatedList = Array.from(mergedMap.values()).sort((a, b) => {
-    if (a.is_main || a.id === 'matriz') return -1;
-    if (b.is_main || b.id === 'matriz') return 1;
-    return (a.name || '').localeCompare(b.name || '');
-  });
+  const consolidatedList = Array.from(mergedMap.values())
+    .filter(u => !isDiscarded(u))
+    .sort((a, b) => {
+      if (a.is_main || a.id === 'matriz') return -1;
+      if (b.is_main || b.id === 'matriz') return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
-  // Atualiza o cache local
+  // Atualiza o cache local limpo
   try {
     localStorage.setItem(LOCAL_STORAGE_UNITS_KEY, JSON.stringify(consolidatedList));
   } catch {}
-
-  // Se houver unidades extras ou se o banco estiver conectado, sincroniza em background
-  if (isSupabaseConfigured && consolidatedList.length > 0) {
-    pushUnitsToCloudRegistry(consolidatedList).catch(() => {});
-  }
 
   return consolidatedList;
 };
@@ -301,6 +382,9 @@ export const saveUnit = async (unit: Partial<Unit>): Promise<Unit> => {
     active: isMatriz ? true : (unit.active !== undefined ? unit.active : true),
     created_at: unit.created_at || new Date().toISOString()
   };
+
+  // Se a unidade estava na lista de excluídos e está sendo recriada/salva, remove do tombstone
+  unmarkUnitAsDeleted(completeUnit.id, completeUnit.code);
 
   // Se for a Matriz, atualiza também a Instituição para manter sincronia perfeita
   if (isMatriz) {
@@ -463,6 +547,11 @@ export const checkUnitLinkedRecords = async (unitId: string): Promise<UnitLinked
 /**
  * Exclui uma unidade APENAS SE ela não contiver dados vinculados.
  * Se contiver registros vinculados (alunos, turmas, etc.), lança exceção exigindo desativação.
+ * Realiza exclusão atômica e definitiva:
+ * 1. Registra no Tombstone permanente (impede ressurreição local e na nuvem)
+ * 2. Remove do cache local e fallbacks
+ * 3. Deleta fisicamente da tabela 'units' no Supabase (por ID e por código)
+ * 4. Atualiza o registro em nuvem no 'email_registry' com a nova lista e a lista de excluídos
  */
 export const deleteUnit = async (unitId: string): Promise<boolean> => {
   if (unitId === 'matriz') {
@@ -477,25 +566,106 @@ export const deleteUnit = async (unitId: string): Promise<boolean> => {
     );
   }
 
-  // 1. Atualiza lista local
+  // 1. Identifica a unidade e seus identificadores (ID e Código)
   let currentList: Unit[] = [];
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
     if (raw) currentList = JSON.parse(raw);
   } catch {}
 
-  const updatedList = currentList.filter(u => u.id !== unitId);
+  const normId = unitId.toLowerCase().trim();
+  const targetUnit = currentList.find(u => 
+    u.id.toLowerCase().trim() === normId || 
+    (u.code && u.code.toLowerCase().trim() === normId)
+  );
+  const targetId = targetUnit?.id || unitId;
+  const targetCode = targetUnit?.code;
+
+  // 2. Registra no Tombstone (Blacklist permanente de excluídos)
+  markUnitAsDeleted(targetId, targetCode);
+  if (unitId !== targetId) {
+    markUnitAsDeleted(unitId);
+  }
+
+  // 3. Atualiza lista local removendo imediatamente
+  const updatedList = currentList.filter(u => {
+    const uIdNorm = u.id.toLowerCase().trim();
+    if (uIdNorm === normId || uIdNorm === targetId.toLowerCase().trim()) return false;
+    if (targetCode && u.code && u.code.toLowerCase().trim() === targetCode.toLowerCase().trim()) return false;
+    return true;
+  });
 
   try {
     localStorage.setItem(LOCAL_STORAGE_UNITS_KEY, JSON.stringify(updatedList));
   } catch {}
 
-  // 2. Remove da tabela nativa se existir
-  await deleteData('units', unitId).catch(() => {});
+  // 4. Remove dos caches locais de fallback do database.ts
+  deleteLocalItem('units', targetId);
+  if (unitId !== targetId) {
+    deleteLocalItem('units', unitId);
+  }
 
-  // 3. Atualiza o registro redundante em nuvem
-  await pushUnitsToCloudRegistry(updatedList);
+  // 5. Exclusão robusta no Supabase
+  if (isSupabaseConfigured) {
+    const promises: Promise<any>[] = [];
 
+    // A) Deleção direta na tabela 'units' por ID
+    promises.push(
+      fetchWithTimeout(() => supabase.from('units').delete().eq('id', targetId), 10000)
+        .then((res: any) => {
+          if (res?.error) {
+            console.warn('[unitService] Aviso ao deletar unidade por ID em units no Supabase:', res.error);
+          }
+        })
+        .catch(e => console.warn('[unitService] Exceção ao deletar unidade por ID:', e))
+    );
+
+    // B) Se houver código (ex: FIL-01), deleta também por code para cobrir registros criados com chave alternativa
+    if (targetCode) {
+      promises.push(
+        fetchWithTimeout(() => supabase.from('units').delete().eq('code', targetCode), 10000)
+          .then((res: any) => {
+            if (res?.error) {
+              console.warn('[unitService] Aviso ao deletar unidade por code em units no Supabase:', res.error);
+            }
+          })
+          .catch(e => console.warn('[unitService] Exceção ao deletar unidade por code:', e))
+      );
+    }
+
+    // C) Tenta também via deleteData para sincronizar fallbacks
+    promises.push(
+      deleteData('units', targetId).catch(err => {
+        console.warn('[unitService] deleteData units falhou (não impeditivo devido a tombstone):', err);
+      })
+    );
+
+    // D) Sincroniza 'email_registry' com a nova lista limpa e a lista de IDs excluídos
+    promises.push(
+      (async () => {
+        const deletedIdsList = Array.from(getDeletedUnitIds());
+        return saveData('email_registry', CLOUD_UNITS_REGISTRY_ID, {
+          id: CLOUD_UNITS_REGISTRY_ID,
+          email: CLOUD_UNITS_EMAIL,
+          role: 'system_units',
+          status: 'active',
+          metadata: {
+            units: updatedList,
+            deleted_ids: deletedIdsList,
+            updated_at: new Date().toISOString()
+          },
+          created_at: new Date().toISOString()
+        }, 10000).catch(err => {
+          console.warn('[unitService] Erro ao sincronizar email_registry após exclusão:', err);
+        });
+      })()
+    );
+
+    // Aguarda todas as operações concluírem
+    await Promise.allSettled(promises);
+  }
+
+  // Notifica o restante do sistema
   window.dispatchEvent(new CustomEvent('units-updated'));
   return true;
 };

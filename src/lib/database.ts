@@ -1126,6 +1126,10 @@ export const deleteData = async (collectionName: string, id: string) => {
     // Sempre remove localmente também para manter consistência total
     deleteLocalItem(collectionName, id);
 
+    if (isTableUsingFallback(collectionName)) {
+      await tryRecoveryFromFallback(collectionName);
+    }
+
     if (isTableUsingFallback(collectionName) || !isSupabaseConfigured) {
       return;
     }
