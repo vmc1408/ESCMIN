@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase, isSupabaseConfigured, fetchWithTimeout, clearCorruptedAuthTokens, isJwtOrTokenError } from '../lib/supabase';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { supabase, isSupabaseConfigured, fetchWithTimeout, clearCorruptedAuthTokens, isJwtOrTokenError, getAuthPersistence, setAuthPersistence } from '../lib/supabase';
 import { saveData, deleteData, fetchById, fetchQuery } from '../lib/database';
 import { UserProfile } from '../types';
 
@@ -25,12 +25,19 @@ interface AuthContextType {
   isLockEnabled: boolean;
   lockTimeout: number;
   updateLockSettings: (enabled: boolean, timeoutMinutes: number) => void;
+  inactivityTimeout: number; // em segundos
+  inactivityRemaining: number; // em segundos
+  showInactivityWarning: boolean;
+  extendSession: () => void;
+  updateInactivitySettings: (timeoutMinutes: number) => Promise<void>;
+  authPersistMode: 'session' | 'local';
+  setPersistMode: (mode: 'session' | 'local') => void;
   lock: () => void;
   isConnected: boolean;
   connError: string | null;
   latency: number | null;
   unlock: (pin: string) => boolean;
-  logout: () => Promise<void>;
+  logout: (reason?: string | unknown) => Promise<void>;
   refreshProfile: (uid?: string) => Promise<void>;
   switchUser: (newProfile: UserProfile) => void;
   resetToMaster: () => void;
@@ -56,6 +63,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [lockTimer, setLockTimer] = useState(() => {
     return parseInt(localStorage.getItem('app_lock_timeout') || '300', 10);
   });
+
+  // Timeout global de inatividade (Desconexão/Logoff obrigatório para todos os usuários)
+  const [inactivityTimeout, setInactivityTimeout] = useState(() => {
+    return parseInt(localStorage.getItem('app_inactivity_timeout') || '900', 10); // 15 minutos padrão
+  });
+  const [inactivityRemaining, setInactivityRemaining] = useState(inactivityTimeout);
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+  const [authPersistMode, setAuthPersistModeState] = useState<'session' | 'local'>(() => getAuthPersistence());
+
   const [isConnected, setIsConnected] = useState(true);
   const [connError, setConnError] = useState<string | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
@@ -290,19 +306,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refreshProfile]);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (reason?: string | unknown) => {
     try {
       setLoading(true);
-      // Sinaliza que o próximo login deve ir obrigatoriamente para o Dashboard (logout total)
-      localStorage.setItem('force_dashboard_on_login', 'true');
-      window.location.hash = '#/';
-      
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
+      setShowInactivityWarning(false);
       setIsLocked(false);
+
+      if (typeof reason === 'string' && reason === 'inactivity') {
+        sessionStorage.setItem('logout_reason', 'inactivity');
+        localStorage.setItem('logout_reason', 'inactivity');
+      } else {
+        sessionStorage.removeItem('logout_reason');
+        localStorage.removeItem('logout_reason');
+      }
+
+      // Limpa tokens locais e temporários em ambos os storages
+      clearCorruptedAuthTokens();
       localStorage.removeItem('app_locked');
       localStorage.removeItem('app_last_activity');
+      sessionStorage.removeItem('app_last_activity');
+      sessionStorage.removeItem('app_session_active');
+      localStorage.setItem('force_dashboard_on_login', 'true');
+
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch (err) {
+        console.warn("[AuthContext] Erro silencioso ao chamar signOut:", err);
+      }
+
+      setUser(null);
+      setProfile(null);
+
+      // Redireciona para login explicitamente
+      window.location.hash = '#/login';
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
     } finally {
@@ -317,14 +353,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLocked(false);
     localStorage.removeItem('app_locked');
-    localStorage.setItem('app_last_activity', Date.now().toString());
+    const nowStr = Date.now().toString();
+    localStorage.setItem('app_last_activity', nowStr);
+    sessionStorage.setItem('app_last_activity', nowStr);
+    setInactivityRemaining(inactivityTimeout);
     return true;
-  }, [profile]);
+  }, [profile, inactivityTimeout]);
 
   const lock = useCallback(() => {
     setIsLocked(true);
     localStorage.setItem('app_locked', 'true');
   }, []);
+
+  const extendSession = useCallback(() => {
+    const now = Date.now();
+    localStorage.setItem('app_last_activity', now.toString());
+    sessionStorage.setItem('app_last_activity', now.toString());
+    setInactivityRemaining(inactivityTimeout);
+    setShowInactivityWarning(false);
+    if (!isLocked) {
+      setLockTimer(lockTimeout);
+    }
+  }, [inactivityTimeout, isLocked, lockTimeout]);
+
+  const setPersistMode = useCallback((mode: 'session' | 'local') => {
+    setAuthPersistModeState(mode);
+    setAuthPersistence(mode);
+  }, []);
+
+  const updateInactivitySettings = useCallback(async (timeoutMinutes: number) => {
+    const timeoutSeconds = Math.max(timeoutMinutes * 60, 60);
+    setInactivityTimeout(timeoutSeconds);
+    setInactivityRemaining(timeoutSeconds);
+    localStorage.setItem('app_inactivity_timeout', timeoutSeconds.toString());
+
+    if (profile?.id) {
+      try {
+        const updatedProfile = { 
+          ...profile, 
+          app_inactivity_timeout: timeoutMinutes 
+        };
+        await saveData('users', profile.id, updatedProfile);
+        setProfile(updatedProfile);
+        console.log("[AuthContext] Configurações de inatividade salvas no Supabase.");
+      } catch (err) {
+        console.error("[AuthContext] Erro ao salvar inatividade no Supabase:", err);
+      }
+    }
+  }, [profile]);
 
   const updateLockSettings = useCallback(async (enabled: boolean, timeoutMinutes: number) => {
     const timeoutSeconds = timeoutMinutes * 60;
@@ -350,7 +426,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [profile]);
 
-  // Sincroniza configurações de bloqueio a partir do perfil do banco de dados (Supabase)
+  // Sincroniza configurações de bloqueio e inatividade a partir do perfil do banco de dados (Supabase)
   useEffect(() => {
     if (profile) {
       if (profile.app_lock_enabled !== undefined && profile.app_lock_enabled !== null) {
@@ -363,111 +439,106 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLockTimeout(prev => prev !== timeout ? timeout : prev);
         localStorage.setItem('app_lock_timeout', profile.app_lock_timeout.toString());
       }
-    }
-  }, [profile?.app_lock_enabled, profile?.app_lock_timeout]);
-
-  // Bloqueio por inatividade
-  useEffect(() => {
-    if (loading) return;
-
-    if (!profile?.pin || !isLockEnabled) {
-      setLockTimer(lockTimeout);
-      setIsLocked(false);
-      localStorage.removeItem('app_locked');
-      localStorage.removeItem('app_last_activity');
-      return;
-    }
-
-    if (isLocked) {
-      setLockTimer(lockTimeout);
-      return;
-    }
-
-    const INACTIVITY_TIMEOUT = lockTimeout;
-    let countdownInterval: any;
-
-    const resetTimer = () => {
-      setLockTimer(INACTIVITY_TIMEOUT);
-      localStorage.setItem('app_last_activity', Date.now().toString());
-    };
-
-    // Events to reset the timer
-    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
-    events.forEach(event => window.addEventListener(event, resetTimer));
-
-    // Initialize timer based on remaining time from last activity to prevent refresh-bypass
-    const lastActivity = localStorage.getItem('app_last_activity');
-    let initialTimerVal = INACTIVITY_TIMEOUT;
-    
-    if (lastActivity) {
-      const elapsedSeconds = Math.floor((Date.now() - parseInt(lastActivity, 10)) / 1000);
-      if (elapsedSeconds >= INACTIVITY_TIMEOUT) {
-        setIsLocked(true);
-        localStorage.setItem('app_locked', 'true');
-        return;
-      } else {
-        initialTimerVal = INACTIVITY_TIMEOUT - elapsedSeconds;
-        setLockTimer(initialTimerVal);
+      if (profile.app_inactivity_timeout !== undefined && profile.app_inactivity_timeout !== null) {
+        const inactSec = profile.app_inactivity_timeout * 60;
+        setInactivityTimeout(prev => prev !== inactSec ? inactSec : prev);
+        localStorage.setItem('app_inactivity_timeout', inactSec.toString());
       }
-    } else {
-      localStorage.setItem('app_last_activity', Date.now().toString());
+    }
+  }, [profile?.app_lock_enabled, profile?.app_lock_timeout, profile?.app_inactivity_timeout]);
+
+  const lastRecordedActivityRef = useRef<number>(Date.now());
+
+  const recordUserActivity = useCallback(() => {
+    const now = Date.now();
+    if (now - lastRecordedActivityRef.current > 2000) {
+      lastRecordedActivityRef.current = now;
+      localStorage.setItem('app_last_activity', now.toString());
+      sessionStorage.setItem('app_last_activity', now.toString());
+      setShowInactivityWarning(false);
+      setInactivityRemaining(inactivityTimeout);
+      if (!isLocked) {
+        setLockTimer(lockTimeout);
+      }
+    }
+  }, [inactivityTimeout, isLocked, lockTimeout]);
+
+  // Monitor universal de inatividade (Desconexão obrigatória para todos os usuários)
+  useEffect(() => {
+    if (!user || loading) return;
+
+    // Marca sessão ativa no sessionStorage da aba
+    sessionStorage.setItem('app_session_active', 'true');
+    
+    // Inicializa timestamp caso não exista
+    if (!localStorage.getItem('app_last_activity') && !sessionStorage.getItem('app_last_activity')) {
+      const nowStr = Date.now().toString();
+      localStorage.setItem('app_last_activity', nowStr);
+      sessionStorage.setItem('app_last_activity', nowStr);
     }
 
-    // Countdown interval
-    countdownInterval = setInterval(() => {
-      setLockTimer(prev => {
-        if (prev <= 1) {
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(e => window.addEventListener(e, recordUserActivity));
+
+    // Verificação periódica a cada 1 segundo
+    const interval = setInterval(() => {
+      const lastStr = localStorage.getItem('app_last_activity') || sessionStorage.getItem('app_last_activity');
+      const last = lastStr ? parseInt(lastStr, 10) : Date.now();
+      const elapsed = Math.floor((Date.now() - last) / 1000);
+      const remaining = Math.max(0, inactivityTimeout - elapsed);
+
+      setInactivityRemaining(remaining);
+
+      // 1. Desconexão automática por inatividade absoluta
+      if (remaining <= 0) {
+        console.warn('[AuthContext] Tempo limite de inatividade atingido. Encerrando sessão por segurança...');
+        logout('inactivity');
+        return;
+      }
+
+      // 2. Alerta preventivo com contagem regressiva (últimos 60 segundos)
+      if (remaining <= 60 && !isLocked) {
+        setShowInactivityWarning(true);
+      } else if (remaining > 60) {
+        setShowInactivityWarning(false);
+      }
+
+      // 3. Bloqueio rápido de tela por PIN (se configurado pelo usuário)
+      if (profile?.pin && isLockEnabled && !isLocked) {
+        if (elapsed >= lockTimeout) {
           setIsLocked(true);
           localStorage.setItem('app_locked', 'true');
-          return INACTIVITY_TIMEOUT;
+        } else {
+          setLockTimer(Math.max(0, lockTimeout - elapsed));
         }
-        // Sync timestamp occasionally to prevent stale timers on background/inactive tabs
-        const now = Date.now();
-        const last = parseInt(localStorage.getItem('app_last_activity') || '0', 10);
-        if (now - last >= INACTIVITY_TIMEOUT * 1000) {
-          setIsLocked(true);
-          localStorage.setItem('app_locked', 'true');
-          return INACTIVITY_TIMEOUT;
-        }
-        return prev - 1;
-      });
+      }
     }, 1000);
 
-    return () => {
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-      if (countdownInterval) clearInterval(countdownInterval);
-    };
-  }, [profile?.pin, isLocked, isLockEnabled, lockTimeout, loading]);
-
-  // Desconexão total automática por inatividade quando bloqueio de tela estiver ativado
-  useEffect(() => {
-    if (!profile || !profile.pin || !isLockEnabled) return;
-
-    const checkLogoutTimeout = () => {
-      const lastActivity = localStorage.getItem('app_last_activity');
-      if (lastActivity) {
-        const lastTimestamp = parseInt(lastActivity, 10);
-        if (isNaN(lastTimestamp) || lastTimestamp <= 0) return;
-
-        const elapsedSeconds = Math.floor((Date.now() - lastTimestamp) / 1000);
-        const LOGOUT_TIMEOUT = Math.max(lockTimeout * 2, 600); // No mínimo 10 minutos
-        
-        if (elapsedSeconds >= LOGOUT_TIMEOUT) {
-          console.log("[AuthContext] Tempo limite de inatividade duplicado atingido. Desconectando usuário por segurança...");
-          localStorage.removeItem('app_locked');
-          localStorage.removeItem('app_last_activity');
-          setIsLocked(false);
-          logout();
+    // Verificação ao retornar ao navegador / acordar o computador (evita que suspensão congele timer)
+    const handleWakeOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        const lastStr = localStorage.getItem('app_last_activity') || sessionStorage.getItem('app_last_activity');
+        if (lastStr) {
+          const last = parseInt(lastStr, 10);
+          const elapsed = Math.floor((Date.now() - last) / 1000);
+          if (elapsed >= inactivityTimeout) {
+            console.warn('[AuthContext] Retomada de atividade após inatividade expirada. Efetuando logoff...');
+            logout('inactivity');
+          }
         }
       }
     };
 
-    const logoutCheckInterval = setInterval(checkLogoutTimeout, 5000);
+    document.addEventListener('visibilitychange', handleWakeOrFocus);
+    window.addEventListener('focus', handleWakeOrFocus);
 
     return () => {
-      if (logoutCheckInterval) clearInterval(logoutCheckInterval);
+      events.forEach(e => window.removeEventListener(e, recordUserActivity));
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleWakeOrFocus);
+      window.removeEventListener('focus', handleWakeOrFocus);
     };
-  }, [profile, isLockEnabled, lockTimeout, logout]);
+  }, [user, loading, inactivityTimeout, lockTimeout, isLockEnabled, isLocked, profile?.pin, recordUserActivity, logout]);
 
   const switchUser = useCallback((newProfile: UserProfile) => {
     // Apenas muda o contexto visual/de permissão atual se o admin quiser "simular" outro usuário
@@ -569,6 +640,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLockEnabled,
     lockTimeout,
     updateLockSettings,
+    inactivityTimeout,
+    inactivityRemaining,
+    showInactivityWarning,
+    extendSession,
+    updateInactivitySettings,
+    authPersistMode,
+    setPersistMode,
     lock,
     isConnected,
     connError,
@@ -579,7 +657,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile,
     switchUser,
     resetToMaster
-  }), [user, profile, isAdmin, isDirector, isSecretary, isAssistant, isTeacher, isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings, isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster]);
+  }), [
+    user, profile, isAdmin, isDirector, isSecretary, isAssistant, isTeacher,
+    isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings,
+    inactivityTimeout, inactivityRemaining, showInactivityWarning, extendSession,
+    updateInactivitySettings, authPersistMode, setPersistMode,
+    isConnected, connError, latency, unlock, lock, logout, canAccess, refreshProfile, switchUser, resetToMaster
+  ]);
 
   return (
     <AuthContext.Provider value={contextValue}>

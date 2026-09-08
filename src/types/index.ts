@@ -16,6 +16,7 @@ export interface UserProfile {
   pin?: string;
   app_lock_enabled?: boolean;
   app_lock_timeout?: number;
+  app_inactivity_timeout?: number;
   teacher_id?: string;
   unit_id?: string; // ID da unidade/polo ao qual o usuário está vinculado ('all' para todas ou ID do polo)
 }

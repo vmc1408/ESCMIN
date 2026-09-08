@@ -196,21 +196,85 @@ export const clearCorruptedAuthTokens = () => {
   }
 };
 
-// Storage seguro com validação preventiva de integridade para evitar 'Invalid Refresh Token'
+// Gerenciamento dinâmico de persistência de sessão (Sessão efêmera vs Permanente)
+export const getAuthPersistence = (): 'session' | 'local' => {
+  if (typeof window === 'undefined') return 'session';
+  return window.localStorage.getItem('auth_persist_mode') === 'local' ? 'local' : 'session';
+};
+
+export const setAuthPersistence = (mode: 'session' | 'local') => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem('auth_persist_mode', mode);
+  if (mode === 'session') {
+    // Modo seguro (padrão): limpa tokens persistentes de disco para garantir isolamento por fechamento de navegador
+    try {
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const key = window.localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch (_) {}
+  }
+};
+
+// Limpeza preventiva de tokens persistidos indevidamente em modo de sessão
+if (typeof window !== 'undefined') {
+  if (getAuthPersistence() !== 'local') {
+    try {
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const key = window.localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch (_) {}
+  }
+}
+
+// Storage seguro com suporte a modo efêmero (sessionStorage) ou persistente (localStorage)
 const safeAuthStorage = typeof window !== 'undefined' ? {
   getItem: (key: string): string | null => {
     try {
-      const item = window.localStorage.getItem(key);
+      const mode = getAuthPersistence();
+      const primaryStorage = mode === 'local' ? window.localStorage : window.sessionStorage;
+      
+      // Se estiver em modo de sessão, garante que o localStorage não tem cópia residual
+      if (mode === 'session' && window.localStorage.getItem(key)) {
+        window.localStorage.removeItem(key);
+      }
+
+      let item = primaryStorage.getItem(key);
       if (!item) return null;
+
+      // Validação estrita de expiração por inatividade mesmo em armazenamento local
+      const lastActivity = window.localStorage.getItem('app_last_activity') || window.sessionStorage.getItem('app_last_activity');
+      if (lastActivity) {
+        const lastTime = parseInt(lastActivity, 10);
+        if (!isNaN(lastTime) && lastTime > 0) {
+          const timeoutSec = parseInt(window.localStorage.getItem('app_inactivity_timeout') || '900', 10);
+          const elapsed = (Date.now() - lastTime) / 1000;
+          if (elapsed >= timeoutSec) {
+            console.warn('[Supabase Auth Storage] Sessão expirada por inatividade. Descartando credenciais...');
+            primaryStorage.removeItem(key);
+            window.localStorage.removeItem(key);
+            window.sessionStorage.removeItem(key);
+            window.localStorage.removeItem('app_last_activity');
+            window.sessionStorage.removeItem('app_last_activity');
+            return null;
+          }
+        }
+      }
+
       if (item.startsWith('{') || item.startsWith('[')) {
         try {
           const parsed = JSON.parse(item);
           if (parsed && typeof parsed === 'object' && parsed.error && isJwtOrTokenError(parsed.error)) {
-            window.localStorage.removeItem(key);
+            primaryStorage.removeItem(key);
             return null;
           }
         } catch {
-          window.localStorage.removeItem(key);
+          primaryStorage.removeItem(key);
           return null;
         }
       }
@@ -221,7 +285,14 @@ const safeAuthStorage = typeof window !== 'undefined' ? {
   },
   setItem: (key: string, value: string): void => {
     try {
-      window.localStorage.setItem(key, value);
+      const mode = getAuthPersistence();
+      if (mode === 'local') {
+        window.localStorage.setItem(key, value);
+        window.sessionStorage.removeItem(key);
+      } else {
+        window.sessionStorage.setItem(key, value);
+        window.localStorage.removeItem(key);
+      }
     } catch (e) {
       console.warn('[Supabase Auth Storage] setItem error:', e);
     }
@@ -229,6 +300,7 @@ const safeAuthStorage = typeof window !== 'undefined' ? {
   removeItem: (key: string): void => {
     try {
       window.localStorage.removeItem(key);
+      window.sessionStorage.removeItem(key);
     } catch (e) {
       console.warn('[Supabase Auth Storage] removeItem error:', e);
     }
@@ -258,7 +330,7 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false, // Segurança: impede que URLs coladas em outro navegador façam login automático
       storage: safeAuthStorage
     }
   }

@@ -9,6 +9,7 @@ import docentesGrupoImg from '../assets/images/corpo_docente_real_1783556897371.
 import dioceseMapaImg from '../assets/images/diocese_map_exact_1783556695984.jpg';
 import { 
   Shield, 
+  ShieldAlert,
   Mail, 
   Lock, 
   Loader2, 
@@ -51,7 +52,20 @@ export function Login() {
     }
   });
   const [stats, setStats] = useState({ classes: 0, students: 0, subjects: 0 });
-  const [rememberMe, setRememberMe] = useState(false);
+  const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError, setPersistMode, authPersistMode } = useAuth();
+  const [rememberMe, setRememberMe] = useState(() => {
+    return authPersistMode === 'local' || !!localStorage.getItem('remembered_email');
+  });
+  
+  const [logoutNotice, setLogoutNotice] = useState<string | null>(() => {
+    const reason = sessionStorage.getItem('logout_reason') || localStorage.getItem('logout_reason');
+    if (reason === 'inactivity') {
+      sessionStorage.removeItem('logout_reason');
+      localStorage.removeItem('logout_reason');
+      return 'Sua sessão foi desconectada por inatividade para sua segurança. Por favor, identifique-se novamente.';
+    }
+    return null;
+  });
   
   // Estados para redefinição de senha e OTP bypass
   const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -65,7 +79,6 @@ export function Login() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, profile, loading: authLoading, refreshProfile, logout, isLocked, isConnected, connError } = useAuth();
   
   // Se houver sinalização de logout total, força a rota de destino a ser o Dashboard ("/")
   const isForcedDashboard = localStorage.getItem('force_dashboard_on_login') === 'true';
@@ -209,9 +222,17 @@ export function Login() {
       
       if (rememberMe) {
         localStorage.setItem('remembered_email', emailNormalized);
+        setPersistMode('local');
       } else {
         localStorage.removeItem('remembered_email');
+        setPersistMode('session');
       }
+
+      // Inicializa timestamp de atividade para garantir contagem limpa
+      const nowStr = Date.now().toString();
+      localStorage.setItem('app_last_activity', nowStr);
+      sessionStorage.setItem('app_last_activity', nowStr);
+      sessionStorage.setItem('app_session_active', 'true');
 
       const result = await fetchWithTimeout(supabase.auth.signInWithPassword({
         email: emailNormalized,
@@ -970,6 +991,21 @@ export function Login() {
 
 
               <AnimatePresence mode="wait">
+                {logoutNotice && (
+                  <motion.div 
+                    key="login-logout-notice"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 shadow-sm"
+                  >
+                    <ShieldAlert className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-amber-900 leading-tight">Sessão Finalizada</p>
+                      <p className="text-[11px] text-amber-800 leading-relaxed font-medium mt-0.5">{logoutNotice}</p>
+                    </div>
+                  </motion.div>
+                )}
                 {error && (
                   <motion.div 
                     key="login-error-message"
@@ -1113,7 +1149,10 @@ export function Login() {
 
                   {!isRegistering && !isForgotPassword && (
                      <div className="flex items-center justify-between px-1 gap-2">
-                        <label className="flex items-center gap-2 cursor-pointer group shrink-0 select-none">
+                        <label 
+                          className="flex items-center gap-2 cursor-pointer group select-none"
+                          title="Se desmarcado, a sessão expira ao fechar o navegador."
+                        >
                           <div className={cn(
                             "w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0",
                             rememberMe ? "bg-indigo-600 border-indigo-600" : "bg-slate-50 border-slate-300 group-hover:border-slate-400"
@@ -1126,7 +1165,7 @@ export function Login() {
                             />
                             {rememberMe && <CheckCircle size={10} className="text-white" />}
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap shrink-0">Lembrar-me</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Permanecer conectado</span>
                         </label>
 
                         <button 

@@ -34,6 +34,7 @@ import { UnitProvider } from './contexts/UnitContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { GlobalImportOverlay } from './components/GlobalImportOverlay';
 import { PinLock } from './components/PinLock';
+import { InactivityWarningModal } from './components/InactivityWarningModal';
 import { AlertCircle, RefreshCw, Unplug } from 'lucide-react';
 
 interface ErrorBoundaryProps {
@@ -171,6 +172,7 @@ function AppContent() {
   return (
     <div className="min-h-screen">
       {user && isLocked && <PinLock />}
+      {user && <InactivityWarningModal />}
       <ImportProvider>
         <Router>
           <Routes>

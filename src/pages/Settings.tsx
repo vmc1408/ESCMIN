@@ -27,6 +27,9 @@ import {
   ChevronUp,
   Clock,
   ShieldCheck,
+  ShieldAlert,
+  LogOut,
+  Laptop,
   Crown,
   UserCheck,
   Search,
@@ -185,7 +188,13 @@ export function Settings() {
     }
   };
 
-  const { user, profile, refreshProfile, isLockEnabled, lockTimeout, updateLockSettings, isAdmin } = useAuth();
+  const { 
+    user, profile, refreshProfile, isLockEnabled, lockTimeout, updateLockSettings, 
+    isAdmin, inactivityTimeout, updateInactivitySettings, authPersistMode, setPersistMode 
+  } = useAuth();
+
+  const [inactivityMinutes, setInactivityMinutes] = useState(() => Math.floor(inactivityTimeout / 60));
+  const [selectedPersistMode, setSelectedPersistMode] = useState(authPersistMode);
 
   useEffect(() => {
     if (isAdmin !== undefined && !isAdmin && (activeTab === 'security' || activeTab === 'maintenance')) {
@@ -200,7 +209,13 @@ export function Settings() {
     if (isLockEnabled !== undefined) {
       setLocalLockEnabled(isLockEnabled);
     }
-  }, [lockTimeout, isLockEnabled]);
+    if (inactivityTimeout !== undefined) {
+      setInactivityMinutes(Math.floor(inactivityTimeout / 60));
+    }
+    if (authPersistMode) {
+      setSelectedPersistMode(authPersistMode);
+    }
+  }, [lockTimeout, isLockEnabled, inactivityTimeout, authPersistMode]);
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -1810,6 +1825,130 @@ export function Settings() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Segurança da Sessão e Desconexão Global por Inatividade */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6 mt-4">
+            <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+              <div className="w-9 h-9 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                <ShieldCheck size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 tracking-tight">Persistência da Sessão & Logoff por Inatividade</h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Controle de retenção de credenciais e encerramento preventivo</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Modo de Persistência */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">
+                  Comportamento ao Fechar o Navegador
+                </label>
+                <div className="space-y-2.5">
+                  <div
+                    onClick={() => setSelectedPersistMode('session')}
+                    className={cn(
+                      "p-3.5 rounded-lg border cursor-pointer transition-all flex items-start gap-3",
+                      selectedPersistMode === 'session'
+                        ? "bg-emerald-50/70 border-emerald-500 ring-1 ring-emerald-500/20"
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <div className="mt-0.5">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full border flex items-center justify-center",
+                        selectedPersistMode === 'session' ? "border-emerald-600 bg-emerald-600" : "border-slate-300"
+                      )}>
+                        {selectedPersistMode === 'session' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">Sessão Temporária (Recomendado)</span>
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
+                        Ao fechar o navegador ou a aba, os tokens são excluídos da memória. Exigirá login novamente ao reabrir.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setSelectedPersistMode('local')}
+                    className={cn(
+                      "p-3.5 rounded-lg border cursor-pointer transition-all flex items-start gap-3",
+                      selectedPersistMode === 'local'
+                        ? "bg-indigo-50/70 border-indigo-500 ring-1 ring-indigo-500/20"
+                        : "bg-white border-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    <div className="mt-0.5">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full border flex items-center justify-center",
+                        selectedPersistMode === 'local' ? "border-indigo-600 bg-indigo-600" : "border-slate-300"
+                      )}>
+                        {selectedPersistMode === 'local' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">Dispositivo Confiável (Permanecer Conectado)</span>
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">
+                        Salva o acesso no armazenamento local do navegador. Use apenas em computadores de uso individual.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tempo Limite Global de Inatividade */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">
+                  Tempo Limite para Desconexão por Inatividade
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[5, 10, 15, 30, 60].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setInactivityMinutes(mins)}
+                      className={cn(
+                        "px-3.5 py-2 border rounded-md text-xs font-semibold tracking-tight transition-all",
+                        inactivityMinutes === mins
+                          ? "bg-emerald-50 border-emerald-500 text-emerald-800 font-bold shadow-sm"
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      {mins} Minutos {mins === 15 ? '(Padrão)' : ''}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5 mt-2">
+                  <div className="flex items-center gap-2 text-slate-700 font-bold text-xs">
+                    <ShieldAlert size={14} className="text-amber-500 shrink-0" />
+                    Proteção Ativa
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Após <span className="font-bold text-slate-900">{inactivityMinutes} minutos</span> sem nenhuma interação no teclado, mouse ou toque, o sistema exibirá uma contagem de aviso de 60 segundos e desconectará o usuário automaticamente.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={async () => {
+                  const mins = typeof inactivityMinutes === 'number' ? inactivityMinutes : 15;
+                  setPersistMode(selectedPersistMode);
+                  await updateInactivitySettings(mins);
+                  setNotification({ type: 'success', message: 'Configurações de sessão e inatividade atualizadas com sucesso!' });
+                  setTimeout(() => setNotification(null), 3000);
+                }}
+                className="px-6 py-2.5 bg-emerald-600 text-white rounded-md text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20"
+              >
+                <Save size={14} />
+                Salvar Configurações de Sessão
+              </button>
             </div>
           </div>
         </div>
