@@ -28,12 +28,8 @@ import {
   CheckCircle,
   ArrowRight,
   Map,
-  Zap,
-  Building2,
-  ChevronDown
+  Zap
 } from 'lucide-react';
-import { getUnits } from '../lib/unitService';
-import { Unit } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -79,49 +75,6 @@ export function Login() {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [pastedUrl, setPastedUrl] = useState('');
   const [recoverySession, setRecoverySession] = useState<{ access_token: string; refresh_token: string } | null>(null);
-
-  const [loginUnits, setLoginUnits] = useState<Unit[]>([]);
-  const [selectedLoginUnit, setSelectedLoginUnit] = useState<string>(() => {
-    try {
-      return localStorage.getItem('selected_global_unit_id') || 'matriz';
-    } catch {
-      return 'matriz';
-    }
-  });
-
-  // Carrega unidades ativas para seleção explícita no momento do login
-  useEffect(() => {
-    let mounted = true;
-    getUnits().then(units => {
-      if (!mounted) return;
-      const active = (units || []).filter(u => u.active !== false);
-      setLoginUnits(active);
-      if (active.length > 0) {
-        const saved = localStorage.getItem('selected_global_unit_id');
-        if (saved && active.some(u => u.id === saved)) {
-          setSelectedLoginUnit(saved);
-        } else {
-          const defaultUnit = active.find(u => u.is_main || u.id === 'matriz') || active[0];
-          if (defaultUnit) setSelectedLoginUnit(defaultUnit.id);
-        }
-      }
-    }).catch(err => {
-      console.warn("Erro ao carregar unidades para login:", err);
-    });
-    return () => { mounted = false; };
-  }, []);
-
-  // Pré-seleciona a unidade específica se o usuário já tiver vínculo gravado para o e-mail digitado
-  useEffect(() => {
-    if (!email || !email.includes('@')) return;
-    const emailNorm = email.toLowerCase().trim();
-    try {
-      const cachedUnit = localStorage.getItem(`user_unit_${emailNorm}`);
-      if (cachedUnit && cachedUnit !== 'all') {
-        setSelectedLoginUnit(cachedUnit);
-      }
-    } catch {}
-  }, [email]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -277,16 +230,6 @@ export function Login() {
       sessionStorage.setItem('app_last_activity', nowStr);
       sessionStorage.setItem('app_session_active', 'true');
 
-      // Define a unidade selecionada para a sessão no momento do logon
-      if (selectedLoginUnit) {
-        localStorage.setItem('selected_global_unit_id', selectedLoginUnit);
-        sessionStorage.setItem('selected_global_unit_id', selectedLoginUnit);
-        try {
-          localStorage.setItem(`user_unit_${emailNormalized}`, selectedLoginUnit);
-        } catch {}
-        window.dispatchEvent(new CustomEvent('units-updated'));
-      }
-
       const result = await fetchWithTimeout(supabase.auth.signInWithPassword({
         email: emailNormalized,
         password
@@ -408,21 +351,12 @@ export function Login() {
           name: userData.name,
           full_name: userData.name,
           role: userData.role,
-          unit_id: selectedLoginUnit || 'matriz',
+          unit_id: (userData as any)?.unit_id || 'all',
           status: 'active',
           is_pre_registered: false, // Agora é um usuário real
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }, 120000); // 2 minutes timeout for this critical operation
-
-        if (selectedLoginUnit) {
-          localStorage.setItem('selected_global_unit_id', selectedLoginUnit);
-          sessionStorage.setItem('selected_global_unit_id', selectedLoginUnit);
-          try {
-            localStorage.setItem(`user_unit_${emailLower}`, selectedLoginUnit);
-          } catch {}
-          window.dispatchEvent(new CustomEvent('units-updated'));
-        }
         
         // Se for o primeiro usuário, garante o registro na pré-autorização também
         if (isSystemEmpty) {
@@ -1131,33 +1065,6 @@ export function Login() {
                         />
                       </div>
                     </motion.div>
-                  )}
-
-                  {!isForgotPassword && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
-                        <span>Unidade / Polo de Acesso</span>
-                        <span className="text-[9px] font-bold text-indigo-600 lowercase tracking-normal">sessão ativa</span>
-                      </label>
-                      <div className="relative group">
-                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors pointer-events-none" size={18} />
-                        <select
-                          value={selectedLoginUnit}
-                          onChange={e => setSelectedLoginUnit(e.target.value)}
-                          className="w-full pl-12 pr-10 py-4 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 text-sm focus:bg-white focus:border-indigo-600/30 focus:ring-4 focus:ring-indigo-600/5 transition-all outline-none appearance-none cursor-pointer"
-                        >
-                          {loginUnits.length === 0 && (
-                            <option value="matriz">Sede / Matriz (MAT)</option>
-                          )}
-                          {loginUnits.map(u => (
-                            <option key={`login-unit-${u.id}`} value={u.id}>
-                              {u.name} ({u.code}){u.is_main ? ' • Sede' : ' • Filial'}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                      </div>
-                    </div>
                   )}
 
                   {!isRegistering && !isForgotPassword && (

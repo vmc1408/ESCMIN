@@ -55,7 +55,7 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
-  // Sincroniza a unidade selecionada no logon imediatamente
+  // Sincroniza a unidade selecionada no armazenamento local
   useEffect(() => {
     const handleSyncUnit = () => {
       try {
@@ -74,24 +74,35 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
     };
   }, [selectedUnitIdState]);
 
-  // 2. Determina se o usuário logado possui restrição estrita a uma única unidade/polo
-  // Se canSwitchUnit for verdadeiro, o usuário tem livre trânsito e não fica restrito.
-  // Se canSwitchUnit for falso, o usuário utiliza a unidade vinculada no perfil ou a definida no logon.
+  // 2. Determina se o usuário possui restrição de unidade pelo seu cadastro
+  // Se canSwitchUnit for verdadeiro (admin, diretor, secretário acadêmico), o usuário pode alternar entre unidades.
+  // Se canSwitchUnit for falso, o usuário fica estritamente restrito à unidade definida no seu cadastro (ou Matriz por padrão).
   const restrictedUnitId = useMemo(() => {
     if (canSwitchUnit) {
       return null;
     }
     const userUnit = getUserRestrictedUnit(profile);
-    if (userUnit) return userUnit;
-    // Se o perfil do usuário não tiver unidade restrita fixada, utiliza a unidade definida no logon
-    try {
-      const storedLoginUnit = localStorage.getItem('selected_global_unit_id');
-      if (storedLoginUnit && storedLoginUnit !== 'all') return storedLoginUnit;
-    } catch {}
-    return selectedUnitIdState !== 'all' ? selectedUnitIdState : 'matriz';
-  }, [canSwitchUnit, profile, selectedUnitIdState]);
+    return userUnit || 'matriz';
+  }, [canSwitchUnit, profile]);
 
   const isRestricted = Boolean(restrictedUnitId);
+
+  // Sincroniza a unidade ativa a partir do cadastro do usuário ao autenticar
+  useEffect(() => {
+    if (!profile) return;
+    const registeredUnit = getUserRestrictedUnit(profile);
+    if (registeredUnit) {
+      setSelectedUnitIdState(registeredUnit);
+      try {
+        localStorage.setItem('selected_global_unit_id', registeredUnit);
+      } catch {}
+    } else if (!canSwitchUnit) {
+      setSelectedUnitIdState('matriz');
+      try {
+        localStorage.setItem('selected_global_unit_id', 'matriz');
+      } catch {}
+    }
+  }, [profile, canSwitchUnit]);
 
   // Se o usuário possuir restrição de unidade, a unidade ativa é rigidamente travada na unidade dele
   const effectiveSelectedUnitId = useMemo(() => {
