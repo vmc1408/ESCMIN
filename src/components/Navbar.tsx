@@ -158,42 +158,45 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Seletor Global de Unidade ou Badge de Unidade Restrita */}
+          {/* Seletor Global de Unidade ou Indicador de Unidade Logada */}
           {(hasMultipleUnits || isRestricted || activeUnits.length > 0) && (
             <div className="relative flex items-center shrink-0" ref={unitDropdownRef}>
               {!canSwitchUnit ? (
                 isTeacherUser ? (
                   <div 
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-indigo-50/90 border border-indigo-200/90 text-xs font-semibold text-slate-700 shadow-2xs select-none"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-2xs select-none"
                     title="Perfil Docente: Acesso direto às turmas sob sua regência pedagógica em todas as unidades vinculadas."
                   >
-                    <GraduationCap size={15} className="text-indigo-600 shrink-0" />
+                    <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                      <GraduationCap size={14} />
+                    </div>
                     <div className="flex flex-col text-left">
                       <span className="font-bold text-slate-900 text-xs truncate max-w-[140px] sm:max-w-[220px]">
                         {profile?.name || 'Docente'}
                       </span>
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-wider -mt-0.5">
+                      <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-wider -mt-0.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
                         Área Docente
                       </span>
                     </div>
                   </div>
                 ) : (
                   <div 
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-blue-50/90 border border-blue-200/90 text-xs font-semibold text-slate-700 shadow-2xs select-none"
-                    title="Seu perfil possui acesso fixo e direcionado exclusivamente a este polo educacional."
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-2xs select-none"
+                    title={`Unidade definida no acesso: ${getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz'}`}
                   >
-                    <Building2 size={15} className="text-blue-600 shrink-0" />
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                      <Building2 size={14} />
+                    </div>
                     <div className="flex flex-col text-left">
                       <span className="font-bold text-slate-900 text-xs truncate max-w-[140px] sm:max-w-[220px]">
-                        {getUnitName(selectedUnitId) || selectedUnit?.name || 'Polo Direcionado'}
+                        {getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz'}
                       </span>
-                      <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider -mt-0.5">
-                        Polo Vinculado
+                      <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider -mt-0.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+                        Unidade Logada
                       </span>
                     </div>
-                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-800 ml-1 shrink-0" title="Acesso restrito a esta unidade">
-                      <Lock size={11} />
-                    </span>
                   </div>
                 )
               ) : (
@@ -201,16 +204,24 @@ export function Navbar() {
                   <button
                     type="button"
                     onClick={() => setIsUnitDropdownOpen(!isUnitDropdownOpen)}
-                    className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/70 border border-slate-200/80 text-xs font-semibold text-slate-700 transition-all cursor-pointer select-none shadow-2xs"
-                    title="Filtrar visão geral por Unidade ou Filial"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 text-xs font-semibold text-slate-700 transition-all cursor-pointer select-none shadow-2xs group"
+                    title="Alternar unidade operacional ativa"
                   >
-                    <Building2 size={14} className="text-blue-600 shrink-0" />
-                    <span className="font-bold text-slate-800 truncate max-w-[130px] sm:max-w-[180px]">
-                      {selectedUnitId === 'all' ? 'Todas as Unidades' : (getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz')}
-                    </span>
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors shrink-0">
+                      <Building2 size={14} />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="font-bold text-slate-900 text-xs truncate max-w-[130px] sm:max-w-[190px]">
+                        {selectedUnitId === 'all' ? 'Todas as Unidades' : (getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz')}
+                      </span>
+                      <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider -mt-0.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+                        Unidade Logada
+                      </span>
+                    </div>
                     <ChevronDown 
-                      size={12} 
-                      className={cn("text-slate-400 transition-transform duration-200", isUnitDropdownOpen && "rotate-180 text-blue-600")} 
+                      size={13} 
+                      className={cn("text-slate-400 group-hover:text-blue-600 transition-transform duration-200 ml-0.5", isUnitDropdownOpen && "rotate-180 text-blue-600")} 
                     />
                   </button>
 

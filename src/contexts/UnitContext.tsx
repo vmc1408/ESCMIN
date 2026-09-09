@@ -47,26 +47,51 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
     return isTeacherProfileRole(profile);
   }, [profile]);
 
+  const [selectedUnitIdState, setSelectedUnitIdState] = useState<string>(() => {
+    try {
+      return localStorage.getItem('selected_global_unit_id') || 'matriz';
+    } catch {
+      return 'matriz';
+    }
+  });
+
+  // Sincroniza a unidade selecionada no logon imediatamente
+  useEffect(() => {
+    const handleSyncUnit = () => {
+      try {
+        const stored = localStorage.getItem('selected_global_unit_id');
+        if (stored && stored !== selectedUnitIdState) {
+          setSelectedUnitIdState(stored);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('units-updated', handleSyncUnit);
+    window.addEventListener('storage', handleSyncUnit);
+    return () => {
+      window.removeEventListener('units-updated', handleSyncUnit);
+      window.removeEventListener('storage', handleSyncUnit);
+    };
+  }, [selectedUnitIdState]);
+
   // 2. Determina se o usuário logado possui restrição estrita a uma única unidade/polo
   // Se canSwitchUnit for verdadeiro, o usuário tem livre trânsito e não fica restrito.
-  // Se canSwitchUnit for falso, o usuário fica restrito à sua unidade vinculada (ou Matriz por padrão).
+  // Se canSwitchUnit for falso, o usuário utiliza a unidade vinculada no perfil ou a definida no logon.
   const restrictedUnitId = useMemo(() => {
     if (canSwitchUnit) {
       return null;
     }
     const userUnit = getUserRestrictedUnit(profile);
-    return userUnit || 'matriz';
-  }, [canSwitchUnit, profile]);
+    if (userUnit) return userUnit;
+    // Se o perfil do usuário não tiver unidade restrita fixada, utiliza a unidade definida no logon
+    try {
+      const storedLoginUnit = localStorage.getItem('selected_global_unit_id');
+      if (storedLoginUnit && storedLoginUnit !== 'all') return storedLoginUnit;
+    } catch {}
+    return selectedUnitIdState !== 'all' ? selectedUnitIdState : 'matriz';
+  }, [canSwitchUnit, profile, selectedUnitIdState]);
 
   const isRestricted = Boolean(restrictedUnitId);
-
-  const [selectedUnitIdState, setSelectedUnitIdState] = useState<string>(() => {
-    try {
-      return localStorage.getItem('selected_global_unit_id') || 'all';
-    } catch {
-      return 'all';
-    }
-  });
 
   // Se o usuário possuir restrição de unidade, a unidade ativa é rigidamente travada na unidade dele
   const effectiveSelectedUnitId = useMemo(() => {
