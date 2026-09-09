@@ -17,6 +17,8 @@ export interface TeacherScope {
   activeUnitName?: string;
   teacherUnitName?: string;
   otherUnitClasses?: Array<{ id: string; name: string; unitName: string }>;
+  unitsTaught?: string[];
+  isMultiUnitTeacher?: boolean;
 }
 
 /**
@@ -234,65 +236,41 @@ export function getTeacherScope(
     }
   });
 
-  // 2. Aplica RIGOROSAMENTE as regras da unidade ativa
-  let scopedClasses: any[] = [];
-  let otherUnitClasses: Array<{ id: string; name: string; unitName: string }> = [];
-
-  if (isFilteringByUnit) {
-    scopedClasses = globalClassesWithTeacherSubjects.filter(cls => 
-      isItemInUnit(getItemUnitId(cls), effectiveUnitId, units)
-    );
-    const excludedClasses = globalClassesWithTeacherSubjects.filter(cls => 
-      !isItemInUnit(getItemUnitId(cls), effectiveUnitId, units)
-    );
-    otherUnitClasses = excludedClasses.map(cls => ({
-      id: cls.id,
-      name: cls.name || 'Turma',
-      unitName: getUnitName(units, getItemUnitId(cls))
-    }));
-  } else {
-    scopedClasses = globalClassesWithTeacherSubjects;
-  }
-
+  // 2. Regra de Multi-Unidades para Professores:
+  // Conforme requisito da instituição, o professor pode dar aula em várias unidades/polos.
+  // Neste caso, ele DEVE conseguir acessar todas as turmas às quais está vinculado, sem bloqueios de unidade.
+  const scopedClasses = globalClassesWithTeacherSubjects;
   const allowedClassIds = new Set<string>(scopedClasses.map(c => c.id));
 
-  // 3. Detecção e diagnóstico de conflitos de unidade
-  let hasUnitConflict = false;
-  let conflictType: 'none' | 'no_classes_in_unit' | 'classes_in_other_unit' = 'none';
-  let conflictMessage: string | undefined = undefined;
+  // Mapeia todas as unidades em que o professor atua
+  const unitsTaughtSet = new Set<string>();
+  scopedClasses.forEach(cls => {
+    const uName = getUnitName(units, getItemUnitId(cls)) || 'Sede / Matriz';
+    unitsTaughtSet.add(uName);
+  });
+  const unitsTaught = Array.from(unitsTaughtSet);
+  const isMultiUnitTeacher = unitsTaught.length > 1;
 
-  if (isFilteringByUnit && otherUnitClasses.length > 0 && scopedClasses.length === 0) {
-    // CONFLITO TOTAL: Professor tem turmas em outra unidade (ex: Matriz), mas nenhuma na unidade em que está conectado!
-    hasUnitConflict = true;
-    conflictType = 'classes_in_other_unit';
-    const distinctOtherUnits = Array.from(new Set(otherUnitClasses.map(o => o.unitName))).join(', ');
-    const classesListStr = otherUnitClasses.map(o => `"${o.name}"`).join(', ');
+  // Lista formatada de turmas por unidade para auxílio visual
+  const otherUnitClasses = scopedClasses.map(cls => ({
+    id: cls.id,
+    name: cls.name || 'Turma',
+    unitName: getUnitName(units, getItemUnitId(cls)) || 'Sede / Matriz'
+  }));
 
-    conflictMessage = `Conflito de Unidade: O perfil de ${teacherName} está restrito à "${activeUnitName}", porém suas turmas ativas (${classesListStr}) pertencem à "${distinctOtherUnits}". Não há turmas desta unidade vinculadas à sua escala de aulas no momento.`;
-  } else if (isFilteringByUnit && otherUnitClasses.length > 0 && scopedClasses.length > 0) {
-    // CONFLITO PARCIAL / AVISO: Professor leciona nesta unidade e também possui turmas em outra unidade
-    hasUnitConflict = true;
-    conflictType = 'classes_in_other_unit';
-    const distinctOtherUnits = Array.from(new Set(otherUnitClasses.map(o => o.unitName))).join(', ');
-    const classesListStr = otherUnitClasses.map(o => `"${o.name}"`).join(', ');
+  // Não há conflito impeditivo, pois dar aula em múltiplos polos é permitido e esperado
+  const hasUnitConflict = false;
+  const conflictType: 'none' | 'no_classes_in_unit' | 'classes_in_other_unit' = 'none';
+  const conflictMessage: string | undefined = undefined;
 
-    conflictMessage = `Exibindo apenas as ${scopedClasses.length} turma(s) da unidade "${activeUnitName}". As turmas ${classesListStr} pertencem à "${distinctOtherUnits}" e estão ocultadas nesta unidade.`;
-  }
-
-  // 4. Definição de permissão de acesso e mensagem de motivo vazio
+  // 3. Definição de permissão de acesso e mensagem de motivo vazio
   const hasAccess = allowedSubjectIds.size > 0 && allowedClassIds.size > 0;
   let emptyReason: string | undefined = undefined;
 
   if (allowedSubjectIds.size === 0) {
     emptyReason = `O docente ${teacherName} ainda não possui nenhuma disciplina vinculada na Escala de Professores.`;
   } else if (allowedClassIds.size === 0) {
-    if (hasUnitConflict && conflictMessage) {
-      emptyReason = conflictMessage;
-    } else if (isFilteringByUnit) {
-      emptyReason = `Não há turmas ativas na unidade "${activeUnitName}" alocadas para as disciplinas do docente ${teacherName}.`;
-    } else {
-      emptyReason = `As disciplinas do docente ${teacherName} ainda não foram alocadas em nenhuma turma ativa.`;
-    }
+    emptyReason = `As disciplinas do docente ${teacherName} ainda não foram alocadas em nenhuma turma ativa.`;
   }
 
   return {
@@ -306,8 +284,10 @@ export function getTeacherScope(
     hasUnitConflict,
     conflictType,
     conflictMessage,
-    activeUnitName,
+    activeUnitName: isMultiUnitTeacher ? `Multi-polo (${unitsTaught.join(', ')})` : (unitsTaught[0] || activeUnitName),
     teacherUnitName,
-    otherUnitClasses
+    otherUnitClasses,
+    unitsTaught,
+    isMultiUnitTeacher
   };
 }

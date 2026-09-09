@@ -915,6 +915,41 @@ export const getUserRestrictedUnit = (profile: any): string | null => {
   return unitId.trim();
 };
 
+/**
+ * Determina se o usuário possui permissão para alternar entre unidades no sistema.
+ * Conforme regra da instituição:
+ * - A opção de alternância entre unidades fica acessível SOMENTE para usuários com níveis de:
+ *   1. Administrador ('admin', 'adm', 'administrador')
+ *   2. Diretor ('diretor', 'diretoria')
+ *   3. Secretário Acadêmico ('secretario', 'secretario_academico', 'secretario academico')
+ * - Para os demais usuários (assistente de secretaria, financeiro local, professor, docente, etc.),
+ *   o sistema NÃO habilita a opção de troca de unidade.
+ */
+export const canUserSwitchUnit = (profile: any): boolean => {
+  if (!profile) return false;
+  const role = String(profile.role || '').toLowerCase().trim();
+  return (
+    role === 'admin' ||
+    role === 'administrador' ||
+    role === 'diretor' ||
+    role === 'secretario' ||
+    role === 'secretario_academico' ||
+    role === 'secretario academico' ||
+    role.includes('adm') ||
+    role.includes('diretor') ||
+    role.includes('secretar')
+  );
+};
+
+/**
+ * Identifica se o perfil é estritamente docente/professor
+ */
+export const isTeacherProfileRole = (profile: any): boolean => {
+  if (!profile) return false;
+  const role = String(profile.role || '').toLowerCase().trim();
+  return role === 'professor' || role === 'docente' || role.includes('prof') || role.includes('docent');
+};
+
 export const isTeacherAssignedToUnit = (
   teacher: any,
   selectedUnitId: string,

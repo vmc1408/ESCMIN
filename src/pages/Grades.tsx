@@ -26,6 +26,7 @@ import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
+import { getItemUnitId } from '../lib/unitService';
 import { getTeacherScope } from '../lib/teacherScope';
 import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 import { financialService } from '../services/financialService';
@@ -46,7 +47,7 @@ interface GradeRecord {
 export function Grades() {
   const navigate = useNavigate();
   const { userAuth, isAdmin, isDirector, profile } = useAuth();
-  const { selectedUnitId, units, filterByActiveUnit } = useUnits();
+  const { selectedUnitId, units, filterByActiveUnit, getUnitName } = useUnits();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -1114,7 +1115,14 @@ export function Grades() {
                     ? (teacherScope.hasUnitConflict ? 'Nenhuma turma nesta unidade (Conflito de Polo)' : 'Nenhuma turma disponível...')
                     : 'Selecione uma turma...'}
                 </option>
-                {availableClasses.map((c, idx) => <option key={`grd-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
+                {availableClasses.map((c, idx) => {
+                  const clsUnitName = getUnitName(getItemUnitId(c));
+                  return (
+                    <option key={`grd-cls-${c.id}-${idx}`} value={c.id}>
+                      {c.name} ({c.code}){clsUnitName && units.length > 1 ? ` • [${clsUnitName}]` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           </div>

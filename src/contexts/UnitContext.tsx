@@ -5,7 +5,9 @@ import {
   getUnitName as getUnitNameHelper, 
   getUnitCode as getUnitCodeHelper,
   isItemInUnit,
-  getUserRestrictedUnit
+  getUserRestrictedUnit,
+  canUserSwitchUnit,
+  isTeacherProfileRole
 } from '../lib/unitService';
 import { useAuth } from './AuthContext';
 
@@ -19,6 +21,8 @@ interface UnitContextType {
   hasMultipleUnits: boolean;
   isRestricted: boolean;
   restrictedUnitId: string | null;
+  canSwitchUnit: boolean;
+  isTeacherUser: boolean;
   refreshUnits: () => Promise<void>;
   getUnitName: (unitId?: string) => string;
   getUnitCode: (unitId?: string) => string;
@@ -33,10 +37,26 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Determina se o usuário logado possui restrição estrita a uma única unidade/polo
-  const restrictedUnitId = useMemo(() => {
-    return getUserRestrictedUnit(profile);
+  // 1. Permissão de Alternância:
+  // Apenas usuários com níveis de administrador, diretor e secretário acadêmico podem alternar de unidade
+  const canSwitchUnit = useMemo(() => {
+    return canUserSwitchUnit(profile);
   }, [profile]);
+
+  const isTeacherUser = useMemo(() => {
+    return isTeacherProfileRole(profile);
+  }, [profile]);
+
+  // 2. Determina se o usuário logado possui restrição estrita a uma única unidade/polo
+  // Se canSwitchUnit for verdadeiro, o usuário tem livre trânsito e não fica restrito.
+  // Se canSwitchUnit for falso, o usuário fica restrito à sua unidade vinculada (ou Matriz por padrão).
+  const restrictedUnitId = useMemo(() => {
+    if (canSwitchUnit) {
+      return null;
+    }
+    const userUnit = getUserRestrictedUnit(profile);
+    return userUnit || 'matriz';
+  }, [canSwitchUnit, profile]);
 
   const isRestricted = Boolean(restrictedUnitId);
 
@@ -83,16 +103,16 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUnits]);
 
   const setSelectedUnitId = useCallback((id: string) => {
-    // Se o usuário for restrito a um polo, ignora tentativas de troca externa
-    if (isRestricted) {
-      console.warn('[UnitContext] Usuário possui permissão restrita à unidade:', restrictedUnitId);
+    // Somente administradores, diretores e secretários acadêmicos podem alternar entre unidades
+    if (!canSwitchUnit) {
+      console.warn('[UnitContext] A alternância de unidades é restrita a administradores, diretores e secretários acadêmicos.');
       return;
     }
     setSelectedUnitIdState(id);
     try {
       localStorage.setItem('selected_global_unit_id', id);
     } catch {}
-  }, [isRestricted, restrictedUnitId]);
+  }, [canSwitchUnit]);
 
   const activeUnits = useMemo(() => {
     return units.filter(u => u.active !== false);
@@ -156,6 +176,8 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
         hasMultipleUnits,
         isRestricted,
         restrictedUnitId,
+        canSwitchUnit,
+        isTeacherUser,
         refreshUnits,
         getUnitName,
         getUnitCode,

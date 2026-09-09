@@ -34,6 +34,7 @@ import { getClassSubjects } from '../lib/classSubjectUtils';
 import { fetchAll, saveData, deleteData, fetchQuery, saveBatch } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
+import { getItemUnitId } from '../lib/unitService';
 import { getTeacherScope } from '../lib/teacherScope';
 import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 import { Teacher } from '../types';
@@ -97,7 +98,7 @@ interface AttendanceProps {
 
 export function Attendance({ initialMode }: AttendanceProps = {}) {
   const { userAuth, profile, isAdmin, isDirector, isSecretary } = useAuth();
-  const { selectedUnitId, selectedUnit, units, isItemInActiveUnit, filterByActiveUnit } = useUnits();
+  const { selectedUnitId, selectedUnit, units, isItemInActiveUnit, filterByActiveUnit, getUnitName } = useUnits();
   const [activeTab, setActiveTab] = useState<'marking' | 'monthly'>(initialMode || 'marking');
 
   // PIN security and unlocking states
@@ -2137,7 +2138,14 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           ? (teacherScope.hasUnitConflict ? 'NENHUMA TURMA NESTA UNIDADE (CONFLITO DE POLO)' : 'NENHUMA TURMA DISPONÍVEL...')
                           : 'SELECIONAR TURMA...'}
                       </option>
-                      {availableClasses.map((c, idx) => <option key={`att-cls-${c.id}-${idx}`} value={c.id}>{c.name} ({c.code})</option>)}
+                      {availableClasses.map((c, idx) => {
+                        const clsUnitName = getUnitName(getItemUnitId(c));
+                        return (
+                          <option key={`att-cls-${c.id}-${idx}`} value={c.id}>
+                            {c.name} ({c.code}){clsUnitName && units.length > 1 ? ` • [${clsUnitName}]` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                     <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors pointer-events-none" size={16} />
                   </div>

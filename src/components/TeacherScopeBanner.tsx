@@ -86,7 +86,9 @@ export const TeacherScopeBanner: React.FC<TeacherScopeBannerProps> = ({
               </div>
               <p className="text-[9px] font-medium text-indigo-700 mt-0.5">
                 {scope.hasAccess 
-                  ? `Exibindo apenas as ${availableClassesCount} turma(s) e ${scope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas nesta unidade.`
+                  ? (scope.isMultiUnitTeacher 
+                      ? `Exibindo as ${availableClassesCount} turma(s) e ${scope.allowedSubjectIds.size} disciplina(s) sob sua regência docente nos polos: ${(scope.unitsTaught || []).join(', ')}.`
+                      : `Exibindo as ${availableClassesCount} turma(s) e ${scope.allowedSubjectIds.size} disciplina(s) atribuídas à sua escala de aulas nesta unidade.`)
                   : scope.emptyReason}
               </p>
             </div>
