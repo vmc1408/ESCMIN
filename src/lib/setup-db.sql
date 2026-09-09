@@ -146,11 +146,17 @@ CREATE TABLE IF NOT EXISTS units (
     address TEXT,
     city TEXT,
     state TEXT,
+    cep TEXT,
+    cnpj TEXT,
     phone TEXT,
     email TEXT,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Garantir novas colunas se a tabela já existia
+ALTER TABLE units ADD COLUMN IF NOT EXISTS cep TEXT;
+ALTER TABLE units ADD COLUMN IF NOT EXISTS cnpj TEXT;
 
 -- Garantir existência da Unidade Matriz Padrão
 INSERT INTO units (id, code, name, is_main, active)

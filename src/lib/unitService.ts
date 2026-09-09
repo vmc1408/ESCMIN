@@ -153,8 +153,7 @@ export const pushUnitsToCloudRegistry = async (unitsList: Unit[]): Promise<void>
         units: unitsList,
         deleted_ids: deletedIdsList,
         updated_at: new Date().toISOString()
-      },
-      created_at: new Date().toISOString()
+      }
     }, 10000).catch(err => {
       console.warn('[unitService] Aviso ao sincronizar registro central em email_registry:', err?.message || err);
     });
@@ -455,6 +454,102 @@ export interface UnitLinkedRecordsInfo {
 }
 
 /**
+ * Analisa e contabiliza todos os registros acadêmicos e operacionais vinculados para uma lista de unidades.
+ * Executa as buscas de estudantes, turmas, professores, usuários e contribuições de forma consolidada e única,
+ * evitando requisições duplicadas e colunas inexistentes como unit_id em contributions.
+ */
+export const checkAllUnitsLinkedRecords = async (unitsList: Unit[]): Promise<Record<string, UnitLinkedRecordsInfo>> => {
+  const map: Record<string, UnitLinkedRecordsInfo> = {};
+  if (!Array.isArray(unitsList) || unitsList.length === 0) return map;
+
+  // Carrega todas as coleções relevantes usando colunas estritamente existentes no schema SQL
+  const [students, classes, teachers, users, contributions] = await Promise.all([
+    fetchAll('students', 'id,name,registration_number,unit_id,status').catch(() => []),
+    fetchAll('classes', 'id,name,code,unit_id,status').catch(() => []),
+    fetchAll('teachers', 'id,name,unit_id').catch(() => []),
+    fetchAll('users', 'id,email,full_name,unit_id').catch(() => []),
+    fetchAll('contributions', 'id,student_id').catch(() => [])
+  ]);
+
+  for (const unit of unitsList) {
+    if (unit.id === 'matriz' || unit.is_main) {
+      map[unit.id] = {
+        canDelete: false,
+        totalCount: 1,
+        studentsCount: 0,
+        classesCount: 0,
+        teachersCount: 0,
+        usersCount: 0,
+        contributionsCount: 0,
+        summary: 'A unidade Sede / Matriz é o polo principal da instituição e não pode ser excluída.',
+        reasons: ['Unidade Sede / Matriz da Instituição']
+      };
+      continue;
+    }
+
+    const norm = unit.id.trim().toLowerCase();
+    const codeNorm = unit.code?.trim().toLowerCase();
+    const nameNorm = unit.name?.trim().toLowerCase();
+
+    const isMatching = (itemUnitId?: string) => {
+      if (!itemUnitId) return false;
+      const itemNorm = itemUnitId.trim().toLowerCase();
+      return (
+        itemNorm === norm || 
+        (Boolean(codeNorm) && itemNorm === codeNorm) || 
+        (Boolean(nameNorm) && itemNorm === nameNorm)
+      );
+    };
+
+    const matchedStudents = (students || []).filter((s: any) => isMatching(getItemUnitId(s)));
+    const matchedStudentIds = new Set(matchedStudents.map((s: any) => String(s.id)));
+    const matchedClasses = (classes || []).filter((c: any) => isMatching(getItemUnitId(c)));
+    const matchedTeachers = (teachers || []).filter((t: any) => isMatching(getItemUnitId(t)));
+    const matchedUsers = (users || []).filter((u: any) => isMatching(u.unit_id));
+    
+    // Contribuições vinculadas aos alunos matriculados neste polo ou com tag direta unit_id
+    const matchedContributions = (contributions || []).filter((cb: any) => 
+      (cb.student_id && matchedStudentIds.has(String(cb.student_id))) || 
+      isMatching(cb.unit_id)
+    );
+
+    const studentsCount = matchedStudents.length;
+    const classesCount = matchedClasses.length;
+    const teachersCount = matchedTeachers.length;
+    const usersCount = matchedUsers.length;
+    const contributionsCount = matchedContributions.length;
+
+    const totalCount = studentsCount + classesCount + teachersCount + usersCount + contributionsCount;
+
+    const reasons: string[] = [];
+    if (studentsCount > 0) reasons.push(`${studentsCount} aluno(s)`);
+    if (classesCount > 0) reasons.push(`${classesCount} turma(s)`);
+    if (teachersCount > 0) reasons.push(`${teachersCount} professor(es)`);
+    if (usersCount > 0) reasons.push(`${usersCount} usuário(s) do sistema`);
+    if (contributionsCount > 0) reasons.push(`${contributionsCount} registro(s) financeiro(s)`);
+
+    const canDelete = totalCount === 0;
+    const summary = canDelete 
+      ? 'Nenhum registro vinculado. A unidade pode ser excluída com segurança.'
+      : reasons.join(', ');
+
+    map[unit.id] = {
+      canDelete,
+      totalCount,
+      studentsCount,
+      classesCount,
+      teachersCount,
+      usersCount,
+      contributionsCount,
+      summary,
+      reasons
+    };
+  }
+
+  return map;
+};
+
+/**
  * Analisa e contabiliza todos os registros acadêmicos e operacionais vinculados a uma unidade.
  * Se houver qualquer registro vinculado, impede a exclusão física e orienta a desativação.
  */
@@ -473,74 +568,24 @@ export const checkUnitLinkedRecords = async (unitId: string): Promise<UnitLinked
     };
   }
 
-  const norm = unitId.trim().toLowerCase();
-
-  // Carrega todas as coleções que possuem relacionamento com unidade
-  const [students, classes, teachers, users, contributions] = await Promise.all([
-    fetchAll('students', 'id,name,registration_number,unit_id,status').catch(() => []),
-    fetchAll('classes', 'id,name,code,unit_id,status').catch(() => []),
-    fetchAll('teachers', 'id,name,unit_id').catch(() => []),
-    fetchAll('users', 'id,email,full_name,unit_id').catch(() => []),
-    fetchAll('contributions', 'id,student_id,unit_id,status').catch(() => [])
-  ]);
-
-  // Carrega unidades para bater por ID, código ou nome
   let units: Unit[] = [];
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
     if (raw) units = JSON.parse(raw);
   } catch {}
 
-  const targetUnit = units.find(u => u.id.toLowerCase() === norm);
-  const codeNorm = targetUnit?.code?.toLowerCase();
-  const nameNorm = targetUnit?.name?.toLowerCase();
-
-  const isMatching = (itemUnitId?: string) => {
-    if (!itemUnitId) return false;
-    const itemNorm = itemUnitId.trim().toLowerCase();
-    return (
-      itemNorm === norm || 
-      (Boolean(codeNorm) && itemNorm === codeNorm) || 
-      (Boolean(nameNorm) && itemNorm === nameNorm)
-    );
-  };
-
-  const matchedStudents = (students || []).filter((s: any) => isMatching(getItemUnitId(s)));
-  const matchedClasses = (classes || []).filter((c: any) => isMatching(getItemUnitId(c)));
-  const matchedTeachers = (teachers || []).filter((t: any) => isMatching(getItemUnitId(t)));
-  const matchedUsers = (users || []).filter((u: any) => isMatching(u.unit_id));
-  const matchedContributions = (contributions || []).filter((cb: any) => isMatching(cb.unit_id));
-
-  const studentsCount = matchedStudents.length;
-  const classesCount = matchedClasses.length;
-  const teachersCount = matchedTeachers.length;
-  const usersCount = matchedUsers.length;
-  const contributionsCount = matchedContributions.length;
-
-  const totalCount = studentsCount + classesCount + teachersCount + usersCount + contributionsCount;
-
-  const reasons: string[] = [];
-  if (studentsCount > 0) reasons.push(`${studentsCount} aluno(s)`);
-  if (classesCount > 0) reasons.push(`${classesCount} turma(s)`);
-  if (teachersCount > 0) reasons.push(`${teachersCount} professor(es)`);
-  if (usersCount > 0) reasons.push(`${usersCount} usuário(s) do sistema`);
-  if (contributionsCount > 0) reasons.push(`${contributionsCount} registro(s) financeiro(s)`);
-
-  const canDelete = totalCount === 0;
-  const summary = canDelete 
-    ? 'Nenhum registro vinculado. A unidade pode ser excluída com segurança.'
-    : reasons.join(', ');
-
-  return {
-    canDelete,
-    totalCount,
-    studentsCount,
-    classesCount,
-    teachersCount,
-    usersCount,
-    contributionsCount,
-    summary,
-    reasons
+  const target = units.find(u => u.id === unitId) || { id: unitId, code: '', name: '', is_main: false, active: true };
+  const allMap = await checkAllUnitsLinkedRecords([target]);
+  return allMap[unitId] || {
+    canDelete: true,
+    totalCount: 0,
+    studentsCount: 0,
+    classesCount: 0,
+    teachersCount: 0,
+    usersCount: 0,
+    contributionsCount: 0,
+    summary: 'Nenhum registro vinculado.',
+    reasons: []
   };
 };
 
@@ -653,8 +698,7 @@ export const deleteUnit = async (unitId: string): Promise<boolean> => {
             units: updatedList,
             deleted_ids: deletedIdsList,
             updated_at: new Date().toISOString()
-          },
-          created_at: new Date().toISOString()
+          }
         }, 10000).catch(err => {
           console.warn('[unitService] Erro ao sincronizar email_registry após exclusão:', err);
         });

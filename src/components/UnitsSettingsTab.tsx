@@ -33,6 +33,7 @@ import {
   forceSyncUnits, 
   checkSupabaseUnitsTableStatus, 
   checkUnitLinkedRecords,
+  checkAllUnitsLinkedRecords,
   toggleUnitActive,
   UnitLinkedRecordsInfo,
   SUPABASE_UNITS_MIGRATION_SQL 
@@ -92,17 +93,14 @@ export function UnitsSettingsTab() {
   const loadLinkedInfo = async () => {
     if (!units || units.length === 0) return;
     setLoadingLinkedInfo(true);
-    const map: Record<string, UnitLinkedRecordsInfo> = {};
-    for (const u of units) {
-      try {
-        const info = await checkUnitLinkedRecords(u.id);
-        map[u.id] = info;
-      } catch (err) {
-        // Fallback
-      }
+    try {
+      const map = await checkAllUnitsLinkedRecords(units);
+      setLinkedInfoMap(map);
+    } catch (err) {
+      console.warn('Erro ao carregar vínculos das unidades:', err);
+    } finally {
+      setLoadingLinkedInfo(false);
     }
-    setLinkedInfoMap(map);
-    setLoadingLinkedInfo(false);
   };
 
   useEffect(() => {

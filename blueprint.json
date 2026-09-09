@@ -15,6 +15,8 @@
         "pin": { "type": "string" },
         "app_lock_enabled": { "type": "boolean" },
         "app_lock_timeout": { "type": "integer" },
+        "unit_id": { "type": "string" },
+        "teacher_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "email", "name", "role", "status"]
@@ -52,6 +54,7 @@
         "guardian_mother": { "type": "string" },
         "guardian_cpf": { "type": "string" },
         "photo_url": { "type": "string" },
+        "unit_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
         "user_id": { "type": "string" }
       },
@@ -77,6 +80,8 @@
         "subject_ids": { "type": "array", "items": { "type": "string" } },
         "start_date": { "type": "string", "format": "date" },
         "observations": { "type": "string" },
+        "course": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -113,6 +118,7 @@
         "semester": { "type": "string" },
         "teacher_id": { "type": "string" },
         "program_content": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -138,6 +144,8 @@
         "birth_date": { "type": "string" },
         "subject_ids": { "type": "array", "items": { "type": "string" } },
         "observations": { "type": "string" },
+        "status": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -255,6 +263,7 @@
         "status": { "type": "string" },
         "registered_at": { "type": "string", "format": "date-time" },
         "metadata": { "type": "object" },
+        "unit_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "email"]
@@ -440,9 +449,32 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "receipt_number", "amount", "payee_name", "description"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "description": "School units, poles and branches",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "is_main": { "type": "boolean" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "cep": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "active": { "type": "boolean" },
+        "user_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "name"]
     }
   },
   "firestore": {
+    "units": { "schema": "Unit", "description": "School units and branches collection" },
     "receipts": { "schema": "Receipt", "description": "Payment receipts collection" },
     "users": { "schema": "UserProfile", "description": "User profile collection" },
     "students": { "schema": "Student", "description": "Student records collection" },

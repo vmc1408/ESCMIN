@@ -536,7 +536,7 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
       }
 
       // If ordering failed because column doesn't exist, register and retry once without order
-      if (orderCol && (error.message.includes('column') || error.code === '42703')) {
+      if (orderCol && (error.message?.includes('column') || error.code === '42703')) {
         if (!tablesWithoutColumn.has(tableName)) {
           tablesWithoutColumn.set(tableName, new Set());
         }
@@ -551,6 +551,24 @@ export const fetchRecursive = async (tableName: string, options: { select?: stri
         );
         
         if (!retry.error && retry.data) {
+          allData = [...allData, ...retry.data];
+          from += step;
+          if (retry.data.length < step) hasMore = false;
+          continue;
+        }
+      }
+
+      // If a requested column in select does not exist, retry once with select('*')
+      if (select !== '*' && (error.message?.includes('column') || error.code === '42703')) {
+        console.warn(`[Supabase Fallback] Coluna ausente em select para ${tableName} (${error.message}). Retentando com select('*')...`);
+        const retry = await fetchWithTimeout(
+          supabase
+            .from(tableName)
+            .select('*')
+            .range(from, from + step - 1)
+        );
+        if (!retry.error && retry.data) {
+          select = '*';
           allData = [...allData, ...retry.data];
           from += step;
           if (retry.data.length < step) hasMore = false;
