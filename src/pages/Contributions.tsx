@@ -261,38 +261,6 @@ export function Contributions() {
       console.warn("Could not fetch academic_settings from db:", err);
     }
 
-    try {
-      // General settings
-      const currentStored = localStorage.getItem('academic_settings_current');
-      if (currentStored) {
-        const parsed = JSON.parse(currentStored);
-        if (!settingsList.some(s => s.id === 'current')) {
-          settingsList.push({ id: 'current', ...parsed });
-        } else {
-          settingsList = settingsList.map(s => s.id === 'current' ? { ...parsed, ...s } : s);
-        }
-      }
-      
-      // Class-specific settings from localStorage
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('academic_settings_') && key !== 'academic_settings_current') {
-          const classId = key.replace('academic_settings_', '');
-          const val = localStorage.getItem(key);
-          if (val) {
-            const parsedClassSettings = JSON.parse(val);
-            if (!settingsList.some(s => s.id === classId)) {
-              settingsList.push({ id: classId, ...parsedClassSettings });
-            } else {
-              settingsList = settingsList.map(s => s.id === classId ? { ...parsedClassSettings, ...s } : s);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Could not read academic_settings from localStorage:", err);
-    }
-
     setAcademicSettingsList(settingsList);
   };
 

@@ -441,13 +441,13 @@ export function Settings() {
                     classes: [...baseFields, 'code', 'name', 'room', 'period', 'days_of_week', 'semester', 'start_date', 'observations'],
                     students: [...baseFields, 'registration_number', 'name', 'cpf', 'rg', 'birth_date', 'start_date', 'is_former_student', 'class_id', 'parish_id', 'address_street', 'address_city', 'address_state', 'address_neighborhood', 'address_zip', 'parish', 'forania', 'course', 'pastoral_participates', 'phone_mobile', 'phone_mobile_is_whatsapp', 'phone_residential', 'phone_commercial', 'email', 'guardian_father', 'guardian_mother', 'guardian_cpf', 'photo_url'],
                     teachers: [...baseFields, 'code', 'name', 'email', 'phone', 'phone_mobile', 'cpf', 'rg', 'address_street', 'address_city', 'address_state', 'address_zip', 'birth_date', 'observations'],
-                    attendances: ['id', 'student_id', 'class_id', 'subject_id', 'date', 'status', 'observations', 'user_id', 'created_at'],
-                    grades: ['id', 'student_id', 'class_id', 'subject_id', 'period', 'value', 'status', 'user_id', 'created_at'],
-                    calendar_events: ['id', 'title', 'description', 'start_date', 'end_date', 'type', 'class_id', 'subject_id', 'user_id', 'created_at'],
-                    contributions: ['id', 'student_id', 'amount', 'reference_month', 'reference_year', 'payment_date', 'payment_method', 'origin', 'pix_id', 'observations', 'user_id', 'created_at'],
-                    pix_reconciliations: ['id', 'date', 'payer_name', 'origin_bank', 'amount', 'transaction_id', 'batch_id', 'status', 'matched_student_id', 'is_manual', 'created_at'],
-                    certificates: ['id', 'student_id', 'type', 'issuance_date', 'course', 'verification_code', 'user_id', 'created_at'],
-                    assessments: ['id', 'title', 'date', 'weight', 'period', 'class_id', 'subject_id', 'description', 'user_id', 'created_at']
+                    attendances: ['id', 'student_id', 'class_id', 'subject_id', 'date', 'status', 'observations', 'user_id', 'created_at', 'unit_id'],
+                    grades: ['id', 'student_id', 'class_id', 'subject_id', 'period', 'value', 'status', 'user_id', 'created_at', 'unit_id'],
+                    calendar_events: ['id', 'title', 'description', 'start_date', 'end_date', 'type', 'class_id', 'subject_id', 'user_id', 'created_at', 'unit_id'],
+                    contributions: ['id', 'student_id', 'amount', 'reference_month', 'reference_year', 'payment_date', 'payment_method', 'origin', 'pix_id', 'observations', 'user_id', 'created_at', 'unit_id'],
+                    pix_reconciliations: ['id', 'date', 'payer_name', 'origin_bank', 'amount', 'transaction_id', 'batch_id', 'status', 'matched_student_id', 'is_manual', 'created_at', 'unit_id'],
+                    certificates: ['id', 'student_id', 'type', 'issuance_date', 'course', 'verification_code', 'user_id', 'created_at', 'unit_id'],
+                    assessments: ['id', 'title', 'date', 'weight', 'period', 'class_id', 'subject_id', 'description', 'user_id', 'created_at', 'unit_id']
                   };
 
                   const allowedFields = whitelist[col] || null;

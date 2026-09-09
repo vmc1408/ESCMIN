@@ -98,15 +98,15 @@ export const financialService = {
   },
 
   /**
-   * Busca as configurações da instituição do Supabase com fallback local.
+   * Busca as configurações da instituição diretamente do Supabase.
    */
   async getInstitutionSettings() {
     try {
       if (!isSupabaseConfigured) {
         return {
           id: '1',
-          admission_norms: localStorage.getItem('inst_admission_norms') || '',
-          presentation_info: localStorage.getItem('inst_presentation_info') || ''
+          admission_norms: '',
+          presentation_info: ''
         };
       }
       
@@ -117,30 +117,23 @@ export const financialService = {
         .maybeSingle();
    
       if (error) {
-        if (error.code === '42P01' || error.message?.includes('not found')) {
+        if (error.code === '42P01' || error.message?.includes('not found') || error.code === 'PGRST116') {
           return {
             id: '1',
-            admission_norms: localStorage.getItem('inst_admission_norms') || '',
-            presentation_info: localStorage.getItem('inst_presentation_info') || ''
+            admission_norms: '',
+            presentation_info: ''
           };
         }
         throw error;
       }
 
-      const finalData = data || { id: '1' };
-      if (!finalData.admission_norms) {
-        finalData.admission_norms = localStorage.getItem('inst_admission_norms') || '';
-      }
-      if (!finalData.presentation_info) {
-        finalData.presentation_info = localStorage.getItem('inst_presentation_info') || '';
-      }
-      return finalData;
+      return data || { id: '1', admission_norms: '', presentation_info: '' };
     } catch (err: any) {
-      console.warn('[financialService] Aviso ao buscar configurações da instituição:', err.message);
+      console.warn('[financialService] Aviso ao buscar configurações da instituição:', err?.message || err);
       return {
         id: '1',
-        admission_norms: localStorage.getItem('inst_admission_norms') || '',
-        presentation_info: localStorage.getItem('inst_presentation_info') || ''
+        admission_norms: '',
+        presentation_info: ''
       };
     }
   },

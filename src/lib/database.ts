@@ -1,151 +1,57 @@
 import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout, isDbConnected, connectionError, isJwtOrTokenError, clearCorruptedAuthTokens } from './supabase';
 import { detectCourseFromClass, normalizeSearchString } from './utils';
 
-// LocalStorage fallback helpers
-export const isTableUsingFallback = (tableName: string): boolean => {
+// Auto-purga de caches locais residuais para garantir operação 100% direta no banco de dados real
+export const clearAllDatabaseFallbacks = () => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
   try {
-    return localStorage.getItem(`db_fallback_active_${tableName}`) === 'true';
-  } catch (e) {
-    return false;
-  }
-};
-
-export const setTableUsingFallback = (tableName: string, active: boolean) => {
-  try {
-    if (active) {
-      localStorage.setItem(`db_fallback_active_${tableName}`, 'true');
-    } else {
-      localStorage.removeItem(`db_fallback_active_${tableName}`);
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key && 
+        (
+          key.startsWith('db_fallback_') || 
+          key.startsWith('cached_institution_settings') || 
+          key.startsWith('app_local_units_') || 
+          key.startsWith('academic_settings_') ||
+          key === 'inst_admission_norms' || 
+          key === 'inst_presentation_info'
+        )
+      ) {
+        keysToRemove.push(key);
+      }
     }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
   } catch (e) {}
 };
 
-export const getLocalCollection = (collectionName: string): any[] => {
+// Executa na inicialização do módulo
+clearAllDatabaseFallbacks();
+
+// Funções mantidas para compatibilidade de tipagem/importações, operando sem cache local
+export const isTableUsingFallback = (_tableName?: string): boolean => false;
+
+export const setTableUsingFallback = (tableName: string, _active?: boolean) => {
   try {
-    const data = localStorage.getItem(`db_fallback_${collectionName}`);
-    if (data) {
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) {
-        const seen = new Set<string>();
-        const uniqueList: any[] = [];
-        for (const item of parsed) {
-          if (item && item.id) {
-            const idStr = String(item.id);
-            if (!seen.has(idStr)) {
-              seen.add(idStr);
-              uniqueList.push(item);
-            }
-          } else if (item) {
-            uniqueList.push(item);
-          }
-        }
-        return uniqueList;
-      }
-      return [];
-    }
-
-    // Initial default seed for courses if local fallback is clean
-    if (collectionName === 'courses') {
-      const defaultCourses = [
-        {
-          id: 'course-teo',
-          code: 'TEO',
-          name: 'Teologia',
-          description: 'Curso de Formação Teológica e Pastoral',
-          duration_years: 3,
-          duration_semesters: 6,
-          duration_total: '3 anos',
-          meetings_per_week: 2,
-          meeting_days: ['Terça', 'Quinta'],
-          status: 'Ativo',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'course-lat',
-          code: 'LAT',
-          name: 'Latim',
-          description: 'Curso de Língua Latina e Textos Litúrgicos',
-          duration_years: 1,
-          duration_semesters: 2,
-          duration_total: '1 ano',
-          meetings_per_week: 1,
-          meeting_days: ['Sábado'],
-          status: 'Ativo',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'course-dsi',
-          code: 'DSI',
-          name: 'Doutrina Social da Igreja',
-          description: 'Curso Fundamental da Doutrina Social da Igreja',
-          duration_years: 1,
-          duration_semesters: 2,
-          duration_total: '1 ano',
-          meetings_per_week: 1,
-          meeting_days: ['Sábado'],
-          status: 'Ativo',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'course-hsn',
-          code: 'HSN',
-          name: 'História dos Santos Negros',
-          description: 'História, Vida e Espiritualidade dos Santos Negros',
-          duration_years: 1,
-          duration_semesters: 2,
-          duration_total: '1 ano',
-          meetings_per_week: 1,
-          meeting_days: ['Sábado'],
-          status: 'Ativo',
-          created_at: new Date().toISOString()
-        }
-      ];
-      try {
-        localStorage.setItem(`db_fallback_courses`, JSON.stringify(defaultCourses));
-      } catch (e) {}
-      return defaultCourses;
-    }
-
-    return [];
-  } catch (err) {
-    console.error(`Error reading local fallback for ${collectionName}:`, err);
-    return [];
-  }
+    localStorage.removeItem(`db_fallback_active_${tableName}`);
+    localStorage.removeItem(`db_fallback_${tableName}`);
+  } catch (e) {}
 };
 
-export const saveLocalCollection = (collectionName: string, data: any[]) => {
-  try {
-    localStorage.setItem(`db_fallback_${collectionName}`, JSON.stringify(data));
-  } catch (err) {
-    console.error(`Error writing local fallback for ${collectionName}:`, err);
-  }
-};
+export const getLocalCollection = (_collectionName: string): any[] => [];
 
-export const saveLocalItem = (collectionName: string, id: string, item: any) => {
-  const list = getLocalCollection(collectionName);
-  const index = list.findIndex((x: any) => x.id === id);
-  const updatedItem = { ...item, id };
-  if (index >= 0) {
-    list[index] = updatedItem;
-  } else {
-    list.push(updatedItem);
-  }
-  saveLocalCollection(collectionName, list);
-  return id;
-};
+export const saveLocalCollection = (_collectionName: string, _data: any[]) => {};
 
-export const deleteLocalItem = (collectionName: string, id: string) => {
-  const list = getLocalCollection(collectionName);
-  const filtered = list.filter((x: any) => x.id !== id);
-  saveLocalCollection(collectionName, filtered);
-};
+export const saveLocalItem = (_collectionName: string, id: string, _item: any) => id;
+
+export const deleteLocalItem = (_collectionName: string, _id: string) => {};
 
 export const isDatabaseMissingOrCacheError = (err: any): boolean => {
   if (!err) return false;
   const msg = (typeof err === 'string' ? err : err.message || err.details || String(err)).toLowerCase();
   const code = String(err.code || '').toLowerCase();
   
-  // If error mentions column or property, it is NOT a missing table error
   if (msg.includes('column') || msg.includes('property')) {
     return false;
   }
@@ -161,25 +67,7 @@ export const isDatabaseMissingOrCacheError = (err: any): boolean => {
   );
 };
 
-const testedRecoveries = new Set<string>();
-
-export const tryRecoveryFromFallback = async (collectionName: string) => {
-  if (!isSupabaseConfigured) return false;
-  if (testedRecoveries.has(collectionName)) return false;
-  
-  try {
-    testedRecoveries.add(collectionName);
-    const result = await fetchWithTimeout(supabase.from(collectionName).select('id').limit(1), 3000);
-    if (result && !result.error) {
-      console.log(`[Supabase Recovery] Tabela "${collectionName}" foi criada e está disponível no Supabase! Desativando fallback local.`);
-      setTableUsingFallback(collectionName, false);
-      return true;
-    }
-  } catch (e) {
-    // Silently ignore recovery failures
-  }
-  return false;
-};
+export const tryRecoveryFromFallback = async (_collectionName: string) => false;
 
 // Helper to handle Errors
 export interface DbErrorInfo {
@@ -198,7 +86,7 @@ export function handleDbError(error: any, operation: any, path: string | null = 
     operationType: operation,
     path,
     authInfo: {
-      userId: null, // We'll get this from supabase.auth if needed
+      userId: null,
       email: null,
     }
   };
@@ -207,10 +95,11 @@ export function handleDbError(error: any, operation: any, path: string | null = 
 }
 
 /**
- * Utility to fetch all data from a collection using Supabase
+ * Busca direta e sem cache de todos os registros de uma coleção no Supabase.
+ * Tanto o ambiente de desenvolvimento quanto o publicado leem e escrevem
+ * diretamente na mesma base de dados real.
  */
 export const fetchAll = async (collectionName: string, select = '*', orderCol = 'created_at', ascending = false) => {
-  // Algumas tabelas não possuem a coluna created_at por padrão
   let effectiveOrderCol = orderCol;
   if (orderCol === 'created_at') {
     const tablesWithoutCreatedAt = ['academic_parameters', 'academic_settings', 'institution_settings'];
@@ -219,154 +108,52 @@ export const fetchAll = async (collectionName: string, select = '*', orderCol = 
     }
   }
 
-  const isOffline = typeof window !== 'undefined' && !window.navigator.onLine;
-
-  const returnLocalData = () => {
-    const localData = getLocalCollection(collectionName);
-    if (effectiveOrderCol) {
-      localData.sort((a, b) => {
-        const valA = a[effectiveOrderCol];
-        const valB = b[effectiveOrderCol];
-        if (valA === undefined) return 1;
-        if (valB === undefined) return -1;
-        if (valA < valB) return ascending ? -1 : 1;
-        if (valA > valB) return ascending ? 1 : -1;
-        return 0;
-      });
-    }
-    return localData;
-  };
-
-  if (isOffline) {
-    console.warn(`[Supabase Offline Fastpath] Buscando localmente de ${collectionName} devido a dispositivo offline.`);
-    return returnLocalData();
+  if (!isSupabaseConfigured) {
+    console.warn(`[Supabase] Supabase não configurado ao buscar lista em ${collectionName}.`);
+    return [];
   }
 
   try {
-    if (isTableUsingFallback(collectionName)) {
-      await tryRecoveryFromFallback(collectionName);
-    }
+    const sbData = await fetchRecursive(collectionName, { 
+      select, 
+      orderCol: effectiveOrderCol, 
+      ascending, 
+      timeoutMs: 30000 
+    });
 
-    if (isTableUsingFallback(collectionName)) {
-      return returnLocalData();
-    }
-
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
-    
-    const sbData = await fetchRecursive(collectionName, { select, orderCol: effectiveOrderCol, ascending, timeoutMs: 90000 });
     if (Array.isArray(sbData)) {
-      const localList = getLocalCollection(collectionName);
-      const localMap = new Map(localList.map((x: any) => [String(x.id), x]));
-      const seen = new Set<string>();
-      const uniqueList: any[] = [];
-      for (const item of sbData) {
-        if (item && item.id) {
-          const idStr = String(item.id);
-          if (!seen.has(idStr)) {
-            seen.add(idStr);
-            const localObj = localMap.get(idStr);
-            // Preserva propriedades locais enriquecidas e atualizações mais recentes do usuário
-            let merged = item;
-            if (localObj) {
-              const localUpdated = localObj.updated_at ? new Date(localObj.updated_at).getTime() : 0;
-              const itemUpdated = item.updated_at ? new Date(item.updated_at).getTime() : 0;
-              const useLocal = localUpdated >= itemUpdated;
-
-              merged = {
-                ...item,
-                ...localObj,
-                status: useLocal ? (localObj.status || item.status || 'Ativo') : (item.status || localObj.status || 'Ativo'),
-                meeting_days: useLocal 
-                  ? (localObj.meeting_days ?? item.meeting_days ?? [])
-                  : ((item.meeting_days && Array.isArray(item.meeting_days) && item.meeting_days.length > 0) ? item.meeting_days : (localObj.meeting_days || [])),
-                meetings_per_week: useLocal 
-                  ? (localObj.meetings_per_week ?? item.meetings_per_week ?? 0)
-                  : (item.meetings_per_week !== undefined && item.meetings_per_week !== null ? item.meetings_per_week : (localObj.meetings_per_week ?? 0)),
-                duration_total: useLocal
-                  ? (localObj.duration_total !== undefined ? localObj.duration_total : (item.duration_total || ''))
-                  : (item.duration_total !== undefined && item.duration_total !== null ? item.duration_total : (localObj.duration_total || '')),
-                duration_years: useLocal
-                  ? localObj.duration_years
-                  : (item.duration_years !== undefined ? item.duration_years : localObj.duration_years)
-              };
-            }
-            uniqueList.push(merged);
-          }
-        } else if (item) {
-          uniqueList.push(item);
-        }
-      }
-      // Preserva itens salvos localmente que ainda não foram sincronizados
-      for (const [locId, locItem] of localMap.entries()) {
-        if (!seen.has(locId)) {
-          seen.add(locId);
-          uniqueList.push(locItem);
-        }
-      }
-      // Atualiza cache local silenciosamente para manter backup offline sempre atualizado
-      if (uniqueList.length > 0) {
-        try { saveLocalCollection(collectionName, uniqueList); } catch (e) {}
-      }
-      return uniqueList;
+      return sbData;
     }
-    return sbData || [];
+    return [];
   } catch (err: any) {
     if (isJwtOrTokenError(err)) {
-      console.warn(`[Supabase Fetch] Token/JWT dessincronizado em ${collectionName}. Limpando credenciais locais e usando dados disponíveis.`);
+      console.warn(`[Supabase Fetch] Token/JWT dessincronizado em ${collectionName}. Limpando credenciais locais.`);
       clearCorruptedAuthTokens();
       supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      return returnLocalData();
+      return [];
     }
 
-    if (isDatabaseMissingOrCacheError(err)) {
-      console.warn(`[Supabase Fetch Fallback] Tabela "${collectionName}" não encontrada. Usando fallback local.`);
-      setTableUsingFallback(collectionName, true);
-      return returnLocalData();
+    // Se o erro for de coluna inexistente ao ordenar por created_at ou orderCol, tenta sem ordenação
+    if (effectiveOrderCol && err?.message && (err.message.includes('column') || err.message.includes('order'))) {
+      try {
+        const retryData = await fetchRecursive(collectionName, { select, orderCol: '', ascending, timeoutMs: 30000 });
+        if (Array.isArray(retryData)) return retryData;
+      } catch (retryErr) {}
     }
 
-    const isOfflineOrNetwork = 
-      err.isOffline || 
-      err.isTimeout || 
-      err.message?.includes('Offline') || 
-      err.message?.includes('offline') || 
-      err.message?.includes('TIMEOUT') || 
-      err.message?.includes('Failed to fetch') ||
-      err.message?.includes('Network Error');
-
-    if (isOfflineOrNetwork) {
-      // Fallback silencioso para manter o console limpo
-    } else {
-      console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err.message);
-    }
-    return returnLocalData();
+    console.error(`[Supabase] Erro ao buscar lista em ${collectionName}:`, err?.message || err);
+    return [];
   }
 };
 
 /**
- * Utility to fetch a single document from Supabase
+ * Busca direta de um único documento no Supabase por ID.
  */
 export const fetchById = async (collectionName: string, id: string, timeoutMs = 20000) => {
   if (!id) return null;
-
-  const isOffline = typeof window !== 'undefined' && !window.navigator.onLine;
-  if (isOffline) {
-    console.warn(`[Supabase Offline Fastpath] Buscando ID ${id} localmente de ${collectionName} devido a dispositivo offline.`);
-    const list = getLocalCollection(collectionName);
-    return list.find((x: any) => x.id === id) || null;
-  }
+  if (!isSupabaseConfigured) return null;
 
   try {
-    if (isTableUsingFallback(collectionName)) {
-      await tryRecoveryFromFallback(collectionName);
-    }
-
-    if (isTableUsingFallback(collectionName)) {
-      const list = getLocalCollection(collectionName);
-      return list.find((x: any) => x.id === id) || null;
-    }
-
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
-    
     const result = await fetchWithTimeout(
       () => supabase
         .from(collectionName)
@@ -376,58 +163,26 @@ export const fetchById = async (collectionName: string, id: string, timeoutMs = 
       timeoutMs
     );
 
-    const data = result?.data;
-    const error = result?.error;
-
-    if (error) {
-       if (isDatabaseMissingOrCacheError(error)) {
-         console.warn(`[Supabase] Tabela "${collectionName}" não encontrada ou em cache desatualizado. Ativando fallback local.`);
-         setTableUsingFallback(collectionName, true);
-         const list = getLocalCollection(collectionName);
-         return list.find((x: any) => x.id === id) || null;
-       }
-       throw error;
+    if (result?.error) {
+      if (result.error.code === 'PGRST116') return null;
+      throw result.error;
     }
-    if (data) {
-      try { saveLocalItem(collectionName, id, data); } catch (e) {}
-    }
-    return data;
+    return result?.data || null;
   } catch (err: any) {
     if (isJwtOrTokenError(err)) {
       console.warn(`[Supabase Fetch] Token/JWT dessincronizado ao buscar ID ${id} em ${collectionName}. Limpando credenciais locais.`);
       clearCorruptedAuthTokens();
       supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      const list = getLocalCollection(collectionName);
-      return list.find((x: any) => x.id === id) || null;
+      return null;
     }
 
-    if (isDatabaseMissingOrCacheError(err)) {
-      setTableUsingFallback(collectionName, true);
-      const list = getLocalCollection(collectionName);
-      return list.find((x: any) => x.id === id) || null;
-    }
-
-    const isOfflineOrNetwork = 
-      err.isOffline || 
-      err.isTimeout || 
-      err.message?.includes('Offline') || 
-      err.message?.includes('offline') || 
-      err.message?.includes('TIMEOUT') || 
-      err.message?.includes('Failed to fetch') ||
-      err.message?.includes('Network Error');
-
-    if (isOfflineOrNetwork) {
-      console.warn(`[Supabase Offline Fallback] Erro de rede ou offline ao buscar ${collectionName} ID ${id}. Usando cópia local.`);
-    } else {
-      console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err.message);
-    }
-    const list = getLocalCollection(collectionName);
-    return list.find((x: any) => x.id === id) || null;
+    console.error(`[Supabase] Erro ao buscar ID em ${collectionName}:`, err?.message || err);
+    return null;
   }
 };
 
 /**
- * Utility to fetch documents with a query from Supabase
+ * Busca direta com filtros no Supabase.
  */
 export const fetchQuery = async (
   collectionName: string, 
@@ -435,62 +190,9 @@ export const fetchQuery = async (
   operator?: string, 
   value?: any
 ) => {
-  const isOffline = typeof window !== 'undefined' && !window.navigator.onLine;
-
-  const queryLocalData = () => {
-    const list = getLocalCollection(collectionName);
-    return list.filter(item => {
-      if (Array.isArray(fieldOrFilters)) {
-        return fieldOrFilters.every(filter => {
-          const itemVal = item[filter.field];
-          const op = filter.operator === '==' ? 'eq' : filter.operator;
-          if (op === 'eq') return itemVal === filter.value;
-          if (op === 'neq' || op === '!=') return itemVal !== filter.value;
-          if (op === 'gte' || op === '>=') return itemVal >= filter.value;
-          if (op === '<=') return itemVal <= filter.value;
-          if (op === 'in') return Array.isArray(filter.value) && filter.value.includes(itemVal);
-          if (op === 'ilike' || op === 'like') {
-            const rawFilter = String(filter.value || '').replace(/^%|%$/g, '');
-            const normFilter = normalizeSearchString(rawFilter);
-            const normVal = normalizeSearchString(String(itemVal || ''));
-            return normVal.includes(normFilter);
-          }
-          return true;
-        });
-      } else if (typeof fieldOrFilters === 'string' && operator) {
-        const itemVal = item[fieldOrFilters];
-        const op = operator === '==' ? 'eq' : operator;
-        if (op === 'eq') return itemVal === value;
-        if (op === 'gte' || op === '>=') return itemVal >= value;
-        if (op === '<=') return itemVal <= value;
-        if (op === 'in') return Array.isArray(value) && value.includes(itemVal);
-        if (op === 'ilike' || op === 'like') {
-          const rawFilter = String(value || '').replace(/^%|%$/g, '');
-          const normFilter = normalizeSearchString(rawFilter);
-          const normVal = normalizeSearchString(String(itemVal || ''));
-          return normVal.includes(normFilter);
-        }
-      }
-      return true;
-    });
-  };
-
-  if (isOffline) {
-    console.warn(`[Supabase Offline Fastpath] Executando query localmente em ${collectionName} devido a dispositivo offline.`);
-    return queryLocalData();
-  }
+  if (!isSupabaseConfigured) return [];
 
   try {
-    if (isTableUsingFallback(collectionName)) {
-      await tryRecoveryFromFallback(collectionName);
-    }
-
-    if (isTableUsingFallback(collectionName)) {
-      return queryLocalData();
-    }
-
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
-    
     const buildQuery = () => {
       let queryBuilder = supabase.from(collectionName).select('*');
       
@@ -527,63 +229,21 @@ export const fetchQuery = async (
       console.warn(`[Supabase Fetch] Token/JWT dessincronizado ao executar query em ${collectionName}. Limpando credenciais locais.`);
       clearCorruptedAuthTokens();
       supabase.auth.signOut({ scope: 'local' }).catch(() => {});
-      return queryLocalData();
+      return [];
     }
 
-    if (isDatabaseMissingOrCacheError(err)) {
-      setTableUsingFallback(collectionName, true);
-      return queryLocalData();
-    }
-
-    const isOfflineOrNetwork = 
-      err.isOffline || 
-      err.isTimeout || 
-      err.message?.includes('Offline') || 
-      err.message?.includes('offline') || 
-      err.message?.includes('TIMEOUT') || 
-      err.message?.includes('Failed to fetch') ||
-      err.message?.includes('Network Error');
-
-    if (isOfflineOrNetwork) {
-      // Silencioso para não poluir console
-    } else {
-      console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, err.message);
-    }
-    return queryLocalData();
+    console.error(`[Supabase] Erro ao executar query em ${collectionName}:`, err?.message || err);
+    return [];
   }
 };
 
 /**
- * Count utility using Supabase
+ * Contagem direta de registros no Supabase.
  */
 export const fetchCount = async (collectionName: string, status?: string) => {
-  const isOffline = typeof window !== 'undefined' && !window.navigator.onLine;
-
-  const countLocalData = () => {
-    const list = getLocalCollection(collectionName);
-    if (status === 'Ativo') {
-      return list.filter(x => x.status === 'Ativo' || !x.status).length;
-    } else if (status) {
-      return list.filter(x => x.status === status).length;
-    }
-    return list.length;
-  };
-
-  if (isOffline) {
-    return countLocalData();
-  }
+  if (!isSupabaseConfigured) return 0;
 
   try {
-    if (isTableUsingFallback(collectionName)) {
-      await tryRecoveryFromFallback(collectionName);
-    }
-
-    if (isTableUsingFallback(collectionName)) {
-      return countLocalData();
-    }
-
-    if (!isSupabaseConfigured) throw new Error('Supabase not configured');
-    
     const buildCountQuery = () => {
       let q = supabase.from(collectionName).select('*', { count: 'exact', head: true });
       if (status === 'Ativo') {
@@ -599,71 +259,18 @@ export const fetchCount = async (collectionName: string, status?: string) => {
     
     return result?.count || 0;
   } catch (err: any) {
-    if (isDatabaseMissingOrCacheError(err)) {
-      setTableUsingFallback(collectionName, true);
-    }
-
-    const isOfflineOrNetwork = 
-      err.isOffline || 
-      err.isTimeout || 
-      err.message?.includes('Offline') || 
-      err.message?.includes('offline') || 
-      err.message?.includes('TIMEOUT') || 
-      err.message?.includes('Failed to fetch') ||
-      err.message?.includes('Network Error');
-
-    if (isOfflineOrNetwork) {
-      // Silencioso para não poluir console
-    } else {
-      console.error(`[Supabase] Erro ao contar em ${collectionName}:`, err.message);
-    }
-
-    // Fallback to local collection count on any error
-    const list = getLocalCollection(collectionName);
-    if (status === 'Ativo') {
-      return list.filter(x => x.status === 'Ativo' || !x.status).length;
-    } else if (status) {
-      return list.filter(x => x.status === status).length;
-    }
-    return list.length;
+    console.error(`[Supabase] Erro ao contar em ${collectionName}:`, err?.message || err);
+    return 0;
   }
 };
 
 /**
- * Delete multiple records using a query
+ * Exclusão de múltiplos registros via query diretamente no Supabase.
  */
 export const deleteQuery = async (collectionName: string, filters: { field: string; operator: string; value: any }[]) => {
-  try {
-    // 1. Always purge matching items from local cache instantly
-    try {
-      const localList = getLocalCollection(collectionName);
-      if (Array.isArray(localList) && localList.length > 0) {
-        const remainingLocal = localList.filter((item: any) => {
-          const matchesAllFilters = filters.every(filter => {
-            const op = filter.operator === '==' ? 'eq' : filter.operator;
-            const itemVal = item[filter.field];
-            if (op === 'eq') return String(itemVal) === String(filter.value);
-            if (op === '>=') return itemVal >= filter.value;
-            if (op === '<=') return itemVal <= filter.value;
-            if (op === 'in') return Array.isArray(filter.value) && filter.value.map(String).includes(String(itemVal));
-            if (op === 'like' || op === 'ilike') {
-              const cleanVal = String(filter.value || '').replace(/^%|%$/g, '').toLowerCase();
-              return String(itemVal || '').toLowerCase().includes(cleanVal);
-            }
-            if (op === 'is') return itemVal === filter.value;
-            return false;
-          });
-          // If matches all filters, it should be deleted (so exclude it)
-          return !matchesAllFilters;
-        });
-        saveLocalCollection(collectionName, remainingLocal);
-      }
-    } catch (locErr) {
-      console.warn(`[deleteQuery] Error updating local cache for "${collectionName}":`, locErr);
-    }
+  if (!isSupabaseConfigured) return;
 
-    if (!isSupabaseConfigured) return;
-    
+  try {
     let queryBuilder = supabase.from(collectionName).delete();
     
     filters.forEach(filter => {
@@ -691,475 +298,231 @@ export const deleteQuery = async (collectionName: string, filters: { field: stri
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Save data using Supabase Upsert with Retry and Local Cache Sync
+ * Salva dados diretamente no Supabase via Upsert real.
+ * Não salva em cache local ou no navegador para garantir paridade total entre Dev e Produção.
  */
 export const saveData = async (collectionName: string, id: string | undefined, data: any, timeoutMs = 30000) => {
   const finalId = id || data.id || crypto.randomUUID();
   let payload = { ...data, id: finalId };
 
-  // Always keep local cache instantly updated
-  saveLocalItem(collectionName, finalId, payload);
+  if (!isSupabaseConfigured) {
+    throw new Error(`[Supabase] Supabase não configurado. Impossível salvar em ${collectionName}.`);
+  }
 
-  if (collectionName === 'institution_settings') {
+  let attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
     try {
-      if (data.admission_norms !== undefined) {
-        localStorage.setItem('inst_admission_norms', data.admission_norms);
-      }
-      if (data.presentation_info !== undefined) {
-        localStorage.setItem('inst_presentation_info', data.presentation_info);
-      }
-    } catch (e) {
-      console.warn('Failed to save settings locally:', e);
-    }
-  }
+      const result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payload), timeoutMs);
+      
+      if (result?.error) {
+        const errorVal = result.error;
+        const errorMsg = (typeof errorVal === 'object' && errorVal !== null) 
+          ? (errorVal.message || String(errorVal)) 
+          : String(errorVal);
 
-  const isOffline = typeof window !== 'undefined' && !window.navigator.onLine;
-  if (isOffline) {
-    console.warn(`[Supabase Offline Fastpath] Gravado localmente em ${collectionName} devido a dispositivo offline.`);
-    return finalId;
-  }
+        const errorMsgLower = errorMsg.toLowerCase();
 
-  try {
-    if (isTableUsingFallback(collectionName)) {
-      await tryRecoveryFromFallback(collectionName);
-    }
+        // Tratamento de coluna ainda não criada no banco para permitir salvamento do restante dos dados
+        const isMissingCol = 
+          errorMsgLower.includes('column') && 
+          (errorMsgLower.includes('not found') || 
+           errorMsgLower.includes('schema cache') || 
+           errorMsgLower.includes('does not exist') ||
+           errorMsgLower.includes('missing') ||
+           errorMsgLower.includes('pgrst204'));
 
-    if (isTableUsingFallback(collectionName) || !isSupabaseConfigured) {
-      return finalId;
-    }
-    
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (attempts < maxAttempts) {
-      try {
-        const result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payload), timeoutMs);
-        
-        if (result?.error) {
-          const errorVal = result.error;
-          const errorMsg = (typeof errorVal === 'object' && errorVal !== null) 
-            ? (errorVal.message || String(errorVal)) 
-            : String(errorVal);
-
-          const errorMsgLower = errorMsg.toLowerCase();
-          if (isDatabaseMissingOrCacheError(errorVal)) {
-            console.warn(`[Supabase Fallback] Tabela "${collectionName}" não encontrada ao salvar. Ativando fallback local.`);
-            setTableUsingFallback(collectionName, true);
-            return finalId;
-          }
-
-          const isErrorOffline = 
-            errorVal.isOffline || 
-            errorVal.isTimeout || 
-            errorMsgLower.includes('offline') || 
-            errorMsgLower.includes('timeout') || 
-            errorMsgLower.includes('failed to fetch') ||
-            errorMsgLower.includes('network error');
-
-          if (isErrorOffline) {
-            console.warn(`[Supabase Offline Fallback] Erro de rede ou offline ao salvar em ${collectionName}. Usando cópia local.`);
-            return finalId;
-          }
-
-          // Missing column fallback
-          const isMissingCol = 
-            errorMsgLower.includes('column') && 
-            (errorMsgLower.includes('not found') || 
-             errorMsgLower.includes('schema cache') || 
-             errorMsgLower.includes('does not exist') ||
-             errorMsgLower.includes('missing') ||
-             errorMsgLower.includes('pgrst204')); // PGRST204 is Supabase schema cache error
-
-          if (isMissingCol) {
-            const match = errorMsg.match(/['"](.+?)['"] column/) || 
-                          errorMsg.match(/column ['"](.+?)['"]/) ||
-                          errorMsg.match(/column (.+?) of/) ||
-                          errorMsg.match(/column (.+?) not found/) ||
-                          errorMsg.match(/property ['"](.+?)['"] not found/) ||
-                          errorMsg.match(/column (.+?) in the schema cache/);
-            
-            if (match && match[1]) {
-              const missingCol = match[1].replace(/['"]/g, '').trim();
-              console.warn(`[Supabase Fallback] Removendo coluna inexistente "${missingCol}" de "${collectionName}".`);
-              delete (payload as any)[missingCol];
-              continue; 
-            } else if (errorMsgLower.includes('updated_at')) {
-              console.warn(`[Supabase Fallback] Forçando remoção de "updated_at" de "${collectionName}" devido a erro de schema cache.`);
-              delete (payload as any).updated_at;
-              continue;
-            }
-          }
+        if (isMissingCol) {
+          const match = errorMsg.match(/['"](.+?)['"] column/) || 
+                        errorMsg.match(/column ['"](.+?)['"]/) ||
+                        errorMsg.match(/column (.+?) of/) ||
+                        errorMsg.match(/column (.+?) not found/) ||
+                        errorMsg.match(/property ['"](.+?)['"] not found/) ||
+                        errorMsg.match(/column (.+?) in the schema cache/);
           
-          throw errorVal;
+          if (match && match[1]) {
+            const missingCol = match[1].replace(/['"]/g, '').trim();
+            console.warn(`[Supabase] Removendo coluna inexistente "${missingCol}" de "${collectionName}" para persistir no banco real.`);
+            delete (payload as any)[missingCol];
+            attempts++;
+            continue; 
+          } else if (errorMsgLower.includes('updated_at')) {
+            console.warn(`[Supabase] Forçando remoção de "updated_at" de "${collectionName}".`);
+            delete (payload as any).updated_at;
+            attempts++;
+            continue;
+          }
         }
         
-        return finalId;
-      } catch (innerErr: any) {
-        const innerMsgLower = (innerErr.message || '').toLowerCase();
-        const isInnerOffline = 
-          innerErr.isOffline || 
-          innerErr.isTimeout || 
-          innerMsgLower.includes('offline') || 
-          innerMsgLower.includes('timeout') || 
-          innerMsgLower.includes('failed to fetch') ||
-          innerMsgLower.includes('network error');
-
-        if (isInnerOffline) {
-          console.warn(`[Supabase Offline Fallback] Erro de rede ou offline no loop de gravação em ${collectionName}. Usando cópia local.`);
-          return finalId;
-        }
-
-        attempts++;
-        await wait(500 * attempts);
-        continue;
+        throw errorVal;
       }
-    }
-
-    return finalId;
-  } catch (err: any) {
-    if (isDatabaseMissingOrCacheError(err)) {
-      console.warn(`[Supabase Fallback] Erro fatal em "${collectionName}" devido a tabela inexistente. Ativando fallback local.`);
-      setTableUsingFallback(collectionName, true);
+      
       return finalId;
+    } catch (innerErr: any) {
+      attempts++;
+      if (attempts >= maxAttempts) {
+        console.error(`[saveData] Erro ao salvar diretamente no Supabase em "${collectionName}":`, innerErr?.message || innerErr);
+        throw innerErr;
+      }
+      await wait(500 * attempts);
     }
-
-    const isOfflineOrNetwork = 
-      err.isOffline || 
-      err.isTimeout || 
-      err.message?.includes('Offline') || 
-      err.message?.includes('offline') || 
-      err.message?.includes('TIMEOUT') || 
-      err.message?.includes('Failed to fetch') ||
-      err.message?.includes('Network Error');
-
-    if (isOfflineOrNetwork) {
-      console.warn(`[Supabase Fallback] Erro fatal de rede ou offline em "${collectionName}". Gravando localmente.`);
-    } else {
-      console.error(`[saveData] Erro fatal em "${collectionName}":`, err.message);
-    }
-    return finalId;
   }
+
+  return finalId;
 };
 
 /**
- * Save multiple records using Supabase Upsert
+ * Salva lote diretamente no Supabase via Upsert real sem armazenamento local.
  */
 export const saveBatch = async (collectionName: string, items: any[], timeoutMs = 30000) => {
   if (!items || items.length === 0) return [];
+  if (!isSupabaseConfigured) {
+    throw new Error(`[Supabase] Supabase não configurado. Impossível salvar lote em ${collectionName}.`);
+  }
 
   let payloads = items.map(item => ({
     ...item,
     id: item.id || crypto.randomUUID()
   }));
 
-  const saveBatchLocally = () => {
-    payloads.forEach(p => {
-      saveLocalItem(collectionName, p.id, p);
-    });
-    return payloads.map(p => p.id);
-  };
+  let attempts = 0;
+  const maxAttempts = 3;
 
-  // Sync to local cache first
-  saveBatchLocally();
+  while (attempts < maxAttempts) {
+    try {
+      const result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payloads), timeoutMs);
+      
+      if (result?.error) {
+        const errorVal = result.error;
+        const errorMsg = (typeof errorVal === 'object' && errorVal !== null) 
+          ? (errorVal.message || String(errorVal)) 
+          : String(errorVal);
 
-  const isOffline = typeof window !== 'undefined' && !window.navigator.onLine;
-  if (isOffline) {
-    console.warn(`[Supabase Offline Fastpath] Salvando lote localmente em ${collectionName} devido a dispositivo offline.`);
-    return payloads.map(p => p.id);
-  }
+        const errorMsgLower = errorMsg.toLowerCase();
 
-  try {
-    if (!isSupabaseConfigured) return payloads.map(p => p.id);
-    
-    let attempts = 0;
-    const maxAttempts = 3;
+        // Missing column fallback
+        const isMissingCol = errorMsgLower.includes('column') && 
+                            (errorMsg.includes('not found') || 
+                             errorMsg.includes('schema cache') || 
+                             errorMsg.includes('does not exist') ||
+                             errorMsg.includes('missing'));
 
-    while (attempts < maxAttempts) {
-      try {
-        const result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payloads), timeoutMs);
-        
-        if (result?.error) {
-          const errorVal = result.error;
-          const errorMsg = (typeof errorVal === 'object' && errorVal !== null) 
-            ? (errorVal.message || String(errorVal)) 
-            : String(errorVal);
-
-          const errorMsgLower = errorMsg.toLowerCase();
-
-          const isErrorOffline = 
-            errorVal.isOffline || 
-            errorVal.isTimeout || 
-            errorMsgLower.includes('offline') || 
-            errorMsgLower.includes('timeout') || 
-            errorMsgLower.includes('failed to fetch') ||
-            errorMsgLower.includes('network error');
-
-          if (isErrorOffline) {
-            console.warn(`[Supabase Batch Fallback] Erro de rede ou offline ao salvar lote em ${collectionName}. Usando cópia local.`);
-            return payloads.map(p => p.id);
-          }
-
-          // Retry logic for timeouts or network errors
-          if (errorVal.isTimeout || errorMsg.includes('TIMEOUT') || errorMsg.includes('Failed to fetch') || errorMsg.includes('Network Error')) {
-            console.warn(`[Supabase Batch Retry] Erro de rede ou timeout ao salvar em ${collectionName}. Tentando novamente (${attempts + 1}/${maxAttempts})...`);
+        if (isMissingCol) {
+          const match = errorMsg.match(/['"](.+?)['"] column/) || 
+                        errorMsg.match(/column ['"](.+?)['"]/) ||
+                        errorMsg.match(/column (.+?) of/) ||
+                        errorMsg.match(/column (.+?) not found/) ||
+                        errorMsg.match(/property ['"](.+?)['"] not found/);
+          
+          if (match && match[1]) {
+            const missingCol = match[1].replace(/['"]/g, '').trim();
+            console.warn(`[Supabase] Removendo coluna inexistente "${missingCol}" de lote em "${collectionName}".`);
+            payloads = payloads.map((p: any) => {
+              const newP = { ...p };
+              delete newP[missingCol];
+              return newP;
+            });
             attempts++;
-            await wait(500 * attempts);
+            continue; 
+          } else if (errorMsgLower.includes('updated_at')) {
+            console.warn(`[Supabase] Removendo "updated_at" de lote em "${collectionName}".`);
+            payloads = payloads.map((p: any) => {
+              const newP = { ...p };
+              delete newP.updated_at;
+              return newP;
+            });
+            attempts++;
             continue;
           }
-
-          // Missing column fallback
-          const isMissingCol = errorMsgLower.includes('column') && 
-                              (errorMsg.includes('not found') || 
-                               errorMsg.includes('schema cache') || 
-                               errorMsg.includes('does not exist') ||
-                               errorMsg.includes('missing'));
-
-          if (isMissingCol) {
-            const match = errorMsg.match(/['"](.+?)['"] column/) || 
-                          errorMsg.match(/column ['"](.+?)['"]/) ||
-                          errorMsg.match(/column (.+?) of/) ||
-                          errorMsg.match(/column (.+?) not found/) ||
-                          errorMsg.match(/property ['"](.+?)['"] not found/);
-            
-            if (match && match[1]) {
-              const missingCol = match[1].replace(/['"]/g, '').trim();
-              console.warn(`[Supabase Batch Fallback] Removendo coluna inexistente "${missingCol}" de lote em "${collectionName}".`);
-              payloads = payloads.map((p: any) => {
-                const newP = { ...p };
-                delete newP[missingCol];
-                return newP;
-              });
-              continue; 
-            } else if (errorMsgLower.includes('updated_at')) {
-              console.warn(`[Supabase Batch Fallback] Forçando remoção de "updated_at" de lote em "${collectionName}" devido a erro de schema cache.`);
-              payloads = payloads.map((p: any) => {
-                const newP = { ...p };
-                delete newP.updated_at;
-                return newP;
-              });
-              continue;
-            }
-          }
-          
-          throw errorVal;
         }
         
-        return payloads.map(p => p.id);
-      } catch (innerErr: any) {
-        const innerMsgLower = (innerErr.message || '').toLowerCase();
-        const isInnerOffline = 
-          innerErr.isOffline || 
-          innerErr.isTimeout || 
-          innerMsgLower.includes('offline') || 
-          innerMsgLower.includes('timeout') || 
-          innerMsgLower.includes('failed to fetch') ||
-          innerMsgLower.includes('network error');
-
-        if (isInnerOffline) {
-          console.warn(`[Supabase Offline Fallback] Erro de rede ou offline no lote em ${collectionName}. Usando cópia local.`);
-          return payloads.map(p => p.id);
-        }
-
-        attempts++;
-        await wait(500 * attempts);
-        continue;
+        throw errorVal;
       }
+      
+      return payloads.map(p => p.id);
+    } catch (innerErr: any) {
+      attempts++;
+      if (attempts >= maxAttempts) {
+        console.error(`[saveBatch] Erro ao salvar lote no Supabase em "${collectionName}":`, innerErr?.message || innerErr);
+        throw innerErr;
+      }
+      await wait(500 * attempts);
     }
-
-    return payloads.map(p => p.id);
-  } catch (err: any) {
-    const isOfflineOrNetwork = 
-      err.isOffline || 
-      err.isTimeout || 
-      err.message?.includes('Offline') || 
-      err.message?.includes('offline') || 
-      err.message?.includes('TIMEOUT') || 
-      err.message?.includes('Failed to fetch') ||
-      err.message?.includes('Network Error');
-
-    if (isOfflineOrNetwork) {
-      console.warn(`[Supabase Batch Fallback] Erro fatal de rede ou offline ao salvar lote em ${collectionName}. Usando cópia local.`);
-    } else {
-      console.error(`[saveBatch] Erro fatal em "${collectionName}":`, err.message);
-    }
-    return payloads.map(p => p.id);
   }
+
+  return payloads.map(p => p.id);
 };
 
 /**
- * Delete from Supabase
+ * Exclui diretamente do Supabase garantindo integridade relacional.
  */
 export const deleteData = async (collectionName: string, id: string) => {
   if (!id) return;
+  if (!isSupabaseConfigured) return;
   
   try {
-    // 1. Tratamento de Chaves Estrangeiras antes da exclusão local e remota
+    // 1. Tratamento de Chaves Estrangeiras antes da exclusão física
     if (collectionName === 'classes') {
-      // 1. Obter informações da turma que está sendo excluída
-      const localClasses = getLocalCollection('classes');
-      const classToDelete = localClasses.find((c: any) => c.id === id);
-      
-      let importedFromId: string | null = null;
-      if (classToDelete?.observations) {
-        const match = classToDelete.observations.match(/\[METADATA:(\{[\s\S]*?\})\]/);
-        if (match && match[1]) {
-          try {
-            const meta = JSON.parse(match[1]);
-            if (meta.imported_from) importedFromId = meta.imported_from;
-          } catch (e) {}
-        }
-      }
-
-      // Se a turma de origem foi marcada como Encerrada devido à importação, reativa para Ativo para não sumir
-      if (importedFromId) {
-        const updatedClasses = localClasses.map((c: any) => {
-          if (c.id === importedFromId && (c.status === 'Encerrada' || c.status === 'Inativo')) {
-            return { ...c, status: 'Ativo' };
-          }
-          return c;
-        });
-        saveLocalCollection('classes', updatedClasses);
-        if (isSupabaseConfigured && !isTableUsingFallback('classes')) {
-          try {
-            await supabase.from('classes').update({ status: 'Ativo' }).eq('id', importedFromId);
-          } catch (e) {}
-        }
-      }
-
-      // 2. Desassocia ou revincula alunos localmente de forma segura
-      const localStudents = getLocalCollection('students');
-      const localEnrollments = getLocalCollection('enrollments');
-      let changedStudents = false;
-
-      const updatedStudents = localStudents.map((st: any) => {
-        if (st.class_id === id) {
-          changedStudents = true;
-          // Tenta encontrar outra turma válida para o aluno (ex: a turma de origem ou outra matrícula ativa)
-          let fallbackClassId: string | null = importedFromId;
-          if (!fallbackClassId) {
-            const otherEnr = localEnrollments.find((e: any) => e.student_id === st.id && e.class_id !== id && (e.status === 'Ativo' || !e.status));
-            if (otherEnr) fallbackClassId = otherEnr.class_id;
-          }
-          return { ...st, class_id: fallbackClassId };
-        }
-        return st;
-      });
-      if (changedStudents) {
-        saveLocalCollection('students', updatedStudents);
-      }
-
-      // Limpa registros dependentes da turma excluída em cache local
-      const localEnrollmentsFiltered = getLocalCollection('enrollments').filter((e: any) => e.class_id !== id);
-      saveLocalCollection('enrollments', localEnrollmentsFiltered);
-      const localAttendances = getLocalCollection('attendances').filter((a: any) => a.class_id !== id);
-      saveLocalCollection('attendances', localAttendances);
-      const localGrades = getLocalCollection('grades').filter((g: any) => g.class_id !== id);
-      saveLocalCollection('grades', localGrades);
-      const localAssessments = getLocalCollection('assessments').filter((a: any) => a.class_id !== id);
-      saveLocalCollection('assessments', localAssessments);
-      const localEvents = getLocalCollection('calendar_events').filter((ev: any) => ev.class_id !== id);
-      saveLocalCollection('calendar_events', localEvents);
-
-      // Limpa chaves estrangeiras no Supabase para evitar erro 23503 (violates foreign key constraint)
-      if (isSupabaseConfigured && !isTableUsingFallback('classes')) {
-        try {
-          if (importedFromId) {
-            await supabase.from('students').update({ class_id: importedFromId }).eq('class_id', id);
-          } else {
-            await supabase.from('students').update({ class_id: null }).eq('class_id', id);
-          }
-        } catch (e: any) {
-          console.warn('[deleteData] Aviso ao atualizar students.class_id:', e?.message || e);
-        }
-        try {
-          await supabase.from('enrollments').delete().eq('class_id', id);
-        } catch (e: any) {
-          console.warn('[deleteData] Aviso ao excluir enrollments da turma:', e?.message || e);
-        }
-        try {
-          await supabase.from('attendances').delete().eq('class_id', id);
-        } catch (e: any) {
-          console.warn('[deleteData] Aviso ao excluir attendances da turma:', e?.message || e);
-        }
-        try {
-          await supabase.from('grades').delete().eq('class_id', id);
-        } catch (e: any) {
-          console.warn('[deleteData] Aviso ao excluir grades da turma:', e?.message || e);
-        }
-        try {
-          await supabase.from('assessments').delete().eq('class_id', id);
-        } catch (e: any) {
-          console.warn('[deleteData] Aviso ao excluir assessments da turma:', e?.message || e);
-        }
-        try {
-          await supabase.from('calendar_events').delete().eq('class_id', id);
-        } catch (e: any) {
-          console.warn('[deleteData] Aviso ao excluir calendar_events da turma:', e?.message || e);
-        }
-      }
+      try {
+        await supabase.from('students').update({ class_id: null }).eq('class_id', id);
+      } catch (e: any) {}
+      try {
+        await supabase.from('enrollments').delete().eq('class_id', id);
+      } catch (e: any) {}
+      try {
+        await supabase.from('attendances').delete().eq('class_id', id);
+      } catch (e: any) {}
+      try {
+        await supabase.from('grades').delete().eq('class_id', id);
+      } catch (e: any) {}
+      try {
+        await supabase.from('assessments').delete().eq('class_id', id);
+      } catch (e: any) {}
+      try {
+        await supabase.from('calendar_events').delete().eq('class_id', id);
+      } catch (e: any) {}
     } else if (collectionName === 'students') {
-      if (isSupabaseConfigured && !isTableUsingFallback('students')) {
-        try {
-          await supabase.from('enrollments').delete().eq('student_id', id);
-        } catch (e) {}
-        try {
-          await supabase.from('attendances').delete().eq('student_id', id);
-        } catch (e) {}
-        try {
-          await supabase.from('grades').delete().eq('student_id', id);
-        } catch (e) {}
-        try {
-          await supabase.from('contributions').delete().eq('student_id', id);
-        } catch (e) {}
-        try {
-          await supabase.from('certificates').delete().eq('student_id', id);
-        } catch (e) {}
-      }
+      try {
+        await supabase.from('enrollments').delete().eq('student_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('attendances').delete().eq('student_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('grades').delete().eq('student_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('contributions').delete().eq('student_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('certificates').delete().eq('student_id', id);
+      } catch (e) {}
     } else if (collectionName === 'teachers') {
-      if (isSupabaseConfigured && !isTableUsingFallback('teachers')) {
-        try {
-          await supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', id);
-        } catch (e) {}
-      }
+      try {
+        await supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', id);
+      } catch (e) {}
     }
 
-    // Sempre remove localmente também para manter consistência total
-    deleteLocalItem(collectionName, id);
-
-    if (isTableUsingFallback(collectionName)) {
-      await tryRecoveryFromFallback(collectionName);
-    }
-
-    if (isTableUsingFallback(collectionName) || !isSupabaseConfigured) {
-      return;
-    }
-    
     const { error } = await supabase.from(collectionName).delete().eq('id', id);
     if (error) {
-      if (isDatabaseMissingOrCacheError(error)) {
-        setTableUsingFallback(collectionName, true);
-        return;
-      }
       throw error;
     }
   } catch (err: any) {
-    if (isDatabaseMissingOrCacheError(err)) {
-      setTableUsingFallback(collectionName, true);
-      return;
-    }
-    console.error(`[deleteData] Erro em "${collectionName}":`, err.message);
+    console.error(`[deleteData] Erro ao excluir do Supabase em "${collectionName}":`, err?.message || err);
     throw err;
   }
 };
 
 /**
- * Delete multiple records from Supabase and local cache
+ * Exclui múltiplos registros em lote diretamente do Supabase.
  */
 export const deleteBatch = async (collectionName: string, ids: string[]) => {
   if (!ids || ids.length === 0) return;
+  if (!isSupabaseConfigured) return;
   
-  // Limpeza de dependências em lote
-  if (collectionName === 'classes' && isSupabaseConfigured && !isTableUsingFallback('classes')) {
+  // Limpeza de dependências em lote no Supabase
+  if (collectionName === 'classes') {
     try {
       await supabase.from('students').update({ class_id: null }).in('class_id', ids);
     } catch (e) {}
@@ -1178,7 +541,7 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
     try {
       await supabase.from('calendar_events').delete().in('class_id', ids);
     } catch (e) {}
-  } else if (collectionName === 'students' && isSupabaseConfigured && !isTableUsingFallback('students')) {
+  } else if (collectionName === 'students') {
     try {
       await supabase.from('enrollments').delete().in('student_id', ids);
     } catch (e) {}
@@ -1190,24 +553,13 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
     } catch (e) {}
   }
 
-  // Sempre remove localmente primeiro
-  ids.forEach(id => deleteLocalItem(collectionName, id));
-
-  if (isTableUsingFallback(collectionName) || !isSupabaseConfigured) {
-    return;
-  }
-
   try {
     const { error } = await supabase.from(collectionName).delete().in('id', ids);
     if (error) {
-      if (isDatabaseMissingOrCacheError(error)) {
-        setTableUsingFallback(collectionName, true);
-        return;
-      }
       throw error;
     }
   } catch (err: any) {
-    console.warn(`[deleteBatch] Fallback individual para "${collectionName}":`, err.message);
+    console.warn(`[deleteBatch] Fallback individual para "${collectionName}":`, err?.message || err);
     for (const id of ids) {
       try {
         await supabase.from(collectionName).delete().eq('id', id);
@@ -1353,19 +705,15 @@ export const autoIdentifyAllStudentsCourses = async (): Promise<{ totalStudents:
 };
 
 /**
- * Utility to fetch institution settings
+ * Busca direta das configurações da instituição no Supabase.
  */
 export const getInstitutionSettings = async () => {
   try {
     if (!isSupabaseConfigured) {
-      const cached = localStorage.getItem('cached_institution_settings');
-      if (cached) {
-        try { return JSON.parse(cached); } catch (e) {}
-      }
       return {
         id: '1',
-        admission_norms: localStorage.getItem('inst_admission_norms') || '',
-        presentation_info: localStorage.getItem('inst_presentation_info') || ''
+        admission_norms: '',
+        presentation_info: ''
       };
     }
     const result = await fetchWithTimeout(
@@ -1374,59 +722,22 @@ export const getInstitutionSettings = async () => {
         .select('*')
         .limit(1)
         .maybeSingle(),
-      8000 // Fast timeout for settings
+      8000
     );
     
     if (result?.error) {
-      const cached = localStorage.getItem('cached_institution_settings');
-      if (cached) {
-        try { return JSON.parse(cached); } catch (e) {}
-      }
-      if (result.error.message?.includes('Failed to fetch')) {
-        return {
-          id: '1',
-          admission_norms: localStorage.getItem('inst_admission_norms') || '',
-          presentation_info: localStorage.getItem('inst_presentation_info') || ''
-        };
+      if (result.error.code === 'PGRST116') {
+        return { id: '1', admission_norms: '', presentation_info: '' };
       }
       throw result.error;
     }
-    const data = result?.data;
-    if (data) {
-      if (!data.admission_norms) {
-        data.admission_norms = localStorage.getItem('inst_admission_norms') || '';
-      }
-      if (!data.presentation_info) {
-        data.presentation_info = localStorage.getItem('inst_presentation_info') || '';
-      }
-      // Cache successful settings
-      try {
-        localStorage.setItem('cached_institution_settings', JSON.stringify(data));
-      } catch (e) {
-        console.warn('Erro ao salvar configurações no localStorage:', e);
-      }
-    } else {
-      const cached = localStorage.getItem('cached_institution_settings');
-      if (cached) {
-        try { return JSON.parse(cached); } catch (e) {}
-      }
-      return {
-        id: '1',
-        admission_norms: localStorage.getItem('inst_admission_norms') || '',
-        presentation_info: localStorage.getItem('inst_presentation_info') || ''
-      };
-    }
-    return data;
+    return result?.data || { id: '1', admission_norms: '', presentation_info: '' };
   } catch (err: any) {
-    console.warn('[Supabase] Aviso ao buscar configurações da instituição:', err.message);
-    const cached = localStorage.getItem('cached_institution_settings');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) {}
-    }
+    console.warn('[Supabase] Aviso ao buscar configurações da instituição:', err?.message || err);
     return {
       id: '1',
-      admission_norms: localStorage.getItem('inst_admission_norms') || '',
-      presentation_info: localStorage.getItem('inst_presentation_info') || ''
+      admission_norms: '',
+      presentation_info: ''
     };
   }
 };
@@ -1437,17 +748,9 @@ export const fetchAcademicSettings = async (): Promise<any> => {
     if (list && list.length > 0) {
       return list[0];
     }
-    const cached = localStorage.getItem('academic_settings');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) {}
-    }
     return null;
   } catch (err: any) {
-    console.warn('[Supabase] Aviso ao buscar academic_settings:', err.message);
-    const cached = localStorage.getItem('academic_settings');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) {}
-    }
+    console.warn('[Supabase] Aviso ao buscar academic_settings:', err?.message || err);
     return null;
   }
 };

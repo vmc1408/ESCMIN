@@ -40,7 +40,6 @@ export function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsBootstrap, setNeedsBootstrap] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [institution, setInstitution] = useState<any>(() => {
@@ -175,9 +174,6 @@ export function Login() {
 
         if (settings) {
           setInstitution(settings);
-          setNeedsBootstrap(false);
-        } else {
-          setNeedsBootstrap(true);
         }
 
         setStats({ 
@@ -385,47 +381,6 @@ export function Login() {
       
     } catch (err: any) {
       setError(err.message || "Ocorreu um erro ao tentar registrar. Tente novamente.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBootstrap = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const adminEmail = 'admin@diocese.com';
-      const adminPassword = 'admin123456';
-      
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email: adminEmail,
-        password: adminPassword,
-        options: { data: { full_name: 'Administrador Root' } }
-      });
-      
-      if (authErr && !authErr.message.includes('already registered')) throw authErr;
-      
-      const userId = authData.user?.id;
-      if (userId) {
-        await saveData('users', userId, {
-          id: userId,
-          email: adminEmail,
-          name: 'Administrador Root',
-          full_name: 'Administrador Root',
-          role: 'admin',
-          status: 'active',
-          created_at: new Date().toISOString()
-        });
-        await saveData('institution_settings', crypto.randomUUID(), {
-          name: 'Escola Diocesana de Ministérios',
-          city: 'Guarulhos',
-          updated_at: new Date().toISOString()
-        });
-        setNeedsBootstrap(false);
-        refreshProfile(userId);
-      }
-    } catch (err: any) {
-      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -815,43 +770,7 @@ export function Login() {
             </p>
             <h1 className="text-lg font-bold text-[#00174b] tracking-tight leading-snug">{institution?.name || 'Escola Diocesana de Ministério'}</h1>
           </div>
-          {needsBootstrap ? (
-             <div className="space-y-8">
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-amber-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                    <Database className="text-amber-600" size={32} />
-                  </div>
-                  <h2 className="text-2xl font-black text-[#00174b] mb-2 uppercase">Configuração Inicial</h2>
-                  <p className="text-slate-500 font-medium text-sm">Este é o primeiro acesso. Clique abaixo para inicializar o sistema e criar o administrador.</p>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
-                   <p className="text-[10px] font-black uppercase text-slate-400 mb-2 text-center tracking-widest">Acesso de Emergência</p>
-                   <div className="space-y-1 text-xs text-[#00174b] font-bold text-center">
-                      <p>admin@diocese.com</p>
-                      <p>admin123456</p>
-                   </div>
-                </div>
-
-                <button 
-                  onClick={handleBootstrap}
-                  disabled={loading}
-                  className="w-full py-4 bg-[#00174b] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
-                >
-                  {loading ? (
-                    <React.Fragment key="bootstrap-loading">
-                      <Loader2 className="animate-spin" />
-                      <span>Inicializando...</span>
-                    </React.Fragment>
-                  ) : (
-                    <React.Fragment key="bootstrap-ready">
-                      <ChevronRight size={20} />
-                      <span>Criar Administrador</span>
-                    </React.Fragment>
-                  )}
-                </button>
-             </div>
-          ) : isResettingPassword ? (
+          {isResettingPassword ? (
              <div className="space-y-6">
                <div className="text-center mb-8">
                  <h2 className="text-2xl font-bold text-slate-900 mb-2 uppercase tracking-tight">

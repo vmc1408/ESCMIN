@@ -165,6 +165,7 @@
         "batch_id": { "type": "string" },
         "status": { "type": "string", "enum": ["matched", "unmatched", "multiple"] },
         "matched_student_id": { "type": "string" },
+        "unit_id": { "type": "string" },
         "is_manual": { "type": "boolean" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -185,6 +186,7 @@
         "origin": { "type": "string" },
         "pix_id": { "type": "string" },
         "observations": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -312,6 +314,7 @@
         "type": { "type": "string", "enum": ["holiday", "exam", "start_term", "end_term", "class_day", "event"] },
         "class_id": { "type": "string" },
         "subject_id": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -329,6 +332,7 @@
         "date": { "type": "string", "format": "date" },
         "status": { "type": "string", "enum": ["P", "F", "J"] },
         "observations": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -347,6 +351,7 @@
         "value": { "type": "number" },
         "status": { "type": "string", "enum": ["Aprovado", "Reprovado", "Recuperação", "Pendente"] },
         "observations": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" }
@@ -394,6 +399,7 @@
         "issuance_date": { "type": "string", "format": "date" },
         "course": { "type": "string" },
         "verification_code": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -409,6 +415,7 @@
         "class_id": { "type": "string" },
         "status": { "type": "string", "enum": ["Ativo", "Concluído", "Trancado", "Cancelado"] },
         "enrollment_date": { "type": "string", "format": "date" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -427,6 +434,7 @@
         "class_id": { "type": "string" },
         "subject_id": { "type": "string" },
         "description": { "type": "string" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -445,6 +453,7 @@
         "payment_date": { "type": "string", "format": "date" },
         "signature_label": { "type": "string" },
         "issue_date": { "type": "string", "format": "date" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },

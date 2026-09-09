@@ -219,6 +219,7 @@ export interface Contribution {
   origin?: string;
   pix_id?: string;
   observations?: string;
+  unit_id?: string;
   user_id: string;
   created_at: string;
 }
@@ -330,6 +331,7 @@ export interface CalendarEvent {
   type: 'holiday' | 'holiday_nac' | 'holiday_est' | 'holiday_mun' | 'exam' | 'start_term' | 'end_term' | 'class_day' | 'event' | 'excused_class' | 'cancelled_class';
   class_id?: string;
   subject_id?: string;
+  unit_id?: string;
   user_id: string;
   created_at: string;
   updated_at?: string;
@@ -352,6 +354,7 @@ export interface Certificate {
   issuance_date: string;
   course: string;
   verification_code: string;
+  unit_id?: string;
   user_id?: string;
   created_at?: string;
 }
@@ -363,6 +366,7 @@ export interface Grade {
   subject_id: string;
   period: string;
   value: any;
+  unit_id?: string;
 }
 
 export interface Receipt {

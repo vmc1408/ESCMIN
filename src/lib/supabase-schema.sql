@@ -222,6 +222,7 @@ CREATE TABLE IF NOT EXISTS attendances (
     date TEXT NOT NULL,
     status TEXT,
     observations TEXT,
+    unit_id TEXT REFERENCES units(id),
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -235,8 +236,11 @@ CREATE TABLE IF NOT EXISTS grades (
     period TEXT,
     value NUMERIC(4,2),
     status TEXT,
+    observations TEXT,
+    unit_id TEXT REFERENCES units(id),
     user_id TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 13. Eventos
@@ -249,6 +253,7 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     type TEXT,
     class_id TEXT REFERENCES classes(id),
     subject_id TEXT REFERENCES subjects(id),
+    unit_id TEXT REFERENCES units(id),
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -264,6 +269,8 @@ CREATE TABLE IF NOT EXISTS contributions (
     payment_method TEXT,
     origin TEXT,
     pix_id TEXT,
+    observations TEXT,
+    unit_id TEXT REFERENCES units(id),
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -279,6 +286,7 @@ CREATE TABLE IF NOT EXISTS pix_reconciliations (
     batch_id TEXT,
     status TEXT,
     matched_student_id TEXT REFERENCES students(id),
+    unit_id TEXT REFERENCES units(id),
     is_manual BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -291,6 +299,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     issuance_date TEXT NOT NULL,
     course TEXT,
     verification_code TEXT UNIQUE,
+    unit_id TEXT REFERENCES units(id),
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -316,6 +325,7 @@ CREATE TABLE IF NOT EXISTS assessments (
     class_id TEXT REFERENCES classes(id),
     subject_id TEXT REFERENCES subjects(id),
     description TEXT,
+    unit_id TEXT REFERENCES units(id),
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -330,6 +340,7 @@ CREATE TABLE IF NOT EXISTS receipts (
     payment_date TEXT NOT NULL,
     signature_label TEXT,
     issue_date TEXT NOT NULL,
+    unit_id TEXT REFERENCES units(id),
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -351,9 +362,19 @@ CREATE TABLE IF NOT EXISTS units (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Garantir novas colunas se a tabela já existia
+-- Garantir novas colunas se as tabelas já existiam
 ALTER TABLE IF EXISTS units ADD COLUMN IF NOT EXISTS cep TEXT;
 ALTER TABLE IF EXISTS units ADD COLUMN IF NOT EXISTS cnpj TEXT;
+ALTER TABLE IF EXISTS contributions ADD COLUMN IF NOT EXISTS unit_id TEXT;
+ALTER TABLE IF EXISTS contributions ADD COLUMN IF NOT EXISTS observations TEXT;
+ALTER TABLE IF EXISTS pix_reconciliations ADD COLUMN IF NOT EXISTS unit_id TEXT;
+ALTER TABLE IF EXISTS calendar_events ADD COLUMN IF NOT EXISTS unit_id TEXT;
+ALTER TABLE IF EXISTS attendances ADD COLUMN IF NOT EXISTS unit_id TEXT;
+ALTER TABLE IF EXISTS grades ADD COLUMN IF NOT EXISTS unit_id TEXT;
+ALTER TABLE IF EXISTS grades ADD COLUMN IF NOT EXISTS observations TEXT;
+ALTER TABLE IF EXISTS certificates ADD COLUMN IF NOT EXISTS unit_id TEXT;
+ALTER TABLE IF EXISTS assessments ADD COLUMN IF NOT EXISTS unit_id TEXT;
+ALTER TABLE IF EXISTS receipts ADD COLUMN IF NOT EXISTS unit_id TEXT;
 
 -- Inserção da Unidade Matriz Padrão se não existir
 INSERT INTO units (id, code, name, is_main, active)

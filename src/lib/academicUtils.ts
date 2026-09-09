@@ -540,24 +540,6 @@ export function getClassStartDateFromSchedule(
       || academicSettingsList[0];
   }
 
-  // Also check localStorage if settings not found or missing fields
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      if (targetClass.id) {
-        const storedClass = localStorage.getItem(`academic_settings_${targetClass.id}`);
-        if (storedClass) {
-          const parsed = JSON.parse(storedClass);
-          settings = { ...parsed, ...(settings || {}) };
-        }
-      }
-      const storedCurrent = localStorage.getItem('academic_settings_current');
-      if (storedCurrent) {
-        const parsed = JSON.parse(storedCurrent);
-        settings = { ...parsed, ...(settings || {}) };
-      }
-    } catch (e) {}
-  }
-
   // 2. Identify if this class is for the 2º Semestre
   const semStr = String(targetClass.semester || targetClass.name || '').toLowerCase();
   const isSem2 = semStr.includes('2º') || semStr.includes('2o') || semStr.includes('2°') || 
@@ -722,19 +704,7 @@ export const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] =
   const periods: SchedulePeriod[] = [];
   const seenLabels = new Set<string>();
 
-  let combined = { ...(settings || {}) };
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const stored = localStorage.getItem('academic_settings_current');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        combined = { ...parsed, ...combined };
-        if (parsed.weekday_terms) {
-          combined.weekday_terms = { ...(parsed.weekday_terms || {}), ...(combined.weekday_terms || {}) };
-        }
-      }
-    }
-  } catch (e) {}
+  const combined = { ...(settings || {}) };
 
   if (combined.weekday_terms) {
     const dayKeys = Object.keys(combined.weekday_terms)
