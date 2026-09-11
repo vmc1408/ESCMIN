@@ -17,46 +17,6 @@ export const TeacherScopeBanner: React.FC<TeacherScopeBannerProps> = ({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {/* Alerta de Conflito de Unidade / Polo */}
-      {scope.hasUnitConflict && (
-        <div className="bg-amber-50/90 border-2 border-amber-300 p-4 sm:p-5 rounded-none sm:rounded-xl shadow-xs text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-              <AlertTriangle size={20} />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[9px] font-black uppercase tracking-widest bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
-                  Regra de Polo / Unidade
-                </span>
-                {scope.activeUnitName && (
-                  <span className="text-[11px] font-black text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded border border-amber-200">
-                    Polo Selecionado: {scope.activeUnitName}
-                  </span>
-                )}
-                <span className="text-[9px] font-bold text-amber-800">
-                  {scope.teacherName}
-                </span>
-              </div>
-              <h4 className="text-sm font-bold text-amber-950 leading-snug">
-                {scope.conflictMessage}
-              </h4>
-              {scope.otherUnitClasses && scope.otherUnitClasses.length > 0 && (
-                <p className="text-xs text-amber-800 font-medium leading-relaxed pt-0.5">
-                  As turmas atribuídas à docente ({scope.otherUnitClasses.map(o => `${o.name} [${o.unitName}]`).join(', ')}) pertencem a outra unidade e foram ocultadas para manter a integridade acadêmica deste polo.
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-            <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg bg-amber-200/80 text-amber-950 border border-amber-300 flex items-center gap-1.5">
-              <ShieldAlert size={13} />
-              Isolamento por Unidade
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Banner Padrão de Modo Docente (quando não há conflito total) */}
       {(!scope.hasUnitConflict || scope.hasAccess) && (
         <div className="bg-indigo-50/80 border border-indigo-100 p-4 rounded-none sm:rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-950">

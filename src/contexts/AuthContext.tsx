@@ -601,7 +601,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return profile.role === 'diretor';
     }
 
-    // 4. Módulos estratégicos, de gestão de professores, guias, relatórios consolidados, calendários e fluxo financeiro
+    // 4. Módulos estratégicos, guias, relatórios consolidados, calendários e fluxo financeiro
     // (Acessíveis por: Admin, Diretor, Secretário Acadêmico)
     // Assistentes de Secretaria são bloqueados desse nível operacional
     const secretaryAndAboveModules = [
@@ -610,7 +610,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       '/receipts', 
       '/reports', 
       '/parishes',
-      '/teachers',
       '/calendar',
       '/settings',
       '/backup'
@@ -619,8 +618,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return profile.role === 'diretor' || profile.role === 'secretario';
     }
 
-    // 5. Módulos de operação básica de secretaria (Acessíveis por: Admin, Diretoria, Secretário Acadêmico e Assistente)
-    // Alunos, Ficha, Chamada, Notas, Turmas, Disciplinas, Impressos e Documentos Oficiais.
+    // 5. Módulos de operação básica e cadastros de secretaria (Acessíveis por: Admin, Diretoria, Secretário Acadêmico e Assistente)
+    // Alunos, Professores, Cursos, Turmas, Disciplinas, Ficha, Chamada, Notas, Impressos e Documentos Oficiais.
     return true;
   }, [profile]);
 

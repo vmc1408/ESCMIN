@@ -1659,53 +1659,6 @@ export function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Banner Informativo de Escopo de Unidade / Polo */}
-      {(selectedUnitId !== 'all' || isRestricted) && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-blue-50/90 border border-blue-200/90 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-              <Building2 size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-xs sm:text-sm font-bold text-blue-950">
-                  {getUnitName(selectedUnitId) || selectedUnit?.name || (selectedUnitId === 'matriz' ? 'Sede / Matriz' : 'Unidade de Acesso')}
-                </h3>
-                {isRestricted ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-200/80 text-blue-950 text-[10px] font-bold uppercase tracking-wider">
-                    <Lock size={10} />
-                    Acesso Restrito ao Polo
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-blue-200 text-blue-800 text-[10px] font-bold uppercase tracking-wider">
-                    Filtro Ativo
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-blue-800/90 mt-0.5">
-                {isRestricted 
-                  ? 'Seu perfil de usuário possui acesso restrito e visualiza somente os alunos, turmas e professores vinculados a este polo.'
-                  : 'Os indicadores de síntese, ocupação de turmas e listas abaixo estão filtrados exclusivamente para esta unidade.'}
-              </p>
-            </div>
-          </div>
-
-          {!isRestricted && (
-            <button
-              type="button"
-              onClick={() => setSelectedUnitId('all')}
-              className="self-start sm:self-auto px-2.5 py-1 text-xs font-semibold text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-100/60 border border-blue-200 rounded-lg transition-colors cursor-pointer shrink-0 shadow-2xs"
-            >
-              Ver Todas as Unidades (Geral)
-            </button>
-          )}
-        </motion.div>
-      )}
-
       {/* Síntese Institucional - Régua de Indicadores Consolidados */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}

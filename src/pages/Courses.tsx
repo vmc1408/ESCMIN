@@ -1194,32 +1194,6 @@ export function Courses() {
         </div>
       </PageHeader>
 
-      {/* Active Unit Scope Indicator */}
-      {globalUnitId && globalUnitId !== 'all' && (
-        <div className="bg-blue-50/80 border border-blue-200 text-blue-900 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-2.5">
-            <Building2 className="w-5 h-5 text-blue-600 shrink-0" />
-            <div>
-              <p className="text-xs font-bold flex items-center gap-2">
-                <span>Polo Ativo: {getUnitName(activeUnits, globalUnitId)}</span>
-                <span className="text-[10px] uppercase font-black bg-blue-100 text-blue-800 px-1.5 py-0.5 border border-blue-200">
-                  Isolamento Ativo
-                </span>
-              </p>
-              <p className="text-[11px] text-blue-700 mt-0.5">
-                Exibindo turmas, alunos e cursos disponíveis para esta unidade. Cursos da Matriz e gerais são acessíveis para consulta.
-              </p>
-            </div>
-          </div>
-          {isRestricted && (
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-white text-blue-800 px-2 py-1 border border-blue-200 shrink-0 flex items-center gap-1">
-              <Lock className="w-3 h-3 text-blue-600" />
-              Acesso Restrito ao Polo
-            </span>
-          )}
-        </div>
-      )}
-
       {/* Stats Cards Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 p-4 shadow-sm">
