@@ -134,7 +134,10 @@ export function ArchivePage() {
               supabase.from('attendances').delete().eq('student_id', student.id),
               supabase.from('grades').delete().eq('student_id', student.id),
               supabase.from('contributions').delete().eq('student_id', student.id),
-              supabase.from('enrollments').delete().eq('student_id', student.id)
+              supabase.from('enrollments').delete().eq('student_id', student.id),
+              supabase.from('certificates').delete().eq('student_id', student.id),
+              supabase.from('receipts').delete().eq('student_id', student.id),
+              supabase.from('pix_reconciliations').update({ matched_student_id: null }).eq('matched_student_id', student.id)
             ]);
             // Delete from active
             const { error: delErr } = await supabase.from('students').delete().eq('id', student.id);
@@ -159,8 +162,12 @@ export function ArchivePage() {
           const clonePayload = { ...teacher, status: 'Arquivado' };
           const { error: insErr } = await supabase.from('archived_teachers').insert([clonePayload]);
           if (!insErr) {
-            // Suppress secondary events
-            await supabase.from('calendar_events').delete().eq('user_id', teacher.id);
+            // Suppress secondary events and references
+            await Promise.all([
+              supabase.from('calendar_events').delete().eq('user_id', teacher.id),
+              supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', teacher.id),
+              supabase.from('classes').update({ teacher_id: null }).eq('teacher_id', teacher.id)
+            ]);
             // Delete from active
             const { error: delErr } = await supabase.from('teachers').delete().eq('id', teacher.id);
             if (!delErr) {
@@ -186,9 +193,12 @@ export function ArchivePage() {
             // Suppress references
             await Promise.all([
               supabase.from('students').update({ class_id: null }).eq('class_id', cls.id),
+              supabase.from('subjects').update({ class_id: null }).eq('class_id', cls.id),
               supabase.from('enrollments').delete().eq('class_id', cls.id),
               supabase.from('attendances').delete().eq('class_id', cls.id),
-              supabase.from('grades').delete().eq('class_id', cls.id)
+              supabase.from('grades').delete().eq('class_id', cls.id),
+              supabase.from('assessments').delete().eq('class_id', cls.id),
+              supabase.from('calendar_events').delete().eq('class_id', cls.id)
             ]);
             // Delete from active
             const { error: delErr } = await supabase.from('classes').delete().eq('id', cls.id);
@@ -571,27 +581,43 @@ export function ArchivePage() {
             continue;
           }
 
-          // B. Suppress secondary records (frequência, notas, contribuições) to avoid referential errors
+          // B. Suppress secondary records (frequência, notas, contribuições, certificados, etc.) to avoid referential errors
           if (item.type === 'student') {
             await Promise.all([
               supabase.from('attendances').delete().eq('student_id', item.id),
               supabase.from('grades').delete().eq('student_id', item.id),
               supabase.from('contributions').delete().eq('student_id', item.id),
-              supabase.from('enrollments').delete().eq('student_id', item.id)
+              supabase.from('enrollments').delete().eq('student_id', item.id),
+              supabase.from('certificates').delete().eq('student_id', item.id),
+              supabase.from('receipts').delete().eq('student_id', item.id),
+              supabase.from('pix_reconciliations').update({ matched_student_id: null }).eq('matched_student_id', item.id)
             ]);
           } else if (item.type === 'teacher') {
             // Nullify or wipe calendar events or classes linked to this teacher if restrictions occur
-            await supabase.from('calendar_events').delete().eq('user_id', item.id);
+            await Promise.all([
+              supabase.from('calendar_events').delete().eq('user_id', item.id),
+              supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', item.id),
+              supabase.from('classes').update({ teacher_id: null }).eq('teacher_id', item.id)
+            ]);
           } else if (item.type === 'class') {
             await Promise.all([
+              supabase.from('students').update({ class_id: null }).eq('class_id', item.id),
+              supabase.from('subjects').update({ class_id: null }).eq('class_id', item.id),
               supabase.from('enrollments').delete().eq('class_id', item.id),
               supabase.from('attendances').delete().eq('class_id', item.id),
-              supabase.from('grades').delete().eq('class_id', item.id)
+              supabase.from('grades').delete().eq('class_id', item.id),
+              supabase.from('assessments').delete().eq('class_id', item.id),
+              supabase.from('calendar_events').delete().eq('class_id', item.id)
             ]);
           } else if (item.type === 'subject') {
             await Promise.all([
               supabase.from('attendances').delete().eq('subject_id', item.id),
-              supabase.from('grades').delete().eq('subject_id', item.id)
+              supabase.from('grades').delete().eq('subject_id', item.id),
+              supabase.from('assessments').delete().eq('subject_id', item.id),
+              supabase.from('calendar_events').delete().eq('subject_id', item.id),
+              supabase.from('classes').update({ subject_id: null }).eq('subject_id', item.id),
+              supabase.from('classes').update({ subject_id_sem1: null }).eq('subject_id_sem1', item.id),
+              supabase.from('classes').update({ subject_id_sem2: null }).eq('subject_id_sem2', item.id)
             ]);
           }
 

@@ -151,6 +151,7 @@ export interface Course {
   meeting_days?: string[]; // Ex: ['Segunda', 'Quarta'] ou ['Sábado']
   status: 'Ativo' | 'Inativo';
   workload_hours?: number;
+  unit_id?: string; // ID do polo/unidade ('all' para todas ou ID do polo)
   user_id?: string;
   created_at?: string;
   updated_at?: string;
@@ -165,6 +166,7 @@ export interface Subject {
   teacher_id?: string;
   status?: 'Ativo' | 'Inativo';
   program_content?: string;
+  unit_id?: string; // ID do polo/unidade ('all' para todas ou ID do polo)
   user_id: string;
   created_at: string;
 }

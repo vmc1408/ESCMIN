@@ -47,7 +47,7 @@ import {
   ArrowUpRight,
   GraduationCap
 } from 'lucide-react';
-import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
+import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, deleteBatch, deleteData, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
@@ -557,34 +557,6 @@ export function Settings() {
     }
   }, [activeTab]);
 
-  // One-time automatic status update for students > 2023 (Requested by User)
-  useEffect(() => {
-    const triggerAutoUpdate = async () => {
-      const hasExecuted = localStorage.getItem('auto_activate_2023_done');
-      if (hasExecuted) return;
-
-      try {
-        const students = await fetchAll('students');
-        const toUpdate = students.filter(s => {
-          const yearStr = getYearFromRegistration(s.registration_number);
-          const year = parseInt(yearStr);
-          return year && year > 2023 && s.status !== 'Ativo';
-        });
-
-        if (toUpdate.length > 0) {
-          // Batch process to avoid UI freeze or connection limit
-          for (const student of toUpdate) {
-            await saveData('students', student.id, { ...student, status: 'Ativo' });
-          }
-          localStorage.setItem('auto_activate_2023_done', 'true');
-          window.location.reload(); // Refresh to update counts
-        }
-      } catch (e) {
-        console.error('Auto update failure:', e);
-      }
-    };
-    triggerAutoUpdate();
-  }, []);
 
   const handleSchemaCheckup = async () => {
     try {
@@ -938,12 +910,11 @@ export function Settings() {
 
           const ids = items.map(i => i.id);
           
-          // Delete in chunks of 100 for Supabase safety (or just one call if manageable)
+          // Delete in chunks of 100 with foreign key safety
           const chunkSize = 100;
           for (let i = 0; i < ids.length; i += chunkSize) {
             const chunk = ids.slice(i, i + chunkSize);
-            const { error } = await supabase.from(module).delete().in('id', chunk);
-            if (error) throw error;
+            await deleteBatch(module, chunk);
           }
           
           setNotification({ type: 'success', message: `${ids.length} registros de ${label} removidos com sucesso!` });
@@ -1002,8 +973,7 @@ export function Settings() {
           if (toDeleteIds.length > 0) {
             for (let i = 0; i < toDeleteIds.length; i += 100) {
               const chunk = toDeleteIds.slice(i, i + 100);
-              const { error } = await supabase.from('students').delete().in('id', chunk);
-              if (error) throw error;
+              await deleteBatch('students', chunk);
             }
             setNotification({ type: 'success', message: `${toDeleteIds.length} registros duplicados removidos!` });
             fetchCounts();

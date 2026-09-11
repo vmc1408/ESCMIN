@@ -381,10 +381,20 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
     throw new Error(`[Supabase] Supabase não configurado. Impossível salvar lote em ${collectionName}.`);
   }
 
-  let payloads = items.map(item => ({
-    ...item,
-    id: item.id || crypto.randomUUID()
-  }));
+  let payloads = items.map((item, idx) => {
+    const p = {
+      ...item,
+      id: item.id || crypto.randomUUID()
+    };
+    if (collectionName === 'students') {
+      const regNum = p.registration_number ? String(p.registration_number).trim() : '';
+      if (!regNum || regNum === 'null' || regNum === 'undefined') {
+        const currentYear = new Date().getFullYear();
+        p.registration_number = `${String(idx + 1).padStart(6, '0')}${currentYear}`;
+      }
+    }
+    return p;
+  });
 
   let attempts = 0;
   const maxAttempts = 3;
@@ -400,6 +410,23 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
           : String(errorVal);
 
         const errorMsgLower = errorMsg.toLowerCase();
+
+        // Fallback para constraint de registration_number em students
+        if (collectionName === 'students' && errorMsgLower.includes('registration_number') && errorMsgLower.includes('not-null')) {
+          console.warn(`[Supabase] Corrigindo registration_number ausente em lote de "${collectionName}".`);
+          const currentYear = new Date().getFullYear();
+          payloads = payloads.map((p: any, pIdx: number) => {
+            const reg = p.registration_number ? String(p.registration_number).trim() : '';
+            return {
+              ...p,
+              registration_number: (!reg || reg === 'null' || reg === 'undefined')
+                ? `${String(pIdx + 1).padStart(6, '0')}${currentYear}`
+                : reg
+            };
+          });
+          attempts++;
+          continue;
+        }
 
         // Missing column fallback
         const isMissingCol = errorMsgLower.includes('column') && 
@@ -462,7 +489,7 @@ export const deleteData = async (collectionName: string, id: string) => {
   if (!isSupabaseConfigured) return;
   
   try {
-    // 1. Tratamento de Chaves Estrangeiras antes da exclusão física
+    // 1. Tratamento abrangente de Chaves Estrangeiras antes da exclusão física
     if (collectionName === 'classes') {
       try {
         await supabase.from('students').update({ class_id: null }).eq('class_id', id);
@@ -482,6 +509,9 @@ export const deleteData = async (collectionName: string, id: string) => {
       try {
         await supabase.from('calendar_events').delete().eq('class_id', id);
       } catch (e: any) {}
+      try {
+        await supabase.from('subjects').update({ class_id: null }).eq('class_id', id);
+      } catch (e: any) {}
     } else if (collectionName === 'students') {
       try {
         await supabase.from('enrollments').delete().eq('student_id', id);
@@ -498,9 +528,58 @@ export const deleteData = async (collectionName: string, id: string) => {
       try {
         await supabase.from('certificates').delete().eq('student_id', id);
       } catch (e) {}
+      try {
+        await supabase.from('receipts').delete().eq('student_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('pix_reconciliations').update({ matched_student_id: null }).eq('matched_student_id', id);
+      } catch (e) {}
     } else if (collectionName === 'teachers') {
       try {
         await supabase.from('subjects').update({ teacher_id: null }).eq('teacher_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('classes').update({ teacher_id: null }).eq('teacher_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('calendar_events').delete().eq('user_id', id);
+      } catch (e) {}
+    } else if (collectionName === 'subjects') {
+      try {
+        await supabase.from('attendances').delete().eq('subject_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('grades').delete().eq('subject_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('assessments').delete().eq('subject_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('calendar_events').delete().eq('subject_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('classes').update({ subject_id: null }).eq('subject_id', id);
+      } catch (e) {}
+      try {
+        await supabase.from('classes').update({ subject_id_sem1: null }).eq('subject_id_sem1', id);
+      } catch (e) {}
+      try {
+        await supabase.from('classes').update({ subject_id_sem2: null }).eq('subject_id_sem2', id);
+      } catch (e) {}
+    } else if (collectionName === 'courses') {
+      try {
+        await supabase.from('classes').update({ course: null }).eq('course', id);
+      } catch (e) {}
+      try {
+        await supabase.from('students').update({ course: null }).eq('course', id);
+      } catch (e) {}
+    } else if (collectionName === 'foraries') {
+      try {
+        await supabase.from('parishes').update({ forania_id: null }).eq('forania_id', id);
+      } catch (e) {}
+    } else if (collectionName === 'parishes') {
+      try {
+        await supabase.from('students').update({ parish_id: null }).eq('parish_id', id);
       } catch (e) {}
     }
 
@@ -515,7 +594,7 @@ export const deleteData = async (collectionName: string, id: string) => {
 };
 
 /**
- * Exclui múltiplos registros em lote diretamente do Supabase.
+ * Exclui múltiplos registros em lote diretamente do Supabase garantindo limpeza prévia de vínculos.
  */
 export const deleteBatch = async (collectionName: string, ids: string[]) => {
   if (!ids || ids.length === 0) return;
@@ -541,6 +620,9 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
     try {
       await supabase.from('calendar_events').delete().in('class_id', ids);
     } catch (e) {}
+    try {
+      await supabase.from('subjects').update({ class_id: null }).in('class_id', ids);
+    } catch (e) {}
   } else if (collectionName === 'students') {
     try {
       await supabase.from('enrollments').delete().in('student_id', ids);
@@ -550,6 +632,59 @@ export const deleteBatch = async (collectionName: string, ids: string[]) => {
     } catch (e) {}
     try {
       await supabase.from('grades').delete().in('student_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('contributions').delete().in('student_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('certificates').delete().in('student_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('receipts').delete().in('student_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('pix_reconciliations').update({ matched_student_id: null }).in('matched_student_id', ids);
+    } catch (e) {}
+  } else if (collectionName === 'teachers') {
+    try {
+      await supabase.from('subjects').update({ teacher_id: null }).in('teacher_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('classes').update({ teacher_id: null }).in('teacher_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('calendar_events').delete().in('user_id', ids);
+    } catch (e) {}
+  } else if (collectionName === 'subjects') {
+    try {
+      await supabase.from('attendances').delete().in('subject_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('grades').delete().in('subject_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('assessments').delete().in('subject_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('calendar_events').delete().in('subject_id', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('classes').update({ subject_id: null }).in('subject_id', ids);
+    } catch (e) {}
+  } else if (collectionName === 'courses') {
+    try {
+      await supabase.from('classes').update({ course: null }).in('course', ids);
+    } catch (e) {}
+    try {
+      await supabase.from('students').update({ course: null }).in('course', ids);
+    } catch (e) {}
+  } else if (collectionName === 'foraries') {
+    try {
+      await supabase.from('parishes').update({ forania_id: null }).in('forania_id', ids);
+    } catch (e) {}
+  } else if (collectionName === 'parishes') {
+    try {
+      await supabase.from('students').update({ parish_id: null }).in('parish_id', ids);
     } catch (e) {}
   }
 
@@ -598,8 +733,9 @@ export const cleanOrphanEnrollments = async (): Promise<{ deletedEnrollments: nu
       console.info(`[Integrity] Limpas ${deletedEnrollments} matrículas órfãs vinculadas a turmas inexistentes.`);
     }
 
-    // 2. Find and fix students with invalid class_id
+    // 2. Find and fix students with invalid class_id (ignoring inactive students)
     for (const student of allStudents || []) {
+      if (student.status === 'Inativo') continue;
       if (student.class_id && !validClassIds.has(student.class_id)) {
         // Find if student has another valid active enrollment
         const validEnr = (allEnrollments || []).find((e: any) => 
@@ -641,6 +777,7 @@ export const autoIdentifyAllStudentsCourses = async (): Promise<{ totalStudents:
     const updatesToSave: Array<{ id: string; course: string; class_id?: string; start_date?: string }> = [];
 
     for (const student of allStudents || []) {
+      if (student.status === 'Inativo') continue;
       const currentCourse = (student.course || '').trim();
       
       // Determine effective class
@@ -678,6 +815,7 @@ export const autoIdentifyAllStudentsCourses = async (): Promise<{ totalStudents:
       
       if (detectedCourse && (isMissingCourse || (currentCourse !== detectedCourse && targetClass))) {
         const payload: any = {
+          ...student,
           id: student.id,
           course: detectedCourse
         };
@@ -686,6 +824,11 @@ export const autoIdentifyAllStudentsCourses = async (): Promise<{ totalStudents:
         }
         if (targetClass?.start_date && !student.start_date) {
           payload.start_date = targetClass.start_date;
+        }
+        const regStr = payload.registration_number ? String(payload.registration_number).trim() : '';
+        if (!regStr || regStr === 'null' || regStr === 'undefined') {
+          const yearStr = String(new Date().getFullYear());
+          payload.registration_number = `${String(updatesToSave.length + 1).padStart(6, '0')}${yearStr}`;
         }
         updatesToSave.push(payload);
       }

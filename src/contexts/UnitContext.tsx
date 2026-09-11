@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Unit } from '../types';
 import { 
   getUnits, 
+  getInitialUnitsFromCache,
   getUnitName as getUnitNameHelper, 
   getUnitCode as getUnitCodeHelper,
   isItemInUnit,
@@ -34,7 +35,7 @@ const UnitContext = createContext<UnitContextType | undefined>(undefined);
 
 export function UnitProvider({ children }: { children: React.ReactNode }) {
   const { profile } = useAuth();
-  const [units, setUnits] = useState<Unit[]>([]);
+  const [units, setUnits] = useState<Unit[]>(() => getInitialUnitsFromCache());
   const [loading, setLoading] = useState(true);
 
   // 1. Permissão de Alternância:
@@ -90,13 +91,18 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
   // Sincroniza a unidade ativa a partir do cadastro do usuário ao autenticar
   useEffect(() => {
     if (!profile) return;
-    const registeredUnit = getUserRestrictedUnit(profile);
-    if (registeredUnit) {
-      setSelectedUnitIdState(registeredUnit);
+    const userUnit = profile.unit_id || (profile as any).unitId || (profile as any).unit || (profile as any).polo;
+    const norm = (userUnit || '').trim().toLowerCase();
+    const hasSpecificUnit = norm !== '' && norm !== 'all' && norm !== 'todas' && norm !== 'global';
+
+    if (hasSpecificUnit) {
+      // O usuário possui uma unidade específica definida em seu cadastro
+      setSelectedUnitIdState(userUnit.trim());
       try {
-        localStorage.setItem('selected_global_unit_id', registeredUnit);
+        localStorage.setItem('selected_global_unit_id', userUnit.trim());
       } catch {}
     } else if (!canSwitchUnit) {
+      // Usuário sem permissão de troca e sem unidade específica: cai na Matriz
       setSelectedUnitIdState('matriz');
       try {
         localStorage.setItem('selected_global_unit_id', 'matriz');
@@ -168,15 +174,25 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
     );
     if (found) return found;
 
-    // Fallback gracioso: constrói um objeto de Unidade para que o nome e código nunca apareçam nulos
-    const fallbackName = effectiveSelectedUnitId.includes(' ') 
-      ? effectiveSelectedUnitId 
-      : (effectiveSelectedUnitId.startsWith('unit_') ? 'Polo Educacional' : effectiveSelectedUnitId);
+    try {
+      const cached = localStorage.getItem('db_fallback_units');
+      if (cached) {
+        const parsed: Unit[] = JSON.parse(cached);
+        const cachedFound = parsed.find(u => 
+          u.id.toLowerCase() === norm || 
+          u.name?.toLowerCase() === norm || 
+          u.code?.toLowerCase() === norm
+        );
+        if (cachedFound) return cachedFound;
+      }
+    } catch {}
+
+    const resolvedName = getUnitNameHelper(units, effectiveSelectedUnitId);
 
     return {
       id: effectiveSelectedUnitId,
-      code: 'POLO',
-      name: fallbackName,
+      code: getUnitCodeHelper(units, effectiveSelectedUnitId),
+      name: resolvedName,
       is_main: norm === 'matriz',
       active: true,
       created_at: new Date().toISOString()

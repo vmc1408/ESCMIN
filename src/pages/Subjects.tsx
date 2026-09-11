@@ -15,7 +15,8 @@ import {
   Printer,
   Filter,
   Users,
-  ArrowLeft
+  ArrowLeft,
+  Building2
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -23,6 +24,8 @@ import { cn } from '../lib/utils';
 import { detectSubjectSemester } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { RotateCcw, FileText as FileIcon } from 'lucide-react';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 
 interface Subject {
   id: string;
@@ -36,6 +39,7 @@ interface Subject {
   program_content?: string;
   created_at: string;
   user_id: string;
+  unit_id?: string;
 }
 
 interface Teacher {
@@ -57,14 +61,18 @@ const SubjectItem = React.memo(({
   onSelect, 
   className,
   teacherName,
-  qualifiedCount
+  qualifiedCount,
+  unitName,
+  showUnit
 }: { 
   subject: Subject, 
   isSelected: boolean, 
   onSelect: (s: Subject) => void,
   className?: string,
   teacherName?: string,
-  qualifiedCount?: number
+  qualifiedCount?: number,
+  unitName?: string,
+  showUnit?: boolean
 }) => {
   return (
     <button
@@ -85,7 +93,7 @@ const SubjectItem = React.memo(({
         )} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-bold text-[#131b2e] truncate">{subject.name}</p>
           <span className={cn(
             "px-1.5 py-0.5 text-[8px] font-bold rounded uppercase",
@@ -93,6 +101,11 @@ const SubjectItem = React.memo(({
           )}>
             {subject.status || 'Ativo'}
           </span>
+          {showUnit && unitName && (
+            <span className="px-1.5 py-0.5 text-[8px] font-bold rounded uppercase bg-blue-50 text-blue-800 border border-blue-100/80">
+              {unitName}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <p className="text-[10px] text-slate-500 truncate">
@@ -111,6 +124,7 @@ const SubjectItem = React.memo(({
 });
 
 export function Subjects() {
+  const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, isRestricted, canSwitchUnit, getUnitName } = useUnits();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [inst, setInst] = useState<any>(null);
@@ -125,6 +139,14 @@ export function Subjects() {
   const [formData, setFormData] = useState<Partial<Subject>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+
+  const canManipulateSubject = React.useCallback((subj: Subject | null) => {
+    if (!subj) return true;
+    if (canSwitchUnit) return true;
+    const sUnit = subj.unit_id || 'matriz';
+    if (sUnit === 'all' || sUnit === 'todas') return false;
+    return isItemInUnit(sUnit, globalUnitId, activeUnits);
+  }, [canSwitchUnit, globalUnitId, activeUnits]);
 
   useEffect(() => {
     if (notification) {
@@ -144,14 +166,15 @@ export function Subjects() {
       
       const normalizedSubjects = (subjectsData || []).map((s: Subject) => {
         let normalized = { ...s };
-        if ((!normalized.semester || !normalized.teacher_id || !normalized.year) && normalized.program_content) {
+        if (normalized.program_content) {
           const match = normalized.program_content.match(/\[METADATA:(\{[\s\S]*?\})\]/);
           if (match && match[1]) {
             try {
               const meta = JSON.parse(match[1]);
-              if (!normalized.semester) normalized.semester = meta.semester;
-              if (!normalized.teacher_id) normalized.teacher_id = meta.teacher_id;
-              if (!normalized.year) normalized.year = meta.year;
+              if (!normalized.semester && meta.semester) normalized.semester = meta.semester;
+              if (!normalized.teacher_id && meta.teacher_id) normalized.teacher_id = meta.teacher_id;
+              if (!normalized.year && meta.year) normalized.year = meta.year;
+              if (!normalized.unit_id && meta.unit_id) normalized.unit_id = meta.unit_id;
             } catch (e) {
               // ignore
             }
@@ -411,23 +434,36 @@ export function Subjects() {
       year: '',
       semester: '',
       teacher_id: '',
+      unit_id: globalUnitId !== 'all' ? globalUnitId : (activeUnits[0]?.id || 'matriz'),
     });
     setIsEditing(true);
     setHoverShowList(false);
   };
 
   const handleSave = async () => {
+    if (selectedSubject && !canManipulateSubject(selectedSubject)) {
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para alterar disciplinas de outra unidade.'
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       
       // PROACTIVE METADATA SYNC:
-      // Always sync year, semester and teacher_id into program_content metadata 
+      // Always sync year, semester, teacher_id and unit_id into program_content metadata 
       // before saving. This ensures data persistence even if Supabase columns are missing.
       const syncData = { ...formData };
       const metadata: any = {};
       if (formData.year) metadata.year = formData.year;
       if (formData.semester) metadata.semester = formData.semester;
       if (formData.teacher_id) metadata.teacher_id = formData.teacher_id;
+      
+      const subjectUnitId = formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
+      metadata.unit_id = subjectUnitId;
+      syncData.unit_id = subjectUnitId;
       
       if (Object.keys(metadata).length > 0) {
         const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
@@ -461,6 +497,10 @@ export function Subjects() {
 
   const handleDelete = React.useCallback(async () => {
     if (!selectedSubject?.id) return;
+    if (!canManipulateSubject(selectedSubject)) {
+      alert('Você não tem permissão para excluir disciplinas de outra unidade.');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -478,7 +518,7 @@ export function Subjects() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSubject, fetchSubjects]);
+  }, [selectedSubject, fetchSubjects, canManipulateSubject]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -508,8 +548,14 @@ export function Subjects() {
         // Fallback for strict database matching if heuristics fail
         else if (s.semester === semesterFilter) matchesSemester = true;
       }
+
+      let matchesUnit = true;
+      if (globalUnitId && globalUnitId !== 'all') {
+        const sUnit = s.unit_id || 'matriz';
+        matchesUnit = sUnit === 'all' || sUnit === 'todas' || isItemInUnit(sUnit, globalUnitId, activeUnits);
+      }
       
-      return matchesSearch && matchesStatus && matchesSemester;
+      return matchesSearch && matchesStatus && matchesSemester && matchesUnit;
     });
 
     return [...result].sort((a, b) => {
@@ -521,7 +567,7 @@ export function Subjects() {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [subjects, searchTerm, statusFilter, sortBy]);
+  }, [subjects, searchTerm, statusFilter, semesterFilter, sortBy, globalUnitId, activeUnits]);
 
   const actualListCollapsed = selectedSubject !== null || isEditing;
 
@@ -570,7 +616,14 @@ export function Subjects() {
         <div className="flex-[1] flex flex-col overflow-hidden w-full">
         <div className="p-4 border-b border-slate-50 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#131b2e]">Disciplinas</h2>
+            <div>
+              <h2 className="text-lg font-bold text-[#131b2e]">Disciplinas</h2>
+              {hasMultipleUnits && (
+                <span className="text-[10px] font-bold text-blue-900">
+                  {globalUnitId === 'all' ? 'Todas as Unidades' : getUnitName(globalUnitId)}
+                </span>
+              )}
+            </div>
             <div className="flex gap-2">
               <div className="px-2 py-1 bg-slate-50 text-slate-900 text-[10px] font-bold rounded-none border border-slate-200 flex items-center">
                 {filteredSubjects.length}
@@ -672,6 +725,8 @@ export function Subjects() {
                 onSelect={handleSelectSubject}
                 teacherName={teacher?.name}
                 qualifiedCount={qualCount}
+                showUnit={hasMultipleUnits}
+                unitName={subject.unit_id === 'all' ? 'Institucional' : getUnitName(subject.unit_id)}
               />
             );
           })}
@@ -722,7 +777,7 @@ export function Subjects() {
                     <h3 className="text-xl font-bold text-[#131b2e]">
                       {isEditing ? (selectedSubject ? 'Editar Disciplina' : 'Nova Disciplina') : formData.name}
                     </h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium flex-wrap">
                       <span>Código: {formData.code}</span>
                       {formData.year && (
                         <>
@@ -742,13 +797,21 @@ export function Subjects() {
                           <span className="text-slate-600">Prof: {teachers.find(t => t.id === formData.teacher_id)?.name}</span>
                         </>
                       )}
+                      {hasMultipleUnits && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-slate-300" />
+                          <span className="px-2 py-0.5 text-[9px] font-bold rounded bg-blue-50 text-blue-800 border border-blue-200 uppercase">
+                            {formData.unit_id === 'all' ? 'Institucional' : getUnitName(formData.unit_id)}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:justify-end">
                 {isEditing ? (
                   <>
-                    {selectedSubject && (
+                    {selectedSubject && canManipulateSubject(selectedSubject) && (
                       <button 
                         type="button"
                         onClick={(e) => {
@@ -780,7 +843,7 @@ export function Subjects() {
                   </>
                 ) : (
                   selectedSubject && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <button 
                         onClick={() => {
                           setSelectedSubject(null);
@@ -812,14 +875,20 @@ export function Subjects() {
                         <Printer size={16} />
                       </button>
 
-                      <button 
-                        onClick={() => setIsEditing(true)}
-                        className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                        title="Editar Disciplina"
-                        aria-label="Editar Disciplina"
-                      >
-                        <Edit2 size={16} />
-                      </button>
+                      {canManipulateSubject(selectedSubject) ? (
+                        <button 
+                          onClick={() => setIsEditing(true)}
+                          className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                          title="Editar Disciplina"
+                          aria-label="Editar Disciplina"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      ) : (
+                        <span className="px-2.5 py-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200">
+                          Somente Leitura (Outra Unidade)
+                        </span>
+                      )}
                     </div>
                   )
                 )}
@@ -860,6 +929,27 @@ export function Subjects() {
                         tabIndex={2}
                       />
                     </div>
+                    {hasMultipleUnits && (
+                      <div className="col-span-12 sm:col-span-6 space-y-1">
+                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <Building2 size={13} className="text-blue-900" />
+                          Unidade / Polo
+                        </label>
+                        <select
+                          disabled={!isEditing || (!canSwitchUnit && isRestricted)}
+                          value={formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
+                          onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+                          className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
+                        >
+                          {canSwitchUnit && <option value="all">🌐 Institucional (Todas as Unidades)</option>}
+                          {activeUnits.map(u => (
+                            <option key={u.id} value={u.id}>
+                              {u.name} {u.is_main || u.id === 'matriz' ? '(Matriz)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="col-span-12 grid grid-cols-12 gap-3 pt-2">
                       <div className="col-span-12 md:col-span-8 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Ano</label>

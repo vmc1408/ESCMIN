@@ -1673,7 +1673,7 @@ export function Dashboard() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-xs sm:text-sm font-bold text-blue-950">
-                  {getUnitName(selectedUnitId) || selectedUnit?.name || 'Polo Educacional'}
+                  {getUnitName(selectedUnitId) || selectedUnit?.name || (selectedUnitId === 'matriz' ? 'Sede / Matriz' : 'Unidade de Acesso')}
                 </h3>
                 {isRestricted ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-200/80 text-blue-950 text-[10px] font-bold uppercase tracking-wider">

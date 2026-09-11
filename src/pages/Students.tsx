@@ -505,6 +505,7 @@ export function Students() {
 
     // Fetch individual enrollments and perform safe backfill if primary class was missing in DB
     fetchEnrollments(student.id).then((enrs) => {
+      if (student.status === 'Inativo') return;
       if (!effectiveClassId && enrs && enrs.length > 0) {
         const found = enrs.find((e: any) => (e.status || 'Ativo') === 'Ativo') || enrs[0];
         if (found?.class_id && validClassIds.has(found.class_id)) {
@@ -950,22 +951,32 @@ export function Students() {
       const effectiveStudentId = savedId || selectedStudent?.id;
 
       // Auto-ensure enrollment in selected primary class in the enrollments table
-      if (effectiveStudentId && dataToSave.class_id) {
+      if (effectiveStudentId) {
         try {
+          const targetStatus = dataToSave.status === 'Inativo' ? 'Inativo' : 'Ativo';
           const currentEnrs = await fetchQuery('enrollments', 'student_id', '==', effectiveStudentId).catch(() => []);
-          const existingEnr = (currentEnrs || []).find((e: any) => e.class_id === dataToSave.class_id);
-          if (!existingEnr) {
-            await saveData('enrollments', undefined, {
-              student_id: effectiveStudentId,
-              class_id: dataToSave.class_id,
-              status: 'Ativo',
-              enrollment_date: dataToSave.start_date || new Date().toISOString().split('T')[0],
-              created_at: new Date().toISOString()
-            });
-          } else if (existingEnr.status !== 'Ativo') {
-            await saveData('enrollments', existingEnr.id, {
-              status: 'Ativo'
-            });
+          
+          if (dataToSave.status === 'Inativo' && currentEnrs && currentEnrs.length > 0) {
+            for (const enr of currentEnrs) {
+              if (enr.status !== 'Inativo') {
+                await saveData('enrollments', enr.id, { status: 'Inativo' });
+              }
+            }
+          } else if (dataToSave.class_id) {
+            const existingEnr = (currentEnrs || []).find((e: any) => e.class_id === dataToSave.class_id);
+            if (!existingEnr) {
+              await saveData('enrollments', undefined, {
+                student_id: effectiveStudentId,
+                class_id: dataToSave.class_id,
+                status: targetStatus,
+                enrollment_date: dataToSave.start_date || new Date().toISOString().split('T')[0],
+                created_at: new Date().toISOString()
+              });
+            } else if (existingEnr.status !== targetStatus) {
+              await saveData('enrollments', existingEnr.id, {
+                status: targetStatus
+              });
+            }
           }
         } catch (enrollErr) {
           console.error('Error ensuring primary enrollment on save:', enrollErr);

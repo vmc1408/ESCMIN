@@ -224,7 +224,7 @@ const ClassItem = React.memo(({
 export function Classes() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, getUnitName } = useUnits();
+  const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, isRestricted, canSwitchUnit, getUnitName } = useUnits();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [coursesList, setCoursesList] = useState<Course[]>([]);
@@ -232,6 +232,13 @@ export function Classes() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('Todos');
+
+  const canManipulateClass = React.useCallback((cls: Class | null) => {
+    if (!cls) return true;
+    if (canSwitchUnit) return true;
+    const cUnit = cls.unit_id || 'matriz';
+    return isItemInUnit(cUnit, globalUnitId, activeUnits);
+  }, [canSwitchUnit, globalUnitId, activeUnits]);
   const [statusFilter, setStatusFilterState] = useState<'Ativo' | 'Inativo' | 'Encerrada' | 'Todos'>(() => {
     try {
       const saved = localStorage.getItem('classes_status_filter');
@@ -1430,6 +1437,14 @@ export function Classes() {
   };
 
   const handleSave = async () => {
+    if (selectedClass && !canManipulateClass(selectedClass)) {
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para alterar turmas de outra unidade.'
+      });
+      return;
+    }
+
     // Validate Mandatory Fields 1, 2, and 3
     if (!formData.course) {
       alert('Atenção: O Campo 1 (Curso Escolhido) é obrigatório!');
@@ -1546,6 +1561,13 @@ export function Classes() {
       e.preventDefault();
       e.stopPropagation();
     }
+    if (!canManipulateClass(classToToggle)) {
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para alterar o status de turmas de outra unidade.'
+      });
+      return;
+    }
     const currentStatus = classToToggle.status || 'Ativo';
     const newStatus: 'Ativo' | 'Inativo' = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
 
@@ -1576,10 +1598,14 @@ export function Classes() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClass]);
+  }, [selectedClass, canManipulateClass]);
 
   const handleDelete = React.useCallback(async () => {
     if (!selectedClass?.id) return;
+    if (!canManipulateClass(selectedClass)) {
+      alert('Você não tem permissão para excluir turmas de outra unidade.');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -2624,7 +2650,7 @@ export function Classes() {
               <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:justify-end">
                 {isEditing ? (
                   <>
-                    {selectedClass && (
+                    {selectedClass && canManipulateClass(selectedClass) && (
                       <button 
                         type="button"
                         onClick={(e) => {
@@ -2656,7 +2682,7 @@ export function Classes() {
                   </>
                 ) : (
                   selectedClass && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <button 
                         onClick={() => {
                           setSelectedClass(null);
@@ -2688,14 +2714,20 @@ export function Classes() {
                         <Printer size={16} />
                       </button>
 
-                      <button 
-                        onClick={() => setIsEditing(true)}
-                        className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                        title="Editar Turma"
-                        aria-label="Editar Turma"
-                      >
-                        <Edit2 size={16} />
-                      </button>
+                      {canManipulateClass(selectedClass) ? (
+                        <button 
+                          onClick={() => setIsEditing(true)}
+                          className="h-10 w-10 bg-blue-50 border border-blue-200 text-blue-700 rounded-none hover:text-blue-900 hover:bg-blue-100/60 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                          title="Editar Turma"
+                          aria-label="Editar Turma"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      ) : (
+                        <span className="px-2.5 py-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200">
+                          Somente Leitura (Outra Unidade)
+                        </span>
+                      )}
                     </div>
                   )
                 )}
@@ -2902,10 +2934,10 @@ export function Classes() {
                                 </span>
                               </div>
                               <select
-                                disabled={!isEditing}
+                                disabled={!isEditing || (!canSwitchUnit && isRestricted)}
                                 value={formData.unit_id || 'matriz'}
                                 onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
-                                className="w-full px-3 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase h-[42px]"
+                                className="w-full px-3 py-2.5 bg-white border border-slate-300 text-xs font-extrabold text-blue-950 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 outline-none transition-all uppercase h-[42px] disabled:opacity-60"
                               >
                                 {activeUnits.map(u => (
                                   <option key={u.id} value={u.id}>

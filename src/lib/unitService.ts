@@ -799,36 +799,122 @@ export const checkSupabaseUnitsTableStatus = async (): Promise<{
   };
 };
 
+/**
+ * Carrega a lista inicial síncrona de unidades diretamente do cache local.
+ * Garante que na primeira renderização a lista de polos e sede já esteja instantaneamente disponível.
+ */
+export const getInitialUnitsFromCache = (): Unit[] => {
+  let cachedInst: any = null;
+  try {
+    const rawInst = localStorage.getItem('cached_institution_settings');
+    if (rawInst) cachedInst = JSON.parse(rawInst);
+  } catch {}
+  const dynamicMatriz = getMatrizUnitFromInstitution(cachedInst);
+
+  const deletedIds = getDeletedUnitIds();
+  const isDiscarded = (u: any): boolean => {
+    if (!u || !u.id) return true;
+    if (u.id === 'matriz' || u.is_main) return false;
+    const idLower = String(u.id).toLowerCase().trim();
+    const codeLower = u.code ? String(u.code).toLowerCase().trim() : '';
+    return deletedIds.has(idLower) || (Boolean(codeLower) && deletedIds.has(codeLower));
+  };
+
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const filtered = parsed.filter(u => !isDiscarded(u));
+        const matrizIdx = filtered.findIndex(u => u.id === 'matriz' || u.is_main);
+        if (matrizIdx >= 0) {
+          filtered[matrizIdx] = { ...filtered[matrizIdx], ...dynamicMatriz, id: 'matriz', is_main: true, active: true };
+        } else {
+          filtered.unshift(dynamicMatriz);
+        }
+        return filtered;
+      }
+    }
+  } catch {}
+
+  return [dynamicMatriz];
+};
+
 export const getUnitName = (units: Unit[], unitId?: string): string => {
   if (!unitId || unitId === 'matriz' || unitId === 'MAT') {
-    const main = units.find(u => u.is_main || u.id === 'matriz');
-    return main?.name || 'Sede / Matriz';
+    const main = units?.find(u => u.is_main || u.id === 'matriz');
+    if (main?.name) return main.name;
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
+      if (cached) {
+        const parsed: Unit[] = JSON.parse(cached);
+        const cachedMain = parsed.find(u => u.is_main || u.id === 'matriz');
+        if (cachedMain?.name) return cachedMain.name;
+      }
+    } catch {}
+    return 'Sede / Matriz';
   }
+  if (unitId === 'all' || unitId === 'todas') {
+    return 'Todas as Unidades';
+  }
+
   const norm = unitId.trim().toLowerCase();
-  const found = units.find(u => 
-    u.id.toLowerCase() === norm || 
+  let found = units?.find(u => 
+    u.id?.toLowerCase() === norm || 
     u.name?.toLowerCase() === norm ||
     u.code?.toLowerCase() === norm
   );
-  if (found) return found.name;
+
+  if (!found) {
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
+      if (cached) {
+        const parsed: Unit[] = JSON.parse(cached);
+        found = parsed.find(u => 
+          u.id?.toLowerCase() === norm || 
+          u.name?.toLowerCase() === norm ||
+          u.code?.toLowerCase() === norm
+        );
+      }
+    } catch {}
+  }
+
+  if (found?.name) return found.name;
   
   if (unitId.includes(' ') || !unitId.startsWith('unit_')) {
     return unitId;
   }
-  return 'Unidade Vinculada';
+  return 'Sede / Matriz';
 };
 
 export const getUnitCode = (units: Unit[], unitId?: string): string => {
   if (!unitId || unitId === 'matriz' || unitId === 'MAT') {
-    const main = units.find(u => u.is_main || u.id === 'matriz');
-    return main?.code || 'MAT';
+    const main = units?.find(u => u.is_main || u.id === 'matriz');
+    if (main?.code) return main.code;
+    return 'MAT';
+  }
+  if (unitId === 'all' || unitId === 'todas') {
+    return 'TODAS';
   }
   const norm = unitId.trim().toLowerCase();
-  const found = units.find(u => 
-    u.id.toLowerCase() === norm || 
+  let found = units?.find(u => 
+    u.id?.toLowerCase() === norm || 
     u.name?.toLowerCase() === norm ||
     u.code?.toLowerCase() === norm
   );
+  if (!found) {
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_UNITS_KEY);
+      if (cached) {
+        const parsed: Unit[] = JSON.parse(cached);
+        found = parsed.find(u => 
+          u.id?.toLowerCase() === norm || 
+          u.name?.toLowerCase() === norm ||
+          u.code?.toLowerCase() === norm
+        );
+      }
+    } catch {}
+  }
   return found?.code || 'POLO';
 };
 
