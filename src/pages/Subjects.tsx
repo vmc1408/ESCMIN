@@ -23,8 +23,9 @@ import autoTable from 'jspdf-autotable';
 import { cn } from '../lib/utils';
 import { detectSubjectSemester } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
-import { RotateCcw, FileText as FileIcon } from 'lucide-react';
+import { RotateCcw, FileText as FileIcon, UserX } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
+import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 
 interface Subject {
@@ -125,6 +126,7 @@ const SubjectItem = React.memo(({
 
 export function Subjects() {
   const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, isRestricted, canSwitchUnit, getUnitName } = useUnits();
+  const { canDelete } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [inst, setInst] = useState<any>(null);
@@ -495,10 +497,49 @@ export function Subjects() {
     }
   };
 
+  const handleToggleSubjectStatus = React.useCallback(async () => {
+    if (!selectedSubject?.id) return;
+    if (!canManipulateSubject(selectedSubject)) {
+      alert('Você não tem permissão para alterar disciplinas de outra unidade.');
+      return;
+    }
+    const isCurrentlyInactive = formData.status === 'Inativo';
+    const newStatus: 'Ativo' | 'Inativo' = isCurrentlyInactive ? 'Ativo' : 'Inativo';
+    const confirmMsg = isCurrentlyInactive
+      ? `Deseja reativar a disciplina "${selectedSubject.name}"?`
+      : `Deseja inativar/desabilitar a disciplina "${selectedSubject.name}"? (O perfil de Assistente pode inativar ou desabilitar registros).`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setLoading(true);
+      await saveData('subjects', selectedSubject.id, {
+        status: newStatus
+      });
+      setFormData(prev => ({ ...prev, status: newStatus }));
+      setSelectedSubject(prev => prev ? { ...prev, status: newStatus } : null);
+      setNotification({
+        type: 'success',
+        message: isCurrentlyInactive ? 'Disciplina reativada com sucesso!' : 'Disciplina inativada com sucesso!'
+      });
+      fetchSubjects();
+    } catch (error: any) {
+      console.error('Erro ao alterar status da disciplina:', error);
+      alert('Erro ao alterar status da disciplina: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSubject, formData.status, canManipulateSubject, fetchSubjects]);
+
   const handleDelete = React.useCallback(async () => {
     if (!selectedSubject?.id) return;
     if (!canManipulateSubject(selectedSubject)) {
       alert('Você não tem permissão para excluir disciplinas de outra unidade.');
+      return;
+    }
+    if (!canDelete) {
+      alert('Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Disciplina.');
+      setShowDeleteConfirm(false);
       return;
     }
 
@@ -812,19 +853,40 @@ export function Subjects() {
                 {isEditing ? (
                   <>
                     {selectedSubject && canManipulateSubject(selectedSubject) && (
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setShowDeleteConfirm(true);
-                        }}
-                        className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
-                        title="Excluir Disciplina"
-                      >
-                        <Trash2 size={16} />
-                        <span>Excluir</span>
-                      </button>
+                      canDelete ? (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                          title="Excluir Disciplina"
+                        >
+                          <Trash2 size={16} />
+                          <span>Excluir</span>
+                        </button>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleSubjectStatus();
+                          }}
+                          className={cn(
+                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
+                            formData.status === 'Inativo'
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
+                          )}
+                          title={formData.status === 'Inativo' ? "Reativar Disciplina" : "Inativar Disciplina (Exclusão física vedada para Assistente)"}
+                        >
+                          <UserX size={16} />
+                          <span>{formData.status === 'Inativo' ? "Reativar" : "Inativar"}</span>
+                        </button>
+                      )
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
@@ -1158,8 +1220,8 @@ export function Subjects() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && selectedSubject && (
+      {/* Delete Confirmation Modal (Apenas para canDelete) */}
+      {showDeleteConfirm && canDelete && selectedSubject && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
             <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">

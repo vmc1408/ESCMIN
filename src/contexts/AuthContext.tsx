@@ -18,6 +18,8 @@ interface AuthContextType {
   isDirector: boolean;
   isSecretary: boolean;
   isAssistant: boolean;
+  isOnlyAssistant: boolean;
+  canDelete: boolean;
   isTeacher: boolean;
   isMaster: boolean;
   isLocked: boolean;
@@ -269,6 +271,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (event === 'SIGNED_IN') {
+        localStorage.setItem('selected_global_unit_id', 'matriz');
+        sessionStorage.setItem('just_logged_in', 'true');
+        try {
+          Object.keys(sessionStorage).forEach(k => {
+            if (k.startsWith('unit_session_init_')) {
+              sessionStorage.removeItem(k);
+            }
+          });
+        } catch {}
+        window.dispatchEvent(new Event('units-updated'));
+      }
+
       if (event === 'PASSWORD_RECOVERY') {
         localStorage.setItem('supabase_recovery_mode', 'true');
         if (session) {
@@ -327,6 +342,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.removeItem('app_last_activity');
       sessionStorage.removeItem('app_session_active');
       localStorage.setItem('force_dashboard_on_login', 'true');
+      localStorage.setItem('selected_global_unit_id', 'matriz');
+      sessionStorage.removeItem('just_logged_in');
+      try {
+        Object.keys(sessionStorage).forEach(k => {
+          if (k.startsWith('unit_session_init_')) {
+            sessionStorage.removeItem(k);
+          }
+        });
+      } catch {}
+      window.dispatchEvent(new Event('units-updated'));
 
       try {
         await supabase.auth.signOut({ scope: 'local' });
@@ -559,7 +584,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isDirector = profile?.role === 'diretor' || isAdmin;
   const isSecretary = profile?.role === 'secretario' || isDirector;
   const isAssistant = profile?.role === 'assistente' || isSecretary;
+  const isOnlyAssistant = profile?.role === 'assistente';
+  const canDelete = isAdmin || profile?.role === 'diretor' || profile?.role === 'secretario';
   const isTeacher = profile?.role === 'professor' || profile?.role === 'docente';
+
+  // Sincroniza o perfil atual no localStorage para uso em verificações síncronas de integridade (ex: bloqueio de exclusão em database.ts)
+  useEffect(() => {
+    if (profile) {
+      try {
+        localStorage.setItem('current_user_profile', JSON.stringify({
+          id: profile.id,
+          name: profile.name,
+          role: profile.role,
+          unit_id: profile.unit_id
+        }));
+      } catch (e) {}
+    } else {
+      try {
+        localStorage.removeItem('current_user_profile');
+      } catch (e) {}
+    }
+  }, [profile]);
 
   const canAccess = useCallback((path: string): boolean => {
     if (!profile) return false;
@@ -595,22 +640,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    // 3. Bloqueio de parâmetros gerais ou parâmetros do calendário para secretários e assistentes
-    // (Somente Admin e Diretores têm permissão)
-    if (cleanPath.startsWith('/calendar') && viewParam === 'parameters') {
-      return profile.role === 'diretor';
-    }
-
-    // 4. Módulos estratégicos, guias, relatórios consolidados, calendários e fluxo financeiro
+    // 4. Módulos estratégicos, guias, relatórios consolidados e configurações do sistema
     // (Acessíveis por: Admin, Diretor, Secretário Acadêmico)
-    // Assistentes de Secretaria são bloqueados desse nível operacional
+    // Assistentes têm acesso ao operacional da unidade: Alunos, Professores, Cursos, Turmas, Disciplinas, Calendário, Chamada, Notas, Avaliações e Registro de Contribuições/Recibos/Pix da sua Unidade
     const secretaryAndAboveModules = [
-      '/contributions', 
-      '/pix-conference', 
-      '/receipts', 
       '/reports', 
       '/parishes',
-      '/calendar',
       '/settings',
       '/backup'
     ];
@@ -618,8 +653,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return profile.role === 'diretor' || profile.role === 'secretario';
     }
 
-    // 5. Módulos de operação básica e cadastros de secretaria (Acessíveis por: Admin, Diretoria, Secretário Acadêmico e Assistente)
-    // Alunos, Professores, Cursos, Turmas, Disciplinas, Ficha, Chamada, Notas, Impressos e Documentos Oficiais.
+    // 5. Módulos de operação básica, cadastros e cronograma de secretaria (Acessíveis por: Admin, Diretoria, Secretário Acadêmico e Assistente)
+    // Alunos, Professores, Cursos, Turmas, Disciplinas, Cronograma/Calendário, Ficha, Chamada, Notas, Impressos e Documentos Oficiais.
     return true;
   }, [profile]);
 
@@ -632,6 +667,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isDirector,
     isSecretary,
     isAssistant,
+    isOnlyAssistant,
+    canDelete,
     isTeacher,
     isMaster: profile?.id === 'master-admin' || profile?.email === 'admin@sistema.com',
     isLocked,
@@ -657,7 +694,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     switchUser,
     resetToMaster
   }), [
-    user, profile, isAdmin, isDirector, isSecretary, isAssistant, isTeacher,
+    user, profile, isAdmin, isDirector, isSecretary, isAssistant, isOnlyAssistant, canDelete, isTeacher,
     isLocked, lockTimer, isLockEnabled, lockTimeout, updateLockSettings,
     inactivityTimeout, inactivityRemaining, showInactivityWarning, extendSession,
     updateInactivitySettings, authPersistMode, setPersistMode,

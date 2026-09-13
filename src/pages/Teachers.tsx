@@ -27,8 +27,9 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, cn, detectSubjectSemester, formatSubjectDisplayName } from '../lib/utils';
 import { fetchAll, saveData, deleteData, uploadImage } from '../lib/database';
-import { RotateCcw, FileText as FileIcon, Building2 } from 'lucide-react';
+import { RotateCcw, FileText as FileIcon, Building2, UserX } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
+import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 
@@ -170,6 +171,7 @@ const TeacherItem = React.memo(({
 
 export function Teachers() {
   const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, getUnitName } = useUnits();
+  const { canDelete } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -633,8 +635,44 @@ export function Teachers() {
     }
   };
 
+  const handleToggleTeacherStatus = React.useCallback(async () => {
+    if (!selectedTeacher?.id) return;
+    const isCurrentlyInactive = formData.status === 'Inativo';
+    const newStatus = isCurrentlyInactive ? 'Ativo' : 'Inativo';
+    const confirmMsg = isCurrentlyInactive
+      ? `Deseja reativar o professor "${selectedTeacher.name}"?`
+      : `Deseja inativar o professor "${selectedTeacher.name}"? (O perfil de Assistente pode inativar ou desabilitar registros).`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setLoading(true);
+      await saveData('teachers', selectedTeacher.id, {
+        status: newStatus
+      });
+      setFormData(prev => ({ ...prev, status: newStatus }));
+      setSelectedTeacher(prev => prev ? { ...prev, status: newStatus } : null);
+      setNotification({
+        type: 'success',
+        message: isCurrentlyInactive ? 'Professor reativado com sucesso!' : 'Professor inativado com sucesso!'
+      });
+      fetchTeachers();
+    } catch (error: any) {
+      console.error('Erro ao alterar status:', error);
+      alert('Erro ao alterar status do professor: ' + error.message);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  }, [selectedTeacher, formData.status, fetchTeachers]);
+
   const handleDelete = React.useCallback(async () => {
     if (!selectedTeacher?.id) return;
+    if (!canDelete) {
+      alert('Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Professor.');
+      setShowDeleteConfirm(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -1349,19 +1387,40 @@ export function Teachers() {
                 {isEditing ? (
                   <>
                     {selectedTeacher && (
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setShowDeleteConfirm(true);
-                        }}
-                        className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
-                        title="Excluir Professor"
-                      >
-                        <Trash2 size={16} />
-                        <span>Excluir</span>
-                      </button>
+                      canDelete ? (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                          title="Excluir Professor"
+                        >
+                          <Trash2 size={16} />
+                          <span>Excluir</span>
+                        </button>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleTeacherStatus();
+                          }}
+                          className={cn(
+                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
+                            formData.status === 'Inativo'
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
+                          )}
+                          title={formData.status === 'Inativo' ? "Reativar Cadastro do Professor" : "Inativar Professor (Exclusão física vedada para Assistente)"}
+                        >
+                          <UserX size={16} />
+                          <span>{formData.status === 'Inativo' ? "Reativar" : "Inativar"}</span>
+                        </button>
+                      )
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
@@ -1762,8 +1821,8 @@ export function Teachers() {
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && selectedTeacher && (
+        {/* Delete Confirmation Modal (Apenas para canDelete) */}
+        {showDeleteConfirm && canDelete && selectedTeacher && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
               <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">

@@ -265,9 +265,31 @@ export const fetchCount = async (collectionName: string, status?: string) => {
 };
 
 /**
+ * Verifica se o usuário ativo possui o perfil Assistente.
+ * Conforme a diretriz de governança do sistema: é vedado ao assistente a exclusão de qualquer registro,
+ * podendo este perfil no máximo inativar ou desabilitar registros.
+ */
+export const isAssistantUserBlockedFromDelete = (): boolean => {
+  try {
+    const raw = localStorage.getItem('current_user_profile') || sessionStorage.getItem('current_user_profile');
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p?.role === 'assistente') {
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+};
+
+/**
  * Exclusão de múltiplos registros via query diretamente no Supabase.
  */
 export const deleteQuery = async (collectionName: string, filters: { field: string; operator: string; value: any }[]) => {
+  if (isAssistantUserBlockedFromDelete()) {
+    console.warn(`[deleteQuery] Tentativa de exclusão bloqueada na coleção "${collectionName}". O perfil de Assistente é vedado de excluir registros.`);
+    throw new Error('Ação não permitida: O perfil de Assistente não possui autorização para exclusão de registros. É permitido apenas inativar ou desabilitar o registro.');
+  }
   if (!isSupabaseConfigured) return;
 
   try {
@@ -486,6 +508,10 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
  */
 export const deleteData = async (collectionName: string, id: string) => {
   if (!id) return;
+  if (isAssistantUserBlockedFromDelete()) {
+    console.warn(`[deleteData] Tentativa de exclusão bloqueada na coleção "${collectionName}". O perfil de Assistente é vedado de excluir registros.`);
+    throw new Error('Ação não permitida: O perfil de Assistente não possui autorização para exclusão definitiva de registros. É permitido apenas inativar ou desabilitar o registro.');
+  }
   if (!isSupabaseConfigured) return;
   
   try {
@@ -598,6 +624,10 @@ export const deleteData = async (collectionName: string, id: string) => {
  */
 export const deleteBatch = async (collectionName: string, ids: string[]) => {
   if (!ids || ids.length === 0) return;
+  if (isAssistantUserBlockedFromDelete()) {
+    console.warn(`[deleteBatch] Tentativa de exclusão em lote bloqueada na coleção "${collectionName}". O perfil de Assistente é vedado de excluir registros.`);
+    throw new Error('Ação não permitida: O perfil de Assistente não possui autorização para exclusão definitiva de registros. É permitido apenas inativar ou desabilitar o registro.');
+  }
   if (!isSupabaseConfigured) return;
   
   // Limpeza de dependências em lote no Supabase

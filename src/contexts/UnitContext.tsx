@@ -50,6 +50,10 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
 
   const [selectedUnitIdState, setSelectedUnitIdState] = useState<string>(() => {
     try {
+      if (sessionStorage.getItem('just_logged_in') === 'true') {
+        sessionStorage.removeItem('just_logged_in');
+        return 'matriz';
+      }
       return localStorage.getItem('selected_global_unit_id') || 'matriz';
     } catch {
       return 'matriz';
@@ -95,13 +99,26 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
     const norm = (userUnit || '').trim().toLowerCase();
     const hasSpecificUnit = norm !== '' && norm !== 'all' && norm !== 'todas' && norm !== 'global';
 
-    if (hasSpecificUnit) {
-      // O usuário possui uma unidade específica definida em seu cadastro
+    if (canSwitchUnit) {
+      // REGRA INSTITUCIONAL: Perfis que possuem privilégio de alternância (Admin, Diretor, Secretário Acadêmico)
+      // devem SEMPRE logar com a unidade Matriz selecionada e ativa!
+      const sessionKey = `unit_session_init_${profile.id || profile.email || 'privileged_user'}`;
+      const isSessionInitialized = sessionStorage.getItem(sessionKey) === 'true';
+
+      if (!isSessionInitialized) {
+        setSelectedUnitIdState('matriz');
+        try {
+          localStorage.setItem('selected_global_unit_id', 'matriz');
+          sessionStorage.setItem(sessionKey, 'true');
+        } catch {}
+      }
+    } else if (hasSpecificUnit) {
+      // O usuário restrito possui uma unidade específica definida em seu cadastro
       setSelectedUnitIdState(userUnit.trim());
       try {
         localStorage.setItem('selected_global_unit_id', userUnit.trim());
       } catch {}
-    } else if (!canSwitchUnit) {
+    } else {
       // Usuário sem permissão de troca e sem unidade específica: cai na Matriz
       setSelectedUnitIdState('matriz');
       try {

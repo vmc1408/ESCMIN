@@ -54,7 +54,7 @@ const WEEK_DAYS = [
 export function Courses() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin, isSecretary, isDirector } = useAuth();
+  const { isAdmin, isSecretary, isDirector, canDelete } = useAuth();
   const canEdit = isAdmin || isDirector || isSecretary;
   const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, isRestricted, canSwitchUnit } = useUnits();
 
@@ -743,6 +743,11 @@ export function Courses() {
   };
 
   const handleDelete = async (courseId: string) => {
+    if (!canDelete) {
+      showNotification('error', 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar.');
+      setDeleteConfirmId(null);
+      return;
+    }
     const courseToDelete = courses.find(c => c.id === courseId);
     if (courseToDelete && !canManipulateCourse(courseToDelete)) {
       showNotification('error', 'Permissão negada: Este curso pertence à Matriz ou a outra unidade e não pode ser excluído por este polo.');
@@ -955,14 +960,16 @@ export function Courses() {
                     <Edit2 className="w-3.5 h-3.5" />
                     Editar
                   </button>
-                  <button
-                    id={`delete-course-btn-${course.id}`}
-                    onClick={() => setDeleteConfirmId(course.id)}
-                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
-                    title="Excluir curso"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {canDelete && (
+                    <button
+                      id={`delete-course-btn-${course.id}`}
+                      onClick={() => setDeleteConfirmId(course.id)}
+                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
+                      title="Excluir curso"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </>
             )}
@@ -1125,13 +1132,15 @@ export function Courses() {
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(course.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-xs"
-                              title="Excluir curso"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {canDelete && (
+                              <button
+                                onClick={() => setDeleteConfirmId(course.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-xs"
+                                title="Excluir curso"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>

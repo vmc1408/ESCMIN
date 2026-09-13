@@ -79,7 +79,7 @@ export function Contributions() {
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
   const [isResultsCollapsed, setIsResultsCollapsed] = useState(false);
   
-  const { profile } = useAuth();
+  const { profile, canDelete } = useAuth();
   const [enteredPin, setEnteredPin] = useState('');
   const [pinError, setPinError] = useState('');
   // Helper to calculate expected months for a student in a specific year
@@ -774,6 +774,11 @@ export function Contributions() {
 
   const handleDeleteContribution = async () => {
     if (!deleteConfirmationFor) return;
+    if (!canDelete) {
+      setNotification({ type: 'error', message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros.' });
+      setDeleteConfirmationFor(null);
+      return;
+    }
 
     if (!enteredPin) {
       setPinError('A chave de segurança (PIN) é obrigatória para excluir.');
@@ -2232,14 +2237,16 @@ export function Contributions() {
                                  Manual
                                </button>
                              )}
-                             <button 
-                               onClick={() => setDeleteConfirmationFor(contrib)}
-                               disabled={isDeleting === contrib.id}
-                               className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all bg-white border border-red-100 rounded-xl shadow-sm disabled:opacity-50"
-                               title="Excluir Registro / Recibo"
-                             >
-                               {isDeleting === contrib.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                             </button>
+                             {canDelete && (
+                               <button 
+                                 onClick={() => setDeleteConfirmationFor(contrib)}
+                                 disabled={isDeleting === contrib.id}
+                                 className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all bg-white border border-red-100 rounded-xl shadow-sm disabled:opacity-50"
+                                 title="Excluir Registro / Recibo"
+                               >
+                                 {isDeleting === contrib.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                               </button>
+                             )}
                            </div>
                         </>
                       ) : (
@@ -2564,7 +2571,7 @@ export function Contributions() {
         </div>
 
         {/* Modais de Confirmação Customizados */}
-        {(deleteConfirmationFor || unlinkConfirmationFor) && (
+        {((deleteConfirmationFor && canDelete) || unlinkConfirmationFor) && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 p-8 space-y-6">
               <div className={cn(

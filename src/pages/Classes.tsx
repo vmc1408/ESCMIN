@@ -37,8 +37,10 @@ import {
   CheckSquare,
   Square,
   UserCheck,
-  Building2
+  Building2,
+  UserX
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -225,6 +227,7 @@ export function Classes() {
   const navigate = useNavigate();
   const location = useLocation();
   const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, isRestricted, canSwitchUnit, getUnitName } = useUnits();
+  const { canDelete } = useAuth();
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [coursesList, setCoursesList] = useState<Course[]>([]);
@@ -1606,6 +1609,14 @@ export function Classes() {
       alert('Você não tem permissão para excluir turmas de outra unidade.');
       return;
     }
+    if (!canDelete) {
+      setNotification({
+        type: 'error',
+        message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Turma.'
+      });
+      setShowDeleteConfirm(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -2651,19 +2662,40 @@ export function Classes() {
                 {isEditing ? (
                   <>
                     {selectedClass && canManipulateClass(selectedClass) && (
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setShowDeleteConfirm(true);
-                        }}
-                        className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
-                        title="Excluir Turma"
-                      >
-                        <Trash2 size={16} />
-                        <span>Excluir</span>
-                      </button>
+                      canDelete ? (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto cursor-pointer"
+                          title="Excluir Turma"
+                        >
+                          <Trash2 size={16} />
+                          <span>Excluir</span>
+                        </button>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleClassStatus(selectedClass, e);
+                          }}
+                          className={cn(
+                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto cursor-pointer",
+                            formData.status === 'Inativo' || formData.status === 'Encerrada'
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
+                          )}
+                          title={formData.status === 'Inativo' || formData.status === 'Encerrada' ? "Reativar Turma" : "Inativar Turma (Exclusão física vedada para Assistente)"}
+                        >
+                          <UserX size={16} />
+                          <span>{formData.status === 'Inativo' || formData.status === 'Encerrada' ? "Reativar" : "Inativar"}</span>
+                        </button>
+                      )
                     )}
                     <button 
                       onClick={() => setIsEditing(false)}
@@ -3494,8 +3526,8 @@ export function Classes() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && selectedClass && (
+      {/* Delete Confirmation Modal (Apenas para canDelete) */}
+      {showDeleteConfirm && canDelete && selectedClass && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-none shadow-2xl p-6 sm:p-8 max-w-md w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300">
             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto border border-red-200">

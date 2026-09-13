@@ -108,7 +108,7 @@ function numberToPortugueseWords(value: number): string {
 }
 
 export function Receipts() {
-  const { user, profile } = useAuth();
+  const { user, profile, canDelete } = useAuth();
   const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -404,6 +404,12 @@ export function Receipts() {
   };
 
   const handleDeleteReceipt = async (id: string) => {
+    if (!canDelete) {
+      setNotification({ type: 'error', message: 'Ação não permitida: O perfil de Assistente é vedado de excluir recibos.' });
+      setDeleteConfirmationFor(null);
+      return;
+    }
+
     if (!enteredPin) {
       setPinError('A chave de segurança (PIN) é obrigatória para excluir.');
       return;
@@ -810,13 +816,15 @@ export function Receipts() {
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
-                          onClick={() => setDeleteConfirmationFor(receipt)}
-                          className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => setDeleteConfirmationFor(receipt)}
+                            className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1323,7 +1331,7 @@ export function Receipts() {
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
-        {deleteConfirmationFor && (
+        {deleteConfirmationFor && canDelete && (
           <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4 z-[200]">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}

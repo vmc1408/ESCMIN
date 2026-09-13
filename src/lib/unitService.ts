@@ -1014,6 +1014,9 @@ export const getUserRestrictedUnit = (profile: any): string | null => {
 export const canUserSwitchUnit = (profile: any): boolean => {
   if (!profile) return false;
   const role = String(profile.role || '').toLowerCase().trim();
+  // Assistentes e docentes não possuem o privilégio de alternância de unidades
+  if (role === 'assistente' || role.includes('assist')) return false;
+  if (role === 'professor' || role === 'docente' || role.includes('prof') || role.includes('docent')) return false;
   return (
     role === 'admin' ||
     role === 'administrador' ||

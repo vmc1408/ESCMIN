@@ -53,9 +53,13 @@ import { getTypeStyle, getTypeText, getTypeColor } from '../lib/calendar-utils';
 import { CalendarEvent, AcademicSettings, Class, Subject, InstitutionSettings, Course } from '../types';
 import { HolidayListReport } from '../components/calendar/HolidayListReport';
 import { HabilitationModal } from '../components/HabilitationModal';
+import { useUnits } from '../contexts/UnitContext';
+import { isItemInUnit } from '../lib/unitService';
 
 export function AcademicCalendar() {
-  const { userAuth, isAdmin, isDirector } = useAuth();
+  const { userAuth, isAdmin, isDirector, isSecretary, isAssistant, isTeacher, canDelete } = useAuth();
+  const canManageCalendar = isAdmin || isDirector || isSecretary || isAssistant || !isTeacher;
+  const { selectedUnitId, activeUnits, hasMultipleUnits, getUnitName, isItemInActiveUnit } = useUnits();
   const { getEaster, getHolidaysForYear, getPeriodType } = useCalendarHelpers();
   
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -816,9 +820,13 @@ export function AcademicCalendar() {
     };
   };
 
-  const loadSettings = async (targetId: string = 'current') => {
+  const loadSettings = async (targetId?: string) => {
     try {
-      const data = await fetchById('academic_settings', targetId);
+      const activeTargetId = targetId || ((selectedUnitId && selectedUnitId !== 'all') ? `academic_settings_${selectedUnitId}` : 'current');
+      let data = await fetchById('academic_settings', activeTargetId);
+      if (!data && activeTargetId !== 'current') {
+        data = await fetchById('academic_settings', 'current');
+      }
       const freshEvents = await fetchAll('calendar_events', '*', 'start_date');
       if (freshEvents) {
         setEvents(freshEvents);
@@ -827,9 +835,12 @@ export function AcademicCalendar() {
       // Load local storage fallback
       let localData: any = {};
       try {
-        const stored = localStorage.getItem(`academic_settings_${targetId}`);
+        const stored = localStorage.getItem(`academic_settings_${activeTargetId}`);
         if (stored) {
           localData = JSON.parse(stored);
+        } else if (activeTargetId !== 'current') {
+          const fallbackStored = localStorage.getItem('academic_settings_current');
+          if (fallbackStored) localData = JSON.parse(fallbackStored);
         }
       } catch (locErr) {
         console.warn("Erro ao buscar academic_settings do localStorage", locErr);
@@ -962,11 +973,13 @@ export function AcademicCalendar() {
 
   const fetchData = React.useCallback(async () => {
     try {
+      const targetSettingsId = (selectedUnitId && selectedUnitId !== 'all') ? `academic_settings_${selectedUnitId}` : 'current';
+      
       const fetchResults = await Promise.allSettled([
         fetchAll('calendar_events', '*', 'start_date'),
         fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }]),
         fetchQuery('subjects', [{ field: 'status', operator: '==', value: 'Ativo' }]),
-        fetchById('academic_settings', 'current'),
+        fetchById('academic_settings', targetSettingsId),
         fetchAll('courses')
       ]);
 
@@ -996,11 +1009,49 @@ export function AcademicCalendar() {
         });
       }
 
-      const eventsData = deduplicatedEvents;
-      const classesData = fetchResults[1].status === 'fulfilled' ? fetchResults[1].value : [];
-      const subjectsData = fetchResults[2].status === 'fulfilled' ? fetchResults[2].value : [];
-      const settingsData = fetchResults[3].status === 'fulfilled' ? fetchResults[3].value : null;
+      const allRawClasses: Class[] = fetchResults[1].status === 'fulfilled' ? fetchResults[1].value : [];
+      const classesData = (selectedUnitId && selectedUnitId !== 'all')
+        ? allRawClasses.filter((c: any) => isItemInUnit(c.unit_id || (c as any).polo, selectedUnitId, activeUnits))
+        : allRawClasses;
+
+      const allRawSubjects: Subject[] = fetchResults[2].status === 'fulfilled' ? fetchResults[2].value : [];
+      const subjectsData = (selectedUnitId && selectedUnitId !== 'all')
+        ? allRawSubjects.filter((s: any) => !s.unit_id || s.unit_id === 'all' || isItemInUnit(s.unit_id, selectedUnitId, activeUnits))
+        : allRawSubjects;
+
+      let settingsData = fetchResults[3].status === 'fulfilled' ? fetchResults[3].value : null;
+      if (!settingsData && targetSettingsId !== 'current') {
+        try {
+          settingsData = await fetchById('academic_settings', 'current');
+        } catch (e) {
+          console.warn("Fallback to current academic_settings error:", e);
+        }
+      }
+
       const coursesData = fetchResults[4].status === 'fulfilled' ? fetchResults[4].value : [];
+
+      // Build mapping of class id to unit
+      const classIdToUnitMap = new Map<string, string>();
+      allRawClasses.forEach((c: any) => {
+        if (c.id) classIdToUnitMap.set(c.id, c.unit_id || (c as any).polo || 'matriz');
+      });
+
+      // Filter events by active unit
+      const eventsData = (selectedUnitId && selectedUnitId !== 'all')
+        ? deduplicatedEvents.filter((ev: CalendarEvent) => {
+            // Direct event unit_id
+            if (ev.unit_id) {
+              return isItemInUnit(ev.unit_id, selectedUnitId, activeUnits);
+            }
+            // Associated class unit
+            if (ev.class_id) {
+              const classUnit = classIdToUnitMap.get(ev.class_id);
+              return classUnit ? isItemInUnit(classUnit, selectedUnitId, activeUnits) : false;
+            }
+            // Institutional / national holidays without specific unit belong to all units
+            return ev.type.startsWith('holiday') || ev.type === 'event';
+          })
+        : deduplicatedEvents;
 
       const sortedClasses = (classesData || []).sort((a: any, b: any) => {
         const extract = (s: string) => {
@@ -1029,9 +1080,12 @@ export function AcademicCalendar() {
       // Load local storage fallback
       let localData: any = {};
       try {
-        const stored = localStorage.getItem('academic_settings_current');
+        const stored = localStorage.getItem(`academic_settings_${targetSettingsId}`);
         if (stored) {
           localData = JSON.parse(stored);
+        } else if (targetSettingsId !== 'current') {
+          const fallbackStored = localStorage.getItem('academic_settings_current');
+          if (fallbackStored) localData = JSON.parse(fallbackStored);
         }
       } catch (locErr) {
         console.warn("Erro ao buscar academic_settings do localStorage", locErr);
@@ -1072,7 +1126,7 @@ export function AcademicCalendar() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedUnitId, activeUnits]);
 
   useEffect(() => {
     fetchData();
@@ -1117,7 +1171,7 @@ export function AcademicCalendar() {
   const syncInProgress = React.useRef(false);
 
   useEffect(() => {
-    if (isAdmin && !loading && !syncInProgress.current) {
+    if (canManageCalendar && !loading && !syncInProgress.current) {
       const currentYear = currentDate.getFullYear();
       const yearHolidays = events.filter(e => {
         const d = new Date(e.start_date + 'T00:00:00');
@@ -1130,7 +1184,7 @@ export function AcademicCalendar() {
         syncHolidays(true); 
       }
     }
-  }, [isAdmin, loading, events.length, currentDate.getFullYear()]);
+  }, [canManageCalendar, loading, events.length, currentDate.getFullYear()]);
 
   const syncHolidays = async (silent = false) => {
     if (!userAuth || syncInProgress.current) return;
@@ -1239,7 +1293,11 @@ export function AcademicCalendar() {
 
 
   const clearClassDays = async (days?: number[]) => {
-    if (!isAdmin && !isDirector) return;
+    if (!canManageCalendar) return;
+    if (!canDelete) {
+      setNotification({ type: 'err', message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros.' });
+      return;
+    }
     
     if (!days) {
       if (selectedWeekdayDetail !== null) {
@@ -1365,20 +1423,25 @@ export function AcademicCalendar() {
       // --- SURGICAL CLEAR: Clear prior automatically generated and class day events ---
       const preData = await fetchData();
       const allPrior = preData?.events || [];
+      const targetUnit = (selectedUnitId && selectedUnitId !== 'all') ? selectedUnitId : 'matriz';
       const priorAutoIds = allPrior.filter(e => {
         const desc = (e.description || '').toLowerCase();
         const title = (e.title || '').toLowerCase();
         const type = e.type;
-        return type === 'class_day' || 
+        const isAuto = type === 'class_day' || 
                type === 'start_term' || 
                type === 'end_term' || 
                desc.includes('cronograma automático') || 
                title.includes('dia de aula');
+        if (!isAuto) return false;
+        if (selectedUnitId === 'all') return true;
+        const evUnit = e.unit_id || (e.class_id ? classes.find(c => c.id === e.class_id)?.unit_id : undefined) || 'matriz';
+        return isItemInUnit(evUnit, selectedUnitId, activeUnits);
       }).map(e => e.id).filter(Boolean);
 
       if (priorAutoIds.length > 0) {
         await deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: priorAutoIds }]);
-      } else {
+      } else if (selectedUnitId === 'all') {
         await deleteQuery('calendar_events', [{ field: 'description', operator: 'ilike', value: '%Cronograma automático%' }]);
       }
 
@@ -1441,6 +1504,7 @@ export function AcademicCalendar() {
           const targetClass = tid ? classes.find(c => c.id === tid) : null;
           const classLabel = targetClass ? ` - ${targetClass.name}` : '';
           const eventSignature = `Cronograma automático`; // Class name REMOVED after 'Cronograma automático' as requested!
+          const effectiveEventUnitId = targetClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
           
           setSyncMessage(`Calculando aulas: ${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][weekdayNum]} - ${targetClass?.name || 'Geral'}`);
           setSyncProgress(45 + Math.floor(((wIdx * finalTargetIds.length + i) / (activeWeekdays.length * finalTargetIds.length)) * 30));
@@ -1462,6 +1526,7 @@ export function AcademicCalendar() {
               type: te.type,
               description: eventSignature,
               class_id: tid,
+              unit_id: effectiveEventUnitId,
               user_id: userAuth.uid,
               created_at: new Date().toISOString()
             });
@@ -1499,6 +1564,7 @@ export function AcademicCalendar() {
                     type: 'class_day',
                     description: eventSignature,
                     class_id: tid,
+                    unit_id: effectiveEventUnitId,
                     user_id: userAuth.uid,
                     created_at: new Date().toISOString()
                   });
@@ -1544,6 +1610,9 @@ export function AcademicCalendar() {
         return;
       }
 
+      const targetClass = formData.class_id ? classes.find(c => c.id === formData.class_id) : null;
+      const effectiveUnitId = targetClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
       const data = {
         title: formData.title,
         description: formData.description,
@@ -1552,6 +1621,7 @@ export function AcademicCalendar() {
         type: formData.type,
         class_id: formData.class_id || null,
         subject_id: formData.subject_id || null,
+        unit_id: selectedEvent?.unit_id || effectiveUnitId,
         user_id: userAuth.uid,
         updated_at: new Date().toISOString()
       };
@@ -1644,7 +1714,7 @@ export function AcademicCalendar() {
   const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userAuth) return;
-    if (!(isAdmin || isDirector)) return;
+    if (!canManageCalendar) return;
 
     const isEditingMode = !!selectedEvent;
     const scopeLabel = editScope === 'all' ? 'Período Total (Todas as turmas do dia)' : `Classe/Turma Específica (${classes.find(c => c.id === formData.class_id)?.name || 'Geral'})`;
@@ -1690,6 +1760,10 @@ export function AcademicCalendar() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleDelete = async (id: string, bypassConfirm = false) => {
+    if (!canDelete) {
+      setNotification({ type: 'err', message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros.' });
+      return;
+    }
     const eventToDelete = events.find(e => e.id === id);
     if (!eventToDelete) return;
 
@@ -2031,7 +2105,7 @@ export function AcademicCalendar() {
                 <span className="inline sm:hidden">Relatórios</span>
               </button>
 
-              {(isAdmin || isDirector) && (
+              {canManageCalendar && (
                 <div className="flex items-center gap-2 animate-in fade-in duration-200">
                   <button 
                     onClick={() => {
@@ -2454,13 +2528,15 @@ export function AcademicCalendar() {
                                         >
                                           <CheckCircle2 size={16} />
                                         </button>
-                                        <button 
-                                          onClick={() => handleDelete(ev.id)}
-                                          className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-none transition-all"
-                                          title="Remover Data"
-                                        >
-                                          <Trash2 size={16} />
-                                        </button>
+                                        {canDelete && (
+                                          <button 
+                                            onClick={() => handleDelete(ev.id)}
+                                            className="p-2 bg-rose-50 text-rose-400 hover:bg-rose-600 hover:text-white rounded-none transition-all"
+                                            title="Remover Data"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -2849,7 +2925,7 @@ export function AcademicCalendar() {
                         whileHover={{ scale: 1.01, zIndex: 50 }}
                         whileTap={{ scale: 0.98, backgroundColor: 'rgba(245, 158, 11, 0.05)' }}
                         onClick={() => {
-                          if (isAdmin || isDirector) {
+                          if (canManageCalendar) {
                             setFormData({
                               title: 'Dia de Aula',
                               description: '',
@@ -2937,7 +3013,7 @@ export function AcademicCalendar() {
                               </div>
                             )}
                           </div>
-                          {(isAdmin || isDirector) && (
+                          {canManageCalendar && (
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -3486,7 +3562,7 @@ export function AcademicCalendar() {
                                 </div>
                               </div>
                               
-                              {(isAdmin || isDirector) && (
+                              {canManageCalendar && (
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <button 
                                     onClick={(e) => {
@@ -3497,20 +3573,22 @@ export function AcademicCalendar() {
                                   >
                                     <Edit2 size={14} />
                                   </button>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(event.id, confirmDeleteId === event.id);
-                                    }}
-                                    className={cn(
-                                      "p-2 rounded-none transition-all border border-transparent",
-                                      confirmDeleteId === event.id 
-                                        ? "bg-red-600 text-white animate-pulse shadow-lg" 
-                                        : "text-slate-400 hover:text-red-600 hover:bg-white hover:border-red-100 hover:shadow-md"
-                                    )}
-                                  >
-                                    {confirmDeleteId === event.id ? <Check size={14} /> : <Trash2 size={14} />}
-                                  </button>
+                                  {canDelete && (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(event.id, confirmDeleteId === event.id);
+                                      }}
+                                      className={cn(
+                                        "p-2 rounded-none transition-all border border-transparent",
+                                        confirmDeleteId === event.id 
+                                          ? "bg-red-600 text-white animate-pulse shadow-lg" 
+                                          : "text-slate-400 hover:text-red-600 hover:bg-white hover:border-red-100 hover:shadow-md"
+                                      )}
+                                    >
+                                      {confirmDeleteId === event.id ? <Check size={14} /> : <Trash2 size={14} />}
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </motion.div>
@@ -3633,7 +3711,7 @@ export function AcademicCalendar() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 custom-scrollbar">
-                {!(isAdmin || isDirector) && (
+                {!canManageCalendar && (
                   <div className="bg-amber-50 border border-amber-200 p-2.5 sm:p-3 rounded-none flex items-start gap-2">
                     <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
                     <p className="text-[10px] font-bold text-amber-800 leading-tight text-left">Somente leitura. Apenas administradores podem fazer alterações.</p>
@@ -3655,7 +3733,7 @@ export function AcademicCalendar() {
                           <button
                             key={type.id}
                             type="button"
-                            disabled={!(isAdmin || isDirector)}
+                            disabled={!canManageCalendar}
                             onClick={() => {
                               if (formData.type === type.id) {
                                 setFormData({ ...formData, type: 'class_day', title: 'Aula Normal' });
@@ -3716,7 +3794,7 @@ export function AcademicCalendar() {
                       <div className="relative">
                         <input 
                           required
-                          readOnly={!(isAdmin || isDirector)}
+                          readOnly={!canManageCalendar}
                           type="date"
                           value={formData.start_date}
                           onChange={e => {
@@ -3742,7 +3820,7 @@ export function AcademicCalendar() {
                       </div>
                       <div className="relative">
                         <input 
-                          readOnly={!(isAdmin || isDirector)}
+                          readOnly={!canManageCalendar}
                           type="date"
                           value={formData.end_date}
                           onChange={e => setFormData({...formData, end_date: e.target.value})}
@@ -3759,7 +3837,7 @@ export function AcademicCalendar() {
                       <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 font-sans">Identificação</label>
                       <input 
                         required
-                        readOnly={!(isAdmin || isDirector)}
+                        readOnly={!canManageCalendar}
                         type="text"
                         placeholder="Título do evento..."
                         value={formData.title}
@@ -3774,7 +3852,7 @@ export function AcademicCalendar() {
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
-                            disabled={!(isAdmin || isDirector) || formData.type === 'excused_class'}
+                            disabled={!canManageCalendar || formData.type === 'excused_class'}
                             onClick={() => {
                               setEditScope('all');
                               setFormData(prev => ({ ...prev, class_id: '' }));
@@ -3791,7 +3869,7 @@ export function AcademicCalendar() {
                           </button>
                           <button
                             type="button"
-                            disabled={!(isAdmin || isDirector)}
+                            disabled={!canManageCalendar}
                             onClick={() => {
                               setEditScope('specific');
                               setFormData(prev => ({ ...prev, class_id: '' }));
@@ -3819,7 +3897,7 @@ export function AcademicCalendar() {
                         ) : (
                           <select
                             required={editScope === 'specific'}
-                            disabled={!(isAdmin || isDirector)}
+                            disabled={!canManageCalendar}
                             value={formData.class_id}
                             onChange={e => setFormData({...formData, class_id: e.target.value})}
                             className="w-full px-3 py-2 sm:py-2.5 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-700 appearance-none focus:ring-4 focus:ring-slate-100 focus:bg-white focus:border-slate-400 transition-all outline-none"
@@ -3837,7 +3915,7 @@ export function AcademicCalendar() {
 
                 {/* Footer Buttons */}
                 <div className="flex gap-2 pt-3 border-t border-slate-150 shrink-0">
-                  {selectedEvent && (isAdmin || isDirector) && (
+                  {selectedEvent && canManageCalendar && canDelete && (
                     <button 
                       type="button"
                       onClick={() => handleDelete(selectedEvent.id)}
@@ -3855,7 +3933,7 @@ export function AcademicCalendar() {
                     Fechar
                   </button>
 
-                  {(isAdmin || isDirector) && (
+                  {canManageCalendar && (
                     <button 
                       type="submit"
                       disabled={isSyncing || !isFormChanged}
@@ -4499,7 +4577,7 @@ export function AcademicCalendar() {
                 </div>
                 
                 <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 justify-end">
-                  {(isAdmin || isDirector) && (
+                  {canManageCalendar && canDelete && (
                     <button 
                       onClick={() => clearClassDays()}
                       disabled={isSyncing}
@@ -4613,8 +4691,10 @@ export function AcademicCalendar() {
                               nextTitles[d] = titleForDay;
                             });
 
+                            const targetSettingsId = (selectedUnitId && selectedUnitId !== 'all') ? `academic_settings_${selectedUnitId}` : 'current';
                             const updatedSettings: AcademicSettings = {
-                              id: 'current',
+                              id: targetSettingsId,
+                              unit_id: (selectedUnitId && selectedUnitId !== 'all') ? selectedUnitId : 'matriz',
                               term1_start: rootT1Start,
                               term1_end: rootT1End,
                               term2_start: rootT2Start,
@@ -4626,10 +4706,10 @@ export function AcademicCalendar() {
                               weekday_terms: nextWeekdayTerms
                             };
                             
-                            // Save globally
-                            await saveData('academic_settings', 'current', updatedSettings);
+                            // Save globally or per unit
+                            await saveData('academic_settings', targetSettingsId, updatedSettings);
                             try {
-                              localStorage.setItem('academic_settings_current', JSON.stringify(updatedSettings));
+                              localStorage.setItem(`academic_settings_${targetSettingsId}`, JSON.stringify(updatedSettings));
                             } catch (e) {
                               console.warn("Storage write error:", e);
                             }

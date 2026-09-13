@@ -35,7 +35,7 @@ import { getTeacherScope } from '../lib/teacherScope';
 import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 
 export const Assessments: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, canDelete } = useAuth();
   const { selectedUnitId, units, filterByActiveUnit } = useUnits();
   const navigate = useNavigate();
 
@@ -252,6 +252,14 @@ export const Assessments: React.FC = () => {
 
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
+    if (!canDelete) {
+      setNotification({
+        type: 'error',
+        message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros.'
+      });
+      setDeleteConfirmId(null);
+      return;
+    }
     const targetId = deleteConfirmId;
     setDeleteConfirmId(null);
 
@@ -753,13 +761,15 @@ export const Assessments: React.FC = () => {
                         >
                           <Edit3 size={15} />
                         </button>
-                        <button 
-                          onClick={() => triggerDeleteConfirm(a.id)} 
-                          title="Excluir avaliação"
-                          className="p-1 px-1.5 text-slate-400 hover:text-red-600 transition-colors hover:bg-white rounded"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => triggerDeleteConfirm(a.id)} 
+                            title="Excluir avaliação"
+                            className="p-1 px-1.5 text-slate-400 hover:text-red-600 transition-colors hover:bg-white rounded"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </div>
                     
@@ -1135,7 +1145,7 @@ export const Assessments: React.FC = () => {
 
       {/* CUSTOM DIALOG: Deletion Confirmation */}
       <AnimatePresence>
-        {deleteConfirmId && (
+        {deleteConfirmId && canDelete && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}

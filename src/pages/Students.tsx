@@ -32,7 +32,8 @@ import {
   Layers,
   Sparkles,
   School,
-  Building2
+  Building2,
+  UserX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Webcam from 'react-webcam';
@@ -262,7 +263,7 @@ export function Students() {
     ];
   }, [institution?.admission_norms]);
   const webcamRef = useRef<Webcam>(null);
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, canDelete } = useAuth();
 
   // Automatic list collapsing and showing is based on active selected student state.
 
@@ -1008,8 +1009,47 @@ export function Students() {
     }
   };
 
+  const handleToggleStudentStatus = useCallback(async () => {
+    if (!selectedStudent?.id) return;
+    const isCurrentlyInactive = formData.status === 'Inativo';
+    const newStatus = isCurrentlyInactive ? 'Ativo' : 'Inativo';
+    const confirmMsg = isCurrentlyInactive
+      ? `Deseja reativar o aluno "${selectedStudent.name}"?`
+      : `Deseja inativar o aluno "${selectedStudent.name}"? (O perfil de Assistente pode inativar ou desabilitar registros).`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setLoading(true);
+      await saveData('students', selectedStudent.id, {
+        status: newStatus
+      });
+      setFormData(prev => ({ ...prev, status: newStatus }));
+      setSelectedStudent(prev => prev ? { ...prev, status: newStatus } : null);
+      setNotification({
+        type: 'success',
+        message: isCurrentlyInactive ? 'Aluno reativado com sucesso!' : 'Aluno inativado com sucesso!'
+      });
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Erro ao alterar status:', error);
+      setNotification({ type: 'error', message: 'Erro ao alterar status do aluno: ' + error.message });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  }, [selectedStudent, formData.status, fetchStudents]);
+
   const handleDelete = useCallback(async () => {
     if (!selectedStudent?.id) return;
+    if (!canDelete) {
+      setNotification({
+        type: 'error',
+        message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Aluno.'
+      });
+      setShowDeleteConfirm(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -1927,19 +1967,42 @@ export function Students() {
                 {isEditing && (
                   <>
                     {selectedStudent && (
-                      <button 
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setShowDeleteConfirm(true);
-                        }}
-                        className="h-10 px-4 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
-                        title="Excluir Aluno"
-                      >
-                        <Trash2 size={16} />
-                        <span className="hidden sm:inline">Excluir Aluno</span>
-                      </button>
+                      canDelete ? (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="h-10 px-4 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto"
+                          title="Excluir Aluno"
+                        >
+                          <Trash2 size={16} />
+                          <span className="hidden sm:inline">Excluir Aluno</span>
+                        </button>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleStudentStatus();
+                          }}
+                          className={cn(
+                            "h-10 px-4 border rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto",
+                            formData.status === 'Inativo'
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                              : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
+                          )}
+                          title={formData.status === 'Inativo' ? "Reativar Aluno" : "Inativar Aluno (Exclusão física vedada para Assistente)"}
+                        >
+                          <UserX size={16} />
+                          <span className="hidden sm:inline">
+                            {formData.status === 'Inativo' ? "Reativar Aluno" : "Inativar Aluno"}
+                          </span>
+                        </button>
+                      )
                     )}
                     <button 
                       onClick={() => {
@@ -2655,8 +2718,8 @@ export function Students() {
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && selectedStudent && (
+        {/* Delete Confirmation Modal (Apenas para perfis autorizados com canDelete) */}
+        {showDeleteConfirm && canDelete && selectedStudent && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-none shadow-2xl p-8 max-w-sm w-full space-y-6 animate-in zoom-in-95 duration-200">
               <div className="w-16 h-16 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto">

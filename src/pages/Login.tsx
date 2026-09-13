@@ -230,6 +230,17 @@ export function Login() {
       sessionStorage.setItem('app_last_activity', nowStr);
       sessionStorage.setItem('app_session_active', 'true');
 
+      // Garante que o novo login inicie sempre com a unidade Matriz selecionada e ativa
+      localStorage.setItem('selected_global_unit_id', 'matriz');
+      sessionStorage.setItem('just_logged_in', 'true');
+      try {
+        Object.keys(sessionStorage).forEach(k => {
+          if (k.startsWith('unit_session_init_')) {
+            sessionStorage.removeItem(k);
+          }
+        });
+      } catch {}
+
       const result = await fetchWithTimeout(supabase.auth.signInWithPassword({
         email: emailNormalized,
         password

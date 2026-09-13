@@ -313,6 +313,7 @@ export interface InstitutionSettings {
 
 export interface AcademicSettings {
   id?: string;
+  unit_id?: string;
   term1_start: string;
   term1_end: string;
   term2_start: string;
