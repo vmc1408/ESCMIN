@@ -222,7 +222,7 @@ CREATE TABLE IF NOT EXISTS attendances (
     date TEXT NOT NULL,
     status TEXT,
     observations TEXT,
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS grades (
     value NUMERIC(4,2),
     status TEXT,
     observations TEXT,
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     type TEXT,
     class_id TEXT REFERENCES classes(id),
     subject_id TEXT REFERENCES subjects(id),
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS contributions (
     origin TEXT,
     pix_id TEXT,
     observations TEXT,
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS pix_reconciliations (
     batch_id TEXT,
     status TEXT,
     matched_student_id TEXT REFERENCES students(id),
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     is_manual BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -299,7 +299,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     issuance_date TEXT NOT NULL,
     course TEXT,
     verification_code TEXT UNIQUE,
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -311,6 +311,7 @@ CREATE TABLE IF NOT EXISTS academic_parameters (
     recovery_grade NUMERIC(4,2) DEFAULT 5.0,
     failure_grade NUMERIC(4,2) DEFAULT 4.9,
     absence_limit_percentage INTEGER DEFAULT 25,
+    unit_id TEXT DEFAULT 'matriz',
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -325,7 +326,7 @@ CREATE TABLE IF NOT EXISTS assessments (
     class_id TEXT REFERENCES classes(id),
     subject_id TEXT REFERENCES subjects(id),
     description TEXT,
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -340,7 +341,7 @@ CREATE TABLE IF NOT EXISTS receipts (
     payment_date TEXT NOT NULL,
     signature_label TEXT,
     issue_date TEXT NOT NULL,
-    unit_id TEXT REFERENCES units(id),
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

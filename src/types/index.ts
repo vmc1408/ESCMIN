@@ -79,6 +79,8 @@ export interface Student {
   guardian_cpf?: string;
   
   photo_url?: string;
+  observations?: string;
+  notes?: string;
   created_at: string;
   user_id: string;
 }
@@ -89,6 +91,7 @@ export interface Enrollment {
   id: string;
   student_id: string;
   class_id: string;
+  unit_id?: string;
   status: EnrollmentStatus;
   enrollment_date: string;
   user_id: string;

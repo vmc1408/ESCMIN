@@ -705,7 +705,12 @@ export const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] =
   const seenLabels = new Set<string>();
 
   const combined = { ...(settings || {}) };
+  const rootT1Start = combined.term1_start || '';
+  const rootT1End = combined.term1_end || '';
+  const rootT2Start = combined.term2_start || '';
+  const rootT2End = combined.term2_end || '';
 
+  // 1. Dias com parametrização explícita de início e fim de semestres
   if (combined.weekday_terms) {
     const dayKeys = Object.keys(combined.weekday_terms)
       .map(k => Number(k))
@@ -721,21 +726,36 @@ export const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] =
           periods.push({
             label: labelName,
             dayNum: d,
-            t1Start: termObj.term1_start || '',
-            t1End: termObj.term1_end || '',
-            t2Start: termObj.term2_start || '',
-            t2End: termObj.term2_end || ''
+            t1Start: termObj.term1_start || rootT1Start,
+            t1End: termObj.term1_end || rootT1End,
+            t2Start: termObj.term2_start || rootT2Start,
+            t2End: termObj.term2_end || rootT2End
           });
         }
       }
     }
   }
 
-  const rootT1Start = combined.term1_start || '';
-  const rootT1End = combined.term1_end || '';
-  const rootT2Start = combined.term2_start || '';
-  const rootT2End = combined.term2_end || '';
+  // 2. Dias de aula da semana configurados no ciclo (sem override individual)
+  if (Array.isArray(combined.class_weekdays)) {
+    const sortedDays = [...combined.class_weekdays].map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    for (const d of sortedDays) {
+      const labelName = WEEKDAY_NAMES[d] || `Dia ${d}`;
+      if (!seenLabels.has(labelName)) {
+        seenLabels.add(labelName);
+        periods.push({
+          label: labelName,
+          dayNum: d,
+          t1Start: rootT1Start,
+          t1End: rootT1End,
+          t2Start: rootT2Start,
+          t2End: rootT2End
+        });
+      }
+    }
+  }
 
+  // 3. Fallback geral caso não haja dias específicos registrados
   if (periods.length === 0 && (rootT1Start || rootT1End || rootT2Start || rootT2End)) {
     periods.push({
       label: 'Geral',
@@ -747,5 +767,69 @@ export const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] =
   }
 
   return periods;
+};
+
+/**
+ * Resolve o cronograma e ciclo letivo aplicável a uma unidade/filial/polo.
+ * Se o polo possuir cronograma próprio, retorna-o com `isCustom: true`.
+ * Caso contrário, herda o cronograma padrão da Matriz com `isCustom: false`.
+ */
+export const resolveAcademicSettingsForUnit = (
+  unitId: string | null | undefined,
+  settingsList: any[]
+): { settings: any; isCustom: boolean } => {
+  const matrizDefault = Array.isArray(settingsList) 
+    ? (settingsList.find(s => s && (s.id === 'current' || s.unit_id === 'matriz')) || settingsList[0] || null)
+    : null;
+
+  if (!unitId || unitId === 'all' || unitId === 'matriz' || unitId === 'global') {
+    if (matrizDefault) return { settings: matrizDefault, isCustom: false };
+    try {
+      const stored = localStorage.getItem('academic_settings_current');
+      if (stored) return { settings: JSON.parse(stored), isCustom: false };
+    } catch {}
+    return { settings: null, isCustom: false };
+  }
+
+  const targetId = `academic_settings_${unitId}`;
+  if (Array.isArray(settingsList) && settingsList.length > 0) {
+    const custom = settingsList.find(s => 
+      s && (
+        s.id === targetId || 
+        s.id === unitId || 
+        (s.unit_id && s.unit_id.toLowerCase() === unitId.toLowerCase())
+      )
+    );
+
+    if (custom) {
+      return { settings: custom, isCustom: true };
+    }
+  }
+
+  // Tenta recuperar do cache local do polo
+  try {
+    const stored = localStorage.getItem(`academic_settings_${targetId}`) 
+      || localStorage.getItem(`academic_settings_${unitId}`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && (parsed.term1_start || parsed.class_weekdays)) {
+        return { settings: parsed, isCustom: true };
+      }
+    }
+  } catch {}
+
+  // Fallback para matriz
+  if (matrizDefault) {
+    return { settings: matrizDefault, isCustom: false };
+  }
+
+  try {
+    const storedMatriz = localStorage.getItem('academic_settings_current');
+    if (storedMatriz) {
+      return { settings: JSON.parse(storedMatriz), isCustom: false };
+    }
+  } catch {}
+
+  return { settings: null, isCustom: false };
 };
 

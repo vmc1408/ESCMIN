@@ -86,10 +86,13 @@ export const unmarkUnitAsDeleted = (unitId?: string, code?: string) => {
 };
 
 // Script SQL completo e seguro para execução no Supabase SQL Editor
-export const SUPABASE_UNITS_MIGRATION_SQL = `-- SCRIPT DE MIGRAÇÃO: UNIDADES E POLOS EDUCACIONAIS (ESCMIN)
--- Execute este script no SQL Editor do seu projeto Supabase para habilitar a tabela nativa de polos
+export const SUPABASE_UNITS_MIGRATION_SQL = `-- ============================================================================
+-- SCRIPT DE ESTRUTURA E MIGRAÇÃO: UNIDADES E FILIAIS / POLOS (ESCMIN)
+-- Execute este script no SQL Editor do seu projeto Supabase para habilitar
+-- o suporte completo a novas unidades em todas as tabelas operacionais da escola.
+-- ============================================================================
 
--- 1. Criar tabela de Unidades / Filiais (Polos)
+-- 1. Criar tabela de Unidades / Filiais (Polos) se não existir
 CREATE TABLE IF NOT EXISTS public.units (
     id TEXT PRIMARY KEY,
     code TEXT NOT NULL,
@@ -103,32 +106,83 @@ CREATE TABLE IF NOT EXISTS public.units (
     phone TEXT,
     email TEXT,
     active BOOLEAN DEFAULT true,
+    user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Garantir novas colunas se a tabela já existia
+-- Garantir todas as colunas se a tabela já existia
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS state TEXT;
 ALTER TABLE public.units ADD COLUMN IF NOT EXISTS cep TEXT;
 ALTER TABLE public.units ADD COLUMN IF NOT EXISTS cnpj TEXT;
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true;
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS user_id TEXT;
 
 -- 2. Inserir a Matriz como polo padrão da instituição
 INSERT INTO public.units (id, code, name, is_main, active)
 VALUES ('matriz', 'MAT', 'Sede / Matriz', true, true)
 ON CONFLICT (id) DO NOTHING;
 
--- 3. Adicionar coluna unit_id nas tabelas operacionais da escola
+-- 3. Adicionar coluna unit_id em TODAS as tabelas operacionais e acadêmicas
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
 ALTER TABLE public.email_registry ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE public.subjects ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.courses ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.attendances ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.grades ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.assessments ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.contributions ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.receipts ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.calendar_events ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.pix_reconciliations ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.enrollments ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.academic_settings ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE public.academic_parameters ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 
--- 4. Habilitar RLS e Permissão Pública para leitura, inserção, atualização e exclusão
+-- Tabelas de arquivo morto / espelho
+ALTER TABLE IF EXISTS public.archived_students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE IF EXISTS public.archived_classes ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE IF EXISTS public.archived_teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE IF EXISTS public.archived_subjects ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
+-- 4. Remover chaves estrangeiras restritivas em unit_id para prevenir bloqueios de gravação
+ALTER TABLE IF EXISTS public.attendances DROP CONSTRAINT IF EXISTS attendances_unit_id_fkey;
+ALTER TABLE IF EXISTS public.grades DROP CONSTRAINT IF EXISTS grades_unit_id_fkey;
+ALTER TABLE IF EXISTS public.assessments DROP CONSTRAINT IF EXISTS assessments_unit_id_fkey;
+ALTER TABLE IF EXISTS public.contributions DROP CONSTRAINT IF EXISTS contributions_unit_id_fkey;
+ALTER TABLE IF EXISTS public.receipts DROP CONSTRAINT IF EXISTS receipts_unit_id_fkey;
+ALTER TABLE IF EXISTS public.calendar_events DROP CONSTRAINT IF EXISTS calendar_events_unit_id_fkey;
+ALTER TABLE IF EXISTS public.pix_reconciliations DROP CONSTRAINT IF EXISTS pix_reconciliations_unit_id_fkey;
+ALTER TABLE IF EXISTS public.certificates DROP CONSTRAINT IF EXISTS certificates_unit_id_fkey;
+ALTER TABLE IF EXISTS public.classes DROP CONSTRAINT IF EXISTS classes_unit_id_fkey;
+ALTER TABLE IF EXISTS public.students DROP CONSTRAINT IF EXISTS students_unit_id_fkey;
+ALTER TABLE IF EXISTS public.teachers DROP CONSTRAINT IF EXISTS teachers_unit_id_fkey;
+ALTER TABLE IF EXISTS public.subjects DROP CONSTRAINT IF EXISTS subjects_unit_id_fkey;
+ALTER TABLE IF EXISTS public.courses DROP CONSTRAINT IF EXISTS courses_unit_id_fkey;
+ALTER TABLE IF EXISTS public.enrollments DROP CONSTRAINT IF EXISTS enrollments_unit_id_fkey;
+
+-- 5. Criar índices de alta performance para busca e filtragem por unidade/polo
+CREATE INDEX IF NOT EXISTS idx_students_unit_id ON public.students(unit_id);
+CREATE INDEX IF NOT EXISTS idx_classes_unit_id ON public.classes(unit_id);
+CREATE INDEX IF NOT EXISTS idx_teachers_unit_id ON public.teachers(unit_id);
+CREATE INDEX IF NOT EXISTS idx_subjects_unit_id ON public.subjects(unit_id);
+CREATE INDEX IF NOT EXISTS idx_attendances_unit_id ON public.attendances(unit_id);
+CREATE INDEX IF NOT EXISTS idx_grades_unit_id ON public.grades(unit_id);
+CREATE INDEX IF NOT EXISTS idx_assessments_unit_id ON public.assessments(unit_id);
+CREATE INDEX IF NOT EXISTS idx_contributions_unit_id ON public.contributions(unit_id);
+CREATE INDEX IF NOT EXISTS idx_receipts_unit_id ON public.receipts(unit_id);
+
+-- 6. Habilitar RLS e Permissões Globais para units e tabelas operacionais
 ALTER TABLE public.units ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public Access units" ON public.units;
 CREATE POLICY "Public Access units" ON public.units FOR ALL USING (true) WITH CHECK (true);
-
--- 5. Concessão explícita de permissões totais para anon, authenticated e service_role
 GRANT ALL ON TABLE public.units TO anon, authenticated, service_role;
 `;
 

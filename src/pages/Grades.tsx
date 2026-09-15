@@ -517,6 +517,9 @@ export function Grades() {
     if (!userAuth || !selectedClass || !selectedSubject || !selectedPeriod) return;
     setSaving(true);
     try {
+      const targetClass = classes.find(c => c.id === selectedClass);
+      const effectiveUnitId = targetClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
       const recordsToSave: any[] = [];
       const recordsToToDelete: string[] = [];
 
@@ -539,6 +542,7 @@ export function Grades() {
             class_id: selectedClass,
             subject_id: selectedSubject,
             period: selectedPeriod,
+            unit_id: effectiveUnitId,
             user_id: userAuth.uid,
             updated_at: new Date().toISOString()
           });

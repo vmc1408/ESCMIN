@@ -546,6 +546,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
     setSavingMonthly(true);
     try {
+      const targetClass = classes.find(c => c.id === selectedClass);
+      const effectiveUnitId = targetClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
       const payloads: any[] = [];
       const keysToDelete: string[] = [];
 
@@ -557,6 +560,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             student_id: record.studentId,
             class_id: selectedClass,
             subject_id: selectedSubject,
+            unit_id: effectiveUnitId,
             date: record.date,
             status: record.status,
             observations: ""
@@ -1124,6 +1128,9 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
 
     setSaving(true);
     try {
+      const targetClass = classes.find(c => c.id === selectedClass);
+      const effectiveUnitId = targetClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
       const dbDate = parseDateToDB(selectedDate);
       const payloads: any[] = [];
       const keysToDelete: string[] = [];
@@ -1138,6 +1145,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             student_id: student.id,
             class_id: selectedClass,
             subject_id: selectedSubject,
+            unit_id: effectiveUnitId,
             date: dbDate,
             status: record.status,
             observations: record.observations || ""

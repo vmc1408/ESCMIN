@@ -100,6 +100,7 @@
         "duration_semesters": { "type": "integer" },
         "status": { "type": "string", "enum": ["Ativo", "Inativo"] },
         "workload_hours": { "type": "integer" },
+        "unit_id": { "type": "string" },
         "user_id": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -368,6 +369,7 @@
         "recovery_grade": { "type": "number" },
         "failure_grade": { "type": "number" },
         "absence_limit_percentage": { "type": "number" },
+        "unit_id": { "type": "string" },
         "updated_at": { "type": "string", "format": "date-time" }
       },
       "required": ["approval_grade", "recovery_grade", "failure_grade", "absence_limit_percentage"]
@@ -384,6 +386,7 @@
         "term2_end": { "type": "string" },
         "class_weekdays": { "type": "array", "items": { "type": "integer" } },
         "skip_holiday_neighbors": { "type": "boolean" },
+        "unit_id": { "type": "string" },
         "updated_at": { "type": "string", "format": "date-time" }
       },
       "required": ["id"]

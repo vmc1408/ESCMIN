@@ -338,8 +338,20 @@ export function Students() {
         const schedDate = targetClass ? getClassStartDateFromSchedule(targetClass, settingsList, calendarEventsData || []) : '';
         const startDate = s.start_date || schedDate || targetClass?.start_date || '';
 
+        let resolvedUnitId = s.unit_id;
+        if (!resolvedUnitId && s.observations) {
+          const match = s.observations.match(/\[UNIT_ID:([^\]]+)\]/);
+          if (match && match[1]) {
+            resolvedUnitId = match[1].trim();
+          }
+        }
+        if (!resolvedUnitId && targetClass?.unit_id) {
+          resolvedUnitId = targetClass.unit_id;
+        }
+
         return {
           ...s,
+          unit_id: resolvedUnitId || s.unit_id,
           class_id: effectiveClassId,
           course: effectiveCourse,
           start_date: startDate
@@ -942,6 +954,10 @@ export function Students() {
           delete fallbackData.phone_mobile_is_whatsapp;
           if (err.message?.includes('unit_id')) {
             delete fallbackData.unit_id;
+            const currentObs = fallbackData.observations || '';
+            if (!currentObs.includes('[UNIT_ID:')) {
+              fallbackData.observations = `${currentObs} [UNIT_ID:${studentUnitId}]`.trim();
+            }
           }
           savedId = await saveData('students', selectedStudent?.id, fallbackData);
         } else {
@@ -969,13 +985,15 @@ export function Students() {
               await saveData('enrollments', undefined, {
                 student_id: effectiveStudentId,
                 class_id: dataToSave.class_id,
+                unit_id: studentUnitId,
                 status: targetStatus,
                 enrollment_date: dataToSave.start_date || new Date().toISOString().split('T')[0],
                 created_at: new Date().toISOString()
               });
             } else if (existingEnr.status !== targetStatus) {
               await saveData('enrollments', existingEnr.id, {
-                status: targetStatus
+                status: targetStatus,
+                unit_id: studentUnitId
               });
             }
           }

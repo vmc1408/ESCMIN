@@ -41,7 +41,11 @@ import {
   FileDown,
   LayoutGrid,
   Divide,
-  Ban
+  Ban,
+  Sparkles,
+  RotateCcw,
+  Building2,
+  Copy
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
@@ -820,10 +824,17 @@ export function AcademicCalendar() {
     };
   };
 
+  // Estados para Gestão de Parâmetros por Unidade/Polo ou Matriz
+  const [settingsTargetUnitId, setSettingsTargetUnitId] = useState<string>('matriz');
+  const [allAcademicSettingsList, setAllAcademicSettingsList] = useState<any[]>([]);
+  const [isTargetCustom, setIsTargetCustom] = useState<boolean>(false);
+  const [matrizBaselineSettings, setMatrizBaselineSettings] = useState<AcademicSettings | null>(null);
+
   const loadSettings = async (targetId?: string) => {
     try {
-      const activeTargetId = targetId || ((selectedUnitId && selectedUnitId !== 'all') ? `academic_settings_${selectedUnitId}` : 'current');
+      const activeTargetId = targetId || 'current';
       let data = await fetchById('academic_settings', activeTargetId);
+      const isCustomFound = !!data;
       if (!data && activeTargetId !== 'current') {
         data = await fetchById('academic_settings', 'current');
       }
@@ -835,7 +846,8 @@ export function AcademicCalendar() {
       // Load local storage fallback
       let localData: any = {};
       try {
-        const stored = localStorage.getItem(`academic_settings_${activeTargetId}`);
+        const stored = localStorage.getItem(`academic_settings_${activeTargetId}`)
+          || (activeTargetId.startsWith('academic_settings_') ? localStorage.getItem(activeTargetId) : null);
         if (stored) {
           localData = JSON.parse(stored);
         } else if (activeTargetId !== 'current') {
@@ -899,28 +911,156 @@ export function AcademicCalendar() {
           weekday_terms: enrichedWeekdayTerms
         };
         
-        if (targetId === 'current') {
-          // Do not auto-select any day to respect user request: first they select a weekday, then everything else activates.
+        if (activeTargetId === 'current') {
           setAcademicSettings(parsed);
-
-          setSettingsForm({
-            ...parsed,
-            target_class_ids: []
-          });
-          setEditingDayIndex(null);
-          setSelectedWeekdayDetail(null);
-        } else {
-          setSettingsForm(parsed);
+          setMatrizBaselineSettings(parsed);
         }
+
+        setSettingsForm({
+          ...parsed,
+          target_class_ids: []
+        });
+        setEditingDayIndex(null);
+        setSelectedWeekdayDetail(null);
+        return { parsed, isCustomFound };
       }
     } catch (err) {
       console.error("Error loading settings:", err);
     }
   };
 
+  const loadAllSettingsAndSelectUnit = async (targetUnitId: string) => {
+    try {
+      const allSettings = await fetchAll('academic_settings');
+      const settingsArr = Array.isArray(allSettings) ? allSettings : [];
+      setAllAcademicSettingsList(settingsArr);
+      
+      const matriz = settingsArr.find((s: any) => s && (s.id === 'current' || s.unit_id === 'matriz')) 
+        || settingsArr[0] 
+        || null;
+      if (matriz) setMatrizBaselineSettings(matriz);
+
+      await switchSettingsUnit(targetUnitId, settingsArr, matriz);
+    } catch (err) {
+      console.error("Erro ao carregar configurações de unidades:", err);
+      await loadSettings('current');
+    }
+  };
+
+  const switchSettingsUnit = async (targetUnitId: string, customList?: any[], defaultMatriz?: any) => {
+    setSettingsTargetUnitId(targetUnitId);
+    setEditingDayIndex(null);
+    setSelectedWeekdayDetail(null);
+
+    const list = customList || allAcademicSettingsList;
+    const isMatriz = targetUnitId === 'matriz' || targetUnitId === 'all';
+    
+    if (isMatriz) {
+      setIsTargetCustom(false);
+      await loadSettings('current');
+      return;
+    }
+
+    const targetId = `academic_settings_${targetUnitId}`;
+    const customRecord = list.find((s: any) => s && (s.id === targetId || s.unit_id === targetUnitId));
+    let hasLocalCustom = false;
+    try {
+      hasLocalCustom = !!localStorage.getItem(targetId) || !!localStorage.getItem(`academic_settings_${targetId}`);
+    } catch {}
+
+    const isCustom = !!customRecord || hasLocalCustom;
+    setIsTargetCustom(isCustom);
+
+    if (isCustom) {
+      await loadSettings(targetId);
+    } else {
+      await loadSettings('current');
+    }
+  };
+
+  const handleEnableCustomForUnit = () => {
+    setIsTargetCustom(true);
+    if (matrizBaselineSettings) {
+      setSettingsForm(prev => ({
+        ...prev,
+        term1_start: matrizBaselineSettings.term1_start || prev.term1_start,
+        term1_end: matrizBaselineSettings.term1_end || prev.term1_end,
+        term2_start: matrizBaselineSettings.term2_start || prev.term2_start,
+        term2_end: matrizBaselineSettings.term2_end || prev.term2_end,
+        class_weekdays: [...(matrizBaselineSettings.class_weekdays || prev.class_weekdays)],
+        weekday_titles: { ...(matrizBaselineSettings.weekday_titles || prev.weekday_titles) },
+        weekday_terms: { ...(matrizBaselineSettings.weekday_terms || prev.weekday_terms) },
+      }));
+    }
+    setNotification({
+      type: 'success',
+      message: `Personalização ativada para ${getUnitName(settingsTargetUnitId)}. Defina os dias e datas exclusivos e clique em Salvar.`
+    });
+  };
+
+  const handleCopyMatrizDates = () => {
+    const base = matrizBaselineSettings || academicSettings;
+    if (!base) return;
+    setSettingsForm(prev => ({
+      ...prev,
+      term1_start: base.term1_start || prev.term1_start,
+      term1_end: base.term1_end || prev.term1_end,
+      term2_start: base.term2_start || prev.term2_start,
+      term2_end: base.term2_end || prev.term2_end,
+      weekday_terms: { ...(base.weekday_terms || {}) }
+    }));
+    setNotification({
+      type: 'success',
+      message: 'Datas semestrais copiadas da Matriz para este polo.'
+    });
+  };
+
+  const handleResetToMatriz = async () => {
+    if (settingsTargetUnitId === 'matriz') return;
+    setConfirmModalConfig({
+      id: 'reset_unit_to_matriz',
+      type: 'danger',
+      title: 'Restaurar Padrão da Matriz?',
+      message: `Tem certeza que deseja remover as personalizações de ${getUnitName(settingsTargetUnitId)}? O polo voltará a herdar automaticamente os dias de aula e datas da Matriz.`,
+      action: async () => {
+        try {
+          setIsSyncing(true);
+          const targetId = `academic_settings_${settingsTargetUnitId}`;
+          await deleteData('academic_settings', targetId);
+          try {
+            localStorage.removeItem(targetId);
+            localStorage.removeItem(`academic_settings_${targetId}`);
+            localStorage.removeItem(`academic_settings_${settingsTargetUnitId}`);
+          } catch {}
+
+          setAllAcademicSettingsList(prev => (prev || []).filter(s => s && s.id !== targetId && s.unit_id !== settingsTargetUnitId));
+          window.dispatchEvent(new Event('academic-settings-updated'));
+          window.dispatchEvent(new Event('units-updated'));
+
+          setIsTargetCustom(false);
+          await loadSettings('current');
+          setNotification({
+            type: 'success',
+            message: `O polo ${getUnitName(settingsTargetUnitId)} agora está herdando o cronograma da Matriz.`
+          });
+        } catch (e) {
+          console.error('Erro ao resetar para matriz:', e);
+          setNotification({ type: 'err', message: 'Erro ao restaurar cronograma da Matriz.' });
+        } finally {
+          setIsSyncing(false);
+        }
+      }
+    });
+    setShowConfirmModal(true);
+  };
+
   useEffect(() => {
     if (showSettings) {
-      loadSettings('current');
+      const initialTarget = (selectedUnitId && selectedUnitId !== 'all' && selectedUnitId !== 'matriz') 
+        ? selectedUnitId 
+        : 'matriz';
+      setSettingsTargetUnitId(initialTarget);
+      loadAllSettingsAndSelectUnit(initialTarget);
     }
   }, [showSettings]);
 
@@ -1080,7 +1220,9 @@ export function AcademicCalendar() {
       // Load local storage fallback
       let localData: any = {};
       try {
-        const stored = localStorage.getItem(`academic_settings_${targetSettingsId}`);
+        const stored = localStorage.getItem(`academic_settings_${targetSettingsId}`)
+          || (selectedUnitId && selectedUnitId !== 'all' ? localStorage.getItem(`academic_settings_${selectedUnitId}`) : null)
+          || (targetSettingsId.startsWith('academic_settings_') ? localStorage.getItem(targetSettingsId) : null);
         if (stored) {
           localData = JSON.parse(stored);
         } else if (targetSettingsId !== 'current') {
@@ -1423,7 +1565,9 @@ export function AcademicCalendar() {
       // --- SURGICAL CLEAR: Clear prior automatically generated and class day events ---
       const preData = await fetchData();
       const allPrior = preData?.events || [];
-      const targetUnit = (selectedUnitId && selectedUnitId !== 'all') ? selectedUnitId : 'matriz';
+      const targetUnit = (settings?.unit_id && settings.unit_id !== 'matriz') 
+        ? settings.unit_id 
+        : (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
       const priorAutoIds = allPrior.filter(e => {
         const desc = (e.description || '').toLowerCase();
         const title = (e.title || '').toLowerCase();
@@ -1504,7 +1648,7 @@ export function AcademicCalendar() {
           const targetClass = tid ? classes.find(c => c.id === tid) : null;
           const classLabel = targetClass ? ` - ${targetClass.name}` : '';
           const eventSignature = `Cronograma automático`; // Class name REMOVED after 'Cronograma automático' as requested!
-          const effectiveEventUnitId = targetClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+          const effectiveEventUnitId = targetClass?.unit_id || (settings?.unit_id && settings.unit_id !== 'matriz' ? settings.unit_id : (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz'));
           
           setSyncMessage(`Calculando aulas: ${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][weekdayNum]} - ${targetClass?.name || 'Geral'}`);
           setSyncProgress(45 + Math.floor(((wIdx * finalTargetIds.length + i) / (activeWeekdays.length * finalTargetIds.length)) * 30));
@@ -3984,13 +4128,156 @@ export function AcademicCalendar() {
                     <CalendarDays size={16} className="sm:size-[18px]" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight leading-tight">Parâmetros do Calendário Escolar</h3>
-                    <p className="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 whitespace-nowrap">Ajuste de Aulas Recorrentes Semanais e Semestres</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight leading-tight">Parâmetros do Calendário Escolar</h3>
+                      {settingsTargetUnitId && settingsTargetUnitId !== 'matriz' && (
+                        <span className="px-2 py-0.5 rounded text-[9.5px] font-extrabold bg-blue-100 text-blue-900 uppercase tracking-wider">
+                          {getUnitName(settingsTargetUnitId)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 whitespace-nowrap">
+                      {settingsTargetUnitId && settingsTargetUnitId !== 'matriz' ? 'Ciclos e Atividades Exclusivos Deste Polo' : 'Ajuste de Aulas Recorrentes Semanais e Semestres'}
+                    </p>
                   </div>
                 </div>
               </div>
               
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 bg-slate-50/30">
+                {/* Seletor de Unidade / Polo e Gestão de Cronograma Integrado */}
+                <div className="mb-4 bg-white border border-slate-200/90 rounded-none p-3 shadow-xs space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 size={16} className="text-slate-500 shrink-0" />
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
+                        Configuração de Cronograma da Unidade:
+                      </span>
+                    </div>
+
+                    {/* Seletor de Unidades / Polos */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => switchSettingsUnit('matriz')}
+                        className={cn(
+                          "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-none border transition-all cursor-pointer",
+                          settingsTargetUnitId === 'matriz'
+                            ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        )}
+                      >
+                        Matriz (Padrão Geral)
+                      </button>
+
+                      {activeUnits.filter(u => u.id !== 'matriz').map(unit => {
+                        const hasCustom = allAcademicSettingsList.some(s => s && (s.id === `academic_settings_${unit.id}` || s.unit_id === unit.id));
+                        return (
+                          <button
+                            key={unit.id}
+                            type="button"
+                            onClick={() => switchSettingsUnit(unit.id)}
+                            className={cn(
+                              "px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-none border transition-all cursor-pointer inline-flex items-center gap-1.5",
+                              settingsTargetUnitId === unit.id
+                                ? "bg-blue-900 text-white border-blue-900 shadow-xs"
+                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                            )}
+                          >
+                            <span>{unit.name}</span>
+                            {hasCustom && (
+                              <span className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                settingsTargetUnitId === unit.id ? "bg-amber-400" : "bg-indigo-500"
+                              )} title="Possui cronograma próprio configurado" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Status e Ações do Polo Selecionado */}
+                  {settingsTargetUnitId !== 'matriz' ? (
+                    <div className={cn(
+                      "p-2.5 border rounded-none flex flex-wrap items-center justify-between gap-3 text-xs transition-colors",
+                      isTargetCustom 
+                        ? "bg-indigo-50/70 border-indigo-200 text-indigo-950"
+                        : "bg-slate-50 border-slate-200 text-slate-700"
+                    )}>
+                      <div className="flex items-center gap-2.5">
+                        {isTargetCustom ? (
+                          <Sparkles size={16} className="text-indigo-600 shrink-0" />
+                        ) : (
+                          <Building2 size={16} className="text-slate-500 shrink-0" />
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-[11px] uppercase tracking-wide">
+                              {isTargetCustom 
+                                ? `Cronograma Próprio: ${getUnitName(settingsTargetUnitId)}` 
+                                : `Padrão da Matriz: ${getUnitName(settingsTargetUnitId)}`}
+                            </span>
+                            <span className={cn(
+                              "px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider",
+                              isTargetCustom 
+                                ? "bg-indigo-200/80 text-indigo-900" 
+                                : "bg-slate-200 text-slate-700"
+                            )}>
+                              {isTargetCustom ? 'Ciclo Personalizado' : 'Herdado da Matriz'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            {isTargetCustom
+                              ? "Este polo possui dias de aula e datas semestrais independentes da Matriz. Configure abaixo os dias e datas exclusivos deste polo."
+                              : "Este polo está seguindo o calendário padrão da Matriz. Caso este polo funcione em dias diferentes ou com datas semestrais próprias, clique em Personalizar."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        {!isTargetCustom ? (
+                          <button
+                            type="button"
+                            onClick={handleEnableCustomForUnit}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-[10px] font-extrabold uppercase tracking-wider rounded-none shadow-xs transition-all cursor-pointer"
+                          >
+                            <Sparkles size={13} className="text-blue-300" />
+                            Personalizar Cronograma Deste Polo
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleCopyMatrizDates}
+                              className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-none transition-all cursor-pointer shadow-2xs"
+                              title="Preenche as datas semestrais com os valores atuais da Matriz"
+                            >
+                              <Copy size={12} className="text-slate-500" />
+                              Copiar Datas da Matriz
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleResetToMatriz}
+                              className="flex items-center gap-1 px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-wider rounded-none transition-all cursor-pointer shadow-2xs"
+                              title="Exclui o cronograma personalizado e volta a herdar o calendário geral da Matriz"
+                            >
+                              <RotateCcw size={12} className="text-red-500" />
+                              Restaurar Padrão Matriz
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-slate-50 border border-slate-200/70 text-[10px] text-slate-500 flex items-center gap-2">
+                      <Info size={13} className="text-slate-400 shrink-0" />
+                      <span>
+                        Configurando o <strong>Calendário Geral da Matriz</strong>. As regras salvas aqui definem o padrão geral e são herdadas automaticamente por todos os polos que não tiverem cronograma próprio.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                   
                   {/* Left Column (5 cols): Weekday selection and Term Date Parameters */}
@@ -4388,13 +4675,20 @@ export function AcademicCalendar() {
                                  <div className="space-y-1.5">
                                    <div className="flex items-center justify-between">
                                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                                       Turmas Vinculadas a este dia
+                                       Turmas Vinculadas a este dia {settingsTargetUnitId !== 'matriz' && `(${getUnitName(settingsTargetUnitId)})`}
                                      </label>
                                      <div className="flex gap-2">
                                        <button 
                                          type="button"
                                          onClick={() => {
-                                           const filteredClassIds = classes.filter(c => classMatchesWeekday(c, activeDay)).map(c => c.id);
+                                           const filteredClassIds = classes.filter(c => {
+                                             const matchesDay = classMatchesWeekday(c, activeDay);
+                                             if (!matchesDay) return false;
+                                             if (settingsTargetUnitId && settingsTargetUnitId !== 'matriz' && settingsTargetUnitId !== 'all') {
+                                               return isItemInUnit(c.unit_id, settingsTargetUnitId, activeUnits);
+                                             }
+                                             return true;
+                                           }).map(c => c.id);
                                            setSettingsForm({ 
                                              ...settingsForm, 
                                              target_class_ids: filteredClassIds,
@@ -4429,12 +4723,30 @@ export function AcademicCalendar() {
                                    </div>
 
                                    <div className="flex flex-wrap gap-1.5 max-h-[110px] overflow-y-auto pr-1 border border-slate-100 p-2 bg-slate-50/50">
-                                     {classes.filter(c => classMatchesWeekday(c, activeDay)).length === 0 ? (
+                                     {classes.filter(c => {
+                                       const matchesDay = classMatchesWeekday(c, activeDay);
+                                       if (!matchesDay) return false;
+                                       if (settingsTargetUnitId && settingsTargetUnitId !== 'matriz' && settingsTargetUnitId !== 'all') {
+                                         return isItemInUnit(c.unit_id, settingsTargetUnitId, activeUnits);
+                                       }
+                                       return true;
+                                     }).length === 0 ? (
                                        <div className="w-full py-2 text-center">
-                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">Nenhuma turma cadastrada para este dia</p>
+                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">
+                                           {settingsTargetUnitId !== 'matriz'
+                                             ? `Nenhuma turma de ${getUnitName(settingsTargetUnitId)} cadastrada para este dia`
+                                             : 'Nenhuma turma cadastrada para este dia'}
+                                         </p>
                                        </div>
                                      ) : (
-                                       classes.filter(c => classMatchesWeekday(c, activeDay)).map((c) => {
+                                       classes.filter(c => {
+                                         const matchesDay = classMatchesWeekday(c, activeDay);
+                                         if (!matchesDay) return false;
+                                         if (settingsTargetUnitId && settingsTargetUnitId !== 'matriz' && settingsTargetUnitId !== 'all') {
+                                           return isItemInUnit(c.unit_id, settingsTargetUnitId, activeUnits);
+                                         }
+                                         return true;
+                                       }).map((c) => {
                                          const isSelected = settingsForm.target_class_ids.includes(c.id);
                                          return (
                                            <button
@@ -4691,10 +5003,11 @@ export function AcademicCalendar() {
                               nextTitles[d] = titleForDay;
                             });
 
-                            const targetSettingsId = (selectedUnitId && selectedUnitId !== 'all') ? `academic_settings_${selectedUnitId}` : 'current';
+                            const isTargetMatriz = settingsTargetUnitId === 'matriz' || settingsTargetUnitId === 'all';
+                            const targetSettingsId = isTargetMatriz ? 'current' : `academic_settings_${settingsTargetUnitId}`;
                             const updatedSettings: AcademicSettings = {
                               id: targetSettingsId,
-                              unit_id: (selectedUnitId && selectedUnitId !== 'all') ? selectedUnitId : 'matriz',
+                              unit_id: isTargetMatriz ? 'matriz' : settingsTargetUnitId,
                               term1_start: rootT1Start,
                               term1_end: rootT1End,
                               term2_start: rootT2Start,
@@ -4710,9 +5023,27 @@ export function AcademicCalendar() {
                             await saveData('academic_settings', targetSettingsId, updatedSettings);
                             try {
                               localStorage.setItem(`academic_settings_${targetSettingsId}`, JSON.stringify(updatedSettings));
+                              if (!isTargetMatriz) {
+                                localStorage.setItem(`academic_settings_${settingsTargetUnitId}`, JSON.stringify(updatedSettings));
+                              }
+                              if (targetSettingsId === 'current' || isTargetMatriz) {
+                                localStorage.setItem('academic_settings_current', JSON.stringify(updatedSettings));
+                              }
                             } catch (e) {
                               console.warn("Storage write error:", e);
                             }
+
+                            // Update local list of settings
+                            setAllAcademicSettingsList(prev => {
+                              const filtered = (prev || []).filter(s => s && s.id !== targetSettingsId && s.unit_id !== (isTargetMatriz ? 'matriz' : settingsTargetUnitId));
+                              return [...filtered, updatedSettings];
+                            });
+                            if (!isTargetMatriz) {
+                              setIsTargetCustom(true);
+                            }
+
+                            window.dispatchEvent(new Event('academic-settings-updated'));
+                            window.dispatchEvent(new Event('units-updated'));
                             
                             // Collect all associated class ids from all configured weekdays
                             const allClassIdsSet = new Set<string>();

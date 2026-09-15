@@ -50,10 +50,34 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
 
   const [selectedUnitIdState, setSelectedUnitIdState] = useState<string>(() => {
     try {
+      // 1. Se acabou de logar (flag explícita de login)
       if (sessionStorage.getItem('just_logged_in') === 'true') {
         sessionStorage.removeItem('just_logged_in');
+        try {
+          localStorage.setItem('selected_global_unit_id', 'matriz');
+        } catch {}
         return 'matriz';
       }
+
+      // 2. Se há perfil em cache local e o perfil tem privilégio de alternância (admin, diretor, secretário acadêmico),
+      // verifica se a sessão atual do navegador já foi inicializada. Se for nova sessão, sempre inicia na Matriz.
+      const cachedProfileRaw = localStorage.getItem('current_user_profile');
+      if (cachedProfileRaw) {
+        try {
+          const cachedProfile = JSON.parse(cachedProfileRaw);
+          if (canUserSwitchUnit(cachedProfile)) {
+            const sessionKey = `unit_session_init_${cachedProfile.id || cachedProfile.email || 'privileged_user'}`;
+            if (sessionStorage.getItem(sessionKey) !== 'true') {
+              sessionStorage.setItem(sessionKey, 'true');
+              try {
+                localStorage.setItem('selected_global_unit_id', 'matriz');
+              } catch {}
+              return 'matriz';
+            }
+          }
+        } catch {}
+      }
+
       return localStorage.getItem('selected_global_unit_id') || 'matriz';
     } catch {
       return 'matriz';
@@ -104,12 +128,14 @@ export function UnitProvider({ children }: { children: React.ReactNode }) {
       // devem SEMPRE logar com a unidade Matriz selecionada e ativa!
       const sessionKey = `unit_session_init_${profile.id || profile.email || 'privileged_user'}`;
       const isSessionInitialized = sessionStorage.getItem(sessionKey) === 'true';
+      const justLoggedIn = sessionStorage.getItem('just_logged_in') === 'true';
 
-      if (!isSessionInitialized) {
+      if (!isSessionInitialized || justLoggedIn) {
         setSelectedUnitIdState('matriz');
         try {
           localStorage.setItem('selected_global_unit_id', 'matriz');
           sessionStorage.setItem(sessionKey, 'true');
+          sessionStorage.removeItem('just_logged_in');
         } catch {}
       }
     } else if (hasSpecificUnit) {

@@ -908,6 +908,9 @@ export function Contributions() {
         return;
       }
       
+      const studentClass = classes.find(c => c.id === selectedStudent.class_id);
+      const studentUnitId = (selectedStudent as any).unit_id || studentClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
       const recordsToInsert = manualMonths.map(monthIdx => ({
         student_id: selectedStudent.id,
         amount: amountPerMonth,
@@ -916,6 +919,7 @@ export function Contributions() {
         payment_date: finalDate,
         payment_method: manualMethod,
         observations: manualObservations,
+        unit_id: studentUnitId,
         created_at: new Date().toISOString()
       }));
 

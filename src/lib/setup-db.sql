@@ -163,13 +163,41 @@ INSERT INTO units (id, code, name, is_main, active)
 VALUES ('matriz', 'MAT', 'Sede / Matriz', true, true)
 ON CONFLICT (id) DO NOTHING;
 
--- Adicionar coluna unit_id nas tabelas operacionais
+-- Adicionar coluna unit_id nas tabelas operacionais e acadêmicas
 ALTER TABLE users ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
 ALTER TABLE email_registry ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'all';
 ALTER TABLE students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE subjects ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE attendances ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE grades ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE assessments ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE contributions ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE receipts ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE pix_reconciliations ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE certificates ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE academic_settings ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+ALTER TABLE academic_parameters ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
+-- Remover chaves estrangeiras restritivas em unit_id para evitar bloqueio ao cadastrar filiais
+ALTER TABLE IF EXISTS public.attendances DROP CONSTRAINT IF EXISTS attendances_unit_id_fkey;
+ALTER TABLE IF EXISTS public.grades DROP CONSTRAINT IF EXISTS grades_unit_id_fkey;
+ALTER TABLE IF EXISTS public.assessments DROP CONSTRAINT IF EXISTS assessments_unit_id_fkey;
+ALTER TABLE IF EXISTS public.contributions DROP CONSTRAINT IF EXISTS contributions_unit_id_fkey;
+ALTER TABLE IF EXISTS public.receipts DROP CONSTRAINT IF EXISTS receipts_unit_id_fkey;
+ALTER TABLE IF EXISTS public.calendar_events DROP CONSTRAINT IF EXISTS calendar_events_unit_id_fkey;
+ALTER TABLE IF EXISTS public.pix_reconciliations DROP CONSTRAINT IF EXISTS pix_reconciliations_unit_id_fkey;
+ALTER TABLE IF EXISTS public.certificates DROP CONSTRAINT IF EXISTS certificates_unit_id_fkey;
+ALTER TABLE IF EXISTS public.classes DROP CONSTRAINT IF EXISTS classes_unit_id_fkey;
+ALTER TABLE IF EXISTS public.students DROP CONSTRAINT IF EXISTS students_unit_id_fkey;
+ALTER TABLE IF EXISTS public.teachers DROP CONSTRAINT IF EXISTS teachers_unit_id_fkey;
+ALTER TABLE IF EXISTS public.subjects DROP CONSTRAINT IF EXISTS subjects_unit_id_fkey;
+ALTER TABLE IF EXISTS public.courses DROP CONSTRAINT IF EXISTS courses_unit_id_fkey;
+ALTER TABLE IF EXISTS public.enrollments DROP CONSTRAINT IF EXISTS enrollments_unit_id_fkey;
 
 -- 6. Recriar políticas de acesso (RLS) - Permite leitura/escrita para todos no modo dev
 DO $$ 

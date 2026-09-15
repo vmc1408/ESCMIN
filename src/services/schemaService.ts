@@ -254,6 +254,11 @@ export const schemaService = {
         });
         sql += `GRANT ALL ON TABLE public.${tableName} TO anon, authenticated, service_role;\n`;
 
+        if (typedInfo.missing.includes('unit_id')) {
+          sql += `ALTER TABLE IF EXISTS public.${tableName} DROP CONSTRAINT IF EXISTS ${tableName}_unit_id_fkey;\n`;
+          sql += `CREATE INDEX IF NOT EXISTS idx_${tableName}_unit_id ON public.${tableName}(unit_id);\n`;
+        }
+
         if (tableName === 'units') {
           sql += `INSERT INTO public.units (id, code, name, is_main, active)\n`;
           sql += `VALUES ('matriz', 'MAT', 'Sede / Matriz', true, true)\n`;
@@ -308,6 +313,11 @@ export const schemaService = {
         const type = schemaService.getColumnType(col, tableName);
         sql += `ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS ${col} ${type};\n`;
       });
+
+      if (cols.includes('unit_id')) {
+        sql += `ALTER TABLE IF EXISTS public.${tableName} DROP CONSTRAINT IF EXISTS ${tableName}_unit_id_fkey;\n`;
+        sql += `CREATE INDEX IF NOT EXISTS idx_${tableName}_unit_id ON public.${tableName}(unit_id);\n`;
+      }
 
       sql += `ALTER TABLE public.${tableName} ENABLE ROW LEVEL SECURITY;\n`;
       sql += `DROP POLICY IF EXISTS "Public Access ${tableName}" ON public.${tableName};\n`;

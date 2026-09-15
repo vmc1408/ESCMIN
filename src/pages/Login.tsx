@@ -386,6 +386,16 @@ export function Login() {
           setError("Conta ativada! Verifique seu e-mail para confirmar o cadastro antes de entrar.");
           setIsRegistering(false);
         } else {
+          // Garante que o novo login inicie sempre com a unidade Matriz selecionada e ativa
+          localStorage.setItem('selected_global_unit_id', 'matriz');
+          sessionStorage.setItem('just_logged_in', 'true');
+          try {
+            Object.keys(sessionStorage).forEach(k => {
+              if (k.startsWith('unit_session_init_')) {
+                sessionStorage.removeItem(k);
+              }
+            });
+          } catch {}
           // Força refresh do contexto se já logou
           await refreshProfile(finalUserId);
         }
@@ -442,6 +452,17 @@ export function Login() {
       setConfirmNewPassword('');
       setSuccessMessage("Senha redefinida com sucesso! Você já está autenticado no sistema. Redirecionando...");
       
+      // Garante que o novo login inicie sempre com a unidade Matriz selecionada e ativa
+      localStorage.setItem('selected_global_unit_id', 'matriz');
+      sessionStorage.setItem('just_logged_in', 'true');
+      try {
+        Object.keys(sessionStorage).forEach(k => {
+          if (k.startsWith('unit_session_init_')) {
+            sessionStorage.removeItem(k);
+          }
+        });
+      } catch {}
+
       // Atualiza o perfil caso o usuário já esteja logado
       await refreshProfile();
       

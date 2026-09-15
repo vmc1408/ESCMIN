@@ -46,7 +46,7 @@ import { Student, Class, Subject, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { getItemUnitId, isItemInUnit } from '../lib/unitService';
-import { getAllAcademicSchedulePeriods, formatDateBR } from '../lib/academicUtils';
+import { getAllAcademicSchedulePeriods, formatDateBR, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 import { getTeacherScope } from '../lib/teacherScope';
 import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 
@@ -189,14 +189,29 @@ export function Dashboard() {
     return stats;
   }, [selectedUnitId, scopedStudents, scopedClasses, scopedTeachers, scopedSubjects, students.length, classes.length, stats]);
 
-  const [acadSettings, setAcadSettings] = useState<any>(() => {
-    try {
-      const stored = localStorage.getItem('academic_settings_current');
-      return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      return null;
-    }
-  });
+  const [allAcademicSettings, setAllAcademicSettings] = useState<any[]>([]);
+
+  // Escuta atualizações no cronograma escolar disparadas pelo calendário ou parâmetros
+  useEffect(() => {
+    const handleSettingsUpdated = () => {
+      fetchAll('academic_settings').then(data => {
+        if (data && Array.isArray(data)) {
+          setAllAcademicSettings(data);
+        }
+      }).catch(err => console.warn('Aviso ao recarregar academic_settings:', err));
+    };
+
+    window.addEventListener('academic-settings-updated', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('academic-settings-updated', handleSettingsUpdated);
+    };
+  }, []);
+
+  // Determina e resolve o cronograma aplicável à unidade ativa (próprio do polo ou herdado da matriz)
+  const acadSettings = useMemo(() => {
+    const { settings } = resolveAcademicSettingsForUnit(selectedUnitId, allAcademicSettings);
+    return settings;
+  }, [selectedUnitId, allAcademicSettings]);
 
   const activeSemesterNum = useMemo(() => {
     const now = new Date();
@@ -317,12 +332,11 @@ export function Dashboard() {
       ]);
 
       if (acadData && acadData.length > 0) {
-        const current = acadData.find((s: any) => s.id === 'current') || acadData[0];
-        setAcadSettings(current);
+        setAllAcademicSettings(acadData);
       } else {
         try {
           const byId = await fetchById('academic_settings', 'current');
-          if (byId) setAcadSettings(byId);
+          if (byId) setAllAcademicSettings([byId]);
         } catch (e) {}
       }
       
@@ -556,9 +570,9 @@ export function Dashboard() {
     const isCurrentlyActive = !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
 
     // 1. Momento Vigente (2026 ou 'ATUAL')
-    if (targetYearNum === currentYearNum) {
+    if (selectedYear === 'ATUAL' || targetYearNum === currentYearNum) {
       if (isCurrentlyActive) {
-        return startYr <= currentYearNum;
+        return true;
       }
       let endYr = startYr + 3;
       if (c.end_date) {
@@ -579,9 +593,22 @@ export function Dashboard() {
     }
 
     // 3. Anos Futuros (> 2026, ex: 2027)
-    // Turmas de anos anteriores (2026, 2025, 2024, 2023) não constam automaticamente até serem habilitadas
-    const isDirectlyForFutureYear = startYr === targetYearNum || c.year === String(targetYearNum);
+    const isDirectlyForFutureYear = startYr === targetYearNum || 
+      c.year === String(targetYearNum) ||
+      String(c.start_year || '').includes(String(targetYearNum)) ||
+      String(c.name || '').includes(String(targetYearNum)) ||
+      String(c.code || '').includes(String(targetYearNum).slice(2));
     if (isDirectlyForFutureYear) return true;
+
+    // Turmas ativas cujo ciclo regular ainda abrange o ano letivo alvo
+    let endYr = startYr + 3;
+    if (c.end_date) {
+      const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
+      if (!isNaN(parsedEnd)) endYr = parsedEnd;
+    }
+    if (isCurrentlyActive && targetYearNum >= startYr && targetYearNum <= endYr) {
+      return true;
+    }
 
     const yearHabilitatedList = habilitatedMap[String(targetYearNum)] || [];
     if (yearHabilitatedList.includes(c.id)) return true;
@@ -1301,7 +1328,7 @@ export function Dashboard() {
           onMouseLeave={() => setIsPeriodPaused(false)}
         >
           {/* Barra superior do cabeçalho: botão Ocultar/Visualizar + Seletor de Cronogramas */}
-          <div className="flex items-center gap-2 self-center sm:self-end">
+          <div className="flex items-center gap-2 self-center sm:self-end justify-end">
             {periods.length > 0 && (
               <button
                 type="button"

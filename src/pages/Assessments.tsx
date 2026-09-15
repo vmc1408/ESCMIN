@@ -211,8 +211,12 @@ export const Assessments: React.FC = () => {
 
     setSaving(true);
     try {
+      const targetClass = classes.find(c => c.id === formData.class_id);
+      const effectiveUnitId = (formData as any).unit_id || targetClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
+
       const dataToSave = {
         ...formData,
+        unit_id: effectiveUnitId,
         user_id: formData.user_id || user?.uid || null,
         created_at: formData.created_at || new Date().toISOString()
       };
@@ -408,6 +412,15 @@ export const Assessments: React.FC = () => {
     if (teacherScope.isTeacherRole && !teacherScope.allowedSubjectIds.has(a.subject_id)) {
       return false;
     }
+
+    if (selectedUnitId && selectedUnitId !== 'all') {
+      const cls = classes.find(c => c.id === a.class_id);
+      const itemUnit = (a as any).unit_id || cls?.unit_id || (cls as any)?.polo || 'matriz';
+      if (itemUnit !== selectedUnitId && itemUnit !== 'all') {
+        return false;
+      }
+    }
+
     const matchesClass = !filterClass || a.class_id === filterClass;
     const matchesSubject = !filterSubject || a.subject_id === filterSubject;
     

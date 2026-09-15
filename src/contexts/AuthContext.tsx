@@ -568,6 +568,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchUser = useCallback((newProfile: UserProfile) => {
     // Apenas muda o contexto visual/de permissão atual se o admin quiser "simular" outro usuário
     // ou se o sistema permitir troca rápida. Para autenticação real, usamos switch real.
+    try {
+      sessionStorage.setItem('just_logged_in', 'true');
+      localStorage.setItem('selected_global_unit_id', 'matriz');
+      Object.keys(sessionStorage).forEach(k => {
+        if (k.startsWith('unit_session_init_')) {
+          sessionStorage.removeItem(k);
+        }
+      });
+      window.dispatchEvent(new Event('units-updated'));
+    } catch {}
     setProfile(newProfile);
     window.location.hash = '#/';
   }, []);
@@ -575,6 +585,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetToMaster = useCallback(async () => {
     // Busca o perfil real do usuário autenticado para resetar qualquer switch visual
     if (user) {
+      try {
+        sessionStorage.setItem('just_logged_in', 'true');
+        localStorage.setItem('selected_global_unit_id', 'matriz');
+        Object.keys(sessionStorage).forEach(k => {
+          if (k.startsWith('unit_session_init_')) {
+            sessionStorage.removeItem(k);
+          }
+        });
+        window.dispatchEvent(new Event('units-updated'));
+      } catch {}
       await refreshProfile(user.uid);
       window.location.hash = '#/';
     }

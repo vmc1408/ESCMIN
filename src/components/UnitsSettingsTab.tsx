@@ -667,10 +667,10 @@ export function UnitsSettingsTab() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-800">
-                    Script SQL para Atualização do Supabase
+                    Script SQL para Estrutura Multi-Unidades no Supabase
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Execute este script no <strong>SQL Editor</strong> do painel Supabase para criar ou atualizar a tabela nativa de polos.
+                    Execute este script no <strong>SQL Editor</strong> do painel Supabase para criar a tabela <code>units</code> e adicionar a coluna <code>unit_id</code> em todas as tabelas da instituição.
                   </p>
                 </div>
               </div>
@@ -684,10 +684,13 @@ export function UnitsSettingsTab() {
 
             <div className="mt-4 space-y-3">
               <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-blue-800 space-y-1">
-                <p className="font-semibold">Como aplicar no Supabase:</p>
-                <p>1. Clique no botão abaixo para copiar o script SQL completo com suporte a CEP e CNPJ.</p>
-                <p>2. Abra seu projeto no painel do Supabase e acesse o menu <strong>SQL Editor</strong>.</p>
-                <p>3. Cole o código e clique em <strong>RUN</strong>.</p>
+                <p className="font-semibold">Como aplicar a estrutura no Supabase:</p>
+                <p>1. Clique em <strong>Copiar Script SQL</strong> abaixo.</p>
+                <p>2. Abra o painel do seu Supabase e clique em <strong>SQL Editor</strong> na barra lateral.</p>
+                <p>3. Cole o script copiado e clique no botão verde <strong>RUN</strong>.</p>
+                <p className="text-[11px] text-blue-600 pt-1">
+                  * Este script é 100% idempotente e seguro: cria a tabela <code>units</code>, adiciona <code>unit_id</code> nas tabelas operacionais (alunos, turmas, professores, chamadas, notas, etc.) e remove constraints rígidas que impedem gravação.
+                </p>
               </div>
 
               <div className="relative">
