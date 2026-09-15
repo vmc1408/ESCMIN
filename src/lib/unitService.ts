@@ -974,7 +974,32 @@ export const getUnitCode = (units: Unit[], unitId?: string): string => {
 
 export const getItemUnitId = (item: any): string | undefined => {
   if (!item) return undefined;
-  return item.unit_id || item.unitId || item.unit || item.polo || item.polo_id || undefined;
+  let unit = item.unit_id || item.unitId || item.unit || item.polo || item.polo_id;
+
+  // Se unit não foi informada ou veio como 'matriz', verifica se há [UNIT_ID:...] ou [METADATA:...] em observations/notes
+  if (!unit || unit === 'matriz') {
+    if (item.observations) {
+      const matchMeta = String(item.observations).match(/\[METADATA:(\{[\s\S]*?\})\]/);
+      if (matchMeta && matchMeta[1]) {
+        try {
+          const meta = JSON.parse(matchMeta[1]);
+          if (meta.unit_id && meta.unit_id !== 'matriz') return meta.unit_id;
+        } catch (e) {}
+      }
+      const matchUnit = String(item.observations).match(/\[UNIT_ID:([^\]]+)\]/);
+      if (matchUnit && matchUnit[1] && matchUnit[1].trim() !== 'matriz') {
+        return matchUnit[1].trim();
+      }
+    }
+    if (item.notes) {
+      const matchUnit = String(item.notes).match(/\[UNIT_ID:([^\]]+)\]/);
+      if (matchUnit && matchUnit[1] && matchUnit[1].trim() !== 'matriz') {
+        return matchUnit[1].trim();
+      }
+    }
+  }
+
+  return unit || undefined;
 };
 
 export const isItemInUnit = (
@@ -1008,25 +1033,26 @@ export const isItemInUnit = (
   if (itemNorm === selNorm) return true;
 
   const activeUnit = units.find(u => 
-    u.id.toLowerCase() === selNorm || 
+    u.id?.toLowerCase() === selNorm || 
     u.name?.toLowerCase() === selNorm || 
     u.code?.toLowerCase() === selNorm
   );
 
   if (activeUnit) {
-    if (itemNorm === activeUnit.id.toLowerCase()) return true;
+    if (itemNorm === activeUnit.id?.toLowerCase()) return true;
     if (activeUnit.name && itemNorm === activeUnit.name.toLowerCase()) return true;
     if (activeUnit.code && itemNorm === activeUnit.code.toLowerCase()) return true;
+    if (activeUnit.name && activeUnit.name.length > 4 && (itemNorm.includes(activeUnit.name.toLowerCase()) || activeUnit.name.toLowerCase().includes(itemNorm))) return true;
   }
 
   const itemUnit = units.find(u => 
-    u.id.toLowerCase() === itemNorm || 
+    u.id?.toLowerCase() === itemNorm || 
     u.name?.toLowerCase() === itemNorm || 
     u.code?.toLowerCase() === itemNorm
   );
 
   if (itemUnit) {
-    if (itemUnit.id.toLowerCase() === selNorm) return true;
+    if (itemUnit.id?.toLowerCase() === selNorm) return true;
     if (itemUnit.name && itemUnit.name.toLowerCase() === selNorm) return true;
     if (itemUnit.code && itemUnit.code.toLowerCase() === selNorm) return true;
   }

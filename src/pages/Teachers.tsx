@@ -239,10 +239,13 @@ export function Teachers() {
         }
 
         // FALLBACK: Extract unit_id if stored in observations metadata
-        if (!normalized.unit_id && normalized.observations) {
+        if (normalized.observations) {
           const match = normalized.observations.match(/\[UNIT_ID:([\s\S]*?)\]/);
           if (match && match[1]) {
-            normalized.unit_id = match[1].trim();
+            const parsed = match[1].trim();
+            if (parsed && (!normalized.unit_id || normalized.unit_id === 'matriz' || parsed !== 'matriz')) {
+              normalized.unit_id = parsed;
+            }
           }
         }
         if (!normalized.unit_id) {

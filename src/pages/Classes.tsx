@@ -905,7 +905,7 @@ export function Classes() {
               if (meta.start_year && (!normalized.start_year || String(normalized.start_year).trim() === '')) {
                 (normalized as any).start_year = String(meta.start_year).trim();
               }
-              if (meta.unit_id && !normalized.unit_id) {
+              if (meta.unit_id && (!normalized.unit_id || normalized.unit_id === 'matriz' || meta.unit_id !== 'matriz')) {
                 normalized.unit_id = meta.unit_id;
               }
               if (meta.subject_id_sem1_h1 !== undefined) metaSem1H1 = meta.subject_id_sem1_h1;
@@ -921,6 +921,14 @@ export function Classes() {
               }
               isSpecial = !!meta.is_special;
             } catch (e) {}
+          }
+
+          const unitTagMatch = normalized.observations.match(/\[UNIT_ID:([^\]]+)\]/);
+          if (unitTagMatch && unitTagMatch[1]) {
+            const tagVal = unitTagMatch[1].trim();
+            if (tagVal && (!normalized.unit_id || normalized.unit_id === 'matriz' || tagVal !== 'matriz')) {
+              normalized.unit_id = tagVal;
+            }
           }
         }
 
@@ -1522,6 +1530,7 @@ export function Classes() {
       // PROACTIVE METADATA SYNC:
       // Always sync year, semester, subject slots, subject_ids and is_special into observations metadata 
       // before saving. This ensures data persistence even if Supabase columns are missing.
+      const targetUnitId = formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
       const metadata: any = {};
       if (formData.course) metadata.course = formData.course;
       if (validatedAcademicYear) metadata.year = validatedAcademicYear;
@@ -1535,19 +1544,34 @@ export function Classes() {
       metadata.subject_id_sem2 = s2h1 || s2h2 || '';
       metadata.subject_ids = cleanSubjectIds;
       if (formData.is_special !== undefined) metadata.is_special = formData.is_special;
-      metadata.unit_id = formData.unit_id || 'matriz';
+      metadata.unit_id = targetUnitId;
       
-      if (Object.keys(metadata).length > 0) {
-        const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
-        // Clean up existing metadata and any orphaned closing brackets
-        let cleanObs = (syncData.observations || '')
-          .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
-          .replace(/\}\]$/g, '') // Remove orphaned trailing bracket if any
-          .trim();
-        syncData.observations = (cleanObs + (cleanObs ? '\n' : '') + metadataStr).trim();
-      }
+      const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
+      const unitTag = `[UNIT_ID:${targetUnitId}]`;
 
-      const savedId = await saveData('classes', selectedClass?.id, syncData);
+      // Clean up existing metadata and any orphaned closing brackets
+      let cleanObs = (syncData.observations || '')
+        .replace(/\[METADATA:\{[\s\S]*?\}\]/g, '')
+        .replace(/\[UNIT_ID:[^\]]+\]/g, '')
+        .replace(/\}\]$/g, '') // Remove orphaned trailing bracket if any
+        .trim();
+      syncData.observations = [cleanObs, unitTag, metadataStr].filter(Boolean).join('\n').trim();
+      syncData.unit_id = targetUnitId;
+
+      // Sanitize root syncData: Only send valid table columns to avoid PGRST204 errors
+      // Auxiliar and computed fields (is_special, start_year, subject_id_sem1_h1, etc.) are already in metadata
+      const {
+        is_special: _is_special,
+        start_year: _start_year,
+        subject_id_sem1_h1: _s1h1,
+        subject_id_sem1_h2: _s1h2,
+        subject_id_sem2_h1: _s2h1,
+        subject_id_sem2_h2: _s2h2,
+        course_id: _cid,
+        ...cleanPayload
+      } = syncData as any;
+
+      const savedId = await saveData('classes', selectedClass?.id, cleanPayload);
       
       // Se a turma for para ano futuro (ex: 2027), garante registro no mapa de anos habilitados
       if (startYrNum > parseInt(currentAcademicYear, 10)) {

@@ -323,7 +323,7 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * Salva dados diretamente no Supabase via Upsert real.
  * Não salva em cache local ou no navegador para garantir paridade total entre Dev e Produção.
  */
-export const saveData = async (collectionName: string, id: string | undefined, data: any, timeoutMs = 30000) => {
+export const saveData = async (collectionName: string, id: string | undefined, data: any, timeoutMs = 30000): Promise<string> => {
   const finalId = id || data.id || crypto.randomUUID();
   let payload = { ...data, id: finalId };
 
@@ -331,10 +331,13 @@ export const saveData = async (collectionName: string, id: string | undefined, d
     throw new Error(`[Supabase] Supabase não configurado. Impossível salvar em ${collectionName}.`);
   }
 
-  let attempts = 0;
-  const maxAttempts = 3;
+  let columnPrunes = 0;
+  const maxColumnPrunes = 25;
+  let networkAttempts = 0;
+  const maxNetworkAttempts = 3;
+  let lastError: any = null;
   
-  while (attempts < maxAttempts) {
+  while (columnPrunes < maxColumnPrunes && networkAttempts < maxNetworkAttempts) {
     try {
       const result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payload), timeoutMs);
       
@@ -345,6 +348,7 @@ export const saveData = async (collectionName: string, id: string | undefined, d
           : String(errorVal);
 
         const errorMsgLower = errorMsg.toLowerCase();
+        lastError = errorVal;
 
         // Tratamento de coluna ainda não criada no banco para permitir salvamento do restante dos dados
         const isMissingCol = 
@@ -366,13 +370,24 @@ export const saveData = async (collectionName: string, id: string | undefined, d
           if (match && match[1]) {
             const missingCol = match[1].replace(/['"]/g, '').trim();
             console.warn(`[Supabase] Removendo coluna inexistente "${missingCol}" de "${collectionName}" para persistir no banco real.`);
+            
+            // PRESERVAÇÃO CRÍTICA DE UNIDADE: Se a coluna unit_id não existe na tabela,
+            // preserva o valor de unit_id em observations para garantir isolamento por polo/filial
+            if (missingCol === 'unit_id' && (payload as any).unit_id) {
+              const unitVal = (payload as any).unit_id;
+              const currentObs = (payload as any).observations || '';
+              if (!currentObs.includes('[UNIT_ID:')) {
+                (payload as any).observations = `${currentObs} [UNIT_ID:${unitVal}]`.trim();
+              }
+            }
+
             delete (payload as any)[missingCol];
-            attempts++;
+            columnPrunes++;
             continue; 
           } else if (errorMsgLower.includes('updated_at')) {
             console.warn(`[Supabase] Forçando remoção de "updated_at" de "${collectionName}".`);
             delete (payload as any).updated_at;
-            attempts++;
+            columnPrunes++;
             continue;
           }
         }
@@ -380,18 +395,28 @@ export const saveData = async (collectionName: string, id: string | undefined, d
         throw errorVal;
       }
       
+      // Upsert succeeded!
       return finalId;
     } catch (innerErr: any) {
-      attempts++;
-      if (attempts >= maxAttempts) {
-        console.error(`[saveData] Erro ao salvar diretamente no Supabase em "${collectionName}":`, innerErr?.message || innerErr);
-        throw innerErr;
+      lastError = innerErr;
+      const errMsg = innerErr?.message || String(innerErr);
+      const isColErr = errMsg.toLowerCase().includes('column') && 
+        (errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('schema cache') || errMsg.toLowerCase().includes('does not exist') || errMsg.toLowerCase().includes('pgrst204'));
+      
+      if (!isColErr) {
+        networkAttempts++;
+        if (networkAttempts >= maxNetworkAttempts) {
+          console.error(`[saveData] Erro de rede/banco ao salvar no Supabase em "${collectionName}":`, errMsg);
+          throw innerErr;
+        }
+        await wait(600 * networkAttempts);
       }
-      await wait(500 * attempts);
     }
   }
 
-  return finalId;
+  // Se o loop finalizou sem retornar sucesso, NUNCA retorne silenciosamente um ID falso
+  console.error(`[saveData] Falha ao persistir em "${collectionName}". Último erro:`, lastError?.message || lastError);
+  throw lastError || new Error(`Não foi possível salvar o registro em "${collectionName}". Verifique a conexão.`);
 };
 
 /**
@@ -418,10 +443,13 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
     return p;
   });
 
-  let attempts = 0;
-  const maxAttempts = 3;
+  let columnPrunes = 0;
+  const maxColumnPrunes = 25;
+  let networkAttempts = 0;
+  const maxNetworkAttempts = 3;
+  let lastError: any = null;
 
-  while (attempts < maxAttempts) {
+  while (columnPrunes < maxColumnPrunes && networkAttempts < maxNetworkAttempts) {
     try {
       const result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payloads), timeoutMs);
       
@@ -432,6 +460,7 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
           : String(errorVal);
 
         const errorMsgLower = errorMsg.toLowerCase();
+        lastError = errorVal;
 
         // Fallback para constraint de registration_number em students
         if (collectionName === 'students' && errorMsgLower.includes('registration_number') && errorMsgLower.includes('not-null')) {
@@ -446,7 +475,7 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
                 : reg
             };
           });
-          attempts++;
+          columnPrunes++;
           continue;
         }
 
@@ -455,24 +484,32 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
                             (errorMsg.includes('not found') || 
                              errorMsg.includes('schema cache') || 
                              errorMsg.includes('does not exist') ||
-                             errorMsg.includes('missing'));
+                             errorMsg.includes('missing') ||
+                             errorMsg.includes('pgrst204'));
 
         if (isMissingCol) {
           const match = errorMsg.match(/['"](.+?)['"] column/) || 
                         errorMsg.match(/column ['"](.+?)['"]/) ||
                         errorMsg.match(/column (.+?) of/) ||
                         errorMsg.match(/column (.+?) not found/) ||
-                        errorMsg.match(/property ['"](.+?)['"] not found/);
+                        errorMsg.match(/property ['"](.+?)['"] not found/) ||
+                        errorMsg.match(/column (.+?) in the schema cache/);
           
           if (match && match[1]) {
             const missingCol = match[1].replace(/['"]/g, '').trim();
             console.warn(`[Supabase] Removendo coluna inexistente "${missingCol}" de lote em "${collectionName}".`);
             payloads = payloads.map((p: any) => {
               const newP = { ...p };
+              if (missingCol === 'unit_id' && newP.unit_id) {
+                const currentObs = newP.observations || '';
+                if (!currentObs.includes('[UNIT_ID:')) {
+                  newP.observations = `${currentObs} [UNIT_ID:${newP.unit_id}]`.trim();
+                }
+              }
               delete newP[missingCol];
               return newP;
             });
-            attempts++;
+            columnPrunes++;
             continue; 
           } else if (errorMsgLower.includes('updated_at')) {
             console.warn(`[Supabase] Removendo "updated_at" de lote em "${collectionName}".`);
@@ -481,7 +518,7 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
               delete newP.updated_at;
               return newP;
             });
-            attempts++;
+            columnPrunes++;
             continue;
           }
         }
@@ -491,16 +528,24 @@ export const saveBatch = async (collectionName: string, items: any[], timeoutMs 
       
       return payloads.map(p => p.id);
     } catch (innerErr: any) {
-      attempts++;
-      if (attempts >= maxAttempts) {
-        console.error(`[saveBatch] Erro ao salvar lote no Supabase em "${collectionName}":`, innerErr?.message || innerErr);
-        throw innerErr;
+      lastError = innerErr;
+      const errMsg = innerErr?.message || String(innerErr);
+      const isColErr = errMsg.toLowerCase().includes('column') && 
+        (errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('schema cache') || errMsg.toLowerCase().includes('does not exist') || errMsg.toLowerCase().includes('pgrst204'));
+      
+      if (!isColErr) {
+        networkAttempts++;
+        if (networkAttempts >= maxNetworkAttempts) {
+          console.error(`[saveBatch] Erro ao salvar lote no Supabase em "${collectionName}":`, errMsg);
+          throw innerErr;
+        }
+        await wait(600 * networkAttempts);
       }
-      await wait(500 * attempts);
     }
   }
 
-  return payloads.map(p => p.id);
+  console.error(`[saveBatch] Falha ao persistir lote em "${collectionName}". Último erro:`, lastError?.message || lastError);
+  throw lastError || new Error(`Não foi possível salvar o lote em "${collectionName}".`);
 };
 
 /**

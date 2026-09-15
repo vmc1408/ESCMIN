@@ -339,13 +339,16 @@ export function Students() {
         const startDate = s.start_date || schedDate || targetClass?.start_date || '';
 
         let resolvedUnitId = s.unit_id;
-        if (!resolvedUnitId && s.observations) {
+        if (s.observations) {
           const match = s.observations.match(/\[UNIT_ID:([^\]]+)\]/);
           if (match && match[1]) {
-            resolvedUnitId = match[1].trim();
+            const parsed = match[1].trim();
+            if (parsed && (!resolvedUnitId || resolvedUnitId === 'matriz' || parsed !== 'matriz')) {
+              resolvedUnitId = parsed;
+            }
           }
         }
-        if (!resolvedUnitId && targetClass?.unit_id) {
+        if ((!resolvedUnitId || resolvedUnitId === 'matriz') && targetClass?.unit_id && targetClass.unit_id !== 'matriz') {
           resolvedUnitId = targetClass.unit_id;
         }
 
@@ -731,9 +734,11 @@ export function Students() {
       return;
     }
 
+    const studentUnitId = formData.unit_id || selectedStudent.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
     const newEnrollment: Partial<Enrollment> = {
       student_id: selectedStudent.id,
       class_id: classId,
+      unit_id: studentUnitId,
       status: 'Ativo',
       enrollment_date: new Date().toISOString().split('T')[0],
       created_at: new Date().toISOString()
@@ -917,7 +922,7 @@ export function Students() {
         finalStartDate = cronoStartDate;
       }
       
-      const studentUnitId = formData.unit_id || targetClass?.unit_id || 'matriz';
+      const studentUnitId = formData.unit_id || targetClass?.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
 
       const dataToSave: any = { 
         ...formData,
@@ -927,6 +932,10 @@ export function Students() {
         class_id: formData.class_id || null,
         course: formData.course || null
       };
+
+      // Ensure unit_id is also preserved in observations metadata
+      let cleanStudentObs = (dataToSave.observations || '').replace(/\[UNIT_ID:[^\]]+\]/g, '').trim();
+      dataToSave.observations = `${cleanStudentObs} [UNIT_ID:${studentUnitId}]`.trim();
 
       // Set created_at only if it's the first time saving (no id)
       const isNew = !selectedStudent?.id;
@@ -1507,6 +1516,19 @@ export function Students() {
     if (!globalUnitId || globalUnitId === 'all') return classes;
     return classes.filter(c => isItemInUnit(getItemUnitId(c), globalUnitId, activeUnits));
   }, [classes, globalUnitId, activeUnits]);
+
+  // Unidade de contexto da ficha do aluno (respeita a unidade selecionada na ficha para permitir transferências entre polos)
+  const effectiveModalUnit = React.useMemo(() => {
+    if (formData.unit_id) return formData.unit_id;
+    if (globalUnitId && globalUnitId !== 'all') return globalUnitId;
+    return 'matriz';
+  }, [formData.unit_id, globalUnitId]);
+
+  // Turmas estritamente restritas à unidade do aluno (garante que filiais não vejam turmas da matriz e vice-versa)
+  const modalAvailableClasses = React.useMemo(() => {
+    if (!effectiveModalUnit || effectiveModalUnit === 'all') return classes;
+    return classes.filter(c => isItemInUnit(getItemUnitId(c), effectiveModalUnit, activeUnits));
+  }, [classes, effectiveModalUnit, activeUnits]);
 
   const studentsInActiveUnitCount = React.useMemo(() => {
     if (!globalUnitId || globalUnitId === 'all') return students.length;
@@ -2124,7 +2146,7 @@ export function Students() {
                           className="flex-1 md:w-64 px-2.5 py-1.5 bg-white border border-amber-300 text-xs font-semibold text-slate-800 outline-none"
                         >
                           <option value="">Selecione uma turma ativa...</option>
-                          {classes.filter(c => c.status === 'Ativo' || !c.status).map(c => (
+                          {scopedClasses.filter(c => c.status === 'Ativo' || !c.status).map(c => (
                             <option key={`quick-c-${c.id}`} value={c.id}>
                               {c.name} {c.code ? `(${c.code})` : ''} - {c.period || ''}
                             </option>
@@ -2262,8 +2284,12 @@ export function Students() {
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
                           tabIndex={7}
                         >
-                          <option value="">Selecione uma turma</option>
-                          {scopedClasses.filter(c => c.status === 'Ativo' || c.id === formData.class_id).map((c, cIdx) => (
+                          <option value="">
+                            {modalAvailableClasses.length === 0 
+                              ? 'Nenhuma turma disponível nesta unidade' 
+                              : 'Selecione uma turma'}
+                          </option>
+                          {modalAvailableClasses.filter(c => c.status === 'Ativo' || c.id === formData.class_id).map((c, cIdx) => (
                             <option key={`st-cls-form-${c.id || cIdx}-${cIdx}`} value={c.id}>
                               {c.name} ({c.code}) - {c.period}
                             </option>
@@ -2342,15 +2368,31 @@ export function Students() {
 
                       {hasMultipleUnits && (
                         <div className="col-span-12 bg-blue-50/60 p-2.5 border border-blue-200/80 space-y-1">
-                          <label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
-                            <Building2 size={13} className="text-blue-700" />
-                            Polo / Unidade Educacional do Aluno
-                          </label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                              <Building2 size={13} className="text-blue-700" />
+                              Polo / Unidade Educacional do Aluno
+                            </label>
+                            <span className="text-[10px] text-blue-700 font-semibold bg-blue-100/70 px-2 py-0.5 rounded">
+                              🔄 Transferência: selecione o polo de destino para atualizar as turmas
+                            </span>
+                          </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <select
                               disabled={!isEditing}
-                              value={formData.unit_id || 'matriz'}
-                              onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+                              value={formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz')}
+                              onChange={(e) => {
+                                const newUnitId = e.target.value;
+                                const currentCls = classes.find(c => c.id === formData.class_id);
+                                const isClsInNewUnit = currentCls ? isItemInUnit(getItemUnitId(currentCls), newUnitId, activeUnits) : false;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  unit_id: newUnitId,
+                                  // Ao transferir de polo, limpa turma caso pertença a outra unidade para forçar seleção de turma da nova unidade
+                                  class_id: isClsInNewUnit ? prev.class_id : '',
+                                  course: isClsInNewUnit ? prev.course : ''
+                                }));
+                              }}
                               className="flex-1 px-3 py-1.5 bg-white border border-blue-200 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                             >
                               {activeUnits.map(u => (
@@ -2360,7 +2402,7 @@ export function Students() {
                               ))}
                             </select>
                             <span className="text-[11px] text-blue-700 font-medium">
-                              {formData.unit_id ? `Polo vinculado: ${getUnitName(formData.unit_id)}` : 'Polo Padrão Matriz'}
+                              {formData.unit_id ? `Polo: ${getUnitName(formData.unit_id)}` : 'Polo Padrão Matriz'}
                             </span>
                           </div>
                         </div>
@@ -2422,8 +2464,12 @@ export function Students() {
                                 hasParallelCourses ? "border-amber-300 focus:ring-1 focus:ring-amber-500" : "border-slate-200 focus:ring-1 focus:ring-slate-500/10"
                               )}
                             >
-                              <option value="">Matricular em outra turma...</option>
-                              {classes.filter(c => c.status === 'Ativo' && c.id !== primaryClsId && !studentEnrollments.some(e => e.class_id === c.id && (e.status || 'Ativo') === 'Ativo')).map((c, cIdx) => (
+                              <option value="">
+                                {modalAvailableClasses.filter(c => c.status === 'Ativo' && c.id !== primaryClsId && !studentEnrollments.some(e => e.class_id === c.id && (e.status || 'Ativo') === 'Ativo')).length === 0
+                                  ? 'Nenhuma outra turma disponível nesta unidade'
+                                  : 'Matricular em outra turma...'}
+                              </option>
+                              {modalAvailableClasses.filter(c => c.status === 'Ativo' && c.id !== primaryClsId && !studentEnrollments.some(e => e.class_id === c.id && (e.status || 'Ativo') === 'Ativo')).map((c, cIdx) => (
                                 <option key={`st-cls-oth-${c.id || cIdx}-${cIdx}`} value={c.id}>
                                   {c.name} {c.code ? `(${c.code})` : ''} - {c.period || ''}
                                 </option>

@@ -176,7 +176,7 @@ export function Subjects() {
               if (!normalized.semester && meta.semester) normalized.semester = meta.semester;
               if (!normalized.teacher_id && meta.teacher_id) normalized.teacher_id = meta.teacher_id;
               if (!normalized.year && meta.year) normalized.year = meta.year;
-              if (!normalized.unit_id && meta.unit_id) normalized.unit_id = meta.unit_id;
+              if (meta.unit_id && (!normalized.unit_id || normalized.unit_id === 'matriz' || meta.unit_id !== 'matriz')) normalized.unit_id = meta.unit_id;
             } catch (e) {
               // ignore
             }
