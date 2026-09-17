@@ -2208,6 +2208,7 @@ export function Classes() {
 
         // 1. Update student's primary class
         await saveData('students', studentId, {
+          ...(student || {}),
           class_id: targetClassForUnallocated,
           ...(studentCourse ? { course: studentCourse } : {}),
           ...(effectiveStartDate ? { start_date: effectiveStartDate } : {})
@@ -2223,7 +2224,7 @@ export function Classes() {
       }
 
       if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
-        saveData('classes', targetClass.id, { start_date: cronoStartDate })
+        saveData('classes', targetClass.id, { ...targetClass, start_date: cronoStartDate })
           .then(() => {
             setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
           })

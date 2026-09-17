@@ -339,7 +339,26 @@ export const saveData = async (collectionName: string, id: string | undefined, d
   
   while (columnPrunes < maxColumnPrunes && networkAttempts < maxNetworkAttempts) {
     try {
-      const result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payload), timeoutMs);
+      let result: any;
+      if (id) {
+        // Tentativa de UPDATE quando id fornecido (atualização de registro existente).
+        // O UPDATE no PostgreSQL atua apenas nas colunas passadas, evitando disparar
+        // restrições NOT NULL sobre colunas obrigatórias não incluídas em atualizações parciais.
+        const updatePayload = { ...payload };
+        delete (updatePayload as any).id;
+
+        result = await fetchWithTimeout(
+          () => supabase.from(collectionName).update(updatePayload).eq('id', id).select('id'),
+          timeoutMs
+        );
+
+        // Se o registro não existia no banco (0 linhas afetadas) e não houve erro, realiza upsert completo
+        if (!result?.error && (!result?.data || (Array.isArray(result.data) && result.data.length === 0))) {
+          result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payload), timeoutMs);
+        }
+      } else {
+        result = await fetchWithTimeout(() => supabase.from(collectionName).upsert(payload), timeoutMs);
+      }
       
       if (result?.error) {
         const errorVal = result.error;

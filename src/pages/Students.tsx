@@ -655,7 +655,7 @@ export function Students() {
 
         // Auto-sync class start_date if missing or divergent from cronograma
         if (cronoStartDate && targetClass.start_date !== cronoStartDate) {
-          saveData('classes', targetClass.id, { start_date: cronoStartDate })
+          saveData('classes', targetClass.id, { ...targetClass, start_date: cronoStartDate })
             .then(() => {
               setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
             })
@@ -755,13 +755,14 @@ export function Students() {
         const startDate = selectedStudent.start_date || cronoStartDate || targetClass?.start_date || '';
 
         await saveData('students', selectedStudent.id, {
+          ...selectedStudent,
           class_id: classId,
           ...(detectedCourse ? { course: detectedCourse } : {}),
           ...(startDate ? { start_date: startDate } : {})
         });
 
         if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
-          saveData('classes', targetClass.id, { start_date: cronoStartDate })
+          saveData('classes', targetClass.id, { ...targetClass, start_date: cronoStartDate })
             .then(() => {
               setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
             })
@@ -844,6 +845,7 @@ export function Students() {
       
       // Update student's primary class
       await saveData('students', selectedStudent.id, {
+        ...selectedStudent,
         class_id: quickAssignClassId,
         ...(detectedCourse ? { course: detectedCourse } : {}),
         ...(startDate ? { start_date: startDate } : {})
@@ -861,7 +863,7 @@ export function Students() {
       }
 
       if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
-        saveData('classes', targetClass.id, { start_date: cronoStartDate })
+        saveData('classes', targetClass.id, { ...targetClass, start_date: cronoStartDate })
           .then(() => {
             setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
           })
@@ -945,7 +947,7 @@ export function Students() {
 
       // Keep class start_date synchronized with schedule if needed
       if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
-        saveData('classes', targetClass.id, { start_date: cronoStartDate })
+        saveData('classes', targetClass.id, { ...targetClass, start_date: cronoStartDate })
           .then(() => {
             setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
           })
@@ -2273,7 +2275,7 @@ export function Students() {
 
                             // Sincroniza a data de início da turma caso ainda não esteja definida ou diferente do cronograma
                             if (targetClass && cronoStartDate && targetClass.start_date !== cronoStartDate) {
-                              saveData('classes', targetClass.id, { start_date: cronoStartDate })
+                              saveData('classes', targetClass.id, { ...targetClass, start_date: cronoStartDate })
                                 .then(() => {
                                   setClasses(prev => prev.map(c => c.id === targetClass.id ? { ...c, start_date: cronoStartDate } : c));
                                 })
