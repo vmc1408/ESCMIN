@@ -55,6 +55,8 @@ export interface Student {
   
   // Address
   address_street?: string;
+  address_number?: string;
+  address_complement?: string;
   address_neighborhood?: string;
   address_city?: string;
   address_state?: string;
@@ -187,6 +189,8 @@ export interface Teacher {
   cpf?: string;
   rg?: string;
   address_street?: string;
+  address_number?: string;
+  address_complement?: string;
   address_city?: string;
   address_state?: string;
   address_zip?: string;
@@ -238,6 +242,7 @@ export interface ClergyLeity {
   priest_name?: string;
   address?: string;
   address_number?: string;
+  address_complement?: string;
   address_neighborhood?: string;
   address_city?: string;
   address_state?: string;
@@ -276,6 +281,7 @@ export interface Parish {
   address?: string;
   address_street?: string;
   address_number?: string;
+  address_complement?: string;
   address_neighborhood?: string;
   address_city?: string;
   address_state?: string;

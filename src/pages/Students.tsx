@@ -49,6 +49,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
+import { maskRG, calculateRGValidation, RG_MAX_FORMATTED_LENGTH } from '../lib/rgUtils';
+import { fetchAddressByCEP } from '../lib/cepUtils';
 
 // Memoized List Item to prevent lag
 const StudentItem = React.memo(({ 
@@ -128,10 +130,6 @@ const maskCPF = (value: string) => {
     .replace(/(-\d{2})\d+?$/, '$1');
 };
 
-const maskRG = (value: string) => {
-  return value.replace(/\D/g, '').replace(/(\d{2})(\d{3})(\d{3})(\d{1})/, '$1.$2.$3-$4');
-};
-
 const maskCEP = (value: string) => {
   return value.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2').substring(0, 9);
 };
@@ -187,6 +185,8 @@ const INITIAL_STUDENT_STATE: Partial<Student> = {
   rg: '',
   birth_date: '',
   address_street: '',
+  address_number: '',
+  address_complement: '',
   address_neighborhood: '',
   address_city: 'Guarulhos',
   address_state: 'SP',
@@ -264,6 +264,44 @@ export function Students() {
   }, [institution?.admission_norms]);
   const webcamRef = useRef<Webcam>(null);
   const { user, profile, refreshProfile, canDelete } = useAuth();
+
+  // Cálculo em tempo real do tamanho válido e tipo de numeração do RG
+  const rgValidation = useMemo(() => {
+    return calculateRGValidation(formData.rg || '');
+  }, [formData.rg]);
+
+  // Estados e busca automática de endereço via CEP (ViaCEP)
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepSuccess, setCepSuccess] = useState(false);
+
+  const handleCepChange = async (val: string) => {
+    const formatted = maskCEP(val);
+    setFormData(prev => ({ ...prev, address_zip: formatted }));
+
+    const cleanDigits = formatted.replace(/\D/g, '');
+    if (cleanDigits.length === 8) {
+      try {
+        setLoadingCep(true);
+        const data = await fetchAddressByCEP(cleanDigits);
+        if (data && !data.erro) {
+          setFormData(prev => ({
+            ...prev,
+            address_street: data.logradouro || prev.address_street || '',
+            address_complement: data.complemento || prev.address_complement || '',
+            address_neighborhood: data.bairro || prev.address_neighborhood || '',
+            address_city: data.localidade || prev.address_city || '',
+            address_state: data.uf || prev.address_state || ''
+          }));
+          setCepSuccess(true);
+          setTimeout(() => setCepSuccess(false), 4000);
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar ViaCEP:', err);
+      } finally {
+        setLoadingCep(false);
+      }
+    }
+  };
 
   // Automatic list collapsing and showing is based on active selected student state.
 
@@ -507,6 +545,8 @@ export function Students() {
       rg: student.rg || '',
       birth_date: student.birth_date,
       address_street: student.address_street || '',
+      address_number: student.address_number || '',
+      address_complement: student.address_complement || '',
       address_neighborhood: student.address_neighborhood || '',
       address_city: student.address_city || 'Guarulhos',
       address_state: student.address_state || 'SP',
@@ -898,10 +938,18 @@ export function Students() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
       e.preventDefault();
       const target = e.target as HTMLElement;
-      const nextTabIndex = (target.tabIndex || 0) + 1;
-      const nextElement = document.querySelector(`[tabIndex="${nextTabIndex}"]`) as HTMLElement;
+      const currentTabIndex = target.tabIndex || 0;
+      let nextElement: HTMLElement | null = null;
+      for (let i = currentTabIndex + 1; i <= currentTabIndex + 15; i++) {
+        const el = document.querySelector(`[tabIndex="${i}"]`) as HTMLElement;
+        if (el && !el.hasAttribute('disabled') && el.offsetParent !== null) {
+          nextElement = el;
+          break;
+        }
+      }
       if (nextElement) {
         nextElement.focus();
       }
@@ -912,6 +960,18 @@ export function Students() {
     if (uploadingPhoto) {
       setNotification({ type: 'error', message: 'Aguarde o upload da foto terminar' });
       return;
+    }
+
+    // Validação do tamanho válido do RG (se preenchido)
+    if (formData.rg) {
+      const rgVal = calculateRGValidation(formData.rg);
+      if (!rgVal.isValid) {
+        setNotification({ 
+          type: 'error', 
+          message: `RG incompleto ou com formato não reconhecido (${rgVal.rawLength} dígitos). Um documento de identidade válido no Brasil possui entre 7 e 11 caracteres (padrões estaduais ou Nova CIN).` 
+        });
+        return;
+      }
     }
     
     try {
@@ -1310,7 +1370,7 @@ export function Students() {
             <div className="flex items-end gap-2">
               <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Endereço:</span>
               <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-900 px-2 pb-1 min-h-[22px]">
-                {selectedStudent.address_street}
+                {selectedStudent.address_street ? `${selectedStudent.address_street}${selectedStudent.address_number ? `, Nº ${selectedStudent.address_number}` : ''}${selectedStudent.address_complement ? ` - ${selectedStudent.address_complement}` : ''}` : ''}
               </span>
             </div>
 
@@ -2228,17 +2288,51 @@ export function Students() {
                         />
                       </div>
                       <div className="col-span-12 sm:col-span-4 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">RG</label>
-                        <input 
-                          type="text"
-                          disabled={!isEditing}
-                          value={formData.rg || ''}
-                          onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          placeholder="00.000.000-0"
-                          tabIndex={5}
-                        />
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">RG / Identidade</label>
+                          {formData.rg ? (
+                            <span className={`text-[10px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded-none border ${
+                              rgValidation.statusColor === 'success' 
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                : rgValidation.statusColor === 'warning' 
+                                  ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                                  : 'bg-rose-50 text-rose-800 border-rose-200'
+                            }`}>
+                              {rgValidation.typeLabel}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              Máx. 14 chars
+                            </span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            disabled={!isEditing}
+                            value={formData.rg || ''}
+                            onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
+                            onKeyDown={handleKeyDown}
+                            maxLength={RG_MAX_FORMATTED_LENGTH}
+                            className={`w-full px-4 py-2 bg-white border rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 transition-colors ${
+                              !formData.rg 
+                                ? 'border-slate-200' 
+                                : rgValidation.isValid 
+                                  ? 'border-emerald-300 focus:border-emerald-500' 
+                                  : 'border-amber-300 focus:border-amber-500'
+                            }`}
+                            placeholder="00.000.000-0"
+                            tabIndex={5}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] px-0.5">
+                          <span className={formData.rg && !rgValidation.isValid ? 'text-amber-700 font-medium' : 'text-slate-400'}>
+                            {rgValidation.helperText}
+                          </span>
+                          <span className="text-slate-400 font-mono">
+                            {(formData.rg || '').length}/{RG_MAX_FORMATTED_LENGTH}
+                          </span>
+                        </div>
                       </div>
                       <div className="col-span-12 sm:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Data de Nascimento</label>
@@ -2310,7 +2404,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, course: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border border-slate-205 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold text-slate-800"
-                          tabIndex={7.5}
+                          tabIndex={8}
                         >
                           <option value="">Identificar Curso...</option>
                           {coursesList.length > 0 ? (
@@ -2364,7 +2458,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, start_date: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-medium"
-                          tabIndex={8}
+                          tabIndex={9}
                         />
                       </div>
 
@@ -2395,6 +2489,8 @@ export function Students() {
                                   course: isClsInNewUnit ? prev.course : ''
                                 }));
                               }}
+                              onKeyDown={handleKeyDown}
+                              tabIndex={10}
                               className="flex-1 px-3 py-1.5 bg-white border border-blue-200 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
                             >
                               {activeUnits.map(u => (
@@ -2569,19 +2665,84 @@ export function Students() {
                       Endereço e Contato
                     </h4>
                     <div className="grid grid-cols-12 gap-3">
-                      <div className="col-span-12 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">Logradouro (Rua, Número, Complemento)</label>
+                      {/* Linha 1: CEP (estilo Correios com fundo/sombra azulada), Logradouro e Nº */}
+                      <div className="col-span-12 sm:col-span-3 lg:col-span-2 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+                            CEP
+                          </label>
+                          {loadingCep && (
+                            <span className="text-[10px] text-blue-600 flex items-center gap-1 font-medium">
+                              <Loader2 size={10} className="animate-spin" /> Buscando...
+                            </span>
+                          )}
+                          {cepSuccess && (
+                            <span className="text-[10px] text-emerald-600 flex items-center gap-1 font-medium">
+                              <CheckCircle2 size={10} /> OK!
+                            </span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            disabled={!isEditing}
+                            value={formData.address_zip || ''}
+                            onChange={(e) => handleCepChange(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            maxLength={9}
+                            className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-none text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 transition-all"
+                            placeholder="00000-000"
+                            tabIndex={11}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="col-span-12 sm:col-span-7 lg:col-span-9 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Logradouro (Rua, Avenida...)</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
                           value={formData.address_street || ''}
                           onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                           onKeyDown={handleKeyDown}
+                          placeholder="Rua, Avenida, Praça..."
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          tabIndex={9}
+                          tabIndex={12}
                         />
                       </div>
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
+
+                      <div className="col-span-12 sm:col-span-2 lg:col-span-1 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Nº</label>
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          value={formData.address_number || ''}
+                          onChange={(e) => setFormData({...formData, address_number: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          maxLength={6}
+                          placeholder="Nº"
+                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-none text-sm font-mono font-bold focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 text-slate-800 text-center"
+                          tabIndex={13}
+                        />
+                      </div>
+
+                      {/* Linha 2: Complemento, Bairro, Cidade e UF na mesma linha em perfeito alinhamento */}
+                      <div className="col-span-12 sm:col-span-3 lg:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Complemento</label>
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          value={formData.address_complement || ''}
+                          onChange={(e) => setFormData({...formData, address_complement: e.target.value})}
+                          onKeyDown={handleKeyDown}
+                          placeholder="Apto, Bloco..."
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          tabIndex={14}
+                        />
+                      </div>
+
+                      <div className="col-span-12 sm:col-span-4 lg:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Bairro</label>
                         <input 
                           type="text"
@@ -2589,11 +2750,13 @@ export function Students() {
                           value={formData.address_neighborhood || ''}
                           onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          tabIndex={10}
+                          placeholder="Bairro"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          tabIndex={15}
                         />
                       </div>
-                      <div className="col-span-12 sm:col-span-5 space-y-1">
+
+                      <div className="col-span-12 sm:col-span-3 lg:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-700">Cidade</label>
                         <input 
                           type="text"
@@ -2601,36 +2764,28 @@ export function Students() {
                           value={formData.address_city || ''}
                           onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          tabIndex={11}
+                          placeholder="Cidade"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                          tabIndex={16}
                         />
                       </div>
-                      <div className="col-span-12 sm:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">UF / Estado</label>
+
+                      <div className="col-span-12 sm:col-span-2 lg:col-span-1 space-y-1">
+                        <label className="text-xs font-bold text-slate-700">UF</label>
                         <input 
                           type="text"
                           disabled={!isEditing}
                           value={formData.address_state || ''}
-                          onChange={(e) => setFormData({...formData, address_state: e.target.value})}
+                          onChange={(e) => setFormData({...formData, address_state: e.target.value.toUpperCase()})}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          tabIndex={12}
+                          maxLength={2}
+                          placeholder="SP"
+                          className="w-full px-2 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 uppercase text-center font-bold"
+                          tabIndex={17}
                         />
                       </div>
-                      <div className="col-span-12 sm:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-slate-700">CEP</label>
-                        <input 
-                          type="text"
-                          disabled={!isEditing}
-                          value={formData.address_zip || ''}
-                          onChange={(e) => setFormData({...formData, address_zip: maskCEP(e.target.value)})}
-                          onKeyDown={handleKeyDown}
-                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          placeholder="00000-000"
-                          tabIndex={13}
-                        />
-                      </div>
-                      <div className="col-span-12 sm:col-span-5 space-y-1">
+
+                      <div className="col-span-12 sm:col-span-7 space-y-1">
                         <label className="text-xs font-bold text-slate-700">E-mail</label>
                         <input 
                           type="email"
@@ -2638,11 +2793,12 @@ export function Students() {
                           value={formData.email || ''}
                           onChange={(e) => setFormData({...formData, email: e.target.value})}
                           onKeyDown={handleKeyDown}
+                          placeholder="exemplo@email.com"
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          tabIndex={14}
+                          tabIndex={18}
                         />
                       </div>
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                      <div className="col-span-12 sm:col-span-5 space-y-1">
                         <label className="text-xs font-bold text-slate-700 font-bold text-slate-800">Celular</label>
                         <div className="relative">
                           <input 
@@ -2653,7 +2809,7 @@ export function Students() {
                             onKeyDown={handleKeyDown}
                             className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm font-normal focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
                             placeholder="(00) 00000-0000"
-                            tabIndex={15}
+                            tabIndex={19}
                           />
                           <button
                             type="button"
@@ -2700,7 +2856,7 @@ export function Students() {
                           }}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
-                          tabIndex={16}
+                          tabIndex={20}
                         >
                           <option value="">Selecione...</option>
                           {parishesList.map((p, pIdx) => (
@@ -2716,7 +2872,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, forania: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-bold"
-                          tabIndex={16}
+                          tabIndex={21}
                         >
                           <option value="">Selecione...</option>
                           {forariesList.map((f, fIdx) => (
@@ -2733,7 +2889,7 @@ export function Students() {
                           onChange={(e) => setFormData({...formData, pastoral_participates: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-white border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                          tabIndex={17}
+                          tabIndex={22}
                         />
                       </div>
                     </div>

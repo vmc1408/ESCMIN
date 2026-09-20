@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS parishes (
     priest_name TEXT,
     address_street TEXT,
     address_number TEXT,
+    address_complement TEXT,
     address_neighborhood TEXT,
     address_city TEXT,
     address_state TEXT,
@@ -72,9 +73,12 @@ CREATE TABLE IF NOT EXISTS clergy_leity (
     code TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     address TEXT,
+    address_number TEXT,
+    address_complement TEXT,
     address_neighborhood TEXT,
     address_city TEXT,
     address_state TEXT,
+    address_zip TEXT,
     phone_mobile TEXT,
     phone_mobile_is_whatsapp BOOLEAN DEFAULT FALSE,
     phone_whatsapp TEXT,
@@ -155,11 +159,14 @@ CREATE TABLE IF NOT EXISTS students (
     class_id TEXT REFERENCES classes(id),
     parish_id TEXT,
     address_street TEXT,
+    address_number TEXT,
+    address_complement TEXT,
+    address_neighborhood TEXT,
     address_city TEXT,
     address_state TEXT,
-    address_neighborhood TEXT,
     address_zip TEXT,
     parish TEXT,
+    forania TEXT,
     course TEXT,
     pastoral_participates TEXT,
     phone_mobile TEXT,
@@ -171,6 +178,7 @@ CREATE TABLE IF NOT EXISTS students (
     guardian_mother TEXT,
     guardian_cpf TEXT,
     photo_url TEXT,
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -187,11 +195,16 @@ CREATE TABLE IF NOT EXISTS teachers (
     cpf TEXT,
     rg TEXT,
     address_street TEXT,
+    address_number TEXT,
+    address_complement TEXT,
+    address_neighborhood TEXT,
     address_city TEXT,
     address_state TEXT,
     address_zip TEXT,
     birth_date TEXT,
     observations TEXT,
+    status TEXT DEFAULT 'Ativo',
+    unit_id TEXT DEFAULT 'matriz',
     user_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -389,6 +402,34 @@ ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'ma
 ALTER TABLE IF EXISTS classes ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE IF EXISTS subjects ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
+-- Novos campos de endereço e identificação (Alunos, Professores, Paróquias, Clero)
+ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS forania TEXT;
+
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS address_neighborhood TEXT;
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Ativo';
+
+ALTER TABLE IF EXISTS parishes ADD COLUMN IF NOT EXISTS address_complement TEXT;
+
+ALTER TABLE IF EXISTS clergy_leity ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS clergy_leity ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS clergy_leity ADD COLUMN IF NOT EXISTS address_zip TEXT;
+
+-- Garantir também nas tabelas de arquivo morto / espelho
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS forania TEXT;
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS address_neighborhood TEXT;
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Ativo';
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 
 -- Habilitar RLS para todas as tabelas
 DO $$ 

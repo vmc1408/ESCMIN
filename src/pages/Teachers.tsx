@@ -32,12 +32,17 @@ import { useUnits } from '../contexts/UnitContext';
 import { useAuth } from '../contexts/AuthContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
+import { maskRG, calculateRGValidation, RG_MAX_FORMATTED_LENGTH } from '../lib/rgUtils';
+import { fetchAddressByCEP } from '../lib/cepUtils';
 
 interface Teacher {
   id: string;
   code: string;
   name: string;
   address_street?: string;
+  address_number?: string;
+  address_complement?: string;
+  address_neighborhood?: string;
   address_city?: string;
   address_state?: string;
   address_zip?: string;
@@ -94,10 +99,6 @@ const maskCPF = (value: string) => {
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})/, '$1-$2')
     .replace(/(-\d{2})\d+?$/, '$1');
-};
-
-const maskRG = (value: string) => {
-  return value.replace(/\D/g, '').replace(/(\d{2})(\d{3})(\d{3})(\d{1})/, '$1.$2.$3-$4');
 };
 
 const maskCEP = (value: string) => {
@@ -190,6 +191,39 @@ export function Teachers() {
   const [formData, setFormData] = useState<Partial<Teacher>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  // Estados e busca automática de endereço via CEP (ViaCEP)
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepSuccess, setCepSuccess] = useState(false);
+
+  const handleCepChange = async (val: string) => {
+    const formatted = maskCEP(val);
+    setFormData(prev => ({ ...prev, address_zip: formatted }));
+
+    const cleanDigits = formatted.replace(/\D/g, '');
+    if (cleanDigits.length === 8) {
+      try {
+        setLoadingCep(true);
+        const data = await fetchAddressByCEP(cleanDigits);
+        if (data && !data.erro) {
+          setFormData(prev => ({
+            ...prev,
+            address_street: data.logradouro || prev.address_street || '',
+            address_complement: data.complemento || prev.address_complement || '',
+            address_neighborhood: data.bairro || prev.address_neighborhood || '',
+            address_city: data.localidade || prev.address_city || '',
+            address_state: data.uf || prev.address_state || ''
+          }));
+          setCepSuccess(true);
+          setTimeout(() => setCepSuccess(false), 4000);
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar ViaCEP:', err);
+      } finally {
+        setLoadingCep(false);
+      }
+    }
+  };
 
   const fetchTeachers = React.useCallback(async () => {
     setLoading(true);
@@ -697,10 +731,18 @@ export function Teachers() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
       e.preventDefault();
       const target = e.target as HTMLElement;
-      const nextTabIndex = (target.tabIndex || 0) + 1;
-      const nextElement = document.querySelector(`[tabIndex="${nextTabIndex}"]`) as HTMLElement;
+      const currentTabIndex = target.tabIndex || 0;
+      let nextElement: HTMLElement | null = null;
+      for (let i = currentTabIndex + 1; i <= currentTabIndex + 15; i++) {
+        const el = document.querySelector(`[tabIndex="${i}"]`) as HTMLElement;
+        if (el && !el.hasAttribute('disabled') && el.offsetParent !== null) {
+          nextElement = el;
+          break;
+        }
+      }
       if (nextElement) {
         nextElement.focus();
       }
@@ -776,8 +818,15 @@ export function Teachers() {
       doc.text('CONTATO E ENDEREÇO', margin, nextY);
       doc.line(margin, nextY + 2, pageWidth - margin, nextY + 2);
 
+      const formattedAddress = [
+        teacher.address_street,
+        teacher.address_number ? `nº ${teacher.address_number}` : null,
+        teacher.address_complement,
+        teacher.address_neighborhood
+      ].filter(Boolean).join(', ') || '---';
+
       const contactData = [
-        ['Endereço:', teacher.address_street || '---'],
+        ['Endereço:', formattedAddress],
         ['Cidade/UF:', `${teacher.address_city || '---'} / ${teacher.address_state || '---'}`],
         ['CEP:', teacher.address_zip || '---'],
         ['Celular:', teacher.phone_mobile || '---']
@@ -981,7 +1030,12 @@ export function Teachers() {
             <div className="flex items-end gap-2">
               <span className="font-bold uppercase min-w-[70px] text-[8.5pt] text-slate-800">Endereço:</span>
               <span className="flex-1 border-b border-slate-400 font-bold uppercase text-[9pt] text-slate-950 px-2 pb-1 min-h-[22px]">
-                {selectedTeacher.address_street || '---'}
+                {[
+                  selectedTeacher.address_street,
+                  selectedTeacher.address_number ? `Nº ${selectedTeacher.address_number}` : null,
+                  selectedTeacher.address_complement,
+                  selectedTeacher.address_neighborhood
+                ].filter(Boolean).join(', ') || '---'}
               </span>
             </div>
 
@@ -1563,13 +1617,21 @@ export function Teachers() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">RG</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700">RG / Identidade</label>
+                        {formData.rg && (
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {formData.rg.length}/{RG_MAX_FORMATTED_LENGTH}
+                          </span>
+                        )}
+                      </div>
                       <input 
                         type="text"
                         disabled={!isEditing}
                         value={formData.rg || ''}
                         onChange={(e) => setFormData({...formData, rg: maskRG(e.target.value)})}
                         onKeyDown={handleKeyDown}
+                        maxLength={RG_MAX_FORMATTED_LENGTH}
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
                         placeholder="00.000.000-0"
                         tabIndex={4}
@@ -1583,7 +1645,7 @@ export function Teachers() {
                         onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                         onKeyDown={handleKeyDown}
                         className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                        tabIndex={11}
+                        tabIndex={5}
                       >
                         <option value="Ativo">Ativo</option>
                         <option value="Inativo">Inativo</option>
@@ -1601,7 +1663,7 @@ export function Teachers() {
                           onChange={(e) => setFormData({...formData, unit_id: e.target.value})}
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
-                          tabIndex={12}
+                          tabIndex={6}
                         >
                           {activeUnits.map(u => (
                             <option key={u.id} value={u.id}>
@@ -1621,7 +1683,40 @@ export function Teachers() {
                     Endereço e Contato
                   </h4>
                   <div className="grid grid-cols-12 gap-3">
-                    <div className="col-span-12 sm:col-span-8 space-y-1">
+                    {/* Linha 1: CEP (estilo Correios com fundo/sombra azulada), Logradouro e Nº */}
+                    <div className="col-span-12 sm:col-span-3 lg:col-span-2 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+                          CEP
+                        </label>
+                        {loadingCep && (
+                          <span className="text-[10px] text-blue-600 flex items-center gap-1 font-medium">
+                            <Loader2 size={10} className="animate-spin" /> Buscando...
+                          </span>
+                        )}
+                        {cepSuccess && (
+                          <span className="text-[10px] text-emerald-600 flex items-center gap-1 font-medium">
+                            <CheckCircle2 size={10} /> OK!
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input 
+                          type="text"
+                          disabled={!isEditing}
+                          value={formData.address_zip || ''}
+                          onChange={(e) => handleCepChange(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          maxLength={9}
+                          className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-none text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 transition-all"
+                          placeholder="00000-000"
+                          tabIndex={7}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-7 lg:col-span-9 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Logradouro (Rua, Av, etc)</label>
                       <input 
                         type="text"
@@ -1629,24 +1724,57 @@ export function Teachers() {
                         value={formData.address_street || ''}
                         onChange={(e) => setFormData({...formData, address_street: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                        tabIndex={5}
+                        placeholder="Rua, Av, etc..."
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        tabIndex={8}
                       />
                     </div>
-                    <div className="col-span-12 sm:col-span-4 space-y-1">
-                      <label className="text-xs font-bold text-slate-700">CEP</label>
+
+                    <div className="col-span-12 sm:col-span-2 lg:col-span-1 space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Nº</label>
                       <input 
                         type="text"
                         disabled={!isEditing}
-                        value={formData.address_zip || ''}
-                        onChange={(e) => setFormData({...formData, address_zip: maskCEP(e.target.value)})}
+                        value={formData.address_number || ''}
+                        onChange={(e) => setFormData({...formData, address_number: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                        placeholder="00000-000"
-                        tabIndex={6}
+                        maxLength={6}
+                        placeholder="Nº"
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm font-mono font-bold focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 text-slate-800 text-center"
+                        tabIndex={9}
                       />
                     </div>
-                    <div className="col-span-12 sm:col-span-5 space-y-1">
+
+                    {/* Linha 2: Complemento, Bairro, Cidade e UF na mesma linha em perfeito alinhamento */}
+                    <div className="col-span-12 sm:col-span-3 lg:col-span-3 space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Complemento</label>
+                      <input 
+                        type="text"
+                        disabled={!isEditing}
+                        value={formData.address_complement || ''}
+                        onChange={(e) => setFormData({...formData, address_complement: e.target.value})}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Apto, Bloco..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        tabIndex={10}
+                      />
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-4 lg:col-span-4 space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Bairro</label>
+                      <input 
+                        type="text"
+                        disabled={!isEditing}
+                        value={formData.address_neighborhood || ''}
+                        onChange={(e) => setFormData({...formData, address_neighborhood: e.target.value})}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Bairro"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        tabIndex={11}
+                      />
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-3 lg:col-span-4 space-y-1">
                       <label className="text-xs font-bold text-slate-700">Cidade</label>
                       <input 
                         type="text"
@@ -1654,20 +1782,24 @@ export function Teachers() {
                         value={formData.address_city || ''}
                         onChange={(e) => setFormData({...formData, address_city: e.target.value})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                        tabIndex={7}
+                        placeholder="Cidade"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
+                        tabIndex={12}
                       />
                     </div>
-                    <div className="col-span-12 sm:col-span-2 space-y-1">
+
+                    <div className="col-span-12 sm:col-span-2 lg:col-span-1 space-y-1">
                       <label className="text-xs font-bold text-slate-700">UF</label>
                       <input 
                         type="text"
                         disabled={!isEditing}
                         value={formData.address_state || ''}
-                        onChange={(e) => setFormData({...formData, address_state: e.target.value})}
+                        onChange={(e) => setFormData({...formData, address_state: e.target.value.toUpperCase()})}
                         onKeyDown={handleKeyDown}
-                        className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60"
-                        tabIndex={8}
+                        maxLength={2}
+                        placeholder="SP"
+                        className="w-full px-2 py-2 bg-slate-50 border border-slate-200 rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 uppercase text-center font-bold"
+                        tabIndex={13}
                       />
                     </div>
                     <div className="col-span-12 sm:col-span-5 space-y-1">
@@ -1681,7 +1813,7 @@ export function Teachers() {
                           onKeyDown={handleKeyDown}
                           className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 pr-10"
                           placeholder="(00) 00000-0000"
-                          tabIndex={9}
+                          tabIndex={14}
                         />
                         <button
                           type="button"
@@ -1720,7 +1852,7 @@ export function Teachers() {
                     onKeyDown={handleKeyDown}
                     rows={4}
                     className="w-full px-4 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 resize-none"
-                    tabIndex={10}
+                    tabIndex={15}
                   />
                 </section>
 

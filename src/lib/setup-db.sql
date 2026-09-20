@@ -183,6 +183,34 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE academic_settings ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 ALTER TABLE academic_parameters ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
 
+-- Novos campos de endereço e identificação (Alunos, Professores, Paróquias, Clero)
+ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS forania TEXT;
+
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS address_neighborhood TEXT;
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Ativo';
+
+ALTER TABLE IF EXISTS parishes ADD COLUMN IF NOT EXISTS address_complement TEXT;
+
+ALTER TABLE IF EXISTS clergy_leity ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS clergy_leity ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS clergy_leity ADD COLUMN IF NOT EXISTS address_zip TEXT;
+
+-- Garantir também nas tabelas de arquivo morto / espelho
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS forania TEXT;
+ALTER TABLE IF EXISTS archived_students ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS address_number TEXT;
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS address_complement TEXT;
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS address_neighborhood TEXT;
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Ativo';
+ALTER TABLE IF EXISTS archived_teachers ADD COLUMN IF NOT EXISTS unit_id TEXT DEFAULT 'matriz';
+
 -- Remover chaves estrangeiras restritivas em unit_id para evitar bloqueio ao cadastrar filiais
 ALTER TABLE IF EXISTS public.attendances DROP CONSTRAINT IF EXISTS attendances_unit_id_fkey;
 ALTER TABLE IF EXISTS public.grades DROP CONSTRAINT IF EXISTS grades_unit_id_fkey;

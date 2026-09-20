@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { fetchAll, saveData, deleteData, getInstitutionSettings } from '../lib/database';
 import { cn, maskCEP, maskPhone, maskDate, formatDateForDisplay, parseDateToDB } from '../lib/utils';
+import { fetchAddressByCEP } from '../lib/cepUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Parish, Foraria, ClergyLeity, ClergyRole, InstitutionSettings } from '../types';
 import { DioceseReportType, formatCNPJ, getParishClergy, getClergyRoleRank, formatClergyRoleLabel } from '../types/diocese';
@@ -126,6 +127,7 @@ export function Diocese() {
     address: '',
     address_street: '',
     address_number: '',
+    address_complement: '',
     address_neighborhood: '',
     address_city: 'Guarulhos',
     address_state: 'SP',
@@ -134,6 +136,39 @@ export function Diocese() {
     phone: '',
     foundation_date: ''
   });
+
+  // Estados e busca automática de CEP da Paróquia
+  const [loadingParishCep, setLoadingParishCep] = useState(false);
+  const [parishCepSuccess, setParishCepSuccess] = useState(false);
+
+  const handleParishCepChange = async (val: string) => {
+    const formatted = maskCEP(val);
+    setParishForm(prev => ({ ...prev, address_zip: formatted }));
+
+    const cleanDigits = formatted.replace(/\D/g, '');
+    if (cleanDigits.length === 8) {
+      try {
+        setLoadingParishCep(true);
+        const data = await fetchAddressByCEP(cleanDigits);
+        if (data && !data.erro) {
+          setParishForm(prev => ({
+            ...prev,
+            address_street: data.logradouro || prev.address_street || '',
+            address_complement: data.complemento || prev.address_complement || '',
+            address_neighborhood: data.bairro || prev.address_neighborhood || '',
+            address_city: data.localidade || prev.address_city || '',
+            address_state: data.uf || prev.address_state || ''
+          }));
+          setParishCepSuccess(true);
+          setTimeout(() => setParishCepSuccess(false), 4000);
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar ViaCEP:', err);
+      } finally {
+        setLoadingParishCep(false);
+      }
+    }
+  };
 
   const [clergyForm, setClergyForm] = useState<Partial<ClergyLeity>>({
     code: '',
@@ -2086,8 +2121,36 @@ export function Diocese() {
                           <MapPin size={14} />
                           Localização
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                          <div className="col-span-1 sm:col-span-3 space-y-1">
+                        <div className="grid grid-cols-12 gap-4">
+                          {/* Linha 1: CEP (estilo Correios com fundo/sombra azulada), Logradouro e Número */}
+                          <div className="col-span-12 sm:col-span-3 lg:col-span-2 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-bold text-blue-900 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+                                CEP
+                              </label>
+                              {loadingParishCep && (
+                                <span className="text-[10px] text-blue-600 flex items-center gap-1 font-medium">
+                                  <Loader2 size={10} className="animate-spin" /> Buscando...
+                                </span>
+                              )}
+                              {parishCepSuccess && (
+                                <span className="text-[10px] text-emerald-600 flex items-center gap-1 font-medium">
+                                  <CheckCircle2 size={10} /> OK!
+                                </span>
+                              )}
+                            </div>
+                            <input 
+                              type="text"
+                              value={parishForm.address_zip || ''}
+                              onChange={e => handleParishCepChange(e.target.value)}
+                              placeholder="00000-000"
+                              maxLength={9}
+                              className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-lg text-sm font-mono font-bold text-blue-950 shadow-xs shadow-blue-500/10 focus:bg-white focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 transition-all"
+                            />
+                          </div>
+
+                          <div className="col-span-12 sm:col-span-7 lg:col-span-9 space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Logradouro (Rua, Av...)</label>
                             <input 
                               type="text"
@@ -2097,59 +2160,62 @@ export function Diocese() {
                               className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
-                          <div className="col-span-1 space-y-1">
+
+                          <div className="col-span-12 sm:col-span-2 lg:col-span-1 space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Número</label>
                             <input 
                               type="text"
                               value={parishForm.address_number || ''}
                               onChange={e => setParishForm({...parishForm, address_number: e.target.value})}
+                              maxLength={6}
                               placeholder="SN"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
+                              className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 text-center"
                             />
                           </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1">
+
+                          {/* Linha 2: Complemento, Bairro, Cidade e UF na mesma linha em perfeito alinhamento */}
+                          <div className="col-span-12 sm:col-span-3 lg:col-span-3 space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Complemento</label>
+                            <input 
+                              type="text"
+                              value={parishForm.address_complement || ''}
+                              onChange={e => setParishForm({...parishForm, address_complement: e.target.value})}
+                              placeholder="Apto, Bloco..."
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div className="col-span-12 sm:col-span-4 lg:col-span-4 space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Bairro</label>
                             <input 
                               type="text"
                               value={parishForm.address_neighborhood || ''}
                               onChange={e => setParishForm({...parishForm, address_neighborhood: e.target.value})}
                               placeholder="Bairro"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">CEP</label>
-                            <input 
-                              type="text"
-                              value={parishForm.address_zip || ''}
-                              onChange={e => setParishForm({...parishForm, address_zip: maskCEP(e.target.value)})}
-                              placeholder="00000-000"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <div className="col-span-1 sm:col-span-2 space-y-1">
+
+                          <div className="col-span-12 sm:col-span-3 lg:col-span-4 space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">Cidade</label>
                             <input 
                               type="text"
                               value={parishForm.address_city || ''}
                               onChange={e => setParishForm({...parishForm, address_city: e.target.value})}
                               placeholder="Cidade"
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500"
                             />
                           </div>
-                          <div className="col-span-1 space-y-1">
+
+                          <div className="col-span-12 sm:col-span-2 lg:col-span-1 space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">UF</label>
                             <input 
                               type="text"
                               value={parishForm.address_state || ''}
                               onChange={e => setParishForm({...parishForm, address_state: e.target.value.toUpperCase()})}
-                              placeholder="UF"
+                              placeholder="SP"
                               maxLength={2}
-                              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 uppercase font-bold"
+                              className="w-full px-2 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-100/50 focus:border-blue-500 uppercase text-center"
                             />
                           </div>
                         </div>

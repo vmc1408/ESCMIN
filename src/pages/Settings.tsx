@@ -57,6 +57,7 @@ import { financialService } from '../services/financialService';
 import { schemaService } from '../services/schemaService';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
+import { fetchAddressByCEP } from '../lib/cepUtils';
 
 
 
@@ -435,12 +436,12 @@ export function Settings() {
                     users: [...baseFields, 'email', 'full_name', 'avatar_url', 'role'],
                     email_registry: ['id', 'email', 'role', 'status', 'metadata', 'created_at'],
                     foraries: [...baseFields, 'code', 'name', 'priest_name'],
-                    parishes: [...baseFields, 'code', 'name', 'forania_id', 'priest_id', 'priest_name', 'address_street', 'address_number', 'address_neighborhood', 'address_city', 'address_zip', 'email', 'phone'],
-                    clergy_leity: [...baseFields, 'code', 'name', 'address', 'phone_mobile', 'phone_whatsapp', 'email', 'parish_id', 'role'],
+                    parishes: [...baseFields, 'code', 'name', 'forania_id', 'priest_id', 'priest_name', 'address_street', 'address_number', 'address_complement', 'address_neighborhood', 'address_city', 'address_zip', 'email', 'phone'],
+                    clergy_leity: [...baseFields, 'code', 'name', 'address', 'address_number', 'address_complement', 'phone_mobile', 'phone_whatsapp', 'email', 'parish_id', 'role'],
                     subjects: [...baseFields, 'code', 'name', 'program_content'],
                     classes: [...baseFields, 'code', 'name', 'room', 'period', 'days_of_week', 'semester', 'start_date', 'observations'],
-                    students: [...baseFields, 'registration_number', 'name', 'cpf', 'rg', 'birth_date', 'start_date', 'is_former_student', 'class_id', 'parish_id', 'address_street', 'address_city', 'address_state', 'address_neighborhood', 'address_zip', 'parish', 'forania', 'course', 'pastoral_participates', 'phone_mobile', 'phone_mobile_is_whatsapp', 'phone_residential', 'phone_commercial', 'email', 'guardian_father', 'guardian_mother', 'guardian_cpf', 'photo_url'],
-                    teachers: [...baseFields, 'code', 'name', 'email', 'phone', 'phone_mobile', 'cpf', 'rg', 'address_street', 'address_city', 'address_state', 'address_zip', 'birth_date', 'observations'],
+                    students: [...baseFields, 'registration_number', 'name', 'cpf', 'rg', 'birth_date', 'start_date', 'is_former_student', 'class_id', 'parish_id', 'address_street', 'address_number', 'address_complement', 'address_city', 'address_state', 'address_neighborhood', 'address_zip', 'parish', 'forania', 'course', 'pastoral_participates', 'phone_mobile', 'phone_mobile_is_whatsapp', 'phone_residential', 'phone_commercial', 'email', 'guardian_father', 'guardian_mother', 'guardian_cpf', 'photo_url'],
+                    teachers: [...baseFields, 'code', 'name', 'email', 'phone', 'phone_mobile', 'cpf', 'rg', 'address_street', 'address_number', 'address_complement', 'address_neighborhood', 'address_city', 'address_state', 'address_zip', 'birth_date', 'observations'],
                     attendances: ['id', 'student_id', 'class_id', 'subject_id', 'date', 'status', 'observations', 'user_id', 'created_at', 'unit_id'],
                     grades: ['id', 'student_id', 'class_id', 'subject_id', 'period', 'value', 'status', 'user_id', 'created_at', 'unit_id'],
                     calendar_events: ['id', 'title', 'description', 'start_date', 'end_date', 'type', 'class_id', 'subject_id', 'user_id', 'created_at', 'unit_id'],
@@ -643,6 +644,41 @@ export function Settings() {
     const digits = value.replace(/\D/g, '');
     if (digits.length <= 5) return digits;
     return `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
+  };
+
+  // Estados e busca automática de endereço via CEP (ViaCEP)
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepSuccess, setCepSuccess] = useState(false);
+
+  const handleCepChange = async (val: string) => {
+    const formatted = formatCEP(val);
+    setInstitution(prev => ({ ...prev, cep: formatted }));
+
+    const cleanDigits = formatted.replace(/\D/g, '');
+    if (cleanDigits.length === 8) {
+      try {
+        setLoadingCep(true);
+        const data = await fetchAddressByCEP(cleanDigits);
+        if (data && !data.erro) {
+          const streetPart = data.logradouro || '';
+          const neighborhoodPart = data.bairro ? ` - ${data.bairro}` : '';
+          const fullStreet = streetPart ? `${streetPart}${neighborhoodPart}` : '';
+          const cityUfPart = data.localidade && data.uf ? `${data.localidade} / ${data.uf}` : (data.localidade || data.uf || '');
+
+          setInstitution(prev => ({
+            ...prev,
+            address: fullStreet || prev.address || '',
+            city_uf: cityUfPart || prev.city_uf || ''
+          }));
+          setCepSuccess(true);
+          setTimeout(() => setCepSuccess(false), 4000);
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar ViaCEP:', err);
+      } finally {
+        setLoadingCep(false);
+      }
+    }
   };
 
   const formatCNPJ = (value: string) => {
@@ -1141,28 +1177,47 @@ export function Settings() {
                     />
                   </div>
 
-                  {/* Row 2: Address, CEP, City/UF */}
-                  <div className="md:col-span-3 space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
-                    <input 
-                      type="text"
-                      value={institution.address || ''}
-                      onChange={(e) => setInstitution({...institution, address: e.target.value})}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
-                      placeholder="Rua, Número, Bairro"
-                    />
+                  {/* Row 2: CEP posicionado antes do Endereço Completo na mesma linha (estilo Correios com fundo azulado) */}
+                  <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div className="md:col-span-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-blue-900 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"></span>
+                          CEP
+                        </label>
+                        {loadingCep && (
+                          <span className="text-[10px] text-blue-600 flex items-center gap-1 font-medium">
+                            <Loader2 size={10} className="animate-spin" /> Buscando...
+                          </span>
+                        )}
+                        {cepSuccess && (
+                          <span className="text-[10px] text-emerald-600 flex items-center gap-1 font-medium">
+                            <CheckCircle2 size={10} /> OK!
+                          </span>
+                        )}
+                      </div>
+                      <input 
+                        type="text"
+                        value={institution.cep || ''}
+                        onChange={(e) => handleCepChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-blue-50/70 border border-blue-200 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white outline-none transition-all font-mono font-bold text-blue-950 text-[13px] shadow-xs shadow-blue-500/10"
+                        placeholder="00000-000"
+                        maxLength={9}
+                      />
+                    </div>
+                    <div className="md:col-span-9 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço Completo</label>
+                      <input 
+                        type="text"
+                        value={institution.address || ''}
+                        onChange={(e) => setInstitution({...institution, address: e.target.value})}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
+                        placeholder="Rua, Número, Bairro"
+                      />
+                    </div>
                   </div>
-                  <div className="md:col-span-1 space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CEP</label>
-                    <input 
-                      type="text"
-                      value={institution.cep || ''}
-                      onChange={(e) => setInstitution({...institution, cep: formatCEP(e.target.value)})}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none transition-all font-bold text-slate-700 text-[13px]"
-                      placeholder="00000-000"
-                      maxLength={9}
-                    />
-                  </div>
+
+                  {/* Row 3: Cidade / UF, Telefone, WhatsApp */}
                   <div className="md:col-span-2 space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cidade / UF</label>
                     <input 
