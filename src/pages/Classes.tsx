@@ -387,13 +387,27 @@ export function Classes() {
     return {};
   });
 
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        const raw = localStorage.getItem('academic_habilitated_classes_v1');
+        if (raw) setHabilitatedMap(JSON.parse(raw));
+      } catch (e) {}
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('focus', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
+  }, []);
+
   // Helper to determine if a class is active in the selected academic year
   // In Classes management:
   // - If selectedYear is 'ATUAL': shows classes active in current academic year 2026 (including cohorts starting in 2023..2026)
-  //   AND also any freshly created or active cohort for future years (such as 2027) so the user doesn't lose sight of new classes.
   // - If selectedYear is 'Todos': shows all classes
   // - If selectedYear is a specific past year (< 2026): shows cohorts active during that historical year
-  // - If selectedYear is a future year (> 2026, ex: 2027): cohorts created for that year or active cohorts spanning into that year appear directly
+  // - If selectedYear is a future year (> 2026, ex: 2027): cohorts created directly for that year or explicitly habilitated appear
   const isClassActiveInAcademicYear = React.useCallback((c: any, selectedYear: string): boolean => {
     if (!selectedYear || selectedYear === 'Todos') return true;
     if (c.unallocated) return false;
@@ -408,16 +422,15 @@ export function Classes() {
     // 1. Momento Vigente (2026 ou 'ATUAL')
     if (selectedYear === 'ATUAL' || targetYearNum === currentYearNum) {
       if (isCurrentlyActive) {
-        // Se a turma estiver ativa, exibe tanto as turmas que iniciaram até 2026
-        // quanto turmas novas já cadastradas para o próximo ano letivo (ex: 2027)
-        return true;
+        // Se a turma estiver ativa, exibe turmas que iniciaram até o ano corrente e ainda estão no ciclo
+        let endYr = startYr + 3;
+        if (c.end_date) {
+          const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
+          if (!isNaN(parsedEnd)) endYr = parsedEnd;
+        }
+        return currentYearNum >= startYr && currentYearNum <= endYr;
       }
-      let endYr = startYr + 3;
-      if (c.end_date) {
-        const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
-        if (!isNaN(parsedEnd)) endYr = parsedEnd;
-      }
-      return currentYearNum >= startYr && currentYearNum <= endYr;
+      return false;
     }
 
     // 2. Anos Anteriores / Histórico (< 2026)
@@ -431,7 +444,8 @@ export function Classes() {
     }
 
     // 3. Anos Futuros (> 2026, ex: 2027)
-    // Turma pertence diretamente ao ano futuro se seu start_year, year, code ou name referenciam esse ano
+    // Coortes de anos anteriores (2026, 2025, 2024, 2023) NÃO constam automaticamente
+    // até que sejam criadas diretamente para aquele ano ou expressamente habilitadas.
     const isDirectlyForFutureYear = startYr === targetYearNum || 
       c.year === String(targetYearNum) ||
       String(c.start_year || '').includes(String(targetYearNum)) ||
@@ -439,19 +453,11 @@ export function Classes() {
       String(c.code || '').includes(String(targetYearNum).slice(2));
     if (isDirectlyForFutureYear) return true;
 
-    // Turmas ativas cujo ciclo regular ainda abrange o ano letivo alvo
-    let endYr = startYr + 3;
-    if (c.end_date) {
-      const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
-      if (!isNaN(parsedEnd)) endYr = parsedEnd;
-    }
-    if (isCurrentlyActive && targetYearNum >= startYr && targetYearNum <= endYr) {
-      return true;
-    }
-
+    // Verificar se foi expressamente habilitada via Gerenciador de Habilitações
     const yearHabilitatedList = habilitatedMap[String(targetYearNum)] || [];
     if (yearHabilitatedList.includes(c.id)) return true;
 
+    // Verificar se possui marcação expressa nos metadados da turma
     const isMetaHabilitated = Boolean(
       (c.observations && (c.observations.includes(`habilitada_${targetYearNum}`) || c.observations.includes(`enabled_for_${targetYearNum}`))) ||
       (Array.isArray(c.enabled_years) && c.enabled_years.includes(String(targetYearNum)))
@@ -2084,12 +2090,15 @@ export function Classes() {
 
   const filteredClasses = React.useMemo(() => {
     let result = classes.filter(c => {
-      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.code.toLowerCase().includes(searchTerm.toLowerCase());
+      const term = (searchTerm || '').trim().toLowerCase();
+      const matchesSearch = !term ||
+        (c.name || '').toLowerCase().includes(term) ||
+        (c.code || '').toLowerCase().includes(term);
       
-      const matchesStatus = statusFilter === 'Todos' || (c.status || 'Ativo') === statusFilter;
+      const classStatus = c.status || 'Ativo';
+      const matchesStatus = statusFilter === 'Todos' || classStatus.toLowerCase() === statusFilter.toLowerCase();
       
-      const matchesYear = selectedYearFilter === 'Todos' || (c.year || '1º Ano') === selectedYearFilter;
+      const matchesYear = selectedYearFilter === 'Todos' || (c.year || '') === selectedYearFilter;
 
       const matchesPeriod = selectedPeriodFilter === 'Todos' || (c.period || '') === selectedPeriodFilter;
 

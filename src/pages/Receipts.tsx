@@ -680,11 +680,15 @@ export function Receipts() {
     return dateString;
   };
 
-  const filteredReceipts = scopedReceipts.filter(r => 
-    r.payee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.receipt_number.includes(searchTerm) ||
-    r.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReceipts = scopedReceipts.filter(r => {
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (!term) return true;
+    return (
+      (r.payee_name || '').toLowerCase().includes(term) ||
+      (r.receipt_number || '').includes(term) ||
+      (r.description || '').toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">

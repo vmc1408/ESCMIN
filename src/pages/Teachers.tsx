@@ -1167,11 +1167,14 @@ export function Teachers() {
 
   const filteredTeachers = React.useMemo(() => {
     let result = teachers.filter(t => {
-      const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.code.includes(searchTerm) ||
-        t.cpf?.includes(searchTerm);
+      const term = (searchTerm || '').trim().toLowerCase();
+      const matchesSearch = !term ||
+        (t.name || '').toLowerCase().includes(term) ||
+        (t.code || '').toLowerCase().includes(term) ||
+        (t.cpf || '').includes(term);
       
-      const matchesStatus = statusFilter === 'Todos' || (t.status || 'Ativo') === statusFilter;
+      const teacherStatus = t.status || 'Ativo';
+      const matchesStatus = statusFilter === 'Todos' || teacherStatus.toLowerCase() === statusFilter.toLowerCase();
       
       const matchesSubject = subjectFilter === 'all' || (t.subject_ids || []).includes(subjectFilter);
       
@@ -1199,15 +1202,15 @@ export function Teachers() {
     });
 
     return [...result].sort((a, b) => {
-      if (sortBy === 'code') return a.code.localeCompare(b.code);
+      if (sortBy === 'code') return (a.code || '').localeCompare(b.code || '');
       if (sortBy === 'subject') {
         const subA = subjects.find(s => a.subject_ids?.includes(s.id))?.name || '';
         const subB = subjects.find(s => b.subject_ids?.includes(s.id))?.name || '';
         return subA.localeCompare(subB);
       }
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
     });
-  }, [teachers, searchTerm, statusFilter, subjectFilter, semesterFilter, sortBy, subjects, hasMultipleUnits, globalUnitId]);
+  }, [teachers, searchTerm, statusFilter, subjectFilter, semesterFilter, sortBy, subjects, hasMultipleUnits, globalUnitId, activeUnits]);
 
   const teachersInActiveUnitCount = React.useMemo(() => {
     if (!globalUnitId || globalUnitId === 'all') return teachers.length;

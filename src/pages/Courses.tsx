@@ -393,7 +393,8 @@ export function Courses() {
         (c.code || '').toLowerCase().includes(term) ||
         (c.description || '').toLowerCase().includes(term);
 
-      const matchesStatus = statusFilter === 'Todos' || c.status === statusFilter;
+      const courseStatus = c.status || 'Ativo';
+      const matchesStatus = statusFilter === 'Todos' || courseStatus.toLowerCase() === statusFilter.toLowerCase();
 
       const matchesUnit = (() => {
         if (globalUnitId && globalUnitId !== 'all') {
@@ -413,8 +414,8 @@ export function Courses() {
     const inUnitCount = courses.filter(c => isCourseInActiveUnit(c)).length;
 
     return {
-      activeCourses: filtered.filter(c => c.status === 'Ativo'),
-      inactiveCourses: filtered.filter(c => c.status === 'Inativo'),
+      activeCourses: filtered.filter(c => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo'),
+      inactiveCourses: filtered.filter(c => c.status === 'Inativo' || String(c.status).toLowerCase() === 'inativo'),
       coursesInActiveUnitCount: inUnitCount
     };
   }, [courses, searchTerm, statusFilter, globalUnitId, selectedUnitFilter, isCourseInActiveUnit, activeUnits]);

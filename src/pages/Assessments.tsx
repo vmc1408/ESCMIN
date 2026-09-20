@@ -36,7 +36,7 @@ import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 
 export const Assessments: React.FC = () => {
   const { user, profile, canDelete } = useAuth();
-  const { selectedUnitId, units, filterByActiveUnit } = useUnits();
+  const { selectedUnitId, units, isItemInActiveUnit, filterByActiveUnit } = useUnits();
   const navigate = useNavigate();
 
   // State Management
@@ -416,7 +416,7 @@ export const Assessments: React.FC = () => {
     if (selectedUnitId && selectedUnitId !== 'all') {
       const cls = classes.find(c => c.id === a.class_id);
       const itemUnit = (a as any).unit_id || cls?.unit_id || (cls as any)?.polo || 'matriz';
-      if (itemUnit !== selectedUnitId && itemUnit !== 'all') {
+      if (!isItemInActiveUnit(itemUnit)) {
         return false;
       }
     }

@@ -575,10 +575,13 @@ export function Subjects() {
 
   const filteredSubjects = React.useMemo(() => {
     let result = subjects.filter(s => {
-      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.code.includes(searchTerm);
+      const term = (searchTerm || '').trim().toLowerCase();
+      const matchesSearch = !term ||
+        (s.name || '').toLowerCase().includes(term) ||
+        (s.code || '').toLowerCase().includes(term);
       
-      const matchesStatus = !statusFilter || statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
+      const subjectStatus = s.status || 'Ativo';
+      const matchesStatus = !statusFilter || statusFilter === 'Todos' || subjectStatus.toLowerCase() === statusFilter.toLowerCase();
       
       let matchesSemester = semesterFilter === 'Todos';
       if (!matchesSemester) {

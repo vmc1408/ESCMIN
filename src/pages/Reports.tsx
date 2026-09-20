@@ -529,7 +529,7 @@ export function Reports() {
     const totalAmount = pData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     const matchedCount = pData.filter(p => p.status === 'matched').length;
 
-    const activeClasses = cData.filter(c => c.status === 'Ativo');
+    const activeClasses = cData.filter(c => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo');
     const studentsInActiveClasses = sData.filter(s => 
       (s.status === 'Ativo' || !s.status) && 
       s.class_id && 

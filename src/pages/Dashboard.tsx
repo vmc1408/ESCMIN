@@ -572,14 +572,14 @@ export function Dashboard() {
     // 1. Momento Vigente (2026 ou 'ATUAL')
     if (selectedYear === 'ATUAL' || targetYearNum === currentYearNum) {
       if (isCurrentlyActive) {
-        return true;
+        let endYr = startYr + 3;
+        if (c.end_date) {
+          const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
+          if (!isNaN(parsedEnd)) endYr = parsedEnd;
+        }
+        return currentYearNum >= startYr && currentYearNum <= endYr;
       }
-      let endYr = startYr + 3;
-      if (c.end_date) {
-        const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
-        if (!isNaN(parsedEnd)) endYr = parsedEnd;
-      }
-      return currentYearNum >= startYr && currentYearNum <= endYr;
+      return false;
     }
 
     // 2. Anos Anteriores / Histórico (< 2026)
@@ -593,6 +593,8 @@ export function Dashboard() {
     }
 
     // 3. Anos Futuros (> 2026, ex: 2027)
+    // Coortes de anos anteriores (2026, 2025, 2024, 2023) NÃO constam automaticamente
+    // até que sejam criadas diretamente para aquele ano ou expressamente habilitadas.
     const isDirectlyForFutureYear = startYr === targetYearNum || 
       c.year === String(targetYearNum) ||
       String(c.start_year || '').includes(String(targetYearNum)) ||
@@ -600,19 +602,11 @@ export function Dashboard() {
       String(c.code || '').includes(String(targetYearNum).slice(2));
     if (isDirectlyForFutureYear) return true;
 
-    // Turmas ativas cujo ciclo regular ainda abrange o ano letivo alvo
-    let endYr = startYr + 3;
-    if (c.end_date) {
-      const parsedEnd = parseInt(String(c.end_date).substring(0, 4), 10);
-      if (!isNaN(parsedEnd)) endYr = parsedEnd;
-    }
-    if (isCurrentlyActive && targetYearNum >= startYr && targetYearNum <= endYr) {
-      return true;
-    }
-
+    // Verificar se foi expressamente habilitada via Gerenciador de Habilitações (habilitatedMap)
     const yearHabilitatedList = habilitatedMap[String(targetYearNum)] || [];
     if (yearHabilitatedList.includes(c.id)) return true;
 
+    // Verificar se possui marcação expressa nos metadados da turma
     const isMetaHabilitated = Boolean(
       (c.observations && (c.observations.includes(`habilitada_${targetYearNum}`) || c.observations.includes(`enabled_for_${targetYearNum}`))) ||
       (Array.isArray(c.enabled_years) && c.enabled_years.includes(String(targetYearNum)))
@@ -2313,6 +2307,10 @@ export function Dashboard() {
         classes={classes}
         students={students}
         onUpdated={() => {
+          try {
+            const raw = localStorage.getItem('academic_habilitated_classes_v1');
+            if (raw) setHabilitatedMap(JSON.parse(raw));
+          } catch (e) {}
           fetchStats();
         }}
       />

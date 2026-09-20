@@ -1651,7 +1651,8 @@ export function Students() {
     return students.filter(s => {
       const matchesSearch = !trimmedSearch || matchesStudentSearch(s, trimmedSearch);
       
-      const matchesStatus = statusFilter === 'Todos' || (s.status || 'Ativo') === statusFilter;
+      const studentStatus = s.status || 'Ativo';
+      const matchesStatus = statusFilter === 'Todos' || studentStatus.toLowerCase() === statusFilter.toLowerCase();
       
       // Filter logic
       let matchesYear = true;
@@ -1869,7 +1870,7 @@ export function Students() {
                 <option value="unallocated">
                   ⚠️ Sem Turma / Não Alocados ({unallocatedStudentsCount})
                 </option>
-                {scopedClasses.filter(c => c.status === 'Ativo').map((c, cIdx) => (
+                {scopedClasses.filter(c => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo').map((c, cIdx) => (
                   <option key={`st-cls-flt-${c.id || cIdx}-${cIdx}`} value={c.id}>{c.name}</option>
                 ))}
               </select>
