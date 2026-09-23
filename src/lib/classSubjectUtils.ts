@@ -140,9 +140,19 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
             if (id && !sIds.includes(id)) sIds.push(id);
           });
         }
+        if (meta.unit_id && (!normalized.unit_id || normalized.unit_id === 'matriz')) {
+          normalized.unit_id = meta.unit_id;
+        }
         if (meta.is_special !== undefined) isSpecial = !!meta.is_special;
       }
     } catch {}
+
+    if (!normalized.unit_id || normalized.unit_id === 'matriz') {
+      const matchUnit = String(normalized.observations).match(/\[UNIT_ID:([^\]]+)\]/);
+      if (matchUnit && matchUnit[1] && matchUnit[1].trim() !== 'matriz') {
+        normalized.unit_id = matchUnit[1].trim();
+      }
+    }
   }
 
   // Include direct slot values into sIds

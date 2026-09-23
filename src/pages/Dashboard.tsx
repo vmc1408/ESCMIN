@@ -45,6 +45,7 @@ import { HabilitationModal } from '../components/HabilitationModal';
 import { Student, Class, Subject, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
+import { getUnitColorTheme } from '../lib/unitColors';
 import { getItemUnitId, isItemInUnit } from '../lib/unitService';
 import { getAllAcademicSchedulePeriods, formatDateBR, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
 import { getTeacherScope } from '../lib/teacherScope';
@@ -65,6 +66,11 @@ export function Dashboard() {
     hasMultipleUnits,
     units
   } = useUnits();
+
+  // Tema de cores exclusivo da unidade ativa
+  const unitTheme = useMemo(() => {
+    return getUnitColorTheme(selectedUnit || selectedUnitId);
+  }, [selectedUnit, selectedUnitId]);
 
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'disconnected' | 'checking'>(
     isSupabaseConfigured ? (isDbConnected ? 'connected' : 'checking') : 'disconnected'
@@ -440,6 +446,63 @@ export function Dashboard() {
     });
   }, []);
 
+  const [dismissedNoticeYears, setDismissedNoticeYears] = useState<string[]>(() => {
+    try {
+      const raw = sessionStorage.getItem('dashboard_dismissed_planning_notices');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [noticeSecondsLeft, setNoticeSecondsLeft] = useState<number>(8);
+
+  const handleDismissNotice = useCallback((year: string) => {
+    setDismissedNoticeYears(prev => {
+      if (prev.includes(year)) return prev;
+      const next = [...prev, year];
+      try {
+        sessionStorage.setItem('dashboard_dismissed_planning_notices', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const academicOccupationRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleDisciplines = useCallback(() => {
+    const willExpand = !showDisciplines;
+    setShowDisciplines(willExpand);
+
+    const mainContainer = document.querySelector('main');
+
+    if (willExpand) {
+      // Ao exibir as matérias (toda expansão), move a tela suavemente para baixo para acompanhar o conteúdo revelado
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (mainContainer) {
+            mainContainer.scrollBy({ top: 220, behavior: 'smooth' });
+          } else {
+            window.scrollBy({ top: 220, behavior: 'smooth' });
+          }
+        }, 60);
+      });
+    } else {
+      // Ao ocultar: NUNCA move a tela para baixo, mantendo a visualização estável
+      if (mainContainer && academicOccupationRef.current) {
+        const topBefore = academicOccupationRef.current.getBoundingClientRect().top;
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const topAfter = academicOccupationRef.current?.getBoundingClientRect().top;
+            if (topBefore !== undefined && topAfter !== undefined && topAfter < topBefore) {
+              mainContainer.scrollTop += (topAfter - topBefore);
+            }
+          }, 30);
+        });
+      }
+    }
+  }, [showDisciplines, setShowDisciplines]);
+
   // Helper to extract exact academic start year for a class
   const getClassStartYear = useCallback((c: any): number => {
     if (!c || c.unallocated) return 2026;
@@ -644,6 +707,27 @@ export function Dashboard() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isYearDropdownOpen]);
+
+  // Temporizador para fechar o banner de planejamento automaticamente após 8 segundos
+  useEffect(() => {
+    const isFuture = selectedAcademicYear !== 'Todos' && 
+                     selectedAcademicYear !== 'ATUAL' && 
+                     parseInt(selectedAcademicYear, 10) > 2026;
+    if (isFuture && !dismissedNoticeYears.includes(selectedAcademicYear)) {
+      setNoticeSecondsLeft(8);
+      const interval = setInterval(() => {
+        setNoticeSecondsLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            handleDismissNotice(selectedAcademicYear);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedAcademicYear, dismissedNoticeYears, handleDismissNotice]);
 
   // Available academic years derived from standard horizon and existing classes
   const availableAcademicYears = useMemo(() => {
@@ -875,7 +959,7 @@ export function Dashboard() {
         textClass: scheme.text
       };
     });
-  }, [classes, students, enrollments, selectedAcademicYear, isClassActiveInAcademicYear]);
+  }, [scopedClasses, scopedStudents, enrollments, selectedAcademicYear, isClassActiveInAcademicYear, selectedUnitId]);
 
   // Eligible active cohorts from past/current years (<= 2026) that can be habilitated for a future cycle (e.g. 2027)
   const eligibleCohortsForHabilitation = useMemo(() => {
@@ -884,7 +968,7 @@ export function Dashboard() {
 
     const isClassActive = (c: any) => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
 
-    return classes
+    return scopedClasses
       .filter(c => {
         if (c.unallocated) return false;
         const startYr = getClassStartYear(c);
@@ -923,7 +1007,7 @@ export function Dashboard() {
         };
       })
       .sort((a, b) => b.startYr - a.startYr);
-  }, [scopedClasses, scopedStudents, targetHabilitationYear, habilitatedMap, getClassStartYear]);
+  }, [scopedClasses, scopedStudents, targetHabilitationYear, habilitatedMap, getClassStartYear, selectedUnitId]);
 
   const [isDeactivating, setIsDeactivating] = useState(false);
 
@@ -1689,12 +1773,17 @@ export function Dashboard() {
       >
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-3.5 bg-blue-600 rounded-full inline-block" />
-            <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+            <span className={cn("w-1.5 h-3.5 rounded-full inline-block", unitTheme.accentBar)} />
+            <h4 className={cn("text-[11px] font-bold uppercase tracking-wider", unitTheme.textDark)}>
               {selectedUnitId === 'all' ? 'Síntese da Instituição' : `Síntese: ${getUnitName(selectedUnitId) || selectedUnit?.name || 'Polo'}`}
             </h4>
+            {selectedUnitId !== 'all' && (
+              <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
+                {selectedUnit?.is_main || selectedUnitId === 'matriz' ? 'Sede Matriz' : 'Polo Filial'}
+              </span>
+            )}
           </div>
-          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">
+          <span className={cn("text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
             {selectedUnitId === 'all' ? 'Quadro Geral de Cadastros' : 'Dados Exclusivos do Polo'}
           </span>
         </div>
@@ -1703,19 +1792,24 @@ export function Dashboard() {
           {/* Card 1: Alunos */}
           <div
             onClick={() => navigate('/students')}
-            className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs hover:shadow-xs hover:border-blue-300 transition-all cursor-pointer group flex flex-col justify-between"
+            className={cn(
+              "p-3.5 border rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between",
+              unitTheme.cardBg,
+              unitTheme.cardBorder,
+              unitTheme.cardHoverBorder
+            )}
             title="Acessar Gestão de Alunos"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg group-hover:scale-105 transition-transform">
+                <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-105", unitTheme.iconBox)}>
                   <Users size={18} />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-700 group-hover:text-blue-900 transition-colors uppercase tracking-wider block">
+                  <span className={cn("text-[11px] font-bold uppercase tracking-wider block transition-colors", unitTheme.textDark)}>
                     Alunos
                   </span>
-                  <span className="text-[9.5px] text-slate-400 font-medium">Alunos matriculados</span>
+                  <span className="text-[9.5px] text-slate-500 font-medium">Alunos matriculados</span>
                 </div>
               </div>
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[9px] font-bold">
@@ -1723,16 +1817,16 @@ export function Dashboard() {
               </span>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-xl font-black text-slate-900 tabular-nums">
                   {isRefreshing ? '...' : displayStats.students.active}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-[10px] text-slate-500 font-medium">
                   de {displayStats.students.total} cadastrados
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
+              <span className={cn("text-[10px] font-bold border px-2 py-0.5 rounded", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
                 {displayStats.students.total > 0 ? Math.round((displayStats.students.active / displayStats.students.total) * 100) : 100}%
               </span>
             </div>
@@ -1741,19 +1835,24 @@ export function Dashboard() {
           {/* Card 2: Turmas */}
           <div
             onClick={() => navigate('/classes')}
-            className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs hover:shadow-xs hover:border-emerald-300 transition-all cursor-pointer group flex flex-col justify-between"
+            className={cn(
+              "p-3.5 border rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between",
+              unitTheme.cardBg,
+              unitTheme.cardBorder,
+              unitTheme.cardHoverBorder
+            )}
             title="Acessar Gestão de Turmas"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg group-hover:scale-105 transition-transform">
+                <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-105", unitTheme.iconBox)}>
                   <GraduationCap size={18} />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-700 group-hover:text-emerald-900 transition-colors uppercase tracking-wider block">
+                  <span className={cn("text-[11px] font-bold uppercase tracking-wider block transition-colors", unitTheme.textDark)}>
                     Turmas
                   </span>
-                  <span className="text-[9.5px] text-slate-400 font-medium">Turmas em andamento</span>
+                  <span className="text-[9.5px] text-slate-500 font-medium">Turmas em andamento</span>
                 </div>
               </div>
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[9px] font-bold">
@@ -1761,16 +1860,16 @@ export function Dashboard() {
               </span>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-xl font-black text-slate-900 tabular-nums">
                   {isRefreshing ? '...' : displayStats.classes.active}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-[10px] text-slate-500 font-medium">
                   em andamento
                 </span>
               </div>
-              <span className="text-[9.5px] font-semibold text-slate-400">
+              <span className="text-[9.5px] font-semibold text-slate-500">
                 Total: {displayStats.classes.total}
               </span>
             </div>
@@ -1779,19 +1878,24 @@ export function Dashboard() {
           {/* Card 3: Disciplinas */}
           <div
             onClick={() => navigate('/subjects')}
-            className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs hover:shadow-xs hover:border-sky-300 transition-all cursor-pointer group flex flex-col justify-between"
+            className={cn(
+              "p-3.5 border rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between",
+              unitTheme.cardBg,
+              unitTheme.cardBorder,
+              unitTheme.cardHoverBorder
+            )}
             title="Acessar Matriz de Disciplinas"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-sky-50 text-sky-700 border border-sky-100 rounded-lg group-hover:scale-105 transition-transform">
+                <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-105", unitTheme.iconBox)}>
                   <BookOpen size={18} />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-700 group-hover:text-sky-900 transition-colors uppercase tracking-wider block">
+                  <span className={cn("text-[11px] font-bold uppercase tracking-wider block transition-colors", unitTheme.textDark)}>
                     Disciplinas
                   </span>
-                  <span className="text-[9.5px] text-slate-400 font-medium">Matriz curricular</span>
+                  <span className="text-[9.5px] text-slate-500 font-medium">Matriz curricular</span>
                 </div>
               </div>
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[9px] font-bold">
@@ -1799,16 +1903,16 @@ export function Dashboard() {
               </span>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-xl font-black text-slate-900 tabular-nums">
                   {isRefreshing ? '...' : displayStats.subjects.active}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-[10px] text-slate-500 font-medium">
                   disciplinas ativas
                 </span>
               </div>
-              <span className="text-[9.5px] font-semibold text-slate-400">
+              <span className="text-[9.5px] font-semibold text-slate-500">
                 Total: {displayStats.subjects.total}
               </span>
             </div>
@@ -1817,19 +1921,24 @@ export function Dashboard() {
           {/* Card 4: Professores */}
           <div
             onClick={() => navigate('/teachers')}
-            className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs hover:shadow-xs hover:border-violet-300 transition-all cursor-pointer group flex flex-col justify-between"
+            className={cn(
+              "p-3.5 border rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between",
+              unitTheme.cardBg,
+              unitTheme.cardBorder,
+              unitTheme.cardHoverBorder
+            )}
             title="Acessar Corpo Docente"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-violet-50 text-violet-700 border border-violet-100 rounded-lg group-hover:scale-105 transition-transform">
+                <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-105", unitTheme.iconBox)}>
                   <UserCheck size={18} />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-700 group-hover:text-violet-900 transition-colors uppercase tracking-wider block">
+                  <span className={cn("text-[11px] font-bold uppercase tracking-wider block transition-colors", unitTheme.textDark)}>
                     Professores
                   </span>
-                  <span className="text-[9.5px] text-slate-400 font-medium">Corpo docente</span>
+                  <span className="text-[9.5px] text-slate-500 font-medium">Corpo docente</span>
                 </div>
               </div>
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[9px] font-bold">
@@ -1837,16 +1946,16 @@ export function Dashboard() {
               </span>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-xl font-black text-slate-900 tabular-nums">
                   {isRefreshing ? '...' : displayStats.teachers.active}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-[10px] text-slate-500 font-medium">
                   docentes vinculados
                 </span>
               </div>
-              <span className="text-[9.5px] font-semibold text-slate-400">
+              <span className="text-[9.5px] font-semibold text-slate-500">
                 Total: {displayStats.teachers.total}
               </span>
             </div>
@@ -1856,19 +1965,36 @@ export function Dashboard() {
 
       {/* Ocupação Acadêmica - Ajustada em 3 por linha */}
       <motion.div
+        ref={academicOccupationRef}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white rounded-xl border border-slate-200 shadow-2xs relative"
+        className={cn(
+          "rounded-xl border shadow-2xs relative [overflow-anchor:none] transition-all",
+          unitTheme.frameBorder,
+          unitTheme.frameBorderTop,
+          unitTheme.frameBg
+        )}
+        style={{ overflowAnchor: 'none' }}
       >
-        <div className="px-5 py-3.5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white relative z-20">
+        <div className={cn(
+          "px-5 py-3.5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-20 rounded-t-xl bg-white/95 backdrop-blur-xs transition-colors",
+          unitTheme.frameBorder
+        )}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0">
+            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-2xs", unitTheme.iconBox)}>
               <Activity size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Ocupação Acadêmica</h3>
-              <p className="text-[9.5px] font-medium text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <h3 className={cn("text-sm font-bold", unitTheme.textDark)}>Ocupação Acadêmica</h3>
+                {selectedUnitId !== 'all' && (
+                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
+                    {getUnitName(selectedUnitId) || selectedUnit?.name || 'Polo'}
+                  </span>
+                )}
+              </div>
+              <p className="text-[9.5px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
                 {studentsByClass.filter(c => !c.unallocated).length} Turmas {selectedAcademicYear === 'Todos' ? '(Todos os Anos)' : selectedAcademicYear === 'ATUAL' ? '(Ciclo Atual 2026)' : `(Ano Letivo ${selectedAcademicYear})`}
               </p>
             </div>
@@ -1876,21 +2002,40 @@ export function Dashboard() {
 
           {/* Barra de Controles Unificada, Moderna e sem Bordas Marcantes */}
           <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Atalho de Habilitações quando o banner foi dispensado temporariamente */}
+            {selectedAcademicYear !== 'Todos' && 
+             selectedAcademicYear !== 'ATUAL' && 
+             parseInt(selectedAcademicYear, 10) > 2026 && 
+             dismissedNoticeYears.includes(selectedAcademicYear) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetHabilitationYear(selectedAcademicYear);
+                  setShowHabilitationModal(true);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 transition-all cursor-pointer select-none shadow-2xs"
+                title={`Gerenciar Habilitações de Turmas para ${selectedAcademicYear}`}
+              >
+                <Sparkles size={13} className="text-amber-600" />
+                <span className="hidden sm:inline">Habilitações {selectedAcademicYear}</span>
+              </button>
+            )}
+
             <div className="inline-flex items-center p-1 bg-slate-100/80 rounded-xl">
               {/* Toggle Visibilidade das Matérias */}
               <button
                 type="button"
-                onClick={() => setShowDisciplines(!showDisciplines)}
+                onClick={handleToggleDisciplines}
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none",
                   showDisciplines
-                    ? "bg-white text-blue-900 shadow-xs"
+                    ? `${unitTheme.buttonSecondary} shadow-xs font-bold`
                     : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
                 )}
                 title={showDisciplines ? "Ocultar lista de matérias das turmas" : "Exibir lista de matérias das turmas"}
               >
                 {showDisciplines ? (
-                  <BookOpen size={14} className="text-blue-600 shrink-0" />
+                  <BookOpen size={14} className={cn("shrink-0", unitTheme.textAccent)} />
                 ) : (
                   <Book size={14} className="text-slate-400 shrink-0" />
                 )}
@@ -1898,7 +2043,7 @@ export function Dashboard() {
                 <span 
                   className={cn(
                     "w-1.5 h-1.5 rounded-full transition-all",
-                    showDisciplines ? "bg-blue-600 scale-100" : "bg-slate-300 scale-75"
+                    showDisciplines ? `${unitTheme.dotIndicator} scale-100` : "bg-slate-300 scale-75"
                   )} 
                 />
               </button>
@@ -2108,35 +2253,85 @@ export function Dashboard() {
           </div>
         </div>
         
-        {/* Aviso de Planejamento Futuro (ex: 2027) */}
-        {selectedAcademicYear !== 'Todos' && selectedAcademicYear !== 'ATUAL' && parseInt(selectedAcademicYear, 10) > 2026 && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3 bg-amber-50/80 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-2.5 min-w-0">
-              <Info size={16} className="text-amber-700 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-amber-900 leading-tight">
-                  Planejamento do Ano Letivo {selectedAcademicYear}
-                </p>
-                <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
-                  No momento vigente (2026), as turmas ativas de anos anteriores (2026, 2025, 2024, 2023) não constam automaticamente até serem expressamente habilitadas para o ciclo de {selectedAcademicYear}.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setTargetHabilitationYear(selectedAcademicYear);
-                setShowHabilitationModal(true);
-              }}
-              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-bold uppercase tracking-wider shrink-0 transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+        {/* Aviso de Planejamento Futuro (ex: 2027) - Temporário com Auto-fechamento */}
+        <AnimatePresence>
+          {selectedAcademicYear !== 'Todos' && 
+           selectedAcademicYear !== 'ATUAL' && 
+           parseInt(selectedAcademicYear, 10) > 2026 && 
+           !dismissedNoticeYears.includes(selectedAcademicYear) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -6 }}
+              animate={{ opacity: 1, height: 'auto', y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -6 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
             >
-              <Sparkles size={13} />
-              <span>Gerenciar Habilitações</span>
-            </button>
-          </div>
-        )}
+              <div className="mx-4 sm:mx-6 mt-3 bg-amber-50/90 border border-amber-200/90 rounded-xl overflow-hidden shadow-2xs relative">
+                <div className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-2.5 min-w-0 pr-6 sm:pr-0">
+                    <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+                      <Info size={15} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs font-bold text-amber-950 leading-tight">
+                          Planejamento do Ano Letivo {selectedAcademicYear}
+                        </p>
+                        <span className="text-[9px] font-bold text-amber-800 bg-amber-200/70 border border-amber-300/60 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                          Aviso temporário (fecha em {noticeSecondsLeft}s)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800/90 leading-relaxed mt-1">
+                        No momento vigente (2026), turmas de ciclos anteriores não constam automaticamente até serem expressamente habilitadas para o ciclo de {selectedAcademicYear}.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetHabilitationYear(selectedAcademicYear);
+                        setShowHabilitationModal(true);
+                      }}
+                      className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider shrink-0 transition-all cursor-pointer shadow-2xs hover:shadow-xs flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles size={13} />
+                      <span>Habilitações {selectedAcademicYear}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDismissNotice(selectedAcademicYear)}
+                      className="p-1.5 text-amber-700 hover:text-amber-950 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+                      title="Dispensar aviso agora"
+                      aria-label="Fechar aviso"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
 
-        <div className="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 bg-slate-50/40">
+                {/* Barra de progresso temporal sutil */}
+                <div className="h-0.5 w-full bg-amber-100 overflow-hidden">
+                  <motion.div 
+                    initial={{ width: '100%' }}
+                    animate={{ width: `${(noticeSecondsLeft / 8) * 100}%` }}
+                    transition={{ duration: 1, ease: 'linear' }}
+                    className="h-full bg-amber-500"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div 
+          className={cn(
+            "p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 [overflow-anchor:none] rounded-b-xl transition-colors",
+            unitTheme.frameBg
+          )}
+          style={{ overflowAnchor: 'none' }}
+        >
             {studentsByClass.length > 0 ? (
               studentsByClass.map((c, i) => {
                 const classSubjects = getClassSubjects(c, subjects);
@@ -2160,7 +2355,11 @@ export function Dashboard() {
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.02 }}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-blue-300 hover:shadow-xs transition-all shadow-2xs flex flex-col justify-between h-full group"
+                    className={cn(
+                      "p-3.5 rounded-xl border bg-white transition-all shadow-2xs flex flex-col justify-between h-full group hover:shadow-xs",
+                      unitTheme.cardBorder,
+                      unitTheme.cardHoverBorder
+                    )}
                   >
                     <div>
                       <div className="flex justify-between items-start mb-2">
@@ -2169,13 +2368,13 @@ export function Dashboard() {
                             "px-2 py-1 flex items-center justify-center font-bold font-mono text-[10px] whitespace-nowrap rounded-lg border shrink-0 transition-colors uppercase",
                             c.unallocated
                               ? "bg-slate-100 border-slate-200 text-slate-500"
-                              : "bg-slate-100 border-slate-200 text-slate-800 group-hover:bg-blue-50 group-hover:text-blue-900 group-hover:border-blue-200"
+                              : cn("border transition-colors", unitTheme.cardBg, unitTheme.cardBorder, unitTheme.textDark)
                           )}>
                             {c.code}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <h5 className="text-[12.5px] font-bold text-slate-800 tracking-tight truncate leading-snug group-hover:text-blue-900 transition-colors">
+                              <h5 className={cn("text-[12.5px] font-bold text-slate-800 tracking-tight truncate leading-snug transition-colors", `group-hover:${unitTheme.textDark}`)}>
                                 {c.name}
                               </h5>
                               {c.isPlanned && (
@@ -2189,42 +2388,52 @@ export function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Informações das Matérias Agrupadas por Semestre */}
-                      {!c.unallocated && showDisciplines && (
-                        <div className="my-2 p-2 bg-slate-50 border border-slate-100 rounded-lg text-[10px] leading-tight overflow-hidden">
-                          {groupedBySem.length > 0 ? (
-                            <div className="space-y-2">
-                              {groupedBySem.map((group, gIdx) => (
-                                <div key={gIdx} className="flex items-start gap-1.5 min-w-0">
-                                  <span className={cn(
-                                    "font-bold text-[7.5px] px-1 py-0.5 rounded shrink-0 border uppercase tracking-tight mt-0.5",
-                                    group.color
-                                  )}>
-                                    {group.label}
-                                  </span>
-                                  <div className="min-w-0 flex-1 space-y-0.5">
-                                    {group.subs.map((s, sIdx) => {
-                                      const t = getSubjectTeacher(s as Subject);
-                                      return (
-                                        <div key={`dash-s-${s.id || s.code || sIdx}-${sIdx}`} className="min-w-0 leading-tight py-0.5">
-                                          <p className="text-[9.5px] font-semibold text-slate-800 truncate">{s.name}</p>
-                                          <p className="text-[8px] text-slate-400 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
+                      {/* Informações das Matérias Agrupadas por Semestre com Animação Fluida para Baixo */}
+                      <AnimatePresence initial={false}>
+                        {!c.unallocated && showDisciplines && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                            className="overflow-hidden origin-top"
+                          >
+                            <div className="my-2 p-2.5 bg-slate-50/90 border border-slate-200/70 rounded-lg text-[10px] leading-tight overflow-hidden shadow-2xs">
+                              {groupedBySem.length > 0 ? (
+                                <div className="space-y-2">
+                                  {groupedBySem.map((group, gIdx) => (
+                                    <div key={gIdx} className="flex items-start gap-1.5 min-w-0">
+                                      <span className={cn(
+                                        "font-bold text-[7.5px] px-1 py-0.5 rounded shrink-0 border uppercase tracking-tight mt-0.5",
+                                        group.color
+                                      )}>
+                                        {group.label}
+                                      </span>
+                                      <div className="min-w-0 flex-1 space-y-0.5">
+                                        {group.subs.map((s, sIdx) => {
+                                          const t = getSubjectTeacher(s as Subject);
+                                          return (
+                                            <div key={`dash-s-${s.id || s.code || sIdx}-${sIdx}`} className="min-w-0 leading-tight py-0.5">
+                                              <p className="text-[9.5px] font-semibold text-slate-800 truncate">{s.name}</p>
+                                              <p className="text-[8px] text-slate-400 truncate">{t ? `Prof. ${t.name}` : 'Sem prof. atribuído'}</p>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              ) : (
+                                <p className="text-[8.5px] text-slate-400 italic py-0.5 px-1">
+                                  {classSubjects.length > 0 
+                                    ? 'Matérias em análise / sem divisão semestral' 
+                                    : 'Sem matérias vinculadas'}
+                                </p>
+                              )}
                             </div>
-                          ) : (
-                            <p className="text-[8.5px] text-slate-400 italic py-0.5 px-1">
-                              {classSubjects.length > 0 
-                                ? 'Matérias em análise / sem divisão semestral' 
-                                : 'Sem matérias vinculadas'}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5">
@@ -2237,11 +2446,15 @@ export function Dashboard() {
                         {c.count > 0 ? (
                           <button 
                             onClick={() => handleViewStudents(c.id, c.name, !!c.unallocated)}
-                            className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-lg border border-slate-200 hover:border-blue-200 text-[9.5px] font-bold transition-all cursor-pointer group/btn shrink-0 shadow-2xs"
+                            className={cn(
+                              "flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[9.5px] font-bold transition-all cursor-pointer group/btn shrink-0 shadow-2xs",
+                              unitTheme.buttonHover,
+                              unitTheme.cardBorder
+                            )}
                             title="Ver Alunos da Turma"
                           >
                             <span>{c.count} Alunos</span>
-                            <Eye size={12} className="text-slate-400 group-hover/btn:text-blue-600 transition-colors" />
+                            <Eye size={12} className={cn("text-slate-400 group-hover/btn:text-current transition-colors", unitTheme.textAccent)} />
                           </button>
                         ) : (
                           <span className="text-[9px] font-medium text-slate-400 px-1">0 Alunos</span>
@@ -2252,7 +2465,7 @@ export function Dashboard() {
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(c.percentage, 100)}%` }}
                           transition={{ duration: 0.8, ease: "easeOut", delay: i * 0.03 }}
-                          className="h-full bg-blue-600 rounded-full" 
+                          className={cn("h-full rounded-full transition-all", unitTheme.progressBar)} 
                         />
                       </div>
                     </div>

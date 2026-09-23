@@ -39,6 +39,7 @@ import {
   SUPABASE_UNITS_MIGRATION_SQL 
 } from '../lib/unitService';
 import { cn, maskPhone, maskCEP, maskCNPJ } from '../lib/utils';
+import { getUnitColorTheme, UNIT_COLOR_THEMES, UnitColorKey } from '../lib/unitColors';
 
 export function UnitsSettingsTab() {
   const { units, refreshUnits, loading } = useUnits();
@@ -423,6 +424,7 @@ export function UnitsSettingsTab() {
           const isActive = unit.active !== false;
           const linkedInfo = linkedInfoMap[unit.id];
           const hasLinked = Boolean(linkedInfo && !linkedInfo.canDelete && !isMain);
+          const uTheme = getUnitColorTheme(unit);
 
           return (
             <div 
@@ -439,20 +441,24 @@ export function UnitsSettingsTab() {
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5">
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs",
-                      isMain ? "bg-blue-600 text-white" : isActive ? "bg-slate-800 text-white" : "bg-slate-300 text-slate-700"
-                    )}>
+                    <div 
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-2xs text-white"
+                      style={{ backgroundColor: uTheme.primary }}
+                    >
                       {unit.code || (isMain ? 'MAT' : 'FIL')}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-bold text-slate-900">{unit.name}</h3>
                         {isMain && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
                             Sede / Matriz
                           </span>
                         )}
+                        <span className={cn("text-[9.5px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1.5", uTheme.badgeBg, uTheme.badgeText, uTheme.badgeBorder)}>
+                          <span className={cn("w-1.5 h-1.5 rounded-full inline-block", uTheme.dotIndicator)} />
+                          {uTheme.label.split('(')[0].trim()}
+                        </span>
                       </div>
                       <p className="text-[11px] text-slate-400 font-mono mt-0.5">
                         Código: <strong className="text-slate-600">{unit.code}</strong>
@@ -920,6 +926,45 @@ export function UnitsSettingsTab() {
                     className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+              </div>
+
+              {/* Identidade Visual / Cor Exclusiva no Dashboard */}
+              <div className="pt-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Identidade Visual Exclusiva (Cor no Dashboard)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(Object.keys(UNIT_COLOR_THEMES) as UnitColorKey[])
+                    .filter(k => k !== 'slate')
+                    .map((colorKey) => {
+                      const theme = UNIT_COLOR_THEMES[colorKey];
+                      const isSelected = (editingUnit.color === colorKey) || 
+                        (!editingUnit.color && colorKey === 'blue' && (editingUnit.is_main || editingUnit.id === 'matriz'));
+                      
+                      return (
+                        <button
+                          key={colorKey}
+                          type="button"
+                          onClick={() => setEditingUnit({ ...editingUnit, color: colorKey })}
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition-all cursor-pointer",
+                            isSelected
+                              ? "border-slate-800 bg-slate-50 ring-2 ring-slate-400 font-bold text-slate-900 shadow-2xs"
+                              : "border-slate-200 hover:border-slate-300 text-slate-700 bg-white"
+                          )}
+                        >
+                          <span 
+                            className="w-3.5 h-3.5 rounded-full shrink-0 shadow-2xs border border-black/10" 
+                            style={{ backgroundColor: theme.primary }} 
+                          />
+                          <span className="truncate text-[11px]">{theme.label.split('(')[0].trim()}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Define a cor exclusiva dos quadros, frames, botões e barras no Dashboard quando esta unidade estiver ativa.
+                </p>
               </div>
 
               {/* Status */}

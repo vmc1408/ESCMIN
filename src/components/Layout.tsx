@@ -53,7 +53,10 @@ export function Layout() {
         <div className="print:hidden sticky top-0 z-30 bg-white">
           <Navbar />
         </div>
-        <main className="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-6 custom-scrollbar print:overflow-visible print:p-0">
+        <main 
+          className="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-6 custom-scrollbar print:overflow-visible print:p-0 [overflow-anchor:none]"
+          style={{ overflowAnchor: 'none' }}
+        >
           <div className="max-w-[1440px] w-full mx-auto print:max-w-none">
             <Outlet />
           </div>

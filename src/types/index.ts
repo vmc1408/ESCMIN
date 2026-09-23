@@ -36,6 +36,7 @@ export interface Unit {
   active: boolean;
   user_id?: string;
   created_at?: string;
+  color?: string; // Cor exclusiva da unidade / polo
 }
 
 export type StudentStatus = 'Ativo' | 'Inativo' | 'Concluído' | 'Suspenso';
