@@ -478,12 +478,16 @@ export function Impressos() {
         .pimaco-sheet {
           display: grid;
           grid-template-columns: 80.0mm 80.0mm;
-          grid-auto-rows: 46.0mm;
+          grid-template-rows: repeat(5, 46.0mm);
           column-gap: 6.0mm;
           row-gap: 4.0mm;
           width: 215.9mm;
+          min-width: 215.9mm;
+          max-width: 215.9mm;
           height: 279.4mm;
-          padding: 19.0mm 28.0mm 24.0mm 28.0mm;
+          min-height: 279.4mm;
+          max-height: 279.4mm;
+          padding: 17.0mm 24.95mm 16.4mm 24.95mm;
           margin: 0 auto;
           box-sizing: border-box;
           background-color: #fff;
@@ -499,37 +503,35 @@ export function Impressos() {
           position: relative;
           overflow: hidden;
           background-color: #fff;
-          border: ${showCardCutBorders ? '1px dashed #ddd' : 'none'};
-        }
-        /* Ajustes precisos de alinhamento para Pimaco 8099F / 6183 */
-        .pimaco-label:nth-child(odd) {
-          left: -5.0mm;
-        }
-        .pimaco-label:nth-child(even) {
-          left: -1.0mm;
+          border: ${showCardCutBorders ? '1px dashed #cbd5e1' : '1px solid transparent'};
         }
 
-        /* Pimaco 6180 Sheet layout (3 columns, 10 rows = 30 labels) */
+        /* Pimaco 6180 Sheet layout oficial (3 colunas x 10 linhas = 30 etiquetas, papel Carta 215.9mm x 279.4mm) */
         .pimaco-sheet-6180 {
           display: grid;
-          grid-template-columns: 65.0mm 65.0mm 65.0mm;
-          grid-auto-rows: 25.0mm;
-          column-gap: 3.0mm;
+          grid-template-columns: 66.7mm 66.7mm 66.7mm;
+          grid-template-rows: repeat(10, 25.4mm);
+          column-gap: 3.18mm;
           row-gap: 0mm;
-          width: 217.0mm;
-          height: 279.0mm;
-          padding: 14.5mm 5.0mm 14.5mm 11.0mm;
+          width: 215.9mm;
+          min-width: 215.9mm;
+          max-width: 215.9mm;
+          height: 279.4mm;
+          min-height: 279.4mm;
+          max-height: 279.4mm;
+          padding: 12.7mm 4.8mm;
           margin: 0 auto;
           box-sizing: border-box;
           background-color: #fff;
+          position: relative;
         }
         .pimaco-label-6180 {
-          width: 65.0mm;
-          height: 25.0mm;
-          max-width: 65.0mm;
-          max-height: 25.0mm;
-          min-width: 65.0mm;
-          min-height: 25.0mm;
+          width: 66.7mm;
+          height: 25.4mm;
+          max-width: 66.7mm;
+          max-height: 25.4mm;
+          min-width: 66.7mm;
+          min-height: 25.4mm;
           box-sizing: border-box;
           position: relative;
           display: flex;
@@ -537,30 +539,20 @@ export function Impressos() {
           justify-content: space-between;
           overflow: hidden;
           background-color: #fff;
-          padding: 2.0mm 3.2mm;
-          border: ${showLabelCutBorders ? '1px dashed #ddd' : 'none'};
-          top: -7.0mm;
-        }
-        .pimaco-label-6180:nth-child(3n+1) {
-          left: -13.0mm;
-        }
-        .pimaco-label-6180:nth-child(3n+2) {
-          left: -8.0mm;
-        }
-        .pimaco-label-6180:nth-child(3n) {
-          left: -1.0mm;
+          padding: 2.0mm 3.5mm;
+          border: ${showLabelCutBorders ? '1px dashed #cbd5e1' : '1px solid transparent'};
         }
 
         @media print {
           ${(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? `
             @page {
-              size: ${selectedType === 'etiquetas' ? '217mm 279mm' : 'letter portrait'} !important;
+              size: letter portrait !important;
               margin: 0mm !important;
             }
           ` : `
             @page {
-              size: portrait;
-              margin: 8mm 10mm 8mm 10mm !important;
+              size: A4 portrait !important;
+              margin: 12mm 15mm 12mm 15mm !important;
             }
           `}
 
@@ -1251,52 +1243,56 @@ export function Impressos() {
         <div className="lg:col-span-8 space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto pr-2 custom-scrollbar pb-10 print:pb-0 print:p-0 print:m-0 print:max-h-none print:overflow-visible">
           <div className="flex items-center justify-between print:hidden">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Pré-Visualização do Documento {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? '(Formato Carta)' : '(Formato A4)'}
+              Pré-Visualização do Documento {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? '(Formato Carta)' : '(Folha A4 210x297mm - Proporção Real 1:1)'}
             </h3>
             <span className="text-[9px] bg-slate-100 font-black text-slate-600 uppercase tracking-widest px-2 py-0.5 border border-slate-200">
-              {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? 'Papel Carta Real' : 'Papel A4 Real'}
+              {(selectedType === 'carteirinhas' || selectedType === 'etiquetas') ? 'Papel Carta Real' : 'Papel A4 Real (Margem 15mm)'}
             </span>
           </div>
 
-          {/* Standard Page Container - Mocking A4 Sheet */}
-          <div 
-            id="printable-impressos" 
-            className={cn(
-              "print-preview-container select-text relative flex flex-col print:p-0 print:m-0 print:border-none print:shadow-none print:max-w-none print:w-full box-border",
-              (selectedType === 'carteirinhas' || selectedType === 'etiquetas')
-                ? "bg-transparent border-none shadow-none p-0 max-w-none w-auto print:h-auto print:min-h-0"
-                : cn(
-                    "bg-white border border-slate-350 shadow-xl pt-8 px-8 md:pt-12 md:px-12 max-w-[800px] mx-auto",
-                    isSinglePageType ? "h-[1123px] print:h-[275mm] print:max-h-[275mm] print:min-h-[275mm] print:overflow-hidden print:justify-between pb-4 md:pb-6" : "min-h-[1123px] print:min-h-0 pb-4 md:pb-6"
-                  )
-            )}
-          >
+          {/* Standard Page Container - Mocking Real A4 Sheet with 1:1 screen-to-print parity */}
+          <div className="bg-slate-200/60 p-2 sm:p-4 md:p-6 flex justify-center items-start min-h-[calc(100vh-250px)] overflow-x-auto rounded-none print:p-0 print:m-0 print:bg-transparent print:min-h-0 print:overflow-visible">
+            <div 
+              id="printable-impressos" 
+              className={cn(
+                "print-preview-container select-text relative flex flex-col box-border",
+                (selectedType === 'carteirinhas' || selectedType === 'etiquetas')
+                  ? "bg-transparent border-none shadow-none p-0 max-w-none w-auto print:h-auto print:min-h-0"
+                  : cn(
+                      "bg-white shadow-2xl border border-slate-300 w-[210mm] max-w-full text-slate-900 mx-auto",
+                      "pt-[12mm] pb-[12mm] px-[15mm]",
+                      isSinglePageType 
+                        ? "h-[297mm] min-h-[297mm] max-h-[297mm] print:w-full print:max-w-none print:h-[273mm] print:min-h-[273mm] print:max-h-[273mm] print:p-0 print:m-0 print:border-none print:shadow-none print:overflow-hidden justify-between" 
+                        : "min-h-[297mm] print:w-full print:min-h-0 print:h-auto print:p-0 print:m-0 print:border-none print:shadow-none"
+                    )
+              )}
+            >
             
             {/* Header of Official Documents */}
             {(selectedType === 'declaracao' || selectedType === 'quitacao' || selectedType === 'ficha' || selectedType === 'carta') && (
               <div className={cn(
-                "flex items-center gap-6 pb-4 border-b-2 border-black text-left",
-                selectedType === 'ficha' ? "mb-1 pb-2" : "mb-6 pb-3"
+                "flex items-center gap-4 pb-3 border-b-2 border-slate-900 text-left shrink-0",
+                selectedType === 'ficha' ? "mb-1.5 pb-2" : "mb-5 pb-3"
               )}>
-                <div className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 flex items-center justify-center">
+                <div className="flex-shrink-0 w-16 h-16 md:w-[68px] md:h-[68px] max-h-[18mm] max-w-[18mm] flex items-center justify-center">
                   {institution?.logo_url ? (
-                    <img src={institution.logo_url} className="w-full h-full object-contain max-h-20 md:max-h-24" referrerPolicy="no-referrer" alt="Logo" />
+                    <img src={institution.logo_url} className="w-full h-full object-contain max-h-[18mm] max-w-[18mm]" referrerPolicy="no-referrer" alt="Logo" />
                   ) : (
-                    <div className="w-full h-full border-2 border-slate-300 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-400 font-bold uppercase">
+                    <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
                       <span className="leading-none">SEM</span>
                       <span className="leading-none">LOGO</span>
                     </div>
                   )}
                 </div>
-                <div className="flex-1 flex flex-col">
-                  <p className="text-[10px] md:text-[10pt] font-semibold tracking-widest text-slate-800 leading-tight uppercase font-sans">
+                <div className="flex-1 flex flex-col justify-center min-w-0">
+                  <p className="text-[9pt] font-extrabold tracking-[0.15em] text-slate-700 leading-tight uppercase font-sans">
                     {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                   </p>
-                  <h1 className="text-[15px] md:text-[16pt] font-bold uppercase tracking-tight text-black leading-tight my-0.5 font-sans">
+                  <h1 className="text-[13pt] md:text-[14pt] font-black uppercase tracking-tight text-slate-950 leading-snug my-0.5 font-sans">
                     {institution?.name || 'ESCOLA DIOCESANA DE MINISTÉRIOS'}
                   </h1>
                   {institution?.subtitle && (
-                    <p className="text-[9.5px] md:text-[10pt] font-bold text-slate-700 tracking-wide mt-0.5 uppercase font-sans">
+                    <p className="text-[8.5pt] font-bold text-slate-600 tracking-wider uppercase font-sans leading-tight">
                       {institution.subtitle}
                     </p>
                   )}
@@ -1313,18 +1309,18 @@ export function Impressos() {
                   <>
                     <div className="space-y-4">
                       {/* Title */}
-                      <div className="text-center space-y-1 pt-2">
-                        <h2 className="text-[18px] font-extrabold uppercase tracking-[0.2em] font-serif pb-1 max-w-md mx-auto">
+                      <div className="text-center space-y-1 pt-1">
+                        <h2 className="text-[15pt] font-bold uppercase tracking-[0.18em] font-serif pb-0.5 max-w-md mx-auto text-slate-950">
                           Declaração de Matrícula
                         </h2>
-                        <p className="text-[9.5px] text-slate-500 tracking-widest uppercase font-mono font-bold">Matrícula Escolar Nº {formatRegistrationNumber(activeStudent.registration_number)}</p>
+                        <p className="text-[8.5pt] text-slate-500 tracking-widest uppercase font-mono font-bold">Matrícula Escolar Nº {formatRegistrationNumber(activeStudent.registration_number)}</p>
                       </div>
 
                       {/* Body */}
-                      <div className="text-[12px] md:text-[12.5px] text-slate-800 leading-[2] text-justify font-serif space-y-4 pt-2">
+                      <div className="text-[11pt] md:text-[11.5pt] text-slate-900 leading-[1.8] text-justify font-serif space-y-3.5 pt-2">
                         <p>
                           Declaramos, para os devidos fins de direito e a quem possa interessar, que o(a) estudante 
-                          <strong className="text-black font-extrabold text-[13px] md:text-[13.5px] uppercase tracking-wide"> {activeStudent.name}</strong>, 
+                          <strong className="text-black font-extrabold text-[11.5pt] md:text-[12pt] uppercase tracking-wide"> {activeStudent.name}</strong>, 
                           inscrito(a) sob o registro geral de matrícula acadêmica número <strong className="font-mono">{formatRegistrationNumber(activeStudent.registration_number)}</strong>, 
                           portador(a) do CPF <strong>{activeStudent.cpf || 'Não Informado'}</strong> e RG <strong>{activeStudent.rg || 'Não Informado'}</strong>, 
                           encontra-se regularmente matriculado(a) e com frequência ativa nesta instituição de ensino no curso de 
@@ -1336,12 +1332,12 @@ export function Impressos() {
                         </p>
 
                         {customText && (
-                          <p className="italic text-slate-700 bg-slate-50 p-3 border-l-4 border-slate-300 my-2 text-[11px] leading-relaxed">
+                          <p className="italic text-slate-700 bg-slate-50/80 p-3 border-l-4 border-slate-400 my-2 text-[10pt] leading-relaxed">
                             {customText}
                           </p>
                         )}
 
-                        <p className="pt-2">
+                        <p className="pt-1">
                           Por ser a expressão da verdade, firmamos o presente documento para que produza seus devidos e legais efeitos.
                         </p>
                       </div>
@@ -1349,7 +1345,7 @@ export function Impressos() {
 
                     <div className="mt-auto pt-6 pb-2">
                       {/* Location & Date */}
-                      <div className="text-right pb-8 text-[11.5px] font-serif">
+                      <div className="text-right pb-8 text-[11pt] font-serif">
                         <p className="uppercase tracking-wide font-bold">
                           {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
                         </p>
@@ -1359,11 +1355,11 @@ export function Impressos() {
                       <div className="flex items-end justify-around font-sans">
                         {signerRole !== 'diretor' && (
                           <div className="flex flex-col items-center gap-1 text-center">
-                            <div className="w-52 md:w-56 border-b border-black" />
-                            <p className="text-[10px] md:text-[11px] font-bold text-slate-900 uppercase tracking-widest">
+                            <div className="w-48 md:w-56 border-b border-black" />
+                            <p className="text-[9.5pt] md:text-[10pt] font-bold text-slate-900 uppercase tracking-wider">
                               {signerName}
                             </p>
-                            <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest">
+                            <p className="text-[8pt] font-bold text-slate-500 uppercase tracking-wider">
                               {signerTitle}
                             </p>
                           </div>
@@ -1375,11 +1371,11 @@ export function Impressos() {
 
                         {signerRole !== 'secretario' && (
                           <div className="flex flex-col items-center gap-1 text-center">
-                            <div className="w-52 md:w-56 border-b border-black" />
-                            <p className="text-[10px] md:text-[11px] font-bold text-slate-900 uppercase tracking-widest">
+                            <div className="w-48 md:w-56 border-b border-black" />
+                            <p className="text-[9.5pt] md:text-[10pt] font-bold text-slate-900 uppercase tracking-wider">
                               {signerRole === 'ambos' ? coSignerName : signerName}
                             </p>
-                            <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest">
+                            <p className="text-[8pt] font-bold text-slate-500 uppercase tracking-wider">
                               {signerRole === 'ambos' ? coSignerTitle : signerTitle}
                             </p>
                           </div>
@@ -1406,7 +1402,7 @@ export function Impressos() {
 
             {/* 2. FICHA DE INSCRIÇÃO (CADASTRAL EM BRANCO) */}
             {selectedType === 'ficha' && (
-              <div className="flex-1 flex flex-col justify-between min-h-[920px] text-[10pt] leading-relaxed font-sans text-black">
+              <div className="flex-1 h-full flex flex-col justify-between text-[9.5pt] leading-snug font-sans text-slate-900">
                 <div className="space-y-3.5">
                   {/* Title */}
                   <div className="text-center pt-0">
@@ -1629,7 +1625,7 @@ export function Impressos() {
 
             {/* 2.2 CARTA DE APRESENTAÇÃO */}
             {selectedType === 'carta' && (
-              <div className="flex-1 flex flex-col justify-between min-h-[920px] space-y-6 text-[10.5pt] leading-relaxed font-sans text-black">
+              <div className="flex-1 h-full flex flex-col justify-between space-y-4 text-[10pt] leading-relaxed font-sans text-slate-900">
                 <div className="space-y-6">
                   {/* Title */}
                   <div className="text-center pt-2">
@@ -1952,7 +1948,7 @@ export function Impressos() {
                         Modelo de Etiquetas (Pimaco 6180 / Customizado)
                       </h2>
                       <p className="text-[10px] text-slate-400 mt-1 max-w-md mx-auto leading-normal">
-                        Etiquetas de <strong>65,0mm x 25,0mm</strong> (30 por folha de 217,0mm x 279,0mm). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
+                        Etiquetas de <strong>66,7mm x 25,4mm</strong> (30 por folha Carta de 215,9mm x 279,4mm). As posições puladas serão deixadas em branco para reaproveitamento de folhas.
                       </p>
                       <div className="mt-3 flex justify-center gap-4 text-[9px] font-mono font-bold text-slate-500">
                         <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 animate-none">
@@ -2073,15 +2069,15 @@ export function Impressos() {
                   <>
                     <div className="space-y-4">
                       {/* Title */}
-                      <div className="text-center space-y-1 pt-2">
-                        <h2 className="text-[18px] font-extrabold uppercase tracking-[0.2em] font-serif border-b-2 border-slate-950 pb-1 max-w-lg mx-auto">
+                      <div className="text-center space-y-1 pt-1">
+                        <h2 className="text-[15pt] font-bold uppercase tracking-[0.18em] font-serif border-b-2 border-slate-950 pb-0.5 max-w-lg mx-auto text-slate-950">
                           Certidão de Quitação Financeira
                         </h2>
-                        <p className="text-[9.5px] text-slate-400 tracking-widest uppercase font-sans">Referente ao Ano Exercício de {new Date().getFullYear()}</p>
+                        <p className="text-[8.5pt] text-slate-500 tracking-widest uppercase font-sans">Referente ao Ano Exercício de {new Date().getFullYear()}</p>
                       </div>
 
                       {/* Body text */}
-                      <div className="text-[12.5px] md:text-[13px] text-slate-800 leading-[2.1] text-justify font-serif space-y-4 pt-4">
+                      <div className="text-[11pt] md:text-[11.5pt] text-slate-900 leading-[1.8] text-justify font-serif space-y-3.5 pt-3">
                         <p>
                           A tesouraria e diretoria administrativa da <strong className="text-black font-extrabold uppercase tracking-wide">{institution?.name || 'Escola de Formação Conciliar'}</strong>, no uso de suas competências regimentais, certifica para os devidos fins que o(a) estudante <strong className="text-black font-extrabold uppercase">{activeStudent.name}</strong>, inscrito(a) sob o Registro Geral nº <strong className="text-black font-mono">{formatRegistrationNumber(activeStudent.registration_number)}</strong>:
                         </p>
@@ -2096,7 +2092,7 @@ export function Impressos() {
                           </p>
                         )}
 
-                        <p className="pt-2">
+                        <p className="pt-1">
                           Por ser verdade e a pedido da parte interessada para que conste e produza seus devidos fins legais, expedimos e assinamos o presente termo.
                         </p>
                       </div>
@@ -2104,7 +2100,7 @@ export function Impressos() {
 
                     <div className="mt-auto pt-6 pb-2">
                       {/* Location / Date */}
-                      <div className="text-right pb-8 text-[11.5px] font-serif">
+                      <div className="text-right pb-8 text-[11pt] font-serif">
                         <p className="uppercase tracking-wide font-bold">
                           {institution?.city_uf || 'Catedral Geral'}, {formatLongDate(documentDate)}
                         </p>
@@ -2113,11 +2109,11 @@ export function Impressos() {
                       {/* Signature */}
                       <div className="flex flex-col items-center justify-center font-sans">
                         <div className="flex flex-col items-center gap-1 text-center">
-                          <div className="w-64 border-b border-black" />
-                          <p className="text-[10px] md:text-[11px] font-bold text-slate-900 uppercase tracking-widest">
+                          <div className="w-56 border-b border-black" />
+                          <p className="text-[9.5pt] md:text-[10pt] font-bold text-slate-900 uppercase tracking-wider">
                             {signerName}
                           </p>
-                          <p className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest">
+                          <p className="text-[8pt] font-bold text-slate-500 uppercase tracking-wider">
                             {signerTitle || 'Tesouraria / Gestão de Contas'}
                           </p>
                         </div>
@@ -2140,6 +2136,7 @@ export function Impressos() {
               </div>
             )}
 
+            </div>
           </div>
         </div>
       </div>

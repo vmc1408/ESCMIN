@@ -1874,30 +1874,30 @@ export function StudentFicha() {
       {activeStudent && activeStudentMetrics && (
         <div 
           id="printable-student-dossier" 
-          className="hidden print:flex flex-col justify-between text-slate-900 bg-white overflow-hidden font-sans leading-tight w-full h-[270mm] min-h-[270mm] max-h-[270mm] mx-auto p-0 box-border printable-single-page"
+          className="hidden print:flex flex-col justify-between text-slate-900 bg-white overflow-hidden font-sans leading-tight w-full h-[273mm] min-h-[273mm] max-h-[273mm] mx-auto p-0 box-border printable-single-page"
         >
           {/* TOP SECTION: Header + Cadastral + Frequency + Academic */}
           <div className="flex-1 flex flex-col justify-start">
             {/* HEADER SECTION */}
-            <div className="flex items-center gap-6 mb-4 pb-3 border-b border-slate-800">
-              <div className="flex-shrink-0 w-20 h-20 flex items-center justify-center">
+            <div className="flex items-center gap-4 mb-3 pb-2.5 border-b-2 border-slate-900">
+              <div className="flex-shrink-0 w-16 h-16 max-h-[18mm] max-w-[18mm] flex items-center justify-center">
                 {institution?.logo_url ? (
-                  <img src={institution.logo_url} className="w-full h-full object-contain max-h-20" referrerPolicy="no-referrer" alt="Logo" />
+                  <img src={institution.logo_url} className="w-full h-full object-contain max-h-[18mm] max-w-[18mm]" referrerPolicy="no-referrer" alt="Logo" />
                 ) : (
-                  <div className="w-full h-full border border-slate-200 border-dashed flex flex-col items-center justify-center text-[8pt] text-slate-300 font-bold uppercase">
+                  <div className="w-full h-full border border-slate-300 border-dashed flex flex-col items-center justify-center text-[7pt] text-slate-400 font-bold uppercase">
                     <span className="leading-none">SEM</span>
                     <span className="leading-none">LOGO</span>
                   </div>
                 )}
               </div>
-              <div className="flex-1 flex flex-col justify-center">
-                <p className="text-[9.5pt] font-extrabold tracking-[0.2em] text-slate-600 uppercase leading-none mb-1">
-                  Diocese de Guarulhos
+              <div className="flex-1 flex flex-col justify-center min-w-0">
+                <p className="text-[9pt] font-extrabold tracking-[0.15em] text-slate-700 uppercase leading-none mb-1">
+                  {institution?.city_uf ? `DIOCESE DE ${institution.city_uf.split('/')[0].toUpperCase()}` : 'DIOCESE DE GUARULHOS'}
                 </p>
-                <h1 className="text-[17pt] font-black uppercase tracking-tight text-slate-900 leading-tight">
+                <h1 className="text-[13pt] md:text-[14pt] font-black uppercase tracking-tight text-slate-950 leading-snug">
                   {institution?.name || 'Escola Diocesana de Ministério'}
                 </h1>
-                <p className="text-[11pt] font-bold text-slate-700 tracking-wide uppercase mt-0.5">
+                <p className="text-[8.5pt] font-bold text-slate-600 tracking-wide uppercase mt-0.5 leading-tight">
                   {institution?.subtitle || 'Pe. José Fernando de Brito'}
                 </p>
               </div>

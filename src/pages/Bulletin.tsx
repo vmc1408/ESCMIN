@@ -2204,7 +2204,7 @@ export function Bulletin() {
         @media print {
           @page {
             size: ${viewMode === 'class' ? 'A4 landscape' : 'A4 portrait'} !important;
-            margin: ${viewMode === 'class' ? '10mm 12mm' : '10mm 12mm'} !important;
+            margin: ${viewMode === 'class' ? '10mm 12mm' : '12mm 15mm'} !important;
           }
 
           /* General breaking helper */

@@ -1032,7 +1032,7 @@ export function Settings() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 relative">
       {/* Sticky Header with Title and save button */}
-      <div className="sticky top-[-8px] md:top-[-16px] bg-slate-100/95 backdrop-blur-md z-40 py-4 -mx-2 md:-mx-4 px-2 md:px-4 border-b border-slate-200/80 flex flex-row items-center justify-between gap-4">
+      <div className="sticky top-[-8px] md:top-[-16px] bg-slate-100/95 backdrop-blur-md z-10 py-4 -mx-2 md:-mx-4 px-2 md:px-4 border-b border-slate-200/80 flex flex-row items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Configurações</h2>
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão da Instituição e Parâmetros do Sistema</p>
@@ -1067,7 +1067,7 @@ export function Settings() {
       {/* Grid Layout for Side Menu + Content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         {/* Left Column: Vertical Menu */}
-        <div className="lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-1 lg:sticky lg:top-[80px] z-20">
+        <div className="lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-1 lg:sticky lg:top-[80px] z-10">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1.5">Módulos</p>
           <button 
             onClick={() => setActiveTab('institution')}

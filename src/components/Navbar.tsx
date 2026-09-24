@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { getUnitColorTheme } from '../lib/unitColors';
 import { cn } from '../lib/utils';
+import { GlobalQuickSearch } from './GlobalQuickSearch';
 
 export function Navbar() {
   const { profile, logout, lockTimer, lock, isLocked, isLockEnabled } = useAuth();
@@ -119,7 +120,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className="h-16 bg-white border-b border-slate-200 z-30 print:hidden shrink-0">
+      <header className="h-16 bg-white border-b border-slate-200 z-50 relative print:hidden shrink-0">
         <div className="h-full max-w-[1440px] w-full mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 md:gap-4">
           {/* Lado Esquerdo: Logo e Instituição (Clique volta para a tela inicial sem animação) */}
           <div className="flex items-center gap-3 min-w-0 shrink-0">
@@ -158,6 +159,11 @@ export function Navbar() {
                 )}
               </div>
             </Link>
+          </div>
+
+          {/* Barra de Pesquisa Rápida Global */}
+          <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-1 sm:mx-3 min-w-0">
+            <GlobalQuickSearch />
           </div>
 
           {/* Seletor Global de Unidade ou Indicador de Unidade Logada */}
@@ -237,64 +243,104 @@ export function Navbar() {
                   </button>
 
                   {isUnitDropdownOpen && (
-                    <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-68 bg-white rounded-xl shadow-xl border border-slate-100 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                        <span>Visão da Instituição</span>
-                        <span className="text-[9px] text-blue-600 font-normal">Filtro Global</span>
+                    <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 top-full mt-2 w-80 max-w-[94vw] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[100] animate-in fade-in zoom-in-95 duration-150">
+                      {/* Cabeçalho do Dropdown */}
+                      <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between border-b border-slate-100 pb-2 mb-1.5">
+                        <span className="flex items-center gap-1.5 text-slate-600 font-extrabold">
+                          <Building2 size={12} className="text-blue-600" />
+                          Visão da Instituição
+                        </span>
+                        <span className="text-[9px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/80">
+                          Filtro Global
+                        </span>
                       </div>
 
+                      {/* Opção: Todas as Unidades (Consolidado) */}
                       <button
                         type="button"
                         onClick={() => { setSelectedUnitId('all'); setIsUnitDropdownOpen(false); }}
                         className={cn(
-                          "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
-                          selectedUnitId === 'all' ? "bg-slate-100 text-slate-900 font-bold" : "text-slate-700 hover:bg-slate-50"
+                          "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left border",
+                          selectedUnitId === 'all' 
+                            ? "bg-slate-100/90 border-slate-300 text-slate-900 font-bold shadow-2xs" 
+                            : "text-slate-700 hover:bg-slate-50 border-transparent"
                         )}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-slate-500 inline-block shrink-0" />
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block shrink-0 ring-2 ring-slate-200" />
                           <div className="flex flex-col">
-                            <span>Todas as Unidades (Consolidado)</span>
-                            <span className="text-[10px] text-slate-400 font-normal">Matriz + todas as filiais ativas</span>
+                            <span className="font-bold text-slate-900">Todas as Unidades (Consolidado)</span>
+                            <span className="text-[10px] text-slate-500 font-normal">Matriz + todas as filiais ativas</span>
                           </div>
                         </div>
-                        {selectedUnitId === 'all' && <Check size={14} className="text-slate-700 shrink-0" />}
+                        {selectedUnitId === 'all' && <Check size={16} className="text-slate-800 shrink-0" />}
                       </button>
 
-                      <div className="h-px bg-slate-100 my-1" />
+                      <div className="h-px bg-slate-150 my-1.5" />
 
-                      {activeUnits.map(u => {
-                        const isMain = u.is_main || u.id === 'matriz';
-                        const isSelected = selectedUnitId === u.id;
-                        const uTheme = getUnitColorTheme(u);
+                      <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                        Polos e Unidades Ativas
+                      </div>
 
-                        return (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => { setSelectedUnitId(u.id); setIsUnitDropdownOpen(false); }}
-                            className={cn(
-                              "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-left",
-                              isSelected ? `${uTheme.badgeBg} ${uTheme.textDark} font-bold` : "text-slate-700 hover:bg-slate-50"
-                            )}
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <span className={cn("w-2 h-2 rounded-full inline-block shrink-0", uTheme.dotIndicator)} />
-                              <span className="truncate">{u.name}</span>
-                              {isMain ? (
-                                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0", uTheme.badgeBg, uTheme.badgeText, uTheme.badgeBorder)}>
-                                  Matriz
-                                </span>
-                              ) : (
-                                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0", uTheme.badgeBg, uTheme.badgeText, uTheme.badgeBorder)}>
-                                  Filial
-                                </span>
+                      <div className="space-y-1">
+                        {activeUnits.map(u => {
+                          const isMain = u.is_main || u.id === 'matriz';
+                          const isSelected = selectedUnitId === u.id;
+                          const uTheme = getUnitColorTheme(u);
+
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => { setSelectedUnitId(u.id); setIsUnitDropdownOpen(false); }}
+                              className={cn(
+                                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left border",
+                                isSelected 
+                                  ? `${uTheme.badgeBg} ${uTheme.cardBorder} ${uTheme.textDark} font-bold shadow-2xs` 
+                                  : "text-slate-700 hover:bg-slate-50 border-transparent"
                               )}
-                            </div>
-                            {isSelected && <Check size={14} className={cn("shrink-0", uTheme.textAccent)} />}
-                          </button>
-                        );
-                      })}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                <span className={cn("w-2.5 h-2.5 rounded-full inline-block shrink-0 ring-2 ring-white shadow-2xs", uTheme.dotIndicator)} />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="truncate font-bold text-slate-900">{u.name}</span>
+                                  {u.code && (
+                                    <span className="text-[10px] text-slate-400 font-mono font-normal">
+                                      Código: {u.code}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {isMain ? (
+                                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0", uTheme.badgeBg, uTheme.badgeText, uTheme.badgeBorder)}>
+                                    Matriz
+                                  </span>
+                                ) : (
+                                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0", uTheme.badgeBg, uTheme.badgeText, uTheme.badgeBorder)}>
+                                    Filial
+                                  </span>
+                                )}
+                                {isSelected && <Check size={16} className={cn("shrink-0", uTheme.textAccent)} />}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {canSwitchUnit && (
+                        <>
+                          <div className="h-px bg-slate-100 my-1.5" />
+                          <Link
+                            to="/configuracoes"
+                            onClick={() => setIsUnitDropdownOpen(false)}
+                            className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors"
+                          >
+                            <Building2 size={12} />
+                            <span>Gerenciar Unidades e Polos</span>
+                          </Link>
+                        </>
+                      )}
                     </div>
                   )}
                 </>

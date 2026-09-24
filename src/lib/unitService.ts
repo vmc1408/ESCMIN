@@ -304,10 +304,12 @@ export const getUnits = async (): Promise<Unit[]> => {
   localUnits.forEach(u => {
     if (u && u.id) {
       if (u.id === 'matriz' || u.is_main) {
-        // Matriz sempre preserva as informações mais recentes da Instituição
+        // Matriz sempre preserva as informações mais recentes da Instituição, mantendo o nome customizado caso definido pelo usuário
+        const customName = u?.name?.trim();
         mergedMap.set('matriz', {
-          ...u,
           ...dynamicMatriz,
+          ...u,
+          name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
           id: 'matriz',
           code: 'MAT',
           is_main: true,
@@ -326,9 +328,11 @@ export const getUnits = async (): Promise<Unit[]> => {
       tableData.forEach((u: any) => {
         if (u && u.id) {
           if (u.id === 'matriz' || u.is_main) {
+            const customName = u?.name?.trim();
             mergedMap.set('matriz', {
-              ...u,
               ...dynamicMatriz,
+              ...u,
+              name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
               id: 'matriz',
               code: 'MAT',
               is_main: true,
@@ -377,9 +381,11 @@ export const getUnits = async (): Promise<Unit[]> => {
       cloudUnits.forEach((u: any) => {
         if (u && u.id) {
           if (u.id === 'matriz' || u.is_main) {
+            const customName = u?.name?.trim();
             mergedMap.set('matriz', {
-              ...u,
               ...dynamicMatriz,
+              ...u,
+              name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
               id: 'matriz',
               code: 'MAT',
               is_main: true,
@@ -882,7 +888,15 @@ export const getInitialUnitsFromCache = (): Unit[] => {
         const filtered = parsed.filter(u => !isDiscarded(u));
         const matrizIdx = filtered.findIndex(u => u.id === 'matriz' || u.is_main);
         if (matrizIdx >= 0) {
-          filtered[matrizIdx] = { ...filtered[matrizIdx], ...dynamicMatriz, id: 'matriz', is_main: true, active: true };
+          const customName = filtered[matrizIdx]?.name?.trim();
+          filtered[matrizIdx] = { 
+            ...dynamicMatriz, 
+            ...filtered[matrizIdx], 
+            name: (customName && customName !== 'Sede / Matriz' && customName !== '') ? customName : (dynamicMatriz.name || 'Sede / Matriz'),
+            id: 'matriz', 
+            is_main: true, 
+            active: true 
+          };
         } else {
           filtered.unshift(dynamicMatriz);
         }

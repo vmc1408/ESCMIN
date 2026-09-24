@@ -1804,7 +1804,7 @@ export function Reports() {
       )}
 
       {/* Modern Sticky Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-4 mb-8 sticky top-0 z-40 shadow-sm print:hidden">
+      <div className="bg-white border-b border-slate-200 px-8 py-4 mb-8 sticky top-0 z-10 shadow-sm print:hidden">
         <div className="max-w-[1920px] mx-auto">
           <PageHeader
             title="Relatórios Estratégicos"

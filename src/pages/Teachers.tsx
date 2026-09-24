@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Search, 
   UserPlus, 
@@ -171,6 +172,7 @@ const TeacherItem = React.memo(({
 });
 
 export function Teachers() {
+  const location = useLocation();
   const { activeUnits, hasMultipleUnits, selectedUnitId: globalUnitId, getUnitName } = useUnits();
   const { canDelete } = useAuth();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -367,6 +369,21 @@ export function Teachers() {
     setIsEditing(false);
     setHoverShowList(false);
   }, []);
+
+  // Handle auto-selection from Global Quick Search or deep links
+  useEffect(() => {
+    const teacherId = (location.state as any)?.teacherId;
+    if (teacherId && teachers.length > 0) {
+      const targetTeacher = teachers.find(t => t.id === teacherId);
+      if (targetTeacher) {
+        if (targetTeacher.status === 'Inativo') {
+          setStatusFilter('Todos');
+        }
+        handleSelectTeacher(targetTeacher);
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [teachers, location.state, handleSelectTeacher]);
 
   const generateTeacherListPDF = async () => {
     try {

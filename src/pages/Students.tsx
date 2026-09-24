@@ -661,6 +661,9 @@ export function Students() {
     if (studentId && students.length > 0) {
       const student = students.find(s => s.id === studentId);
       if (student) {
+        if (student.status === 'Inativo') {
+          setStatusFilter('Todos');
+        }
         handleSelectStudent(student);
         // Clear state to avoid re-selecting if the user navigates away and back
         window.history.replaceState({}, document.title);
