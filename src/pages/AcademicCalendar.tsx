@@ -56,6 +56,7 @@ import { useCalendarHelpers } from '../hooks/useCalendar';
 import { getTypeStyle, getTypeText, getTypeColor } from '../lib/calendar-utils';
 import { CalendarEvent, AcademicSettings, Class, Subject, InstitutionSettings, Course } from '../types';
 import { HolidayListReport } from '../components/calendar/HolidayListReport';
+import { AcademicScheduleSplash } from '../components/calendar/AcademicScheduleSplash';
 import { HabilitationModal } from '../components/HabilitationModal';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit } from '../lib/unitService';
@@ -2468,6 +2469,11 @@ export function AcademicCalendar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Splash do Cronograma Acadêmico (Ciclo Letivo, Semestres e Dias de Aula) */}
+      {viewMode !== 'management' && (
+        <AcademicScheduleSplash settings={academicSettings} className="mb-4 animate-in fade-in duration-200" />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {notification && (

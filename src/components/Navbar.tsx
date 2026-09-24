@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, User, LogOut, Database, AlertTriangle, Lock, Unlock } from 'lucide-react';
+import { Bell, User, LogOut, Database, AlertTriangle, Lock, Unlock, Calendar } from 'lucide-react';
 import { getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
@@ -135,40 +135,50 @@ export function Navbar() {
           </div>
 
           {/* Barra de Pesquisa Rápida Global com Amplo Espaço Central */}
-          <div className="flex-1 max-w-xl lg:max-w-2xl mx-2 sm:mx-4 md:mx-8 min-w-0">
+          <div className="flex-1 max-w-xl lg:max-w-2xl mx-2 sm:mx-4 md:mx-6 min-w-0">
             <GlobalQuickSearch />
           </div>
 
-          {/* Lado Direito: Ações, Bloqueio e Perfil */}
-          <div className="flex items-center gap-2 md:gap-5 shrink-0">
-          {!isLocked && (
-            <div className="flex items-center gap-1.5">
-              {isLockEnabled && lockTimer <= 60 && (
-                <div 
-                  className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg animate-pulse cursor-pointer hover:bg-red-100 transition-colors" 
-                  onClick={lock}
-                  title="Sua sessão expirará por inatividade. Clique para bloquear."
-                >
-                  <AlertTriangle size={14} className="text-red-500 shrink-0" />
-                  <span className="text-[10px] font-black tabular-nums uppercase tracking-widest whitespace-nowrap">
-                    Bloqueando em {lockTimer}s
-                  </span>
-                </div>
-              )}
-              <button
-                onClick={lock}
-                className="group relative flex items-center justify-center p-2 bg-slate-100/90 hover:bg-amber-50 text-slate-500 hover:text-amber-700 border border-slate-200/80 hover:border-amber-300 rounded-lg transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs"
-                title="Clique para bloquear"
-              >
-                {/* Cadeado aberto quando o sistema está desbloqueado */}
-                <Unlock size={16} className="transition-all duration-200 group-hover:hidden text-emerald-600" />
-                {/* Cadeado fecha ao passar o mouse por cima para bloquear o sistema */}
-                <Lock size={16} className="hidden transition-all duration-200 group-hover:block text-amber-600 animate-in zoom-in-75" />
-              </button>
-            </div>
-          )}
+          {/* Lado Direito: Ações, Cronograma, Bloqueio e Perfil */}
+          <div className="flex items-center gap-2 md:gap-3 shrink-0">
+            {/* Acesso Rápido ao Cronograma & Calendário */}
+            <Link
+              to="/calendar?view=month"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100/80 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200/90 hover:border-blue-200 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 shadow-2xs group"
+              title="Acessar Cronograma e Calendário Acadêmico"
+            >
+              <Calendar size={14} className="text-slate-500 group-hover:text-blue-600 transition-colors shrink-0" />
+              <span className="hidden sm:inline font-bold">Cronograma</span>
+            </Link>
 
-          <div className="flex items-center gap-2 md:gap-4 text-slate-400 border-l border-slate-200 pl-3 md:pl-5">
+            {!isLocked && (
+              <div className="flex items-center gap-1.5">
+                {isLockEnabled && lockTimer <= 60 && (
+                  <div 
+                    className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg animate-pulse cursor-pointer hover:bg-red-100 transition-colors" 
+                    onClick={lock}
+                    title="Sua sessão expirará por inatividade. Clique para bloquear."
+                  >
+                    <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                    <span className="text-[10px] font-black tabular-nums uppercase tracking-widest whitespace-nowrap">
+                      Bloqueando em {lockTimer}s
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={lock}
+                  className="group relative flex items-center justify-center p-2 bg-slate-100/90 hover:bg-amber-50 text-slate-500 hover:text-amber-700 border border-slate-200/80 hover:border-amber-300 rounded-xl transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs"
+                  title="Clique para bloquear"
+                >
+                  {/* Cadeado aberto quando o sistema está desbloqueado */}
+                  <Unlock size={16} className="transition-all duration-200 group-hover:hidden text-emerald-600" />
+                  {/* Cadeado fecha ao passar o mouse por cima para bloquear o sistema */}
+                  <Lock size={16} className="hidden transition-all duration-200 group-hover:block text-amber-600 animate-in zoom-in-75" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 md:gap-4 text-slate-400 border-l border-slate-200 pl-2.5 md:pl-4">
             <div className="relative cursor-pointer hover:text-blue-600 transition-colors hidden xs:block">
               <Bell size={18} />
               <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>

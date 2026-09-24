@@ -325,7 +325,7 @@ export function GlobalQuickSearch() {
   };
 
   return (
-    <div className="relative w-full max-w-md" ref={containerRef}>
+    <div className="relative w-full" ref={containerRef}>
       {/* Search Input Bar */}
       <div 
         className={cn(
@@ -350,8 +350,8 @@ export function GlobalQuickSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
-          placeholder="Buscar alunos, professores, turmas... (Ctrl + K)"
-          className="w-full bg-transparent border-none outline-hidden text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 font-medium"
+          placeholder="Buscar alunos, professores, turmas..."
+          className="w-full bg-transparent border-0 outline-none ring-0 focus:outline-none focus:ring-0 shadow-none text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 font-medium py-0 px-0"
         />
 
         {loading ? (
