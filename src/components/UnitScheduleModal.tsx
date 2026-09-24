@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { saveData, fetchAll, fetchById, deleteQuery } from '../lib/database';
 import { isItemInUnit } from '../lib/unitService';
-import { sanitizeAcademicSettings } from '../lib/academicUtils';
+import { sanitizeAcademicSettings, normalizeClassWeekdays } from '../lib/academicUtils';
 
 interface UnitScheduleModalProps {
   isOpen: boolean;
@@ -78,11 +78,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
       setTerm1End(source.term1_end || '');
       setTerm2Start(source.term2_start || '');
       setTerm2End(source.term2_end || '');
-      if (Array.isArray(source.class_weekdays)) {
-        setSelectedWeekdays(source.class_weekdays.map(Number));
-      } else {
-        setSelectedWeekdays([]);
-      }
+      setSelectedWeekdays(normalizeClassWeekdays(source.class_weekdays, []));
     } else {
       setTerm1Start('');
       setTerm1End('');
@@ -104,9 +100,7 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
     setTerm1End(matrizSettings.term1_end || '');
     setTerm2Start(matrizSettings.term2_start || '');
     setTerm2End(matrizSettings.term2_end || '');
-    if (Array.isArray(matrizSettings.class_weekdays)) {
-      setSelectedWeekdays(matrizSettings.class_weekdays.map(Number));
-    }
+    setSelectedWeekdays(normalizeClassWeekdays(matrizSettings.class_weekdays, []));
     setFeedback({
       type: 'success',
       message: 'Datas e parâmetros copiados da Matriz. Ajuste os dias específicos conforme necessário.'

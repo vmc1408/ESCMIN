@@ -700,6 +700,41 @@ const WEEKDAY_NAMES: Record<number, string> = {
 };
 
 /**
+ * Normaliza qualquer valor recebido para class_weekdays (seja array, número, string ou legado)
+ * retornando um array de números únicos e estritamente no intervalo de 1 a 6 (Segunda a Sábado, sem Domingo).
+ */
+export const normalizeClassWeekdays = (val: any, fallback: number[] = [3]): number[] => {
+  if (Array.isArray(val)) {
+    const res = val
+      .map(Number)
+      .filter((n: number) => !isNaN(n) && n >= 1 && n <= 6);
+    return res.length > 0 ? Array.from(new Set<number>(res)).sort((a: number, b: number) => a - b) : fallback;
+  }
+  if (typeof val === 'number' && !isNaN(val) && val >= 1 && val <= 6) {
+    return [val];
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return normalizeClassWeekdays(parsed, fallback);
+        }
+      } catch {}
+    }
+    const parts = trimmed
+      .split(',')
+      .map((s: string) => Number(s.trim()))
+      .filter((n: number) => !isNaN(n) && n >= 1 && n <= 6);
+    if (parts.length > 0) {
+      return Array.from(new Set<number>(parts)).sort((a: number, b: number) => a - b);
+    }
+  }
+  return fallback;
+};
+
+/**
  * Higieniza as configurações acadêmicas expurgando qualquer dia inválido ou não-letivo (ex: Domingo = 0).
  * Garante que somente dias úteis e sábados (1 a 6) sejam dias de aula possíveis na instituição.
  */
@@ -707,13 +742,11 @@ export const sanitizeAcademicSettings = (settings: any): any => {
   if (!settings || typeof settings !== 'object') return settings;
   const cleaned = { ...settings };
 
-  // 1. Garante que class_weekdays nunca contenha 0 (Domingo) nem duplicados nem dias fora de 1..6
-  if (Array.isArray(cleaned.class_weekdays)) {
-    const rawNums = cleaned.class_weekdays
-      .map(Number)
-      .filter((n: number) => !isNaN(n) && n >= 1 && n <= 6);
-    cleaned.class_weekdays = Array.from(new Set<number>(rawNums)).sort((a: number, b: number) => a - b);
-  }
+  // 1. Garante que class_weekdays seja SEMPRE um array válido de números (1 a 6, sem Domingo)
+  cleaned.class_weekdays = normalizeClassWeekdays(
+    cleaned.class_weekdays ?? cleaned.class_weekday,
+    [3]
+  );
 
   // 2. Remove qualquer registro de domingo (0) em weekday_terms
   if (cleaned.weekday_terms && typeof cleaned.weekday_terms === 'object') {

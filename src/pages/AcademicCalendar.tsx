@@ -48,7 +48,7 @@ import {
   Copy
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
-import { sanitizeAcademicSettings } from '../lib/academicUtils';
+import { sanitizeAcademicSettings, normalizeClassWeekdays } from '../lib/academicUtils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
@@ -640,8 +640,8 @@ export function AcademicCalendar() {
 
   const getWeekdayDataForDoc = (i: number, parsedDoc: AcademicSettings, currentEventsList?: CalendarEvent[]) => {
     const activeEvents = currentEventsList || events || [];
-    const isRegisteredInWeekdays = (parsedDoc.class_weekdays || []).includes(i) || 
-      (parsedDoc.class_weekdays || []).includes(String(i) as any);
+    const docWeekdays = normalizeClassWeekdays(parsedDoc.class_weekdays, []);
+    const isRegisteredInWeekdays = docWeekdays.includes(i);
       
     const classesFromSettings = (parsedDoc.weekday_classes || {})[i] || 
       (parsedDoc.weekday_classes || {})[String(i)] || [];
@@ -866,14 +866,10 @@ export function AcademicCalendar() {
           ...(data || {})
         };
 
-        const rawWeekdays = Array.isArray(mergedData.class_weekdays) 
-          ? mergedData.class_weekdays.map(Number) 
-          : (localData.class_weekdays 
-            ? localData.class_weekdays.map(Number) 
-            : (data?.class_weekdays ? data.class_weekdays.map(Number) : [3]));
-
-        // Filtra estritamente para dias letivos válidos (1 a 6 = Segunda a Sábado; nunca 0 = Domingo)
-        const activeWeekdays = rawWeekdays.filter(d => !isNaN(d) && d >= 1 && d <= 6);
+        const activeWeekdays = normalizeClassWeekdays(
+          mergedData.class_weekdays ?? data?.class_weekdays ?? localData.class_weekdays,
+          [3]
+        );
 
         const existingTerms = {
           ...(localData.weekday_terms || {}),
@@ -1010,7 +1006,7 @@ export function AcademicCalendar() {
         term1_end: matrizBaselineSettings.term1_end || prev.term1_end,
         term2_start: matrizBaselineSettings.term2_start || prev.term2_start,
         term2_end: matrizBaselineSettings.term2_end || prev.term2_end,
-        class_weekdays: [...(matrizBaselineSettings.class_weekdays || prev.class_weekdays)],
+        class_weekdays: normalizeClassWeekdays(matrizBaselineSettings.class_weekdays ?? prev.class_weekdays, [3]),
         weekday_titles: { ...(matrizBaselineSettings.weekday_titles || prev.weekday_titles) },
         weekday_terms: { ...(matrizBaselineSettings.weekday_terms || prev.weekday_terms) },
       }));
@@ -1272,10 +1268,7 @@ export function AcademicCalendar() {
           weekday_titles: mergedData.weekday_titles || { 3: 'Dia de Aula' },
           weekday_classes: mergedData.weekday_classes || {},
           weekday_terms: mergedData.weekday_terms || {},
-          class_weekdays: (Array.isArray(mergedData.class_weekdays) 
-            ? mergedData.class_weekdays 
-            : (mergedData.class_weekday !== undefined ? [mergedData.class_weekday] : (mergedData.class_weekdays ? [mergedData.class_weekdays] : [3]))
-          ).map((d: any) => Number(d))
+          class_weekdays: normalizeClassWeekdays(mergedData.class_weekdays ?? mergedData.class_weekday, [3])
         });
       }
       
