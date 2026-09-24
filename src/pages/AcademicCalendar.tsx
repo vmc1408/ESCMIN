@@ -48,6 +48,7 @@ import {
   Copy
 } from 'lucide-react';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass } from '../lib/utils';
+import { sanitizeAcademicSettings } from '../lib/academicUtils';
 import { fetchAll, saveData, saveBatch, deleteData, fetchQuery, handleDbError, fetchById, deleteQuery, getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { useSearchParams } from 'react-router-dom';
@@ -865,29 +866,29 @@ export function AcademicCalendar() {
           ...(data || {})
         };
 
-        const activeWeekdays = Array.isArray(mergedData.class_weekdays) 
+        const rawWeekdays = Array.isArray(mergedData.class_weekdays) 
           ? mergedData.class_weekdays.map(Number) 
           : (localData.class_weekdays 
             ? localData.class_weekdays.map(Number) 
             : (data?.class_weekdays ? data.class_weekdays.map(Number) : [3]));
 
+        // Filtra estritamente para dias letivos válidos (1 a 6 = Segunda a Sábado; nunca 0 = Domingo)
+        const activeWeekdays = rawWeekdays.filter(d => !isNaN(d) && d >= 1 && d <= 6);
+
         const existingTerms = {
           ...(localData.weekday_terms || {}),
           ...(mergedData.weekday_terms || {})
         };
+        // Expurga qualquer registro indevido de Domingo
+        delete existingTerms[0];
+        delete existingTerms['0'];
 
-        // For all active weekdays (or weekdays with events in calendar), fill in any missing term dates from real calendar events
+        // Apenas dias ativos em activeWeekdays (e estritamente de Segunda a Sábado) são enriquecidos
         const enrichedWeekdayTerms: Record<number, any> = { ...existingTerms };
-        const allRelevantDays = new Set<number>([...activeWeekdays, 3, 4]);
-        
-        (freshEvents || []).forEach(e => {
-          if (e.start_date && e.type === 'class_day') {
-            const d = new Date(e.start_date + 'T00:00:00');
-            allRelevantDays.add(d.getDay());
-          }
-        });
+        const allRelevantDays = new Set<number>(activeWeekdays.length > 0 ? activeWeekdays : [3]);
 
         allRelevantDays.forEach(day => {
+          if (day < 1 || day > 6) return;
           const currentDayTerms = enrichedWeekdayTerms[day] || enrichedWeekdayTerms[String(day)] || {};
           const inferred = inferTermsForWeekday(day, freshEvents || [], mergedData);
           
@@ -899,18 +900,39 @@ export function AcademicCalendar() {
           };
         });
 
-        const parsed = {
+        // Limpeza cirúrgica de eventos indevidos criados no domingo no calendário
+        const sundayAutoEventIds = (freshEvents || []).filter(e => {
+          if (e.start_date && (e.type === 'class_day' || e.description?.toLowerCase().includes('cronograma automático'))) {
+            const dt = new Date(e.start_date + 'T00:00:00');
+            return dt.getDay() === 0;
+          }
+          return false;
+        }).map(e => e.id).filter(Boolean);
+
+        if (sundayAutoEventIds.length > 0) {
+          deleteQuery('calendar_events', [{ field: 'id', operator: 'in', value: sundayAutoEventIds }]).catch(console.warn);
+          setEvents(prev => prev.filter(e => !sundayAutoEventIds.includes(e.id)));
+        }
+
+        const parsed = sanitizeAcademicSettings({
           ...mergedData,
           term1_start: mergedData.term1_start || '',
           term1_end: mergedData.term1_end || '',
           term2_start: mergedData.term2_start || '',
           term2_end: mergedData.term2_end || '',
-          class_weekdays: activeWeekdays,
+          class_weekdays: activeWeekdays.length > 0 ? activeWeekdays : [3],
           weekday_titles: mergedData.weekday_titles || localData.weekday_titles || {},
           target_class_ids: Array.isArray(mergedData.target_class_ids) ? mergedData.target_class_ids : [],
           weekday_classes: mergedData.weekday_classes || localData.weekday_classes || {},
           weekday_terms: enrichedWeekdayTerms
-        };
+        });
+
+        try {
+          localStorage.setItem(`academic_settings_${activeTargetId}`, JSON.stringify(parsed));
+          if (activeTargetId === 'current') {
+            localStorage.setItem('academic_settings_current', JSON.stringify(parsed));
+          }
+        } catch {}
         
         if (activeTargetId === 'current') {
           setAcademicSettings(parsed);
@@ -1573,6 +1595,13 @@ export function AcademicCalendar() {
         const desc = (e.description || '').toLowerCase();
         const title = (e.title || '').toLowerCase();
         const type = e.type;
+        const isSunday = e.start_date ? new Date(e.start_date + 'T00:00:00').getDay() === 0 : false;
+        
+        // Domingo NUNCA é dia de aula: se houver qualquer aula no domingo, expurga imediatamente!
+        if (isSunday && (type === 'class_day' || desc.includes('cronograma automático'))) {
+          return true;
+        }
+
         const isAuto = type === 'class_day' || 
                type === 'start_term' || 
                type === 'end_term' || 
@@ -1602,7 +1631,10 @@ export function AcademicCalendar() {
       ];
 
       const newEvents: any[] = [];
-      const activeWeekdays = Array.isArray(settings.class_weekdays) ? settings.class_weekdays : [];
+      // Apenas dias letivos oficiais válidos (1 a 6 = Segunda a Sábado; nunca 0 = Domingo)
+      const activeWeekdays = (Array.isArray(settings.class_weekdays) ? settings.class_weekdays : [])
+        .map(Number)
+        .filter(d => !isNaN(d) && d >= 1 && d <= 6);
 
       // Fetch holiday dates once to reuse
       const holidayDates = new Set();
@@ -4295,8 +4327,15 @@ export function AcademicCalendar() {
                         <p className="text-[11px] text-slate-500 pl-0.5">Selecione o dia da semana para configurar.</p>
                       </div>
 
-                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-1.5">
-                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((day, i) => {
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-1.5">
+                        {[
+                          { label: 'Seg', num: 1 },
+                          { label: 'Ter', num: 2 },
+                          { label: 'Qua', num: 3 },
+                          { label: 'Qui', num: 4 },
+                          { label: 'Sex', num: 5 },
+                          { label: 'Sáb', num: 6 }
+                        ].map(({ label: day, num: i }) => {
                           const isSelected = selectedWeekdayDetail === i;
                           const isAlreadyRegistered = (settingsForm.class_weekdays || []).includes(i);
                           
@@ -4330,18 +4369,15 @@ export function AcademicCalendar() {
                                   ? savedWeekdayClasses
                                   : associatedClassIds;
 
-                                // Retrieve or infer terms for this day
+                                // Retrieve terms for this day if already present
                                 const existingDayTerms = settingsForm.weekday_terms?.[nextActiveDay] 
                                   || settingsForm.weekday_terms?.[String(nextActiveDay)]
                                   || academicSettings.weekday_terms?.[nextActiveDay]
                                   || academicSettings.weekday_terms?.[String(nextActiveDay)];
 
                                 let nextWeekdayTerms = { ...(settingsForm.weekday_terms || {}) };
-                                if (!existingDayTerms || (!existingDayTerms.term1_start && !existingDayTerms.term1_end && !existingDayTerms.term2_start && !existingDayTerms.term2_end)) {
-                                  const inferred = inferTermsForWeekday(nextActiveDay, events, settingsForm);
-                                  if (inferred.term1_start || inferred.term1_end || inferred.term2_start || inferred.term2_end) {
-                                    nextWeekdayTerms[nextActiveDay] = inferred;
-                                  }
+                                if (existingDayTerms && (existingDayTerms.term1_start || existingDayTerms.term1_end || existingDayTerms.term2_start || existingDayTerms.term2_end)) {
+                                  nextWeekdayTerms[nextActiveDay] = existingDayTerms;
                                 }
 
                                 // Do NOT automatically activate when selecting - keep class_weekdays untouched
@@ -4936,16 +4972,20 @@ export function AcademicCalendar() {
                           setShowConfirmModal(false);
                           setIsSyncing(true);
                           try {
-                            const nextWeekdays = (settingsForm.class_weekdays || []).map(Number);
+                            const nextWeekdays = (settingsForm.class_weekdays || [])
+                              .map(Number)
+                              .filter(d => !isNaN(d) && d >= 1 && d <= 6);
                             
                             // Build final merged classes safely preserving every day's choices
                             const finalFormClasses = {
                               ...(academicSettings.weekday_classes || {}),
                               ...(settingsForm.weekday_classes || {}),
                             };
+                            delete finalFormClasses[0];
+                            delete finalFormClasses['0'];
                             
-                            // Only update active day if user has a selected weekday detail active
-                            if (selectedWeekdayDetail !== null) {
+                            // Only update active day if user has a selected weekday detail active and valid
+                            if (selectedWeekdayDetail !== null && selectedWeekdayDetail >= 1 && selectedWeekdayDetail <= 6) {
                               finalFormClasses[selectedWeekdayDetail] = settingsForm.target_class_ids || [];
                             }
 
@@ -4954,9 +4994,11 @@ export function AcademicCalendar() {
                               ...(academicSettings.weekday_terms || {}),
                               ...(settingsForm.weekday_terms || {}),
                             };
+                            delete finalFormTerms[0];
+                            delete finalFormTerms['0'];
 
                             // If there is an active day, check if it has custom terms. If not, make sure it is removed so it doesn't get saved as custom.
-                            if (selectedWeekdayDetail !== null) {
+                            if (selectedWeekdayDetail !== null && selectedWeekdayDetail >= 1 && selectedWeekdayDetail <= 6) {
                               const activeDayTerms = settingsForm.weekday_terms?.[selectedWeekdayDetail]
                                 || settingsForm.weekday_terms?.[String(selectedWeekdayDetail)]
                                 || {};
@@ -4981,6 +5023,7 @@ export function AcademicCalendar() {
                             const nextTitles: Record<number, string> = {};
 
                             nextWeekdays.forEach(d => {
+                              if (d < 1 || d > 6) return;
                               // Retrieve and store merged classes for this day
                               const classesForDay = finalFormClasses[d] 
                                 || finalFormClasses[String(d)] 
@@ -5011,7 +5054,7 @@ export function AcademicCalendar() {
 
                             const isTargetMatriz = settingsTargetUnitId === 'matriz' || settingsTargetUnitId === 'all';
                             const targetSettingsId = isTargetMatriz ? 'current' : `academic_settings_${settingsTargetUnitId}`;
-                            const updatedSettings: AcademicSettings = {
+                            const updatedSettings: AcademicSettings = sanitizeAcademicSettings({
                               id: targetSettingsId,
                               unit_id: isTargetMatriz ? 'matriz' : settingsTargetUnitId,
                               term1_start: rootT1Start,
@@ -5023,7 +5066,7 @@ export function AcademicCalendar() {
                               target_class_ids: selectedWeekdayDetail !== null ? settingsForm.target_class_ids : [],
                               weekday_classes: nextWeekdayClasses,
                               weekday_terms: nextWeekdayTerms
-                            };
+                            });
                             
                             // Save globally or per unit
                             await saveData('academic_settings', targetSettingsId, updatedSettings);

@@ -37,7 +37,9 @@ export function AcademicScheduleSplash({
   };
 
   const periods: SchedulePeriod[] = useMemo(() => {
-    return getAllAcademicSchedulePeriods(settings);
+    const raw = getAllAcademicSchedulePeriods(settings);
+    // Filtragem defensiva: Domingo nunca é dia de aula
+    return raw.filter(p => p.dayNum !== 0 && !p.label.toLowerCase().includes('domingo'));
   }, [settings]);
 
   const [activePeriodIndex, setActivePeriodIndex] = useState(0);

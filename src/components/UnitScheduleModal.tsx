@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { saveData, fetchAll, fetchById, deleteQuery } from '../lib/database';
 import { isItemInUnit } from '../lib/unitService';
+import { sanitizeAcademicSettings } from '../lib/academicUtils';
 
 interface UnitScheduleModalProps {
   isOpen: boolean;
@@ -29,7 +30,6 @@ interface UnitScheduleModalProps {
 }
 
 const WEEKDAYS = [
-  { num: 0, label: 'Dom', full: 'Domingo' },
   { num: 1, label: 'Seg', full: 'Segunda-feira' },
   { num: 2, label: 'Ter', full: 'Terça-feira' },
   { num: 3, label: 'Qua', full: 'Quarta-feira' },
@@ -147,26 +147,27 @@ export const UnitScheduleModal: React.FC<UnitScheduleModalProps> = ({
       }
 
       // Validações no modo personalizado
-      if (selectedWeekdays.length === 0) {
+      const validWeekdays = selectedWeekdays.filter(d => d >= 1 && d <= 6);
+      if (validWeekdays.length === 0) {
         setFeedback({ type: 'error', message: 'Selecione pelo menos um dia da semana para as aulas deste polo.' });
         setIsSaving(false);
         return;
       }
 
-      const updatedSettings: any = {
+      const updatedSettings: any = sanitizeAcademicSettings({
         id: targetSettingsId,
         unit_id: unitId,
         term1_start: term1Start,
         term1_end: term1End,
         term2_start: term2Start,
         term2_end: term2End,
-        class_weekdays: selectedWeekdays,
+        class_weekdays: validWeekdays,
         weekday_titles: currentSettings?.weekday_titles || matrizSettings?.weekday_titles || {},
         target_class_ids: currentSettings?.target_class_ids || [],
         weekday_classes: currentSettings?.weekday_classes || {},
         weekday_terms: currentSettings?.weekday_terms || {},
         updated_at: new Date().toISOString()
-      };
+      });
 
       // 1. Salva no banco de dados e no cache local
       await saveData('academic_settings', targetSettingsId, updatedSettings);

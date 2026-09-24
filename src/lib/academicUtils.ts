@@ -691,7 +691,6 @@ export interface SchedulePeriod {
 }
 
 const WEEKDAY_NAMES: Record<number, string> = {
-  0: 'Domingo',
   1: 'Segunda-feira',
   2: 'Terça-feira',
   3: 'Quarta-feira',
@@ -700,62 +699,88 @@ const WEEKDAY_NAMES: Record<number, string> = {
   6: 'Sábado'
 };
 
+/**
+ * Higieniza as configurações acadêmicas expurgando qualquer dia inválido ou não-letivo (ex: Domingo = 0).
+ * Garante que somente dias úteis e sábados (1 a 6) sejam dias de aula possíveis na instituição.
+ */
+export const sanitizeAcademicSettings = (settings: any): any => {
+  if (!settings || typeof settings !== 'object') return settings;
+  const cleaned = { ...settings };
+
+  // 1. Garante que class_weekdays nunca contenha 0 (Domingo) nem duplicados nem dias fora de 1..6
+  if (Array.isArray(cleaned.class_weekdays)) {
+    const rawNums = cleaned.class_weekdays
+      .map(Number)
+      .filter((n: number) => !isNaN(n) && n >= 1 && n <= 6);
+    cleaned.class_weekdays = Array.from(new Set<number>(rawNums)).sort((a: number, b: number) => a - b);
+  }
+
+  // 2. Remove qualquer registro de domingo (0) em weekday_terms
+  if (cleaned.weekday_terms && typeof cleaned.weekday_terms === 'object') {
+    const terms = { ...cleaned.weekday_terms };
+    delete terms[0];
+    delete terms['0'];
+    cleaned.weekday_terms = terms;
+  }
+
+  // 3. Remove qualquer registro de domingo (0) em weekday_classes
+  if (cleaned.weekday_classes && typeof cleaned.weekday_classes === 'object') {
+    const classes = { ...cleaned.weekday_classes };
+    delete classes[0];
+    delete classes['0'];
+    cleaned.weekday_classes = classes;
+  }
+
+  // 4. Remove qualquer registro de domingo (0) em weekday_titles
+  if (cleaned.weekday_titles && typeof cleaned.weekday_titles === 'object') {
+    const titles = { ...cleaned.weekday_titles };
+    delete titles[0];
+    delete titles['0'];
+    cleaned.weekday_titles = titles;
+  }
+
+  return cleaned;
+};
+
 export const getAllAcademicSchedulePeriods = (settings: any): SchedulePeriod[] => {
   const periods: SchedulePeriod[] = [];
   const seenLabels = new Set<string>();
 
-  const combined = { ...(settings || {}) };
+  const combined = sanitizeAcademicSettings({ ...(settings || {}) });
   const rootT1Start = combined.term1_start || '';
   const rootT1End = combined.term1_end || '';
   const rootT2Start = combined.term2_start || '';
   const rootT2End = combined.term2_end || '';
 
-  // 1. Dias com parametrização explícita de início e fim de semestres
-  if (combined.weekday_terms) {
-    const dayKeys = Object.keys(combined.weekday_terms)
-      .map(k => Number(k))
-      .filter(n => !isNaN(n))
-      .sort((a, b) => a - b);
+  // 1. Identifica os dias de aula oficiais ativos no ciclo letivo da instituição (apenas 1 a 6 = Seg a Sáb)
+  const activeClassWeekdays: number[] = Array.isArray(combined.class_weekdays)
+    ? combined.class_weekdays
+        .map(Number)
+        .filter(n => !isNaN(n) && n >= 1 && n <= 6)
+    : [];
 
-    for (const d of dayKeys) {
-      const termObj = combined.weekday_terms[d] || combined.weekday_terms[String(d)];
-      if (termObj && (termObj.term1_start || termObj.term1_end || termObj.term2_start || termObj.term2_end)) {
-        const labelName = WEEKDAY_NAMES[d] || `Dia ${d}`;
-        if (!seenLabels.has(labelName)) {
-          seenLabels.add(labelName);
-          periods.push({
-            label: labelName,
-            dayNum: d,
-            t1Start: termObj.term1_start || rootT1Start,
-            t1End: termObj.term1_end || rootT1End,
-            t2Start: termObj.term2_start || rootT2Start,
-            t2End: termObj.term2_end || rootT2End
-          });
-        }
-      }
+  // Ordena os dias ativos de Segunda a Sábado
+  const sortedDays = Array.from(new Set<number>(activeClassWeekdays)).sort((a: number, b: number) => a - b);
+
+  // 2. Para CADA dia de aula devidamente registrado e ativo, monta seu período de cronograma
+  for (const d of sortedDays) {
+    const termObj = combined.weekday_terms?.[d] || combined.weekday_terms?.[String(d)];
+    const labelName = WEEKDAY_NAMES[d] || `Dia ${d}`;
+
+    if (!seenLabels.has(labelName)) {
+      seenLabels.add(labelName);
+      periods.push({
+        label: labelName,
+        dayNum: d,
+        t1Start: termObj?.term1_start || rootT1Start,
+        t1End: termObj?.term1_end || rootT1End,
+        t2Start: termObj?.term2_start || rootT2Start,
+        t2End: termObj?.term2_end || rootT2End
+      });
     }
   }
 
-  // 2. Dias de aula da semana configurados no ciclo (sem override individual)
-  if (Array.isArray(combined.class_weekdays)) {
-    const sortedDays = [...combined.class_weekdays].map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
-    for (const d of sortedDays) {
-      const labelName = WEEKDAY_NAMES[d] || `Dia ${d}`;
-      if (!seenLabels.has(labelName)) {
-        seenLabels.add(labelName);
-        periods.push({
-          label: labelName,
-          dayNum: d,
-          t1Start: rootT1Start,
-          t1End: rootT1End,
-          t2Start: rootT2Start,
-          t2End: rootT2End
-        });
-      }
-    }
-  }
-
-  // 3. Fallback geral caso não haja dias específicos registrados
+  // 3. Fallback geral caso não haja dias específicos registrados na semana, mas haja datas do ciclo
   if (periods.length === 0 && (rootT1Start || rootT1End || rootT2Start || rootT2End)) {
     periods.push({
       label: 'Geral',
@@ -783,10 +808,10 @@ export const resolveAcademicSettingsForUnit = (
     : null;
 
   if (!unitId || unitId === 'all' || unitId === 'matriz' || unitId === 'global') {
-    if (matrizDefault) return { settings: matrizDefault, isCustom: false };
+    if (matrizDefault) return { settings: sanitizeAcademicSettings(matrizDefault), isCustom: false };
     try {
       const stored = localStorage.getItem('academic_settings_current');
-      if (stored) return { settings: JSON.parse(stored), isCustom: false };
+      if (stored) return { settings: sanitizeAcademicSettings(JSON.parse(stored)), isCustom: false };
     } catch {}
     return { settings: null, isCustom: false };
   }
@@ -802,7 +827,7 @@ export const resolveAcademicSettingsForUnit = (
     );
 
     if (custom) {
-      return { settings: custom, isCustom: true };
+      return { settings: sanitizeAcademicSettings(custom), isCustom: true };
     }
   }
 
@@ -813,20 +838,20 @@ export const resolveAcademicSettingsForUnit = (
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed && (parsed.term1_start || parsed.class_weekdays)) {
-        return { settings: parsed, isCustom: true };
+        return { settings: sanitizeAcademicSettings(parsed), isCustom: true };
       }
     }
   } catch {}
 
   // Fallback para matriz
   if (matrizDefault) {
-    return { settings: matrizDefault, isCustom: false };
+    return { settings: sanitizeAcademicSettings(matrizDefault), isCustom: false };
   }
 
   try {
     const storedMatriz = localStorage.getItem('academic_settings_current');
     if (storedMatriz) {
-      return { settings: JSON.parse(storedMatriz), isCustom: false };
+      return { settings: sanitizeAcademicSettings(JSON.parse(storedMatriz)), isCustom: false };
     }
   } catch {}
 
