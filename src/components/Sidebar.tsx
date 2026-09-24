@@ -41,6 +41,7 @@ import { getInstitutionSettings } from '../lib/database';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { useAuth } from '../contexts/AuthContext';
+import { SidebarUnitSwitcher } from './SidebarUnitSwitcher';
 
 const navItems = [
   { icon: DashboardIcon, label: 'Dashboard', path: '/' },
@@ -558,6 +559,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           </button>
         )}
       </div>
+
+      {/* Switcher de Seleção de Unidade / Polo Operacional */}
+      <SidebarUnitSwitcher />
 
       <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto custom-scrollbar">
         {renderNavItems(filteredNavItems)}

@@ -1,41 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Bell, User, LogOut, Database, AlertTriangle, Lock, Unlock, Building2, ChevronDown, Check, GraduationCap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bell, User, LogOut, Database, AlertTriangle, Lock, Unlock } from 'lucide-react';
 import { getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
-import { useUnits } from '../contexts/UnitContext';
-import { getUnitColorTheme } from '../lib/unitColors';
 import { cn } from '../lib/utils';
 import { GlobalQuickSearch } from './GlobalQuickSearch';
 
 export function Navbar() {
   const { profile, logout, lockTimer, lock, isLocked, isLockEnabled } = useAuth();
-  const { 
-    activeUnits, 
-    hasMultipleUnits, 
-    selectedUnitId, 
-    setSelectedUnitId, 
-    selectedUnit, 
-    isRestricted, 
-    canSwitchUnit, 
-    isTeacherUser, 
-    getUnitName 
-  } = useUnits();
-  const location = useLocation();
   const [institution, setInstitution] = useState<any>(null);
   const [avatarError, setAvatarError] = useState(false);
-  const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
-  const unitDropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (unitDropdownRef.current && !unitDropdownRef.current.contains(event.target as Node)) {
-        setIsUnitDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const fetchInstitution = async () => {
     try {
@@ -116,7 +90,6 @@ export function Navbar() {
                    profile?.role === 'assistente' ? 'Assistente de Secretaria' : 
                    (profile?.role === 'professor' || profile?.role === 'docente') ? 'Professor / Docente' : 'Usuário';
   const avatarUrl = profile?.avatar_url || '';
-  const currentUnitTheme = getUnitColorTheme(selectedUnit || selectedUnitId);
 
   return (
     <>
@@ -161,192 +134,10 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Barra de Pesquisa Rápida Global */}
-          <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-1 sm:mx-3 min-w-0">
+          {/* Barra de Pesquisa Rápida Global com Amplo Espaço Central */}
+          <div className="flex-1 max-w-xl lg:max-w-2xl mx-2 sm:mx-4 md:mx-8 min-w-0">
             <GlobalQuickSearch />
           </div>
-
-          {/* Seletor Global de Unidade ou Indicador de Unidade Logada */}
-          {(hasMultipleUnits || isRestricted || activeUnits.length > 0) && (
-            <div className="relative flex items-center shrink-0" ref={unitDropdownRef}>
-              {!canSwitchUnit ? (
-                isTeacherUser ? (
-                  <div 
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-2xs select-none"
-                    title="Perfil Docente: Acesso direto às turmas sob sua regência pedagógica em todas as unidades vinculadas."
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
-                      <GraduationCap size={14} />
-                    </div>
-                    <div className="flex flex-col text-left">
-                      <span className="font-bold text-slate-900 text-xs truncate max-w-[140px] sm:max-w-[220px]">
-                        {profile?.name || 'Docente'}
-                      </span>
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase tracking-wider -mt-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block"></span>
-                        Área Docente
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div 
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold text-slate-700 shadow-2xs select-none transition-all",
-                      currentUnitTheme.cardBorder,
-                      currentUnitTheme.badgeBg
-                    )}
-                    title={`Unidade definida no cadastro: ${getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz'}`}
-                  >
-                    <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", currentUnitTheme.iconBox)}>
-                      <Building2 size={14} />
-                    </div>
-                    <div className="flex flex-col text-left">
-                      <span className="font-bold text-slate-900 text-xs truncate max-w-[140px] sm:max-w-[220px]">
-                        {getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz'}
-                      </span>
-                      <span className={cn("text-[9px] font-bold uppercase tracking-wider -mt-0.5 flex items-center gap-1.5", currentUnitTheme.textAccent)}>
-                        <span className={cn("w-1.5 h-1.5 rounded-full inline-block", currentUnitTheme.dotIndicator)}></span>
-                        Unidade Logada
-                      </span>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setIsUnitDropdownOpen(!isUnitDropdownOpen)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold text-slate-700 transition-all cursor-pointer select-none shadow-2xs group",
-                      currentUnitTheme.cardBorder,
-                      currentUnitTheme.cardHoverBorder,
-                      currentUnitTheme.badgeBg
-                    )}
-                    title="Alternar unidade operacional ativa"
-                  >
-                    <div className={cn("w-6 h-6 rounded-lg flex items-center justify-center transition-colors shrink-0", currentUnitTheme.iconBox)}>
-                      <Building2 size={14} />
-                    </div>
-                    <div className="flex flex-col text-left">
-                      <span className="font-bold text-slate-900 text-xs truncate max-w-[130px] sm:max-w-[190px]">
-                        {selectedUnitId === 'all' ? 'Todas as Unidades' : (getUnitName(selectedUnitId) || selectedUnit?.name || 'Sede / Matriz')}
-                      </span>
-                      <span className={cn("text-[9px] font-bold uppercase tracking-wider -mt-0.5 flex items-center gap-1.5", currentUnitTheme.textAccent)}>
-                        <span className={cn("w-1.5 h-1.5 rounded-full inline-block", currentUnitTheme.dotIndicator)}></span>
-                        {selectedUnitId === 'all' ? 'Filtro Consolidado' : 'Unidade Logada'}
-                      </span>
-                    </div>
-                    <ChevronDown 
-                      size={13} 
-                      className={cn("text-slate-400 group-hover:text-slate-700 transition-transform duration-200 ml-0.5", isUnitDropdownOpen && "rotate-180")} 
-                    />
-                  </button>
-
-                  {isUnitDropdownOpen && (
-                    <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 top-full mt-2 w-80 max-w-[94vw] bg-white rounded-2xl shadow-2xl border border-slate-200 p-2.5 z-[100] animate-in fade-in zoom-in-95 duration-150">
-                      {/* Cabeçalho do Dropdown */}
-                      <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between border-b border-slate-100 pb-2 mb-1.5">
-                        <span className="flex items-center gap-1.5 text-slate-600 font-extrabold">
-                          <Building2 size={12} className="text-blue-600" />
-                          Visão da Instituição
-                        </span>
-                        <span className="text-[9px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/80">
-                          Filtro Global
-                        </span>
-                      </div>
-
-                      {/* Opção: Todas as Unidades (Consolidado) */}
-                      <button
-                        type="button"
-                        onClick={() => { setSelectedUnitId('all'); setIsUnitDropdownOpen(false); }}
-                        className={cn(
-                          "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left border",
-                          selectedUnitId === 'all' 
-                            ? "bg-slate-100/90 border-slate-300 text-slate-900 font-bold shadow-2xs" 
-                            : "text-slate-700 hover:bg-slate-50 border-transparent"
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block shrink-0 ring-2 ring-slate-200" />
-                          <div className="flex flex-col">
-                            <span className="font-bold text-slate-900">Todas as Unidades (Consolidado)</span>
-                            <span className="text-[10px] text-slate-500 font-normal">Matriz + todas as filiais ativas</span>
-                          </div>
-                        </div>
-                        {selectedUnitId === 'all' && <Check size={16} className="text-slate-800 shrink-0" />}
-                      </button>
-
-                      <div className="h-px bg-slate-150 my-1.5" />
-
-                      <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                        Polos e Unidades Ativas
-                      </div>
-
-                      <div className="space-y-1">
-                        {activeUnits.map(u => {
-                          const isMain = u.is_main || u.id === 'matriz';
-                          const isSelected = selectedUnitId === u.id;
-                          const uTheme = getUnitColorTheme(u);
-
-                          return (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => { setSelectedUnitId(u.id); setIsUnitDropdownOpen(false); }}
-                              className={cn(
-                                "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left border",
-                                isSelected 
-                                  ? `${uTheme.badgeBg} ${uTheme.cardBorder} ${uTheme.textDark} font-bold shadow-2xs` 
-                                  : "text-slate-700 hover:bg-slate-50 border-transparent"
-                              )}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                                <span className={cn("w-2.5 h-2.5 rounded-full inline-block shrink-0 ring-2 ring-white shadow-2xs", uTheme.dotIndicator)} />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="truncate font-bold text-slate-900">{u.name}</span>
-                                  {u.code && (
-                                    <span className="text-[10px] text-slate-400 font-mono font-normal">
-                                      Código: {u.code}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                {isMain ? (
-                                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0", uTheme.badgeBg, uTheme.badgeText, uTheme.badgeBorder)}>
-                                    Matriz
-                                  </span>
-                                ) : (
-                                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0", uTheme.badgeBg, uTheme.badgeText, uTheme.badgeBorder)}>
-                                    Filial
-                                  </span>
-                                )}
-                                {isSelected && <Check size={16} className={cn("shrink-0", uTheme.textAccent)} />}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {canSwitchUnit && (
-                        <>
-                          <div className="h-px bg-slate-100 my-1.5" />
-                          <Link
-                            to="/configuracoes"
-                            onClick={() => setIsUnitDropdownOpen(false)}
-                            className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors"
-                          >
-                            <Building2 size={12} />
-                            <span>Gerenciar Unidades e Polos</span>
-                          </Link>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
 
           {/* Lado Direito: Ações, Bloqueio e Perfil */}
           <div className="flex items-center gap-2 md:gap-5 shrink-0">

@@ -329,14 +329,14 @@ export function GlobalQuickSearch() {
       {/* Search Input Bar */}
       <div 
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs duration-150 select-none",
+          "flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all text-xs sm:text-sm duration-150 select-none",
           isOpen 
             ? "bg-white border-blue-500 shadow-md ring-2 ring-blue-500/15" 
-            : "bg-slate-100/80 hover:bg-slate-100 border-slate-200/90 text-slate-700"
+            : "bg-slate-100/90 hover:bg-slate-100 border-slate-200/90 text-slate-700 hover:border-slate-300"
         )}
       >
         <Search 
-          size={15} 
+          size={16} 
           className={cn(
             "shrink-0 transition-colors", 
             isOpen ? "text-blue-600" : "text-slate-400"
@@ -350,24 +350,24 @@ export function GlobalQuickSearch() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={handleInputFocus}
           onKeyDown={handleKeyDown}
-          placeholder="Buscar alunos, professores, turmas..."
-          className="w-full bg-transparent border-none outline-hidden text-xs text-slate-900 placeholder:text-slate-400 font-medium"
+          placeholder="Buscar alunos, professores, turmas... (Ctrl + K)"
+          className="w-full bg-transparent border-none outline-hidden text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 font-medium"
         />
 
         {loading ? (
-          <Loader2 size={14} className="text-blue-600 animate-spin shrink-0" />
+          <Loader2 size={15} className="text-blue-600 animate-spin shrink-0" />
         ) : query ? (
           <button
             type="button"
             onClick={() => { setQuery(''); inputRef.current?.focus(); }}
-            className="p-0.5 text-slate-400 hover:text-slate-600 rounded transition-colors"
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-md transition-colors"
             title="Limpar busca"
           >
-            <X size={14} />
+            <X size={15} />
           </button>
         ) : (
           <div className="hidden sm:flex items-center gap-1 shrink-0 text-slate-400 select-none pointer-events-none">
-            <kbd className="text-[9px] font-mono font-bold bg-white border border-slate-200/90 rounded px-1.5 py-0.5 text-slate-500 shadow-2xs">
+            <kbd className="text-[10px] font-mono font-bold bg-white border border-slate-200/90 rounded px-1.5 py-0.5 text-slate-500 shadow-2xs">
               {isMac ? '⌘K' : 'Ctrl K'}
             </kbd>
           </div>
@@ -377,7 +377,7 @@ export function GlobalQuickSearch() {
       {/* Floating Results Dropdown */}
       {isOpen && (
         <div 
-          className="absolute left-0 sm:left-auto sm:right-0 md:left-0 top-full mt-2 w-full sm:w-[480px] max-w-[94vw] bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden z-[110] animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[82vh]"
+          className="absolute left-0 right-0 top-full mt-2 w-full min-w-[320px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden z-[110] animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[82vh]"
         >
           {/* Header with Quick Category Pills */}
           <div className="p-2.5 border-b border-slate-150 bg-slate-50/70 shrink-0">
