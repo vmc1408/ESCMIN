@@ -1436,7 +1436,7 @@ export function Dashboard() {
           </div>
           <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Ações Principais</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3.5">
+        <div className="flex flex-wrap items-center justify-start gap-3 sm:gap-3.5">
           {(isTeacher ? [
             { 
               label: 'Lançar Chamada', 
@@ -1539,18 +1539,18 @@ export function Dashboard() {
                 }
               }}
               className={cn(
-                "flex flex-col items-center justify-center p-2.5 sm:p-3 aspect-square max-w-[130px] sm:max-w-[140px] mx-auto rounded-2xl sm:rounded-[22px] transition-all duration-200 text-center group cursor-pointer w-full bg-white border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-1 active:scale-[0.98]",
+                "flex flex-col items-center justify-center p-2 sm:p-2.5 w-[100px] h-[100px] sm:w-[108px] sm:h-[108px] shrink-0 rounded-2xl sm:rounded-[20px] transition-all duration-200 text-center group cursor-pointer bg-white border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-1 active:scale-[0.98]",
                 item.hoverBorder
               )}
             >
-              <div className={cn("w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shrink-0 shadow-2xs mb-1.5", item.iconBg)}>
-                <item.icon size={20} className={cn("shrink-0", item.iconColor)} />
+              <div className={cn("w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shrink-0 shadow-2xs mb-1.5", item.iconBg)}>
+                <item.icon size={18} className={cn("shrink-0", item.iconColor)} />
               </div>
-              <div className="min-w-0 w-full px-0.5">
-                <span className="text-[11.5px] sm:text-xs font-bold text-slate-800 group-hover:text-blue-900 transition-colors leading-tight block truncate">
+              <div className="min-w-0 w-full px-1">
+                <span className="text-[10.5px] sm:text-[11px] font-bold text-slate-800 group-hover:text-blue-900 transition-colors leading-tight block truncate">
                   {item.label}
                 </span>
-                <span className="text-[9px] sm:text-[9.5px] text-slate-400 font-medium leading-tight block truncate mt-0.5">
+                <span className="text-[8.5px] sm:text-[9px] text-slate-400 font-medium leading-tight block truncate mt-0.5">
                   {item.subtitle}
                 </span>
               </div>
