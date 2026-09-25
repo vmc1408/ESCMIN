@@ -1434,7 +1434,6 @@ export function Dashboard() {
             <span className="w-1.5 h-3.5 bg-blue-600 rounded-full inline-block" />
             <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Acesso Rápido</h4>
           </div>
-          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Ações Principais</span>
         </div>
         <div className="flex flex-wrap items-center justify-start gap-3 sm:gap-3.5">
           {(isTeacher ? [
@@ -1574,17 +1573,14 @@ export function Dashboard() {
           <div className="flex items-center gap-2">
             <span className={cn("w-1.5 h-3.5 rounded-full inline-block", unitTheme.accentBar)} />
             <h4 className={cn("text-[11px] font-bold uppercase tracking-wider", unitTheme.textDark)}>
-              {selectedUnitId === 'all' ? 'Síntese da Instituição' : `Síntese: ${getUnitName(selectedUnitId) || selectedUnit?.name || 'Polo'}`}
+              Síntese da Instituição
             </h4>
             {selectedUnitId !== 'all' && (
-              <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
-                {selectedUnit?.is_main || selectedUnitId === 'matriz' ? 'Sede Matriz' : 'Polo Filial'}
+              <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
+                {getUnitName(selectedUnitId) || selectedUnit?.name || 'Polo'}
               </span>
             )}
           </div>
-          <span className={cn("text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
-            {selectedUnitId === 'all' ? 'Quadro Geral de Cadastros' : 'Dados Exclusivos do Polo'}
-          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -1787,11 +1783,6 @@ export function Dashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className={cn("text-sm font-bold", unitTheme.textDark)}>Ocupação Acadêmica</h3>
-                {selectedUnitId !== 'all' && (
-                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider", unitTheme.badgeBg, unitTheme.badgeText, unitTheme.badgeBorder)}>
-                    {getUnitName(selectedUnitId) || selectedUnit?.name || 'Polo'}
-                  </span>
-                )}
               </div>
               <p className="text-[9.5px] font-semibold text-slate-500 uppercase tracking-wider mt-0.5">
                 {studentsByClass.filter(c => !c.unallocated).length} Turmas {selectedAcademicYear === 'Todos' ? '(Todos os Anos)' : selectedAcademicYear === 'ATUAL' ? '(Ciclo Atual 2026)' : `(Ano Letivo ${selectedAcademicYear})`}
