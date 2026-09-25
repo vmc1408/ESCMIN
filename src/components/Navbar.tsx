@@ -92,18 +92,18 @@ export function Navbar() {
 
   return (
     <>
-      <header className="h-16 bg-white border-b border-slate-200 z-50 relative print:hidden shrink-0">
+      <header className="h-18 md:h-20 bg-white border-b border-slate-200 z-50 relative print:hidden shrink-0 transition-all">
         <div className="h-full max-w-[1440px] w-full mx-auto px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 md:gap-4">
           {/* Lado Esquerdo: Logo e Instituição (Clique volta para a tela inicial sem animação) */}
-          <div className="flex items-center gap-3 min-w-0 shrink-0">
+          <div className="flex items-center gap-3.5 min-w-0 shrink-0">
             <div className="lg:hidden w-8" />
             
             <Link 
               to="/" 
-              className="flex items-center gap-3 select-none cursor-pointer"
+              className="flex items-center gap-3.5 select-none cursor-pointer group"
               title="Voltar para a tela inicial"
             >
-              <div className="flex-shrink-0 w-11 h-11 md:w-12 md:h-12 flex items-center justify-center bg-transparent">
+              <div className="flex-shrink-0 w-13 h-13 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center bg-transparent transition-transform duration-200 group-hover:scale-105">
                 {institution?.logo_url ? (
                   <img 
                     src={institution.logo_url} 
@@ -113,19 +113,19 @@ export function Navbar() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-blue-600">
-                    <Database size={24} />
+                    <Database size={28} />
                   </div>
                 )}
               </div>
               
               <div className="flex flex-col min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm md:text-base font-bold text-slate-900 truncate tracking-tight leading-tight">
+                  <h2 className="text-sm md:text-base lg:text-[17px] font-bold text-slate-900 truncate tracking-tight leading-tight">
                     {institution?.name || 'Gestão Escolar'}
                   </h2>
                 </div>
                 {institution?.city && (
-                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest truncate leading-tight mt-0.5">
+                  <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-widest truncate leading-tight mt-0.5">
                     {institution.city}
                   </p>
                 )}

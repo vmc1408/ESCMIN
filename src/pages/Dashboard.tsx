@@ -1538,12 +1538,16 @@ export function Dashboard() {
                   navigate(item.path, item.state ? { state: item.state } : undefined);
                 }
               }}
+              style={{ borderRadius: '20px' }}
               className={cn(
-                "flex flex-col items-center justify-center p-2 sm:p-2.5 w-[100px] h-[100px] sm:w-[108px] sm:h-[108px] shrink-0 rounded-2xl sm:rounded-[20px] transition-all duration-200 text-center group cursor-pointer bg-white border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-1 active:scale-[0.98]",
+                "flex flex-col items-center justify-center p-2 sm:p-2.5 w-[100px] h-[100px] sm:w-[108px] sm:h-[108px] shrink-0 rounded-2xl sm:rounded-3xl transition-all duration-200 text-center group cursor-pointer bg-white border border-slate-200 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-1 active:scale-[0.98]",
                 item.hoverBorder
               )}
             >
-              <div className={cn("w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shrink-0 shadow-2xs mb-1.5", item.iconBg)}>
+              <div 
+                style={{ borderRadius: '12px' }}
+                className={cn("w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shrink-0 shadow-2xs mb-1.5", item.iconBg)}
+              >
                 <item.icon size={18} className={cn("shrink-0", item.iconColor)} />
               </div>
               <div className="min-w-0 w-full px-1">
