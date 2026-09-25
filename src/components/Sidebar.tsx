@@ -95,6 +95,7 @@ const navItems = [
         icon: Wallet,
         children: [
           { icon: PixIcon, label: 'Contribuições', path: '/contributions' },
+          { icon: ReportsIcon, label: 'Relatório Financeiro', path: '/financial-report' },
           { icon: PixIcon, label: 'Conferência Pix', path: '/pix-conference' },
           { icon: CertificateIcon, label: 'Certidão de Quitação', path: '/impressos?type=quitacao' },
           { icon: FileText, label: 'Recibos', path: '/receipts' },
@@ -336,6 +337,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       parentLabel === 'Financeiro' || 
       item.path?.includes('quitacao') || 
       item.path === '/contributions' || 
+      item.path === '/financial-report' || 
       item.path === '/pix-conference' || 
       item.path === '/receipts'
     ) {

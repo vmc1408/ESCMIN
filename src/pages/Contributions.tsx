@@ -9,7 +9,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
@@ -22,6 +22,7 @@ const MONTHS = [
 ];
 
 export function Contributions() {
+  const navigate = useNavigate();
   const location = useLocation();
   const initialStudentId = (location.state as any)?.studentId;
   const { selectedUnitId, selectedUnit, activeUnits, getUnitName } = useUnits();
@@ -1760,6 +1761,16 @@ export function Contributions() {
             >
               <AlertCircle size={13} className="shrink-0" />
               Inadimplência
+            </button>
+
+            <button
+              onClick={() => navigate('/financial-report')}
+              className="py-2 px-2.5 sm:px-4 text-center text-[9px] xs:text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200 shadow-2xs cursor-pointer active:scale-95"
+              title="Acessar Relatório Financeiro Detalhado por Turma e Períodos"
+            >
+              <FileText size={13} className="shrink-0 text-blue-600" />
+              <span className="hidden md:inline">Relatório por Turma</span>
+              <span className="md:hidden">Relatório</span>
             </button>
           </div>
 
