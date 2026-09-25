@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, User, LogOut, Database, AlertTriangle, Lock, Unlock, Calendar } from 'lucide-react';
+import { Bell, User, LogOut, Database, AlertTriangle, Lock, Unlock } from 'lucide-react';
 import { getInstitutionSettings } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
-import { GlobalQuickSearch } from './GlobalQuickSearch';
 
 export function Navbar() {
   const { profile, logout, lockTimer, lock, isLocked, isLockEnabled } = useAuth();
@@ -134,22 +133,8 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Barra de Pesquisa Rápida Global com Amplo Espaço Central */}
-          <div className="flex-1 max-w-xl lg:max-w-2xl mx-2 sm:mx-4 md:mx-6 min-w-0">
-            <GlobalQuickSearch />
-          </div>
-
-          {/* Lado Direito: Ações, Cronograma, Bloqueio e Perfil */}
+          {/* Lado Direito: Ações, Bloqueio e Perfil */}
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            {/* Acesso Rápido ao Cronograma & Calendário */}
-            <Link
-              to="/calendar?view=month"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100/80 hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200/90 hover:border-blue-200 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 shadow-2xs group"
-              title="Acessar Cronograma e Calendário Acadêmico"
-            >
-              <Calendar size={14} className="text-slate-500 group-hover:text-blue-600 transition-colors shrink-0" />
-              <span className="hidden sm:inline font-bold">Cronograma</span>
-            </Link>
 
             {!isLocked && (
               <div className="flex items-center gap-1.5">

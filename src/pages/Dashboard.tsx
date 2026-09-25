@@ -1338,18 +1338,6 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8 p-1">
-      <PageHeader
-        title="Painel de Controle"
-        description="Painel de monitoramento e controle de informações internas da instituição."
-        icon={Activity}
-      >
-        {isRefreshing && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-black uppercase tracking-widest animate-pulse">
-            <RefreshCw size={11} className="animate-spin text-slate-500" />
-            <span>Sincronizando...</span>
-          </div>
-        )}
-      </PageHeader>
 
       {(syncError || !isConnected) && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
@@ -1448,7 +1436,7 @@ export function Dashboard() {
           </div>
           <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Ações Principais</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3.5">
           {(isTeacher ? [
             { 
               label: 'Lançar Chamada', 
@@ -1551,18 +1539,18 @@ export function Dashboard() {
                 }
               }}
               className={cn(
-                "flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 text-left group cursor-pointer w-full bg-white border border-slate-200 shadow-2xs hover:shadow-xs hover:border-slate-300 hover:-translate-y-0.5",
+                "flex flex-col items-center justify-center p-2.5 sm:p-3 aspect-square max-w-[130px] sm:max-w-[140px] mx-auto rounded-2xl sm:rounded-[22px] transition-all duration-200 text-center group cursor-pointer w-full bg-white border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-1 active:scale-[0.98]",
                 item.hoverBorder
               )}
             >
-              <div className={cn("p-2 rounded-lg transition-transform duration-200 group-hover:scale-105 shrink-0 shadow-2xs", item.iconBg)}>
-                <item.icon size={16} className={cn("shrink-0", item.iconColor)} />
+              <div className={cn("w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110 shrink-0 shadow-2xs mb-1.5", item.iconBg)}>
+                <item.icon size={20} className={cn("shrink-0", item.iconColor)} />
               </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[11px] font-bold text-slate-800 group-hover:text-blue-900 transition-colors leading-tight block truncate">
+              <div className="min-w-0 w-full px-0.5">
+                <span className="text-[11.5px] sm:text-xs font-bold text-slate-800 group-hover:text-blue-900 transition-colors leading-tight block truncate">
                   {item.label}
                 </span>
-                <span className="text-[9.5px] text-slate-400 font-medium leading-tight block truncate mt-0.5">
+                <span className="text-[9px] sm:text-[9.5px] text-slate-400 font-medium leading-tight block truncate mt-0.5">
                   {item.subtitle}
                 </span>
               </div>
