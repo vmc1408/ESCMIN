@@ -1,5 +1,6 @@
 import { supabase, fetchRecursive, isSupabaseConfigured, fetchWithTimeout, isDbConnected, connectionError, isJwtOrTokenError, clearCorruptedAuthTokens } from './supabase';
 import { detectCourseFromClass, normalizeSearchString } from './utils';
+import { academicSecurityService } from '../services/academicSecurityService';
 
 // Auto-purga de caches locais residuais para garantir operação 100% direta no banco de dados real
 export const clearAllDatabaseFallbacks = () => {
@@ -579,6 +580,21 @@ export const deleteData = async (collectionName: string, id: string) => {
   if (!isSupabaseConfigured) return;
   
   try {
+    // 0. Validações de Segurança Acadêmica Rígidas
+    if (collectionName === 'courses') {
+      const courseCheck = await academicSecurityService.checkCourseDeletionSafetyLive(id);
+      if (!courseCheck.canDelete) {
+        console.warn(`[deleteData] Exclusão bloqueada para o curso "${id}": ${courseCheck.message}`);
+        throw new Error(courseCheck.message);
+      }
+    } else if (collectionName === 'classes') {
+      const classCheck = await academicSecurityService.checkClassDeletionSafetyLive(id);
+      if (!classCheck.canDelete) {
+        console.warn(`[deleteData] Exclusão bloqueada para a turma "${id}": ${classCheck.message}`);
+        throw new Error(classCheck.message);
+      }
+    }
+
     // 1. Tratamento abrangente de Chaves Estrangeiras antes da exclusão física
     if (collectionName === 'classes') {
       try {

@@ -48,7 +48,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { getUnitColorTheme } from '../lib/unitColors';
 import { getItemUnitId, isItemInUnit } from '../lib/unitService';
-import { getAllAcademicSchedulePeriods, formatDateBR, resolveAcademicSettingsForUnit } from '../lib/academicUtils';
+import { getAllAcademicSchedulePeriods, formatDateBR, resolveAcademicSettingsForUnit, computeAvailableAcademicYears } from '../lib/academicUtils';
 import { getTeacherScope } from '../lib/teacherScope';
 import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
 
@@ -730,18 +730,31 @@ export function Dashboard() {
     }
   }, [selectedAcademicYear, dismissedNoticeYears, handleDismissNotice]);
 
-  // Available academic years derived from standard horizon and existing classes
+  // Anos acadêmicos disponíveis calculados dinamicamente com base em dados ATIVOS.
+  // Regra fundamental: se não tem nenhum curso, turma ou cadastro ativo para o ano, ele NÃO deve ser listado como opção.
   const availableAcademicYears = useMemo(() => {
-    const yrSet = new Set<string>(['2027', '2026', '2025', '2024', '2023']);
-    scopedClasses.forEach(c => {
-      if (c.unallocated) return;
-      const yr = getClassStartYear(c);
-      if (yr && !isNaN(yr)) {
-        yrSet.add(String(yr));
-      }
+    return computeAvailableAcademicYears({
+      classes: scopedClasses,
+      students: scopedStudents,
+      enrollments,
+      currentAcademicYear,
+      isClassActiveInAcademicYear,
+      getClassStartYear,
+      habilitatedMap
     });
-    return Array.from(yrSet).sort((a, b) => Number(b) - Number(a));
-  }, [scopedClasses, getClassStartYear]);
+  }, [scopedClasses, scopedStudents, enrollments, currentAcademicYear, isClassActiveInAcademicYear, getClassStartYear, habilitatedMap]);
+
+  // Se o ano acadêmico selecionado não estiver na lista de anos disponíveis (e não for ATUAL ou Todos), volta para ATUAL
+  useEffect(() => {
+    if (
+      selectedAcademicYear !== 'ATUAL' &&
+      selectedAcademicYear !== 'Todos' &&
+      availableAcademicYears.length > 0 &&
+      !availableAcademicYears.includes(selectedAcademicYear)
+    ) {
+      setSelectedAcademicYear('ATUAL');
+    }
+  }, [availableAcademicYears, selectedAcademicYear, setSelectedAcademicYear]);
 
   const studentsByClass = useMemo(() => {
     const isClassActive = (c: any) => !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';

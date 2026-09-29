@@ -29,12 +29,14 @@ import {
   Filter,
   Building2,
   ShieldAlert,
+  ShieldCheck,
   Lock
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { Course, Class, Student, Enrollment } from '../types';
 import { fetchAll, saveData, deleteData } from '../lib/database';
+import { academicSecurityService, CourseSafetyCheckResult } from '../services/academicSecurityService';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId, getUnitName } from '../lib/unitService';
@@ -102,6 +104,8 @@ export function Courses() {
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [courseSecurityModal, setCourseSecurityModal] = useState<{ course: Course; safety: CourseSafetyCheckResult } | null>(null);
+  const [isProcessingSecurityAction, setIsProcessingSecurityAction] = useState(false);
 
   const showNotification = useCallback((type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
@@ -743,34 +747,73 @@ export function Courses() {
     }
   };
 
+  const handleRequestDelete = (course: Course) => {
+    if (!canDelete) {
+      showNotification('error', 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar.');
+      return;
+    }
+    if (!canManipulateCourse(course)) {
+      showNotification('error', 'Permissão negada: Este curso pertence à Matriz ou a outra unidade e não pode ser excluído por este polo.');
+      return;
+    }
+
+    const safety = academicSecurityService.evaluateCourseDeletionSafety(course, {
+      courses,
+      classes,
+      students,
+      enrollments
+    });
+
+    setCourseSecurityModal({ course, safety });
+  };
+
+  const handleInactivateFromModal = async (course: Course) => {
+    setIsProcessingSecurityAction(true);
+    try {
+      await handleToggleStatus(course);
+      setCourseSecurityModal(null);
+      showNotification('success', `Curso "${course.name}" inativado com sucesso. O histórico acadêmico e as turmas foram preservados.`);
+    } catch (err: any) {
+      showNotification('error', 'Erro ao inativar curso: ' + (err.message || 'Erro desconhecido.'));
+    } finally {
+      setIsProcessingSecurityAction(false);
+    }
+  };
+
   const handleDelete = async (courseId: string) => {
     if (!canDelete) {
       showNotification('error', 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar.');
-      setDeleteConfirmId(null);
+      setCourseSecurityModal(null);
       return;
     }
     const courseToDelete = courses.find(c => c.id === courseId);
     if (courseToDelete && !canManipulateCourse(courseToDelete)) {
       showNotification('error', 'Permissão negada: Este curso pertence à Matriz ou a outra unidade e não pode ser excluído por este polo.');
-      setDeleteConfirmId(null);
+      setCourseSecurityModal(null);
       return;
     }
 
-    const stats = courseStats.get(courseId);
-    if (stats && (stats.classesCount > 0 || stats.totalStudentsCount > 0)) {
-      showNotification('error', `Não é possível excluir este curso pois existem ${stats.classesCount} turma(s) e ${stats.totalStudentsCount} estudante(s) vinculados a ele nesta unidade.`);
-      setDeleteConfirmId(null);
-      return;
-    }
-
+    setIsProcessingSecurityAction(true);
     try {
+      // Dupla checagem rigorosa em tempo real contra o Supabase
+      const liveSafety = await academicSecurityService.checkCourseDeletionSafetyLive(courseId);
+      if (!liveSafety.canDelete) {
+        if (courseToDelete) {
+          setCourseSecurityModal({ course: courseToDelete, safety: liveSafety });
+        }
+        showNotification('error', liveSafety.message);
+        return;
+      }
+
       await deleteData('courses', courseId);
       showNotification('success', 'Curso removido do catálogo com sucesso.');
-      setDeleteConfirmId(null);
+      setCourseSecurityModal(null);
       await loadData();
     } catch (err: any) {
       console.error('Erro ao excluir curso:', err);
       showNotification('error', 'Falha ao excluir curso: ' + (err.message || 'Erro desconhecido.'));
+    } finally {
+      setIsProcessingSecurityAction(false);
     }
   };
 
@@ -918,24 +961,6 @@ export function Courses() {
                   Ver Alunos
                 </button>
               </div>
-            ) : isDeleting ? (
-              <div className="flex items-center gap-2 w-full justify-between">
-                <span className="text-[11px] font-bold text-rose-600">Confirmar exclusão?</span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setDeleteConfirmId(null)}
-                    className="px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-200 border border-slate-300 font-semibold"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(course.id)}
-                    className="px-2.5 py-1 text-xs bg-rose-600 text-white hover:bg-rose-700 font-bold"
-                  >
-                    Sim, Excluir
-                  </button>
-                </div>
-              </div>
             ) : (
               <>
                 <button
@@ -964,7 +989,7 @@ export function Courses() {
                   {canDelete && (
                     <button
                       id={`delete-course-btn-${course.id}`}
-                      onClick={() => setDeleteConfirmId(course.id)}
+                      onClick={() => handleRequestDelete(course)}
                       className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
                       title="Excluir curso"
                     >
@@ -1108,22 +1133,6 @@ export function Courses() {
                             <Lock className="w-3 h-3" />
                             <span>Matriz</span>
                           </div>
-                        ) : isDeleting ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <span className="text-[10px] font-bold text-rose-600 mr-1">Confirmar?</span>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className="px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-200 border border-slate-300"
-                            >
-                              Não
-                            </button>
-                            <button
-                              onClick={() => handleDelete(course.id)}
-                              className="px-2 py-0.5 text-[11px] bg-rose-600 text-white hover:bg-rose-700 font-bold"
-                            >
-                              Sim
-                            </button>
-                          </div>
                         ) : (
                           <div className="flex items-center justify-end gap-1">
                             <button
@@ -1135,7 +1144,7 @@ export function Courses() {
                             </button>
                             {canDelete && (
                               <button
-                                onClick={() => setDeleteConfirmId(course.id)}
+                                onClick={() => handleRequestDelete(course)}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-xs"
                                 title="Excluir curso"
                               >
@@ -2262,6 +2271,146 @@ export function Courses() {
               <div className="w-56 border-b border-black mb-1"></div>
               <p className="font-bold text-slate-800">Secretaria Acadêmica / Direção</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Validação de Segurança Acadêmica para Exclusão de Curso */}
+      {courseSecurityModal && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-none shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300 max-h-[90vh] overflow-y-auto">
+            {!courseSecurityModal.safety.canDelete ? (
+              <>
+                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-none flex items-center justify-center mx-auto border border-rose-200">
+                  <ShieldAlert size={28} />
+                </div>
+                <div className="text-center space-y-2">
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-rose-100 text-rose-800 border border-rose-200">
+                    Bloqueio de Segurança Acadêmica
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">
+                    Exclusão Não Permitida
+                  </h3>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    O curso <strong className="text-slate-900">"{courseSecurityModal.course.name}"</strong> não pode ser excluído porque possui <strong className="text-rose-700">{courseSecurityModal.safety.activeClasses.length} turma(s) ativa(s) e frequente(s)</strong> vinculadas a ele.
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Turmas Ativas / Frequentes Detectadas ({courseSecurityModal.safety.activeClasses.length}):
+                  </p>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {courseSecurityModal.safety.activeClasses.map((cls) => (
+                      <div key={cls.id} className="p-2.5 bg-white border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 truncate">{cls.name}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {cls.code ? `Cód: ${cls.code} • ` : ''}{cls.year || 'Ano Regular'} • {cls.semester || 'Semestre Único'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold uppercase tracking-wider">
+                            Ativa
+                          </span>
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold">
+                            {cls.activeStudentsCount} Alunos
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800 leading-snug">
+                  <strong>Diretriz de Integridade:</strong> A exclusão física de um curso com turmas ativas causaria perda de histórico escolar, diários de classe e orfandade de cadastros. É obrigatório encerrar ou inativar essas turmas antes da exclusão física.
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleInactivateFromModal(courseSecurityModal.course)}
+                    disabled={isProcessingSecurityAction}
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    <Power className="w-3.5 h-3.5" />
+                    <span>{isProcessingSecurityAction ? 'Processando...' : 'Inativar Curso (Recomendado)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCourseSecurityModal(null);
+                      navigate('/classes');
+                    }}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer"
+                  >
+                    Ver Turmas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCourseSecurityModal(null)}
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-none flex items-center justify-center mx-auto border border-emerald-200">
+                  <ShieldCheck size={28} />
+                </div>
+                <div className="text-center space-y-2">
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Segurança Aprovada
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">
+                    Confirmar Exclusão do Curso?
+                  </h3>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    Nenhuma turma ativa ou frequente está vinculada ao curso <strong className="text-slate-900">"{courseSecurityModal.course.name}"</strong>.
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3 space-y-1.5 text-xs text-slate-700">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-semibold">Curso:</span>
+                    <span className="font-bold text-slate-900">{courseSecurityModal.course.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-semibold">Código:</span>
+                    <span className="font-mono font-bold text-slate-800">{courseSecurityModal.course.code || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-semibold">Turmas Inativas/Encerradas:</span>
+                    <span className="font-bold">{courseSecurityModal.safety.inactiveClassesCount}</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-rose-700 bg-rose-50 p-2.5 border border-rose-200 text-left font-medium leading-snug">
+                  <strong>Atenção:</strong> A exclusão definitiva removerá este curso do catálogo acadêmico institucional. Esta ação é irreversível.
+                </p>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCourseSecurityModal(null)}
+                    disabled={isProcessingSecurityAction}
+                    className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(courseSecurityModal.course.id)}
+                    disabled={isProcessingSecurityAction}
+                    className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-none font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isProcessingSecurityAction ? 'Excluindo...' : 'Confirmar Exclusão'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

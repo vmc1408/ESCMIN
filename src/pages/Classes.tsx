@@ -42,17 +42,20 @@ import {
   Sparkles,
   DoorClosed,
   CalendarCheck,
-  DollarSign
+  DollarSign,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass } from '../lib/utils';
-import { detectSubjectSemester, getClassStartDateFromSchedule } from '../lib/academicUtils';
+import { detectSubjectSemester, getClassStartDateFromSchedule, computeAvailableAcademicYears } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import { Course } from '../types';
+import { academicSecurityService, ClassSafetyCheckResult } from '../services/academicSecurityService';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
@@ -267,6 +270,8 @@ export function Classes() {
   const [isEditing, setIsEditing] = useState(false);
   const [hoverShowList, setHoverShowList] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [classSecurityModal, setClassSecurityModal] = useState<{ classItem: Class; safety: ClassSafetyCheckResult } | null>(null);
+  const [isProcessingClassSecurityAction, setIsProcessingClassSecurityAction] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [modalStudents, setModalStudents] = useState<any[]>([]);
@@ -468,17 +473,33 @@ export function Classes() {
     return isMetaHabilitated;
   }, [getClassStartYear, currentAcademicYear, habilitatedMap]);
 
+  // Anos acadêmicos disponíveis calculados dinamicamente com base em dados ATIVOS.
+  // Regra fundamental: se não tem nenhum curso, turma ou cadastro ativo para o ano, ele NÃO deve ser listado como opção.
   const availableAcademicYears = React.useMemo(() => {
-    const yrSet = new Set<string>(['2027', '2026', '2025', '2024', '2023']);
-    classes.forEach(c => {
-      if (c.unallocated) return;
-      const yr = getClassStartYear(c);
-      if (yr && !isNaN(yr)) {
-        yrSet.add(String(yr));
-      }
+    return computeAvailableAcademicYears({
+      classes,
+      courses: coursesList,
+      students: allStudents,
+      enrollments: allEnrollments,
+      currentAcademicYear,
+      isClassActiveInAcademicYear,
+      getClassStartYear,
+      habilitatedMap
     });
-    return Array.from(yrSet).sort((a, b) => Number(b) - Number(a));
-  }, [classes, getClassStartYear]);
+  }, [classes, coursesList, allStudents, allEnrollments, currentAcademicYear, isClassActiveInAcademicYear, getClassStartYear, habilitatedMap]);
+
+  // Se o filtro estiver configurado para um ano sem curso, turma ou cadastro ativo,
+  // ou ano inexistente nas opções válidas, reseta automaticamente para 'ATUAL'
+  useEffect(() => {
+    if (
+      selectedAcademicYearFilter !== 'ATUAL' &&
+      selectedAcademicYearFilter !== 'Todos' &&
+      availableAcademicYears.length > 0 &&
+      !availableAcademicYears.includes(selectedAcademicYearFilter)
+    ) {
+      setSelectedAcademicYearFilter('ATUAL');
+    }
+  }, [availableAcademicYears, selectedAcademicYearFilter, setSelectedAcademicYearFilter]);
 
   // Import / Promotion Modal State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1679,10 +1700,13 @@ export function Classes() {
     }
   }, [selectedClass, canManipulateClass]);
 
-  const handleDelete = React.useCallback(async () => {
-    if (!selectedClass?.id) return;
-    if (!canManipulateClass(selectedClass)) {
-      alert('Você não tem permissão para excluir turmas de outra unidade.');
+  const handleRequestDeleteClass = React.useCallback((cls: Class) => {
+    if (!cls?.id) return;
+    if (!canManipulateClass(cls)) {
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para excluir turmas de outra unidade.'
+      });
       return;
     }
     if (!canDelete) {
@@ -1690,12 +1714,71 @@ export function Classes() {
         type: 'error',
         message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Turma.'
       });
-      setShowDeleteConfirm(false);
       return;
     }
 
+    // Avaliação de segurança imediata
+    const safety = academicSecurityService.evaluateClassDeletionSafety(cls, {
+      classes,
+      students: allStudents,
+      enrollments: allEnrollments
+    });
+
+    setClassSecurityModal({ classItem: cls, safety });
+  }, [canManipulateClass, canDelete, classes, allStudents, allEnrollments]);
+
+  const handleInactivateClassFromModal = React.useCallback(async (cls: Class) => {
+    setIsProcessingClassSecurityAction(true);
+    try {
+      await handleToggleClassStatus(cls);
+      setClassSecurityModal(null);
+      setNotification({
+        type: 'success',
+        message: `Turma "${cls.name}" inativada com sucesso. Notas, frequências e histórico dos alunos foram preservados integralmente.`
+      });
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        message: 'Erro ao inativar turma: ' + (err?.message || 'Erro desconhecido')
+      });
+    } finally {
+      setIsProcessingClassSecurityAction(false);
+    }
+  }, [handleToggleClassStatus]);
+
+  const handleDelete = React.useCallback(async () => {
+    if (!selectedClass?.id) return;
+    if (!canManipulateClass(selectedClass)) {
+      setNotification({
+        type: 'error',
+        message: 'Você não tem permissão para excluir turmas de outra unidade.'
+      });
+      return;
+    }
+    if (!canDelete) {
+      setNotification({
+        type: 'error',
+        message: 'Ação não permitida: O perfil de Assistente é vedado de excluir registros definitivamente. Utilize a opção de Inativar Turma.'
+      });
+      setClassSecurityModal(null);
+      return;
+    }
+
+    setIsProcessingClassSecurityAction(true);
     try {
       setLoading(true);
+
+      // Dupla checagem rigorosa em tempo real contra o Supabase
+      const liveSafety = await academicSecurityService.checkClassDeletionSafetyLive(selectedClass.id);
+      if (!liveSafety.canDelete) {
+        setClassSecurityModal({ classItem: selectedClass, safety: liveSafety });
+        setNotification({
+          type: 'error',
+          message: liveSafety.message
+        });
+        return;
+      }
+
       const className = selectedClass.name;
       const classYear = selectedClass.year || '';
       const classAcademicYear = getClassStartYear(selectedClass);
@@ -1703,13 +1786,13 @@ export function Classes() {
       await deleteData('classes', selectedClass.id);
       
       setSelectedClass(null);
+      setClassSecurityModal(null);
       setFormData({
         status: 'Ativo',
         days_of_week: [],
         period: 'Tarde'
       });
       setIsEditing(false);
-      setShowDeleteConfirm(false);
       setNotification({
         type: 'success',
         message: `Turma "${className}" (${classYear} - Ano ${classAcademicYear}) excluída com sucesso! Os dados e turmas de outros anos/períodos foram preservados.`
@@ -1721,11 +1804,11 @@ export function Classes() {
         type: 'error',
         message: 'Erro ao excluir turma: ' + (error?.message || 'Erro desconhecido')
       });
-      setShowDeleteConfirm(false);
     } finally {
       setLoading(false);
+      setIsProcessingClassSecurityAction(false);
     }
-  }, [selectedClass, fetchClasses, getClassStartYear]);
+  }, [selectedClass, canManipulateClass, canDelete, getClassStartYear, fetchClasses]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -2757,7 +2840,7 @@ export function Classes() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            setShowDeleteConfirm(true);
+                            handleRequestDeleteClass(selectedClass);
                           }}
                           className="h-10 px-4 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm uppercase tracking-wide mr-auto cursor-pointer"
                           title="Excluir Turma"
@@ -3762,55 +3845,148 @@ export function Classes() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal (Apenas para canDelete) */}
-      {showDeleteConfirm && canDelete && selectedClass && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-none shadow-2xl p-6 sm:p-8 max-w-md w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300">
-            <div className="w-14 h-14 bg-red-50 text-red-600 rounded-none flex items-center justify-center mx-auto border border-red-200">
-              <Trash2 size={28} />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-bold text-[#131b2e] uppercase tracking-tight">Excluir Turma Específica?</h3>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                Você está excluindo apenas este registro da turma:
-              </p>
-              <div className="bg-slate-50 border border-slate-200 p-3 text-left space-y-1.5 font-sans">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-semibold">Turma:</span>
-                  <span className="font-bold text-slate-900">{selectedClass.name}</span>
+      {/* Modal de Validação de Segurança Acadêmica para Exclusão de Turma */}
+      {classSecurityModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-none shadow-2xl p-6 sm:p-8 max-w-lg w-full space-y-5 animate-in zoom-in-95 duration-200 border border-slate-300 max-h-[90vh] overflow-y-auto">
+            {!classSecurityModal.safety.canDelete ? (
+              <>
+                <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-none flex items-center justify-center mx-auto border border-rose-200">
+                  <ShieldAlert size={28} />
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-semibold">Código:</span>
-                  <span className="font-mono font-bold text-slate-800">{selectedClass.code}</span>
+                <div className="text-center space-y-2">
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-rose-100 text-rose-800 border border-rose-200">
+                    Bloqueio de Segurança Acadêmica
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">
+                    Exclusão Não Permitida
+                  </h3>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    A turma <strong className="text-slate-900">"{classSecurityModal.classItem.name}"</strong> possui <strong className="text-rose-700">{classSecurityModal.safety.activeStudentsCount} aluno(s) ativo(s) inscrito(s)</strong>.
+                  </p>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-semibold">Ano Letivo / Módulo:</span>
-                  <span className="font-bold text-blue-900">Ano {getClassStartYear(selectedClass)} ({selectedClass.year || '1º Ano'})</span>
+
+                <div className="bg-slate-50 border border-slate-200 p-3 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Alunos Ativos Inscritos ({classSecurityModal.safety.activeStudentsCount}):
+                  </p>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {classSecurityModal.safety.activeStudents.map((st) => (
+                      <div key={st.id} className="p-2.5 bg-white border border-slate-200 flex items-center justify-between gap-3 text-xs">
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 truncate">{st.name}</p>
+                          <p className="text-[10px] text-slate-500">
+                            {st.registration_number ? `Matrícula: ${st.registration_number} • ` : ''}
+                            {st.linkType === 'primary' ? 'Turma Principal' : 'Matrícula Concomitante'}
+                          </p>
+                        </div>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold uppercase tracking-wider shrink-0">
+                          Ativo
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-500 font-semibold">Turno / Período:</span>
-                  <span className="font-bold text-slate-700">{selectedClass.period}</span>
+
+                <div className="bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-800 leading-snug">
+                  <strong>Diretriz de Segurança:</strong> Não é permitido excluir uma turma enquanto houver estudantes ativos matriculados nela. Esta restrição protege contra desvinculação acidental, orfandade acadêmica e perda do histórico de notas e frequências.
                 </div>
-              </div>
-              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 border border-amber-200 text-left font-medium leading-snug">
-                <strong>Proteção de Histórico:</strong> Esta exclusão afeta apenas esta turma. Se esta foi uma turma promovida/importada, os alunos serão mantidos e revinculados com segurança à sua turma anterior.
-              </p>
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={loading}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-none font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? 'Excluindo...' : 'Confirmar Exclusão'}
-              </button>
-            </div>
+
+                <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleInactivateClassFromModal(classSecurityModal.classItem)}
+                    disabled={isProcessingClassSecurityAction}
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{isProcessingClassSecurityAction ? 'Processando...' : 'Inativar Turma (Recomendado)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cls = classSecurityModal.classItem;
+                      setClassSecurityModal(null);
+                      setupImportModalDefaults(cls);
+                      setShowImportModal(true);
+                    }}
+                    className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-none font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Transferir Alunos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClassSecurityModal(null)}
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-none font-bold text-xs uppercase tracking-wider transition-colors border border-slate-300 cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-none flex items-center justify-center mx-auto border border-emerald-200">
+                  <ShieldCheck size={28} />
+                </div>
+                <div className="text-center space-y-2">
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Segurança Aprovada
+                  </span>
+                  <h3 className="text-lg font-bold text-[#131b2e] uppercase tracking-tight">
+                    Confirmar Exclusão Definitiva?
+                  </h3>
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    Nenhum aluno ativo está matriculado nesta turma. A exclusão definitiva pode ser executada com segurança:
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 p-3 text-left space-y-1.5 font-sans text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Turma:</span>
+                    <span className="font-bold text-slate-900">{classSecurityModal.classItem.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Código:</span>
+                    <span className="font-mono font-bold text-slate-800">{classSecurityModal.classItem.code}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Ano Letivo / Módulo:</span>
+                    <span className="font-bold text-blue-900">Ano {getClassStartYear(classSecurityModal.classItem)} ({classSecurityModal.classItem.year || '1º Ano'})</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Turno / Período:</span>
+                    <span className="font-bold text-slate-700">{classSecurityModal.classItem.period}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-semibold">Alunos Ativos:</span>
+                    <span className="font-bold text-emerald-600">0 Alunos (Seguro)</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-amber-700 bg-amber-50 p-2 border border-amber-200 text-left font-medium leading-snug">
+                  <strong>Atenção:</strong> Esta ação removerá definitivamente o registro desta turma. Alunos inativos ou de outras turmas não serão afetados.
+                </p>
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setClassSecurityModal(null)}
+                    disabled={isProcessingClassSecurityAction || loading}
+                    className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-none font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isProcessingClassSecurityAction || loading}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-none font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {isProcessingClassSecurityAction || loading ? 'Excluindo...' : 'Confirmar Exclusão'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

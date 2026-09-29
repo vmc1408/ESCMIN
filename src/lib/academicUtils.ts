@@ -891,3 +891,238 @@ export const resolveAcademicSettingsForUnit = (
   return { settings: null, isCustom: false };
 };
 
+export interface ActiveAcademicYearsParams {
+  classes?: any[];
+  courses?: any[];
+  students?: any[];
+  enrollments?: any[];
+  currentAcademicYear?: string;
+  isClassActiveInAcademicYear?: (c: any, year: string) => boolean;
+  getClassStartYear?: (c: any) => number;
+  habilitatedMap?: Record<string, string[]>;
+}
+
+/**
+ * Computa dinamicamente a lista de anos acadêmicos disponíveis para seleção e filtros.
+ * REGRA RIGOROSA: Se não tem nenhum curso, turma ou cadastro ativo para o ano, ele NÃO deve ser listado como opção.
+ */
+export function computeAvailableAcademicYears(params: ActiveAcademicYearsParams): string[] {
+  const {
+    classes = [],
+    courses = [],
+    students = [],
+    enrollments = [],
+    currentAcademicYear = '2026',
+    isClassActiveInAcademicYear,
+    getClassStartYear,
+    habilitatedMap = {}
+  } = params;
+
+  const currentYearNum = parseInt(currentAcademicYear, 10) || new Date().getFullYear();
+
+  // Função interna de fallback para extrair ano de início da turma caso não fornecida
+  const getStartYear = (c: any): number => {
+    if (getClassStartYear) return getClassStartYear(c);
+    const raw = c.start_year || c.academic_year || c.year;
+    if (raw) {
+      const match = String(raw).match(/\b(19\d{2}|20\d{2})\b/);
+      if (match) return parseInt(match[1], 10);
+    }
+    if (c.code) {
+      const codeMatch = String(c.code).match(/-(\d{2})\b/);
+      if (codeMatch && codeMatch[1]) {
+        const yr2 = Number(codeMatch[1]);
+        if (yr2 >= 0 && yr2 <= 99) return 2000 + yr2;
+      }
+    }
+    if (c.created_at) {
+      const yr = new Date(c.created_at).getFullYear();
+      if (!isNaN(yr)) return yr;
+    }
+    return currentYearNum;
+  };
+
+  // 1. Coleta todos os anos candidatos encontrados no sistema (turmas, cursos, alunos, matrículas, habilitações)
+  const candidateYears = new Set<string>();
+
+  classes.forEach(c => {
+    if (c.unallocated) return;
+    const sy = getStartYear(c);
+    if (sy && !isNaN(sy) && sy >= 1990 && sy <= 2100) {
+      candidateYears.add(String(sy));
+      // Se a turma estiver ativa, adiciona os anos do ciclo dela como candidatos para verificação
+      const isClassActive = !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+      if (isClassActive) {
+        let endYr = sy + 3;
+        if (c.end_date) {
+          const p = parseInt(String(c.end_date).slice(0, 4), 10);
+          if (!isNaN(p)) endYr = p;
+        }
+        for (let y = sy; y <= endYr; y++) {
+          if (y >= 1990 && y <= 2100) candidateYears.add(String(y));
+        }
+      }
+    }
+    if (c.academic_year && /^\d{4}$/.test(String(c.academic_year))) {
+      candidateYears.add(String(c.academic_year));
+    }
+    if (Array.isArray(c.enabled_years)) {
+      c.enabled_years.forEach((yr: any) => {
+        if (yr && /^\d{4}$/.test(String(yr))) candidateYears.add(String(yr));
+      });
+    }
+  });
+
+  Object.keys(habilitatedMap).forEach(yr => {
+    if (/^\d{4}$/.test(yr)) candidateYears.add(yr);
+  });
+
+  courses.forEach(crs => {
+    if (crs.academic_year && /^\d{4}$/.test(String(crs.academic_year))) {
+      candidateYears.add(String(crs.academic_year));
+    }
+    if (crs.year && /^\d{4}$/.test(String(crs.year))) {
+      candidateYears.add(String(crs.year));
+    }
+  });
+
+  students.forEach(st => {
+    if (st.entry_year && /^\d{4}$/.test(String(st.entry_year))) {
+      candidateYears.add(String(st.entry_year));
+    }
+  });
+
+  enrollments.forEach(en => {
+    if (en.year && /^\d{4}$/.test(String(en.year))) {
+      candidateYears.add(String(en.year));
+    }
+    if (en.academic_year && /^\d{4}$/.test(String(en.academic_year))) {
+      candidateYears.add(String(en.academic_year));
+    }
+    if (en.enrollment_date && /^\d{4}/.test(String(en.enrollment_date))) {
+      candidateYears.add(String(en.enrollment_date).slice(0, 4));
+    }
+  });
+
+  // Garante que o ano acadêmico configurado atual seja avaliado
+  candidateYears.add(String(currentYearNum));
+
+  // 2. Filtra estritamente: mantém APENAS anos que possuem turma, curso ou cadastro ATIVO
+  const validActiveYears = new Set<string>();
+
+  candidateYears.forEach(candidateYear => {
+    const targetYearNum = parseInt(candidateYear, 10);
+    if (isNaN(targetYearNum) || targetYearNum < 1990 || targetYearNum > 2100) return;
+
+    // A) Verifica se existe TURMA ATIVA para o ano
+    const hasActiveClass = classes.some(c => {
+      if (c.unallocated) return false;
+      const isClassActive = !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+      if (!isClassActive) return false;
+
+      if (isClassActiveInAcademicYear) {
+        return isClassActiveInAcademicYear(c, candidateYear);
+      }
+
+      // Verificação padrão de ciclo
+      const sy = getStartYear(c);
+      if (targetYearNum <= currentYearNum) {
+        let endYr = sy + 3;
+        if (c.end_date) {
+          const p = parseInt(String(c.end_date).slice(0, 4), 10);
+          if (!isNaN(p)) endYr = p;
+        }
+        return targetYearNum >= sy && targetYearNum <= endYr;
+      } else {
+        // Ano futuro: apenas turmas criadas diretamente para aquele ano ou explicitamente habilitadas
+        const isDirect = sy === targetYearNum ||
+          c.year === candidateYear ||
+          String(c.name || '').includes(candidateYear) ||
+          String(c.code || '').includes(candidateYear.slice(2));
+        const isHab = Boolean(habilitatedMap[candidateYear]?.includes(c.id)) ||
+          (Array.isArray(c.enabled_years) && c.enabled_years.includes(candidateYear)) ||
+          (c.observations && (c.observations.includes(`habilitada_${candidateYear}`) || c.observations.includes(`enabled_for_${candidateYear}`)));
+        return isDirect || isHab;
+      }
+    });
+
+    if (hasActiveClass) {
+      validActiveYears.add(candidateYear);
+      return;
+    }
+
+    // B) Verifica se existe CURSO ATIVO para o ano
+    const hasActiveCourse = courses.some(crs => {
+      const isCourseActive = !crs.status || crs.status === 'Ativo' || String(crs.status).toLowerCase() === 'ativo';
+      if (!isCourseActive) return false;
+
+      // Curso explicitamente com o ano do ciclo
+      if (crs.academic_year === candidateYear || crs.year === candidateYear) return true;
+
+      // Ou curso ativo com turma ativa para o ano
+      return classes.some(c => {
+        const isClassActive = !c.status || c.status === 'Ativo' || String(c.status).toLowerCase() === 'ativo';
+        if (!isClassActive) return false;
+        const matchesCourse = c.course === crs.id || c.course === crs.name ||
+          (c.name && crs.name && c.name.toLowerCase().includes(crs.name.toLowerCase()));
+        if (!matchesCourse) return false;
+        return isClassActiveInAcademicYear ? isClassActiveInAcademicYear(c, candidateYear) : (getStartYear(c) === targetYearNum);
+      });
+    });
+
+    if (hasActiveCourse) {
+      validActiveYears.add(candidateYear);
+      return;
+    }
+
+    // C) Verifica se existe CADASTRO ATIVO (aluno ou matrícula ativa) para o ano
+    const hasActiveEnrollment = enrollments.some(e => {
+      const isEnrollmentActive = !e.status || e.status === 'Ativo' || String(e.status).toLowerCase() === 'ativo';
+      if (!isEnrollmentActive) return false;
+
+      if (e.year === candidateYear || e.academic_year === candidateYear) return true;
+      if (e.enrollment_date && String(e.enrollment_date).startsWith(candidateYear)) return true;
+
+      // Matrícula ligada a uma turma ativa no ano
+      const targetCls = classes.find(c => c.id === e.class_id);
+      if (targetCls) {
+        const isClassActive = !targetCls.status || targetCls.status === 'Ativo' || String(targetCls.status).toLowerCase() === 'ativo';
+        if (isClassActive) {
+          return isClassActiveInAcademicYear ? isClassActiveInAcademicYear(targetCls, candidateYear) : (getStartYear(targetCls) === targetYearNum);
+        }
+      }
+      return false;
+    });
+
+    if (hasActiveEnrollment) {
+      validActiveYears.add(candidateYear);
+      return;
+    }
+
+    const hasActiveStudent = students.some(s => {
+      const isStudentActive = !s.status || s.status === 'Ativo' || String(s.status).toLowerCase() === 'ativo';
+      if (!isStudentActive) return false;
+
+      if (s.entry_year && String(s.entry_year) === candidateYear) return true;
+
+      if (s.class_id) {
+        const targetCls = classes.find(c => c.id === s.class_id);
+        if (targetCls) {
+          const isClassActive = !targetCls.status || targetCls.status === 'Ativo' || String(targetCls.status).toLowerCase() === 'ativo';
+          if (isClassActive) {
+            return isClassActiveInAcademicYear ? isClassActiveInAcademicYear(targetCls, candidateYear) : (getStartYear(targetCls) === targetYearNum);
+          }
+        }
+      }
+      return false;
+    });
+
+    if (hasActiveStudent) {
+      validActiveYears.add(candidateYear);
+      return;
+    }
+  });
+
+  return Array.from(validActiveYears).sort((a, b) => Number(b) - Number(a));
+}
+

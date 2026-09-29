@@ -79,6 +79,27 @@ export function FinancialReport() {
   const [monthlyStandardFee, setMonthlyStandardFee] = useState<string>('');
   const [isExportingPDF, setIsExportingPDF] = useState(false);
 
+  // Anos de referência disponíveis baseados em turmas ou cadastros ativos
+  const availableYears = useMemo(() => {
+    const yrSet = new Set<number>();
+    const currentYr = new Date().getFullYear();
+    classes.forEach(c => {
+      if (c.status === 'Inativo') return;
+      const yrMatch = String(c.start_year || c.academic_year || c.year || '').match(/\b(20\d{2})\b/);
+      if (yrMatch) yrSet.add(parseInt(yrMatch[1], 10));
+      if (c.code) {
+        const cm = String(c.code).match(/-(\d{2})\b/);
+        if (cm && cm[1]) yrSet.add(2000 + parseInt(cm[1], 10));
+      }
+    });
+    contributions.forEach(cb => {
+      const y = Number(cb.reference_year || (cb as any).year);
+      if (y && y >= 2000 && y <= 2100) yrSet.add(y);
+    });
+    if (yrSet.size === 0) yrSet.add(currentYr);
+    return Array.from(yrSet).sort((a, b) => b - a);
+  }, [classes, contributions]);
+
   // Limpa todos os campos para estado inicial
   const handleClearFilters = useCallback(() => {
     setSelectedClassId('');
@@ -888,7 +909,7 @@ return (
             className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
           >
             <option value="">Selecione o Ano...</option>
-            {[2027, 2026, 2025, 2024, 2023, 2022].map(yr => (
+            {availableYears.map(yr => (
               <option key={yr} value={String(yr)}>
                 {yr} {yr === new Date().getFullYear() ? '(Ano Corrente)' : ''}
               </option>

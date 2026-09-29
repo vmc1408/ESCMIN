@@ -137,6 +137,23 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
   const [selectedDate, setSelectedDate] = useState<string>(formatDateForDisplay(new Date().toISOString().split('T')[0]));
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+
+  // Anos disponíveis computados dinamicamente com base nas turmas ativas
+  const availableYears = React.useMemo(() => {
+    const yrSet = new Set<number>();
+    const curYear = new Date().getFullYear();
+    yrSet.add(curYear);
+    (classes || []).forEach((c: any) => {
+      const match = String(c.start_year || c.academic_year || c.year || '').match(/\b(20\d{2})\b/);
+      if (match) yrSet.add(parseInt(match[1], 10));
+      if (c.code) {
+        const cm = String(c.code).match(/-(\d{2})\b/);
+        if (cm && cm[1]) yrSet.add(2000 + parseInt(cm[1], 10));
+      }
+    });
+    return Array.from(yrSet).sort((a, b) => b - a);
+  }, [classes]);
+
   const [classEvents, setClassEvents] = useState<any[]>([]);
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState<boolean>(false);
   
@@ -2210,7 +2227,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           onChange={e => setSelectedYear(parseInt(e.target.value))}
                           className="w-full px-4 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-805 appearance-none outline-none text-center"
                         >
-                          {[2024, 2025, 2026, 2027, 2028].map(y => (
+                          {availableYears.map(y => (
                             <option key={y} value={y}>{y}</option>
                           ))}
                         </select>
@@ -2307,7 +2324,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
                           onChange={e => setSelectedYear(parseInt(e.target.value))}
                           className="w-full px-2 pr-6 py-3 bg-white border border-slate-200 rounded-none text-[12px] font-semibold text-slate-800 appearance-none outline-none text-center"
                         >
-                          {[2024, 2025, 2026, 2027, 2028].map(y => (
+                          {availableYears.map(y => (
                             <option key={y} value={y}>{y}</option>
                           ))}
                         </select>
