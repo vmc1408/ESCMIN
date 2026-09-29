@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 import blueprint from '../../blueprint.json';
+import { financialConfigService } from './financialConfigService';
+import { SUPABASE_UNITS_MIGRATION_SQL } from '../lib/unitService';
 
 export const schemaService = {
   /**
@@ -18,6 +20,30 @@ export const schemaService = {
     }
     if (col.startsWith('is_') || col === 'app_lock_enabled' || col.endsWith('_whatsapp') || col === 'pastoral_participates_bool') {
       return 'BOOLEAN DEFAULT false';
+    }
+
+    // JSONB Arrays/Objects
+    if (
+      col === 'year_fees' || 
+      col === 'course_fees' || 
+      col === 'class_fees' || 
+      col === 'subject_fees' || 
+      col === 'period_fees' || 
+      col === 'custom_rules'
+    ) {
+      return "JSONB DEFAULT '[]'::jsonb";
+    }
+
+    if (col === 'due_day') {
+      return 'INTEGER DEFAULT 10';
+    }
+
+    if (col === 'late_fee_percentage') {
+      return 'NUMERIC(5,2) DEFAULT 0.00';
+    }
+
+    if (col === 'default_monthly_fee') {
+      return 'NUMERIC(10,2) DEFAULT 100.00';
     }
 
     // Integers
@@ -333,5 +359,63 @@ export const schemaService = {
     sql += `ON CONFLICT (id) DO NOTHING;\n\n`;
 
     return sql;
+  },
+
+  /**
+   * Retorna o script SQL específico do Módulo Financeiro (financial_settings)
+   */
+  getFinancialSQL() {
+    return financialConfigService.getMigrationSql();
+  },
+
+  /**
+   * Retorna o script SQL específico do Módulo Multi-Unidades / Polos (units e unit_id)
+   */
+  getUnitsSQL() {
+    return SUPABASE_UNITS_MIGRATION_SQL;
+  },
+
+  /**
+   * Retorna o script SQL de otimização de consultas e índices recomendados
+   */
+  getPerformanceIndexesSQL() {
+    return `-- ============================================================================
+-- SCRIPT DE OTIMIZAÇÃO E ÍNDICES DE PERFORMANCE (POSTGRESQL / SUPABASE)
+-- Cria índices estratégicos nas colunas mais consultadas em relatórios e chamadas
+-- ============================================================================
+
+-- Índices de Alunos
+CREATE INDEX IF NOT EXISTS idx_students_class_id ON public.students(class_id);
+CREATE INDEX IF NOT EXISTS idx_students_status ON public.students(status);
+CREATE INDEX IF NOT EXISTS idx_students_unit_id ON public.students(unit_id);
+CREATE INDEX IF NOT EXISTS idx_students_registration ON public.students(registration_number);
+
+-- Índices de Turmas e Disciplinas
+CREATE INDEX IF NOT EXISTS idx_classes_status ON public.classes(status);
+CREATE INDEX IF NOT EXISTS idx_classes_unit_id ON public.classes(unit_id);
+CREATE INDEX IF NOT EXISTS idx_subjects_unit_id ON public.subjects(unit_id);
+
+-- Índices de Chamada e Frequência
+CREATE INDEX IF NOT EXISTS idx_attendances_student_id ON public.attendances(student_id);
+CREATE INDEX IF NOT EXISTS idx_attendances_class_id ON public.attendances(class_id);
+CREATE INDEX IF NOT EXISTS idx_attendances_date ON public.attendances(date);
+CREATE INDEX IF NOT EXISTS idx_attendances_unit_id ON public.attendances(unit_id);
+
+-- Índices de Notas e Avaliações
+CREATE INDEX IF NOT EXISTS idx_grades_student_id ON public.grades(student_id);
+CREATE INDEX IF NOT EXISTS idx_grades_assessment_id ON public.grades(assessment_id);
+CREATE INDEX IF NOT EXISTS idx_grades_unit_id ON public.grades(unit_id);
+
+-- Índices Financeiros e Contribuições
+CREATE INDEX IF NOT EXISTS idx_contributions_student_id ON public.contributions(student_id);
+CREATE INDEX IF NOT EXISTS idx_contributions_ref ON public.contributions(reference_year, reference_month);
+CREATE INDEX IF NOT EXISTS idx_contributions_unit_id ON public.contributions(unit_id);
+CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_status ON public.pix_reconciliations(status);
+CREATE INDEX IF NOT EXISTS idx_pix_reconciliations_batch ON public.pix_reconciliations(batch_id);
+
+-- Confirmação
+COMMENT ON INDEX idx_students_class_id IS 'Otimiza listagens e relatórios de alunos por turma';
+COMMENT ON INDEX idx_contributions_ref IS 'Acelera fechamentos mensais e relatórios financeiros';
+`;
   }
 };

@@ -30,6 +30,7 @@ import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { financialService } from '../services/financialService';
+import { financialConfigService } from '../services/financialConfigService';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -388,15 +389,33 @@ export function StudentFicha() {
     const unpaidMonths = expectedMonths.filter(m => !paidMonths.includes(m));
 
     if (unpaidMonths.length > 0) {
+      const studentClass = classes.find(c => 
+        c.id === student.class_id ||
+        ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
+        ((student as any).course && c.course && c.course.trim().toLowerCase() === (student as any).course.trim().toLowerCase()) ||
+        ((student as any).course && c.name && c.name.toLowerCase().includes((student as any).course.toLowerCase()))
+      );
+      const studentFee = financialConfigService.resolveFee({
+        year: currentYear,
+        classId: student.class_id || studentClass?.id,
+        className: studentClass?.name,
+        studentClass,
+        student,
+        subjectId: (student as any).subject_id || (student as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+        courseName: studentClass?.course || (student as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+        period: (student as any).period || studentClass?.period
+      });
+
       return {
         months: unpaidMonths,
         count: unpaidMonths.length,
-        totalEstimated: unpaidMonths.length * 100
+        studentFee,
+        totalEstimated: unpaidMonths.length * studentFee
       };
     }
 
     return null;
-  }, [selectedStudentId, studentContributions, students, academicSettingsList]);
+  }, [selectedStudentId, studentContributions, students, classes, academicSettingsList]);
 
   // Handle auto-selection when coming from other screens (e.g. Ficha Acadêmica button in Students)
   useEffect(() => {

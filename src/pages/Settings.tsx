@@ -45,13 +45,17 @@ import {
   Key,
   Info,
   ArrowUpRight,
-  GraduationCap
+  GraduationCap,
+  DollarSign,
+  Wrench
 } from 'lucide-react';
 import { fetchCount, uploadImage, saveData, fetchAll, getInstitutionSettings, saveBatch, deleteBatch, deleteData, cleanOrphanEnrollments, autoIdentifyAllStudentsCourses } from '../lib/database';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Student, Class, InstitutionSettings, UserProfile, AcademicParameters } from '../types';
 import { cn } from '../lib/utils';
 import { UnitsSettingsTab } from '../components/UnitsSettingsTab';
+import { FinancialSettingsTab } from '../components/FinancialSettingsTab';
+import { DatabaseSettingsTab, DatabaseScriptKey } from '../components/DatabaseSettingsTab';
 import { syncMatrizWithInstitution } from '../lib/unitService';
 import { financialService } from '../services/financialService';
 import { schemaService } from '../services/schemaService';
@@ -105,10 +109,12 @@ export function Settings() {
     }
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'institution' | 'units' | 'maintenance' | 'academic' | 'security'>(() => {
+  const [selectedDatabaseScript, setSelectedDatabaseScript] = useState<DatabaseScriptKey>('fix');
+
+  const [activeTab, setActiveTab] = useState<'institution' | 'units' | 'academic' | 'financial' | 'database' | 'maintenance' | 'security'>(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
-    if (tab === 'institution' || tab === 'units' || tab === 'maintenance' || tab === 'academic' || tab === 'security') {
+    if (tab === 'institution' || tab === 'units' || tab === 'academic' || tab === 'financial' || tab === 'database' || tab === 'maintenance' || tab === 'security') {
       return tab;
     }
     return 'institution';
@@ -117,10 +123,22 @@ export function Settings() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
-    if (tab && (tab === 'institution' || tab === 'units' || tab === 'maintenance' || tab === 'academic' || tab === 'security')) {
+    const script = params.get('script');
+    if (script && ['fix', 'master', 'financial', 'units', 'indexes'].includes(script)) {
+      setSelectedDatabaseScript(script as DatabaseScriptKey);
+    }
+    if (tab && (tab === 'institution' || tab === 'units' || tab === 'academic' || tab === 'financial' || tab === 'database' || tab === 'maintenance' || tab === 'security')) {
       setActiveTab(tab);
     }
   }, [location.search]);
+
+  const handleOpenDatabaseTab = useCallback((scriptKey?: string) => {
+    if (scriptKey && ['fix', 'master', 'financial', 'units', 'indexes'].includes(scriptKey)) {
+      setSelectedDatabaseScript(scriptKey as DatabaseScriptKey);
+    }
+    setActiveTab('database');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -199,7 +217,7 @@ export function Settings() {
   const [selectedPersistMode, setSelectedPersistMode] = useState(authPersistMode);
 
   useEffect(() => {
-    if (isAdmin !== undefined && !isAdmin && (activeTab === 'security' || activeTab === 'maintenance')) {
+    if (isAdmin !== undefined && !isAdmin && (activeTab === 'security' || activeTab === 'maintenance' || activeTab === 'database')) {
       setActiveTab('institution');
     }
   }, [isAdmin, activeTab]);
@@ -234,12 +252,6 @@ export function Settings() {
     classes: 0,
     subjects: 0
   });
-  const [schemaReport, setSchemaReport] = useState<any>(null);
-  const [schemaSummary, setSchemaSummary] = useState<any>(null);
-  const [fixSql, setFixSql] = useState<string>('');
-  const [fullSql, setFullSql] = useState<string>('');
-  const [sqlViewMode, setSqlViewMode] = useState<'fix' | 'full'>('fix');
-  const [checkingSchema, setCheckingSchema] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCleaningStudents, setIsCleaningStudents] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{
@@ -557,35 +569,6 @@ export function Settings() {
       fetchAcademicParams();
     }
   }, [activeTab]);
-
-
-  const handleSchemaCheckup = async () => {
-    try {
-      setCheckingSchema(true);
-      const result = await schemaService.checkup();
-      const report = result.report || result;
-      const summary = result.summary || null;
-      setSchemaReport(report);
-      setSchemaSummary(summary);
-      const sql = schemaService.generateFixSQL(result);
-      setFixSql(sql);
-      const full = schemaService.getFullSchemaSQL();
-      setFullSql(full);
-      setNotification({ type: 'success', message: 'Checkup de schema concluído!' });
-    } catch (e: any) {
-      console.error('Schema checkup error:', e);
-      setNotification({ type: 'error', message: 'Erro no checkup: ' + e.message });
-    } finally {
-      setCheckingSchema(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setNotification({ type: 'success', message: 'SQL copiado para a área de transferência!' });
-    setTimeout(() => setNotification(null), 3000);
-  };
 
   const fetchCounts = async () => {
     try {
@@ -1108,32 +1091,58 @@ export function Settings() {
             Acadêmico
           </button>
 
+          <button 
+            onClick={() => setActiveTab('financial')}
+            className={cn(
+              "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
+              activeTab === 'financial' 
+                ? "bg-amber-600 text-white shadow-md font-extrabold" 
+                : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+            )}
+          >
+            <DollarSign size={16} />
+            Financeiro
+          </button>
+
           {isAdmin && (
             <>
               <button 
+                onClick={() => setActiveTab('database')}
+                className={cn(
+                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
+                  activeTab === 'database' 
+                    ? "bg-[#00174b] text-white shadow-md font-extrabold" 
+                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                )}
+              >
+                <Database size={16} />
+                <span>Base de Dados</span>
+              </button>
+
+              <button 
                 onClick={() => setActiveTab('security')}
                 className={cn(
-                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
+                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
                   activeTab === 'security' 
                     ? "bg-amber-600 text-white shadow-md font-extrabold" 
                     : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
                 )}
               >
                 <ShieldCheck size={16} />
-                Segurança
+                <span>Segurança</span>
               </button>
 
               <button 
                 onClick={() => setActiveTab('maintenance')}
                 className={cn(
-                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left",
+                  "w-full px-4 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-3 text-left cursor-pointer",
                   activeTab === 'maintenance' 
                     ? "bg-red-600 text-white shadow-md font-extrabold" 
                     : "text-slate-400 hover:text-slate-700 hover:bg-slate-50"
                 )}
               >
-                <Database size={16} />
-                Manutenção
+                <Wrench size={16} />
+                <span>Manutenção</span>
               </button>
             </>
           )}
@@ -1532,7 +1541,7 @@ export function Settings() {
 
         {activeTab === 'units' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <UnitsSettingsTab />
+            <UnitsSettingsTab onOpenDatabaseTab={handleOpenDatabaseTab} />
           </div>
         )}
 
@@ -1614,6 +1623,21 @@ export function Settings() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'financial' && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <FinancialSettingsTab onNotify={setNotification} onOpenDatabaseTab={handleOpenDatabaseTab} />
+        </div>
+      )}
+
+      {activeTab === 'database' && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <DatabaseSettingsTab 
+            initialScriptKey={selectedDatabaseScript} 
+            onNotify={setNotification} 
+          />
         </div>
       )}
 
@@ -2067,23 +2091,23 @@ export function Settings() {
 
               <div className="space-y-2 pt-2">
                 <button 
-                  onClick={handleSchemaCheckup}
-                  disabled={checkingSchema}
-                  className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between group hover:border-indigo-300 transition-all text-left active:scale-[0.98] outline-none"
+                  onClick={() => handleOpenDatabaseTab('fix')}
+                  className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-md flex items-center justify-between group hover:border-indigo-300 hover:bg-indigo-50/50 transition-all text-left active:scale-[0.98] outline-none cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <Shield size={16} className="text-slate-400" />
+                    <Database size={16} className="text-indigo-600" />
                     <div>
-                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider leading-none">Checkup de Schema</p>
+                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider leading-none">Central de Base de Dados & Scripts</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Auditoria de schema, scripts SQL e DDLs unificados</p>
                     </div>
                   </div>
-                  {checkingSchema ? <Loader2 size={14} className="animate-spin text-indigo-300" /> : <RefreshCw size={14} className="text-slate-300" />}
+                  <ArrowUpRight size={14} className="text-slate-400 group-hover:text-indigo-600 transition-colors" />
                 </button>
 
                 <button 
                   onClick={handleSyncSupabase}
                   disabled={isSyncing}
-                  className="w-full h-12 px-4 bg-indigo-600 text-white rounded-md flex items-center justify-between group hover:bg-indigo-700 transition-all text-left active:scale-[0.98] outline-none shadow-sm shadow-indigo-600/20"
+                  className="w-full h-12 px-4 bg-indigo-600 text-white rounded-md flex items-center justify-between group hover:bg-indigo-700 transition-all text-left active:scale-[0.98] outline-none shadow-sm shadow-indigo-600/20 cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Database size={16} className={cn(isSyncing && "animate-pulse")} />
@@ -2160,231 +2184,6 @@ export function Settings() {
       )}
         </div>
       </div>
-
-          {schemaReport && (
-            <div className="mt-8 bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
-              {/* Header com Ações Centrais */}
-              <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[#00174b] text-white flex items-center justify-center shadow-lg shadow-blue-950/20">
-                    <Database size={24} className={cn(checkingSchema && "animate-spin")} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xl font-black text-[#00174b]">Central de Verificação e Sincronização de Schema</h4>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800">
-                        Supabase Live
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-500 font-medium">Auditoria em tempo real confrontando os modelos do Frontend com o banco de dados.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                  <button
-                    onClick={handleSchemaCheckup}
-                    disabled={checkingSchema}
-                    className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm active:scale-95"
-                    title="Executar nova auditoria no banco"
-                  >
-                    <RefreshCw size={14} className={cn(checkingSchema && "animate-spin text-blue-600")} />
-                    {checkingSchema ? 'Verificando...' : 'Refazer Checkup'}
-                  </button>
-
-                  <button
-                    onClick={handleSyncSupabase}
-                    disabled={isSyncing}
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md shadow-indigo-600/20 active:scale-95"
-                    title="Enviar dados locais para o Supabase"
-                  >
-                    <Database size={14} className={cn(isSyncing && "animate-pulse")} />
-                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Banco'}
-                  </button>
-
-                  <button 
-                    onClick={() => setSchemaReport(null)}
-                    className="p-2.5 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all ml-1"
-                    title="Fechar painel de diagnóstico"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 md:p-8 space-y-8">
-                {/* Resumo Métrico */}
-                {schemaSummary && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tabelas Monitoradas</p>
-                      <p className="text-2xl font-black text-slate-800 mt-1">{schemaSummary.totalTables}</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200">
-                      <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest flex items-center gap-1.5">
-                        <CheckCircle2 size={12} /> Sincronizadas
-                      </p>
-                      <p className="text-2xl font-black text-emerald-700 mt-1">{schemaSummary.syncedTables}</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200">
-                      <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest flex items-center gap-1.5">
-                        <AlertCircle size={12} /> Incompletas
-                      </p>
-                      <p className="text-2xl font-black text-amber-700 mt-1">{schemaSummary.incompleteTables}</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-red-50/60 border border-red-200">
-                      <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest flex items-center gap-1.5">
-                        <AlertTriangle size={12} /> Não Criadas
-                      </p>
-                      <p className="text-2xl font-black text-red-700 mt-1">{schemaSummary.missingTables}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Banner de Status Geral */}
-                {schemaSummary?.isFullySynchronized ? (
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
-                    <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="text-sm font-bold text-emerald-900">Banco de Dados 100% Sincronizado!</p>
-                      <p className="text-xs text-emerald-700 font-medium">Todas as tabelas e colunas exigidas pelos módulos do frontend estão presentes e ativas no Supabase.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3">
-                    <AlertCircle size={20} className="text-amber-600 shrink-0" />
-                    <div>
-                      <p className="text-sm font-bold text-amber-900">Ajustes de Schema Detectados</p>
-                      <p className="text-xs text-amber-700 font-medium">Existem tabelas ou colunas faltantes no banco. Copie o script SQL gerado abaixo e execute no SQL Editor do Supabase.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Grid de Tabelas */}
-                <div>
-                  <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Status Individual por Coleção</h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[360px] overflow-y-auto pr-1">
-                    {Object.entries(schemaReport).map(([table, info]: [any, any]) => (
-                      <div key={table} className={cn(
-                        "p-4 rounded-xl border transition-all",
-                        (info.status === 'up_to_date' || info.status === 'ok') ? "bg-emerald-50/30 border-emerald-200 hover:bg-emerald-50/60" : 
-                        info.status === 'incomplete' ? "bg-amber-50/30 border-amber-200 hover:bg-amber-50/60" : 
-                        "bg-red-50/30 border-red-200 hover:bg-red-50/60"
-                      )}>
-                        <div className="flex justify-between items-start mb-1.5">
-                          <h6 className="font-black text-[#00174b] uppercase text-[11px] tracking-tight">{table}</h6>
-                          {(info.status === 'up_to_date' || info.status === 'ok') ? (
-                            <CheckCircle2 size={14} className="text-emerald-500" />
-                          ) : info.status === 'incomplete' ? (
-                            <AlertCircle size={14} className="text-amber-500" />
-                          ) : (
-                            <AlertTriangle size={14} className="text-red-500" />
-                          )}
-                        </div>
-                        
-                        {info.status === 'incomplete' ? (
-                          <div className="space-y-1 mt-1">
-                            <p className="text-[9px] font-bold text-amber-700 uppercase tracking-wider">Faltando ({info.missing?.length}):</p>
-                            <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
-                              {info.missing?.map((m: string) => (
-                                <span key={m} className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[9px] font-mono font-medium">{m}</span>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (info.status === 'up_to_date' || info.status === 'ok') ? (
-                          <p className="text-[10px] font-medium text-emerald-700 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            Sincronizado
-                          </p>
-                        ) : (
-                          <p className="text-[10px] font-bold text-red-600 truncate" title={info.message}>{info.message}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Seletor e Exibição de SQL */}
-                <div className="space-y-4 pt-2 border-t border-slate-100">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Terminal size={16} className="text-indigo-600" />
-                        <h5 className="font-black text-[#00174b]">Scripts SQL de Alinhamento</h5>
-                      </div>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">
-                        Escolha entre o script pontual de correção ou o script mestre completo com todas as tabelas.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200">
-                        <button
-                          onClick={() => setSqlViewMode('fix')}
-                          className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            sqlViewMode === 'fix' 
-                              ? "bg-white text-[#00174b] shadow-sm" 
-                              : "text-slate-600 hover:text-slate-900"
-                          )}
-                        >
-                          SQL de Correção (Faltantes)
-                        </button>
-                        <button
-                          onClick={() => setSqlViewMode('full')}
-                          className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            sqlViewMode === 'full' 
-                              ? "bg-white text-[#00174b] shadow-sm" 
-                              : "text-slate-600 hover:text-slate-900"
-                          )}
-                        >
-                          Script Completo (Mestre)
-                        </button>
-                      </div>
-
-                      <button 
-                        onClick={() => copyToClipboard(sqlViewMode === 'fix' ? fixSql : fullSql)}
-                        className="px-5 py-2 bg-[#00174b] text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-blue-900 transition-all shadow-md active:scale-95"
-                      >
-                        <Copy size={14} />
-                        Copiar {sqlViewMode === 'fix' ? 'SQL de Correção' : 'Script Completo'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-900 rounded-2xl p-5 overflow-hidden border border-slate-800 shadow-inner">
-                    <div className="flex justify-between items-center pb-3 mb-3 border-b border-slate-800 text-slate-400 text-xs font-mono">
-                      <span>{sqlViewMode === 'fix' ? 'schema-fix.sql' : 'master-schema.sql'}</span>
-                      <span className="text-[10px] uppercase text-emerald-400 font-bold">PostgreSQL / Supabase</span>
-                    </div>
-                    <pre className="text-emerald-400 font-mono text-xs leading-relaxed max-h-72 overflow-y-auto overflow-x-auto whitespace-pre-wrap select-all">
-                      {sqlViewMode === 'fix' ? fixSql : fullSql}
-                    </pre>
-                  </div>
-
-                  {/* Instruções de Execução */}
-                  <div className="p-5 bg-blue-50/60 border border-blue-100 rounded-2xl flex items-start gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
-                      <Globe size={18} />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-black text-blue-900">Como sincronizar o backend?</p>
-                      <ol className="text-xs text-blue-800 font-medium space-y-1 list-decimal pl-4 leading-relaxed">
-                        <li>Copie o script desejado acima.</li>
-                        <li>Abra seu painel do **Supabase** no navegador e clique em **SQL Editor** no menu esquerdo.</li>
-                        <li>Clique em **"+ New Query"**, cole o código e aperte **Run** (Executar).</li>
-                        <li>Volte aqui e clique em **"Refazer Checkup"** para confirmar que tudo ficou 100% sincronizado!</li>
-                        <li>Em seguida, clique em **"Sincronizar Banco"** para carregar todos os dados locais na nuvem.</li>
-                      </ol>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        
-
-
 
       {/* Confirmation Modal */}
       {showConfirmModal.show && (

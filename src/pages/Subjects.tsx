@@ -38,6 +38,7 @@ interface Subject {
   workload?: string | number;
   teacher_id?: string;
   program_content?: string;
+  monthly_fee?: number;
   created_at: string;
   user_id: string;
   unit_id?: string;
@@ -177,6 +178,9 @@ export function Subjects() {
               if (!normalized.teacher_id && meta.teacher_id) normalized.teacher_id = meta.teacher_id;
               if (!normalized.year && meta.year) normalized.year = meta.year;
               if (meta.unit_id && (!normalized.unit_id || normalized.unit_id === 'matriz' || meta.unit_id !== 'matriz')) normalized.unit_id = meta.unit_id;
+              if (meta.monthly_fee !== undefined && meta.monthly_fee !== null && Number(meta.monthly_fee) >= 0) {
+                normalized.monthly_fee = Number(meta.monthly_fee);
+              }
             } catch (e) {
               // ignore
             }
@@ -436,6 +440,7 @@ export function Subjects() {
       year: '',
       semester: '',
       teacher_id: '',
+      monthly_fee: undefined,
       unit_id: globalUnitId !== 'all' ? globalUnitId : (activeUnits[0]?.id || 'matriz'),
     });
     setIsEditing(true);
@@ -462,6 +467,10 @@ export function Subjects() {
       if (formData.year) metadata.year = formData.year;
       if (formData.semester) metadata.semester = formData.semester;
       if (formData.teacher_id) metadata.teacher_id = formData.teacher_id;
+      if (formData.monthly_fee !== undefined && formData.monthly_fee !== null && String(formData.monthly_fee).trim() !== '') {
+        metadata.monthly_fee = Number(formData.monthly_fee);
+        syncData.monthly_fee = Number(formData.monthly_fee);
+      }
       
       const subjectUnitId = formData.unit_id || (globalUnitId !== 'all' ? globalUnitId : 'matriz');
       metadata.unit_id = subjectUnitId;
@@ -849,6 +858,16 @@ export function Subjects() {
                           </span>
                         </>
                       )}
+                      <span className="w-1 h-1 rounded-full bg-slate-300" />
+                      {formData.monthly_fee !== undefined && formData.monthly_fee !== null && Number(formData.monthly_fee) > 0 ? (
+                        <span className="px-2 py-0.5 text-[9px] font-bold rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Contribuição: R$ {Number(formData.monthly_fee).toFixed(2)} (Específica)
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[9px] font-medium rounded bg-slate-100 text-slate-600 border border-slate-200" title="Caso não haja valor específico, o sistema aplica o valor padrão definido">
+                          Contribuição: Valor Padrão Definido
+                        </span>
+                      )}
                     </div>
                   </div>
               </div>
@@ -1115,6 +1134,29 @@ export function Subjects() {
                         <option value="Ativo">Ativo</option>
                         <option value="Inativo">Inativo</option>
                       </select>
+                    </div>
+
+                    <div className="col-span-12 md:col-span-6 space-y-1 pt-1">
+                      <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                        <span>Valor Específico de Contribuição / Mensalidade (R$)</span>
+                        <span className="text-[10px] text-slate-400 font-normal">Opcional</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
+                        <input 
+                          type="number"
+                          min="0"
+                          step="5"
+                          disabled={!isEditing}
+                          placeholder="Deixe em branco para aplicar o valor padrão definido"
+                          value={formData.monthly_fee !== undefined && formData.monthly_fee !== null ? formData.monthly_fee : ''}
+                          onChange={(e) => setFormData({ ...formData, monthly_fee: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="w-full pl-8 pr-3 py-2 bg-slate-50 border-none rounded-none text-sm focus:ring-2 focus:ring-slate-500/10 disabled:opacity-60 font-semibold"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        Caso não haja valor específico para esta disciplina, o sistema aplicará automaticamente o <strong>valor padrão definido</strong>.
+                      </p>
                     </div>
                   </div>
                 </section>

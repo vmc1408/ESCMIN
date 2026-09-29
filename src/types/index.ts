@@ -141,6 +141,7 @@ export interface Class {
   is_special?: boolean;
   unallocated?: boolean;
   unit_id?: string; // ID da unidade/filial (ex: 'matriz')
+  monthly_fee?: number; // Valor específico da mensalidade da turma (se definido)
   user_id: string;
   created_at: string;
 }
@@ -173,6 +174,7 @@ export interface Subject {
   status?: 'Ativo' | 'Inativo';
   program_content?: string;
   unit_id?: string; // ID do polo/unidade ('all' para todas ou ID do polo)
+  monthly_fee?: number; // Valor específico da contribuição da disciplina (se definido)
   user_id: string;
   created_at: string;
 }
@@ -394,6 +396,59 @@ export interface Receipt {
   unit_id?: string;
   user_id?: string;
   created_at?: string;
+}
+
+export interface FinancialYearFee {
+  year: number;
+  amount: number;
+}
+
+export interface FinancialCourseFee {
+  course_id?: string;
+  course_name: string;
+  amount: number;
+}
+
+export interface FinancialClassFee {
+  class_id?: string;
+  class_name: string;
+  amount: number;
+}
+
+export interface FinancialSubjectFee {
+  subject_id?: string;
+  subject_name: string;
+  amount: number;
+}
+
+export interface FinancialPeriodFee {
+  period_name: string;
+  amount: number;
+}
+
+export interface FinancialCustomRule {
+  id: string;
+  year?: number;
+  course_id?: string;
+  course_name?: string;
+  period?: string;
+  amount: number;
+  description?: string;
+}
+
+export interface FinancialSettings {
+  id?: string;
+  unit_id?: string;
+  default_monthly_fee: number;
+  due_day?: number;
+  late_fee_percentage?: number;
+  year_fees: FinancialYearFee[];
+  course_fees: FinancialCourseFee[];
+  class_fees?: FinancialClassFee[];
+  subject_fees?: FinancialSubjectFee[];
+  period_fees?: FinancialPeriodFee[];
+  custom_rules?: FinancialCustomRule[];
+  updated_at?: string;
 }
 
 export interface ImportBatchRecord {

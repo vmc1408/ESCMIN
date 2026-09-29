@@ -33,7 +33,8 @@ import {
   Scroll,
   Tag,
   Archive as ArchiveIcon,
-  Sparkles
+  Sparkles,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
@@ -131,6 +132,8 @@ const navItems = [
     children: [
       { icon: Database, label: 'Backup', path: '/backup' },
       { icon: SettingsIcon, label: 'Geral', path: '/settings' },
+      { icon: DollarSign, label: 'Financeiro', path: '/settings?tab=financial' },
+      { icon: Database, label: 'Base de Dados & SQL', path: '/settings?tab=database' },
       { icon: ImportIcon, label: 'Importação', path: '/import' },
       { icon: ArchiveIcon, label: 'Arquivo Morto', path: '/archive' },
     ]

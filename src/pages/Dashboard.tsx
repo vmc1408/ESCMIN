@@ -33,7 +33,8 @@ import {
   ArrowRight,
   Info,
   Building2,
-  Lock
+  Lock,
+  DollarSign
 } from 'lucide-react';
 
 import { fetchCount, fetchAll, fetchById, saveBatch, saveData } from '../lib/database';
@@ -1528,6 +1529,15 @@ export function Dashboard() {
               iconColor: 'text-violet-700', 
               iconBg: 'bg-violet-50 border border-violet-100',
               hoverBorder: 'hover:border-violet-300',
+            },
+            { 
+              label: 'Rel. Financeiro', 
+              subtitle: 'Previsto e efetuado',
+              icon: DollarSign, 
+              path: '/financial-report', 
+              iconColor: 'text-emerald-700', 
+              iconBg: 'bg-emerald-50 border border-emerald-100',
+              hoverBorder: 'hover:border-emerald-300',
             }
           ].filter(item => canAccess(item.path))).map((item, i) => (
             <button 

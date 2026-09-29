@@ -41,7 +41,11 @@ import {
 import { cn, maskPhone, maskCEP, maskCNPJ } from '../lib/utils';
 import { getUnitColorTheme, UNIT_COLOR_THEMES, UnitColorKey } from '../lib/unitColors';
 
-export function UnitsSettingsTab() {
+interface UnitsSettingsTabProps {
+  onOpenDatabaseTab?: (scriptKey?: string) => void;
+}
+
+export function UnitsSettingsTab({ onOpenDatabaseTab }: UnitsSettingsTabProps = {}) {
   const { units, refreshUnits, loading } = useUnits();
   const [editingUnit, setEditingUnit] = useState<Partial<Unit> | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -390,11 +394,17 @@ export function UnitsSettingsTab() {
 
         <button
           type="button"
-          onClick={() => setIsSqlModalOpen(true)}
+          onClick={() => {
+            if (onOpenDatabaseTab) {
+              onOpenDatabaseTab('units');
+            } else {
+              setIsSqlModalOpen(true);
+            }
+          }}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer shrink-0"
         >
           <Server size={13} />
-          Script SQL Supabase
+          <span>Script SQL Supabase</span>
         </button>
       </div>
 

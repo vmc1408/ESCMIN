@@ -518,6 +518,7 @@
     "certificates": { "schema": "Certificate", "description": "Issued certificates and diplomas" },
     "enrollments": { "schema": "Enrollment", "description": "Student enrollments in classes" },
     "assessments": { "schema": "Assessment", "description": "Academic assessments collection" },
+    "financial_settings": { "schema": "FinancialSettings", "description": "Financial and tuition settings collection" },
     "archived_students": { "schema": "Student", "description": "Archived student records" },
     "archived_teachers": { "schema": "Teacher", "description": "Archived teacher records" },
     "archived_classes": { "schema": "Class", "description": "Archived class records" },

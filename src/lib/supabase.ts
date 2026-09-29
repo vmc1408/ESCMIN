@@ -123,7 +123,7 @@ export const fetchWithTimeout = async (promiseOrFactory: any, timeoutMs = 15000,
   return executeAttempt();
 };
 
-const rawUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const rawUrl = ((typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL : '') || (typeof process !== 'undefined' && process.env ? process.env.VITE_SUPABASE_URL : '') || '').trim();
 // Garante que a URL não tenha sufíxos de API e seja um host limpo
 let supabaseUrl = rawUrl;
 if (rawUrl) {
@@ -135,7 +135,7 @@ if (rawUrl) {
     supabaseUrl = rawUrl.split('/rest/v1')[0].split('/auth/v1')[0].replace(/\/$/, '');
   }
 }
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const supabaseAnonKey = ((typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_ANON_KEY : '') || (typeof process !== 'undefined' && process.env ? process.env.VITE_SUPABASE_ANON_KEY : '') || '').trim();
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl && 

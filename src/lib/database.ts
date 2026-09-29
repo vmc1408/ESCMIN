@@ -102,7 +102,7 @@ export function handleDbError(error: any, operation: any, path: string | null = 
 export const fetchAll = async (collectionName: string, select = '*', orderCol = 'created_at', ascending = false) => {
   let effectiveOrderCol = orderCol;
   if (orderCol === 'created_at') {
-    const tablesWithoutCreatedAt = ['academic_parameters', 'academic_settings', 'institution_settings'];
+    const tablesWithoutCreatedAt = ['academic_parameters', 'academic_settings', 'institution_settings', 'financial_settings'];
     if (tablesWithoutCreatedAt.includes(collectionName)) {
       effectiveOrderCol = '';
     }

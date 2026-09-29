@@ -64,6 +64,9 @@ export function normalizeSubject<T extends SubjectItemType>(subject: T): T {
         if (!normalized.teacher_id && meta.teacher_id) normalized.teacher_id = meta.teacher_id;
         if (!normalized.year && meta.year) normalized.year = meta.year;
         if (!normalized.workload && meta.workload) normalized.workload = meta.workload;
+        if (meta.monthly_fee !== undefined && meta.monthly_fee !== null && Number(meta.monthly_fee) >= 0) {
+          (normalized as any).monthly_fee = Number(meta.monthly_fee);
+        }
       }
     } catch {}
   }
@@ -142,6 +145,9 @@ export function normalizeClass<T extends ClassItemType>(cls: T, allSubjects?: Su
         }
         if (meta.unit_id && (!normalized.unit_id || normalized.unit_id === 'matriz')) {
           normalized.unit_id = meta.unit_id;
+        }
+        if (meta.monthly_fee !== undefined && meta.monthly_fee !== null && Number(meta.monthly_fee) >= 0) {
+          normalized.monthly_fee = Number(meta.monthly_fee);
         }
         if (meta.is_special !== undefined) isSpecial = !!meta.is_special;
       }

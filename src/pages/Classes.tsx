@@ -41,13 +41,14 @@ import {
   UserX,
   Sparkles,
   DoorClosed,
-  CalendarCheck
+  CalendarCheck,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
+import { cn, maskDate, formatDateForDisplay, parseDateToDB, detectCourseFromClass, matchesStudentSearch, calculateStudentSearchRank, normalizeClass } from '../lib/utils';
 import { detectSubjectSemester, getClassStartDateFromSchedule } from '../lib/academicUtils';
 import { fetchAll, saveData, deleteData } from '../lib/database';
 import { supabase } from '../lib/supabase';
@@ -84,6 +85,7 @@ interface Class {
   is_special?: boolean;
   unallocated?: boolean;
   unit_id?: string;
+  monthly_fee?: number;
   created_at: string;
   user_id: string;
 }
@@ -926,6 +928,9 @@ export function Classes() {
                 sIds = [meta.subject_id];
               }
               isSpecial = !!meta.is_special;
+              if (meta.monthly_fee !== undefined && meta.monthly_fee !== null && Number(meta.monthly_fee) >= 0) {
+                (normalized as any).monthly_fee = Number(meta.monthly_fee);
+              }
             } catch (e) {}
           }
 
@@ -1274,6 +1279,7 @@ export function Classes() {
     
     setFormData({
       ...cls,
+      monthly_fee: (cls as any).monthly_fee !== undefined ? (cls as any).monthly_fee : undefined,
       course: detectedCourse,
       start_year: (cls as any).start_year || startYearFromDate,
       start_date: cls.start_date ? formatDateForDisplay(cls.start_date) : '',
@@ -1456,6 +1462,7 @@ export function Classes() {
       subject_id_sem2: '',
       subject_ids: [],
       is_special: false,
+      monthly_fee: undefined,
       unit_id: globalUnitId !== 'all' ? globalUnitId : (activeUnits[0]?.id || 'matriz')
     });
     setIsEditing(true);
@@ -1550,6 +1557,9 @@ export function Classes() {
       metadata.subject_id_sem2 = s2h1 || s2h2 || '';
       metadata.subject_ids = cleanSubjectIds;
       if (formData.is_special !== undefined) metadata.is_special = formData.is_special;
+      if (formData.monthly_fee !== undefined && formData.monthly_fee !== null && String(formData.monthly_fee).trim() !== '') {
+        metadata.monthly_fee = Number(formData.monthly_fee);
+      }
       metadata.unit_id = targetUnitId;
       
       const metadataStr = `[METADATA:${JSON.stringify(metadata)}]`;
@@ -1574,6 +1584,7 @@ export function Classes() {
         subject_id_sem2_h1: _s2h1,
         subject_id_sem2_h2: _s2h2,
         course_id: _cid,
+        monthly_fee: _monthly_fee,
         ...cleanPayload
       } = syncData as any;
 
@@ -3142,7 +3153,7 @@ export function Classes() {
                         {/* Step 4, Sala, Data Início & Alunos Ativos in a harmonized, perfectly aligned 12-col grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-start pt-3 border-t border-blue-100/60">
                           {/* Field 1: Nome / Identificador da Turma */}
-                          <div className="sm:col-span-1 lg:col-span-4 space-y-1.5">
+                          <div className="sm:col-span-1 lg:col-span-3 space-y-1.5">
                             <div className="flex items-center justify-between ml-0.5 h-6">
                               <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
                                 <span className="w-5 h-5 bg-blue-900 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-xs">4</span>
@@ -3190,14 +3201,14 @@ export function Classes() {
                           </div>
 
                           {/* Field 2: Sala / Local das Aulas */}
-                          <div className="sm:col-span-1 lg:col-span-3 space-y-1.5">
+                          <div className="sm:col-span-1 lg:col-span-2 space-y-1.5">
                             <div className="flex items-center justify-between ml-0.5 h-6">
                               <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
                                 <DoorClosed size={13} className="text-blue-900 shrink-0" />
                                 Sala / Local
                               </label>
                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                Espaço Físico
+                                Espaço
                               </span>
                             </div>
                             <input 
@@ -3222,7 +3233,7 @@ export function Classes() {
                               <option value="Online / Google Meet" />
                             </datalist>
                             <p className="text-[9px] font-medium text-slate-400 italic ml-0.5 leading-tight truncate">
-                              Ambiente ou local de realização das aulas
+                              Ambiente das aulas
                             </p>
                           </div>
 
@@ -3299,7 +3310,43 @@ export function Classes() {
                               </div>
                             </div>
                             <p className="text-[9px] font-medium text-slate-400 italic ml-0.5 leading-tight truncate">
-                              Data do primeiro dia letivo da turma
+                              Data do 1º dia letivo
+                            </p>
+                          </div>
+
+                          {/* Field: Mensalidade Específica da Turma */}
+                          <div className="sm:col-span-1 lg:col-span-2 space-y-1.5">
+                            <div className="flex items-center justify-between ml-0.5 h-6">
+                              <label className="text-[11px] font-extrabold text-blue-950 uppercase tracking-widest flex items-center gap-1.5">
+                                <DollarSign size={13} className="text-emerald-700 shrink-0" />
+                                Mensalidade
+                              </label>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                (R$)
+                              </span>
+                            </div>
+                            <div className="relative flex items-center">
+                              <span className="absolute left-3 text-xs font-bold text-slate-400 pointer-events-none">R$</span>
+                              <input 
+                                type="number"
+                                min="0"
+                                step="5"
+                                disabled={!isEditing}
+                                placeholder="Padrão"
+                                value={formData.monthly_fee !== undefined && formData.monthly_fee !== null ? formData.monthly_fee : ''}
+                                onChange={(e) => setFormData({...formData, monthly_fee: e.target.value === '' ? undefined : Number(e.target.value)})}
+                                onKeyDown={handleKeyDown}
+                                className={cn(
+                                  "w-full pl-9 pr-3 py-2 border text-xs font-bold outline-none transition-all h-[42px]",
+                                  isEditing
+                                    ? "bg-white text-emerald-950 border-slate-300 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-600 font-black"
+                                    : "bg-slate-100/90 text-slate-600 border-slate-300 cursor-not-allowed"
+                                )}
+                                tabIndex={4}
+                              />
+                            </div>
+                            <p className="text-[9px] font-medium text-slate-400 italic ml-0.5 leading-tight truncate" title="Vazio para herdar do curso ou ano">
+                              Vazio = herda do curso/ano
                             </p>
                           </div>
 

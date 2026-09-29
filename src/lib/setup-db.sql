@@ -227,6 +227,29 @@ ALTER TABLE IF EXISTS public.subjects DROP CONSTRAINT IF EXISTS subjects_unit_id
 ALTER TABLE IF EXISTS public.courses DROP CONSTRAINT IF EXISTS courses_unit_id_fkey;
 ALTER TABLE IF EXISTS public.enrollments DROP CONSTRAINT IF EXISTS enrollments_unit_id_fkey;
 
+-- 11. Tabela de Configurações Financeiras (Valores de Contribuições por Ano e Curso)
+CREATE TABLE IF NOT EXISTS public.financial_settings (
+    id TEXT PRIMARY KEY,
+    default_monthly_fee NUMERIC(10,2) DEFAULT 100.00,
+    due_day INTEGER DEFAULT 10,
+    late_fee_percentage NUMERIC(5,2) DEFAULT 0.00,
+    year_fees JSONB DEFAULT '[]'::jsonb,
+    course_fees JSONB DEFAULT '[]'::jsonb,
+    unit_id TEXT DEFAULT 'matriz',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Inserir configuração inicial se não existir
+INSERT INTO public.financial_settings (id, default_monthly_fee, due_day, year_fees, course_fees)
+VALUES (
+    'current',
+    100.00,
+    10,
+    '[{"year": 2024, "amount": 80.00}, {"year": 2025, "amount": 100.00}, {"year": 2026, "amount": 100.00}, {"year": 2027, "amount": 120.00}]'::jsonb,
+    '[]'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- 6. Recriar políticas de acesso (RLS) - Permite leitura/escrita para todos no modo dev
 DO $$ 
 DECLARE 

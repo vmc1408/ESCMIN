@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search } from 'lucide-react';
 import { financialService } from '../services/financialService';
+import { financialConfigService } from '../services/financialConfigService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
-import { Student, Contribution, Class } from '../types';
-import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
+import { Student, Contribution, Class, FinancialSettings } from '../types';
+import { formatCurrency, cn, safeFormat, parseSafeDate, maskDate, formatDateForDisplay, parseDateToDB, matchesStudentSearch, calculateStudentSearchRank, normalizeClass, detectCourseFromClass } from '../lib/utils';
 import { PageHeader } from '../components/PageHeader';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -78,6 +79,7 @@ export function Contributions() {
   const [isPrintingStatement, setIsPrintingStatement] = useState(false);
   const [expandedStudents, setExpandedStudents] = useState<string[]>([]);
   const [academicSettingsList, setAcademicSettingsList] = useState<any[]>([]);
+  const [financialSettings, setFinancialSettings] = useState<FinancialSettings | null>(null);
   const [isResultsCollapsed, setIsResultsCollapsed] = useState(false);
   
   const { profile, canDelete } = useAuth();
@@ -184,6 +186,16 @@ export function Contributions() {
       setViewMode('period');
       fetchPeriodContributions();
     }
+
+    const handleSettingsUpdated = (e: any) => {
+      if (e.detail) {
+        setFinancialSettings(e.detail);
+      } else {
+        financialConfigService.getSettings().then(setFinancialSettings);
+      }
+    };
+    window.addEventListener('financial_settings_updated', handleSettingsUpdated);
+    return () => window.removeEventListener('financial_settings_updated', handleSettingsUpdated);
   }, []); // Only once on mount
 
   useEffect(() => {
@@ -268,14 +280,17 @@ export function Contributions() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [classesData, instData] = await Promise.all([
-        fetchQuery('classes', [{ field: 'status', operator: '==', value: 'Ativo' }], 'code'),
+      const [rawClasses, instData, finData] = await Promise.all([
+        fetchAll('classes').catch(() => []),
         financialService.getInstitutionSettings(),
+        financialConfigService.getSettings(),
         fetchAcademicSettings()
       ]);
 
-      setClasses(classesData || []);
+      const normalizedClasses = (rawClasses || []).map((cls: any) => normalizeClass(cls));
+      setClasses(normalizedClasses);
       setInstitution(instData || null);
+      setFinancialSettings(finData || null);
 
       if (initialStudentId) {
         const studentData = await fetchById('students', initialStudentId);
@@ -450,6 +465,17 @@ export function Contributions() {
     }
   };
 
+  // Helper para localizar a turma do aluno com inteligência e tolerância a matrículas/cursos
+  const resolveStudentClass = (student: Student | null | undefined): Class | undefined => {
+    if (!student) return undefined;
+    return classes.find(c => 
+      (student.class_id && c.id === student.class_id) ||
+      ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
+      ((student as any).course && c.course && c.course.trim().toLowerCase() === (student as any).course.trim().toLowerCase()) ||
+      ((student as any).course && c.name && c.name.toLowerCase().includes((student as any).course.toLowerCase()))
+    );
+  };
+
   // Compute list of students with unpaid months
   const unpaidReportList = useMemo(() => {
     if (!unpaidClassFilter) return [];
@@ -457,7 +483,7 @@ export function Contributions() {
     const scopedPool = (!selectedUnitId || selectedUnitId === 'all')
       ? allActiveStudents
       : allActiveStudents.filter(student => {
-          const studentClass = classes.find(c => c.id === student.class_id);
+          const studentClass = resolveStudentClass(student);
           const studentUnit = getItemUnitId(student) || (studentClass ? getItemUnitId(studentClass) : 'matriz');
           return isItemInUnit(studentUnit, selectedUnitId, activeUnits);
         });
@@ -474,13 +500,26 @@ export function Contributions() {
       // Unpaid months
       const unpaidMonths = expectedMonths.filter(m => !paidMonths.includes(m));
       
+      const studentClass = resolveStudentClass(student);
+      const studentFee = financialConfigService.resolveFee({
+        year: unpaidYear,
+        classId: student.class_id || studentClass?.id,
+        className: studentClass?.name,
+        studentClass,
+        student,
+        subjectId: (student as any).subject_id || (student as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+        courseName: studentClass?.course || (student as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+        period: (student as any).period || studentClass?.period
+      }, financialSettings);
+
       return {
         student,
         expectedMonths,
         paidMonths,
         unpaidMonths,
         pendingCount: unpaidMonths.length,
-        estimatedDebt: unpaidMonths.length * 100 // Estimate $100.00 standard monthly fee
+        studentFee,
+        estimatedDebt: unpaidMonths.length * studentFee
       };
     })
     .filter(item => item.pendingCount > 0) // only show if there are outstanding/pending months
@@ -494,7 +533,7 @@ export function Contributions() {
       if (unpaidClassFilter === 'all') return true;
       return item.student.class_id === unpaidClassFilter;
     });
-  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter, selectedUnitId, activeUnits, classes]);
+  }, [allActiveStudents, unpaidContributions, unpaidYear, unpaidSearchTerm, unpaidClassFilter, selectedUnitId, activeUnits, classes, financialSettings]);
 
   // Calculate stats breakdown for top overview cards (overdue vs future/to-be-due)
   const unpaidStats = useMemo(() => {
@@ -503,23 +542,29 @@ export function Contributions() {
     
     let totalOverdueMonths = 0;
     let totalFutureMonths = 0;
+    let totalOverdueDebt = 0;
+    let totalFutureDebt = 0;
     
     unpaidReportList.forEach(item => {
+      const fee = item.studentFee || 100;
       item.unpaidMonths.forEach(m => {
         const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
         if (isFuture) {
           totalFutureMonths++;
+          totalFutureDebt += fee;
         } else {
           totalOverdueMonths++;
+          totalOverdueDebt += fee;
         }
       });
     });
     
     return {
-      totalOverdueDebt: totalOverdueMonths * 100,
-      totalFutureDebt: totalFutureMonths * 100,
+      totalOverdueDebt,
+      totalFutureDebt,
       totalOverdueMonths,
-      totalFutureMonths
+      totalFutureMonths,
+      totalUnpaidAmount: totalOverdueDebt + totalFutureDebt
     };
   }, [unpaidReportList, unpaidYear]);
 
@@ -834,7 +879,18 @@ export function Contributions() {
   const handleAddContribution = (monthIndex: number) => {
     if (!selectedStudent) return;
     setManualMonths([monthIndex]);
-    setManualAmount('100,00');
+    const studentClass = resolveStudentClass(selectedStudent);
+    const resolvedFee = financialConfigService.resolveFee({
+      year: selectedYear,
+      classId: selectedStudent.class_id || studentClass?.id,
+      className: studentClass?.name,
+      studentClass,
+      student: selectedStudent,
+      subjectId: (selectedStudent as any).subject_id || (selectedStudent as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+      courseName: studentClass?.course || (selectedStudent as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+      period: (selectedStudent as any).period || studentClass?.period
+    }, financialSettings);
+    setManualAmount(resolvedFee.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setManualMethod('Dinheiro');
     setManualDate(format(new Date(), 'yyyy-MM-dd'));
   };
@@ -858,14 +914,33 @@ export function Contributions() {
 
   const toggleManualMonth = (monthIndex: number) => {
     setManualMonths(prev => {
+      let next: number[];
       if (prev.includes(monthIndex)) {
-        return prev.filter(m => m !== monthIndex);
+        next = prev.filter(m => m !== monthIndex);
+      } else {
+        if (prev.length >= 6) {
+          setNotification({ type: 'error', message: '⚠️ LIMITE ATINGIDO: Selecione no máximo 6 meses por lançamento para garantir o recibo em duas vias na página.' });
+          return prev;
+        }
+        next = [...prev, monthIndex].sort((a, b) => a - b);
       }
-      if (prev.length >= 6) {
-        setNotification({ type: 'error', message: '⚠️ LIMITE ATINGIDO: Selecione no máximo 6 meses por lançamento para garantir o recibo em duas vias na página.' });
-        return prev;
+
+      if (selectedStudent && next.length > 0) {
+        const studentClass = resolveStudentClass(selectedStudent);
+        const resolvedFee = financialConfigService.resolveFee({
+          year: selectedYear,
+          classId: selectedStudent.class_id || studentClass?.id,
+          className: studentClass?.name,
+          studentClass,
+          student: selectedStudent,
+          subjectId: (selectedStudent as any).subject_id || (selectedStudent as any).enrollments?.[0]?.subject_id || studentClass?.subject_id,
+          courseName: studentClass?.course || (selectedStudent as any).course || (studentClass ? detectCourseFromClass(studentClass) : ''),
+          period: (selectedStudent as any).period || studentClass?.period
+        }, financialSettings);
+        setManualAmount((resolvedFee * next.length).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
       }
-      return [...prev, monthIndex].sort((a, b) => a - b);
+
+      return next;
     });
   };
 
@@ -909,7 +984,7 @@ export function Contributions() {
         return;
       }
       
-      const studentClass = classes.find(c => c.id === selectedStudent.class_id);
+      const studentClass = resolveStudentClass(selectedStudent);
       const studentUnitId = (selectedStudent as any).unit_id || studentClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
 
       const recordsToInsert = manualMonths.map(monthIdx => ({
@@ -1382,7 +1457,7 @@ export function Contributions() {
       doc.setTextColor(71, 85, 105); // slate-600
       doc.text(`Matrícula: ${selectedStudent.registration_number || '---'}`, margin + 4, boxY + 15);
       
-      const studentClass = classes.find(c => c.id === selectedStudent.class_id);
+      const studentClass = resolveStudentClass(selectedStudent);
       doc.text(`Turma: ${studentClass?.name || '---'}`, margin + 4, boxY + 19);
 
       // Right Column: Período de Referência
@@ -2908,7 +2983,7 @@ export function Contributions() {
                         <div>
                           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Turma Acadêmica</p>
                           <p className="text-sm font-black text-[#00174b]">
-                            {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.class_id || selectedStudent?.class_id))?.name || '---'}
+                            {resolveStudentClass((receiptPreviewData?.[0] as any)?.student || selectedStudent)?.name || '---'}
                           </p>
                         </div>
                       </div>
@@ -3122,7 +3197,7 @@ export function Contributions() {
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Turma Acadêmica</p>
                       <p className="text-xs font-black text-[#00174b]">
-                        {classes.find(cl => cl.id === ((receiptPreviewData?.[0] as any)?.student?.class_id || selectedStudent?.class_id))?.name || '---'}
+                        {resolveStudentClass((receiptPreviewData?.[0] as any)?.student || selectedStudent)?.name || '---'}
                       </p>
                     </div>
                   </div>
