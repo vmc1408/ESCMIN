@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Eye, EyeOff, Repeat } from 'lucide-react';
+import { Calendar, Eye, EyeOff, Repeat, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getAllAcademicSchedulePeriods, formatDateBR, SchedulePeriod } from '../../lib/academicUtils';
 
@@ -7,12 +7,14 @@ interface AcademicScheduleSplashProps {
   settings: any;
   className?: string;
   defaultExpanded?: boolean;
+  onOpenDaysReport?: () => void;
 }
 
 export function AcademicScheduleSplash({ 
   settings, 
   className = '', 
-  defaultExpanded = true 
+  defaultExpanded = true,
+  onOpenDaysReport
 }: AcademicScheduleSplashProps) {
   const [showSchedule, setShowSchedule] = useState(() => {
     try {
@@ -133,6 +135,20 @@ export function AcademicScheduleSplash({
                 );
               })}
             </div>
+          )}
+
+          {/* Botão Relatório de Dias e Meses de Aula */}
+          {onOpenDaysReport && (
+            <button
+              type="button"
+              onClick={onOpenDaysReport}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-900 border border-blue-200/90 rounded-lg text-[10px] font-bold tracking-wide transition-all cursor-pointer shadow-2xs"
+              title="Abrir relatório de dias e meses de aula"
+            >
+              <CalendarDays size={12} className="text-blue-600" />
+              <span className="hidden sm:inline">Dias e Meses de Aula</span>
+              <span className="inline sm:hidden">Dias de Aula</span>
+            </button>
           )}
 
           {/* Botão Ocultar/Visualizar */}

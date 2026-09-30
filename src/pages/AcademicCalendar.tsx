@@ -497,6 +497,7 @@ export function AcademicCalendar() {
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [showInlineDaysReport, setShowInlineDaysReport] = useState(false);
   const [printType, setPrintType] = useState<'class_schedule' | 'days_and_months' | 'holiday_list' | 'annual_poster' | 'monthly_grid' | null>(null);
   const [printFilters, setPrintFilters] = useState({
     class_id: 'all',
@@ -2498,7 +2499,33 @@ export function AcademicCalendar() {
 
       {/* Splash do Cronograma Acadêmico (Ciclo Letivo, Semestres e Dias de Aula) */}
       {viewMode !== 'management' && (
-        <AcademicScheduleSplash settings={academicSettings} className="mb-4 animate-in fade-in duration-200" />
+        <AcademicScheduleSplash 
+          settings={academicSettings} 
+          className="mb-4 animate-in fade-in duration-200" 
+          onOpenDaysReport={() => setShowInlineDaysReport(prev => !prev)}
+        />
+      )}
+
+      {/* Relatório de Dias e Meses de Aula Inline (Integrado ao Cronograma) */}
+      {viewMode !== 'management' && showInlineDaysReport && (
+        <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-300">
+          <DayMonthClassReport
+            events={events}
+            currentYear={currentDate.getFullYear().toString()}
+            institution={institution}
+            isInlineView={true}
+            onPrint={() => {
+              setPrintType('days_and_months');
+              setTimeout(() => {
+                try {
+                  window.print();
+                } catch (e) {
+                  console.error(e);
+                }
+              }, 150);
+            }}
+          />
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -5329,20 +5356,25 @@ export function AcademicCalendar() {
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                     <Filter size={14} /> Filtros de Relatório
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
-                      <select 
-                        value={printFilters.class_id}
-                        onChange={(e) => setPrintFilters(prev => ({ ...prev, class_id: e.target.value }))}
-                        className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
-                      >
-                        <option value="all">Todas as Turmas Ativas</option>
-                        {classes.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className={cn(
+                    "grid gap-4 sm:gap-6",
+                    printType === 'days_and_months' ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+                  )}>
+                    {printType !== 'days_and_months' && (
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
+                        <select 
+                          value={printFilters.class_id}
+                          onChange={(e) => setPrintFilters(prev => ({ ...prev, class_id: e.target.value }))}
+                          className="w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-100"
+                        >
+                          <option value="all">Todas as Turmas Ativas</option>
+                          {classes.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Período de Exibição</label>
                       <select 
@@ -5668,9 +5700,7 @@ export function AcademicCalendar() {
           {printType === 'days_and_months' && (
             <DayMonthClassReport
               events={events}
-              classes={classes}
               currentYear={currentDate.getFullYear().toString()}
-              selectedClassId={printFilters.class_id}
               selectedWeekday={printFilters.weekday}
               selectedMonth={printFilters.month}
               institution={institution}
