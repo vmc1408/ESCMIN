@@ -2252,9 +2252,9 @@ export function AcademicCalendar() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 no-print">
+      <div className="max-w-6xl mx-auto px-4 pt-0 pb-8 space-y-6 no-print">
         {/* Sticky Header Wrapper */}
-        <div className="sticky top-0 z-30 bg-slate-100/98 backdrop-blur-md -mt-8 pt-3 sm:pt-4 pb-3 md:pb-5 border-b border-slate-200/90 -mx-4 px-4 space-y-2 md:space-y-4 shadow-xs">
+        <div className="sticky top-0 z-[50] bg-slate-100/90 backdrop-blur-md pt-3 sm:pt-4 pb-3 md:pb-5 border-b border-slate-200/90 w-[calc(100%+2rem)] -mx-4 px-4 space-y-2 md:space-y-4 shadow-2xs mb-4 sm:mb-6">
           {/* Row 1: Title and Action Buttons */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4 pb-1">
             <div className="space-y-0.5 md:space-y-1">
@@ -3227,7 +3227,7 @@ export function AcademicCalendar() {
                                 handleEdit(event);
                               }}
                                 className={cn(
-                                  "relative group px-1.5 py-0.5 rounded-none text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border hover:z-50",
+                                  "relative group px-1.5 py-0.5 rounded-none text-[8px] font-bold whitespace-normal break-words leading-[1.1] cursor-pointer transition-all hover:brightness-95 active:scale-95 border hover:z-30",
                                   getTypeStyle(event.type, event.start_date, event.title)
                                 )}
                             >
@@ -3425,7 +3425,7 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-50",
+                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-30",
                                     holiday 
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation
@@ -3526,7 +3526,7 @@ export function AcademicCalendar() {
                                   key={`${monthIndex}-${day}`}
                                   onClick={() => dayEvents.length > 0 && handleEdit(dayEvents[0])}
                                   className={cn(
-                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-50",
+                                    "aspect-square flex items-center justify-center rounded-none text-[10px] font-bold transition-all relative border w-full overflow-visible group cursor-pointer hover:z-30",
                                     holiday 
                                       ? "bg-red-50 text-red-600 border-red-100 shadow-sm bg-stripes-red"
                                       : isVacation

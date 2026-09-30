@@ -50,11 +50,11 @@ export function Layout() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:overflow-visible print:h-auto">
-        <div className="print:hidden sticky top-0 z-50 bg-white">
+        <div className="print:hidden sticky top-0 z-[60] bg-white border-b border-slate-200">
           <Navbar />
         </div>
         <main 
-          className="flex-1 overflow-y-auto p-2.5 sm:p-4 lg:p-6 custom-scrollbar print:overflow-visible print:p-0 [overflow-anchor:none]"
+          className="flex-1 overflow-y-auto px-2.5 sm:px-4 lg:px-6 pb-8 pt-0 custom-scrollbar print:overflow-visible print:p-0 [overflow-anchor:none]"
           style={{ overflowAnchor: 'none' }}
         >
           <div className="max-w-[1440px] w-full mx-auto print:max-w-none">

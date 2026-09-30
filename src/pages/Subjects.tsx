@@ -627,7 +627,7 @@ export function Subjects() {
   return (
     <>
       <div className={cn(
-        "print:hidden h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
+        "print:hidden pt-3 sm:pt-4 h-auto lg:h-[calc(100vh-5.5rem)] min-h-[calc(100vh-5.5rem)] lg:min-h-0 relative flex flex-col lg:flex-row gap-3 sm:gap-4 w-full transition-all duration-300",
         actualListCollapsed ? "justify-center" : "justify-start"
       )}>
       {/* Green Hover Sensor / Marker */}

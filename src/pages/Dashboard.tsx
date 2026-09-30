@@ -1437,6 +1437,14 @@ export function Dashboard() {
         </div>
       )}
 
+      {/* Module Header for Admin Dashboard */}
+      <PageHeader
+        title="Painel de Controle"
+        description="Indicadores acadêmicos, estatísticas e visão operacional da instituição."
+        icon={Activity}
+        badge="Administração"
+      />
+
       {/* Acesso Rápido - Botões com Estilo Leve, Limpo e Moderno */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}

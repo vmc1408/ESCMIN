@@ -1238,7 +1238,7 @@ export function Teachers() {
 
   return (
     <>
-      <div className="mb-3 print:hidden">
+      <div className="pt-3 sm:pt-4 mb-3 print:hidden">
         <UnitConflictBanner
           moduleName="Professores"
           entityNameSingular="professor"

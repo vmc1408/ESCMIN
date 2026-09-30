@@ -37,6 +37,7 @@ import { useUnits } from '../contexts/UnitContext';
 import { getItemUnitId } from '../lib/unitService';
 import { getTeacherScope } from '../lib/teacherScope';
 import { TeacherScopeBanner } from '../components/TeacherScopeBanner';
+import { PageHeader } from '../components/PageHeader';
 import { Teacher } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
@@ -1891,34 +1892,13 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
         }
       `}</style>
 
-      <div className="max-w-[1600px] mx-auto p-4 md:p-6 lg:p-6 space-y-6 no-print">
-      {/* Teacher Scope Notification / Indicator & Unit Conflict Alert */}
-      <TeacherScopeBanner scope={teacherScope} availableClassesCount={availableClasses.length} />
-
+      <div className="w-full space-y-6 no-print">
       {/* Page Header */}
-      <div className="sticky top-0 z-30 bg-slate-100/98 backdrop-blur-md -mt-4 md:-mt-6 lg:-mt-6 -mx-4 md:-mx-6 lg:-mx-6 px-4 md:px-6 lg:px-6 pt-3 sm:pt-4 pb-4 sm:pb-5 border-b border-slate-200/90 shadow-xs mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 p-2 bg-white rounded-none border border-slate-200 no-print flex items-center justify-center group overflow-hidden relative">
-            {institution?.logo ? (
-              <img src={institution.logo} alt="Logo" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 relative z-10" />
-            ) : (
-              <School size={20} className="text-slate-605 relative z-10" />
-            )}
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight uppercase">
-              {activeTab === 'marking' ? 'Chamada Diária' : 'Lista de Chamada'}
-            </h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-slate-400" />
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{institution?.name || 'CENTRO DE ENSINO'}</p>
-              </div>
-              <div className="hidden sm:block w-1 h-1 bg-slate-300" />
-              <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest bg-slate-100/60 px-3 py-1 rounded-none border border-slate-200/50">Diário Digital de Classe</p>
-            </div>
-          </div>
-        </div>
+      <PageHeader
+        title={activeTab === 'marking' ? 'Chamada Diária' : 'Lista de Chamada'}
+        description={`${institution?.name || 'CENTRO DE ENSINO'} • Diário Digital de Classe`}
+        icon={School}
+      >
 
         <div className="flex flex-wrap items-center gap-4">
           {selectedClass && (
@@ -2032,7 +2012,10 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
             )}
           </div>
         </div>
-      </div>
+      </PageHeader>
+
+      {/* Teacher Scope Notification / Indicator & Unit Conflict Alert */}
+      <TeacherScopeBanner scope={teacherScope} availableClassesCount={availableClasses.length} />
 
       {/* Main Content Area */}
       <div className="bg-white rounded-none border border-slate-200 shadow-sm text-slate-900">

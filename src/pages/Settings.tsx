@@ -58,6 +58,7 @@ import { FinancialSettingsTab } from '../components/FinancialSettingsTab';
 import { DatabaseSettingsTab, DatabaseScriptKey } from '../components/DatabaseSettingsTab';
 import { syncMatrizWithInstitution } from '../lib/unitService';
 import { financialService } from '../services/financialService';
+import { PageHeader } from '../components/PageHeader';
 import { schemaService } from '../services/schemaService';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -1014,25 +1015,23 @@ export function Settings() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 relative">
-      {/* Sticky Header with Title and save button */}
-      <div className="sticky top-0 z-30 bg-slate-100/98 backdrop-blur-md -mt-2.5 sm:-mt-4 lg:-mt-6 -mx-2.5 sm:-mx-4 lg:-mx-6 px-2.5 sm:px-4 lg:px-6 pt-3 sm:pt-4 lg:pt-5 pb-4 sm:pb-5 border-b border-slate-200/90 flex flex-row items-center justify-between gap-4 shadow-xs">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Configurações</h2>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão da Instituição e Parâmetros do Sistema</p>
-        </div>
-
-        {/* Top Save Button */}
+      {/* Module Header */}
+      <PageHeader
+        title="Configurações"
+        description="Gestão da Instituição e Parâmetros do Sistema"
+        icon={Wrench}
+      >
         {(activeTab === 'institution' || activeTab === 'academic') && (
           <button
             onClick={handleTopSave}
             disabled={saving}
-            className="px-6 py-2.5 bg-[#00174b] text-white rounded-xl font-black flex items-center gap-2 hover:bg-blue-900 transition-all shadow-md active:scale-95 disabled:opacity-50 text-[11px] uppercase tracking-wider"
+            className="px-6 py-2 bg-[#00174b] text-white rounded-none font-bold flex items-center gap-2 hover:bg-blue-900 transition-all shadow-xs active:scale-95 disabled:opacity-50 text-[10px] uppercase tracking-wider"
           >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             Salvar Configurações
           </button>
         )}
-      </div>
+      </PageHeader>
 
       {notification && (
         <div className={cn(
