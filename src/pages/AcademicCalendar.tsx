@@ -58,6 +58,7 @@ import { getTypeStyle, getTypeText, getTypeColor } from '../lib/calendar-utils';
 import { CalendarEvent, AcademicSettings, Class, Subject, InstitutionSettings, Course } from '../types';
 import { HolidayListReport } from '../components/calendar/HolidayListReport';
 import { AcademicScheduleSplash } from '../components/calendar/AcademicScheduleSplash';
+import { DayMonthClassReport } from '../components/calendar/DayMonthClassReport';
 import { HabilitationModal } from '../components/HabilitationModal';
 import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit } from '../lib/unitService';
@@ -496,7 +497,7 @@ export function AcademicCalendar() {
   const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showPrintOptions, setShowPrintOptions] = useState(false);
-  const [printType, setPrintType] = useState<'class_schedule' | 'holiday_list' | 'annual_poster' | 'monthly_grid' | null>(null);
+  const [printType, setPrintType] = useState<'class_schedule' | 'days_and_months' | 'holiday_list' | 'annual_poster' | 'monthly_grid' | null>(null);
   const [printFilters, setPrintFilters] = useState({
     class_id: 'all',
     weekday: 'all' as number | 'all',
@@ -5264,7 +5265,7 @@ export function AcademicCalendar() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-none p-4 sm:p-6 md:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 my-auto"
+              className="bg-white rounded-none p-4 sm:p-6 md:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 my-auto"
             >
               <div className="flex items-center justify-between mb-6 sm:mb-8">
                 <div className="flex items-center gap-3">
@@ -5290,9 +5291,10 @@ export function AcademicCalendar() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {[
                   { id: 'class_schedule', title: 'Relatório de Aulas', icon: FileDown, desc: 'Lista mensal filtrável por turma e dia.' },
+                  { id: 'days_and_months', title: 'Dias e Meses de Aula', icon: CalendarDays, desc: 'Dias e meses de aula separados por dia da semana.' },
                   { id: 'holiday_list', title: 'Lista de Feriados', icon: Bookmark, desc: 'Listagem completa dos feriados nacionais e locais.' },
                   { id: 'annual_poster', title: 'Pôster Anual', icon: Target, desc: 'Grade compacta de 12 meses em página única.' },
                   { id: 'monthly_grid', title: 'Calendário Mensal', icon: LayoutGrid, desc: 'Visualização clássica do mês selecionado com grade estruturada.' }
@@ -5318,7 +5320,7 @@ export function AcademicCalendar() {
                 ))}
               </div>
 
-              {(printType === 'class_schedule' || printType === 'monthly_grid') && (
+              {(printType === 'class_schedule' || printType === 'days_and_months' || printType === 'monthly_grid') && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -5440,6 +5442,7 @@ export function AcademicCalendar() {
                     <div className="text-right flex flex-col justify-center">
                       <h2 className="text-[13px] font-bold text-slate-800 uppercase tracking-widest">
                         {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
+                         printType === 'days_and_months' ? 'Relatório de Dias e Meses Letivos' :
                          printType === 'holiday_list' ? 'Listagem de Feriados' :
                          printType === 'annual_poster' ? 'Calendário Anual' : 'Calendário Mensal'}
                       </h2>
@@ -5659,6 +5662,19 @@ export function AcademicCalendar() {
                 );
               })}
             </div>
+          )}
+
+          {/* Relatório Adicional: Dias e Meses de Aula (separado por dia da semana) */}
+          {printType === 'days_and_months' && (
+            <DayMonthClassReport
+              events={events}
+              classes={classes}
+              currentYear={currentDate.getFullYear().toString()}
+              selectedClassId={printFilters.class_id}
+              selectedWeekday={printFilters.weekday}
+              selectedMonth={printFilters.month}
+              institution={institution}
+            />
           )}
 
           {/* Relatório: Listagem de Feriados */}
