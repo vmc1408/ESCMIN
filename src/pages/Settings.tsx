@@ -1015,7 +1015,7 @@ export function Settings() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 relative">
       {/* Sticky Header with Title and save button */}
-      <div className="sticky top-[-8px] md:top-[-16px] bg-slate-100/95 backdrop-blur-md z-10 py-4 -mx-2 md:-mx-4 px-2 md:px-4 border-b border-slate-200/80 flex flex-row items-center justify-between gap-4">
+      <div className="sticky top-0 z-30 bg-slate-100/98 backdrop-blur-md -mt-2.5 sm:-mt-4 lg:-mt-6 -mx-2.5 sm:-mx-4 lg:-mx-6 px-2.5 sm:px-4 lg:px-6 pt-3 sm:pt-4 lg:pt-5 pb-4 sm:pb-5 border-b border-slate-200/90 flex flex-row items-center justify-between gap-4 shadow-xs">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Configurações</h2>
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão da Instituição e Parâmetros do Sistema</p>

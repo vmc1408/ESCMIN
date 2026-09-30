@@ -691,7 +691,7 @@ export function Receipts() {
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
+    <div className="max-w-7xl mx-auto space-y-6 font-sans">
       <PageHeader 
         title="Recibos de Pagamento" 
         description="Gerenciamento e emissão de recibos padrão para professores e prestadores de serviços."

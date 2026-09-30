@@ -1896,7 +1896,7 @@ export function Attendance({ initialMode }: AttendanceProps = {}) {
       <TeacherScopeBanner scope={teacherScope} availableClassesCount={availableClasses.length} />
 
       {/* Page Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="sticky top-0 z-30 bg-slate-100/98 backdrop-blur-md -mt-4 md:-mt-6 lg:-mt-6 -mx-4 md:-mx-6 lg:-mx-6 px-4 md:px-6 lg:px-6 pt-3 sm:pt-4 pb-4 sm:pb-5 border-b border-slate-200/90 shadow-xs mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 p-2 bg-white rounded-none border border-slate-200 no-print flex items-center justify-center group overflow-hidden relative">
             {institution?.logo ? (

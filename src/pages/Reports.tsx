@@ -1804,51 +1804,47 @@ export function Reports() {
       )}
 
       {/* Modern Sticky Header */}
-      <div className="bg-white border-b border-slate-200 px-8 py-4 mb-8 sticky top-0 z-10 shadow-sm print:hidden">
-        <div className="max-w-[1920px] mx-auto">
-          <PageHeader
-            title="Relatórios Estratégicos"
-            description="Métricas de desempenho e estatísticas internas de uso exclusivo para controle da escola."
-            icon={BarChart3}
+      <PageHeader
+        title="Relatórios Estratégicos"
+        description="Métricas de desempenho e estatísticas internas de uso exclusivo para controle da escola."
+        icon={BarChart3}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200">
+            {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  setSearchParams({ tab: cat });
+                }}
+                className={cn(
+                  "px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
+                  activeCategory === cat 
+                    ? "bg-white text-slate-900 border border-slate-200 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : 'Professores'}
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={handlePrint}
+            className="h-10 w-10 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+            title="Imprimir Relatório"
           >
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex bg-slate-100 p-1 rounded-none border border-slate-200">
-                {(['dashboard', 'financial', 'academic', 'attendance', 'operational'] as ReportCategory[]).map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      setActiveCategory(cat);
-                      setSearchParams({ tab: cat });
-                    }}
-                    className={cn(
-                      "px-4 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer",
-                      activeCategory === cat 
-                        ? "bg-white text-slate-900 border border-slate-200 shadow-sm" 
-                        : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    {cat === 'dashboard' ? 'Estratégico' : cat === 'financial' ? 'Financeiro' : cat === 'academic' ? 'Matrículas' : cat === 'attendance' ? 'Frequência' : 'Professores'}
-                  </button>
-                ))}
-              </div>
-              <button 
-                onClick={handlePrint}
-                className="h-10 w-10 bg-white border border-slate-200 text-slate-600 rounded-none hover:bg-slate-50 transition-all flex items-center justify-center shadow-sm cursor-pointer"
-                title="Imprimir Relatório"
-              >
-                <Printer size={16} />
-              </button>
-              <button 
-                onClick={() => generateReport(activeCategory)}
-                className="h-10 px-5 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider rounded-none flex items-center gap-2 hover:opacity-95 transition-all shadow-sm cursor-pointer"
-              >
-                <FileDown size={14} />
-                Exportar Relatório
-              </button>
-            </div>
-          </PageHeader>
+            <Printer size={16} />
+          </button>
+          <button 
+            onClick={() => generateReport(activeCategory)}
+            className="h-10 px-5 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider rounded-none flex items-center gap-2 hover:opacity-95 transition-all shadow-sm cursor-pointer"
+          >
+            <FileDown size={14} />
+            Exportar Relatório
+          </button>
         </div>
-      </div>
+      </PageHeader>
 
       <div className="max-w-[1920px] mx-auto px-8 space-y-4 print:hidden">
         {/* Unit Conflict Banner */}

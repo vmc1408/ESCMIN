@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn, detectCourseFromClass } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 import { fetchAll, saveData, saveBatch, deleteBatch } from '../lib/database';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useImport, ImportType } from '../contexts/ImportContext';
@@ -671,22 +672,11 @@ export function Import() {
       )}
 
       {/* Header & Tabs */}
-      <div className="bg-white border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-slate-900 text-white">
-              <FileSpreadsheet size={20} />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Importação & Sincronização de Dados</h2>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Importe planilhas Excel/CSV com acompanhamento em tempo real e opção de reversão segura.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Selector */}
+      <PageHeader
+        title="Importação & Sincronização"
+        description="Importe planilhas Excel/CSV com acompanhamento em tempo real e opção de reversão segura."
+        icon={FileSpreadsheet}
+      >
         <div className="flex items-center border border-slate-200 bg-slate-100 p-1">
           <button
             onClick={() => setActiveTab('import')}
@@ -717,7 +707,7 @@ export function Import() {
             )}
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* TAB 1: NEW IMPORT */}
       {activeTab === 'import' && (

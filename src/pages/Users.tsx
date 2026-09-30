@@ -8,6 +8,7 @@ import { UserProfile, UserRole, Teacher } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnits } from '../contexts/UnitContext';
 import { findTeacherForUser } from '../lib/teacherScope';
+import { PageHeader } from '../components/PageHeader';
 import Webcam from 'react-webcam';
 
 export function Users() {
@@ -636,34 +637,24 @@ export function Users() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-6">
-      {/* Dynamic Header & Stats Center */}
-      <div className="max-w-4xl mx-auto flex flex-col gap-6">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <div className="w-1.5 h-6 bg-[#00174b] rounded-full" />
-              <h2 className="text-2xl font-black text-[#131b2e] tracking-tight">
-                {(isAdmin || isDirector) ? 'Controle de Acessos' : 'Meu Perfil'}
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 font-medium ml-4">
-              {(isAdmin || isDirector) ? 'Gerenciamento centralizado de credenciais e privilégios.' : 'Segurança e informações da sua conta institucional.'}
-            </p>
-          </div>
-          
-          {(isAdmin || isDirector) && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleAddNew}
-                className="px-6 py-3 bg-[#00174b] text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#002a8a] transition-all shadow-lg active:scale-95 group"
-              >
-                <Plus size={14} className="group-hover:rotate-90 transition-transform" />
-                Novo Gestor
-              </button>
-            </div>
-          )}
-        </header>
+      {/* Dynamic Header */}
+      <PageHeader
+        title={(isAdmin || isDirector) ? 'Controle de Acessos' : 'Meu Perfil'}
+        description={(isAdmin || isDirector) ? 'Gerenciamento centralizado de credenciais e privilégios.' : 'Segurança e informações da sua conta institucional.'}
+        icon={Shield}
+      >
+        {(isAdmin || isDirector) && (
+          <button
+            onClick={handleAddNew}
+            className="px-5 py-2.5 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-sm active:scale-95 group"
+          >
+            <Plus size={14} className="group-hover:rotate-90 transition-transform" />
+            Novo Gestor
+          </button>
+        )}
+      </PageHeader>
 
+      <div className="max-w-4xl mx-auto flex flex-col gap-6">
         {/* Operational Indicators - Compact */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">

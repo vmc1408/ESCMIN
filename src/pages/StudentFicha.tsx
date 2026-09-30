@@ -1034,24 +1034,20 @@ export function StudentFicha() {
       </AnimatePresence>
 
       {/* Screen Title Block */}
-      <div className="bg-white border-b border-slate-200 px-8 py-4 print:hidden">
-        <div className="max-w-7xl mx-auto">
-          <PageHeader
-            title="Controle e Histórico"
-            description="Controle de frequência e aproveitamento acadêmico por disciplinas para registro institucional da escola."
-            icon={User}
+      <PageHeader
+        title="Controle e Histórico"
+        description="Controle de frequência e aproveitamento acadêmico por disciplinas para registro institucional da escola."
+        icon={User}
+      >
+        {activeStudent && (
+          <button
+            onClick={triggerDossierPrint}
+            className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 cursor-pointer rounded-none"
           >
-            {activeStudent && (
-              <button
-                onClick={triggerDossierPrint}
-                className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0 cursor-pointer rounded-none"
-              >
-                <Printer size={14} /> Imprimir Documento
-              </button>
-            )}
-          </PageHeader>
-        </div>
-      </div>
+            <Printer size={14} /> Imprimir Documento
+          </button>
+        )}
+      </PageHeader>
 
       {/* Unit Conflict Banner */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-4 print:hidden">

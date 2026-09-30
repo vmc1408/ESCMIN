@@ -2254,7 +2254,7 @@ export function AcademicCalendar() {
     <>
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 no-print">
         {/* Sticky Header Wrapper */}
-        <div className="relative md:sticky md:top-[-16px] z-20 bg-slate-50/95 backdrop-blur-md pt-2 pb-3 md:pb-5 border-b border-slate-200/80 -mx-4 px-4 space-y-2 md:space-y-4">
+        <div className="sticky top-0 z-30 bg-slate-100/98 backdrop-blur-md -mt-8 pt-3 sm:pt-4 pb-3 md:pb-5 border-b border-slate-200/90 -mx-4 px-4 space-y-2 md:space-y-4 shadow-xs">
           {/* Row 1: Title and Action Buttons */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4 pb-1">
             <div className="space-y-0.5 md:space-y-1">

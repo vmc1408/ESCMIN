@@ -751,56 +751,54 @@ const handleExportCSV = () => {
 return (
   <div className="space-y-6">
     {/* PageHeader exclusivo na visualização em tela */}
-    <div className="print:hidden">
-      <PageHeader
-        title="Relatório Financeiro"
-        description="Acompanhamento consolidado de contribuições e mensalidades previstas e efetuadas por turma."
-        icon={DollarSign}
-        badge={getUnitName(selectedUnitId) || 'Geral'}
-      >
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
-            title="Recarregar Dados Financeiros"
-          >
-            <RefreshCw size={14} className={cn(loading && "animate-spin")} />
-            <span className="hidden sm:inline">Atualizar</span>
-          </button>
+    <PageHeader
+      title="Relatório Financeiro"
+      description="Acompanhamento consolidado de contribuições e mensalidades previstas e efetuadas por turma."
+      icon={DollarSign}
+      badge={getUnitName(selectedUnitId) || 'Geral'}
+    >
+      <div className="flex items-center gap-2">
+        <button
+          onClick={loadData}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
+          title="Recarregar Dados Financeiros"
+        >
+          <RefreshCw size={14} className={cn(loading && "animate-spin")} />
+          <span className="hidden sm:inline">Atualizar</span>
+        </button>
 
-          <button
-            onClick={handleExportCSV}
-            disabled={!isFilterReady}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
-            title={isFilterReady ? "Exportar dados para Excel/CSV" : "Selecione os parâmetros para exportar"}
-          >
-            <FileSpreadsheet size={15} className="text-emerald-600" />
-            <span className="hidden sm:inline">Exportar CSV</span>
-          </button>
+        <button
+          onClick={handleExportCSV}
+          disabled={!isFilterReady}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
+          title={isFilterReady ? "Exportar dados para Excel/CSV" : "Selecione os parâmetros para exportar"}
+        >
+          <FileSpreadsheet size={15} className="text-emerald-600" />
+          <span className="hidden sm:inline">Exportar CSV</span>
+        </button>
 
-          <button
-            onClick={handleExportPDF}
-            disabled={!isFilterReady || isExportingPDF}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
-            title={isFilterReady ? "Baixar em formato PDF Oficial" : "Selecione os parâmetros para baixar PDF"}
-          >
-            <Download size={15} className="text-blue-700" />
-            <span className="hidden sm:inline">{isExportingPDF ? 'Gerando...' : 'Baixar PDF'}</span>
-          </button>
+        <button
+          onClick={handleExportPDF}
+          disabled={!isFilterReady || isExportingPDF}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95"
+          title={isFilterReady ? "Baixar em formato PDF Oficial" : "Selecione os parâmetros para baixar PDF"}
+        >
+          <Download size={15} className="text-blue-700" />
+          <span className="hidden sm:inline">{isExportingPDF ? 'Gerando...' : 'Baixar PDF'}</span>
+        </button>
 
-          <button
-            onClick={handlePrint}
-            disabled={!isFilterReady}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
-            title={isFilterReady ? "Imprimir relatório formatado" : "Selecione os parâmetros para imprimir"}
-          >
-            <Printer size={15} />
-            <span>Imprimir</span>
-          </button>
-        </div>
-      </PageHeader>
-    </div>
+        <button
+          onClick={handlePrint}
+          disabled={!isFilterReady}
+          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+          title={isFilterReady ? "Imprimir relatório formatado" : "Selecione os parâmetros para imprimir"}
+        >
+          <Printer size={15} />
+          <span>Imprimir</span>
+        </button>
+      </div>
+    </PageHeader>
 
     {/* Cabeçalho Oficial de Impressão (visível apenas na impressão) */}
     <div className="hidden print:block mb-6 border-b border-slate-300 pb-4">

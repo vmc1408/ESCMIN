@@ -21,6 +21,7 @@ import {
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { fetchAll, saveData } from '../lib/database';
 import { motion, AnimatePresence } from 'motion/react';
+import { PageHeader } from '../components/PageHeader';
 
 // Definitions for scan items
 interface ScanCandidate {
@@ -748,19 +749,13 @@ export function ArchivePage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 md:p-2">
+    <div className="flex flex-col gap-6">
       {/* Title section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-5 gap-4">
-        <div>
-          <h1 className="text-xl font-black text-[#00174b] uppercase tracking-widest flex items-center gap-2">
-            <Archive className="text-slate-700" size={24} />
-            Gestão do Arquivo Morto
-          </h1>
-          <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider mt-1">
-            Mantenha o banco rápido limpando e isolando dados sem movimentação de forma controlada.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Gestão do Arquivo Morto"
+        description="Mantenha o banco rápido limpando e isolando dados sem movimentação de forma controlada."
+        icon={Archive}
+      />
 
       {/* Floating Notifications */}
       {notification && (
