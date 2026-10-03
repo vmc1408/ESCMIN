@@ -498,7 +498,7 @@ export function AcademicCalendar() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [showInlineDaysReport, setShowInlineDaysReport] = useState(false);
-  const [printType, setPrintType] = useState<'class_schedule' | 'days_and_months' | 'holiday_list' | 'annual_poster' | 'monthly_grid' | null>(null);
+  const [printType, setPrintType] = useState<'class_schedule' | 'days_and_months' | 'days_consolidated' | 'days_detailed' | 'holiday_list' | 'annual_poster' | 'monthly_grid' | null>(null);
   const [printFilters, setPrintFilters] = useState({
     class_id: 'all',
     weekday: 'all' as number | 'all',
@@ -5318,13 +5318,14 @@ export function AcademicCalendar() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {[
                   { id: 'class_schedule', title: 'Relatório de Aulas', icon: FileDown, desc: 'Lista mensal filtrável por turma e dia.' },
-                  { id: 'days_and_months', title: 'Dias e Meses de Aula', icon: CalendarDays, desc: 'Dias e meses de aula separados por dia da semana.' },
+                  { id: 'days_consolidated', title: 'Aulas Consolidado', icon: Calendar, desc: 'Totais de aulas de cada mês separados por dia da semana.' },
+                  { id: 'days_detailed', title: 'Aulas Detalhado', icon: CalendarDays, desc: 'Relação dos dias individuais de aula definidos no cronograma.' },
                   { id: 'holiday_list', title: 'Lista de Feriados', icon: Bookmark, desc: 'Listagem completa dos feriados nacionais e locais.' },
                   { id: 'annual_poster', title: 'Pôster Anual', icon: Target, desc: 'Grade compacta de 12 meses em página única.' },
-                  { id: 'monthly_grid', title: 'Calendário Mensal', icon: LayoutGrid, desc: 'Visualização clássica do mês selecionado com grade estruturada.' }
+                  { id: 'monthly_grid', title: 'Calendário Mensal', icon: LayoutGrid, desc: 'Visualização clássica do mês com grade estruturada.' }
                 ].map((option) => (
                   <button
                     key={option.id}
@@ -5347,7 +5348,7 @@ export function AcademicCalendar() {
                 ))}
               </div>
 
-              {(printType === 'class_schedule' || printType === 'days_and_months' || printType === 'monthly_grid') && (
+              {(printType === 'class_schedule' || printType === 'days_and_months' || printType === 'days_consolidated' || printType === 'days_detailed' || printType === 'monthly_grid') && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -5358,9 +5359,9 @@ export function AcademicCalendar() {
                   </h4>
                   <div className={cn(
                     "grid gap-4 sm:gap-6",
-                    printType === 'days_and_months' ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+                    (printType === 'days_and_months' || printType === 'days_consolidated' || printType === 'days_detailed') ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
                   )}>
-                    {printType !== 'days_and_months' && (
+                    {printType !== 'days_and_months' && printType !== 'days_consolidated' && printType !== 'days_detailed' && (
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-1">Turma Específica</label>
                         <select 
@@ -5474,6 +5475,8 @@ export function AcademicCalendar() {
                     <div className="text-right flex flex-col justify-center">
                       <h2 className="text-[13px] font-bold text-slate-800 uppercase tracking-widest">
                         {printType === 'class_schedule' ? 'Cronograma Acadêmico' : 
+                         printType === 'days_consolidated' ? 'Relatório de Aulas (Consolidado por Mês)' :
+                         printType === 'days_detailed' ? 'Relatório de Aulas (Dias Individuais)' :
                          printType === 'days_and_months' ? 'Relatório de Dias e Meses Letivos' :
                          printType === 'holiday_list' ? 'Listagem de Feriados' :
                          printType === 'annual_poster' ? 'Calendário Anual' : 'Calendário Mensal'}
@@ -5697,13 +5700,14 @@ export function AcademicCalendar() {
           )}
 
           {/* Relatório Adicional: Dias e Meses de Aula (separado por dia da semana) */}
-          {printType === 'days_and_months' && (
+          {(printType === 'days_and_months' || printType === 'days_consolidated' || printType === 'days_detailed') && (
             <DayMonthClassReport
               events={events}
               currentYear={currentDate.getFullYear().toString()}
               selectedWeekday={printFilters.weekday}
               selectedMonth={printFilters.month}
               institution={institution}
+              variant={printType === 'days_consolidated' ? 'consolidated' : printType === 'days_detailed' ? 'detailed' : 'both'}
             />
           )}
 

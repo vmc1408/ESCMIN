@@ -38,6 +38,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getStudentContributionPlan, formatContributionMonth, isFirstYearOrStarting } from '../lib/contributionRules';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -269,25 +270,26 @@ const isMonthOverdue = (month: number, year: number) => {
 
   if (year < currentYear) return true;
   if (year > currentYear) return false;
+  if (month === 0) return currentMonth >= 2;
   return month < currentMonth;
 };
 
 const isMonthCurrent = (month: number, year: number) => {
   const now = new Date();
-  return year === now.getFullYear() && month === (now.getMonth() + 1);
+  if (year !== now.getFullYear()) return false;
+  if (month === 0) return now.getMonth() + 1 <= 2;
+  return month === (now.getMonth() + 1);
 };
 
 const isMonthFuture = (month: number, year: number) => {
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-
-  if (year > currentYear) return true;
-  if (year < currentYear) return false;
-  return month > currentMonth;
+  if (year > now.getFullYear()) return true;
+  if (year < now.getFullYear()) return false;
+  if (month === 0) return false;
+  return month > (now.getMonth() + 1);
 };
 
-// Helper para descobrir os meses esperados academicamente para o aluno no ano com base no calendário e matrícula
+// Helper para descobrir os meses esperados academicamente para o aluno no ano com base no plano de contribuições
 const getExpectedMonthsForStudent = useCallback((student: Student, year: number, paidMonths: number[] = []) => {
   if (student.start_date) {
     const startDate = parseSafeDate(student.start_date);
@@ -296,70 +298,14 @@ const getExpectedMonthsForStudent = useCallback((student: Student, year: number,
     }
   }
 
-  let studentStartMonth = 1;
-  if (student.start_date) {
-    const startDate = parseSafeDate(student.start_date);
-    if (!isNaN(startDate.getTime()) && startDate.getFullYear() === year) {
-      studentStartMonth = startDate.getMonth() + 1;
-    }
-  }
-
   const studentClass = classes.find(c => c.id === student.class_id);
-  if (studentClass?.start_date) {
-    const classStartDate = parseSafeDate(studentClass.start_date);
-    if (!isNaN(classStartDate.getTime()) && classStartDate.getFullYear() === year) {
-      studentStartMonth = Math.max(studentStartMonth, classStartDate.getMonth() + 1);
-    }
-  }
-
-  let academicStartMonth = 1;
-  let academicEndMonth = 12;
-
-  // Busca configurações acadêmicas da turma, unidade ou geral
   const classSettings = academicSettingsList.find(s => s && (s.id === student.class_id || s.id === `academic_settings_${student.class_id}`));
   const unitSettings = academicSettingsList.find(s => s && s.id === `academic_settings_${student.unit_id}`);
   const generalSettings = academicSettingsList.find(s => s && s.id === 'current');
   const activeSettings = classSettings || unitSettings || generalSettings;
 
-  if (activeSettings) {
-    if (activeSettings.term1_start) {
-      const date = new Date(activeSettings.term1_start + 'T00:00:00');
-      if (!isNaN(date.getTime())) {
-        academicStartMonth = date.getMonth() + 1;
-      }
-    }
-    if (activeSettings.term2_end) {
-      const date = new Date(activeSettings.term2_end + 'T00:00:00');
-      if (!isNaN(date.getTime())) {
-        academicEndMonth = date.getMonth() + 1;
-      }
-    }
-  }
-
-  // Ajuste por semestre da turma
-  if (studentClass?.semester === '2' && academicStartMonth < 7) {
-    academicStartMonth = Math.max(academicStartMonth, 7);
-  } else if (studentClass?.semester === '1' && academicEndMonth > 6) {
-    academicEndMonth = Math.min(academicEndMonth, 6);
-  }
-
-  const expected: number[] = [];
-  const minMonth = Math.max(studentStartMonth, academicStartMonth);
-  const maxMonth = Math.min(12, Math.max(academicEndMonth, minMonth));
-
-  for (let m = minMonth; m <= maxMonth; m++) {
-    expected.push(m);
-  }
-
-  // Inclui meses que o aluno pagou mesmo se estiverem fora da grade padrão (ex: antecipações)
-  paidMonths.forEach(m => {
-    if (m >= studentStartMonth && !expected.includes(m)) {
-      expected.push(m);
-    }
-  });
-
-  expected.sort((a, b) => a - b);
-  return expected;
+  const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings);
+  return plan.expectedPeriods;
 }, [academicSettingsList, classes]);
 
 // Helper para descobrir o valor da contribuição mensal do aluno:
@@ -445,11 +391,14 @@ const reportData = useMemo(() => {
     const paidMonthsInYear = studentContribs.map(c => Number(c.reference_month));
     const allExpectedInYear = getExpectedMonthsForStudent(student, yearNum, paidMonthsInYear);
 
-    // Meses esperados que caem no período selecionado
-    const expectedInPeriod = periodMonths.filter(m => allExpectedInYear.includes(m));
+    // Meses esperados que caem no período selecionado (se anual ou 1º sem, inclui taxa de matrícula se esperada/paga)
+    const shouldIncludeMatricula = (periodType === 'anual' || (periodType === 'semestral' && selectedSemester === '1')) && (allExpectedInYear.includes(0) || paidMonthsInYear.includes(0));
+    const relevantPeriods = shouldIncludeMatricula ? [0, ...periodMonths] : periodMonths;
+
+    const expectedInPeriod = relevantPeriods.filter(m => allExpectedInYear.includes(m));
 
     // Contribuições correspondentes aos meses do período
-    const contribsInPeriod = studentContribs.filter(c => periodMonths.includes(Number(c.reference_month)));
+    const contribsInPeriod = studentContribs.filter(c => relevantPeriods.includes(Number(c.reference_month)));
 
     // 1. Valor Previsto: Total da arrecadação com base no calendário e na matrícula
     const valorPrevisto = expectedInPeriod.length * fee;
@@ -468,7 +417,7 @@ const reportData = useMemo(() => {
     let overdueMonthsCount = 0;
     let futurePendingTotal = 0;
 
-    const monthsStatus = periodMonths.map(m => {
+    const monthsStatus = relevantPeriods.map(m => {
       const isExpected = allExpectedInYear.includes(m);
       const amountPaid = paidByMonth.get(m) || 0;
       const isPaid = amountPaid >= fee || (amountPaid > 0 && isExpected && amountPaid >= fee * 0.9);
@@ -486,8 +435,8 @@ const reportData = useMemo(() => {
 
       return {
         month: m,
-        monthName: MONTH_NAMES[m - 1],
-        monthShort: MONTH_SHORT[m - 1],
+        monthName: m === 0 ? 'Matrícula' : (MONTH_NAMES[m - 1] || `Mês ${m}`),
+        monthShort: m === 0 ? 'Matr.' : (MONTH_SHORT[m - 1] || `M${m}`),
         isExpected,
         isPaid,
         isOverdue,

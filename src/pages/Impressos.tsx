@@ -25,6 +25,7 @@ import { financialService } from '../services/financialService';
 import { cn, formatDateForDisplay, filterStudentsForClass, formatRegistrationNumber, normalizeClass, matchesStudentSearch, calculateStudentSearchRank } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
+import { getStudentContributionPlan, formatContributionMonth, isPeriodOverdue } from '../lib/contributionRules';
 
 type PrintType = 'declaracao' | 'ficha' | 'carteirinhas' | 'quitacao' | 'carta' | 'etiquetas';
 
@@ -263,50 +264,22 @@ export function Impressos() {
       c => c.student_id === activeStudent.id && c.reference_year === currentYear
     );
     
-    // Check months starting from their start_date month (if it falls in the current year), otherwise from January
-    let startCheckMonth = 1; // Default to January
-    if (activeStudent.start_date) {
-      const dateParts = activeStudent.start_date.split('/');
-      if (dateParts.length === 3) {
-        const startYear = parseInt(dateParts[2], 10);
-        const startMonth = parseInt(dateParts[1], 10);
-        if (startYear === currentYear) {
-          startCheckMonth = startMonth;
-        }
-      } else {
-        const datePartsDash = activeStudent.start_date.split('-');
-        if (datePartsDash.length === 3) {
-          const startYear = parseInt(datePartsDash[0], 10);
-          const startMonth = parseInt(datePartsDash[1], 10);
-          if (startYear === currentYear) {
-            startCheckMonth = startMonth;
-          }
-        }
-      }
-    }
-    
-    const currentMonth = new Date().getMonth() + 1;
-    const unpaidMonths: number[] = [];
-    
-    // Check months up to the current month
-    for (let m = startCheckMonth; m <= currentMonth; m++) {
-      const paid = studentConts.some(c => c.reference_month === m);
-      if (!paid) {
-        unpaidMonths.push(m);
-      }
-    }
-    
-    const MONTH_NAMES: { [key: number]: string } = {
-      1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
-      7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
-    };
+    const studentClass = classes.find(c => c.id === activeStudent.class_id);
+    const paidMonths = studentConts.map(c => c.reference_month);
+    const plan = getStudentContributionPlan(activeStudent, studentClass, currentYear, paidMonths);
+
+    // Meses ou períodos vencidos até o momento atual
+    const unpaidPeriods = plan.expectedPeriods.filter(m => {
+      if (paidMonths.includes(m)) return false;
+      return isPeriodOverdue(m, currentYear, plan.meetingsStartMonth);
+    });
     
     return {
-      isPending: unpaidMonths.length > 0,
-      months: unpaidMonths.map(m => MONTH_NAMES[m] || `Mês ${m}`),
+      isPending: unpaidPeriods.length > 0,
+      months: unpaidPeriods.map(m => formatContributionMonth(m)),
       year: currentYear
     };
-  }, [activeStudent, contributions]);
+  }, [activeStudent, contributions, classes]);
 
   const formatPendingMonthsText = useCallback((months: string[]) => {
     if (months.length === 0) return '';

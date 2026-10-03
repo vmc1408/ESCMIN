@@ -31,6 +31,7 @@ import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { financialService } from '../services/financialService';
 import { financialConfigService } from '../services/financialConfigService';
+import { getStudentContributionPlan, formatContributionMonth, isPeriodOverdue } from '../lib/contributionRules';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -337,64 +338,28 @@ export function StudentFicha() {
     if (!student || student.status !== 'Ativo') return null;
 
     const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
 
-    // Helper to calculate expected months based on enrollment
-    let studentStartMonth = 1;
-    if (student.start_date) {
-      const startDate = new Date(student.start_date);
-      if (!isNaN(startDate.getTime()) && startDate.getFullYear() === currentYear) {
-        studentStartMonth = startDate.getMonth() + 1;
-      } else if (!isNaN(startDate.getTime()) && startDate.getFullYear() > currentYear) {
-        return null; // Future start date
-      }
-    }
+    const studentClass = classes.find(c => 
+      c.id === student.class_id ||
+      ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
+      ((student as any).course && c.course && c.course.trim().toLowerCase() === (student as any).course.trim().toLowerCase()) ||
+      ((student as any).course && c.name && c.name.toLowerCase().includes((student as any).course.toLowerCase()))
+    );
 
-    // Determine academic year start month and end month from settings
-    let academicStartMonth = 3; // Default March (3) as a fallback
-    let academicEndMonth = 11; // Default November (11) as a fallback
-
-    // Try finding settings for the student's class, then fallback to current settings, then default
     const classSettings = academicSettingsList.find(s => s.id === student.class_id);
     const generalSettings = academicSettingsList.find(s => s.id === 'current');
     const activeSettings = classSettings || generalSettings;
 
-    if (activeSettings) {
-      if (activeSettings.term1_start) {
-        const date = new Date(activeSettings.term1_start + 'T00:00:00');
-        if (!isNaN(date.getTime())) {
-          academicStartMonth = date.getMonth() + 1;
-        }
-      }
-      if (activeSettings.term2_end) {
-        const date = new Date(activeSettings.term2_end + 'T00:00:00');
-        if (!isNaN(date.getTime())) {
-          academicEndMonth = date.getMonth() + 1;
-        }
-      }
-    }
-
-    // Since it's an overdue/pending alert, we only check up to the minimum of currentMonth and academicEndMonth.
-    const effectiveEndMonth = Math.min(currentMonth, academicEndMonth);
-
-    const expectedMonths: number[] = [];
-    const minMonth = Math.max(studentStartMonth, academicStartMonth);
-    const maxMonth = effectiveEndMonth;
-
-    for (let m = minMonth; m <= maxMonth; m++) {
-      expectedMonths.push(m);
-    }
-
     const paidMonths = studentContributions.map(c => c.reference_month);
-    const unpaidMonths = expectedMonths.filter(m => !paidMonths.includes(m));
+    const plan = getStudentContributionPlan(student, studentClass, currentYear, paidMonths, activeSettings);
+
+    // Meses ou períodos vencidos até o momento atual
+    const unpaidMonths = plan.expectedPeriods.filter(m => {
+      if (paidMonths.includes(m)) return false;
+      return isPeriodOverdue(m, currentYear, plan.meetingsStartMonth);
+    });
 
     if (unpaidMonths.length > 0) {
-      const studentClass = classes.find(c => 
-        c.id === student.class_id ||
-        ((student as any).enrollments && (student as any).enrollments.some((e: any) => e.class_id === c.id)) ||
-        ((student as any).course && c.course && c.course.trim().toLowerCase() === (student as any).course.trim().toLowerCase()) ||
-        ((student as any).course && c.name && c.name.toLowerCase().includes((student as any).course.toLowerCase()))
-      );
       const studentFee = financialConfigService.resolveFee({
         year: currentYear,
         classId: student.class_id || studentClass?.id,
@@ -1224,7 +1189,7 @@ export function StudentFicha() {
                     <div className="flex items-center gap-2 text-xs text-amber-900">
                       <AlertCircle className="text-amber-600 shrink-0" size={16} />
                       <span>
-                        <strong>Aviso de Mensalidades:</strong> {unpaidMonthsAlert.count} mensalidade(s) pendente(s) em {new Date().getFullYear()} ({unpaidMonthsAlert.months.map(m => MONTHS[m - 1]).join(', ')}).
+                        <strong>Aviso de Mensalidades:</strong> {unpaidMonthsAlert.count} obrigação(ões) pendente(s) em {new Date().getFullYear()} ({unpaidMonthsAlert.months.map(m => formatContributionMonth(m)).join(', ')}).
                       </span>
                     </div>
                     <span className="text-[10px] font-mono font-bold text-amber-900 bg-amber-100/80 px-2 py-0.5 border border-amber-300">

@@ -11,6 +11,7 @@ interface DayMonthClassReportProps {
   institution?: InstitutionSettings | null;
   onPrint?: () => void;
   isInlineView?: boolean;
+  variant?: 'consolidated' | 'detailed' | 'both';
 }
 
 const MONTH_NAMES = [
@@ -46,8 +47,15 @@ export function DayMonthClassReport({
   selectedMonth = 'all',
   institution,
   onPrint,
-  isInlineView = false
+  isInlineView = false,
+  variant
 }: DayMonthClassReportProps) {
+  const [activeTab, setActiveTab] = React.useState<'consolidated' | 'detailed'>(() => {
+    if (variant === 'consolidated') return 'consolidated';
+    return 'detailed';
+  });
+
+  const effectiveVariant = variant || activeTab;
 
   // Process schedule dates:
   // ONLY dates defined in the schedule as class days / exams (class_day, exam)
@@ -212,12 +220,49 @@ export function DayMonthClassReport({
         </div>
       </div>
 
-      {/* 1. QUADRO SINÓPTICO: RESUMO DE DIAS POR MÊS E DIA DA SEMANA */}
+      {/* SELETOR DE MODO DO RELATÓRIO (CONSOLIDADO vs DETALHADO) */}
+      <div className="flex items-center justify-between gap-3 bg-slate-150/70 p-1.5 rounded-xl border border-slate-200 print:hidden">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('consolidated')}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
+              effectiveVariant === 'consolidated'
+                ? "bg-slate-900 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+            )}
+          >
+            <Calendar size={13} />
+            <span>1. Relatório Consolidado (Totais por Mês)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('detailed')}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
+              effectiveVariant === 'detailed'
+                ? "bg-slate-900 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+            )}
+          >
+            <CalendarDays size={13} />
+            <span>2. Relatório Detalhado (Dias Individuais)</span>
+          </button>
+        </div>
+        
+        <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-widest hidden sm:inline pr-2">
+          {effectiveVariant === 'consolidated' ? 'Visão: Quadro Sinóptico de Totais' : 'Visão: Relação Nominal de Datas'}
+        </span>
+      </div>
+
+      {/* 1. QUADRO SINÓPTICO: RESUMO DE DIAS POR MÊS E DIA DA SEMANA (CONSOLIDADO) */}
+      {(effectiveVariant === 'consolidated' || effectiveVariant === 'both') && (
       <div className="avoid-break space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
             <Calendar size={13} className="text-slate-700" />
-            1. Quadro de Aulas por Mês e Dia da Semana
+            1. Quadro de Aulas por Mês e Dia da Semana (Totais por Mês)
           </h3>
           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
             Quantidade de Encontros por Mês
@@ -294,13 +339,15 @@ export function DayMonthClassReport({
           </table>
         </div>
       </div>
+      )}
 
-      {/* 2. DETALHAMENTO DIRETAS DE DIAS DE AULA POR MÊS (SEPARADO POR DIA DA SEMANA) */}
+      {/* 2. DETALHAMENTO DIRETAS DE DIAS DE AULA POR MÊS (SEPARADO POR DIA DA SEMANA - DETALHADO) */}
+      {(effectiveVariant === 'detailed' || effectiveVariant === 'both') && (
       <div className="space-y-6 pt-2">
         <div className="flex items-center justify-between pb-1 border-b border-slate-300">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
             <CalendarDays size={13} className="text-slate-700" />
-            2. Relação de Dias de Aula por Mês (Separado por Dia da Semana)
+            2. Relação de Dias de Aula por Mês (Dias Individuais Separados por Dia da Semana)
           </h3>
           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
             Definidos no Cronograma Oficial
@@ -409,6 +456,7 @@ export function DayMonthClassReport({
           </div>
         ))}
       </div>
+      )}
 
       {/* 3. RESUMO GERAL CONSOLIDADO NO FINAL DO RELATÓRIO */}
       <div className="avoid-break bg-slate-900 text-white p-4 sm:p-5 rounded-none shadow-md flex flex-wrap items-center justify-between gap-4">

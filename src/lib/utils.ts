@@ -637,3 +637,61 @@ export function calculateStudentSearchRank(
 
 // Re-export centralized Subject & Class normalizers and helpers
 export * from './classSubjectUtils';
+
+// Convert monetary number to Portuguese words
+export function numberToPortugueseWords(value: number): string {
+  if (value === 0) return 'zero reais';
+  
+  const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+  const dezenas1 = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+  const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+  const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+  const numeroPorExtenso = (num: number): string => {
+    if (num === 0) return '';
+    if (num === 100) return 'cem';
+    if (num < 10) return unidades[num];
+    if (num < 20) return dezenas1[num - 10];
+    if (num < 100) {
+      const d = Math.floor(num / 10);
+      const u = num % 10;
+      return dezenas[d] + (u > 0 ? ' e ' + unidades[u] : '');
+    }
+    const c = Math.floor(num / 100);
+    const resto = num % 100;
+    return centenas[c] + (resto > 0 ? ' e ' + numeroPorExtenso(resto) : '');
+  };
+
+  const parteInteira = Math.floor(value);
+  const parteDecimal = Math.round((value - parteInteira) * 100);
+
+  const formatarMilhares = (num: number): string => {
+    if (num === 0) return '';
+    if (num < 1000) return numeroPorExtenso(num);
+    const milhar = Math.floor(num / 1000);
+    const resto = num % 1000;
+    const milharTexto = milhar === 1 ? 'mil' : numeroPorExtenso(milhar) + ' mil';
+    return milharTexto + (resto > 0 ? ' e ' + numeroPorExtenso(resto) : '');
+  };
+
+  let textoReais = '';
+  if (parteInteira > 0) {
+    if (parteInteira >= 1000) {
+      textoReais = formatarMilhares(parteInteira);
+    } else {
+      textoReais = numeroPorExtenso(parteInteira);
+    }
+    textoReais += parteInteira === 1 ? ' real' : ' reais';
+  }
+
+  let textoCentavos = '';
+  if (parteDecimal > 0) {
+    textoCentavos = numeroPorExtenso(parteDecimal) + (parteDecimal === 1 ? ' centavo' : ' centavos');
+  }
+
+  if (textoReais && textoCentavos) {
+    return `${textoReais} e ${textoCentavos}`;
+  }
+  return textoReais || textoCentavos || 'zero reais';
+}
+

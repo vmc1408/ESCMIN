@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search } from 'lucide-react';
+import { CreditCard, Download, Plus, Calendar, User as UserIcon, Loader2, CheckCircle2, FileText, Printer, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, TrendingUp, AlertCircle, Link2Off, X, FileDown, DollarSign, Trash2, Search, GraduationCap } from 'lucide-react';
 import { financialService } from '../services/financialService';
 import { financialConfigService } from '../services/financialConfigService';
 import { fetchAll, saveData, deleteData, fetchQuery, fetchById } from '../lib/database';
@@ -16,6 +16,14 @@ import { useUnits } from '../contexts/UnitContext';
 import { isItemInUnit, getItemUnitId } from '../lib/unitService';
 import { UnitConflictBanner } from '../components/UnitConflictBanner';
 import { PinInput } from '../components/PinInput';
+import { 
+  getStudentContributionPlan, 
+  formatContributionMonth, 
+  isFirstYearOrStarting,
+  isPeriodOverdue,
+  isPeriodFuture,
+  isPeriodCurrent
+} from '../lib/contributionRules';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -95,59 +103,13 @@ export function Contributions() {
       }
     }
 
-    // Determine starting month for this year based on student's enrollment start date
-    let studentStartMonth = 1; // January
-    if (student.start_date) {
-      const startDate = parseSafeDate(student.start_date);
-      if (!isNaN(startDate.getTime()) && startDate.getFullYear() === year) {
-        studentStartMonth = startDate.getMonth() + 1; // 1-indexed
-      }
-    }
-
-    // Now determine academic year start and end from settings
-    let academicStartMonth = 3; // Default March (3) as a fallback if settings are empty
-    let academicEndMonth = 11; // Default November (11) as a fallback if settings are empty
-
-    // Try finding settings for the student's class, then fallback to current settings, then default
+    const studentClass = resolveStudentClass(student);
     const classSettings = academicSettingsList.find(s => s.id === student.class_id);
     const generalSettings = academicSettingsList.find(s => s.id === 'current');
     const activeSettings = classSettings || generalSettings;
 
-    if (activeSettings) {
-      if (activeSettings.term1_start) {
-        const date = new Date(activeSettings.term1_start + 'T00:00:00');
-        if (!isNaN(date.getTime())) {
-          academicStartMonth = date.getMonth() + 1;
-        }
-      }
-      if (activeSettings.term2_end) {
-        const date = new Date(activeSettings.term2_end + 'T00:00:00');
-        if (!isNaN(date.getTime())) {
-          academicEndMonth = date.getMonth() + 1;
-        }
-      }
-    }
-
-    // Expected standard months are the intersection of the student's enrollment and the academic range
-    const expected: number[] = [];
-    const minMonth = Math.max(studentStartMonth, academicStartMonth);
-    const maxMonth = academicEndMonth;
-
-    for (let m = minMonth; m <= maxMonth; m++) {
-      expected.push(m);
-    }
-
-    // Make January, February, December facultative/optional:
-    // They are not expected by default, BUT if a contribution exists, we include them as expected
-    // so they are marked as paid instead of disappearing from the paid list.
-    paidMonths.forEach(m => {
-      if (m >= studentStartMonth && !expected.includes(m)) {
-        expected.push(m);
-      }
-    });
-
-    expected.sort((a, b) => a - b);
-    return expected;
+    const plan = getStudentContributionPlan(student, studentClass, year, paidMonths, activeSettings);
+    return plan.expectedPeriods;
   };
 
   // States for Unpaid (Mensalidades em Aberto) dashboard
@@ -548,7 +510,7 @@ export function Contributions() {
     unpaidReportList.forEach(item => {
       const fee = item.studentFee || 100;
       item.unpaidMonths.forEach(m => {
-        const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
+        const isFuture = isPeriodFuture(m, unpaidYear);
         if (isFuture) {
           totalFutureMonths++;
           totalFutureDebt += fee;
@@ -573,6 +535,16 @@ export function Contributions() {
     const paidMonths = contributions.map(c => c.reference_month);
     return getExpectedMonthsForStudent(selectedStudent, selectedYear, paidMonths);
   }, [selectedStudent, selectedYear, contributions, academicSettingsList]);
+
+  const studentPlan = useMemo(() => {
+    if (!selectedStudent) return null;
+    const studentClass = resolveStudentClass(selectedStudent);
+    const classSettings = academicSettingsList.find(s => s.id === selectedStudent.class_id);
+    const generalSettings = academicSettingsList.find(s => s.id === 'current');
+    const activeSettings = classSettings || generalSettings;
+    const paidMonths = contributions.map(c => c.reference_month);
+    return getStudentContributionPlan(selectedStudent, studentClass, selectedYear, paidMonths, activeSettings);
+  }, [selectedStudent, selectedYear, contributions, academicSettingsList, classes]);
 
   // Generate PDF report and trigger direct print for unpaid fees (Relatório de Inadimplência)
   const generateUnpaidReport = () => {
@@ -666,7 +638,7 @@ export function Contributions() {
         const studentName = item.student.name?.toUpperCase() || 'SEM NOME';
         const studentRA = item.student.registration_number || 'S/ RA';
         const className = classes.find(c => c.id === item.student.class_id)?.name?.toUpperCase() || 'SEM TURMA';
-        const pendingMonthsText = item.unpaidMonths.map(m => MONTHS[m - 1].substring(0, 3).toUpperCase()).join(', ');
+        const pendingMonthsText = item.unpaidMonths.map(m => formatContributionMonth(m, true).toUpperCase()).join(', ');
         
         const identification = hideStudentName 
           ? `REGISTRO N°: ${studentRA}`
@@ -876,9 +848,9 @@ export function Contributions() {
     }
   };
 
-  const handleAddContribution = (monthIndex: number) => {
+  const handleAddContribution = (periodNumber: number) => {
     if (!selectedStudent) return;
-    setManualMonths([monthIndex]);
+    setManualMonths([periodNumber]);
     const studentClass = resolveStudentClass(selectedStudent);
     const resolvedFee = financialConfigService.resolveFee({
       year: selectedYear,
@@ -912,17 +884,17 @@ export function Contributions() {
     }
   };
 
-  const toggleManualMonth = (monthIndex: number) => {
+  const toggleManualMonth = (periodNumber: number) => {
     setManualMonths(prev => {
       let next: number[];
-      if (prev.includes(monthIndex)) {
-        next = prev.filter(m => m !== monthIndex);
+      if (prev.includes(periodNumber)) {
+        next = prev.filter(m => m !== periodNumber);
       } else {
         if (prev.length >= 6) {
-          setNotification({ type: 'error', message: '⚠️ LIMITE ATINGIDO: Selecione no máximo 6 meses por lançamento para garantir o recibo em duas vias na página.' });
+          setNotification({ type: 'error', message: '⚠️ LIMITE ATINGIDO: Selecione no máximo 6 períodos por lançamento para garantir o recibo em duas vias na página.' });
           return prev;
         }
-        next = [...prev, monthIndex].sort((a, b) => a - b);
+        next = [...prev, periodNumber].sort((a, b) => a - b);
       }
 
       if (selectedStudent && next.length > 0) {
@@ -946,7 +918,7 @@ export function Contributions() {
 
   const saveManualContribution = async () => {
     if (!selectedStudent || manualMonths.length === 0) {
-      setNotification({ type: 'error', message: 'Selecione pelo menos um mês.' });
+      setNotification({ type: 'error', message: 'Selecione pelo menos um mês ou período.' });
       return;
     }
 
@@ -971,11 +943,11 @@ export function Contributions() {
       const existingContribs = await fetchQuery('contributions', [
         { field: 'student_id', operator: '==', value: selectedStudent.id },
         { field: 'reference_year', operator: '==', value: selectedYear },
-        { field: 'reference_month', operator: 'in', value: manualMonths.map(idx => idx + 1) }
+        { field: 'reference_month', operator: 'in', value: manualMonths }
       ]);
 
       if (existingContribs && (existingContribs as any[]).length > 0) {
-        const duplicateMonths = (existingContribs as any[]).map((c: any) => MONTHS[c.reference_month - 1]).join(', ');
+        const duplicateMonths = (existingContribs as any[]).map((c: any) => formatContributionMonth(c.reference_month)).join(', ');
         setNotification({ 
           type: 'error', 
           message: `Já existe contribuição para ${duplicateMonths}/${selectedYear}. Verifique.` 
@@ -987,10 +959,10 @@ export function Contributions() {
       const studentClass = resolveStudentClass(selectedStudent);
       const studentUnitId = (selectedStudent as any).unit_id || studentClass?.unit_id || (selectedUnitId && selectedUnitId !== 'all' ? selectedUnitId : 'matriz');
 
-      const recordsToInsert = manualMonths.map(monthIdx => ({
+      const recordsToInsert = manualMonths.map(periodNum => ({
         student_id: selectedStudent.id,
         amount: amountPerMonth,
-        reference_month: monthIdx + 1,
+        reference_month: periodNum,
         reference_year: selectedYear,
         payment_date: finalDate,
         payment_method: manualMethod,
@@ -1129,7 +1101,7 @@ export function Contributions() {
           const c = currentContribs[i + j];
           if (c) {
             const method = c.pix_id ? 'PIX (Importado)' : (c.payment_method || 'Dinheiro');
-            row.push(`${MONTHS[c.reference_month - 1]} / ${c.reference_year}`);
+            row.push(`${formatContributionMonth(c.reference_month)} / ${c.reference_year}`);
             row.push(formatCurrency(c.amount));
             row.push(method);
           } else {
@@ -1310,7 +1282,7 @@ export function Contributions() {
         startY: startY + 42,
         head: [['Mês / Ano Referência', 'Valor da Contribuição', 'Meio de Pagamento / Origem']],
         body: [[
-          `${MONTHS[contribution.reference_month - 1]} / ${contribution.reference_year}`,
+          `${formatContributionMonth(contribution.reference_month)} / ${contribution.reference_year}`,
           formatCurrency(contribution.amount),
           `${method}${origin}`
         ]],
@@ -2046,10 +2018,7 @@ export function Contributions() {
                             const currentYear = new Date().getFullYear();
                             const currentMonth = new Date().getMonth() + 1; // 1-indexed
 
-                            const overdueMonths = item.unpaidMonths.filter(m => {
-                              const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
-                              return !isFuture;
-                            });
+                            const overdueMonths = item.unpaidMonths.filter(m => isPeriodOverdue(m, unpaidYear));
                             const hasOverdue = overdueMonths.length > 0;
 
                             return (
@@ -2082,11 +2051,40 @@ export function Contributions() {
                                   {item.pendingCount}
                                 </td>
                                 <td className="px-6 py-4">
-                                  <div className="flex flex-wrap gap-1 max-w-[320px]">
+                                  <div className="flex flex-wrap gap-1 max-w-[340px]">
+                                    {/* Matrícula (Período 0) */}
+                                    {(item.expectedMonths.includes(0) || item.paidMonths.includes(0)) && (() => {
+                                      const isPaidMatr = item.paidMonths.includes(0);
+                                      const isExpectedMatr = item.expectedMonths.includes(0);
+                                      if (isPaidMatr) {
+                                        return (
+                                          <span 
+                                            key="matr-badge" 
+                                            className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[8.5px] font-black uppercase tracking-wider flex items-center gap-0.5 shadow-sm shadow-emerald-500/5"
+                                            title="Taxa de Matrícula Paga / Liquidada"
+                                          >
+                                            MATR ✓
+                                          </span>
+                                        );
+                                      }
+                                      if (isExpectedMatr) {
+                                        return (
+                                          <span 
+                                            key="matr-badge" 
+                                            className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-md text-[8.5px] font-black uppercase tracking-wider flex items-center gap-0.5"
+                                            title="Matrícula Pendente (Obrigatória no 1º Ano)"
+                                          >
+                                            MATR !
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+
                                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => {
                                       const isPaid = item.paidMonths.includes(m);
                                       const isExpected = item.expectedMonths.includes(m);
-                                      const isFuture = unpaidYear > currentYear || (unpaidYear === currentYear && m > currentMonth);
+                                      const isFuture = isPeriodFuture(m, unpaidYear);
                                       const monthName = MONTHS[m - 1].substring(0, 3).toUpperCase();
 
                                       if (isPaid) {
@@ -2124,7 +2122,7 @@ export function Contributions() {
                                         <span 
                                           key={m} 
                                           className="px-1.5 py-0.5 bg-slate-50 text-slate-400 border border-slate-200/40 border-dashed rounded-md text-[8.5px] font-black uppercase tracking-wider flex items-center gap-0.5"
-                                          title="Opcional / Dispensado"
+                                          title="Facultativo / Dispensado (1º Ano)"
                                         >
                                           {monthName}
                                         </span>
@@ -2241,10 +2239,146 @@ export function Contributions() {
 
             <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {/* Card de Matrícula (Obrigatória no 1º Ano / Início de Curso) */}
+                {(studentPlan?.enrollmentFeeRequired || contributions.some(c => c.reference_month === 0)) && (() => {
+                  const contrib = contributions.find(c => c.reference_month === 0);
+                  const isExpected = currentExpectedMonths.includes(0);
+                  return (
+                    <div 
+                      key="matricula-card"
+                      className={cn(
+                        "group p-3 rounded-xl border transition-all duration-300 flex flex-col gap-2.5 h-full",
+                        contrib 
+                          ? "bg-emerald-50/50 border-emerald-100 ring-1 ring-emerald-50/50" 
+                          : isExpected
+                          ? "bg-rose-50/30 border-rose-200/80 hover:border-rose-300 hover:shadow-lg hover:shadow-rose-500/5"
+                          : "bg-slate-50 border-slate-200/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          {contrib && (
+                            <input 
+                              type="checkbox"
+                              checked={selectedForPrint.some(c => c.id === contrib.id)}
+                              onChange={() => togglePrintSelection(contrib)}
+                              className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <GraduationCap size={14} className={contrib ? "text-emerald-600" : isExpected ? "text-rose-600" : "text-slate-400"} />
+                            <span className={cn(
+                              "text-[10px] font-black uppercase tracking-widest",
+                              contrib ? "text-emerald-700" : isExpected ? "text-rose-700 font-extrabold" : "text-slate-500"
+                            )}>
+                              Taxa de Matrícula
+                            </span>
+                          </div>
+                        </div>
+                        {contrib && (
+                          <div className="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                            <CheckCircle2 size={12} />
+                          </div>
+                        )}
+                        {!contrib && isExpected && (
+                          <span className="px-1.5 py-0.5 rounded text-[7.5px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200">
+                            Obrigatória
+                          </span>
+                        )}
+                      </div>
+
+                      {contrib ? (
+                        <>
+                          <div className="space-y-0.5">
+                            <p className="text-lg font-black text-[#131b2e] leading-none">{formatCurrency(contrib.amount)}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[9px] font-bold text-slate-400">Pago: {safeFormat(contrib.payment_date, 'dd/MM/yy')}</p>
+                              <span className={cn(
+                                "px-1.5 py-px rounded text-[7px] font-black uppercase tracking-wider border",
+                                contrib.pix_id 
+                                  ? "bg-blue-50 text-blue-600 border-blue-100" 
+                                  : "bg-slate-50 text-slate-600 border-slate-100"
+                              )}>
+                                {contrib.pix_id ? 'Importado' : `Direto (${contrib.payment_method || 'Dinheiro'})`}
+                              </span>
+                            </div>
+                            {contrib.observations && (
+                              <p className="text-[9px] text-slate-400 italic truncate" title={contrib.observations}>
+                                {contrib.observations}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 pt-1.5 border-t border-emerald-100/50">
+                            <button 
+                              onClick={() => setReceiptPreviewData([contrib])}
+                              className="p-1.5 bg-white text-slate-400 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all"
+                              title="Visualizar Recibo de Matrícula"
+                            >
+                              <FileText size={14} />
+                            </button>
+                            <button 
+                              onClick={() => generateSelectedReceipts([contrib], 'print')}
+                              className="flex-1 py-1.5 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              <Printer size={10} />
+                              Imprimir
+                            </button>
+                            {contrib.pix_id && (
+                              <button 
+                                onClick={() => setUnlinkConfirmationFor(contrib)}
+                                className="flex-1 py-1.5 bg-slate-50 text-blue-500 border border-slate-100 rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1.5"
+                                title="Tornar Manual (Desvincular do Pix)"
+                              >
+                                <Link2Off size={10} />
+                                Manual
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button 
+                                onClick={() => setDeleteConfirmationFor(contrib)}
+                                disabled={isDeleting === contrib.id}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 transition-all bg-white border border-red-100 rounded-xl shadow-sm disabled:opacity-50"
+                                title="Excluir Registro de Matrícula"
+                              >
+                                {isDeleting === contrib.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="space-y-0.5 py-1">
+                            <p className={cn(
+                              "text-xs font-bold",
+                              isExpected ? "text-rose-600 font-black" : "text-slate-400"
+                            )}>
+                              {isExpected ? "Matrícula Pendente (1º Ano)" : "Não Exigida"}
+                            </p>
+                            <p className="text-[9px] text-slate-400">Taxa de matrícula inicial do curso</p>
+                          </div>
+                          <button 
+                            onClick={() => handleAddContribution(0)}
+                            className={cn(
+                              "w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1.5",
+                              isExpected 
+                                ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-600 hover:text-white" 
+                                : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-blue-600 hover:text-white"
+                            )}
+                          >
+                            <Plus size={12} />
+                            Registrar Matrícula
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {MONTHS.map((month, idx) => {
                   const monthNum = idx + 1;
                   const contrib = contributions.find(c => c.reference_month === monthNum);
                   const isExpected = currentExpectedMonths.includes(monthNum);
+                  const isFacultative = Boolean(studentPlan?.isFirstYear && studentPlan.facultativeMonths.includes(monthNum));
                   return (
                     <div 
                       key={month}
@@ -2254,7 +2388,9 @@ export function Contributions() {
                           ? "bg-emerald-50/50 border-emerald-100 ring-1 ring-emerald-50/50" 
                           : isExpected
                           ? "bg-white border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5"
-                          : "bg-amber-50/20 border-amber-100/50 hover:border-amber-200 hover:shadow-lg hover:shadow-amber-500/5"
+                          : isFacultative
+                          ? "bg-amber-50/25 border-amber-200/60 hover:border-amber-300 hover:shadow-lg hover:shadow-amber-500/5"
+                          : "bg-slate-50/60 border-slate-200/40"
                       )}
                     >
                       <div className="flex items-center justify-between">
@@ -2269,7 +2405,7 @@ export function Contributions() {
                           )}
                           <span className={cn(
                             "text-[10px] font-black uppercase tracking-widest",
-                            contrib ? "text-emerald-600" : isExpected ? "text-slate-400" : "text-amber-600"
+                            contrib ? "text-emerald-600" : isExpected ? "text-slate-700 font-bold" : isFacultative ? "text-amber-700 font-bold" : "text-slate-400"
                           )}>
                             {month}
                           </span>
@@ -2278,6 +2414,11 @@ export function Contributions() {
                           <div className="w-5 h-5 rounded-md bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/10">
                             <CheckCircle2 size={12} />
                           </div>
+                        )}
+                        {!contrib && isFacultative && (
+                          <span className="px-1.5 py-0.5 rounded text-[7.5px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                            Facultativo
+                          </span>
                         )}
                       </div>
 
@@ -2344,22 +2485,27 @@ export function Contributions() {
                           <div className="space-y-0.5 py-1">
                             <p className={cn(
                               "text-xs font-bold",
-                              isExpected ? "text-slate-300" : "text-amber-600/90 font-black"
+                              isExpected ? "text-slate-600" : isFacultative ? "text-amber-700 font-black" : "text-slate-400"
                             )}>
-                              {isExpected ? "Pendente" : "Dispensado / Férias"}
+                              {isExpected ? (isPeriodOverdue(monthNum, selectedYear) ? "Vencido" : "Pendente") : isFacultative ? "Facultativo (1º Ano)" : "Dispensado"}
+                            </p>
+                            <p className="text-[9px] text-slate-400">
+                              {isFacultative ? 'Não gera pendência se não pago' : isExpected ? 'Mensalidade regular' : 'Fora do calendário'}
                             </p>
                           </div>
                           <button 
-                            onClick={() => handleAddContribution(idx)}
+                            onClick={() => handleAddContribution(monthNum)}
                             className={cn(
                               "w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border flex items-center justify-center gap-1.5",
                               isExpected 
-                                ? "bg-slate-50 text-slate-400 border-dashed border-slate-200 hover:bg-blue-600 hover:text-white" 
-                                : "bg-amber-50 text-amber-600 border-dashed border-amber-200 hover:bg-amber-500 hover:text-white"
+                                ? "bg-slate-50 text-slate-600 border-dashed border-slate-300 hover:bg-blue-600 hover:text-white" 
+                                : isFacultative
+                                ? "bg-amber-50 text-amber-700 border-dashed border-amber-200 hover:bg-amber-600 hover:text-white"
+                                : "bg-slate-50 text-slate-400 border-dashed border-slate-200 hover:bg-blue-600 hover:text-white"
                             )}
                           >
                             <Plus size={12} />
-                            {isExpected ? "Registrar" : "Registrar (Facultativo)"}
+                            {isExpected ? "Registrar" : isFacultative ? "Registrar (Facultativo)" : "Registrar"}
                           </button>
                         </>
                       )}
@@ -2594,7 +2740,7 @@ export function Contributions() {
                                     {filterType === 'payment' ? 'Pago em' : 'Importado em'} {safeFormat(filterType === 'payment' ? c.payment_date : (c.created_at || c.payment_date), 'dd/MM/yyyy')}
                                   </td>
                                   <td className="px-6 py-4 text-xs font-bold uppercase text-[#131b2e] tracking-wider">
-                                    {MONTHS[c.reference_month - 1]} / {c.reference_year}
+                                    {formatContributionMonth(c.reference_month)} / {c.reference_year}
                                   </td>
                                   <td className="px-6 py-4">
                                     <div className="flex items-center gap-2">
@@ -2677,7 +2823,7 @@ export function Contributions() {
                 </h3>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed">
                   {deleteConfirmationFor 
-                    ? `Deseja realmente excluir permanentemente o registro de ${formatCurrency(deleteConfirmationFor.amount)} referente a ${MONTHS[deleteConfirmationFor.reference_month-1]}?`
+                    ? `Deseja realmente excluir permanentemente o registro de ${formatCurrency(deleteConfirmationFor.amount)} referente a ${formatContributionMonth(deleteConfirmationFor.reference_month)}?`
                     : 'Isso removerá o vínculo com o Pix, tornando este recebimento um registro independente na ficha do aluno.'}
                 </p>
               </div>
@@ -2780,7 +2926,7 @@ export function Contributions() {
               {/* Seleção de Meses - 6 colunas para caber em 2 linhas compactas */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between px-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selecione os Meses</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selecione os Períodos / Meses</label>
                   {manualMonths.length > 0 && (
                     <button 
                       onClick={() => setManualMonths([])}
@@ -2790,27 +2936,55 @@ export function Contributions() {
                     </button>
                   )}
                 </div>
+
+                {/* Opção Taxa de Matrícula (Período 0) */}
+                <button
+                  type="button"
+                  onClick={() => toggleManualMonth(0)}
+                  className={cn(
+                    "w-full py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border flex items-center justify-between shadow-sm",
+                    manualMonths.includes(0)
+                      ? "bg-emerald-600 border-emerald-600 text-white shadow-emerald-500/20"
+                      : "bg-emerald-50/60 border-emerald-200/80 text-emerald-800 hover:bg-emerald-100/70"
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <GraduationCap size={16} />
+                    Taxa de Matrícula (Período 0 - Início do Curso)
+                  </span>
+                  {manualMonths.includes(0) ? (
+                    <span className="px-2 py-0.5 bg-white/20 rounded text-[9px] font-black uppercase">Selecionada ✓</span>
+                  ) : (
+                    <span className="text-[10px] font-bold opacity-75">Clique para selecionar</span>
+                  )}
+                </button>
+
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  {MONTHS.map((m, idx) => (
-                    <button
-                      key={m}
-                      onClick={() => toggleManualMonth(idx)}
-                      className={cn(
-                        "py-2 px-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border",
-                        manualMonths.includes(idx) 
-                          ? "bg-blue-600 border-blue-600 text-white shadow-sm scale-[1.02]" 
-                          : "bg-white border-slate-100 text-slate-600 hover:border-blue-200 hover:text-blue-600"
-                      )}
-                    >
-                      {m.substring(0, 3)}
-                    </button>
-                  ))}
+                  {MONTHS.map((m, idx) => {
+                    const monthNum = idx + 1;
+                    const isSelected = manualMonths.includes(monthNum);
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => toggleManualMonth(monthNum)}
+                        className={cn(
+                          "py-2 px-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border",
+                          isSelected 
+                            ? "bg-blue-600 border-blue-600 text-white shadow-sm scale-[1.02]" 
+                            : "bg-white border-slate-100 text-slate-600 hover:border-blue-200 hover:text-blue-600"
+                        )}
+                      >
+                        {m.substring(0, 3)}
+                      </button>
+                    );
+                  })}
                 </div>
                 {manualMonths.length > 0 && (
                   <div className="flex flex-wrap gap-1 px-1">
-                    {manualMonths.map(mIdx => (
-                      <span key={mIdx} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black uppercase border border-blue-100">
-                        {MONTHS[mIdx]}
+                    {manualMonths.map(pNum => (
+                      <span key={pNum} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black uppercase border border-blue-100">
+                        {formatContributionMonth(pNum)}
                       </span>
                     ))}
                   </div>
@@ -3011,7 +3185,7 @@ export function Contributions() {
                                 <tbody>
                                   {items.map((reg) => (
                                     <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                                      <td className="py-1.5 px-2">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
+                                      <td className="py-1.5 px-2">{formatContributionMonth(reg.reference_month, true)} / {reg.reference_year}</td>
                                       <td className="py-1.5 px-2 border-l border-slate-100">{formatCurrency(reg.amount)}</td>
                                       <td className="py-1.5 px-2 border-l border-slate-100 text-[9px] font-semibold text-slate-600">
                                         {reg.pix_id ? 'Importado' : (reg.payment_method || 'Dinheiro')}
@@ -3223,7 +3397,7 @@ export function Contributions() {
                             <tbody>
                               {items.map((reg) => (
                                 <tr key={reg.id} className="border-b border-slate-100 last:border-0 font-bold text-[#131b2e]">
-                                  <td className="py-2 px-2 text-[10px]">{(MONTHS[reg.reference_month - 1]?.substring(0, 3) || 'N/I')} / {reg.reference_year}</td>
+                                  <td className="py-2 px-2 text-[10px]">{formatContributionMonth(reg.reference_month, true)} / {reg.reference_year}</td>
                                   <td className="py-2 px-2 border-l border-slate-100 text-[10px]">{formatCurrency(reg.amount)}</td>
                                   <td className="py-2 px-2 border-l border-slate-100 text-[9px] font-semibold text-slate-600">
                                     {reg.pix_id ? 'Importado' : (reg.payment_method || 'Dinheiro')}
@@ -3443,13 +3617,44 @@ export function Contributions() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
+                  {/* Linha de Matrícula (se devida no plano ou se paga) */}
+                  {(currentExpectedMonths.includes(0) || contributions.some(c => c.reference_month === 0)) && (() => {
+                    const contrib = contributions.find(c => c.reference_month === 0);
+                    const isExpected = currentExpectedMonths.includes(0);
+                    return (
+                      <tr key="matricula-statement-row" className="bg-blue-50/20 font-medium">
+                        <td className="py-2 print:py-1 px-4 text-[11px] font-black text-blue-900 uppercase">
+                          Taxa de Matrícula (Início de Curso)
+                        </td>
+                        <td className="py-2 print:py-1 px-4 text-[11px] font-bold text-black text-right">
+                          {contrib ? formatCurrency(contrib.amount) : '---'}
+                        </td>
+                        <td className="py-2 print:py-1 px-4 text-[11px] font-medium text-slate-600 text-center">
+                          {contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : '---'}
+                        </td>
+                        <td className="py-2 print:py-1 px-4 text-[9.5px] font-black uppercase text-center">
+                          {contrib ? (
+                            <span className="text-emerald-700">PAGO / LIQUIDADO</span>
+                          ) : isExpected ? (
+                            <span className="text-rose-600">PENDENTE</span>
+                          ) : (
+                            <span className="text-slate-400 italic font-medium">DISPENSADO</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })()}
+
                   {MONTHS.map((month, idx) => {
                     const monthNum = idx + 1;
                     const contrib = contributions.find(c => c.reference_month === monthNum);
                     const isExpected = currentExpectedMonths.includes(monthNum);
+                    const isFacultative = Boolean(studentPlan?.isFirstYear && studentPlan.facultativeMonths.includes(monthNum));
                     return (
                       <tr key={month} className="even:bg-slate-50/50">
-                        <td className="py-2 print:py-1 px-4 text-[11px] font-bold text-slate-700 uppercase">{month}</td>
+                        <td className="py-2 print:py-1 px-4 text-[11px] font-bold text-slate-700 uppercase">
+                          {month} {isFacultative && !contrib ? '(Facultativo)' : ''}
+                        </td>
                         <td className="py-2 print:py-1 px-4 text-[11px] font-bold text-black text-right">{contrib ? formatCurrency(contrib.amount) : '---'}</td>
                         <td className="py-2 print:py-1 px-4 text-[11px] font-medium text-slate-600 text-center">{contrib ? safeFormat(contrib.payment_date, 'dd/MM/yyyy') : '---'}</td>
                         <td className="py-2 print:py-1 px-4 text-[9.5px] font-black uppercase text-center">
@@ -3457,6 +3662,8 @@ export function Contributions() {
                             <span className="text-emerald-700">PAGO / LIQUIDADO</span>
                           ) : isExpected ? (
                             <span className="text-rose-600">PENDENTE</span>
+                          ) : isFacultative ? (
+                            <span className="text-amber-700 font-bold">FACULTATIVO</span>
                           ) : (
                             <span className="text-slate-400 italic font-medium">DISPENSADO</span>
                           )}
